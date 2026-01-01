@@ -41,7 +41,7 @@ func authHelper(c *gin.Context, minRole int) {
 			if claims, err := common.VerifyWalletJWT(bearer); err == nil {
 				user := model.User{Id: claims.UserID}
 				if err := user.FillUserById(); err == nil {
-					if strings.ToLower(user.WalletAddress) == strings.ToLower(claims.WalletAddress) && user.Status == model.UserStatusEnabled && !blacklist.IsUserBanned(user.Id) {
+					if user.WalletAddress != nil && strings.ToLower(*user.WalletAddress) == strings.ToLower(claims.WalletAddress) && user.Status == model.UserStatusEnabled && !blacklist.IsUserBanned(user.Id) {
 						username = user.Username
 						role = user.Role
 						id = user.Id

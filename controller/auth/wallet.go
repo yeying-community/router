@@ -98,7 +98,11 @@ func WalletLogin(c *gin.Context) {
 		})
 		return
 	}
-	token, exp, tokenErr := common.GenerateWalletJWT(user.Id, strings.ToLower(user.WalletAddress))
+	addr := ""
+	if user.WalletAddress != nil {
+		addr = strings.ToLower(*user.WalletAddress)
+	}
+	token, exp, tokenErr := common.GenerateWalletJWT(user.Id, addr)
 	if tokenErr != nil {
 		logger.SysError("wallet jwt generate failed: " + tokenErr.Error())
 	}
@@ -166,11 +170,11 @@ func WalletBind(c *gin.Context) {
 		return
 	}
 	if model.IsWalletAddressAlreadyTaken(addr) {
-		exist := model.User{WalletAddress: addr}
+		exist := model.User{WalletAddress: &addr}
 		if err := exist.FillUserByWalletAddress(); err == nil {
 			if exist.Status == model.UserStatusDeleted {
-				_ = model.DB.Model(&exist).Update("wallet_address", "")
-			} else if strings.ToLower(user.WalletAddress) != addr && exist.Id != user.Id {
+				_ = model.DB.Model(&exist).Update("wallet_address", nil)
+			} else if exist.Id != user.Id && (user.WalletAddress == nil || strings.ToLower(*user.WalletAddress) != addr) {
 				c.JSON(http.StatusOK, gin.H{
 					"success": false,
 					"message": "该钱包已绑定其他账户",
@@ -179,7 +183,7 @@ func WalletBind(c *gin.Context) {
 			}
 		}
 	}
-	user.WalletAddress = addr
+	user.WalletAddress = &addr
 	if err := user.Update(false); err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -251,13 +255,13 @@ func walletAuthenticate(c *gin.Context, req walletLoginRequest) (*model.User, er
 }
 
 func findOrCreateWalletUser(addr string, ctx context.Context) (*model.User, error) {
-	user := model.User{WalletAddress: addr}
+	user := model.User{WalletAddress: &addr}
 	if !model.IsWalletAddressAlreadyTaken(addr) {
 		if isRootAllowed(addr) {
 			var root model.User
 			if err := model.DB.Select("id").Where("role = ?", model.RoleRootUser).First(&root).Error; err == nil {
 				_ = root.FillUserById()
-				root.WalletAddress = addr
+				root.WalletAddress = &addr
 				_ = root.Update(false)
 				return &root, nil
 			}
@@ -272,7 +276,7 @@ func findOrCreateWalletUser(addr string, ctx context.Context) (*model.User, erro
 		return nil, err
 	}
 	if user.Status == model.UserStatusDeleted {
-		_ = model.DB.Model(&user).Update("wallet_address", "")
+		_ = model.DB.Model(&user).Update("wallet_address", nil)
 		return findOrCreateWalletUser(addr, ctx)
 	}
 	return &user, nil
@@ -289,7 +293,7 @@ func autoCreateWalletUser(addr string, ctx context.Context) (*model.User, error)
 		DisplayName:   username,
 		Role:          model.RoleCommonUser,
 		Status:        model.UserStatusEnabled,
-		WalletAddress: addr,
+		WalletAddress: &addr,
 	}
 	if err := user.Insert(ctx, 0); err != nil {
 		return nil, err
@@ -387,7 +391,11 @@ func WalletVerifyProto(c *gin.Context) {
 		writeProtoError(c, 8, "无法保存会话信息，请重试")
 		return
 	}
-	token, exp, tokenErr := common.GenerateWalletJWT(user.Id, strings.ToLower(user.WalletAddress))
+	addr := ""
+	if user.WalletAddress != nil {
+		addr = strings.ToLower(*user.WalletAddress)
+	}
+	token, exp, tokenErr := common.GenerateWalletJWT(user.Id, addr)
 	if tokenErr != nil {
 		logger.SysError("wallet jwt generate failed: " + tokenErr.Error())
 		writeProtoError(c, 8, "生成 token 失败")
@@ -433,7 +441,7 @@ func WalletRefreshToken(c *gin.Context) {
 		writeProtoError(c, 5, "用户不存在")
 		return
 	}
-	if strings.ToLower(user.WalletAddress) != strings.ToLower(claims.WalletAddress) {
+	if user.WalletAddress == nil || strings.ToLower(*user.WalletAddress) != strings.ToLower(claims.WalletAddress) {
 		writeProtoError(c, 3, "钱包地址不匹配")
 		return
 	}
@@ -445,7 +453,8 @@ func WalletRefreshToken(c *gin.Context) {
 		writeProtoError(c, 8, "无法保存会话信息，请重试")
 		return
 	}
-	token, exp, tokenErr := common.GenerateWalletJWT(user.Id, strings.ToLower(user.WalletAddress))
+	addr := strings.ToLower(*user.WalletAddress)
+	token, exp, tokenErr := common.GenerateWalletJWT(user.Id, addr)
 	if tokenErr != nil {
 		writeProtoError(c, 8, "生成 token 失败")
 		return

@@ -43,7 +43,7 @@ type User struct {
 	WeChatId         string `json:"wechat_id" gorm:"column:wechat_id;index"`
 	LarkId           string `json:"lark_id" gorm:"column:lark_id;index"`
 	OidcId           string `json:"oidc_id" gorm:"column:oidc_id;index"`
-	WalletAddress    string `json:"wallet_address" gorm:"column:wallet_address;uniqueIndex"`
+	WalletAddress    *string `json:"wallet_address" gorm:"column:wallet_address;uniqueIndex" validate:"omitempty"`
 	VerificationCode string `json:"verification_code" gorm:"-:all"`                                    // this field is only for Email verification, don't save it to database!
 	AccessToken      string `json:"access_token" gorm:"type:char(32);column:access_token;uniqueIndex"` // this token is for system management
 	Quota            int64  `json:"quota" gorm:"bigint;default:0"`
@@ -126,6 +126,15 @@ func (user *User) Insert(ctx context.Context, inviterId int) error {
 			return err
 		}
 	}
+	if user.WalletAddress != nil {
+		trimmed := strings.TrimSpace(*user.WalletAddress)
+		if trimmed == "" {
+			user.WalletAddress = nil
+		} else {
+			lower := strings.ToLower(trimmed)
+			user.WalletAddress = &lower
+		}
+	}
 	user.Quota = config.QuotaForNewUser
 	user.AccessToken = random.GetUUID()
 	user.AffCode = random.GetRandomString(4)
@@ -173,12 +182,27 @@ func (user *User) Update(updatePassword bool) error {
 			return err
 		}
 	}
+	if user.WalletAddress != nil {
+		trimmed := strings.TrimSpace(*user.WalletAddress)
+		if trimmed == "" {
+			user.WalletAddress = nil
+		} else {
+			lower := strings.ToLower(trimmed)
+			user.WalletAddress = &lower
+		}
+	}
 	if user.Status == UserStatusDisabled {
 		blacklist.BanUser(user.Id)
 	} else if user.Status == UserStatusEnabled {
 		blacklist.UnbanUser(user.Id)
 	}
-	err = DB.Model(user).Updates(user).Error
+
+	updates := DB.Model(user)
+	if user.WalletAddress == nil {
+		err = updates.Omit("wallet_address").Updates(user).Error
+	} else {
+		err = updates.Updates(user).Error
+	}
 	return err
 }
 
@@ -189,8 +213,12 @@ func (user *User) Delete() error {
 	blacklist.BanUser(user.Id)
 	user.Username = fmt.Sprintf("deleted_%s", random.GetUUID())
 	user.Status = UserStatusDeleted
-	user.WalletAddress = ""
-	err := DB.Model(user).Updates(user).Error
+	user.WalletAddress = nil
+	err := DB.Model(user).Updates(map[string]interface{}{
+		"username":       user.Username,
+		"status":         user.Status,
+		"wallet_address": nil,
+	}).Error
 	return err
 }
 
@@ -276,7 +304,7 @@ func (user *User) FillUserByUsername() error {
 }
 
 func (user *User) FillUserByWalletAddress() error {
-	if user.WalletAddress == "" {
+	if user.WalletAddress == nil || *user.WalletAddress == "" {
 		return errors.New("wallet address 为空！")
 	}
 	DB.Where(User{WalletAddress: user.WalletAddress}).First(user)
