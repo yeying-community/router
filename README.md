@@ -1,7 +1,6 @@
 <p align="right">
-   <strong>中文</strong> | <a href="./README.en.md">English</a> | <a href="./README.ja.md">日本語</a>
+  <strong>中文</strong> | <a href="./README.en.md">English</a> | <a href="./README.ja.md">日本語</a>
 </p>
-
 
 <p align="center">
   <a href="https://github.com/yeying-community/router"><img src="https://raw.githubusercontent.com/yeying-community/router/main/web/default/public/logo.png" width="150" height="150" alt="router logo"></a>
@@ -11,463 +10,202 @@
 
 # Router
 
-_✨ 通过标准的 OpenAI API 格式访问所有的大模型，开箱即用 ✨_
+_通过标准的 OpenAI API 格式访问所有的大模型，开箱即用_
 
 </div>
-
-<p align="center">
-  <a href="https://raw.githubusercontent.com/yeying-community/router/main/LICENSE">
-    <img src="https://img.shields.io/github/license/yeying-community/router?color=brightgreen" alt="license">
-  </a>
-  <a href="https://github.com/yeying-community/router/releases/latest">
-    <img src="https://img.shields.io/github/v/release/yeying-community/router?color=brightgreen&include_prereleases" alt="release">
-  </a>
-  <a href="https://hub.docker.com/repository/docker/yeying-commumity/router">
-    <img src="https://img.shields.io/docker/pulls/yeying-commumity/router?color=brightgreen" alt="docker pull">
-  </a>
-  <a href="https://github.com/yeying-community/router/releases/latest">
-    <img src="https://img.shields.io/github/downloads/yeying-community/router/total?color=brightgreen&include_prereleases" alt="release">
-  </a>
-  <a href="https://goreportcard.com/report/github.com/yeying-community/router">
-    <img src="https://goreportcard.com/badge/github.com/yeying-community/router" alt="GoReportCard">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/yeying-community/router#部署">部署教程</a>
-  ·
-  <a href="https://github.com/yeying-community/router#使用方法">使用方法</a>
-  ·
-  <a href="https://github.com/yeying-community/router/issues">意见反馈</a>
-  ·
-  <a href="https://github.com/yeying-community/router#截图展示">截图展示</a>
-  ·
-  <a href="https://openai.yeying-commumity.cn/">在线演示</a>
-  ·
-  <a href="https://github.com/yeying-community/router#常见问题">常见问题</a>
-  ·
-  <a href="https://github.com/yeying-community/router#相关项目">相关项目</a>
-  ·
-  <a href="https://iamazing.cn/page/reward">赞赏支持</a>
-</p>
 
 > [!NOTE]
-> 本项目为开源项目，使用者必须在遵循 OpenAI 的[使用条款](https://openai.com/policies/terms-of-use)以及**法律法规**的情况下使用，不得用于非法用途。
->
-> 根据[《生成式人工智能服务管理暂行办法》](http://www.cac.gov.cn/2023-07/13/c_1690898327029107.htm)的要求，请勿对中国地区公众提供一切未经备案的生成式人工智能服务。
+> 请在遵循 OpenAI 使用条款及当地法律法规的前提下使用本项目；根据《生成式人工智能服务管理暂行办法》，请勿对中国地区公众提供未经备案的生成式 AI 服务。
 
+## 目录
+- [项目名称](#项目名称)
+- [项目简介](#项目简介)
+- [功能特性](#功能特性)
+- [快速开始](#快速开始)
+  - [环境要求](#环境要求)
+  - [安装步骤](#安装步骤)
+  - [配置说明](#配置说明)
+- [本地开发](#本地开发)
+  - [开发环境搭建](#开发环境搭建)
+  - [运行项目](#运行项目)
+  - [调试方法](#调试方法)
+- [生产部署](#生产部署)
+  - [部署前准备](#部署前准备)
+  - [部署步骤](#部署步骤)
+  - [环境变量配置](#环境变量配置)
+  - [健康检查](#健康检查)
+- [API 文档](#api文档)
+- [测试](#测试)
+- [贡献指南](#贡献指南)
+- [许可证](#许可证)
 
-## 功能
-1. 支持多种大模型：
-   + [x] [OpenAI ChatGPT 系列模型](https://platform.openai.com/docs/guides/gpt/chat-completions-api)（支持 [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)）
-   + [x] [Anthropic Claude 系列模型](https://anthropic.com) (支持 AWS Claude)
-   + [x] [Google PaLM2/Gemini 系列模型](https://developers.generativeai.google)
-   + [x] [Mistral 系列模型](https://mistral.ai/)
-   + [x] [字节跳动豆包大模型（火山引擎）](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI)
-   + [x] [百度文心一言系列模型](https://cloud.baidu.com/doc/WENXINWORKSHOP/index.html)
-   + [x] [阿里通义千问系列模型](https://help.aliyun.com/document_detail/2400395.html)
-   + [x] [讯飞星火认知大模型](https://www.xfyun.cn/doc/spark/Web.html)
-   + [x] [智谱 ChatGLM 系列模型](https://bigmodel.cn)
-   + [x] [360 智脑](https://ai.360.cn)
-   + [x] [腾讯混元大模型](https://cloud.tencent.com/document/product/1729)
-   + [x] [Moonshot AI](https://platform.moonshot.cn/)
-   + [x] [百川大模型](https://platform.baichuan-ai.com)
-   + [x] [MINIMAX](https://api.minimax.chat/)
-   + [x] [Groq](https://wow.groq.com/)
-   + [x] [Ollama](https://github.com/ollama/ollama)
-   + [x] [零一万物](https://platform.lingyiwanwu.com/)
-   + [x] [阶跃星辰](https://platform.stepfun.com/)
-   + [x] [Coze](https://www.coze.com/)
-   + [x] [Cohere](https://cohere.com/)
-   + [x] [DeepSeek](https://www.deepseek.com/)
-   + [x] [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
-   + [x] [DeepL](https://www.deepl.com/)
-   + [x] [together.ai](https://www.together.ai/)
-   + [x] [novita.ai](https://www.novita.ai/)
-   + [x] [硅基流动 SiliconCloud](https://cloud.siliconflow.cn/i/rKXmRobW)
-   + [x] [xAI](https://x.ai/)
-2. 支持配置镜像以及众多[第三方代理服务](https://iamazing.cn/page/openai-api-third-party-services)。
-3. 支持通过**负载均衡**的方式访问多个渠道。
-4. 支持 **stream 模式**，可以通过流式传输实现打字机效果。
-5. 支持**多机部署**，[详见此处](#多机部署)。
-6. 支持**令牌管理**，设置令牌的过期时间、额度、允许的 IP 范围以及允许的模型访问。
-7. 支持**兑换码管理**，支持批量生成和导出兑换码，可使用兑换码为账户进行充值。
-8. 支持**渠道管理**，批量创建渠道。
-9. 支持**用户分组**以及**渠道分组**，支持为不同分组设置不同的倍率。
-10. 支持渠道**设置模型列表**。
-11. 支持**查看额度明细**。
-12. 支持**用户邀请奖励**。
-13. 支持以美元为单位显示额度。
-14. 支持发布公告，设置充值链接，设置新用户初始额度。
-15. 支持模型映射，重定向用户的请求模型，如无必要请不要设置，设置之后会导致请求体被重新构造而非直接透传，会导致部分还未正式支持的字段无法传递成功。
-16. 支持失败自动重试。
-17. 支持绘图接口。
-18. 支持 [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/providers/openai/)，渠道设置的代理部分填写 `https://gateway.ai.cloudflare.com/v1/ACCOUNT_TAG/GATEWAY/openai` 即可。
-19. 支持丰富的**自定义**设置，
-    1. 支持自定义系统名称，logo 以及页脚。
-    2. 支持自定义首页和关于页面，可以选择使用 HTML & Markdown 代码进行自定义，或者使用一个单独的网页通过 iframe 嵌入。
-20. 支持通过系统访问令牌调用管理 API，进而**在无需二开的情况下扩展和自定义** Router 的功能，详情请参考此处 [API 文档](./docs/API.md)。
-21. 支持 Cloudflare Turnstile 用户校验。
-22. 支持用户管理，支持**多种用户登录注册方式**：
-    + 邮箱登录注册（支持注册邮箱白名单）以及通过邮箱进行密码重置。
-    + 支持[飞书授权登录](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/authen-v1/authorize/get)（[这里有 Router 的实现细节阐述供参考](https://iamazing.cn/page/feishu-oauth-login)）。
-    + 支持 [GitHub 授权登录](https://github.com/settings/applications/new)。
-    + 微信公众号授权（需要额外部署 [WeChat Server](https://github.com/songquanpeng/wechat-server)）。
-23. 支持主题切换，设置环境变量 `THEME` 即可，默认为 `default`，欢迎 PR 更多主题，具体参考[此处](./web/README.md)。
-24. 配合 [Message Pusher](https://github.com/songquanpeng/message-pusher) 可将报警信息推送到多种 App 上。
+## 项目名称
+Router
 
-## 部署
-### 基于 Docker 进行部署
-```shell
-# 使用 SQLite 的部署命令：
-docker run --name router -d --restart always -p 3000:3000 -e TZ=Asia/Shanghai -v /home/ubuntu/data/router:/data yeying-commumity/router
-# 使用 MySQL 的部署命令，在上面的基础上添加 `-e SQL_DSN="root:123456@tcp(localhost:3306)/oneapi"`，请自行修改数据库连接参数，不清楚如何修改请参见下面环境变量一节。
-# 例如：
-docker run --name router -d --restart always -p 3000:3000 -e SQL_DSN="root:123456@tcp(localhost:3306)/oneapi" -e TZ=Asia/Shanghai -v /home/ubuntu/data/router:/data yeying-community/router
-```
+## 项目简介
+Router 是一个用 Go 构建的多模型 API 中继网关，前端采用 React。它将主流大模型服务统一为 OpenAI API 兼容接口，提供鉴权、额度、渠道、负载均衡等完整管理能力，适合个人和团队快速搭建稳定的模型接入层。
 
-其中，`-p 3000:3000` 中的第一个 `3000` 是宿主机的端口，可以根据需要进行修改。
+**技术栈**
+- 后端：Go 1.22、Gin、GORM、Redis/SQLite/MySQL/PostgreSQL
+- 前端：React 18、react-scripts、Semantic UI；静态资源通过 `go:embed` 内置
+- 部署：Docker / Docker Compose / 二进制；系统日志可落地到本地目录
 
-数据和日志将会保存在宿主机的 `/home/ubuntu/data/router` 目录，请确保该目录存在且具有写入权限，或者更改为合适的目录。
+## 功能特性
+- 支持 OpenAI、Azure OpenAI、Anthropic、Gemini、Mistral、Claude、Moonshot、DeepSeek、xAI、Ollama 等数十种上游模型渠道，统一 OpenAI API 调用方式。
+- 渠道、模型、用户分组与倍率管理；支持失败自动重试、负载均衡、渠道白名单、模型映射。
+- 令牌与兑换码管理，额度统计与明细；可按分组设置额度倍率与并发限制。
+- 支持 Stream 响应、绘图接口、Cloudflare AI Gateway、Cloudflare Turnstile 校验。
+- 多机部署与缓存：Redis/内存缓存、配置定时同步、主从节点模式、前端跳转。
+- 可自定义系统名称、Logo、主题与首页/About 内容；内置多语言（中文/英文/日文）。
+- 管理 API 暴露，便于无二开扩展功能（详见 `docs/API.md`）。
+- 登录方式丰富：邮箱注册/重置、GitHub、飞书、微信公众号、钱包登录（可选 Root 白名单）。
 
-如果启动失败，请添加 `--privileged=true`，具体参考 https://github.com/yeying-community/router/issues/482 。
+## 快速开始
+### 环境要求
+| 依赖 | 版本要求 | 用途 |
+|------|----------|------|
+| Go | >= 1.22 | 后端编译/运行 |
+| Node.js | >= 16 | 前端构建/开发 |
+| npm / yarn | >= 8 / >= 1.22 | 前端依赖管理 |
+| Docker | >= 20 (可选) | 一键部署 |
+| Docker Compose | >= 2 (可选) | 编排部署 |
+| MySQL | >= 8 (可选) | 生产数据库，推荐高并发场景 |
+| Redis | >= 6 (可选) | 缓存与会话，同步配置 |
+| SQLite | 内置 | 默认开发/低并发使用 |
 
-如果上面的镜像无法拉取，可以尝试使用 GitHub 的 Docker 镜像，将上面的 `yeying-community/router` 替换为 `ghcr.io/yeying-community/router` 即可。
-
-如果你的并发量较大，**务必**设置 `SQL_DSN`，详见下面[环境变量](#环境变量)一节。
-
-更新命令：`docker run --rm -v /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower -cR`
-
-Nginx 的参考配置：
-```
-server{
-   server_name openai.yeying-commumity.cn;  # 请根据实际情况修改你的域名
-
-   location / {
-          client_max_body_size  64m;
-          proxy_http_version 1.1;
-          proxy_pass http://localhost:3000;  # 请根据实际情况修改你的端口
-          proxy_set_header Host $host;
-          proxy_set_header X-Forwarded-For $remote_addr;
-          proxy_cache_bypass $http_upgrade;
-          proxy_set_header Accept-Encoding gzip;
-          proxy_read_timeout 300s;  # GPT-4 需要较长的超时时间，请自行调整
-   }
-}
-```
-
-之后使用 Let's Encrypt 的 certbot 配置 HTTPS：
+### 安装步骤
+#### 方式一：Docker（推荐）
+- SQLite 快速试用（数据存储在宿主机 `/home/ubuntu/data/router`）：
 ```bash
-# Ubuntu 安装 certbot：
-sudo snap install --classic certbot
-sudo ln -s /snap/bin/certbot /usr/bin/certbot
-# 生成证书 & 修改 Nginx 配置
-sudo certbot --nginx
-# 根据指示进行操作
-# 重启 Nginx
-sudo service nginx restart
+docker run --name router -d --restart always -p 3000:3000 \
+  -e TZ=Asia/Shanghai \
+  -v /home/ubuntu/data/router:/data \
+  yeying-community/router:latest
 ```
-
-初始账号用户名为 `root`，密码为 `123456`。
-
-
-### 基于 Docker Compose 进行部署
-
-> 仅启动方式不同，参数设置不变，请参考基于 Docker 部署部分
-
-```shell
-# 目前支持 MySQL 启动，数据存储在 ./data/mysql 文件夹内
-docker-compose up -d
-
-# 查看部署状态
-docker-compose ps
+- 使用 MySQL（示例：`SQL_DSN` 指向宿主 MySQL）：
+```bash
+docker run --name router -d --restart always -p 3000:3000 \
+  -e SQL_DSN="root:123456@tcp(host.docker.internal:3306)/router" \
+  -e TZ=Asia/Shanghai \
+  -v /home/ubuntu/data/router:/data \
+  yeying-community/router:latest
 ```
+如镜像无法直接拉取，可将 `yeying-community/router` 换为 `ghcr.io/yeying-community/router`。
 
-### 手动部署
-1. 从 [GitHub Releases](https://github.com/yeying-community/router/releases/latest) 下载可执行文件或者从源码编译：
-   ```shell
-   git clone https://github.com/yeying-community/router.git
-
-   # 构建前端
-   cd router/web/default
-   npm install
-   npm run build
-
-   # 构建后端
-   cd ../..
-   go mod download
-   go build -ldflags "-s -w" -o router
-   ````
+#### 方式二：Docker Compose
+1. 打开 `docker-compose.yml`，根据需要修改 `SQL_DSN`、`REDIS_CONN_STRING`、`SESSION_SECRET` 等环境变量。
 2. 运行：
-   ```shell
-   chmod u+x router
-   ./router --port 3000 --log-dir ./logs
-   ```
-3. 访问 [http://localhost:3000/](http://localhost:3000/) 并登录。初始账号用户名为 `root`，密码为 `123456`。
-
-更加详细的部署教程[参见此处](https://iamazing.cn/page/how-to-deploy-a-website)。
-
-### 多机部署
-1. 所有服务器 `SESSION_SECRET` 设置一样的值。
-2. 必须设置 `SQL_DSN`，使用 MySQL 数据库而非 SQLite，所有服务器连接同一个数据库。
-3. 所有从服务器必须设置 `NODE_TYPE` 为 `slave`，不设置则默认为主服务器。
-4. 设置 `SYNC_FREQUENCY` 后服务器将定期从数据库同步配置，在使用远程数据库的情况下，推荐设置该项并启用 Redis，无论主从。
-5. 从服务器可以选择设置 `FRONTEND_BASE_URL`，以重定向页面请求到主服务器。
-6. 从服务器上**分别**装好 Redis，设置好 `REDIS_CONN_STRING`，这样可以做到在缓存未过期的情况下数据库零访问，可以减少延迟（Redis 集群或者哨兵模式的支持请参考环境变量说明）。
-7. 如果主服务器访问数据库延迟也比较高，则也需要启用 Redis，并设置 `SYNC_FREQUENCY`，以定期从数据库同步配置。
-
-环境变量的具体使用方法详见[此处](#环境变量)。
-
-### 宝塔部署教程
-
-详见 [#175](https://github.com/yeying-community/router/issues/175)。
-
-如果部署后访问出现空白页面，详见 [#97](https://github.com/yeying-community/router/issues/97)。
-
-### 部署第三方服务配合 Router 使用
-> 欢迎 PR 添加更多示例。
-
-#### ChatGPT Next Web
-项目主页：https://github.com/ChatGPTNextWeb/NextChat
-
 ```bash
-docker run --name chat-next-web -d -p 3001:3000 yidadaa/chatgpt-next-web
+docker compose up -d
 ```
+3. 查看状态：`docker compose ps`
 
-注意修改端口号，之后在页面上设置接口地址（例如：https://openai.yeying-commumity.cn/ ）和 API Key 即可。
-
-
-#### QChatGPT - QQ机器人
-项目主页：https://github.com/RockChinQ/QChatGPT
-
-根据[文档](https://qchatgpt.rockchin.top)完成部署后，在 `data/provider.json`设置`requester.openai-chat-completions.base-url`为 Router 实例地址，并填写 API Key 到 `keys.openai` 组中，设置 `model` 为要使用的模型名称。
-
-运行期间可以通过`!model`命令查看、切换可用模型。
-
-### 部署到第三方平台
-<details>
-<summary><strong>部署到 Sealos </strong></summary>
-<div>
-
-> Sealos 的服务器在国外，不需要额外处理网络问题，支持高并发 & 动态伸缩。
-
-点击以下按钮一键部署（部署后访问出现 404 请等待 3~5 分钟）：
-
-[![Deploy-on-Sealos.svg](https://raw.githubusercontent.com/labring-actions/templates/main/Deploy-on-Sealos.svg)](https://cloud.sealos.io/?openapp=system-fastdeploy?templateName=router)
-
-</div>
-</details>
-
-<details>
-<summary><strong>部署到 Zeabur</strong></summary>
-<div>
-
-> Zeabur 的服务器在国外，自动解决了网络的问题，同时免费的额度也足够个人使用
-
-[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/7Q0KO3)
-
-1. 首先 fork 一份代码。
-2. 进入 [Zeabur](https://zeabur.com?referralCode=songquanpeng)，登录，进入控制台。
-3. 新建一个 Project，在 Service -> Add Service 选择 Marketplace，选择 MySQL，并记下连接参数（用户名、密码、地址、端口）。
-4. 复制链接参数，运行 ```create database `router` ``` 创建数据库。
-5. 然后在 Service -> Add Service，选择 Git（第一次使用需要先授权），选择你 fork 的仓库。
-6. Deploy 会自动开始，先取消。进入下方 Variable，添加一个 `PORT`，值为 `3000`，再添加一个 `SQL_DSN`，值为 `<username>:<password>@tcp(<addr>:<port>)/router` ，然后保存。 注意如果不填写 `SQL_DSN`，数据将无法持久化，重新部署后数据会丢失。
-7. 选择 Redeploy。
-8. 进入下方 Domains，选择一个合适的域名前缀，如 "my-router"，最终域名为 "my-router.zeabur.app"，也可以 CNAME 自己的域名。
-9. 等待部署完成，点击生成的域名进入 Router。
-
-</div>
-</details>
-
-<details>
-<summary><strong>部署到 Render</strong></summary>
-<div>
-
-> Render 提供免费额度，绑卡后可以进一步提升额度
-
-Render 可以直接部署 docker 镜像，不需要 fork 仓库：https://dashboard.render.com
-
-</div>
-</details>
-
-## 配置
-系统本身开箱即用。
-
-你可以通过设置环境变量或者命令行参数进行配置。
-
-等到系统启动后，使用 `root` 用户登录系统并做进一步的配置。
-
-**Note**：如果你不知道某个配置项的含义，可以临时删掉值以看到进一步的提示文字。
-
-## 使用方法
-在`渠道`页面中添加你的 API Key，之后在`令牌`页面中新增访问令牌。
-
-之后就可以使用你的令牌访问 Router 了，使用方式与 [OpenAI API](https://platform.openai.com/docs/api-reference/introduction) 一致。
-
-你需要在各种用到 OpenAI API 的地方设置 API Base 为你的 Router 的部署地址，例如：`https://openai.yeying.pub`，API Key 则为你在 Router 中生成的令牌。
-
-注意，具体的 API Base 的格式取决于你所使用的客户端。
-
-例如对于 OpenAI 的官方库：
+#### 方式三：源码/二进制部署
 ```bash
-OPENAI_API_KEY="sk-xxxxxx"
-OPENAI_API_BASE="https://<HOST>:<PORT>/v1"
+# 1) 克隆代码
+git clone https://github.com/yeying-community/router.git
+cd router
+
+# 2) （可选）构建前端静态资源
+npm install --prefix web/default
+npm run build --prefix web/default
+
+# 3) 构建后端二进制
+go mod download
+go build -ldflags "-s -w" -o router
+
+# 4) 运行
+./router --port 3000 --log-dir ./logs
 ```
+访问 http://localhost:3000 登录，默认管理员：用户名 `root`，密码 `123456`。
 
-```mermaid
-graph LR
-    A(用户)
-    A --->|使用 Router 分发的 key 进行请求| B(Router)
-    B -->|中继请求| C(OpenAI)
-    B -->|中继请求| D(Azure)
-    B -->|中继请求| E(其他 OpenAI API 格式下游渠道)
-    B -->|中继并修改请求体和返回体| F(非 OpenAI API 格式下游渠道)
+### 配置说明
+- 复制模板：`cp .env.template .env`（按需填写）。
+- 常用环境变量示例：
+```env
+PORT=3000
+SESSION_SECRET=replace_with_random_string
+SQL_DSN=root:123456@tcp(localhost:3306)/router   # 留空则使用 SQLite
+REDIS_CONN_STRING=redis://default:password@localhost:6379
+FRONTEND_BASE_URL=https://openai.example.com      # 从节点可设置
+THEME=default
+INITIAL_ROOT_TOKEN=sk-your-root-token             # 可选：首启自动创建 root 令牌
+INITIAL_ROOT_ACCESS_TOKEN=sk-your-admin-token     # 可选：首启自动创建系统管理令牌
+TZ=Asia/Shanghai
 ```
+- 命令行参数：`--port <port>`，`--log-dir <dir>`，`--version`，`--help`。
 
-可以通过在令牌后面添加渠道 ID 的方式指定使用哪一个渠道处理本次请求，例如：`Authorization: Bearer ONE_API_KEY-CHANNEL_ID`。
-注意，需要是管理员用户创建的令牌才能指定渠道 ID。
+## 本地开发
+### 开发环境搭建
+1. 安装 Go 1.22+、Node.js 16+、npm/yarn。
+2. 克隆仓库：`git clone https://github.com/yeying-community/router.git && cd router`。
+3. 复制环境文件：`cp .env.template .env`，按需补充 `SQL_DSN`、`SESSION_SECRET` 等。
+4. 后端依赖：`go mod download`；前端依赖：`npm install --prefix web/default`。
 
-不加的话将会使用负载均衡的方式使用多个渠道。
+### 运行项目
+- 后端（使用内置静态资源）：
+```bash
+PORT=3000 go run ./main.go --log-dir ./logs
+```
+- 前端热更新开发：保持后端运行，另开终端执行
+```bash
+npm start --prefix web/default   # 自动代理到 http://localhost:3000
+```
+- 如修改前端并需要嵌入 Go 二进制，请重新执行 `npm run build --prefix web/default`。
 
-### 环境变量
-> Router 支持从 `.env` 文件中读取环境变量，请参照 `.env.example` 文件，使用时请将其重命名为 `.env`。
-1. `REDIS_CONN_STRING`：设置之后将使用 Redis 作为缓存使用。
-   + 例子：`REDIS_CONN_STRING=redis://default:redispw@localhost:49153`
-   + 如果数据库访问延迟很低，没有必要启用 Redis，启用后反而会出现数据滞后的问题。
-   + 如果需要使用哨兵或者集群模式：
-     + 则需要把该环境变量设置为节点列表，例如：`localhost:49153,localhost:49154,localhost:49155`。
-     + 除此之外还需要设置以下环境变量：
-       + `REDIS_PASSWORD`：Redis 集群或者哨兵模式下的密码设置。
-       + `REDIS_MASTER_NAME`：Redis 哨兵模式下主节点的名称。
-2. `SESSION_SECRET`：设置之后将使用固定的会话密钥，这样系统重新启动后已登录用户的 cookie 将依旧有效。
-   + 例子：`SESSION_SECRET=random_string`
-3. `SQL_DSN`：设置之后将使用指定数据库而非 SQLite，请使用 MySQL 或 PostgreSQL。
-   + 例子：
-     + MySQL：`SQL_DSN=root:123456@tcp(localhost:3306)/oneapi`
-     + PostgreSQL：`SQL_DSN=postgres://postgres:123456@localhost:5432/oneapi`（适配中，欢迎反馈）
-   + 注意需要提前建立数据库 `oneapi`，无需手动建表，程序将自动建表。
-   + 如果使用本地数据库：部署命令可添加 `--network="host"` 以使得容器内的程序可以访问到宿主机上的 MySQL。
-   + 如果使用云数据库：如果云服务器需要验证身份，需要在连接参数中添加 `?tls=skip-verify`。
-   + 请根据你的数据库配置修改下列参数（或者保持默认值）：
-     + `SQL_MAX_IDLE_CONNS`：最大空闲连接数，默认为 `100`。
-     + `SQL_MAX_OPEN_CONNS`：最大打开连接数，默认为 `1000`。
-       + 如果报错 `Error 1040: Too many connections`，请适当减小该值。
-     + `SQL_CONN_MAX_LIFETIME`：连接的最大生命周期，默认为 `60`，单位分钟。
-4. `LOG_SQL_DSN`：设置之后将为 `logs` 表使用独立的数据库，请使用 MySQL 或 PostgreSQL。
-5. `FRONTEND_BASE_URL`：设置之后将重定向页面请求到指定的地址，仅限从服务器设置。
-   + 例子：`FRONTEND_BASE_URL=https://openai.yeying-commumity.cn`
-6. `MEMORY_CACHE_ENABLED`：启用内存缓存，会导致用户额度的更新存在一定的延迟，可选值为 `true` 和 `false`，未设置则默认为 `false`。
-   + 例子：`MEMORY_CACHE_ENABLED=true`
-7. `SYNC_FREQUENCY`：在启用缓存的情况下与数据库同步配置的频率，单位为秒，默认为 `600` 秒。
-   + 例子：`SYNC_FREQUENCY=60`
-8. `NODE_TYPE`：设置之后将指定节点类型，可选值为 `master` 和 `slave`，未设置则默认为 `master`。
-   + 例子：`NODE_TYPE=slave`
-9. `CHANNEL_UPDATE_FREQUENCY`：设置之后将定期更新渠道余额，单位为分钟，未设置则不进行更新。
-   + 例子：`CHANNEL_UPDATE_FREQUENCY=1440`
-10. `CHANNEL_TEST_FREQUENCY`：设置之后将定期检查渠道，单位为分钟，未设置则不进行检查。 
-   +例子：`CHANNEL_TEST_FREQUENCY=1440`
-11. `POLLING_INTERVAL`：批量更新渠道余额以及测试可用性时的请求间隔，单位为秒，默认无间隔。
-    + 例子：`POLLING_INTERVAL=5`
-12. `BATCH_UPDATE_ENABLED`：启用数据库批量更新聚合，会导致用户额度的更新存在一定的延迟可选值为 `true` 和 `false`，未设置则默认为 `false`。
-    + 例子：`BATCH_UPDATE_ENABLED=true`
-    + 如果你遇到了数据库连接数过多的问题，可以尝试启用该选项。
-13. `BATCH_UPDATE_INTERVAL=5`：批量更新聚合的时间间隔，单位为秒，默认为 `5`。
-    + 例子：`BATCH_UPDATE_INTERVAL=5`
-14. 请求频率限制：
-    + `GLOBAL_API_RATE_LIMIT`：全局 API 速率限制（除中继请求外），单 ip 三分钟内的最大请求数，默认为 `180`。
-    + `GLOBAL_WEB_RATE_LIMIT`：全局 Web 速率限制，单 ip 三分钟内的最大请求数，默认为 `60`。
-15. 编码器缓存设置：
-    + `TIKTOKEN_CACHE_DIR`：默认程序启动时会联网下载一些通用的词元的编码，如：`gpt-3.5-turbo`，在一些网络环境不稳定，或者离线情况，可能会导致启动有问题，可以配置此目录缓存数据，可迁移到离线环境。
-    + `DATA_GYM_CACHE_DIR`：目前该配置作用与 `TIKTOKEN_CACHE_DIR` 一致，但是优先级没有它高。
-16. `RELAY_TIMEOUT`：中继超时设置，单位为秒，默认不设置超时时间。
-17. `RELAY_PROXY`：设置后使用该代理来请求 API。
-18. `USER_CONTENT_REQUEST_TIMEOUT`：用户上传内容下载超时时间，单位为秒。
-19. `USER_CONTENT_REQUEST_PROXY`：设置后使用该代理来请求用户上传的内容，例如图片。
-20. `SQLITE_BUSY_TIMEOUT`：SQLite 锁等待超时设置，单位为毫秒，默认 `3000`。
-21. `GEMINI_SAFETY_SETTING`：Gemini 的安全设置，默认 `BLOCK_NONE`。
-22. `GEMINI_VERSION`：Router 所使用的 Gemini 版本，默认为 `v1`。
-23. `THEME`：系统的主题设置，默认为 `default`，具体可选值参考[此处](./web/README.md)。
-24. `ENABLE_METRIC`：是否根据请求成功率禁用渠道，默认不开启，可选值为 `true` 和 `false`。
-25. `METRIC_QUEUE_SIZE`：请求成功率统计队列大小，默认为 `10`。
-26. `METRIC_SUCCESS_RATE_THRESHOLD`：请求成功率阈值，默认为 `0.8`。
-27. `INITIAL_ROOT_TOKEN`：如果设置了该值，则在系统首次启动时会自动创建一个值为该环境变量值的 root 用户令牌。
-28. `INITIAL_ROOT_ACCESS_TOKEN`：如果设置了该值，则在系统首次启动时会自动创建一个值为该环境变量的 root 用户创建系统管理令牌。
-29. `ENFORCE_INCLUDE_USAGE`：是否强制在 stream 模型下返回 usage，默认不开启，可选值为 `true` 和 `false`。
-30. `TEST_PROMPT`：测试模型时的用户 prompt，默认为 `Print your model name exactly and do not output without any other text.`。
-31. `WALLET_LOGIN_ENABLED`：是否开启基于钱包的登录/绑定，默认关闭，可选值 `true` / `false`。
-32. `WALLET_ALLOWED_CHAINS`：允许登录的链 ID 列表，逗号分隔，默认 `1,11155111,5432`。
-33. `WALLET_AUTO_REGISTER_ENABLED`：未绑定用户的钱包是否自动注册为新用户，默认 `false`。
-34. `WALLET_ROOT_ALLOWED_ADDRESSES`：允许直接登录并自动绑定为 root 的钱包地址列表，逗号分隔（建议只填受信任地址）。开启后首次使用钱包登录会自动把该地址绑定到 root 并登录。
+### 调试方法
+- 设置 `GIN_MODE=debug` 或在 `.env` 中 `DEBUG=true` 以开启更详细日志。
+- 查看日志：`tail -f logs/*.log`（使用 `--log-dir` 指定目录）。
+- 推荐 VS Code `Go` 插件或 `dlv debug` 进行断点调试；前端可使用 React DevTools。
 
-### 钱包登录启用指引
-1. 在启动前设置环境变量：  
-   - `WALLET_LOGIN_ENABLED=true` 开启钱包登录。  
-   - （可选）`WALLET_ROOT_ALLOWED_ADDRESSES=0xYourRootWallet` 允许指定地址直接登录/绑定 root。  
-   - （可选）`WALLET_AUTO_REGISTER_ENABLED=true` 允许未绑定的钱包自动创建新账号。  
-2. 启动服务（示例）：`WALLET_LOGIN_ENABLED=true ./router --port 3000 --log-dir ./logs`。  
-3. 访问 `/wallet` 页面测试连接、签名，或在登录页点击“使用钱包登录”。  
-4. 绑定账户：登录后进入“个人设置”→“绑定钱包”，按提示签名即可。  
-5. 如通过 nginx 反代（例如 https://llm.yeying.pub/ ），保持 3000 端口监听即可，无需额外配置。
+## 生产部署
+### 部署前准备
+- 必须更换 `SESSION_SECRET` 为随机字符串。
+- 高并发场景务必改用 MySQL/PostgreSQL（设置 `SQL_DSN`），并建议接入 Redis。
+- 配置时区、域名、SSL；确保数据目录持久化（`/data` 挂载）。
+- 部署前执行 `go test ./...` 通过所有用例。
 
-### 命令行参数
-1. `--port <port_number>`: 指定服务器监听的端口号，默认为 `3000`。
-   + 例子：`--port 3000`
-2. `--log-dir <log_dir>`: 指定日志文件夹，如果没有设置，默认保存至工作目录的 `logs` 文件夹下。
-   + 例子：`--log-dir ./logs`
-3. `--version`: 打印系统版本号并退出。
-4. `--help`: 查看命令的使用帮助和参数说明。
+### 部署步骤
+1) Docker 单机：参见“快速开始”中的 Docker 命令，可选添加 `--privileged=true` 解决少数宿主机限制。
+2) Docker Compose：修改 `docker-compose.yml` 后 `docker compose up -d`；更新使用 `docker compose pull && docker compose up -d`。
+3) 二进制 + Systemd（示例见 `router.service`）：复制到 `/etc/systemd/system/router.service`，修改路径与端口后执行 `systemctl enable --now router`。
 
-## 演示
-### 在线演示
-注意，该演示站不提供对外服务：
-https://openai.yeying-commumity.cn
+### 环境变量配置
+核心变量速查：
+| 变量 | 说明 | 示例 |
+|------|------|------|
+| PORT | 服务监听端口 | 3000 |
+| SESSION_SECRET | 会话加密密钥，必须自定义 | 随机字符串 |
+| SQL_DSN | 使用 MySQL/PostgreSQL 时的连接串 | `user:pass@tcp(db:3306)/router` |
+| SQLITE_PATH | 指定 SQLite 文件路径（默认 `/data/one-api.db`） | `/data/router.db` |
+| REDIS_CONN_STRING | 启用 Redis 缓存/会话 | `redis://:pass@redis:6379` |
+| NODE_TYPE | 节点角色 `master` / `slave` | slave |
+| SYNC_FREQUENCY | 从数据库/Redis 同步配置间隔（秒） | 60 |
+| FRONTEND_BASE_URL | 从节点前端跳转地址 | https://openai.example.com |
+| RELAY_PROXY | 上游请求代理 | http://127.0.0.1:7890 |
+| RELAY_TIMEOUT | 上游请求超时（秒） | 120 |
+| THEME | 前端主题 | default |
+| INITIAL_ROOT_TOKEN | 首启自动生成的 root 用户令牌 | sk-xxx |
+| INITIAL_ROOT_ACCESS_TOKEN | 首启自动生成的系统管理令牌 | sk-xxx |
 
-### 截图展示
-![channel](https://user-images.githubusercontent.com/39998050/233837954-ae6683aa-5c4f-429f-a949-6645a83c9490.png)
-![token](https://user-images.githubusercontent.com/39998050/233837971-dab488b7-6d96-43af-b640-a168e8d1c9bf.png)
+更多可选项（缓存、指标、钱包登录、请求限流等）见源码 `common/config` 与现有注释，保持未设置即为默认值。
 
-## 常见问题
-1. 额度是什么？怎么计算的？Router 的额度计算有问题？
-   + 额度 = 分组倍率 * 模型倍率 * （提示 token 数 + 补全 token 数 * 补全倍率）
-   + 其中补全倍率对于 GPT3.5 固定为 1.33，GPT4 为 2，与官方保持一致。
-   + 如果是非流模式，官方接口会返回消耗的总 token，但是你要注意提示和补全的消耗倍率不一样。
-   + 注意，Router 的默认倍率就是官方倍率，是已经调整过的。
-2. 账户额度足够为什么提示额度不足？
-   + 请检查你的令牌额度是否足够，这个和账户额度是分开的。
-   + 令牌额度仅供用户设置最大使用量，用户可自由设置。
-3. 提示无可用渠道？
-   + 请检查的用户分组和渠道分组设置。
-   + 以及渠道的模型设置。
-4. 渠道测试报错：`invalid character '<' looking for beginning of value`
-   + 这是因为返回值不是合法的 JSON，而是一个 HTML 页面。
-   + 大概率是你的部署站的 IP 或代理的节点被 CloudFlare 封禁了。
-5. ChatGPT Next Web 报错：`Failed to fetch`
-   + 部署的时候不要设置 `BASE_URL`。
-   + 检查你的接口地址和 API Key 有没有填对。
-   + 检查是否启用了 HTTPS，浏览器会拦截 HTTPS 域名下的 HTTP 请求。
-6. 报错：`当前分组负载已饱和，请稍后再试`
-   + 上游渠道 429 了。
-7. 升级之后我的数据会丢失吗？
-   + 如果使用 MySQL，不会。
-   + 如果使用 SQLite，需要按照我所给的部署命令挂载 volume 持久化 router.db 数据库文件，否则容器重启后数据会丢失。
-8. 升级之前数据库需要做变更吗？
-   + 一般情况下不需要，系统将在初始化的时候自动调整。
-   + 如果需要的话，我会在更新日志中说明，并给出脚本。
-9. 手动修改数据库后报错：`数据库一致性已被破坏，请联系管理员`？
-   + 这是检测到 ability 表里有些记录的渠道 id 是不存在的，这大概率是因为你删了 channel 表里的记录但是没有同步在 ability 表里清理无效的渠道。
-   + 对于每一个渠道，其所支持的模型都需要有一个专门的 ability 表的记录，表示该渠道支持该模型。
+### 健康检查
+- API 状态：`curl http://localhost:3000/api/status`
+- 预期响应包含 `"success": true`。`docker-compose.yml` 已内置该检查，可直接复用。
 
-## 相关项目
-* [FastGPT](https://github.com/labring/FastGPT): 基于 LLM 大语言模型的知识库问答系统
-* [ChatGPT Next Web](https://github.com/Yidadaa/ChatGPT-Next-Web):  一键拥有你自己的跨平台 ChatGPT 应用
-* [VChart](https://github.com/VisActor/VChart):  不只是开箱即用的多端图表库，更是生动灵活的数据故事讲述者。
-* [VMind](https://github.com/VisActor/VMind):  不仅自动，还很智能。开源智能可视化解决方案。
-* [CherryStudio](https://github.com/CherryHQ/cherry-studio):  全平台支持的AI客户端, 多服务商集成管理、本地知识库支持。
+## API 文档
+- 管理与扩展 API：详见 `docs/API.md`。
+- 中继接口遵循 OpenAI API 格式，设置 `Authorization: Bearer <令牌>`，`API Base = https://<host>:<port>/v1`。
 
-## 注意
+## 测试
+- 后端：`go test ./...`
+- 前端（可选）：`npm test --prefix web/default`
 
-本项目使用 MIT 协议进行开源，**在此基础上**，必须在页面底部保留署名以及指向本项目的链接。如果不想保留署名，必须首先获得授权。
+## 贡献指南
+- 欢迎 Issue 与 PR，提交前请确保 `gofmt`、`go test ./...`、（如改动前端）`npm test` 通过。
+- 复用现有 PR 模板 `pull_request_template.md`，描述变更与验证步骤。
+- 新增功能请同时更新文档/配置样例；添加与渠道/鉴权相关的改动建议补充最小可复现步骤。
 
-同样适用于基于本项目的二开项目。
-
-依据 MIT 协议，使用者需自行承担使用本项目的风险与责任，本开源项目开发者与此无关。
+## 许可证
+项目采用 MIT License。基于本项目的衍生版本需在页面底部保留署名及指向本项目的链接；如需去除署名请先获得授权。
