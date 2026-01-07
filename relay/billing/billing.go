@@ -8,23 +8,45 @@ import (
 	"github.com/yeying-community/router/model"
 )
 
-func ReturnPreConsumedQuota(ctx context.Context, preConsumedQuota int64, tokenId int) {
-	if preConsumedQuota != 0 {
-		go func(ctx context.Context) {
-			// return pre-consumed quota
+func ReturnPreConsumedQuota(ctx context.Context, preConsumedQuota int64, tokenId int, userId int) {
+	if preConsumedQuota == 0 {
+		return
+	}
+	go func(ctx context.Context) {
+		if tokenId > 0 {
 			err := model.PostConsumeTokenQuota(tokenId, -preConsumedQuota)
 			if err != nil {
 				logger.Error(ctx, "error return pre-consumed quota: "+err.Error())
 			}
-		}(ctx)
-	}
+			return
+		}
+		// JWT 场景：只需要归还用户额度
+		err := model.IncreaseUserQuota(userId, preConsumedQuota)
+		if err != nil {
+			logger.Error(ctx, "error return pre-consumed user quota: "+err.Error())
+			return
+		}
+		_ = model.CacheUpdateUserQuota(ctx, userId)
+	}(ctx)
 }
 
 func PostConsumeQuota(ctx context.Context, tokenId int, quotaDelta int64, totalQuota int64, userId int, channelId int, modelRatio float64, groupRatio float64, modelName string, tokenName string) {
 	// quotaDelta is remaining quota to be consumed
-	err := model.PostConsumeTokenQuota(tokenId, quotaDelta)
-	if err != nil {
-		logger.SysError("error consuming token remain quota: " + err.Error())
+	var err error
+	if tokenId > 0 {
+		err = model.PostConsumeTokenQuota(tokenId, quotaDelta)
+		if err != nil {
+			logger.SysError("error consuming token remain quota: " + err.Error())
+		}
+	} else {
+		if quotaDelta > 0 {
+			err = model.DecreaseUserQuota(userId, quotaDelta)
+		} else if quotaDelta < 0 {
+			err = model.IncreaseUserQuota(userId, -quotaDelta)
+		}
+		if err != nil {
+			logger.SysError("error consuming user quota: " + err.Error())
+		}
 	}
 	err = model.CacheUpdateUserQuota(ctx, userId)
 	if err != nil {

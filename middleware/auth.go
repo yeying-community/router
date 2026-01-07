@@ -151,8 +151,85 @@ func RootAuth() func(c *gin.Context) {
 func TokenAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
-		key := c.Request.Header.Get("Authorization")
-		key = strings.TrimPrefix(key, "Bearer ")
+		rawAuth := strings.TrimSpace(c.GetHeader("Authorization"))
+		if rawAuth == "" {
+			abortWithMessage(c, http.StatusUnauthorized, "未提供令牌")
+			return
+		}
+		auth := rawAuth
+		if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
+			auth = strings.TrimSpace(auth[7:])
+		}
+
+		// 1) 尝试钱包 JWT
+		if claims, err := common.VerifyWalletJWT(auth); err == nil {
+			user := model.User{Id: claims.UserID}
+			found := false
+			if claims.UserID != 0 {
+				if err := user.FillUserById(); err == nil {
+					found = true
+				} else {
+					logger.Loginf(ctx, "token auth wallet jwt FillUserById fail uid=%d err=%v", claims.UserID, err)
+				}
+			}
+			if !found && claims.WalletAddress != "" {
+				addr := strings.ToLower(claims.WalletAddress)
+				user = model.User{WalletAddress: &addr}
+				if err := user.FillUserByWalletAddress(); err == nil {
+					found = true
+					logger.Loginf(ctx, "token auth wallet jwt fallback by address success addr=%s uid=%d", claims.WalletAddress, user.Id)
+				} else {
+					logger.Loginf(ctx, "token auth wallet jwt fallback by address fail addr=%s err=%v", claims.WalletAddress, err)
+				}
+			}
+			if !found {
+				abortWithMessage(c, http.StatusUnauthorized, "token 对应的用户不存在")
+				return
+			}
+			if user.Status != model.UserStatusEnabled || blacklist.IsUserBanned(user.Id) {
+				logger.Loginf(ctx, "token auth wallet jwt banned/disabled uid=%d status=%d", user.Id, user.Status)
+				abortWithMessage(c, http.StatusForbidden, "用户已被封禁")
+				return
+			}
+			requestModel, err := getRequestModel(c)
+			if err != nil && shouldCheckModel(c) {
+				abortWithMessage(c, http.StatusBadRequest, err.Error())
+				return
+			}
+			c.Set(ctxkey.RequestModel, requestModel)
+			c.Set(ctxkey.Id, user.Id)
+
+			// 自动选择该用户的第一个可用 sk 作为默认 key（便于 JWT 直连）
+			if token, terr := model.GetFirstAvailableToken(user.Id); terr == nil {
+				// subnet 检查
+				if token.Subnet != nil && *token.Subnet != "" {
+					if !network.IsIpInSubnets(ctx, c.ClientIP(), *token.Subnet) {
+						logger.Loginf(ctx, "token auth wallet jwt subnet deny user=%d ip=%s subnet=%s", token.UserId, c.ClientIP(), *token.Subnet)
+						abortWithMessage(c, http.StatusForbidden, fmt.Sprintf("该令牌只能在指定网段使用：%s，当前 ip：%s", *token.Subnet, c.ClientIP()))
+						return
+					}
+				}
+				if token.Models != nil && *token.Models != "" {
+					c.Set(ctxkey.AvailableModels, *token.Models)
+					if requestModel != "" && !isModelInList(requestModel, *token.Models) {
+						abortWithMessage(c, http.StatusForbidden, fmt.Sprintf("该令牌无权使用模型：%s", requestModel))
+						return
+					}
+				}
+				c.Set(ctxkey.TokenId, token.Id)
+				c.Set(ctxkey.TokenName, token.Name)
+				logger.Loginf(ctx, "token auth via wallet jwt success user=%d addr=%s use_token=%d", user.Id, claims.WalletAddress, token.Id)
+			} else {
+				c.Set(ctxkey.TokenId, 0)
+				c.Set(ctxkey.TokenName, "wallet_jwt")
+				logger.Loginf(ctx, "token auth via wallet jwt success user=%d addr=%s no_token_found", user.Id, claims.WalletAddress)
+			}
+			c.Next()
+			return
+		}
+
+		// 2) 回退到 sk- 令牌
+		key := auth
 		key = strings.TrimPrefix(key, "sk-")
 		parts := strings.Split(key, "-")
 		key = parts[0]

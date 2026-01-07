@@ -86,20 +86,25 @@ func SetApiRouter(engine *gin.Engine) {
 		}
 
 		channelRoute := apiRouter.Group("/channel")
-		channelRoute.Use(middleware.AdminAuth())
 		{
-			channelRoute.GET("/", controller.GetAllChannels)
-			channelRoute.GET("/search", controller.SearchChannels)
-			channelRoute.GET("/models", controller.DashboardListModels)
-			channelRoute.GET("/:id", controller.GetChannel)
-			channelRoute.GET("/test", controller.TestChannels)
-			channelRoute.GET("/test/:id", controller.TestChannel)
-			channelRoute.GET("/update_balance", controller.UpdateAllChannelsBalance)
-			channelRoute.GET("/update_balance/:id", controller.UpdateChannelBalance)
-			channelRoute.POST("/", controller.AddChannel)
-			channelRoute.PUT("/", controller.UpdateChannel)
-			channelRoute.DELETE("/disabled", controller.DeleteDisabledChannel)
-			channelRoute.DELETE("/:id", controller.DeleteChannel)
+			// 模型列表对所有登录用户开放，方便前端展示供应商/模型；其余仍需管理员权限
+			channelRoute.GET("/models", middleware.UserAuth(), controller.DashboardListModels)
+
+			adminChannel := channelRoute.Group("/")
+			adminChannel.Use(middleware.AdminAuth())
+			{
+				adminChannel.GET("/", controller.GetAllChannels)
+				adminChannel.GET("/search", controller.SearchChannels)
+				adminChannel.GET("/:id", controller.GetChannel)
+				adminChannel.GET("/test", controller.TestChannels)
+				adminChannel.GET("/test/:id", controller.TestChannel)
+				adminChannel.GET("/update_balance", controller.UpdateAllChannelsBalance)
+				adminChannel.GET("/update_balance/:id", controller.UpdateChannelBalance)
+				adminChannel.POST("/", controller.AddChannel)
+				adminChannel.PUT("/", controller.UpdateChannel)
+				adminChannel.DELETE("/disabled", controller.DeleteDisabledChannel)
+				adminChannel.DELETE("/:id", controller.DeleteChannel)
+			}
 		}
 
 		tokenRoute := apiRouter.Group("/token")

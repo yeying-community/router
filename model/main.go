@@ -198,6 +198,10 @@ func migrateLOGDB() error {
 	if err = LOG_DB.AutoMigrate(&Log{}); err != nil {
 		return err
 	}
+	// Ensure logs.id has a working sequence (for existing PG tables created without serial/identity)
+	LOG_DB.Exec("CREATE SEQUENCE IF NOT EXISTS logs_id_seq OWNED BY logs.id")
+	LOG_DB.Exec("SELECT setval('logs_id_seq', COALESCE((SELECT MAX(id)+1 FROM logs),1), false)")
+	LOG_DB.Exec("ALTER TABLE logs ALTER COLUMN id SET DEFAULT nextval('logs_id_seq')")
 	return nil
 }
 

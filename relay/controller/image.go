@@ -200,12 +200,19 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return
 		}
 
-		err := model.PostConsumeTokenQuota(meta.TokenId, quota)
-		if err != nil {
-			logger.SysError("error consuming token remain quota: " + err.Error())
+		if meta.TokenId > 0 {
+			err := model.PostConsumeTokenQuota(meta.TokenId, quota)
+			if err != nil {
+				logger.SysError("error consuming token remain quota: " + err.Error())
+			}
+		} else {
+			if quota != 0 {
+				if err := model.DecreaseUserQuota(meta.UserId, quota); err != nil {
+					logger.SysError("error consuming user quota: " + err.Error())
+				}
+			}
 		}
-		err = model.CacheUpdateUserQuota(ctx, meta.UserId)
-		if err != nil {
+		if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
 			logger.SysError("error update user quota cache: " + err.Error())
 		}
 		if quota != 0 {

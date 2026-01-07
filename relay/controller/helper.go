@@ -86,9 +86,16 @@ func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIR
 		logger.Info(ctx, fmt.Sprintf("user %d has enough quota %d, trusted and no need to pre-consume", meta.UserId, userQuota))
 	}
 	if preConsumedQuota > 0 {
-		err := model.PreConsumeTokenQuota(meta.TokenId, preConsumedQuota)
-		if err != nil {
-			return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
+		if meta.TokenId > 0 {
+			err := model.PreConsumeTokenQuota(meta.TokenId, preConsumedQuota)
+			if err != nil {
+				return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
+			}
+		} else {
+			err := model.DecreaseUserQuota(meta.UserId, preConsumedQuota)
+			if err != nil {
+				return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_user_quota_failed", http.StatusForbidden)
+			}
 		}
 	}
 	return preConsumedQuota, nil
@@ -114,9 +121,21 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		quota = 0
 	}
 	quotaDelta := quota - preConsumedQuota
-	err := model.PostConsumeTokenQuota(meta.TokenId, quotaDelta)
-	if err != nil {
-		logger.Error(ctx, "error consuming token remain quota: "+err.Error())
+	var err error
+	if meta.TokenId > 0 {
+		err = model.PostConsumeTokenQuota(meta.TokenId, quotaDelta)
+		if err != nil {
+			logger.Error(ctx, "error consuming token remain quota: "+err.Error())
+		}
+	} else {
+		if quotaDelta > 0 {
+			err = model.DecreaseUserQuota(meta.UserId, quotaDelta)
+		} else if quotaDelta < 0 {
+			err = model.IncreaseUserQuota(meta.UserId, -quotaDelta)
+		}
+		if err != nil {
+			logger.Error(ctx, "error consuming user quota: "+err.Error())
+		}
 	}
 	err = model.CacheUpdateUserQuota(ctx, meta.UserId)
 	if err != nil {

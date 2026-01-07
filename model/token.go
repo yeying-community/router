@@ -54,6 +54,25 @@ func GetAllUserTokens(userId int, startIdx int, num int, order string) ([]*Token
 	return tokens, err
 }
 
+// GetFirstAvailableToken returns the earliest created enabled token of a user
+// that is not expired and still has quota (or unlimited).
+func GetFirstAvailableToken(userId int) (*Token, error) {
+	if userId == 0 {
+		return nil, errors.New("user id is empty")
+	}
+	var token Token
+	now := helper.GetTimestamp()
+	err := DB.Where("user_id = ? AND status = ?", userId, TokenStatusEnabled).
+		Where("(expired_time = -1 OR expired_time > ?)", now).
+		Where("(unlimited_quota <> 0 OR remain_quota > 0)").
+		Order("id asc").
+		First(&token).Error
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
 func SearchUserTokens(userId int, keyword string) (tokens []*Token, err error) {
 	err = DB.Where("user_id = ?", userId).Where("name LIKE ?", keyword+"%").Find(&tokens).Error
 	return tokens, err

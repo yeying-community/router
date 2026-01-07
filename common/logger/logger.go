@@ -196,38 +196,14 @@ func logHelper(ctx context.Context, level loggerLevel, msg string) {
 
 // loginLogHelper mirrors logHelper but targets the dedicated login log file.
 func loginLogHelper(ctx context.Context, level loggerLevel, msg string) {
-	SetupLoginLogger()
-	if loginWriter == nil {
-		return
-	}
-	var requestId string
-	if ctx != nil {
-		rawRequestId := helper.GetRequestID(ctx)
-		if rawRequestId != "" {
-			requestId = fmt.Sprintf(" | %s", rawRequestId)
-		}
-	}
-	lineInfo, funcName := getLineInfo()
-	now := time.Now()
-	_, _ = fmt.Fprintf(loginWriter, "[%s] %v%s%s %s%s \n", level, now.Format("2006/01/02 - 15:04:05"), requestId, lineInfo, funcName, msg)
+	// unify into main log
+	logHelper(ctx, level, "[login] "+msg)
 }
 
 // apiLogHelper mirrors logHelper but targets api.log
 func apiLogHelper(ctx context.Context, level loggerLevel, msg string) {
-	SetupApiLogger()
-	if apiWriter == nil {
-		return
-	}
-	var requestId string
-	if ctx != nil {
-		rawRequestId := helper.GetRequestID(ctx)
-		if rawRequestId != "" {
-			requestId = fmt.Sprintf(" | %s", rawRequestId)
-		}
-	}
-	lineInfo, funcName := getLineInfo()
-	now := time.Now()
-	_, _ = fmt.Fprintf(apiWriter, "[%s] %v%s%s %s%s \n", level, now.Format("2006/01/02 - 15:04:05"), requestId, lineInfo, funcName, msg)
+	// unify into main log
+	logHelper(ctx, level, "[api] "+msg)
 }
 
 func getLineInfo() (string, string) {
