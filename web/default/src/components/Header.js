@@ -1,5 +1,5 @@
-import React, { useContext, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useContext, useMemo, useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { UserContext } from '../context/User';
 import { useTranslation } from 'react-i18next';
 
@@ -33,11 +33,6 @@ let headerButtons = [
     name: 'header.token',
     to: '/token',
     icon: 'key',
-  },
-  {
-    name: 'header.wallet',
-    to: '/wallet',
-    icon: 'ethereum',
   },
   {
     name: 'header.redemption',
@@ -78,18 +73,27 @@ let headerButtons = [
   },
 ];
 
-if (localStorage.getItem('chat_link')) {
-  headerButtons.splice(1, 0, {
-    name: 'header.chat',
-    to: '/chat',
-    icon: 'comments',
-  });
+function useHeaderButtons() {
+  // 需要在渲染期间读取最新的 chat_link
+  return useMemo(() => {
+    const buttons = [...headerButtons];
+    if (localStorage.getItem('chat_link')) {
+      buttons.splice(1, 0, {
+        name: 'header.chat',
+        to: '/chat',
+        icon: 'comments',
+      });
+    }
+    return buttons;
+  }, []);
 }
 
 const Header = () => {
   const { t, i18n } = useTranslation();
   const [userState, userDispatch] = useContext(UserContext);
   let navigate = useNavigate();
+  const location = useLocation();
+  const buttons = useHeaderButtons();
 
   const [showSidebar, setShowSidebar] = useState(false);
   const systemName = getSystemName();
@@ -110,8 +114,15 @@ const Header = () => {
     setShowSidebar(!showSidebar);
   };
 
+  const isActive = (path) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+    return location.pathname.startsWith(path);
+  };
+
   const renderButtons = (isMobile) => {
-    return headerButtons.map((button) => {
+    return buttons.map((button) => {
       if (button.admin && !isAdmin()) return <></>;
       if (isMobile) {
         return (
@@ -122,25 +133,27 @@ const Header = () => {
               setShowSidebar(false);
             }}
             style={{ fontSize: '15px' }}
+            active={isActive(button.to)}
           >
             {t(button.name)}
           </Menu.Item>
         );
       }
       return (
-        <Menu.Item
-          key={button.name}
-          as={Link}
-          to={button.to}
-          style={{
-            fontSize: '15px',
-            fontWeight: '400',
-            color: '#666',
-          }}
-        >
-          <Icon name={button.icon} style={{ marginRight: '4px' }} />
-          {t(button.name)}
-        </Menu.Item>
+          <Menu.Item
+            key={button.name}
+            as={Link}
+            to={button.to}
+            style={{
+              fontSize: '15px',
+              fontWeight: '400',
+              color: '#666',
+            }}
+            active={isActive(button.to)}
+          >
+            <Icon name={button.icon} style={{ marginRight: '4px' }} />
+            {t(button.name)}
+          </Menu.Item>
       );
     });
   };

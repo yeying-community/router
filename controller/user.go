@@ -137,7 +137,7 @@ func Register(c *gin.Context) {
 	}
 	if !config.PasswordRegisterEnabled {
 		c.JSON(http.StatusOK, gin.H{
-			"message": "管理员关闭了通过密码进行注册，请使用第三方账户验证的形式进行注册",
+			"message": "管理员关闭了通过密码进行注册",
 			"success": false,
 		})
 		return
@@ -158,22 +158,6 @@ func Register(c *gin.Context) {
 		})
 		return
 	}
-	if config.EmailVerificationEnabled {
-		if user.Email == "" || user.VerificationCode == "" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "管理员开启了邮箱验证，请输入邮箱地址和验证码",
-			})
-			return
-		}
-		if !common.VerifyCodeWithKey(user.Email, user.VerificationCode, common.EmailVerificationPurpose) {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "验证码错误或已过期",
-			})
-			return
-		}
-	}
 	affCode := user.AffCode // this code is the inviter's code, not the user's own code
 	inviterId, _ := model.GetUserIdByAffCode(affCode)
 	cleanUser := model.User{
@@ -182,9 +166,7 @@ func Register(c *gin.Context) {
 		DisplayName: user.Username,
 		InviterId:   inviterId,
 	}
-	if config.EmailVerificationEnabled {
-		cleanUser.Email = user.Email
-	}
+	cleanUser.Email = user.Email
 	if err := cleanUser.Insert(ctx, inviterId); err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

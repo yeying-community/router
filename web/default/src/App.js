@@ -11,7 +11,6 @@ import EditUser from './pages/User/EditUser';
 import AddUser from './pages/User/AddUser';
 import { API, getLogo, getSystemName, showError, showNotice } from './helpers';
 import PasswordResetForm from './components/PasswordResetForm';
-import GitHubOAuth from './components/GitHubOAuth';
 import PasswordResetConfirm from './components/PasswordResetConfirm';
 import { UserContext } from './context/User';
 import { StatusContext } from './context/Status';
@@ -24,12 +23,10 @@ import EditRedemption from './pages/Redemption/EditRedemption';
 import TopUp from './pages/TopUp';
 import Log from './pages/Log';
 import Chat from './pages/Chat';
-import LarkOAuth from './components/LarkOAuth';
 import Dashboard from './pages/Dashboard';
 
 const Home = lazy(() => import('./pages/Home'));
 const About = lazy(() => import('./pages/About'));
-const Wallet = lazy(() => import('./pages/Wallet'));
 
 function App() {
   const [userState, userDispatch] = useContext(UserContext);
@@ -240,22 +237,6 @@ function App() {
         }
       />
       <Route
-        path='/oauth/github'
-        element={
-          <Suspense fallback={<Loading></Loading>}>
-            <GitHubOAuth />
-          </Suspense>
-        }
-      />
-      <Route
-        path='/oauth/lark'
-        element={
-          <Suspense fallback={<Loading></Loading>}>
-            <LarkOAuth />
-          </Suspense>
-        }
-      />
-      <Route
         path='/setting'
         element={
           <PrivateRoute>
@@ -305,14 +286,6 @@ function App() {
           <PrivateRoute>
             <Dashboard />
           </PrivateRoute>
-        }
-      />
-      <Route
-        path='/wallet'
-        element={
-          <Suspense fallback={<Loading></Loading>}>
-            <Wallet />
-          </Suspense>
         }
       />
       <Route path='*' element={<NotFound />} />

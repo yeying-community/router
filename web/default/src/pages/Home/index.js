@@ -180,91 +180,19 @@ const Home = () => {
                             gap: '0.5em',
                           }}
                         >
-                          <i className='envelope icon'></i>
+                          <i className='ethereum icon'></i>
                           <span style={{ fontWeight: 'bold' }}>
-                            {t('home.system_status.config.email_verify')}
+                            {t('home.system_status.config.wallet_login', '钱包登录')}
                           </span>
                           <span
                             style={{
-                              color: statusState?.status?.email_verification
+                              color: statusState?.status?.wallet_login
                                 ? '#21ba45'
                                 : '#db2828',
                               fontWeight: '500',
                             }}
                           >
-                            {statusState?.status?.email_verification
-                              ? t('home.system_status.config.enabled')
-                              : t('home.system_status.config.disabled')}
-                          </span>
-                        </p>
-                        <p
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5em',
-                          }}
-                        >
-                          <i className='github icon'></i>
-                          <span style={{ fontWeight: 'bold' }}>
-                            {t('home.system_status.config.github_oauth')}
-                          </span>
-                          <span
-                            style={{
-                              color: statusState?.status?.github_oauth
-                                ? '#21ba45'
-                                : '#db2828',
-                              fontWeight: '500',
-                            }}
-                          >
-                            {statusState?.status?.github_oauth
-                              ? t('home.system_status.config.enabled')
-                              : t('home.system_status.config.disabled')}
-                          </span>
-                        </p>
-                        <p
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5em',
-                          }}
-                        >
-                          <i className='wechat icon'></i>
-                          <span style={{ fontWeight: 'bold' }}>
-                            {t('home.system_status.config.wechat_login')}
-                          </span>
-                          <span
-                            style={{
-                              color: statusState?.status?.wechat_login
-                                ? '#21ba45'
-                                : '#db2828',
-                              fontWeight: '500',
-                            }}
-                          >
-                            {statusState?.status?.wechat_login
-                              ? t('home.system_status.config.enabled')
-                              : t('home.system_status.config.disabled')}
-                          </span>
-                        </p>
-                        <p
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5em',
-                          }}
-                        >
-                          <i className='shield alternate icon'></i>
-                          <span style={{ fontWeight: 'bold' }}>
-                            {t('home.system_status.config.turnstile')}
-                          </span>
-                          <span
-                            style={{
-                              color: statusState?.status?.turnstile_check
-                                ? '#21ba45'
-                                : '#db2828',
-                              fontWeight: '500',
-                            }}
-                          >
-                            {statusState?.status?.turnstile_check
+                            {statusState?.status?.wallet_login
                               ? t('home.system_status.config.enabled')
                               : t('home.system_status.config.disabled')}
                           </span>

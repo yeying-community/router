@@ -152,6 +152,12 @@ func migrateDB() error {
 	if err = DB.AutoMigrate(&Redemption{}); err != nil {
 		return err
 	}
+	// PostgreSQL: ensure redemptions.id uses a sequence (legacy tables may lack default)
+	if DB.Dialector.Name() == "postgres" {
+		DB.Exec("CREATE SEQUENCE IF NOT EXISTS redemptions_id_seq OWNED BY redemptions.id")
+		DB.Exec("SELECT setval('redemptions_id_seq', COALESCE((SELECT MAX(id)+1 FROM redemptions),1), false)")
+		DB.Exec("ALTER TABLE redemptions ALTER COLUMN id SET DEFAULT nextval('redemptions_id_seq')")
+	}
 	if err = DB.AutoMigrate(&Ability{}); err != nil {
 		return err
 	}
