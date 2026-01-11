@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Container, Segment } from 'semantic-ui-react';
-import { getFooterHTML, getSystemName } from '../helpers';
+import { getFooterHTML } from '../helpers';
 
 const Footer = () => {
-  const { t } = useTranslation();
-  const systemName = getSystemName();
   const [footer, setFooter] = useState(getFooterHTML());
   let remainCheckTimes = 5;
 
@@ -28,29 +25,18 @@ const Footer = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // 如果未配置自定义页脚，则不渲染默认版权文案
+  if (!footer) {
+    return null;
+  }
+
   return (
     <Segment vertical>
       <Container textAlign='center' style={{ color: '#666666' }}>
-        {footer ? (
-          <div
-            className='custom-footer'
-            dangerouslySetInnerHTML={{ __html: footer }}
-          ></div>
-        ) : (
-          <div className='custom-footer'>
-            <a href='https://github.com/yeying-community/router' target='_blank'>
-              {systemName} {process.env.REACT_APP_VERSION}{' '}
-            </a>
-            {t('footer.built_by')}{' '}
-            <a href='https://github.com/songquanpeng' target='_blank'>
-              {t('footer.built_by_name')}
-            </a>{' '}
-            {t('footer.license')}{' '}
-            <a href='https://opensource.org/licenses/mit-license.php'>
-              {t('footer.mit')}
-            </a>
-          </div>
-        )}
+        <div
+          className='custom-footer'
+          dangerouslySetInnerHTML={{ __html: footer }}
+        ></div>
       </Container>
     </Segment>
   );

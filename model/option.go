@@ -27,11 +27,6 @@ func InitOptionMap() {
 	config.OptionMap = make(map[string]string)
 	config.OptionMap["PasswordLoginEnabled"] = strconv.FormatBool(config.PasswordLoginEnabled)
 	config.OptionMap["PasswordRegisterEnabled"] = strconv.FormatBool(config.PasswordRegisterEnabled)
-	config.OptionMap["EmailVerificationEnabled"] = strconv.FormatBool(config.EmailVerificationEnabled)
-	config.OptionMap["GitHubOAuthEnabled"] = strconv.FormatBool(config.GitHubOAuthEnabled)
-	config.OptionMap["OidcEnabled"] = strconv.FormatBool(config.OidcEnabled)
-	config.OptionMap["WeChatAuthEnabled"] = strconv.FormatBool(config.WeChatAuthEnabled)
-	config.OptionMap["TurnstileCheckEnabled"] = strconv.FormatBool(config.TurnstileCheckEnabled)
 	config.OptionMap["RegisterEnabled"] = strconv.FormatBool(config.RegisterEnabled)
 	config.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(config.AutomaticDisableChannelEnabled)
 	config.OptionMap["AutomaticEnableChannelEnabled"] = strconv.FormatBool(config.AutomaticEnableChannelEnabled)
@@ -43,8 +38,6 @@ func InitOptionMap() {
 	config.OptionMap["WalletAutoRegisterEnabled"] = strconv.FormatBool(config.WalletAutoRegisterEnabled)
 	config.OptionMap["WalletAllowedChains"] = strings.Join(config.WalletAllowedChains, ",")
 	config.OptionMap["ChannelDisableThreshold"] = strconv.FormatFloat(config.ChannelDisableThreshold, 'f', -1, 64)
-	config.OptionMap["EmailDomainRestrictionEnabled"] = strconv.FormatBool(config.EmailDomainRestrictionEnabled)
-	config.OptionMap["EmailDomainWhitelist"] = strings.Join(config.EmailDomainWhitelist, ",")
 	config.OptionMap["SMTPServer"] = ""
 	config.OptionMap["SMTPFrom"] = ""
 	config.OptionMap["SMTPPort"] = strconv.Itoa(config.SMTPPort)
@@ -57,15 +50,6 @@ func InitOptionMap() {
 	config.OptionMap["SystemName"] = config.SystemName
 	config.OptionMap["Logo"] = config.Logo
 	config.OptionMap["ServerAddress"] = ""
-	config.OptionMap["GitHubClientId"] = ""
-	config.OptionMap["GitHubClientSecret"] = ""
-	config.OptionMap["WeChatServerAddress"] = ""
-	config.OptionMap["WeChatServerToken"] = ""
-	config.OptionMap["WeChatAccountQRCodeImageURL"] = ""
-	config.OptionMap["MessagePusherAddress"] = ""
-	config.OptionMap["MessagePusherToken"] = ""
-	config.OptionMap["TurnstileSiteKey"] = ""
-	config.OptionMap["TurnstileSecretKey"] = ""
 	config.OptionMap["QuotaForNewUser"] = strconv.FormatInt(config.QuotaForNewUser, 10)
 	config.OptionMap["QuotaForInviter"] = strconv.FormatInt(config.QuotaForInviter, 10)
 	config.OptionMap["QuotaForInvitee"] = strconv.FormatInt(config.QuotaForInvitee, 10)
@@ -131,20 +115,8 @@ func updateOptionMap(key string, value string) (err error) {
 			config.PasswordRegisterEnabled = boolValue
 		case "PasswordLoginEnabled":
 			config.PasswordLoginEnabled = boolValue
-		case "EmailVerificationEnabled":
-			config.EmailVerificationEnabled = boolValue
-		case "GitHubOAuthEnabled":
-			config.GitHubOAuthEnabled = boolValue
-		case "OidcEnabled":
-			config.OidcEnabled = boolValue
-		case "WeChatAuthEnabled":
-			config.WeChatAuthEnabled = boolValue
-		case "TurnstileCheckEnabled":
-			config.TurnstileCheckEnabled = boolValue
 		case "RegisterEnabled":
 			config.RegisterEnabled = boolValue
-		case "EmailDomainRestrictionEnabled":
-			config.EmailDomainRestrictionEnabled = boolValue
 		case "AutomaticDisableChannelEnabled":
 			config.AutomaticDisableChannelEnabled = boolValue
 		case "AutomaticEnableChannelEnabled":
@@ -164,8 +136,6 @@ func updateOptionMap(key string, value string) (err error) {
 		}
 	}
 	switch key {
-	case "EmailDomainWhitelist":
-		config.EmailDomainWhitelist = strings.Split(value, ",")
 	case "SMTPServer":
 		config.SMTPServer = value
 	case "SMTPPort":
@@ -179,46 +149,12 @@ func updateOptionMap(key string, value string) (err error) {
 		config.SMTPToken = value
 	case "ServerAddress":
 		config.ServerAddress = value
-	case "GitHubClientId":
-		config.GitHubClientId = value
-	case "GitHubClientSecret":
-		config.GitHubClientSecret = value
-	case "LarkClientId":
-		config.LarkClientId = value
-	case "LarkClientSecret":
-		config.LarkClientSecret = value
-	case "OidcClientId":
-		config.OidcClientId = value
-	case "OidcClientSecret":
-		config.OidcClientSecret = value
-	case "OidcWellKnown":
-		config.OidcWellKnown = value
-	case "OidcAuthorizationEndpoint":
-		config.OidcAuthorizationEndpoint = value
-	case "OidcTokenEndpoint":
-		config.OidcTokenEndpoint = value
-	case "OidcUserinfoEndpoint":
-		config.OidcUserinfoEndpoint = value
 	case "Footer":
 		config.Footer = value
 	case "SystemName":
 		config.SystemName = value
 	case "Logo":
 		config.Logo = value
-	case "WeChatServerAddress":
-		config.WeChatServerAddress = value
-	case "WeChatServerToken":
-		config.WeChatServerToken = value
-	case "WeChatAccountQRCodeImageURL":
-		config.WeChatAccountQRCodeImageURL = value
-	case "MessagePusherAddress":
-		config.MessagePusherAddress = value
-	case "MessagePusherToken":
-		config.MessagePusherToken = value
-	case "TurnstileSiteKey":
-		config.TurnstileSiteKey = value
-	case "TurnstileSecretKey":
-		config.TurnstileSecretKey = value
 	case "WalletAllowedChains":
 		config.WalletAllowedChains = strings.Split(value, ",")
 	case "QuotaForNewUser":

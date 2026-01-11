@@ -28,27 +28,17 @@ func SetApiRouter(engine *gin.Engine) {
 		apiRouter.GET("/about", controller.GetAbout)
 		apiRouter.GET("/home_page_content", controller.GetHomePageContent)
 
-		apiRouter.GET("/verification", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.SendEmailVerification)
-		apiRouter.GET("/reset_password", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.SendPasswordResetEmail)
-		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), controller.ResetPassword)
+	// 仅保留密码找回，无额外人机验证
+	apiRouter.GET("/reset_password", middleware.CriticalRateLimit(), controller.SendPasswordResetEmail)
+	apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), controller.ResetPassword)
 
-		apiRouter.GET("/oauth/github", middleware.CriticalRateLimit(), auth.GitHubOAuth)
-		apiRouter.GET("/oauth/github/bind", middleware.CriticalRateLimit(), middleware.UserAuth(), auth.GitHubBind)
-		apiRouter.GET("/oauth/lark", middleware.CriticalRateLimit(), auth.LarkOAuth)
-		apiRouter.GET("/oauth/lark/bind", middleware.CriticalRateLimit(), middleware.UserAuth(), auth.LarkBind)
-		apiRouter.GET("/oauth/oidc", middleware.CriticalRateLimit(), auth.OidcAuth)
-		apiRouter.GET("/oauth/oidc/bind", middleware.CriticalRateLimit(), middleware.UserAuth(), auth.OidcBind)
-		apiRouter.GET("/oauth/wechat", middleware.CriticalRateLimit(), auth.WeChatAuth)
-		apiRouter.GET("/oauth/wechat/bind", middleware.CriticalRateLimit(), middleware.UserAuth(), auth.WeChatBind)
-		apiRouter.GET("/oauth/wallet/nonce", middleware.CriticalRateLimit(), auth.WalletNonce)
-		apiRouter.POST("/oauth/wallet/login", middleware.CriticalRateLimit(), auth.WalletLogin)
-		apiRouter.POST("/oauth/wallet/bind", middleware.CriticalRateLimit(), middleware.UserAuth(), auth.WalletBind)
-		apiRouter.GET("/oauth/email/bind", middleware.CriticalRateLimit(), middleware.UserAuth(), controller.EmailBind)
-		apiRouter.GET("/oauth/state", middleware.CriticalRateLimit(), auth.GenerateOAuthCode)
+	apiRouter.GET("/oauth/wallet/nonce", middleware.CriticalRateLimit(), auth.WalletNonce)
+	apiRouter.POST("/oauth/wallet/login", middleware.CriticalRateLimit(), auth.WalletLogin)
+	apiRouter.POST("/oauth/wallet/bind", middleware.CriticalRateLimit(), middleware.UserAuth(), auth.WalletBind)
 
-		userRoute := apiRouter.Group("/user")
-		{
-			userRoute.POST("/register", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.Register)
+	userRoute := apiRouter.Group("/user")
+	{
+		userRoute.POST("/register", middleware.CriticalRateLimit(), controller.Register)
 			userRoute.POST("/login", middleware.CriticalRateLimit(), controller.Login)
 			userRoute.GET("/logout", controller.Logout)
 

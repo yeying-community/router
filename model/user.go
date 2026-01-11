@@ -219,6 +219,8 @@ func (user *User) Delete() error {
 		"status":         user.Status,
 		"wallet_address": nil,
 	}).Error
+	// 清理该用户关联的令牌
+	DB.Where("user_id = ?", user.Id).Delete(&Token{})
 	return err
 }
 
