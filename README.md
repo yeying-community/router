@@ -33,6 +33,12 @@ go run ./cmd/router --log-dir ./logs
 ```
 访问 http://localhost:3011 登录（默认管理员：用户名 `root`，密码 `123456`）。
 
+### 编译后端
+```bash
+mkdir -p build
+go build -o build/router ./cmd/router
+```
+
 ### 启动前端热更新（可选）
 ```bash
 npm install --prefix web

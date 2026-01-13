@@ -16,10 +16,7 @@ type Option struct {
 }
 
 func AllOption() ([]*Option, error) {
-	var options []*Option
-	var err error
-	err = DB.Find(&options).Error
-	return options, err
+	return mustOptionRepo().AllOption()
 }
 
 func InitOptionMap() {
@@ -69,7 +66,7 @@ func loadOptionsFromDatabase() {
 		if option.Key == "ModelRatio" {
 			option.Value = billingratio.AddNewMissingRatio(option.Value)
 		}
-		err := updateOptionMap(option.Key, option.Value)
+		err := UpdateOptionMap(option.Key, option.Value)
 		if err != nil {
 			logger.SysError("failed to update option map: " + err.Error())
 		}
@@ -85,22 +82,10 @@ func SyncOptions(frequency int) {
 }
 
 func UpdateOption(key string, value string) error {
-	// Save to database first
-	option := Option{
-		Key: key,
-	}
-	// https://gorm.io/docs/update.html#Save-All-Fields
-	DB.FirstOrCreate(&option, Option{Key: key})
-	option.Value = value
-	// Save is a combination function.
-	// If save value does not contain primary key, it will execute Create,
-	// otherwise it will execute Update (with all fields).
-	DB.Save(&option)
-	// Update OptionMap
-	return updateOptionMap(key, value)
+	return mustOptionRepo().UpdateOption(key, value)
 }
 
-func updateOptionMap(key string, value string) (err error) {
+func UpdateOptionMap(key string, value string) (err error) {
 	config.OptionMapRWMutex.Lock()
 	defer config.OptionMapRWMutex.Unlock()
 	switch key {

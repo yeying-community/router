@@ -1,7 +1,6 @@
 package app
 
 import (
-	"embed"
 	"fmt"
 	"os"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/joho/godotenv/autoload"
 
+	rootapp "github.com/yeying-community/router"
 	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/client"
 	"github.com/yeying-community/router/common/config"
@@ -18,13 +18,11 @@ import (
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/admin/controller/channel"
 	"github.com/yeying-community/router/internal/admin/model"
+	_ "github.com/yeying-community/router/internal/admin/repository/bootstrap"
 	"github.com/yeying-community/router/internal/relay/adaptor/openai"
 	"github.com/yeying-community/router/internal/transport/http/middleware"
 	"github.com/yeying-community/router/internal/transport/http/router"
 )
-
-//go:embed web/build/*
-var buildFS embed.FS
 
 // Run starts the HTTP server.
 func Run() {
@@ -112,7 +110,7 @@ func Run() {
 	store := cookie.NewStore([]byte(config.SessionSecret))
 	server.Use(sessions.Sessions("session", store))
 
-	router.SetRouter(server, buildFS)
+	router.SetRouter(server, rootapp.BuildFS)
 	var port = os.Getenv("PORT")
 	if port == "" {
 		port = strconv.Itoa(*common.Port)

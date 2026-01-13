@@ -36,7 +36,7 @@ func InitBatchUpdater() {
 	}()
 }
 
-func addNewRecord(type_ int, id int, value int64) {
+func AddBatchUpdateRecord(type_ int, id int, value int64) {
 	batchUpdateLocks[type_].Lock()
 	defer batchUpdateLocks[type_].Unlock()
 	if _, ok := batchUpdateStores[type_][id]; !ok {
