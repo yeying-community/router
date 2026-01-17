@@ -7,7 +7,7 @@ import {
 } from '../services/web3Auth';
 
 export const API = axios.create({
-  baseURL: process.env.REACT_APP_SERVER ? process.env.REACT_APP_SERVER : '',
+  baseURL: import.meta.env.VITE_SERVER ? import.meta.env.VITE_SERVER : '',
 });
 
 API.interceptors.request.use(

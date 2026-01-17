@@ -8,7 +8,7 @@ RUN npm config set registry https://registry.npmmirror.com
 
 RUN npm install --prefix /web
 
-RUN DISABLE_ESLINT_PLUGIN='true' REACT_APP_VERSION=$(cat ./VERSION) npm run build --prefix /web
+RUN VITE_APP_VERSION=$(cat ./VERSION) npm run build --prefix /web
 
 FROM golang:alpine AS builder2
 

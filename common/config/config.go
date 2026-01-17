@@ -96,6 +96,14 @@ var WalletRefreshCookieSameSite = "lax"
 // Optional fallback secrets (comma-separated env WALLET_JWT_FALLBACK_SECRETS) for verifying wallet JWTs issued by external services.
 var WalletJWTFallbackSecrets []string
 
+// UCAN auth
+var UcanAud = ""
+var UcanResource = "profile"
+var UcanAction = "read"
+
+// CORS allowlist (comma-separated env CORS_ALLOWED_ORIGINS)
+var CorsAllowedOrigins []string
+
 var MessagePusherAddress = ""
 var MessagePusherToken = ""
 

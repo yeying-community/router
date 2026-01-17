@@ -8,7 +8,7 @@ import {
   clearAccessToken as sdkClearAccessToken,
   signMessage,
   getChainId,
-} from '@yeying-community/web3';
+} from '@yeying-community/web3-bs';
 
 import { WEB3_AUTH_OPTIONS, WEB3_TOKEN_STORAGE_KEY } from '../helpers/web3';
 

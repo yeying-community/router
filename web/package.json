@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@yeying-community/web3-bs": "1.0.2",
     "axios": "^0.27.2",
-    "@yeying-community/web3": "1.0.1",
     "history": "^5.3.0",
     "i18next": "23.16.8",
     "i18next-browser-languagedetector": "^8.0.2",
@@ -14,8 +14,7 @@
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",
     "react-i18next": "15.5.0",
-    "react-router-dom": "^6.3.0",
-    "react-scripts": "5.0.1",
+    "react-router-dom": "^7.0.0",
     "react-toastify": "^9.0.8",
     "react-turnstile": "^1.0.5",
     "recharts": "^2.15.1",
@@ -23,10 +22,10 @@
     "semantic-ui-react": "^3.0.0-beta.0"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "vite",
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview"
   },
   "eslintConfig": {
     "extends": [
@@ -48,11 +47,12 @@
   },
   "devDependencies": {
     "prettier": "^2.7.1",
-    "typescript": "4.9.5"
+    "typescript": "4.9.5",
+    "vite": "^5.4.14",
+    "@vitejs/plugin-react": "^4.3.4"
   },
   "prettier": {
     "singleQuote": true,
     "jsxSingleQuote": true
-  },
-  "proxy": "http://localhost:3011"
+  }
 }

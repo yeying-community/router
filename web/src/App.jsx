@@ -27,6 +27,7 @@ import Dashboard from './pages/Dashboard';
 
 const Home = lazy(() => import('./pages/Home'));
 const About = lazy(() => import('./pages/About'));
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || '';
 
 function App() {
   const [, userDispatch] = useContext(UserContext);
@@ -58,9 +59,9 @@ function App() {
           localStorage.removeItem('chat_link');
         }
         if (
-          data.version !== process.env.REACT_APP_VERSION &&
+          data.version !== APP_VERSION &&
           data.version !== 'v0.0.0' &&
-          process.env.REACT_APP_VERSION !== ''
+          APP_VERSION !== ''
         ) {
           showNotice(
             `新版本可用：${data.version}，请使用快捷键 Shift + F5 刷新页面`

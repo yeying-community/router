@@ -1,4 +1,4 @@
-const base = (process.env.REACT_APP_SERVER || '').replace(/\/+$/, '');
+const base = (import.meta.env.VITE_SERVER || '').replace(/\/+$/, '');
 
 export const WEB3_AUTH_BASE_URL = base
   ? `${base}/api/v1/public/auth`

@@ -8,4 +8,4 @@ version=$(cat "$script_dir/../VERSION")
 cd "$script_dir"
 echo "Building web"
 npm install
-DISABLE_ESLINT_PLUGIN='true' REACT_APP_VERSION=$version npm run build
+VITE_APP_VERSION=$version npm run build

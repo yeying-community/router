@@ -11,6 +11,7 @@ import (
 
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/logger"
+	"github.com/yeying-community/router/internal/transport/http/middleware"
 )
 
 func SetRouter(engine *gin.Engine, buildFS embed.FS) {
@@ -18,6 +19,8 @@ func SetRouter(engine *gin.Engine, buildFS embed.FS) {
 	if err != nil {
 		panic(err)
 	}
+
+	engine.Use(middleware.CORS())
 
 	SetApiRouter(engine)
 	SetDashboardRouter(engine)

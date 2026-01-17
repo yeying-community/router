@@ -130,7 +130,7 @@ const Header = () => {
 
   const renderButtons = (isMobile) => {
     return buttons.map((button) => {
-      if (button.admin && !isAdmin()) return <></>;
+      if (button.admin && !isAdmin()) return null;
       if (isMobile) {
         return (
           <Menu.Item

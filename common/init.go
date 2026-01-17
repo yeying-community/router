@@ -88,6 +88,34 @@ func Init() {
 	if envSameSite := os.Getenv("WALLET_REFRESH_COOKIE_SAMESITE"); envSameSite != "" {
 		config.WalletRefreshCookieSameSite = strings.ToLower(strings.TrimSpace(envSameSite))
 	}
+	if envOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); envOrigins != "" {
+		parts := strings.Split(envOrigins, ",")
+		config.CorsAllowedOrigins = make([]string, 0, len(parts))
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				config.CorsAllowedOrigins = append(config.CorsAllowedOrigins, p)
+			}
+		}
+	} else if envOrigins := os.Getenv("CORS_ORIGINS"); envOrigins != "" {
+		parts := strings.Split(envOrigins, ",")
+		config.CorsAllowedOrigins = make([]string, 0, len(parts))
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				config.CorsAllowedOrigins = append(config.CorsAllowedOrigins, p)
+			}
+		}
+	}
+	if envUcanAud := os.Getenv("UCAN_AUD"); envUcanAud != "" {
+		config.UcanAud = strings.TrimSpace(envUcanAud)
+	}
+	if envUcanResource := os.Getenv("UCAN_RESOURCE"); envUcanResource != "" {
+		config.UcanResource = strings.TrimSpace(envUcanResource)
+	}
+	if envUcanAction := os.Getenv("UCAN_ACTION"); envUcanAction != "" {
+		config.UcanAction = strings.TrimSpace(envUcanAction)
+	}
 	if os.Getenv("SQLITE_PATH") != "" {
 		SQLitePath = os.Getenv("SQLITE_PATH")
 	}

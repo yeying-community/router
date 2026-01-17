@@ -35,6 +35,13 @@ func SetApiRouter(engine *gin.Engine) {
 		web3AuthRouter.POST("/logout", middleware.CriticalRateLimit(), auth.WalletLogoutWeb3)
 	}
 
+	publicRouter := engine.Group("/api/v1/public")
+	publicRouter.Use(gzip.Gzip(gzip.DefaultCompression))
+	publicRouter.Use(middleware.GlobalAPIRateLimit())
+	{
+		publicRouter.GET("/profile", middleware.CriticalRateLimit(), auth.PublicProfile)
+	}
+
 	apiRouter := engine.Group("/api")
 	apiRouter.Use(gzip.Gzip(gzip.DefaultCompression))
 	apiRouter.Use(middleware.GlobalAPIRateLimit())
