@@ -80,7 +80,15 @@ const Dashboard = () => {
 
     // 获取日期范围
     const dates = data.map((item) => item.Day);
-    const maxDate = new Date(); // 总是使用今天作为最后一天
+    let maxDateFromData = new Date();
+    if (dates.length > 0) {
+      maxDateFromData = new Date(
+        Math.max(...dates.map((d) => new Date(d)))
+      );
+    }
+    const maxDate = new Date(
+      Math.max(new Date().getTime(), maxDateFromData.getTime())
+    );
     let minDate =
       dates.length > 0
         ? new Date(Math.min(...dates.map((d) => new Date(d))))
@@ -106,6 +114,14 @@ const Dashboard = () => {
 
     // 填充实际数据
     data.forEach((item) => {
+      if (!dailyData[item.Day]) {
+        dailyData[item.Day] = {
+          date: item.Day,
+          requests: 0,
+          quota: 0,
+          tokens: 0,
+        };
+      }
       dailyData[item.Day].requests += item.RequestCount;
       dailyData[item.Day].quota += item.Quota / 1000000;
       dailyData[item.Day].tokens += item.PromptTokens + item.CompletionTokens;
@@ -122,7 +138,15 @@ const Dashboard = () => {
 
     // 获取日期范围
     const dates = data.map((item) => item.Day);
-    const maxDate = new Date(); // 总是使用今天作为最后一天
+    let maxDateFromData = new Date();
+    if (dates.length > 0) {
+      maxDateFromData = new Date(
+        Math.max(...dates.map((d) => new Date(d)))
+      );
+    }
+    const maxDate = new Date(
+      Math.max(new Date().getTime(), maxDateFromData.getTime())
+    );
     let minDate =
       dates.length > 0
         ? new Date(Math.min(...dates.map((d) => new Date(d))))
@@ -151,6 +175,15 @@ const Dashboard = () => {
 
     // 填充实际数据
     data.forEach((item) => {
+      if (!timeData[item.Day]) {
+        timeData[item.Day] = {
+          date: item.Day,
+        };
+        const models = [...new Set(data.map((entry) => entry.ModelName))];
+        models.forEach((model) => {
+          timeData[item.Day][model] = 0;
+        });
+      }
       timeData[item.Day][item.ModelName] =
         item.PromptTokens + item.CompletionTokens;
     });
