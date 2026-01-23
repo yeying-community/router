@@ -80,6 +80,19 @@ Authorization: Bearer <JWT>
 - `GET  /api/v1/public/user/aff`（JWT）
 - `POST /api/v1/public/user/topup`（JWT）
 
+#### GET /api/v1/public/user/dashboard
+用户侧用量统计（兼容旧 `/api/user/dashboard`）。
+
+**Query 参数（可选）**
+- `start_timestamp`：起始时间（Unix 秒）
+- `end_timestamp`：结束时间（Unix 秒）
+- `granularity`：`day | week | month | year`
+- `models`：逗号分隔的模型列表（仅统计所选模型）
+- `include_meta=1`：返回 `meta.providers`、`meta.granularity`、`meta.start`、`meta.end`
+
+**默认行为**
+- 不传参数 → 保持旧逻辑：近 7 天 + day 粒度
+
 ### 5) 个人 Token 管理（JWT）
 - `GET    /api/v1/public/token`
 - `GET    /api/v1/public/token/search`

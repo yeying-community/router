@@ -432,6 +432,21 @@
         "date": "Date",
         "value": "Value"
       }
+    },
+    "filters": {
+      "title": "Filters",
+      "granularity": "Granularity",
+      "span": "Span",
+      "start": "Start",
+      "end": "End",
+      "providers": "Model Providers",
+      "no_providers": "No models available",
+      "granularity_options": {
+        "day": "Day",
+        "week": "Week",
+        "month": "Month",
+        "year": "Year"
+      }
     }
   },
   "setting": {

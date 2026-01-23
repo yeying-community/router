@@ -517,8 +517,12 @@ func GetUsernameById(id int) string {
 	return username
 }
 
-func SearchLogsByDayAndModel(userId, start, end int) ([]*model.LogStatistic, error) {
-	return model.SearchLogsByDayAndModel(userId, start, end)
+func SearchLogsByPeriodAndModel(userId, start, end int, granularity string, models []string) ([]*model.LogStatistic, error) {
+	return model.SearchLogsByPeriodAndModel(userId, start, end, granularity, models)
+}
+
+func SearchLogModelsByPeriod(userId, start, end int) ([]string, error) {
+	return model.SearchLogModelsByPeriod(userId, start, end)
 }
 
 func AccessTokenExists(token string) (bool, error) {

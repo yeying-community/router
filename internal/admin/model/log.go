@@ -83,6 +83,10 @@ type LogStatistic struct {
 	CompletionTokens int    `gorm:"column:completion_tokens"`
 }
 
-func SearchLogsByDayAndModel(userId, start, end int) ([]*LogStatistic, error) {
-	return mustLogRepo().SearchLogsByDayAndModel(userId, start, end)
+func SearchLogsByPeriodAndModel(userId, start, end int, granularity string, models []string) ([]*LogStatistic, error) {
+	return mustLogRepo().SearchLogsByPeriodAndModel(userId, start, end, granularity, models)
+}
+
+func SearchLogModelsByPeriod(userId, start, end int) ([]string, error) {
+	return mustLogRepo().SearchLogModelsByPeriod(userId, start, end)
 }

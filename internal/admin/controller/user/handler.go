@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/sessions"
@@ -17,6 +19,7 @@ import (
 	"github.com/yeying-community/router/common/i18n"
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/common/random"
+	"github.com/yeying-community/router/common/utils"
 	"github.com/yeying-community/router/internal/admin/model"
 	usersvc "github.com/yeying-community/router/internal/admin/service/user"
 	"gorm.io/gorm"
@@ -262,11 +265,44 @@ func GetUser(c *gin.Context) {
 
 func GetUserDashboard(c *gin.Context) {
 	id := c.GetInt(ctxkey.Id)
-	now := time.Now()
-	startOfDay := now.Truncate(24*time.Hour).AddDate(0, 0, -6).Unix()
-	endOfDay := now.Truncate(24 * time.Hour).Add(24*time.Hour - time.Second).Unix()
+	granularity := strings.ToLower(strings.TrimSpace(c.DefaultQuery("granularity", "day")))
+	switch granularity {
+	case "day", "week", "month", "year":
+	default:
+		granularity = "day"
+	}
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	includeMeta := c.Query("include_meta") == "1"
 
-	dashboards, err := usersvc.SearchLogsByDayAndModel(id, int(startOfDay), int(endOfDay))
+	modelsParam := strings.TrimSpace(c.Query("models"))
+	var models []string
+	if modelsParam != "" {
+		parts := strings.Split(modelsParam, ",")
+		modelSet := make(map[string]struct{}, len(parts))
+		for _, part := range parts {
+			name := strings.TrimSpace(part)
+			if name == "" {
+				continue
+			}
+			if _, exists := modelSet[name]; !exists {
+				modelSet[name] = struct{}{}
+				models = append(models, name)
+			}
+		}
+	}
+
+	if startTimestamp <= 0 || endTimestamp <= 0 {
+		now := time.Now()
+		startTimestamp = now.Truncate(24*time.Hour).AddDate(0, 0, -6).Unix()
+		endTimestamp = now.Truncate(24 * time.Hour).Add(24*time.Hour - time.Second).Unix()
+		granularity = "day"
+	}
+	if startTimestamp > endTimestamp {
+		startTimestamp, endTimestamp = endTimestamp, startTimestamp
+	}
+
+	dashboards, err := usersvc.SearchLogsByPeriodAndModel(id, int(startTimestamp), int(endTimestamp), granularity, models)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -275,11 +311,49 @@ func GetUserDashboard(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"success": true,
 		"message": "",
 		"data":    dashboards,
-	})
+	}
+	if includeMeta {
+		providerSet := make(map[string]map[string]struct{})
+		modelNames, modelErr := usersvc.SearchLogModelsByPeriod(id, int(startTimestamp), int(endTimestamp))
+		if modelErr != nil {
+			for _, item := range dashboards {
+				if item.ModelName == "" {
+					continue
+				}
+				modelNames = append(modelNames, item.ModelName)
+			}
+		}
+		for _, name := range modelNames {
+			if strings.TrimSpace(name) == "" {
+				continue
+			}
+			provider := utils.ResolveModelProvider(name)
+			if providerSet[provider] == nil {
+				providerSet[provider] = make(map[string]struct{})
+			}
+			providerSet[provider][name] = struct{}{}
+		}
+		providers := make(map[string][]string)
+		for provider, models := range providerSet {
+			list := make([]string, 0, len(models))
+			for modelName := range models {
+				list = append(list, modelName)
+			}
+			sort.Strings(list)
+			providers[provider] = list
+		}
+		response["meta"] = gin.H{
+			"providers":   providers,
+			"granularity": granularity,
+			"start":       startTimestamp,
+			"end":         endTimestamp,
+		}
+	}
+	c.JSON(http.StatusOK, response)
 	return
 }
 

@@ -13,18 +13,19 @@ import (
 
 func init() {
 	model.BindLogRepository(model.LogRepository{
-		RecordLog:               RecordLog,
-		RecordTopupLog:          RecordTopupLog,
-		RecordConsumeLog:        RecordConsumeLog,
-		RecordTestLog:           RecordTestLog,
-		GetAllLogs:              GetAll,
-		GetUserLogs:             GetUser,
-		SearchAllLogs:           SearchAll,
-		SearchUserLogs:          SearchUser,
-		SumUsedQuota:            SumUsedQuota,
-		SumUsedToken:            SumUsedToken,
-		DeleteOldLog:            DeleteOld,
-		SearchLogsByDayAndModel: SearchLogsByDayAndModel,
+		RecordLog:                  RecordLog,
+		RecordTopupLog:             RecordTopupLog,
+		RecordConsumeLog:           RecordConsumeLog,
+		RecordTestLog:              RecordTestLog,
+		GetAllLogs:                 GetAll,
+		GetUserLogs:                GetUser,
+		SearchAllLogs:              SearchAll,
+		SearchUserLogs:             SearchUser,
+		SumUsedQuota:               SumUsedQuota,
+		SumUsedToken:               SumUsedToken,
+		DeleteOldLog:               DeleteOld,
+		SearchLogsByPeriodAndModel: SearchLogsByPeriodAndModel,
+		SearchLogModelsByPeriod:    SearchLogModelsByPeriod,
 	})
 }
 
@@ -205,20 +206,47 @@ func DeleteOld(targetTimestamp int64) (int64, error) {
 	return result.RowsAffected, result.Error
 }
 
-func SearchLogsByDayAndModel(userId, start, end int) ([]*model.LogStatistic, error) {
-	groupSelect := "DATE_FORMAT(FROM_UNIXTIME(created_at), '%Y-%m-%d') as day"
-
-	if common.UsingPostgreSQL {
-		groupSelect = "TO_CHAR(date_trunc('day', to_timestamp(created_at)), 'YYYY-MM-DD') as day"
+func selectGroupByGranularity(granularity string) string {
+	switch granularity {
+	case "week":
+		if common.UsingPostgreSQL {
+			return "TO_CHAR(date_trunc('week', to_timestamp(created_at)), 'IYYY-\"W\"IW') as day"
+		}
+		if common.UsingSQLite {
+			return "strftime('%Y', datetime(created_at, 'unixepoch')) || '-W' || strftime('%W', datetime(created_at, 'unixepoch')) as day"
+		}
+		return "DATE_FORMAT(FROM_UNIXTIME(created_at), '%x-W%v') as day"
+	case "month":
+		if common.UsingPostgreSQL {
+			return "TO_CHAR(date_trunc('month', to_timestamp(created_at)), 'YYYY-MM') as day"
+		}
+		if common.UsingSQLite {
+			return "strftime('%Y-%m', datetime(created_at, 'unixepoch')) as day"
+		}
+		return "DATE_FORMAT(FROM_UNIXTIME(created_at), '%Y-%m') as day"
+	case "year":
+		if common.UsingPostgreSQL {
+			return "TO_CHAR(date_trunc('year', to_timestamp(created_at)), 'YYYY') as day"
+		}
+		if common.UsingSQLite {
+			return "strftime('%Y', datetime(created_at, 'unixepoch')) as day"
+		}
+		return "DATE_FORMAT(FROM_UNIXTIME(created_at), '%Y') as day"
+	default:
+		if common.UsingPostgreSQL {
+			return "TO_CHAR(date_trunc('day', to_timestamp(created_at)), 'YYYY-MM-DD') as day"
+		}
+		if common.UsingSQLite {
+			return "strftime('%Y-%m-%d', datetime(created_at, 'unixepoch')) as day"
+		}
+		return "DATE_FORMAT(FROM_UNIXTIME(created_at), '%Y-%m-%d') as day"
 	}
+}
 
-	if common.UsingSQLite {
-		groupSelect = "strftime('%Y-%m-%d', datetime(created_at, 'unixepoch')) as day"
-	}
-
-	var stats []*model.LogStatistic
-	err := model.LOG_DB.Raw(`
-		SELECT `+groupSelect+`,
+func SearchLogsByPeriodAndModel(userId, start, end int, granularity string, models []string) ([]*model.LogStatistic, error) {
+	groupSelect := selectGroupByGranularity(granularity)
+	query := `
+		SELECT ` + groupSelect + `,
 		model_name, count(1) as request_count,
 		sum(quota) as quota,
 		sum(prompt_tokens) as prompt_tokens,
@@ -227,9 +255,27 @@ func SearchLogsByDayAndModel(userId, start, end int) ([]*model.LogStatistic, err
 		WHERE type=2
 		AND user_id= ?
 		AND created_at BETWEEN ? AND ?
+	`
+	args := []interface{}{userId, start, end}
+	if len(models) > 0 {
+		query += " AND model_name IN ?"
+		args = append(args, models)
+	}
+	query += `
 		GROUP BY day, model_name
 		ORDER BY day, model_name
-	`, userId, start, end).Scan(&stats).Error
-
+	`
+	var stats []*model.LogStatistic
+	err := model.LOG_DB.Raw(query, args...).Scan(&stats).Error
 	return stats, err
+}
+
+func SearchLogModelsByPeriod(userId, start, end int) ([]string, error) {
+	var models []string
+	err := model.LOG_DB.Table("logs").
+		Where("type = ? AND user_id = ? AND created_at BETWEEN ? AND ?", model.LogTypeConsume, userId, start, end).
+		Distinct("model_name").
+		Order("model_name").
+		Pluck("model_name", &models).Error
+	return models, err
 }

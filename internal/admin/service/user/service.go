@@ -51,8 +51,12 @@ func FillByID(user *model.User) error {
 	return userrepo.FillByID(user)
 }
 
-func SearchLogsByDayAndModel(userId, start, end int) ([]*model.LogStatistic, error) {
-	return userrepo.SearchLogsByDayAndModel(userId, start, end)
+func SearchLogsByPeriodAndModel(userId, start, end int, granularity string, models []string) ([]*model.LogStatistic, error) {
+	return userrepo.SearchLogsByPeriodAndModel(userId, start, end, granularity, models)
+}
+
+func SearchLogModelsByPeriod(userId, start, end int) ([]string, error) {
+	return userrepo.SearchLogModelsByPeriod(userId, start, end)
 }
 
 func AccessTokenExists(token string) (bool, error) {
