@@ -6481,7 +6481,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "v1",
 	Host:             "llm.yeying.pub",
-	BasePath:         "/api/v1",
+	BasePath:         "/",
 	Schemes:          []string{"https"},
 	Title:            "Router API",
 	Description:      "Router public/admin API (JWT/UCAN) under /api/v1.",

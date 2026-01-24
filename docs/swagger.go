@@ -5,7 +5,7 @@ package docs
 // @description Router public/admin API (JWT/UCAN) under /api/v1.
 // @host llm.yeying.pub
 // @schemes https
-// @BasePath /api/v1
+// @BasePath /
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization

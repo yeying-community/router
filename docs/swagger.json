@@ -10,7 +10,7 @@
         "version": "v1"
     },
     "host": "llm.yeying.pub",
-    "basePath": "/api/v1",
+    "basePath": "/",
     "paths": {
         "/api/v1/admin/channel": {
             "get": {
