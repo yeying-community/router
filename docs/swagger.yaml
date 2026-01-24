@@ -1534,6 +1534,7 @@ definitions:
       username:
         type: string
     type: object
+host: llm.yeying.pub
 info:
   contact: {}
   description: Router public/admin API (JWT/UCAN) under /api/v1.
@@ -4171,6 +4172,8 @@ paths:
       summary: User top up
       tags:
       - public
+schemes:
+- https
 securityDefinitions:
   BearerAuth:
     in: header

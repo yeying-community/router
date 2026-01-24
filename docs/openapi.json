@@ -1,4 +1,7 @@
 {
+    "schemes": [
+        "https"
+    ],
     "swagger": "2.0",
     "info": {
         "description": "Router public/admin API (JWT/UCAN) under /api/v1.",
@@ -6,6 +9,7 @@
         "contact": {},
         "version": "v1"
     },
+    "host": "llm.yeying.pub",
     "basePath": "/api/v1",
     "paths": {
         "/api/v1/admin/channel": {

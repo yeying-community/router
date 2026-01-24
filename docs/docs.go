@@ -6480,9 +6480,9 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "v1",
-	Host:             "",
+	Host:             "llm.yeying.pub",
 	BasePath:         "/api/v1",
-	Schemes:          []string{},
+	Schemes:          []string{"https"},
 	Title:            "Router API",
 	Description:      "Router public/admin API (JWT/UCAN) under /api/v1.",
 	InfoInstanceName: "swagger",
