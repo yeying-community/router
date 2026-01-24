@@ -48,20 +48,6 @@ func relayHelper(c *gin.Context, relayMode int) *model.ErrorWithStatusCode {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "OpenAI-compatible request"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} docs.OpenAIErrorResponse
-// @Failure 401 {object} docs.OpenAIErrorResponse
-// @Router /api/v1/public/completions [post]
-// @Router /api/v1/public/chat/completions [post]
-// @Router /api/v1/public/edits [post]
-// @Router /api/v1/public/images/generations [post]
-// @Router /api/v1/public/embeddings [post]
-// @Router /api/v1/public/engines/{model}/embeddings [post]
-// @Router /api/v1/public/audio/transcriptions [post]
-// @Router /api/v1/public/audio/translations [post]
-// @Router /api/v1/public/audio/speech [post]
-// @Router /api/v1/public/moderations [post]
 func Relay(c *gin.Context) {
 	ctx := c.Request.Context()
 	relayMode := relaymode.GetByPath(c.Request.URL.Path)

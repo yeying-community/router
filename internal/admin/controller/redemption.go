@@ -109,7 +109,7 @@ func GetRedemption(c *gin.Context) {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Redemption payload"
+// @Param body body docs.RedemptionCreateRequest true "Redemption payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/admin/redemption [post]
@@ -205,7 +205,7 @@ func DeleteRedemption(c *gin.Context) {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Redemption update payload"
+// @Param body body docs.RedemptionUpdateRequest true "Redemption update payload"
 // @Param status_only query string false "Update status only if set"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse

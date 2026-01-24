@@ -35,7 +35,7 @@ func GetOptions(c *gin.Context) {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Option payload"
+// @Param body body docs.OptionUpdateRequest true "Option payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/admin/option [put]

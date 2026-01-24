@@ -7,6 +7,156 @@ definitions:
       token:
         type: string
     type: object
+  docs.AdminCreateUserRequest:
+    properties:
+      display_name:
+        example: Alice
+        type: string
+      password:
+        example: P@ssw0rd1
+        type: string
+      username:
+        example: alice
+        type: string
+    type: object
+  docs.AdminManageUserRequest:
+    properties:
+      action:
+        example: disable
+        type: string
+      username:
+        example: alice
+        type: string
+    type: object
+  docs.AdminUserUpdateRequest:
+    properties:
+      display_name:
+        example: Alice
+        type: string
+      email:
+        example: alice@example.com
+        type: string
+      group:
+        example: default
+        type: string
+      id:
+        example: 123
+        type: integer
+      password:
+        example: NewPass123
+        type: string
+      quota:
+        example: 100000
+        type: integer
+      role:
+        example: 1
+        type: integer
+      status:
+        example: 1
+        type: integer
+      used_quota:
+        example: 20000
+        type: integer
+      username:
+        example: alice
+        type: string
+      wallet_address:
+        example: 0x1111111111111111111111111111111111111111
+        type: string
+    type: object
+  docs.ChannelCreateRequest:
+    properties:
+      base_url:
+        example: https://api.openai.com
+        type: string
+      completion_ratio:
+        example: '{}'
+        type: string
+      config:
+        example: '{}'
+        type: string
+      group:
+        example: default
+        type: string
+      key:
+        example: sk-***
+        type: string
+      model_mapping:
+        example: '{}'
+        type: string
+      model_ratio:
+        example: '{}'
+        type: string
+      models:
+        example: gpt-4o-mini,gpt-4o
+        type: string
+      name:
+        example: OpenAI
+        type: string
+      priority:
+        example: 0
+        type: integer
+      status:
+        example: 1
+        type: integer
+      system_prompt:
+        example: ""
+        type: string
+      type:
+        example: 50
+        type: integer
+      weight:
+        example: 0
+        type: integer
+    type: object
+  docs.ChannelUpdateRequest:
+    properties:
+      base_url:
+        example: https://api.openai.com
+        type: string
+      completion_ratio:
+        example: '{}'
+        type: string
+      config:
+        example: '{}'
+        type: string
+      group:
+        example: default
+        type: string
+      id:
+        example: 1
+        type: integer
+      key:
+        example: sk-***
+        type: string
+      model_mapping:
+        example: '{}'
+        type: string
+      model_ratio:
+        example: '{}'
+        type: string
+      models:
+        example: gpt-4o-mini,gpt-4o
+        type: string
+      name:
+        example: OpenAI
+        type: string
+      priority:
+        example: 0
+        type: integer
+      status:
+        example: 1
+        type: integer
+      system_prompt:
+        example: ""
+        type: string
+      type:
+        example: 50
+        type: integer
+      weight:
+        example: 0
+        type: integer
+    type: object
   docs.ErrorResponse:
     properties:
       code:
@@ -17,6 +167,372 @@ definitions:
         type: boolean
       timestamp:
         type: integer
+    type: object
+  docs.OpenAIAudioOutput:
+    properties:
+      format:
+        example: wav
+        type: string
+      voice:
+        example: alloy
+        type: string
+    type: object
+  docs.OpenAIAudioTranscriptionResponse:
+    properties:
+      duration:
+        example: 12.34
+        type: number
+      language:
+        example: en
+        type: string
+      segments:
+        items:
+          $ref: '#/definitions/docs.OpenAIWhisperSegment'
+        type: array
+      task:
+        example: transcribe
+        type: string
+      text:
+        example: Hello world
+        type: string
+    type: object
+  docs.OpenAIChatCompletionChoice:
+    properties:
+      finish_reason:
+        example: stop
+        type: string
+      index:
+        example: 0
+        type: integer
+      message:
+        $ref: '#/definitions/docs.OpenAIChatCompletionMessage'
+    type: object
+  docs.OpenAIChatCompletionMessage:
+    properties:
+      content:
+        example: Hello!
+        type: string
+      role:
+        example: assistant
+        type: string
+      tool_calls:
+        items:
+          $ref: '#/definitions/docs.OpenAIToolCall'
+        type: array
+    type: object
+  docs.OpenAIChatCompletionsRequest:
+    properties:
+      audio:
+        $ref: '#/definitions/docs.OpenAIAudioOutput'
+      frequency_penalty:
+        example: 0
+        type: number
+      logprobs:
+        example: false
+        type: boolean
+      max_completion_tokens:
+        example: 128
+        type: integer
+      max_tokens:
+        example: 128
+        type: integer
+      messages:
+        items:
+          $ref: '#/definitions/docs.OpenAIChatMessage'
+        type: array
+      modalities:
+        example:
+        - '["text"]'
+        items:
+          type: string
+        type: array
+      model:
+        example: gpt-4o-mini
+        type: string
+      "n":
+        example: 1
+        type: integer
+      parallel_tool_calls:
+        example: true
+        type: boolean
+      presence_penalty:
+        example: 0
+        type: number
+      reasoning_effort:
+        example: medium
+        type: string
+      response_format:
+        $ref: '#/definitions/docs.OpenAIResponseFormat'
+      seed:
+        example: 42
+        type: integer
+      stop:
+        example:
+        - '["\n\n"]'
+        items:
+          type: string
+        type: array
+      stream:
+        example: false
+        type: boolean
+      stream_options:
+        $ref: '#/definitions/docs.OpenAIStreamOptions'
+      temperature:
+        example: 0.7
+        type: number
+      tool_choice:
+        $ref: '#/definitions/docs.OpenAIToolChoice'
+      tools:
+        items:
+          $ref: '#/definitions/docs.OpenAITool'
+        type: array
+      top_logprobs:
+        example: 0
+        type: integer
+      top_p:
+        example: 0.9
+        type: number
+      user:
+        example: user-123
+        type: string
+    type: object
+  docs.OpenAIChatCompletionsResponse:
+    properties:
+      choices:
+        items:
+          $ref: '#/definitions/docs.OpenAIChatCompletionChoice'
+        type: array
+      created:
+        example: 1700000000
+        type: integer
+      id:
+        example: chatcmpl-123
+        type: string
+      model:
+        example: gpt-4o-mini
+        type: string
+      object:
+        example: chat.completion
+        type: string
+      usage:
+        $ref: '#/definitions/docs.OpenAIUsage'
+    type: object
+  docs.OpenAIChatContentPart:
+    properties:
+      image_url:
+        $ref: '#/definitions/docs.OpenAIImageURL'
+      input_audio:
+        $ref: '#/definitions/docs.OpenAIInputAudio'
+      text:
+        example: Hello
+        type: string
+      type:
+        example: text
+        type: string
+    type: object
+  docs.OpenAIChatMessage:
+    properties:
+      content:
+        items:
+          $ref: '#/definitions/docs.OpenAIChatContentPart'
+        type: array
+      name:
+        example: ""
+        type: string
+      role:
+        example: user
+        type: string
+      tool_call_id:
+        example: ""
+        type: string
+      tool_calls:
+        items:
+          $ref: '#/definitions/docs.OpenAIToolCall'
+        type: array
+    type: object
+  docs.OpenAICompletionTokensDetails:
+    properties:
+      accepted_prediction_tokens:
+        example: 0
+        type: integer
+      reasoning_tokens:
+        example: 5
+        type: integer
+      rejected_prediction_tokens:
+        example: 0
+        type: integer
+    type: object
+  docs.OpenAICompletionsChoice:
+    properties:
+      finish_reason:
+        example: stop
+        type: string
+      index:
+        example: 0
+        type: integer
+      text:
+        example: Hello world
+        type: string
+    type: object
+  docs.OpenAICompletionsRequest:
+    properties:
+      best_of:
+        example: 1
+        type: integer
+      frequency_penalty:
+        example: 0
+        type: number
+      max_tokens:
+        example: 16
+        type: integer
+      model:
+        example: gpt-3.5-turbo-instruct
+        type: string
+      "n":
+        example: 1
+        type: integer
+      presence_penalty:
+        example: 0
+        type: number
+      prompt:
+        example:
+        - '["Hello"]'
+        items:
+          type: string
+        type: array
+      stop:
+        example:
+        - '["\n"]'
+        items:
+          type: string
+        type: array
+      stream:
+        example: false
+        type: boolean
+      temperature:
+        example: 0.7
+        type: number
+      top_p:
+        example: 0.9
+        type: number
+      user:
+        example: user-123
+        type: string
+    type: object
+  docs.OpenAICompletionsResponse:
+    properties:
+      choices:
+        items:
+          $ref: '#/definitions/docs.OpenAICompletionsChoice'
+        type: array
+      created:
+        example: 1700000000
+        type: integer
+      id:
+        example: cmpl-123
+        type: string
+      model:
+        example: gpt-3.5-turbo-instruct
+        type: string
+      object:
+        example: text_completion
+        type: string
+      usage:
+        $ref: '#/definitions/docs.OpenAIUsage'
+    type: object
+  docs.OpenAIEditChoice:
+    properties:
+      index:
+        example: 0
+        type: integer
+      text:
+        example: What day of the week is it?
+        type: string
+    type: object
+  docs.OpenAIEditRequest:
+    properties:
+      input:
+        example: What day of the wek is it?
+        type: string
+      instruction:
+        example: Fix spelling
+        type: string
+      model:
+        example: gpt-3.5-turbo-instruct
+        type: string
+      "n":
+        example: 1
+        type: integer
+      temperature:
+        example: 0.7
+        type: number
+      top_p:
+        example: 0.9
+        type: number
+    type: object
+  docs.OpenAIEditResponse:
+    properties:
+      choices:
+        items:
+          $ref: '#/definitions/docs.OpenAIEditChoice'
+        type: array
+      created:
+        example: 1700000000
+        type: integer
+      object:
+        example: edit
+        type: string
+      usage:
+        $ref: '#/definitions/docs.OpenAIUsage'
+    type: object
+  docs.OpenAIEmbeddingItem:
+    properties:
+      embedding:
+        items:
+          type: number
+        type: array
+      index:
+        example: 0
+        type: integer
+      object:
+        example: embedding
+        type: string
+    type: object
+  docs.OpenAIEmbeddingsRequest:
+    properties:
+      dimensions:
+        example: 1536
+        type: integer
+      encoding_format:
+        example: float
+        type: string
+      input:
+        example:
+        - '["Hello world"]'
+        items:
+          type: string
+        type: array
+      model:
+        example: text-embedding-3-small
+        type: string
+      user:
+        example: user-123
+        type: string
+    type: object
+  docs.OpenAIEmbeddingsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/docs.OpenAIEmbeddingItem'
+        type: array
+      model:
+        example: text-embedding-3-small
+        type: string
+      object:
+        example: list
+        type: string
+      usage:
+        $ref: '#/definitions/docs.OpenAIUsage'
     type: object
   docs.OpenAIError:
     properties:
@@ -34,6 +550,492 @@ definitions:
       error:
         $ref: '#/definitions/docs.OpenAIError'
     type: object
+  docs.OpenAIFunction:
+    properties:
+      description:
+        example: Get weather by city
+        type: string
+      name:
+        example: get_weather
+        type: string
+      parameters:
+        $ref: '#/definitions/docs.OpenAIJSONSchema'
+    type: object
+  docs.OpenAIImageData:
+    properties:
+      b64_json:
+        example: base64-image
+        type: string
+      revised_prompt:
+        example: A cute cat
+        type: string
+      url:
+        example: https://example.com/image.png
+        type: string
+    type: object
+  docs.OpenAIImageGenerationRequest:
+    properties:
+      model:
+        example: gpt-image-1
+        type: string
+      "n":
+        example: 1
+        type: integer
+      prompt:
+        example: A cute cat
+        type: string
+      quality:
+        example: standard
+        type: string
+      response_format:
+        example: url
+        type: string
+      size:
+        example: 1024x1024
+        type: string
+      style:
+        example: vivid
+        type: string
+      user:
+        example: user-123
+        type: string
+    type: object
+  docs.OpenAIImageResponse:
+    properties:
+      created:
+        example: 1700000000
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/docs.OpenAIImageData'
+        type: array
+    type: object
+  docs.OpenAIImageURL:
+    properties:
+      detail:
+        example: high
+        type: string
+      url:
+        example: https://example.com/image.png
+        type: string
+    type: object
+  docs.OpenAIInputAudio:
+    properties:
+      data:
+        example: base64-audio
+        type: string
+      format:
+        example: wav
+        type: string
+    type: object
+  docs.OpenAIJSONSchema:
+    properties:
+      additional_properties:
+        example: false
+        type: boolean
+      properties:
+        items:
+          $ref: '#/definitions/docs.OpenAIJSONSchemaProperty'
+        type: array
+      required:
+        example:
+        - '["answer"]'
+        items:
+          type: string
+        type: array
+      type:
+        example: object
+        type: string
+    type: object
+  docs.OpenAIJSONSchemaProperty:
+    properties:
+      name:
+        example: answer
+        type: string
+      schema:
+        $ref: '#/definitions/docs.OpenAIJSONSchemaPropertySchema'
+    type: object
+  docs.OpenAIJSONSchemaPropertySchema:
+    properties:
+      description:
+        example: Answer text
+        type: string
+      enum:
+        example:
+        - '["yes"'
+        - '"no"]'
+        items:
+          type: string
+        type: array
+      type:
+        example: string
+        type: string
+    type: object
+  docs.OpenAIModel:
+    properties:
+      created:
+        example: 1626777600
+        type: integer
+      id:
+        example: gpt-4o-mini
+        type: string
+      object:
+        example: model
+        type: string
+      owned_by:
+        example: openai
+        type: string
+      parent:
+        example: ""
+        type: string
+      permission:
+        items:
+          $ref: '#/definitions/docs.OpenAIModelPermission'
+        type: array
+      root:
+        example: gpt-4o-mini
+        type: string
+    type: object
+  docs.OpenAIModelListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/docs.OpenAIModel'
+        type: array
+      object:
+        example: list
+        type: string
+    type: object
+  docs.OpenAIModelPermission:
+    properties:
+      allow_create_engine:
+        example: true
+        type: boolean
+      allow_fine_tuning:
+        example: false
+        type: boolean
+      allow_logprobs:
+        example: true
+        type: boolean
+      allow_sampling:
+        example: true
+        type: boolean
+      allow_search_indices:
+        example: false
+        type: boolean
+      allow_view:
+        example: true
+        type: boolean
+      created:
+        example: 1626777600
+        type: integer
+      group:
+        example: default
+        type: string
+      id:
+        example: modelperm-abc123
+        type: string
+      is_blocking:
+        example: false
+        type: boolean
+      object:
+        example: model_permission
+        type: string
+      organization:
+        example: '*'
+        type: string
+    type: object
+  docs.OpenAIModerationCategories:
+    properties:
+      harassment:
+        example: false
+        type: boolean
+      harassment_threatening:
+        example: false
+        type: boolean
+      hate:
+        example: false
+        type: boolean
+      hate_threatening:
+        example: false
+        type: boolean
+      illicit:
+        example: false
+        type: boolean
+      illicit_violent:
+        example: false
+        type: boolean
+      self_harm:
+        example: false
+        type: boolean
+      self_harm_instructions:
+        example: false
+        type: boolean
+      self_harm_intent:
+        example: false
+        type: boolean
+      sexual:
+        example: false
+        type: boolean
+      sexual_minors:
+        example: false
+        type: boolean
+      violence:
+        example: false
+        type: boolean
+      violence_graphic:
+        example: false
+        type: boolean
+    type: object
+  docs.OpenAIModerationCategoryScores:
+    properties:
+      harassment:
+        example: 0
+        type: number
+      harassment_threatening:
+        example: 0
+        type: number
+      hate:
+        example: 0
+        type: number
+      hate_threatening:
+        example: 0
+        type: number
+      illicit:
+        example: 0
+        type: number
+      illicit_violent:
+        example: 0
+        type: number
+      self_harm:
+        example: 0
+        type: number
+      self_harm_instructions:
+        example: 0
+        type: number
+      self_harm_intent:
+        example: 0
+        type: number
+      sexual:
+        example: 0
+        type: number
+      sexual_minors:
+        example: 0
+        type: number
+      violence:
+        example: 0
+        type: number
+      violence_graphic:
+        example: 0
+        type: number
+    type: object
+  docs.OpenAIModerationRequest:
+    properties:
+      input:
+        example:
+        - '["I want to hurt someone"]'
+        items:
+          type: string
+        type: array
+      model:
+        example: omni-moderation-latest
+        type: string
+    type: object
+  docs.OpenAIModerationResponse:
+    properties:
+      id:
+        example: modr-123
+        type: string
+      model:
+        example: omni-moderation-latest
+        type: string
+      results:
+        items:
+          $ref: '#/definitions/docs.OpenAIModerationResult'
+        type: array
+    type: object
+  docs.OpenAIModerationResult:
+    properties:
+      categories:
+        $ref: '#/definitions/docs.OpenAIModerationCategories'
+      category_scores:
+        $ref: '#/definitions/docs.OpenAIModerationCategoryScores'
+      flagged:
+        example: false
+        type: boolean
+    type: object
+  docs.OpenAIResponseFormat:
+    properties:
+      json_schema:
+        $ref: '#/definitions/docs.OpenAIResponseJSONSchema'
+      type:
+        example: json_object
+        type: string
+    type: object
+  docs.OpenAIResponseJSONSchema:
+    properties:
+      description:
+        example: Structured response
+        type: string
+      name:
+        example: response
+        type: string
+      schema:
+        $ref: '#/definitions/docs.OpenAIJSONSchema'
+      strict:
+        example: true
+        type: boolean
+    type: object
+  docs.OpenAIStreamOptions:
+    properties:
+      include_usage:
+        example: true
+        type: boolean
+    type: object
+  docs.OpenAITextToSpeechRequest:
+    properties:
+      input:
+        example: Hello world
+        type: string
+      model:
+        example: gpt-4o-mini-tts
+        type: string
+      response_format:
+        example: mp3
+        type: string
+      speed:
+        example: 1
+        type: number
+      voice:
+        example: alloy
+        type: string
+    type: object
+  docs.OpenAITool:
+    properties:
+      function:
+        $ref: '#/definitions/docs.OpenAIFunction'
+      type:
+        example: function
+        type: string
+    type: object
+  docs.OpenAIToolCall:
+    properties:
+      function:
+        $ref: '#/definitions/docs.OpenAIToolCallFunction'
+      id:
+        example: call_123
+        type: string
+      type:
+        example: function
+        type: string
+    type: object
+  docs.OpenAIToolCallFunction:
+    properties:
+      arguments:
+        example: '{"city":"Paris"}'
+        type: string
+      name:
+        example: get_weather
+        type: string
+    type: object
+  docs.OpenAIToolChoice:
+    properties:
+      function:
+        $ref: '#/definitions/docs.OpenAIToolChoiceFunction'
+      type:
+        example: function
+        type: string
+    type: object
+  docs.OpenAIToolChoiceFunction:
+    properties:
+      name:
+        example: get_weather
+        type: string
+    type: object
+  docs.OpenAIUsage:
+    properties:
+      completion_tokens:
+        example: 34
+        type: integer
+      completion_tokens_details:
+        $ref: '#/definitions/docs.OpenAICompletionTokensDetails'
+      prompt_tokens:
+        example: 12
+        type: integer
+      total_tokens:
+        example: 46
+        type: integer
+    type: object
+  docs.OpenAIWhisperSegment:
+    properties:
+      avg_logprob:
+        example: -0.1
+        type: number
+      compression_ratio:
+        example: 1
+        type: number
+      end:
+        example: 1.2
+        type: number
+      id:
+        example: 0
+        type: integer
+      no_speech_prob:
+        example: 0
+        type: number
+      seek:
+        example: 0
+        type: integer
+      start:
+        example: 0
+        type: number
+      temperature:
+        example: 0
+        type: number
+      text:
+        example: Hello
+        type: string
+      tokens:
+        items:
+          type: integer
+        type: array
+    type: object
+  docs.OptionUpdateRequest:
+    properties:
+      key:
+        example: SystemName
+        type: string
+      value:
+        example: Router
+        type: string
+    type: object
+  docs.RedemptionCreateRequest:
+    properties:
+      count:
+        example: 5
+        type: integer
+      name:
+        example: InviteBonus
+        type: string
+      quota:
+        example: 100000
+        type: integer
+    type: object
+  docs.RedemptionUpdateRequest:
+    properties:
+      id:
+        example: 1
+        type: integer
+      name:
+        example: InviteBonus
+        type: string
+      quota:
+        example: 100000
+        type: integer
+      status:
+        example: 1
+        type: integer
+    type: object
   docs.StandardResponse:
     properties:
       code:
@@ -45,6 +1047,117 @@ definitions:
         type: boolean
       timestamp:
         type: integer
+    type: object
+  docs.TokenCreateRequest:
+    properties:
+      expired_time:
+        example: -1
+        type: integer
+      models:
+        example: gpt-4o-mini,gpt-4o
+        type: string
+      name:
+        example: default
+        type: string
+      remain_quota:
+        example: 100000
+        type: integer
+      subnet:
+        example: 192.168.0.0/16
+        type: string
+      unlimited_quota:
+        example: false
+        type: boolean
+    type: object
+  docs.TokenUpdateRequest:
+    properties:
+      expired_time:
+        example: -1
+        type: integer
+      id:
+        example: 1
+        type: integer
+      models:
+        example: gpt-4o-mini,gpt-4o
+        type: string
+      name:
+        example: default
+        type: string
+      remain_quota:
+        example: 100000
+        type: integer
+      status:
+        example: 1
+        type: integer
+      subnet:
+        example: 192.168.0.0/16
+        type: string
+      unlimited_quota:
+        example: false
+        type: boolean
+    type: object
+  docs.UserRegisterRequest:
+    properties:
+      aff_code:
+        example: ABCD
+        type: string
+      display_name:
+        example: Alice
+        type: string
+      email:
+        example: alice@example.com
+        type: string
+      password:
+        example: P@ssw0rd1
+        type: string
+      username:
+        example: alice
+        type: string
+    type: object
+  docs.UserSelfUpdateRequest:
+    properties:
+      display_name:
+        example: Alice
+        type: string
+      password:
+        example: NewPass123
+        type: string
+      username:
+        example: alice
+        type: string
+    type: object
+  docs.UserTopUpRequest:
+    properties:
+      key:
+        example: redeem-xxxx-xxxx
+        type: string
+    type: object
+  docs.WalletChallengeRequest:
+    properties:
+      address:
+        example: 0x1111111111111111111111111111111111111111
+        type: string
+      chain_id:
+        example: "1"
+        type: string
+    type: object
+  docs.WalletLoginRequest:
+    properties:
+      address:
+        example: 0x1111111111111111111111111111111111111111
+        type: string
+      chain_id:
+        example: "1"
+        type: string
+      message:
+        example: Sign in to Router
+        type: string
+      nonce:
+        example: abc123
+        type: string
+      signature:
+        example: 0xabcdef...
+        type: string
     type: object
   user.LoginRequest:
     properties:
@@ -91,8 +1204,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.ChannelCreateRequest'
       produces:
       - application/json
       responses:
@@ -118,8 +1230,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.ChannelUpdateRequest'
       produces:
       - application/json
       responses:
@@ -506,8 +1617,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.OptionUpdateRequest'
       produces:
       - application/json
       responses:
@@ -556,8 +1666,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.RedemptionCreateRequest'
       produces:
       - application/json
       responses:
@@ -583,8 +1692,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.RedemptionUpdateRequest'
       - description: Update status only if set
         in: query
         name: status_only
@@ -711,8 +1819,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.AdminCreateUserRequest'
       produces:
       - application/json
       responses:
@@ -738,8 +1845,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.AdminUserUpdateRequest'
       produces:
       - application/json
       responses:
@@ -813,8 +1919,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.AdminManageUserRequest'
       produces:
       - application/json
       responses:
@@ -996,21 +2101,19 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: OpenAI-compatible request
+      - description: Text-to-speech request
         in: body
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.OpenAITextToSpeechRequest'
       produces:
-      - application/json
+      - application/octet-stream
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            type: file
         "400":
           description: Bad Request
           schema:
@@ -1021,29 +2124,47 @@ paths:
             $ref: '#/definitions/docs.OpenAIErrorResponse'
       security:
       - BearerAuth: []
-      summary: OpenAI-compatible relay
+      summary: Audio speech (OpenAI compatible)
       tags:
       - public
   /api/v1/public/audio/transcriptions:
     post:
       consumes:
-      - application/json
+      - multipart/form-data
       parameters:
-      - description: OpenAI-compatible request
-        in: body
-        name: body
+      - description: Audio file
+        in: formData
+        name: file
         required: true
-        schema:
-          additionalProperties: true
-          type: object
+        type: file
+      - description: Model ID (e.g., whisper-1)
+        in: formData
+        name: model
+        required: true
+        type: string
+      - description: Language (ISO-639-1)
+        in: formData
+        name: language
+        type: string
+      - description: Prompt
+        in: formData
+        name: prompt
+        type: string
+      - description: Response format (json, text, srt, vtt, verbose_json)
+        in: formData
+        name: response_format
+        type: string
+      - description: Sampling temperature
+        in: formData
+        name: temperature
+        type: number
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAIAudioTranscriptionResponse'
         "400":
           description: Bad Request
           schema:
@@ -1054,29 +2175,43 @@ paths:
             $ref: '#/definitions/docs.OpenAIErrorResponse'
       security:
       - BearerAuth: []
-      summary: OpenAI-compatible relay
+      summary: Audio transcriptions (OpenAI compatible)
       tags:
       - public
   /api/v1/public/audio/translations:
     post:
       consumes:
-      - application/json
+      - multipart/form-data
       parameters:
-      - description: OpenAI-compatible request
-        in: body
-        name: body
+      - description: Audio file
+        in: formData
+        name: file
         required: true
-        schema:
-          additionalProperties: true
-          type: object
+        type: file
+      - description: Model ID (e.g., whisper-1)
+        in: formData
+        name: model
+        required: true
+        type: string
+      - description: Prompt
+        in: formData
+        name: prompt
+        type: string
+      - description: Response format (json, text, srt, vtt, verbose_json)
+        in: formData
+        name: response_format
+        type: string
+      - description: Sampling temperature
+        in: formData
+        name: temperature
+        type: number
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAIAudioTranscriptionResponse'
         "400":
           description: Bad Request
           schema:
@@ -1087,7 +2222,7 @@ paths:
             $ref: '#/definitions/docs.OpenAIErrorResponse'
       security:
       - BearerAuth: []
-      summary: OpenAI-compatible relay
+      summary: Audio translations (OpenAI compatible)
       tags:
       - public
   /api/v1/public/auth/challenge:
@@ -1100,8 +2235,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.WalletChallengeRequest'
       produces:
       - application/json
       responses:
@@ -1138,14 +2272,6 @@ paths:
     post:
       consumes:
       - application/json
-      parameters:
-      - description: Refresh payload
-        in: body
-        name: body
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
       produces:
       - application/json
       responses:
@@ -1170,8 +2296,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.WalletLoginRequest'
       produces:
       - application/json
       responses:
@@ -1214,21 +2339,19 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: OpenAI-compatible request
+      - description: Chat completions request
         in: body
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.OpenAIChatCompletionsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAIChatCompletionsResponse'
         "400":
           description: Bad Request
           schema:
@@ -1239,7 +2362,7 @@ paths:
             $ref: '#/definitions/docs.OpenAIErrorResponse'
       security:
       - BearerAuth: []
-      summary: OpenAI-compatible relay
+      summary: Chat completions (OpenAI compatible)
       tags:
       - public
   /api/v1/public/common/auth/challenge:
@@ -1252,8 +2375,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.WalletChallengeRequest'
       produces:
       - application/json
       responses:
@@ -1272,14 +2394,6 @@ paths:
     post:
       consumes:
       - application/json
-      parameters:
-      - description: Refresh payload
-        in: body
-        name: body
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
       produces:
       - application/json
       responses:
@@ -1304,8 +2418,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.WalletLoginRequest'
       produces:
       - application/json
       responses:
@@ -1325,21 +2438,19 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: OpenAI-compatible request
+      - description: Completions request
         in: body
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.OpenAICompletionsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAICompletionsResponse'
         "400":
           description: Bad Request
           schema:
@@ -1350,7 +2461,7 @@ paths:
             $ref: '#/definitions/docs.OpenAIErrorResponse'
       security:
       - BearerAuth: []
-      summary: OpenAI-compatible relay
+      summary: Completions (OpenAI compatible)
       tags:
       - public
   /api/v1/public/edits:
@@ -1358,21 +2469,19 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: OpenAI-compatible request
+      - description: Edits request
         in: body
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.OpenAIEditRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAIEditResponse'
         "400":
           description: Bad Request
           schema:
@@ -1383,7 +2492,7 @@ paths:
             $ref: '#/definitions/docs.OpenAIErrorResponse'
       security:
       - BearerAuth: []
-      summary: OpenAI-compatible relay
+      summary: Edits (OpenAI compatible)
       tags:
       - public
   /api/v1/public/embeddings:
@@ -1391,21 +2500,19 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: OpenAI-compatible request
+      - description: Embeddings request
         in: body
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.OpenAIEmbeddingsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAIEmbeddingsResponse'
         "400":
           description: Bad Request
           schema:
@@ -1416,7 +2523,7 @@ paths:
             $ref: '#/definitions/docs.OpenAIErrorResponse'
       security:
       - BearerAuth: []
-      summary: OpenAI-compatible relay
+      summary: Embeddings (OpenAI compatible)
       tags:
       - public
   /api/v1/public/engines/{model}/embeddings:
@@ -1424,21 +2531,24 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: OpenAI-compatible request
+      - description: Engine model ID
+        in: path
+        name: model
+        required: true
+        type: string
+      - description: Embeddings request
         in: body
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.OpenAIEmbeddingsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAIEmbeddingsResponse'
         "400":
           description: Bad Request
           schema:
@@ -1449,7 +2559,7 @@ paths:
             $ref: '#/definitions/docs.OpenAIErrorResponse'
       security:
       - BearerAuth: []
-      summary: OpenAI-compatible relay
+      summary: Embeddings by engine (OpenAI compatible)
       tags:
       - public
   /api/v1/public/files:
@@ -1624,21 +2734,19 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: OpenAI-compatible request
+      - description: Image generation request
         in: body
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.OpenAIImageGenerationRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAIImageResponse'
         "400":
           description: Bad Request
           schema:
@@ -1649,7 +2757,7 @@ paths:
             $ref: '#/definitions/docs.OpenAIErrorResponse'
       security:
       - BearerAuth: []
-      summary: OpenAI-compatible relay
+      summary: Image generations (OpenAI compatible)
       tags:
       - public
   /api/v1/public/images/variations:
@@ -1783,8 +2891,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAIModelListResponse'
         "401":
           description: Unauthorized
           schema:
@@ -1802,8 +2909,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAIModelListResponse'
         "401":
           description: Unauthorized
           schema:
@@ -1840,8 +2946,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAIModel'
         "404":
           description: Not Found
           schema:
@@ -1856,21 +2961,19 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: OpenAI-compatible request
+      - description: Moderations request
         in: body
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.OpenAIModerationRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/docs.OpenAIModerationResponse'
         "400":
           description: Bad Request
           schema:
@@ -1881,7 +2984,7 @@ paths:
             $ref: '#/definitions/docs.OpenAIErrorResponse'
       security:
       - BearerAuth: []
-      summary: OpenAI-compatible relay
+      summary: Moderations (OpenAI compatible)
       tags:
       - public
   /api/v1/public/notice:
@@ -1910,8 +3013,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.WalletLoginRequest'
       produces:
       - application/json
       responses:
@@ -1938,8 +3040,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.WalletLoginRequest'
       produces:
       - application/json
       responses:
@@ -2306,8 +3407,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.TokenCreateRequest'
       produces:
       - application/json
       responses:
@@ -2333,8 +3433,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.TokenUpdateRequest'
       - description: Update status only if set
         in: query
         name: status_only
@@ -2556,8 +3655,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.UserRegisterRequest'
       produces:
       - application/json
       responses:
@@ -2641,8 +3739,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.UserSelfUpdateRequest'
       produces:
       - application/json
       responses:
@@ -2687,8 +3784,7 @@ paths:
         name: body
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/docs.UserTopUpRequest'
       produces:
       - application/json
       responses:

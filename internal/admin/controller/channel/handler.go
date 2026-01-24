@@ -109,7 +109,7 @@ func GetChannel(c *gin.Context) {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Channel payload"
+// @Param body body docs.ChannelCreateRequest true "Channel payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/admin/channel [post]
@@ -207,7 +207,7 @@ func DeleteDisabledChannel(c *gin.Context) {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Channel update payload"
+// @Param body body docs.ChannelUpdateRequest true "Channel update payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/admin/channel [put]

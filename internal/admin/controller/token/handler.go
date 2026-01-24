@@ -156,7 +156,7 @@ func validateToken(c *gin.Context, token model.Token) error {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Token payload"
+// @Param body body docs.TokenCreateRequest true "Token payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/public/token [post]
@@ -240,7 +240,7 @@ func DeleteToken(c *gin.Context) {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Token update payload"
+// @Param body body docs.TokenUpdateRequest true "Token update payload"
 // @Param status_only query string false "Update status only if set"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse

@@ -75,8 +75,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.ChannelUpdateRequest"
                         }
                     }
                 ],
@@ -118,8 +117,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.ChannelCreateRequest"
                         }
                     }
                 ],
@@ -746,8 +744,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OptionUpdateRequest"
                         }
                     }
                 ],
@@ -827,8 +824,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.RedemptionUpdateRequest"
                         }
                     },
                     {
@@ -876,8 +872,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.RedemptionCreateRequest"
                         }
                     }
                 ],
@@ -1077,8 +1072,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.AdminUserUpdateRequest"
                         }
                     }
                 ],
@@ -1120,8 +1114,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.AdminCreateUserRequest"
                         }
                     }
                 ],
@@ -1165,8 +1158,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.AdminManageUserRequest"
                         }
                     }
                 ],
@@ -1542,21 +1534,20 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "produces": [
-                    "application/json"
+                    "application/octet-stream"
                 ],
                 "tags": [
                     "public"
                 ],
-                "summary": "OpenAI-compatible relay",
+                "summary": "Audio speech (OpenAI compatible)",
                 "parameters": [
                     {
-                        "description": "OpenAI-compatible request",
+                        "description": "Text-to-speech request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAITextToSpeechRequest"
                         }
                     }
                 ],
@@ -1564,8 +1555,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "file"
                         }
                     },
                     "400": {
@@ -1591,7 +1581,7 @@ const docTemplate = `{
                     }
                 ],
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -1599,25 +1589,52 @@ const docTemplate = `{
                 "tags": [
                     "public"
                 ],
-                "summary": "OpenAI-compatible relay",
+                "summary": "Audio transcriptions (OpenAI compatible)",
                 "parameters": [
                     {
-                        "description": "OpenAI-compatible request",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
+                        "type": "file",
+                        "description": "Audio file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Model ID (e.g., whisper-1)",
+                        "name": "model",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Language (ISO-639-1)",
+                        "name": "language",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Prompt",
+                        "name": "prompt",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Response format (json, text, srt, vtt, verbose_json)",
+                        "name": "response_format",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Sampling temperature",
+                        "name": "temperature",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIAudioTranscriptionResponse"
                         }
                     },
                     "400": {
@@ -1643,7 +1660,7 @@ const docTemplate = `{
                     }
                 ],
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -1651,25 +1668,46 @@ const docTemplate = `{
                 "tags": [
                     "public"
                 ],
-                "summary": "OpenAI-compatible relay",
+                "summary": "Audio translations (OpenAI compatible)",
                 "parameters": [
                     {
-                        "description": "OpenAI-compatible request",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
+                        "type": "file",
+                        "description": "Audio file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Model ID (e.g., whisper-1)",
+                        "name": "model",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Prompt",
+                        "name": "prompt",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Response format (json, text, srt, vtt, verbose_json)",
+                        "name": "response_format",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Sampling temperature",
+                        "name": "temperature",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIAudioTranscriptionResponse"
                         }
                     },
                     "400": {
@@ -1706,8 +1744,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.WalletChallengeRequest"
                         }
                     }
                 ],
@@ -1769,18 +1806,6 @@ const docTemplate = `{
                     "public"
                 ],
                 "summary": "Refresh token (web3)",
-                "parameters": [
-                    {
-                        "description": "Refresh payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1816,8 +1841,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.WalletLoginRequest"
                         }
                     }
                 ],
@@ -1891,16 +1915,15 @@ const docTemplate = `{
                 "tags": [
                     "public"
                 ],
-                "summary": "OpenAI-compatible relay",
+                "summary": "Chat completions (OpenAI compatible)",
                 "parameters": [
                     {
-                        "description": "OpenAI-compatible request",
+                        "description": "Chat completions request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIChatCompletionsRequest"
                         }
                     }
                 ],
@@ -1908,8 +1931,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIChatCompletionsResponse"
                         }
                     },
                     "400": {
@@ -1946,8 +1968,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.WalletChallengeRequest"
                         }
                     }
                 ],
@@ -1979,18 +2000,6 @@ const docTemplate = `{
                     "public"
                 ],
                 "summary": "Refresh token (proto)",
-                "parameters": [
-                    {
-                        "description": "Refresh payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2026,8 +2035,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.WalletLoginRequest"
                         }
                     }
                 ],
@@ -2063,16 +2071,15 @@ const docTemplate = `{
                 "tags": [
                     "public"
                 ],
-                "summary": "OpenAI-compatible relay",
+                "summary": "Completions (OpenAI compatible)",
                 "parameters": [
                     {
-                        "description": "OpenAI-compatible request",
+                        "description": "Completions request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAICompletionsRequest"
                         }
                     }
                 ],
@@ -2080,8 +2087,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAICompletionsResponse"
                         }
                     },
                     "400": {
@@ -2115,16 +2121,15 @@ const docTemplate = `{
                 "tags": [
                     "public"
                 ],
-                "summary": "OpenAI-compatible relay",
+                "summary": "Edits (OpenAI compatible)",
                 "parameters": [
                     {
-                        "description": "OpenAI-compatible request",
+                        "description": "Edits request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIEditRequest"
                         }
                     }
                 ],
@@ -2132,8 +2137,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIEditResponse"
                         }
                     },
                     "400": {
@@ -2167,16 +2171,15 @@ const docTemplate = `{
                 "tags": [
                     "public"
                 ],
-                "summary": "OpenAI-compatible relay",
+                "summary": "Embeddings (OpenAI compatible)",
                 "parameters": [
                     {
-                        "description": "OpenAI-compatible request",
+                        "description": "Embeddings request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIEmbeddingsRequest"
                         }
                     }
                 ],
@@ -2184,8 +2187,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIEmbeddingsResponse"
                         }
                     },
                     "400": {
@@ -2219,16 +2221,22 @@ const docTemplate = `{
                 "tags": [
                     "public"
                 ],
-                "summary": "OpenAI-compatible relay",
+                "summary": "Embeddings by engine (OpenAI compatible)",
                 "parameters": [
                     {
-                        "description": "OpenAI-compatible request",
+                        "type": "string",
+                        "description": "Engine model ID",
+                        "name": "model",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Embeddings request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIEmbeddingsRequest"
                         }
                     }
                 ],
@@ -2236,8 +2244,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIEmbeddingsResponse"
                         }
                     },
                     "400": {
@@ -2554,16 +2561,15 @@ const docTemplate = `{
                 "tags": [
                     "public"
                 ],
-                "summary": "OpenAI-compatible relay",
+                "summary": "Image generations (OpenAI compatible)",
                 "parameters": [
                     {
-                        "description": "OpenAI-compatible request",
+                        "description": "Image generation request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIImageGenerationRequest"
                         }
                     }
                 ],
@@ -2571,8 +2577,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIImageResponse"
                         }
                     },
                     "400": {
@@ -2806,8 +2811,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIModelListResponse"
                         }
                     },
                     "401": {
@@ -2837,8 +2841,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIModelListResponse"
                         }
                     },
                     "401": {
@@ -2877,8 +2880,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIModel"
                         }
                     },
                     "404": {
@@ -2928,16 +2930,15 @@ const docTemplate = `{
                 "tags": [
                     "public"
                 ],
-                "summary": "OpenAI-compatible relay",
+                "summary": "Moderations (OpenAI compatible)",
                 "parameters": [
                     {
-                        "description": "OpenAI-compatible request",
+                        "description": "Moderations request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIModerationRequest"
                         }
                     }
                 ],
@@ -2945,8 +2946,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.OpenAIModerationResponse"
                         }
                     },
                     "400": {
@@ -3013,8 +3013,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.WalletLoginRequest"
                         }
                     }
                 ],
@@ -3053,8 +3052,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.WalletLoginRequest"
                         }
                     }
                 ],
@@ -3668,8 +3666,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.TokenUpdateRequest"
                         }
                     },
                     {
@@ -3717,8 +3714,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.TokenCreateRequest"
                         }
                     }
                 ],
@@ -4065,8 +4061,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.UserRegisterRequest"
                         }
                     }
                 ],
@@ -4177,8 +4172,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.UserSelfUpdateRequest"
                         }
                     }
                 ],
@@ -4280,8 +4274,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/docs.UserTopUpRequest"
                         }
                     }
                 ],
@@ -4314,6 +4307,211 @@ const docTemplate = `{
                 }
             }
         },
+        "docs.AdminCreateUserRequest": {
+            "type": "object",
+            "properties": {
+                "display_name": {
+                    "type": "string",
+                    "example": "Alice"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "P@ssw0rd1"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "docs.AdminManageUserRequest": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "example": "disable"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "docs.AdminUserUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "display_name": {
+                    "type": "string",
+                    "example": "Alice"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "alice@example.com"
+                },
+                "group": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 123
+                },
+                "password": {
+                    "type": "string",
+                    "example": "NewPass123"
+                },
+                "quota": {
+                    "type": "integer",
+                    "example": 100000
+                },
+                "role": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "used_quota": {
+                    "type": "integer",
+                    "example": 20000
+                },
+                "username": {
+                    "type": "string",
+                    "example": "alice"
+                },
+                "wallet_address": {
+                    "type": "string",
+                    "example": "0x1111111111111111111111111111111111111111"
+                }
+            }
+        },
+        "docs.ChannelCreateRequest": {
+            "type": "object",
+            "properties": {
+                "base_url": {
+                    "type": "string",
+                    "example": "https://api.openai.com"
+                },
+                "completion_ratio": {
+                    "type": "string",
+                    "example": "{}"
+                },
+                "config": {
+                    "type": "string",
+                    "example": "{}"
+                },
+                "group": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "key": {
+                    "type": "string",
+                    "example": "sk-***"
+                },
+                "model_mapping": {
+                    "type": "string",
+                    "example": "{}"
+                },
+                "model_ratio": {
+                    "type": "string",
+                    "example": "{}"
+                },
+                "models": {
+                    "type": "string",
+                    "example": "gpt-4o-mini,gpt-4o"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "OpenAI"
+                },
+                "priority": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "system_prompt": {
+                    "type": "string",
+                    "example": ""
+                },
+                "type": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "weight": {
+                    "type": "integer",
+                    "example": 0
+                }
+            }
+        },
+        "docs.ChannelUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "base_url": {
+                    "type": "string",
+                    "example": "https://api.openai.com"
+                },
+                "completion_ratio": {
+                    "type": "string",
+                    "example": "{}"
+                },
+                "config": {
+                    "type": "string",
+                    "example": "{}"
+                },
+                "group": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "key": {
+                    "type": "string",
+                    "example": "sk-***"
+                },
+                "model_mapping": {
+                    "type": "string",
+                    "example": "{}"
+                },
+                "model_ratio": {
+                    "type": "string",
+                    "example": "{}"
+                },
+                "models": {
+                    "type": "string",
+                    "example": "gpt-4o-mini,gpt-4o"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "OpenAI"
+                },
+                "priority": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "system_prompt": {
+                    "type": "string",
+                    "example": ""
+                },
+                "type": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "weight": {
+                    "type": "integer",
+                    "example": 0
+                }
+            }
+        },
         "docs.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -4328,6 +4526,528 @@ const docTemplate = `{
                 },
                 "timestamp": {
                     "type": "integer"
+                }
+            }
+        },
+        "docs.OpenAIAudioOutput": {
+            "type": "object",
+            "properties": {
+                "format": {
+                    "type": "string",
+                    "example": "wav"
+                },
+                "voice": {
+                    "type": "string",
+                    "example": "alloy"
+                }
+            }
+        },
+        "docs.OpenAIAudioTranscriptionResponse": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "type": "number",
+                    "example": 12.34
+                },
+                "language": {
+                    "type": "string",
+                    "example": "en"
+                },
+                "segments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIWhisperSegment"
+                    }
+                },
+                "task": {
+                    "type": "string",
+                    "example": "transcribe"
+                },
+                "text": {
+                    "type": "string",
+                    "example": "Hello world"
+                }
+            }
+        },
+        "docs.OpenAIChatCompletionChoice": {
+            "type": "object",
+            "properties": {
+                "finish_reason": {
+                    "type": "string",
+                    "example": "stop"
+                },
+                "index": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "message": {
+                    "$ref": "#/definitions/docs.OpenAIChatCompletionMessage"
+                }
+            }
+        },
+        "docs.OpenAIChatCompletionMessage": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "example": "Hello!"
+                },
+                "role": {
+                    "type": "string",
+                    "example": "assistant"
+                },
+                "tool_calls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIToolCall"
+                    }
+                }
+            }
+        },
+        "docs.OpenAIChatCompletionsRequest": {
+            "type": "object",
+            "properties": {
+                "audio": {
+                    "$ref": "#/definitions/docs.OpenAIAudioOutput"
+                },
+                "frequency_penalty": {
+                    "type": "number",
+                    "example": 0
+                },
+                "logprobs": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "max_completion_tokens": {
+                    "type": "integer",
+                    "example": 128
+                },
+                "max_tokens": {
+                    "type": "integer",
+                    "example": 128
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIChatMessage"
+                    }
+                },
+                "modalities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"text\"]"
+                    ]
+                },
+                "model": {
+                    "type": "string",
+                    "example": "gpt-4o-mini"
+                },
+                "n": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "parallel_tool_calls": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "presence_penalty": {
+                    "type": "number",
+                    "example": 0
+                },
+                "reasoning_effort": {
+                    "type": "string",
+                    "example": "medium"
+                },
+                "response_format": {
+                    "$ref": "#/definitions/docs.OpenAIResponseFormat"
+                },
+                "seed": {
+                    "type": "integer",
+                    "example": 42
+                },
+                "stop": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"\\n\\n\"]"
+                    ]
+                },
+                "stream": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "stream_options": {
+                    "$ref": "#/definitions/docs.OpenAIStreamOptions"
+                },
+                "temperature": {
+                    "type": "number",
+                    "example": 0.7
+                },
+                "tool_choice": {
+                    "$ref": "#/definitions/docs.OpenAIToolChoice"
+                },
+                "tools": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAITool"
+                    }
+                },
+                "top_logprobs": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "top_p": {
+                    "type": "number",
+                    "example": 0.9
+                },
+                "user": {
+                    "type": "string",
+                    "example": "user-123"
+                }
+            }
+        },
+        "docs.OpenAIChatCompletionsResponse": {
+            "type": "object",
+            "properties": {
+                "choices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIChatCompletionChoice"
+                    }
+                },
+                "created": {
+                    "type": "integer",
+                    "example": 1700000000
+                },
+                "id": {
+                    "type": "string",
+                    "example": "chatcmpl-123"
+                },
+                "model": {
+                    "type": "string",
+                    "example": "gpt-4o-mini"
+                },
+                "object": {
+                    "type": "string",
+                    "example": "chat.completion"
+                },
+                "usage": {
+                    "$ref": "#/definitions/docs.OpenAIUsage"
+                }
+            }
+        },
+        "docs.OpenAIChatContentPart": {
+            "type": "object",
+            "properties": {
+                "image_url": {
+                    "$ref": "#/definitions/docs.OpenAIImageURL"
+                },
+                "input_audio": {
+                    "$ref": "#/definitions/docs.OpenAIInputAudio"
+                },
+                "text": {
+                    "type": "string",
+                    "example": "Hello"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "text"
+                }
+            }
+        },
+        "docs.OpenAIChatMessage": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIChatContentPart"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "example": ""
+                },
+                "role": {
+                    "type": "string",
+                    "example": "user"
+                },
+                "tool_call_id": {
+                    "type": "string",
+                    "example": ""
+                },
+                "tool_calls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIToolCall"
+                    }
+                }
+            }
+        },
+        "docs.OpenAICompletionTokensDetails": {
+            "type": "object",
+            "properties": {
+                "accepted_prediction_tokens": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "reasoning_tokens": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "rejected_prediction_tokens": {
+                    "type": "integer",
+                    "example": 0
+                }
+            }
+        },
+        "docs.OpenAICompletionsChoice": {
+            "type": "object",
+            "properties": {
+                "finish_reason": {
+                    "type": "string",
+                    "example": "stop"
+                },
+                "index": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "text": {
+                    "type": "string",
+                    "example": "Hello world"
+                }
+            }
+        },
+        "docs.OpenAICompletionsRequest": {
+            "type": "object",
+            "properties": {
+                "best_of": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "frequency_penalty": {
+                    "type": "number",
+                    "example": 0
+                },
+                "max_tokens": {
+                    "type": "integer",
+                    "example": 16
+                },
+                "model": {
+                    "type": "string",
+                    "example": "gpt-3.5-turbo-instruct"
+                },
+                "n": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "presence_penalty": {
+                    "type": "number",
+                    "example": 0
+                },
+                "prompt": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"Hello\"]"
+                    ]
+                },
+                "stop": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"\\n\"]"
+                    ]
+                },
+                "stream": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "temperature": {
+                    "type": "number",
+                    "example": 0.7
+                },
+                "top_p": {
+                    "type": "number",
+                    "example": 0.9
+                },
+                "user": {
+                    "type": "string",
+                    "example": "user-123"
+                }
+            }
+        },
+        "docs.OpenAICompletionsResponse": {
+            "type": "object",
+            "properties": {
+                "choices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAICompletionsChoice"
+                    }
+                },
+                "created": {
+                    "type": "integer",
+                    "example": 1700000000
+                },
+                "id": {
+                    "type": "string",
+                    "example": "cmpl-123"
+                },
+                "model": {
+                    "type": "string",
+                    "example": "gpt-3.5-turbo-instruct"
+                },
+                "object": {
+                    "type": "string",
+                    "example": "text_completion"
+                },
+                "usage": {
+                    "$ref": "#/definitions/docs.OpenAIUsage"
+                }
+            }
+        },
+        "docs.OpenAIEditChoice": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "text": {
+                    "type": "string",
+                    "example": "What day of the week is it?"
+                }
+            }
+        },
+        "docs.OpenAIEditRequest": {
+            "type": "object",
+            "properties": {
+                "input": {
+                    "type": "string",
+                    "example": "What day of the wek is it?"
+                },
+                "instruction": {
+                    "type": "string",
+                    "example": "Fix spelling"
+                },
+                "model": {
+                    "type": "string",
+                    "example": "gpt-3.5-turbo-instruct"
+                },
+                "n": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "temperature": {
+                    "type": "number",
+                    "example": 0.7
+                },
+                "top_p": {
+                    "type": "number",
+                    "example": 0.9
+                }
+            }
+        },
+        "docs.OpenAIEditResponse": {
+            "type": "object",
+            "properties": {
+                "choices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIEditChoice"
+                    }
+                },
+                "created": {
+                    "type": "integer",
+                    "example": 1700000000
+                },
+                "object": {
+                    "type": "string",
+                    "example": "edit"
+                },
+                "usage": {
+                    "$ref": "#/definitions/docs.OpenAIUsage"
+                }
+            }
+        },
+        "docs.OpenAIEmbeddingItem": {
+            "type": "object",
+            "properties": {
+                "embedding": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "index": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "object": {
+                    "type": "string",
+                    "example": "embedding"
+                }
+            }
+        },
+        "docs.OpenAIEmbeddingsRequest": {
+            "type": "object",
+            "properties": {
+                "dimensions": {
+                    "type": "integer",
+                    "example": 1536
+                },
+                "encoding_format": {
+                    "type": "string",
+                    "example": "float"
+                },
+                "input": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"Hello world\"]"
+                    ]
+                },
+                "model": {
+                    "type": "string",
+                    "example": "text-embedding-3-small"
+                },
+                "user": {
+                    "type": "string",
+                    "example": "user-123"
+                }
+            }
+        },
+        "docs.OpenAIEmbeddingsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIEmbeddingItem"
+                    }
+                },
+                "model": {
+                    "type": "string",
+                    "example": "text-embedding-3-small"
+                },
+                "object": {
+                    "type": "string",
+                    "example": "list"
+                },
+                "usage": {
+                    "$ref": "#/definitions/docs.OpenAIUsage"
                 }
             }
         },
@@ -4356,6 +5076,695 @@ const docTemplate = `{
                 }
             }
         },
+        "docs.OpenAIFunction": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Get weather by city"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "get_weather"
+                },
+                "parameters": {
+                    "$ref": "#/definitions/docs.OpenAIJSONSchema"
+                }
+            }
+        },
+        "docs.OpenAIImageData": {
+            "type": "object",
+            "properties": {
+                "b64_json": {
+                    "type": "string",
+                    "example": "base64-image"
+                },
+                "revised_prompt": {
+                    "type": "string",
+                    "example": "A cute cat"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://example.com/image.png"
+                }
+            }
+        },
+        "docs.OpenAIImageGenerationRequest": {
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string",
+                    "example": "gpt-image-1"
+                },
+                "n": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "prompt": {
+                    "type": "string",
+                    "example": "A cute cat"
+                },
+                "quality": {
+                    "type": "string",
+                    "example": "standard"
+                },
+                "response_format": {
+                    "type": "string",
+                    "example": "url"
+                },
+                "size": {
+                    "type": "string",
+                    "example": "1024x1024"
+                },
+                "style": {
+                    "type": "string",
+                    "example": "vivid"
+                },
+                "user": {
+                    "type": "string",
+                    "example": "user-123"
+                }
+            }
+        },
+        "docs.OpenAIImageResponse": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "integer",
+                    "example": 1700000000
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIImageData"
+                    }
+                }
+            }
+        },
+        "docs.OpenAIImageURL": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "string",
+                    "example": "high"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://example.com/image.png"
+                }
+            }
+        },
+        "docs.OpenAIInputAudio": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "string",
+                    "example": "base64-audio"
+                },
+                "format": {
+                    "type": "string",
+                    "example": "wav"
+                }
+            }
+        },
+        "docs.OpenAIJSONSchema": {
+            "type": "object",
+            "properties": {
+                "additional_properties": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "properties": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIJSONSchemaProperty"
+                    }
+                },
+                "required": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"answer\"]"
+                    ]
+                },
+                "type": {
+                    "type": "string",
+                    "example": "object"
+                }
+            }
+        },
+        "docs.OpenAIJSONSchemaProperty": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "answer"
+                },
+                "schema": {
+                    "$ref": "#/definitions/docs.OpenAIJSONSchemaPropertySchema"
+                }
+            }
+        },
+        "docs.OpenAIJSONSchemaPropertySchema": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Answer text"
+                },
+                "enum": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"yes\"",
+                        "\"no\"]"
+                    ]
+                },
+                "type": {
+                    "type": "string",
+                    "example": "string"
+                }
+            }
+        },
+        "docs.OpenAIModel": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "integer",
+                    "example": 1626777600
+                },
+                "id": {
+                    "type": "string",
+                    "example": "gpt-4o-mini"
+                },
+                "object": {
+                    "type": "string",
+                    "example": "model"
+                },
+                "owned_by": {
+                    "type": "string",
+                    "example": "openai"
+                },
+                "parent": {
+                    "type": "string",
+                    "example": ""
+                },
+                "permission": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIModelPermission"
+                    }
+                },
+                "root": {
+                    "type": "string",
+                    "example": "gpt-4o-mini"
+                }
+            }
+        },
+        "docs.OpenAIModelListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIModel"
+                    }
+                },
+                "object": {
+                    "type": "string",
+                    "example": "list"
+                }
+            }
+        },
+        "docs.OpenAIModelPermission": {
+            "type": "object",
+            "properties": {
+                "allow_create_engine": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "allow_fine_tuning": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "allow_logprobs": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "allow_sampling": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "allow_search_indices": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "allow_view": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "created": {
+                    "type": "integer",
+                    "example": 1626777600
+                },
+                "group": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "modelperm-abc123"
+                },
+                "is_blocking": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "object": {
+                    "type": "string",
+                    "example": "model_permission"
+                },
+                "organization": {
+                    "type": "string",
+                    "example": "*"
+                }
+            }
+        },
+        "docs.OpenAIModerationCategories": {
+            "type": "object",
+            "properties": {
+                "harassment": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "harassment_threatening": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "hate": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "hate_threatening": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "illicit": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "illicit_violent": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "self_harm": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "self_harm_instructions": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "self_harm_intent": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "sexual": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "sexual_minors": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "violence": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "violence_graphic": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "docs.OpenAIModerationCategoryScores": {
+            "type": "object",
+            "properties": {
+                "harassment": {
+                    "type": "number",
+                    "example": 0
+                },
+                "harassment_threatening": {
+                    "type": "number",
+                    "example": 0
+                },
+                "hate": {
+                    "type": "number",
+                    "example": 0
+                },
+                "hate_threatening": {
+                    "type": "number",
+                    "example": 0
+                },
+                "illicit": {
+                    "type": "number",
+                    "example": 0
+                },
+                "illicit_violent": {
+                    "type": "number",
+                    "example": 0
+                },
+                "self_harm": {
+                    "type": "number",
+                    "example": 0
+                },
+                "self_harm_instructions": {
+                    "type": "number",
+                    "example": 0
+                },
+                "self_harm_intent": {
+                    "type": "number",
+                    "example": 0
+                },
+                "sexual": {
+                    "type": "number",
+                    "example": 0
+                },
+                "sexual_minors": {
+                    "type": "number",
+                    "example": 0
+                },
+                "violence": {
+                    "type": "number",
+                    "example": 0
+                },
+                "violence_graphic": {
+                    "type": "number",
+                    "example": 0
+                }
+            }
+        },
+        "docs.OpenAIModerationRequest": {
+            "type": "object",
+            "properties": {
+                "input": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"I want to hurt someone\"]"
+                    ]
+                },
+                "model": {
+                    "type": "string",
+                    "example": "omni-moderation-latest"
+                }
+            }
+        },
+        "docs.OpenAIModerationResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "modr-123"
+                },
+                "model": {
+                    "type": "string",
+                    "example": "omni-moderation-latest"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.OpenAIModerationResult"
+                    }
+                }
+            }
+        },
+        "docs.OpenAIModerationResult": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "$ref": "#/definitions/docs.OpenAIModerationCategories"
+                },
+                "category_scores": {
+                    "$ref": "#/definitions/docs.OpenAIModerationCategoryScores"
+                },
+                "flagged": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "docs.OpenAIResponseFormat": {
+            "type": "object",
+            "properties": {
+                "json_schema": {
+                    "$ref": "#/definitions/docs.OpenAIResponseJSONSchema"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "json_object"
+                }
+            }
+        },
+        "docs.OpenAIResponseJSONSchema": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Structured response"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "response"
+                },
+                "schema": {
+                    "$ref": "#/definitions/docs.OpenAIJSONSchema"
+                },
+                "strict": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "docs.OpenAIStreamOptions": {
+            "type": "object",
+            "properties": {
+                "include_usage": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "docs.OpenAITextToSpeechRequest": {
+            "type": "object",
+            "properties": {
+                "input": {
+                    "type": "string",
+                    "example": "Hello world"
+                },
+                "model": {
+                    "type": "string",
+                    "example": "gpt-4o-mini-tts"
+                },
+                "response_format": {
+                    "type": "string",
+                    "example": "mp3"
+                },
+                "speed": {
+                    "type": "number",
+                    "example": 1
+                },
+                "voice": {
+                    "type": "string",
+                    "example": "alloy"
+                }
+            }
+        },
+        "docs.OpenAITool": {
+            "type": "object",
+            "properties": {
+                "function": {
+                    "$ref": "#/definitions/docs.OpenAIFunction"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "function"
+                }
+            }
+        },
+        "docs.OpenAIToolCall": {
+            "type": "object",
+            "properties": {
+                "function": {
+                    "$ref": "#/definitions/docs.OpenAIToolCallFunction"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "call_123"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "function"
+                }
+            }
+        },
+        "docs.OpenAIToolCallFunction": {
+            "type": "object",
+            "properties": {
+                "arguments": {
+                    "type": "string",
+                    "example": "{\"city\":\"Paris\"}"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "get_weather"
+                }
+            }
+        },
+        "docs.OpenAIToolChoice": {
+            "type": "object",
+            "properties": {
+                "function": {
+                    "$ref": "#/definitions/docs.OpenAIToolChoiceFunction"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "function"
+                }
+            }
+        },
+        "docs.OpenAIToolChoiceFunction": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "get_weather"
+                }
+            }
+        },
+        "docs.OpenAIUsage": {
+            "type": "object",
+            "properties": {
+                "completion_tokens": {
+                    "type": "integer",
+                    "example": 34
+                },
+                "completion_tokens_details": {
+                    "$ref": "#/definitions/docs.OpenAICompletionTokensDetails"
+                },
+                "prompt_tokens": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "total_tokens": {
+                    "type": "integer",
+                    "example": 46
+                }
+            }
+        },
+        "docs.OpenAIWhisperSegment": {
+            "type": "object",
+            "properties": {
+                "avg_logprob": {
+                    "type": "number",
+                    "example": -0.1
+                },
+                "compression_ratio": {
+                    "type": "number",
+                    "example": 1
+                },
+                "end": {
+                    "type": "number",
+                    "example": 1.2
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "no_speech_prob": {
+                    "type": "number",
+                    "example": 0
+                },
+                "seek": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "start": {
+                    "type": "number",
+                    "example": 0
+                },
+                "temperature": {
+                    "type": "number",
+                    "example": 0
+                },
+                "text": {
+                    "type": "string",
+                    "example": "Hello"
+                },
+                "tokens": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "docs.OptionUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "example": "SystemName"
+                },
+                "value": {
+                    "type": "string",
+                    "example": "Router"
+                }
+            }
+        },
+        "docs.RedemptionCreateRequest": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "name": {
+                    "type": "string",
+                    "example": "InviteBonus"
+                },
+                "quota": {
+                    "type": "integer",
+                    "example": 100000
+                }
+            }
+        },
+        "docs.RedemptionUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "name": {
+                    "type": "string",
+                    "example": "InviteBonus"
+                },
+                "quota": {
+                    "type": "integer",
+                    "example": 100000
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
         "docs.StandardResponse": {
             "type": "object",
             "properties": {
@@ -4371,6 +5780,161 @@ const docTemplate = `{
                 },
                 "timestamp": {
                     "type": "integer"
+                }
+            }
+        },
+        "docs.TokenCreateRequest": {
+            "type": "object",
+            "properties": {
+                "expired_time": {
+                    "type": "integer",
+                    "example": -1
+                },
+                "models": {
+                    "type": "string",
+                    "example": "gpt-4o-mini,gpt-4o"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "remain_quota": {
+                    "type": "integer",
+                    "example": 100000
+                },
+                "subnet": {
+                    "type": "string",
+                    "example": "192.168.0.0/16"
+                },
+                "unlimited_quota": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "docs.TokenUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "expired_time": {
+                    "type": "integer",
+                    "example": -1
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "models": {
+                    "type": "string",
+                    "example": "gpt-4o-mini,gpt-4o"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "remain_quota": {
+                    "type": "integer",
+                    "example": 100000
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "subnet": {
+                    "type": "string",
+                    "example": "192.168.0.0/16"
+                },
+                "unlimited_quota": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "docs.UserRegisterRequest": {
+            "type": "object",
+            "properties": {
+                "aff_code": {
+                    "type": "string",
+                    "example": "ABCD"
+                },
+                "display_name": {
+                    "type": "string",
+                    "example": "Alice"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "alice@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "P@ssw0rd1"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "docs.UserSelfUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "display_name": {
+                    "type": "string",
+                    "example": "Alice"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "NewPass123"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "docs.UserTopUpRequest": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "example": "redeem-xxxx-xxxx"
+                }
+            }
+        },
+        "docs.WalletChallengeRequest": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "0x1111111111111111111111111111111111111111"
+                },
+                "chain_id": {
+                    "type": "string",
+                    "example": "1"
+                }
+            }
+        },
+        "docs.WalletLoginRequest": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "0x1111111111111111111111111111111111111111"
+                },
+                "chain_id": {
+                    "type": "string",
+                    "example": "1"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Sign in to Router"
+                },
+                "nonce": {
+                    "type": "string",
+                    "example": "abc123"
+                },
+                "signature": {
+                    "type": "string",
+                    "example": "0xabcdef..."
                 }
             }
         },

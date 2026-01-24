@@ -76,7 +76,7 @@ func WalletNonce(c *gin.Context) {
 // @Tags public
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Wallet login payload"
+// @Param body body docs.WalletLoginRequest true "Wallet login payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 400 {object} docs.ErrorResponse
 // @Router /api/v1/public/oauth/wallet/login [post]
@@ -146,7 +146,7 @@ func WalletLogin(c *gin.Context) {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Wallet bind payload"
+// @Param body body docs.WalletLoginRequest true "Wallet bind payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/public/oauth/wallet/bind [post]
@@ -366,7 +366,7 @@ func recoverAddress(message, signature string) (string, error) {
 // @Tags public
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Challenge payload"
+// @Param body body docs.WalletChallengeRequest true "Challenge payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 400 {object} docs.ErrorResponse
 // @Router /api/v1/public/common/auth/challenge [post]
@@ -411,7 +411,7 @@ func WalletChallengeProto(c *gin.Context) {
 // @Tags public
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Verify payload"
+// @Param body body docs.WalletLoginRequest true "Verify payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 400 {object} docs.ErrorResponse
 // @Router /api/v1/public/common/auth/verify [post]
@@ -470,7 +470,6 @@ func WalletVerifyProto(c *gin.Context) {
 // @Tags public
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Refresh payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 400 {object} docs.ErrorResponse
 // @Router /api/v1/public/common/auth/refreshToken [post]
@@ -561,7 +560,7 @@ func writeProtoError(c *gin.Context, code int, message string) {
 // @Tags public
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Challenge payload"
+// @Param body body docs.WalletChallengeRequest true "Challenge payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 400 {object} docs.ErrorResponse
 // @Router /api/v1/public/auth/challenge [post]
@@ -597,7 +596,7 @@ func WalletChallengeWeb3(c *gin.Context) {
 // @Tags public
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Verify payload"
+// @Param body body docs.WalletLoginRequest true "Verify payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 400 {object} docs.ErrorResponse
 // @Router /api/v1/public/auth/verify [post]
@@ -651,7 +650,6 @@ func WalletVerifyWeb3(c *gin.Context) {
 // @Tags public
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Refresh payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 400 {object} docs.ErrorResponse
 // @Router /api/v1/public/auth/refresh [post]

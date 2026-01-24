@@ -153,7 +153,7 @@ func Logout(c *gin.Context) {
 // @Tags public
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Register payload"
+// @Param body body docs.UserRegisterRequest true "Register payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 400 {object} docs.ErrorResponse
 // @Router /api/v1/public/user/register [post]
@@ -545,7 +545,7 @@ func GetSelf(c *gin.Context) {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "User update payload"
+// @Param body body docs.AdminUserUpdateRequest true "User update payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/admin/user [put]
@@ -622,7 +622,7 @@ func UpdateUser(c *gin.Context) {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Profile update payload"
+// @Param body body docs.UserSelfUpdateRequest true "Profile update payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/public/user/self [put]
@@ -758,7 +758,7 @@ func DeleteSelf(c *gin.Context) {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Create user payload"
+// @Param body body docs.AdminCreateUserRequest true "Create user payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/admin/user [post]
@@ -823,7 +823,7 @@ type ManageRequest struct {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Manage user payload"
+// @Param body body docs.AdminManageUserRequest true "Manage user payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/admin/user/manage [post]
@@ -1005,7 +1005,7 @@ type topUpRequest struct {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param body body map[string]interface{} true "Top up payload"
+// @Param body body docs.UserTopUpRequest true "Top up payload"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/public/user/topup [post]

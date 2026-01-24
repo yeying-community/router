@@ -206,7 +206,7 @@ func DashboardListModels(c *gin.Context) {
 // @Tags public
 // @Security BearerAuth
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} docs.OpenAIModelListResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/public/models-all [get]
 func ListAllModels(c *gin.Context) {
@@ -221,7 +221,7 @@ func ListAllModels(c *gin.Context) {
 // @Tags public
 // @Security BearerAuth
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} docs.OpenAIModelListResponse
 // @Failure 401 {object} docs.OpenAIErrorResponse
 // @Router /api/v1/public/models [get]
 func ListModels(c *gin.Context) {
@@ -269,7 +269,7 @@ func ListModels(c *gin.Context) {
 // @Security BearerAuth
 // @Produce json
 // @Param model path string true "Model ID"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} docs.OpenAIModel
 // @Failure 404 {object} docs.OpenAIErrorResponse
 // @Router /api/v1/public/models/{model} [get]
 func RetrieveModel(c *gin.Context) {
