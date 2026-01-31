@@ -69,5 +69,9 @@ func GetByContext(c *gin.Context) *Meta {
 		meta.BaseURL = channeltype.ChannelBaseURLs[meta.ChannelType]
 	}
 	meta.APIType = channeltype.ToAPIType(meta.ChannelType)
+	if meta.Config.UseResponses {
+		meta.Mode = relaymode.Responses
+		meta.RequestURLPath = "/v1/responses"
+	}
 	return &meta
 }

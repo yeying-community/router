@@ -110,6 +110,16 @@
       "base_url_placeholder": "The Base URL required by the OpenAPI SDK",
       "key": "Key",
       "key_placeholder": "Please enter key",
+      "use_responses": {
+        "label": "Use Codex Responses Mode (/v1/responses)",
+        "help": "When enabled, this channel routes via Responses format (Codex/CLI)"
+      },
+      "user_agent": {
+        "label": "Client Identifier (User-Agent)",
+        "placeholder": "e.g. codex-cli",
+        "help": "Fill this only if upstream enforces a client allowlist; empty means no User-Agent override",
+        "codex_checkbox": "Use Codex CLI (User-Agent=codex-cli)"
+      },
       "batch": "Batch Create",
       "batch_placeholder": "Please enter keys, one per line",
       "buttons": {

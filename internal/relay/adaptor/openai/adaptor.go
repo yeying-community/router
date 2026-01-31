@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -71,12 +72,18 @@ func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *me
 	adaptor.SetupCommonRequestHeader(c, req, meta)
 	if meta.ChannelType == channeltype.Azure {
 		req.Header.Set("api-key", meta.APIKey)
+		if meta.Config.UserAgent != "" {
+			req.Header.Set("User-Agent", meta.Config.UserAgent)
+		}
 		return nil
 	}
 	req.Header.Set("Authorization", "Bearer "+meta.APIKey)
 	if meta.ChannelType == channeltype.OpenRouter {
 		req.Header.Set("HTTP-Referer", "https://github.com/yeying-community/router")
 		req.Header.Set("X-Title", "Router")
+	}
+	if meta.Config.UserAgent != "" {
+		req.Header.Set("User-Agent", meta.Config.UserAgent)
 	}
 	return nil
 }
@@ -107,6 +114,22 @@ func (a *Adaptor) DoRequest(c *gin.Context, meta *meta.Meta, requestBody io.Read
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Meta) (usage *model.Usage, err *model.ErrorWithStatusCode) {
+	if meta.Mode == relaymode.Responses {
+		if resp == nil {
+			return nil, ErrorWrapper(errors.New("resp is nil"), "nil_response", http.StatusInternalServerError)
+		}
+		if meta.IsStream {
+			if respErr := relayRawResponse(c, resp); respErr != nil {
+				return nil, respErr
+			}
+			return nil, nil
+		}
+		usage, respErr := relayResponsesResponse(c, resp)
+		if respErr != nil {
+			return nil, respErr
+		}
+		return usage, nil
+	}
 	if meta.IsStream {
 		var responseText string
 		err, responseText, usage = StreamHandler(c, resp, meta.Mode)
@@ -126,6 +149,64 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 		}
 	}
 	return
+}
+
+func relayRawResponse(c *gin.Context, resp *http.Response) *model.ErrorWithStatusCode {
+	for k, v := range resp.Header {
+		if len(v) == 0 {
+			continue
+		}
+		c.Writer.Header().Set(k, v[0])
+	}
+	c.Writer.WriteHeader(resp.StatusCode)
+	_, err := io.Copy(c.Writer, resp.Body)
+	if err != nil {
+		return ErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
+	}
+	return nil
+}
+
+type responsesUsage struct {
+	InputTokens  int `json:"input_tokens"`
+	OutputTokens int `json:"output_tokens"`
+	TotalTokens  int `json:"total_tokens"`
+}
+
+type responsesEnvelope struct {
+	Usage *responsesUsage `json:"usage"`
+}
+
+func relayResponsesResponse(c *gin.Context, resp *http.Response) (*model.Usage, *model.ErrorWithStatusCode) {
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return nil, ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
+	}
+	var envelope responsesEnvelope
+	_ = json.Unmarshal(responseBody, &envelope)
+	for k, v := range resp.Header {
+		if len(v) == 0 {
+			continue
+		}
+		c.Writer.Header().Set(k, v[0])
+	}
+	c.Writer.WriteHeader(resp.StatusCode)
+	if _, err := c.Writer.Write(responseBody); err != nil {
+		return nil, ErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError)
+	}
+	if envelope.Usage == nil {
+		return nil, nil
+	}
+	return &model.Usage{
+		PromptTokens:     envelope.Usage.InputTokens,
+		CompletionTokens: envelope.Usage.OutputTokens,
+		TotalTokens:      envelope.Usage.TotalTokens,
+	}, nil
 }
 
 func (a *Adaptor) GetModelList() []string {

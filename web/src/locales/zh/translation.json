@@ -110,6 +110,16 @@
       "base_url_placeholder": "OpenAPI SDK 中所要求的 Base URL",
       "key": "密钥",
       "key_placeholder": "请输入密钥",
+      "use_responses": {
+        "label": "使用 Codex Responses 模式（/v1/responses）",
+        "help": "启用后该渠道所有请求将走 Responses 格式，用于 Codex/CLI"
+      },
+      "user_agent": {
+        "label": "客户端标识 (User-Agent)",
+        "placeholder": "例如：codex-cli",
+        "help": "上游开启客户端白名单时填写；为空则不加 User-Agent",
+        "codex_checkbox": "使用 Codex CLI (User-Agent=codex-cli)"
+      },
       "batch": "批量创建",
       "batch_placeholder": "请输入密钥，一行一个",
       "buttons": {

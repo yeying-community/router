@@ -123,6 +123,8 @@ const EditChannel = () => {
     user_id: '',
     vertex_ai_project_id: '',
     vertex_ai_adc: '',
+    user_agent: '',
+    use_responses: false,
   });
   const handleInputChange = (e, { name, value }) => {
     setInputs((inputs) => ({ ...inputs, [name]: value }));
@@ -176,7 +178,7 @@ const EditChannel = () => {
       }
       setInputs(data);
       if (data.config !== '') {
-        setConfig(JSON.parse(data.config));
+        setConfig((prev) => ({ ...prev, ...JSON.parse(data.config) }));
       }
       setBasicModels(getChannelModels(data.type));
     } else {
@@ -486,6 +488,56 @@ const EditChannel = () => {
                   />
                 </Form.Field>
               ))}
+            {isOpenAICompatibleType(inputs.type) && (
+              <>
+                <Form.Checkbox
+                  label={t('channel.edit.use_responses.label')}
+                  checked={!!config.use_responses}
+                  onChange={(e, { checked }) => {
+                    setConfig((prev) => {
+                      const next = {
+                        ...prev,
+                        use_responses: !!checked,
+                      };
+                      if (checked && !next.user_agent) {
+                        next.user_agent = 'codex-cli';
+                      }
+                      return next;
+                    });
+                  }}
+                />
+                <div
+                  style={{ color: 'rgba(0, 0, 0, 0.6)', margin: '4px 0 8px' }}
+                >
+                  {t('channel.edit.use_responses.help')}
+                </div>
+                <Form.Checkbox
+                  label={t('channel.edit.user_agent.codex_checkbox')}
+                  checked={config.user_agent === 'codex-cli'}
+                  onChange={(e, { checked }) => {
+                    setConfig((prev) => ({
+                      ...prev,
+                      user_agent: checked ? 'codex-cli' : '',
+                    }));
+                  }}
+                />
+                <Form.Field>
+                  <Form.Input
+                    label={t('channel.edit.user_agent.label')}
+                    name='user_agent'
+                    placeholder={t('channel.edit.user_agent.placeholder')}
+                    onChange={handleConfigChange}
+                    value={config.user_agent || ''}
+                    autoComplete='new-password'
+                  />
+                  <div
+                    style={{ color: 'rgba(0, 0, 0, 0.6)', marginTop: '4px' }}
+                  >
+                    {t('channel.edit.user_agent.help')}
+                  </div>
+                </Form.Field>
+              </>
+            )}
             {isOpenAICompatibleType(inputs.type) &&
               inputs.type !== 33 &&
               inputs.type !== 42 && (

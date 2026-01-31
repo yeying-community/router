@@ -50,7 +50,7 @@ func relayHelper(c *gin.Context, relayMode int) *model.ErrorWithStatusCode {
 // @Produce json
 func Relay(c *gin.Context) {
 	ctx := c.Request.Context()
-	relayMode := relaymode.GetByPath(c.Request.URL.Path)
+	relayMode := getEffectiveRelayMode(c)
 	if config.DebugEnabled {
 		requestBody, _ := common.GetRequestBody(c)
 		logger.Debugf(ctx, "request body: %s", string(requestBody))
@@ -86,6 +86,7 @@ func Relay(c *gin.Context) {
 		middleware.SetupContextForSelectedChannel(c, channel, originalModel)
 		requestBody, err := common.GetRequestBody(c)
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
+		relayMode = getEffectiveRelayMode(c)
 		bizErr = relayHelper(c, relayMode)
 		if bizErr == nil {
 			return
@@ -106,6 +107,16 @@ func Relay(c *gin.Context) {
 			"error": bizErr.Error,
 		})
 	}
+}
+
+func getEffectiveRelayMode(c *gin.Context) int {
+	relayMode := relaymode.GetByPath(c.Request.URL.Path)
+	if cfgValue, ok := c.Get(ctxkey.Config); ok {
+		if cfg, ok := cfgValue.(dbmodel.ChannelConfig); ok && cfg.UseResponses {
+			return relaymode.Responses
+		}
+	}
+	return relayMode
 }
 
 func shouldRetry(c *gin.Context, statusCode int) bool {

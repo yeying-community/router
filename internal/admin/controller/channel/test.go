@@ -66,6 +66,40 @@ func parseTestResponse(resp string) (*openai.TextResponse, string, error) {
 	return &response, stringContent, nil
 }
 
+type responsesEnvelope struct {
+	Output []struct {
+		Content []struct {
+			Type       string `json:"type"`
+			Text       string `json:"text"`
+			OutputText string `json:"output_text"`
+		} `json:"content"`
+	} `json:"output"`
+}
+
+func parseResponsesTestResponse(resp string) (string, error) {
+	var env responsesEnvelope
+	if err := json.Unmarshal([]byte(resp), &env); err != nil {
+		return "", err
+	}
+	contentTypes := make([]string, 0)
+	for _, output := range env.Output {
+		for _, content := range output.Content {
+			if content.Type != "" {
+				contentTypes = append(contentTypes, content.Type)
+			} else {
+				contentTypes = append(contentTypes, "<empty>")
+			}
+			if content.Text != "" {
+				return content.Text, nil
+			}
+			if content.OutputText != "" {
+				return content.OutputText, nil
+			}
+		}
+	}
+	return "", errors.New("response has no output text, content types: " + strings.Join(contentTypes, ","))
+}
+
 func testChannel(ctx context.Context, channel *model.Channel, request *relaymodel.GeneralOpenAIRequest) (responseMessage string, err error, openaiErr *relaymodel.Error) {
 	startTime := time.Now()
 	w := httptest.NewRecorder()
@@ -81,9 +115,29 @@ func testChannel(ctx context.Context, channel *model.Channel, request *relaymode
 	c.Set(ctxkey.Channel, channel.Type)
 	c.Set(ctxkey.BaseURL, channel.GetBaseURL())
 	cfg, _ := channel.LoadConfig()
+	relayMode := relaymode.ChatCompletions
+	if cfg.UseResponses {
+		relayMode = relaymode.Responses
+		c.Request.URL.Path = "/v1/responses"
+	}
+	if cfg.UserAgent != "" {
+		c.Request.Header.Set("User-Agent", cfg.UserAgent)
+	}
+	if cfg.UseResponses {
+		request.Messages = nil
+		request.Input = []relaymodel.Message{
+			{
+				Role:    "user",
+				Content: config.TestPrompt,
+			},
+		}
+	}
+	logger.SysLog(fmt.Sprintf("[testChannel] channel_id=%d name=%s use_responses=%v path=%s", channel.Id, channel.Name, cfg.UseResponses, c.Request.URL.Path))
 	c.Set(ctxkey.Config, cfg)
 	middleware.SetupContextForSelectedChannel(c, channel, "")
 	meta := meta.GetByContext(c)
+	logger.SysLog(fmt.Sprintf("[testChannel] meta mode=%d request_path=%s base_url=%s api_type=%d", meta.Mode, meta.RequestURLPath, meta.BaseURL, meta.APIType))
+	logger.SysLog(fmt.Sprintf("[testChannel] ua=%s", c.Request.Header.Get("User-Agent")))
 	apiType := channeltype.ToAPIType(channel.Type)
 	adaptor := relay.GetAdaptor(apiType)
 	if adaptor == nil {
@@ -103,7 +157,7 @@ func testChannel(ctx context.Context, channel *model.Channel, request *relaymode
 	}
 	meta.OriginModelName, meta.ActualModelName = request.Model, modelName
 	request.Model = modelName
-	convertedRequest, err := adaptor.ConvertRequest(c, relaymode.ChatCompletions, request)
+	convertedRequest, err := adaptor.ConvertRequest(c, relayMode, request)
 	if err != nil {
 		return "", err, nil
 	}
@@ -152,7 +206,11 @@ func testChannel(ctx context.Context, channel *model.Channel, request *relaymode
 		return "", errors.New("usage is nil"), nil
 	}
 	rawResponse := w.Body.String()
-	_, responseMessage, err = parseTestResponse(rawResponse)
+	if cfg.UseResponses {
+		responseMessage, err = parseResponsesTestResponse(rawResponse)
+	} else {
+		_, responseMessage, err = parseTestResponse(rawResponse)
+	}
 	if err != nil {
 		logger.SysError(fmt.Sprintf("failed to parse error: %s, \nresponse: %s", err.Error(), rawResponse))
 		return "", err, nil

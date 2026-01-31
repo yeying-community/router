@@ -24,6 +24,10 @@ func ValidateTextRequest(textRequest *model.GeneralOpenAIRequest, relayMode int)
 		if textRequest.Messages == nil || len(textRequest.Messages) == 0 {
 			return errors.New("field messages is required")
 		}
+	case relaymode.Responses:
+		if (textRequest.Messages == nil || len(textRequest.Messages) == 0) && textRequest.Input == nil {
+			return errors.New("field messages or input is required")
+		}
 	case relaymode.Embeddings:
 	case relaymode.Moderations:
 		if textRequest.Input == "" {

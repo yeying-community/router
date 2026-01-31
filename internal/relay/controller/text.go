@@ -20,6 +20,7 @@ import (
 	"github.com/yeying-community/router/internal/relay/channeltype"
 	"github.com/yeying-community/router/internal/relay/meta"
 	"github.com/yeying-community/router/internal/relay/model"
+	"github.com/yeying-community/router/internal/relay/relaymode"
 )
 
 func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
@@ -88,6 +89,9 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 }
 
 func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralOpenAIRequest, adaptor adaptor.Adaptor) (io.Reader, error) {
+	if meta.Mode == relaymode.Responses {
+		return c.Request.Body, nil
+	}
 	if !config.EnforceIncludeUsage &&
 		meta.APIType == apitype.OpenAI &&
 		meta.OriginModelName == meta.ActualModelName &&
