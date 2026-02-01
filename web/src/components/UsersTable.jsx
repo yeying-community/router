@@ -44,7 +44,7 @@ const UsersTable = () => {
   const [orderBy, setOrderBy] = useState('');
 
   const loadUsers = useCallback(async (startIdx) => {
-    const res = await API.get(`/api/user/?p=${startIdx}&order=${orderBy}`);
+    const res = await API.get(`/api/v1/admin/user/?p=${startIdx}&order=${orderBy}`);
     const { success, message, data } = res.data;
     if (success) {
       if (startIdx === 0) {
@@ -78,7 +78,7 @@ const UsersTable = () => {
 
   const manageUser = (username, action, idx) => {
     (async () => {
-      const res = await API.post('/api/user/manage', {
+      const res = await API.post('/api/v1/admin/user/manage', {
         username,
         action,
       });
@@ -129,7 +129,7 @@ const UsersTable = () => {
       return;
     }
     setSearching(true);
-    const res = await API.get(`/api/user/search?keyword=${searchKeyword}`);
+    const res = await API.get(`/api/v1/admin/user/search?keyword=${searchKeyword}`);
     const { success, message, data } = res.data;
     if (success) {
       setUsers(data);

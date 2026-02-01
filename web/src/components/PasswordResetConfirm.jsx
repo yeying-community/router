@@ -53,7 +53,7 @@ const PasswordResetConfirm = () => {
     setDisableButton(true);
     if (!email) return;
     setLoading(true);
-    const res = await API.post(`/api/user/reset`, {
+    const res = await API.post(`/api/v1/public/user/reset`, {
       email,
       token,
     });

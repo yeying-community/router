@@ -40,7 +40,7 @@ const OperationSetting = () => {
   ); // a month ago
 
   const getOptions = async () => {
-    const res = await API.get('/api/option/');
+    const res = await API.get('/api/v1/admin/option/');
     const { success, message, data } = res.data;
     if (success) {
       let newInputs = {};
@@ -73,7 +73,7 @@ const OperationSetting = () => {
     if (key.endsWith('Enabled')) {
       value = inputs[key] === 'true' ? 'false' : 'true';
     }
-    const res = await API.put('/api/option/', {
+    const res = await API.put('/api/v1/admin/option/', {
       key,
       value,
     });
@@ -174,7 +174,7 @@ const OperationSetting = () => {
   const deleteHistoryLogs = async () => {
     console.log(inputs);
     const res = await API.delete(
-      `/api/log/?target_timestamp=${Date.parse(historyTimestamp) / 1000}`
+      `/api/v1/admin/log/?target_timestamp=${Date.parse(historyTimestamp) / 1000}`
     );
     const { success, message, data } = res.data;
     if (success) {

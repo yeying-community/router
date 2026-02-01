@@ -68,7 +68,12 @@ Authorization: Bearer <JWT>
 - `POST /api/v1/public/oauth/wallet/login`
 - `POST /api/v1/public/oauth/wallet/bind`（需 JWT / UserAuth）
 
-### 4) 用户自助（JWT）
+### 4) 第三方 OAuth（Session/Cookie）
+- `GET /api/v1/public/oauth/state`
+- `GET /api/v1/public/oauth/github`
+- `GET /api/v1/public/oauth/lark`
+
+### 5) 用户自助（JWT）
 > 说明：`/api/v1/public/user/login` 是密码登录（Session/Cookie），非 JWT；如只用 JWT 可忽略。
 
 - `POST /api/v1/public/user/register`（无需 JWT）
@@ -112,7 +117,7 @@ Authorization: Bearer <JWT>
 **说明**
 - `last_week`/`last_month` 为上个自然周/月，`this_year` 为本年截至今日，`last_year` 为去年自然年，`last_12_months` 为近 12 个月，`all_time` 为使用以来。
 
-### 5) 个人 Token 管理（JWT）
+### 6) 个人 Token 管理（JWT）
 - `GET    /api/v1/public/token`
 - `GET    /api/v1/public/token/search`
 - `GET    /api/v1/public/token/:id`
@@ -120,16 +125,16 @@ Authorization: Bearer <JWT>
 - `PUT    /api/v1/public/token`
 - `DELETE /api/v1/public/token/:id`
 
-### 6) 个人日志（JWT）
+### 7) 个人日志（JWT）
 - `GET /api/v1/public/log/self`
 - `GET /api/v1/public/log/self/stat`
 - `GET /api/v1/public/log/self/search`
 
-### 7) 用户侧模型/渠道（JWT）
-- `GET /api/v1/public/channel/models`（前端展示供应商/模型）
+### 8) 用户侧模型/渠道（JWT）
+- `GET /api/v1/public/channel/models`（前端展示供应商/模型，支持 `provider` 与 `model_provider` 过滤；model_provider 可用 gpt/gemini/claude/deepseek/qwen/千问 等别名）
 - `GET /api/v1/public/models-all`（全量模型列表，非 OpenAI 兼容）
 
-### 8) OpenAI 兼容的模型调用（JWT）
+### 9) OpenAI 兼容的模型调用（JWT）
 > 与 OpenAI API 语义一致，只是路径前缀改为 `/api/v1/public`。
 
 #### 模型列表
@@ -236,7 +241,7 @@ Authorization: Bearer <JWT>
 
 ## 示例（JWT 调用）
 ```bash
-BASE="https://llm.yeying.pub"
+BASE="https://router.yeying.pub"
 JWT="<YOUR_JWT>"
 
 # 模型列表

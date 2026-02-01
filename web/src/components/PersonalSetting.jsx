@@ -68,7 +68,7 @@ const PersonalSetting = () => {
         address,
         provider
       );
-      const res = await API.post('/api/oauth/wallet/bind', {
+      const res = await API.post('/api/v1/public/oauth/wallet/bind', {
         address,
         signature,
         nonce: nonceData.nonce,
@@ -91,7 +91,7 @@ const PersonalSetting = () => {
   };
 
   const generateAccessToken = async () => {
-    const res = await API.get('/api/user/token');
+    const res = await API.get('/api/v1/public/user/token');
     const { success, message, data } = res.data;
     if (success) {
       setSystemToken(data);
@@ -104,7 +104,7 @@ const PersonalSetting = () => {
   };
 
   const getAffLink = async () => {
-    const res = await API.get('/api/user/aff');
+    const res = await API.get('/api/v1/public/user/aff');
     const { success, message, data } = res.data;
     if (success) {
       const link = `${window.location.origin}/register?aff=${data}`;
@@ -123,12 +123,12 @@ const PersonalSetting = () => {
       return;
     }
     setLoading(true);
-    const res = await API.delete('/api/user/self');
+    const res = await API.delete('/api/v1/public/user/self');
     const { success, message } = res.data;
     setLoading(false);
     if (success) {
       showSuccess('账户已删除！');
-      await API.get('/api/user/logout');
+      await API.get('/api/v1/public/user/logout');
       try {
         await logoutWallet();
       } catch (e) {
@@ -178,7 +178,7 @@ const PersonalSetting = () => {
         currentUser.display_name ?? currentUser.displayName ?? '',
       password: newPassword,
     };
-    const res = await API.put('/api/user/self', payload);
+    const res = await API.put('/api/v1/public/user/self', payload);
     const { success, message } = res.data;
     setPasswordLoading(false);
     if (success) {

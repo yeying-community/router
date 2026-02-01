@@ -42,7 +42,7 @@ function App() {
   }, [userDispatch]);
   const loadStatus = useCallback(async () => {
     try {
-      const res = await API.get('/api/status');
+      const res = await API.get('/api/v1/public/status');
       const { success, message, data } = res.data || {}; // Add default empty object
       if (success && data) {
         // Check data exists

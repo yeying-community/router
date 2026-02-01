@@ -61,7 +61,7 @@ const EditToken = () => {
 
   const loadToken = useCallback(async () => {
     try {
-      let res = await API.get(`/api/token/${tokenId}`);
+      let res = await API.get(`/api/v1/public/token/${tokenId}`);
       const { success, message, data } = res.data || {};
       if (success && data) {
         if (data.expired_time !== -1) {
@@ -88,7 +88,7 @@ const EditToken = () => {
 
   const loadAvailableModels = useCallback(async () => {
     try {
-      let res = await API.get(`/api/user/available_models`);
+      let res = await API.get(`/api/v1/public/user/available_models`);
       const { success, message, data } = res.data || {};
       if (success && data) {
         let options = data.map((model) => {
@@ -134,12 +134,12 @@ const EditToken = () => {
     localInputs.models = localInputs.models.join(',');
     let res;
     if (isEdit) {
-      res = await API.put(`/api/token/`, {
+      res = await API.put(`/api/v1/public/token/`, {
         ...localInputs,
         id: parseInt(tokenId),
       });
     } else {
-      res = await API.post(`/api/token/`, localInputs);
+      res = await API.post(`/api/v1/public/token/`, localInputs);
     }
     const { success, message } = res.data;
     if (success) {

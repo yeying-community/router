@@ -11,7 +11,7 @@ const About = () => {
 
   const displayAbout = useCallback(async () => {
     setAbout(localStorage.getItem('about') || '');
-    const res = await API.get('/api/about');
+    const res = await API.get('/api/v1/public/about');
     const { success, message, data } = res.data;
     if (success) {
       let aboutContent = data;

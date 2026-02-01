@@ -25,7 +25,7 @@ const AddUser = () => {
       showError(t('messages.error.password_length_range'));
       return;
     }
-    const res = await API.post(`/api/user/`, inputs);
+    const res = await API.post(`/api/v1/admin/user/`, inputs);
     const { success, message } = res.data;
     if (success) {
       showSuccess(t('user.messages.create_success'));

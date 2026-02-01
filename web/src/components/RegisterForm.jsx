@@ -42,7 +42,7 @@ const RegisterForm = () => {
         affCode = localStorage.getItem('aff');
       }
       const payload = { ...inputs, aff_code: affCode };
-      const res = await API.post('/api/user/register', payload);
+      const res = await API.post('/api/v1/public/user/register', payload);
       const { success, message } = res.data;
       setLoading(false);
       if (success) {

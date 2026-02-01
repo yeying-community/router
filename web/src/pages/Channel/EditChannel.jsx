@@ -68,6 +68,70 @@ const OPENAI_COMPATIBLE_TYPES = new Set([50, 51]);
 
 const isOpenAICompatibleType = (type) => OPENAI_COMPATIBLE_TYPES.has(type);
 
+const normalizeModelProviderSelection = (provider) => {
+  if (typeof provider !== 'string') return '';
+  const trimmed = provider.trim();
+  if (!trimmed) return '';
+  const lower = trimmed.toLowerCase();
+  switch (lower) {
+    case 'gpt':
+    case 'openai':
+      return 'openai';
+    case 'gemini':
+    case 'google':
+      return 'google';
+    case 'claude':
+    case 'anthropic':
+      return 'anthropic';
+    case 'deepseek':
+      return 'deepseek';
+    case 'qwen':
+    case 'qwq':
+    case 'qvq':
+      return 'qwen';
+    default:
+      if (trimmed === '千问') return 'qwen';
+      return lower;
+  }
+};
+
+const resolveModelProvider = (modelName) => {
+  const name =
+    typeof modelName === 'string'
+      ? modelName.trim()
+      : normalizeModelId(modelName)?.trim();
+  if (!name) return 'unknown';
+  if (name.includes('/')) {
+    const [prefix] = name.split('/', 2);
+    return prefix ? prefix.trim().toLowerCase() : 'unknown';
+  }
+  const lower = name.toLowerCase();
+  switch (true) {
+    case lower.startsWith('gpt-'):
+    case lower.startsWith('o1'):
+    case lower.startsWith('o3'):
+    case lower.startsWith('chatgpt-'):
+      return 'openai';
+    case lower.startsWith('claude-'):
+      return 'anthropic';
+    case lower.startsWith('gemini-'):
+      return 'google';
+    case lower.startsWith('deepseek-'):
+      return 'deepseek';
+    case lower.startsWith('qwen-'):
+    case lower.startsWith('qwq-'):
+    case lower.startsWith('qvq-'):
+      return 'qwen';
+    case lower.startsWith('glm-'):
+    case lower.startsWith('cogview-'):
+      return 'zhipu';
+    case lower.startsWith('ernie-'):
+      return 'baidu';
+    default:
+      return 'unknown';
+  }
+};
+
 function type2secretPrompt(type, t) {
   switch (type) {
     case 15:
@@ -115,7 +179,8 @@ const EditChannel = () => {
   const [basicModels, setBasicModels] = useState([]);
   const [fullModels, setFullModels] = useState([]);
   const [customModel, setCustomModel] = useState('');
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [modelProvider, setModelProvider] = useState('');
+  const [fetchModelsLoading, setFetchModelsLoading] = useState(false);
   const [config, setConfig] = useState({
     region: '',
     sk: '',
@@ -126,14 +191,37 @@ const EditChannel = () => {
     user_agent: '',
     use_responses: false,
   });
+  const modelProviderOptions = [
+    {
+      key: 'gpt',
+      text: t('channel.edit.model_provider_options.gpt'),
+      value: 'gpt',
+    },
+    {
+      key: 'gemini',
+      text: t('channel.edit.model_provider_options.gemini'),
+      value: 'gemini',
+    },
+    {
+      key: 'claude',
+      text: t('channel.edit.model_provider_options.claude'),
+      value: 'claude',
+    },
+    {
+      key: 'deepseek',
+      text: t('channel.edit.model_provider_options.deepseek'),
+      value: 'deepseek',
+    },
+    {
+      key: 'qwen',
+      text: t('channel.edit.model_provider_options.qwen'),
+      value: 'qwen',
+    },
+  ];
   const handleInputChange = (e, { name, value }) => {
     setInputs((inputs) => ({ ...inputs, [name]: value }));
     if (name === 'type') {
-      let localModels = getChannelModels(value);
-      if (inputs.models.length === 0) {
-        setInputs((inputs) => ({ ...inputs, models: localModels }));
-      }
-      setBasicModels(localModels);
+      setBasicModels(getChannelModels(value));
     }
   };
 
@@ -142,7 +230,7 @@ const EditChannel = () => {
   };
 
   const loadChannel = useCallback(async () => {
-    let res = await API.get(`/api/channel/${channelId}`);
+    let res = await API.get(`/api/v1/admin/channel/${channelId}`);
     const { success, message, data } = res.data;
     if (success) {
       if (data.models === '') {
@@ -189,7 +277,7 @@ const EditChannel = () => {
 
   const fetchModels = useCallback(async () => {
     try {
-      let res = await API.get(`/api/channel/models`);
+      let res = await API.get(`/api/v1/public/channel/models`);
       const payload = res?.data?.data;
       const meta = res?.data?.meta;
       const flattenedModels = flattenModels(payload, meta);
@@ -201,45 +289,64 @@ const EditChannel = () => {
     }
   }, []);
 
-  const fetchPreviewModels = async () => {
-    if (!isOpenAICompatibleType(inputs.type)) return;
-    if (!inputs.key || inputs.key.trim() === '') {
-      showInfo('请先填写 Key');
-      return;
-    }
-    setPreviewLoading(true);
+  const handleFetchModels = async () => {
+    const selectedProvider = normalizeModelProviderSelection(modelProvider);
+    setFetchModelsLoading(true);
     try {
-      const res = await API.post(`/api/v1/admin/channel/preview/models`, {
-        type: inputs.type,
-        key: inputs.key,
-        base_url: inputs.base_url,
-        config,
-      });
-      const { success, message, data } = res.data || {};
-      if (!success) {
-        showError(message || '获取模型失败');
+      let models = [];
+      if (
+        isOpenAICompatibleType(inputs.type) &&
+        inputs.key &&
+        inputs.key.trim() !== ''
+      ) {
+        const res = await API.post(`/api/v1/admin/channel/preview/models`, {
+          type: inputs.type,
+          key: inputs.key,
+          base_url: inputs.base_url,
+          config,
+        });
+        const { success, message, data } = res.data || {};
+        if (!success) {
+          showError(message || '获取模型失败');
+          return;
+        }
+        models = Array.isArray(data) ? data.filter((model) => model) : [];
+      } else {
+        const params = selectedProvider
+          ? { model_provider: selectedProvider }
+          : undefined;
+        const res = await API.get(`/api/v1/public/channel/models`, { params });
+        const payload = res?.data?.data;
+        const meta = res?.data?.meta;
+        models = flattenModels(payload, meta);
+      }
+
+      const { ids } = buildModelOptions(models);
+      const filteredModels = selectedProvider
+        ? ids.filter((model) => resolveModelProvider(model) === selectedProvider)
+        : ids;
+
+      if (filteredModels.length === 0) {
+        showInfo(
+          selectedProvider
+            ? '未找到符合所选供应商的模型'
+            : '未返回可用模型'
+        );
         return;
       }
-      const modelIds = Array.isArray(data)
-        ? data.filter((model) => model)
-        : [];
-      if (modelIds.length === 0) {
-        showError('未返回可用模型');
-        return;
-      }
-      const uniqueModels = Array.from(new Set(modelIds));
-      setInputs((prev) => ({ ...prev, models: uniqueModels }));
+
+      setInputs((prev) => ({ ...prev, models: filteredModels }));
       showSuccess(t('channel.messages.operation_success'));
     } catch (error) {
       showError(error?.message || error);
     } finally {
-      setPreviewLoading(false);
+      setFetchModelsLoading(false);
     }
   };
 
   const fetchGroups = useCallback(async () => {
     try {
-      let res = await API.get(`/api/group/`);
+      let res = await API.get(`/api/v1/admin/group/`);
       setGroupOptions(
         res.data.data.map((group) => ({
           key: group,
@@ -330,12 +437,12 @@ const EditChannel = () => {
     localInputs.group = localInputs.groups.join(',');
     localInputs.config = JSON.stringify(config);
     if (isEdit) {
-      res = await API.put(`/api/channel/`, {
+      res = await API.put(`/api/v1/admin/channel/`, {
         ...localInputs,
         id: parseInt(channelId),
       });
     } else {
-      res = await API.post(`/api/channel/`, localInputs);
+      res = await API.post(`/api/v1/admin/channel/`, localInputs);
     }
     const { success, message } = res.data;
     if (success) {
@@ -379,6 +486,16 @@ const EditChannel = () => {
               : t('channel.edit.title_create')}
           </Card.Header>
           <Form loading={loading} autoComplete='new-password'>
+            <Form.Field>
+              <Form.Select
+                label={t('channel.edit.model_provider')}
+                name='modelProvider'
+                clearable
+                options={modelProviderOptions}
+                value={modelProvider}
+                onChange={(e, { value }) => setModelProvider(value)}
+              />
+            </Form.Field>
             <Form.Field>
               <Form.Select
                 label={t('channel.edit.type')}
@@ -433,7 +550,11 @@ const EditChannel = () => {
                 <Form.Input
                   label='私有部署地址'
                   name='base_url'
-                  placeholder='请输入私有部署地址，格式为：https://fastgpt.run/api/openapi'
+                  placeholder={
+                    '请输入私有部署地址，格式为：https://fastgpt.run' +
+                    '/api' +
+                    '/openapi'
+                  }
                   onChange={handleInputChange}
                   value={inputs.base_url}
                   autoComplete='new-password'
@@ -538,18 +659,6 @@ const EditChannel = () => {
                 </Form.Field>
               </>
             )}
-            {isOpenAICompatibleType(inputs.type) &&
-              inputs.type !== 33 &&
-              inputs.type !== 42 && (
-                <Button
-                  type={'button'}
-                  loading={previewLoading}
-                  disabled={previewLoading || !inputs.key}
-                  onClick={fetchPreviewModels}
-                >
-                  获取模型
-                </Button>
-              )}
             {inputs.type !== 33 && !isEdit && (
               <Form.Checkbox
                 checked={batch}
@@ -688,6 +797,19 @@ const EditChannel = () => {
                   autoComplete='new-password'
                   options={modelOptions}
                 />
+              </Form.Field>
+            )}
+            {inputs.type !== 43 && (
+              <Form.Field>
+                <Button
+                  type='button'
+                  color='green'
+                  loading={fetchModelsLoading}
+                  disabled={fetchModelsLoading}
+                  onClick={handleFetchModels}
+                >
+                  获取模型
+                </Button>
               </Form.Field>
             )}
             {inputs.type !== 43 && (

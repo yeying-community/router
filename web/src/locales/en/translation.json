@@ -92,7 +92,15 @@
     "edit": {
       "title_edit": "Update Channel Information",
       "title_create": "Create New Channel",
-      "type": "Type",
+      "type": "Interface Type",
+      "model_provider": "Model Provider",
+      "model_provider_options": {
+        "gpt": "GPT",
+        "gemini": "Gemini",
+        "claude": "Claude",
+        "deepseek": "DeepSeek",
+        "qwen": "Qwen"
+      },
       "name": "Name",
       "name_placeholder": "Please enter name",
       "group": "Group",

@@ -109,7 +109,7 @@ const ChannelsTable = () => {
   }, []);
 
   const loadChannels = useCallback(async (startIdx) => {
-    const res = await API.get(`/api/channel/?p=${startIdx}`);
+    const res = await API.get(`/api/v1/admin/channel/?p=${startIdx}`);
     const { success, message, data } = res.data;
     if (success) {
       let localChannels = data.map(processChannelData);
@@ -166,22 +166,22 @@ const ChannelsTable = () => {
     let res;
     switch (action) {
       case 'delete':
-        res = await API.delete(`/api/channel/${id}/`);
+        res = await API.delete(`/api/v1/admin/channel/${id}/`);
         break;
       case 'enable':
         data.status = 1;
-        res = await API.put('/api/channel/', data);
+        res = await API.put('/api/v1/admin/channel/', data);
         break;
       case 'disable':
         data.status = 2;
-        res = await API.put('/api/channel/', data);
+        res = await API.put('/api/v1/admin/channel/', data);
         break;
       case 'priority':
         if (value === '') {
           return;
         }
         data.priority = parseInt(value);
-        res = await API.put('/api/channel/', data);
+        res = await API.put('/api/v1/admin/channel/', data);
         break;
       case 'weight':
         if (value === '') {
@@ -191,7 +191,7 @@ const ChannelsTable = () => {
         if (data.weight < 0) {
           data.weight = 0;
         }
-        res = await API.put('/api/channel/', data);
+        res = await API.put('/api/v1/admin/channel/', data);
         break;
       default:
         return;
@@ -298,7 +298,7 @@ const ChannelsTable = () => {
       return;
     }
     setSearching(true);
-    const res = await API.get(`/api/channel/search?keyword=${searchKeyword}`);
+    const res = await API.get(`/api/v1/admin/channel/search?keyword=${searchKeyword}`);
     const { success, message, data } = res.data;
     if (success) {
       let localChannels = data.map(processChannelData);
@@ -322,7 +322,7 @@ const ChannelsTable = () => {
     const preIdx = (activePage - 1) * ITEMS_PER_PAGE + idx;
     preChannels[preIdx].testing = true;
     setChannels(preChannels);
-    const res = await API.get(`/api/channel/test/${id}?model=${m}`);
+    const res = await API.get(`/api/v1/admin/channel/test/${id}?model=${m}`);
     const { success, message, time, model } = res.data;
     if (success) {
       let newChannels = [...channels];
@@ -345,7 +345,7 @@ const ChannelsTable = () => {
   };
 
   const testChannels = async (scope) => {
-    const res = await API.get(`/api/channel/test?scope=${scope}`);
+    const res = await API.get(`/api/v1/admin/channel/test?scope=${scope}`);
     const { success, message } = res.data;
     if (success) {
       showInfo(t('channel.messages.test_all_started'));
@@ -355,7 +355,7 @@ const ChannelsTable = () => {
   };
 
   const deleteAllDisabledChannels = async () => {
-    const res = await API.delete(`/api/channel/disabled`);
+    const res = await API.delete(`/api/v1/admin/channel/disabled`);
     const { success, message, data } = res.data;
     if (success) {
       showSuccess(
@@ -368,7 +368,7 @@ const ChannelsTable = () => {
   };
 
   const updateChannelBalance = async (id, name, idx) => {
-    const res = await API.get(`/api/channel/update_balance/${id}/`);
+    const res = await API.get(`/api/v1/admin/channel/update_balance/${id}/`);
     const { success, message, balance } = res.data;
     if (success) {
       let newChannels = [...channels];

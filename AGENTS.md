@@ -26,9 +26,9 @@
 ---
 
 ## 公网访问链路
-- **Nginx 配置**：`/etc/nginx/conf.d/llm.conf`
+- **Nginx 配置**：`/etc/nginx/conf.d/router.conf`
 - **HTTP → HTTPS**：80 端口强制跳 https
-- **HTTPS 终止**：证书在 `/etc/letsencrypt/live/llm.yeying.pub/`
+- **HTTPS 终止**：证书在 `/etc/letsencrypt/live/router.yeying.pub/`
 - **反代目标**：`http://127.0.0.1:3011`
 
 结论：公网访问只依赖 **Nginx 正常 + 本机 3011 服务可用**，程序本身不需要知道域名。
@@ -70,7 +70,7 @@
 - **新增 UCAN（可选）**：支持 `/api/v1/public/profile` 使用 UCAN 或原有钱包 JWT。  
   可选环境变量：`UCAN_AUD` / `UCAN_RESOURCE` / `UCAN_ACTION`。
 - **CORS 逻辑更精细**：如需白名单，使用 `CORS_ALLOWED_ORIGINS`（或旧名 `CORS_ORIGINS`）。  
-  若设置白名单，必须包含 `https://llm.yeying.pub`，否则浏览器会被拦。
+  若设置白名单，必须包含 `https://router.yeying.pub`，否则浏览器会被拦。
 
 ---
 

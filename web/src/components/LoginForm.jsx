@@ -57,7 +57,7 @@ const LoginForm = () => {
           new Date(payload.expiresAt).toISOString()
         );
       }
-      const selfResp = await API.get('/api/user/self');
+      const selfResp = await API.get('/api/v1/public/user/self');
       const { success, data, message } = selfResp?.data || {};
       if (!success || !data) {
         showError(message || '未获取到用户信息');
@@ -86,7 +86,7 @@ const LoginForm = () => {
 
   async function handleSubmit(e) {
     if (username && password) {
-      const res = await API.post(`/api/user/login`, {
+      const res = await API.post(`/api/v1/public/user/login`, {
         username,
         password,
       });

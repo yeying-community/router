@@ -26,7 +26,7 @@ const TopUp = () => {
     }
     setIsSubmitting(true);
     try {
-      const res = await API.post('/api/user/topup', {
+      const res = await API.post('/api/v1/public/user/topup', {
         key: redemptionCode,
       });
       const { success, message, data } = res.data;
@@ -61,7 +61,7 @@ const TopUp = () => {
   };
 
   const getUserQuota = async () => {
-    let res = await API.get(`/api/user/self`);
+    let res = await API.get(`/api/v1/public/user/self`);
     const { success, message, data } = res.data;
     if (success) {
       setUserQuota(data.quota);

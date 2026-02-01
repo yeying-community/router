@@ -87,7 +87,7 @@ const TokensTable = () => {
   const [orderBy, setOrderBy] = useState('');
 
   const loadTokens = useCallback(async (startIdx) => {
-    const res = await API.get(`/api/token/?p=${startIdx}&order=${orderBy}`);
+    const res = await API.get(`/api/v1/public/token/?p=${startIdx}&order=${orderBy}`);
     const { success, message, data } = res.data;
     if (success) {
       if (startIdx === 0) {
@@ -224,15 +224,15 @@ const TokensTable = () => {
     let res;
     switch (action) {
       case 'delete':
-        res = await API.delete(`/api/token/${id}/`);
+        res = await API.delete(`/api/v1/public/token/${id}/`);
         break;
       case 'enable':
         data.status = 1;
-        res = await API.put('/api/token/?status_only=true', data);
+        res = await API.put('/api/v1/public/token/?status_only=true', data);
         break;
       case 'disable':
         data.status = 2;
-        res = await API.put('/api/token/?status_only=true', data);
+        res = await API.put('/api/v1/public/token/?status_only=true', data);
         break;
       default:
         return;
@@ -263,7 +263,7 @@ const TokensTable = () => {
       return;
     }
     setSearching(true);
-    const res = await API.get(`/api/token/search?keyword=${searchKeyword}`);
+    const res = await API.get(`/api/v1/public/token/search?keyword=${searchKeyword}`);
     const { success, message, data } = res.data;
     if (success) {
       setTokens(data);

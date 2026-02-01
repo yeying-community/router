@@ -1586,7 +1586,7 @@ definitions:
       username:
         type: string
     type: object
-host: llm.yeying.pub
+host: router.yeying.pub
 info:
   contact: {}
   description: Router public/admin API (JWT/UCAN) under /api/v1.
@@ -2735,11 +2735,16 @@ paths:
   /api/v1/public/channel/models:
     get:
       description: When provider is specified, the response shape becomes docs.ChannelModelsProviderResponse
-        (data is string[] and meta is an object).
+        (data is string[] and meta is an object). model_provider filters by model
+        naming rules.
       parameters:
       - description: Provider name
         in: query
         name: provider
+        type: string
+      - description: Model provider filter (gpt/gemini/claude/deepseek/qwen)
+        in: query
+        name: model_provider
         type: string
       produces:
       - application/json
@@ -3424,6 +3429,72 @@ paths:
           schema:
             $ref: '#/definitions/docs.ErrorResponse'
       summary: Get system notice
+      tags:
+      - public
+  /api/v1/public/oauth/github:
+    get:
+      parameters:
+      - description: OAuth code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: OAuth state
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      summary: GitHub OAuth callback
+      tags:
+      - public
+  /api/v1/public/oauth/lark:
+    get:
+      parameters:
+      - description: OAuth code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: OAuth state
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      summary: Lark OAuth callback
+      tags:
+      - public
+  /api/v1/public/oauth/state:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+      summary: Generate OAuth state
       tags:
       - public
   /api/v1/public/oauth/wallet/bind:

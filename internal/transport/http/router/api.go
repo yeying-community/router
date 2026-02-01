@@ -53,6 +53,9 @@ func SetApiRouter(engine *gin.Engine) {
 		publicRouter.GET("/oauth/wallet/nonce", middleware.CriticalRateLimit(), auth.WalletNonce)
 		publicRouter.POST("/oauth/wallet/login", middleware.CriticalRateLimit(), auth.WalletLogin)
 		publicRouter.POST("/oauth/wallet/bind", middleware.CriticalRateLimit(), middleware.UserAuth(), auth.WalletBind)
+		publicRouter.GET("/oauth/state", middleware.CriticalRateLimit(), auth.GenerateOAuthCode)
+		publicRouter.GET("/oauth/github", middleware.CriticalRateLimit(), auth.GitHubOAuth)
+		publicRouter.GET("/oauth/lark", middleware.CriticalRateLimit(), auth.LarkOAuth)
 
 		publicUserRoute := publicRouter.Group("/user")
 		{

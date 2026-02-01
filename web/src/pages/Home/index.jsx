@@ -14,7 +14,7 @@ const Home = () => {
   const [userState] = useContext(UserContext);
 
   const displayNotice = useCallback(async () => {
-    const res = await API.get('/api/notice');
+    const res = await API.get('/api/v1/public/notice');
     const { success, message, data } = res.data;
     if (success) {
       let oldNotice = localStorage.getItem('notice');
@@ -30,7 +30,7 @@ const Home = () => {
 
   const displayHomePageContent = useCallback(async () => {
     setHomePageContent(localStorage.getItem('home_page_content') || '');
-    const res = await API.get('/api/home_page_content');
+    const res = await API.get('/api/v1/public/home_page_content');
     const { success, message, data } = res.data;
     if (success) {
       let content = data;

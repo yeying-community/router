@@ -80,6 +80,15 @@ func getLarkUserInfoByCode(code string) (*LarkUser, error) {
 	return &larkUser, nil
 }
 
+// LarkOAuth godoc
+// @Summary Lark OAuth callback
+// @Tags public
+// @Produce json
+// @Param code query string true "OAuth code"
+// @Param state query string true "OAuth state"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 403 {object} docs.ErrorResponse
+// @Router /api/v1/public/oauth/lark [get]
 func LarkOAuth(c *gin.Context) {
 	ctx := c.Request.Context()
 	session := sessions.Default(c)

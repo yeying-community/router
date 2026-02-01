@@ -29,7 +29,7 @@ const EditRedemption = () => {
   };
 
   const loadRedemption = useCallback(async () => {
-    let res = await API.get(`/api/redemption/${redemptionId}`);
+    let res = await API.get(`/api/v1/admin/redemption/${redemptionId}`);
     const { success, message, data } = res.data;
     if (success) {
       setInputs(data);
@@ -51,12 +51,12 @@ const EditRedemption = () => {
     localInputs.quota = parseInt(localInputs.quota);
     let res;
     if (isEdit) {
-      res = await API.put(`/api/redemption/`, {
+      res = await API.put(`/api/v1/admin/redemption/`, {
         ...localInputs,
         id: parseInt(redemptionId),
       });
     } else {
-      res = await API.post(`/api/redemption/`, {
+      res = await API.post(`/api/v1/admin/redemption/`, {
         ...localInputs,
       });
     }

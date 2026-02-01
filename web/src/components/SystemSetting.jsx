@@ -25,7 +25,7 @@ const SystemSetting = () => {
   const [loading, setLoading] = useState(false);
 
   const loadOptions = async () => {
-    const res = await API.get('/api/option/');
+    const res = await API.get('/api/v1/admin/option/');
     const { success, message, data } = res.data;
     if (!success) {
       showError(message);
@@ -43,7 +43,7 @@ const SystemSetting = () => {
   }, []);
 
   const updateOption = async (key, value) => {
-    const res = await API.put('/api/option/', { key, value });
+    const res = await API.put('/api/v1/admin/option/', { key, value });
     const { success, message } = res.data;
     if (!success) {
       showError(message);

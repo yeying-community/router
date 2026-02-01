@@ -82,6 +82,15 @@ func getGitHubUserInfoByCode(code string) (*GitHubUser, error) {
 	return &githubUser, nil
 }
 
+// GitHubOAuth godoc
+// @Summary GitHub OAuth callback
+// @Tags public
+// @Produce json
+// @Param code query string true "OAuth code"
+// @Param state query string true "OAuth state"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 403 {object} docs.ErrorResponse
+// @Router /api/v1/public/oauth/github [get]
 func GitHubOAuth(c *gin.Context) {
 	ctx := c.Request.Context()
 	session := sessions.Default(c)
@@ -220,6 +229,12 @@ func GitHubBind(c *gin.Context) {
 	return
 }
 
+// GenerateOAuthCode godoc
+// @Summary Generate OAuth state
+// @Tags public
+// @Produce json
+// @Success 200 {object} docs.StandardResponse
+// @Router /api/v1/public/oauth/state [get]
 func GenerateOAuthCode(c *gin.Context) {
 	session := sessions.Default(c)
 	state := random.GetRandomString(12)

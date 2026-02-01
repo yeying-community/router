@@ -67,7 +67,7 @@ go run ./cmd/router --log-dir ./logs
 [Service]
 WorkingDirectory=/root/code/router/router_new
 ExecStart=/root/code/router/router_new/build/router --port 3011 --log-dir ./logs
-Environment=UCAN_AUD=did:web:llm.yeying.pub
+Environment=UCAN_AUD=did:web:router.yeying.pub
 Environment=AUTO_REGISTER_ENABLED=true
 # 其它环境变量可放在 EnvironmentFile
 ```

@@ -14,7 +14,7 @@ const LarkOAuth = () => {
   let navigate = useNavigate();
 
   const sendCode = async (code, state, count) => {
-    const res = await API.get(`/api/oauth/lark?code=${code}&state=${state}`);
+    const res = await API.get(`/api/v1/public/oauth/lark?code=${code}&state=${state}`);
     const { success, message, data } = res.data;
     if (success) {
       if (message === 'bind') {

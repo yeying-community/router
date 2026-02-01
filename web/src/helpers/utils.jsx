@@ -215,7 +215,7 @@ const normalizeModelList = (models) => {
 };
 
 export async function loadChannelModels() {
-  const res = await API.get('/api/channel/models');
+  const res = await API.get('/api/v1/public/channel/models');
   const { success, data, meta } = res.data;
   if (!success) {
     return;

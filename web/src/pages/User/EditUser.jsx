@@ -35,7 +35,7 @@ const EditUser = () => {
   };
   const fetchGroups = useCallback(async () => {
     try {
-      let res = await API.get(`/api/group/`);
+      let res = await API.get(`/api/v1/admin/group/`);
       setGroupOptions(
         res.data.data.map((group) => ({
           key: group,
@@ -54,9 +54,9 @@ const EditUser = () => {
   const loadUser = useCallback(async () => {
     let res = undefined;
     if (userId) {
-      res = await API.get(`/api/user/${userId}`);
+      res = await API.get(`/api/v1/admin/user/${userId}`);
     } else {
-      res = await API.get(`/api/user/self`);
+      res = await API.get(`/api/v1/public/user/self`);
     }
     const { success, message, data } = res.data;
     if (success) {
@@ -81,9 +81,9 @@ const EditUser = () => {
       if (typeof data.quota === 'string') {
         data.quota = parseInt(data.quota);
       }
-      res = await API.put(`/api/user/`, data);
+      res = await API.put(`/api/v1/admin/user/`, data);
     } else {
-      res = await API.put(`/api/user/self`, inputs);
+      res = await API.put(`/api/v1/public/user/self`, inputs);
     }
     const { success, message } = res.data;
     if (success) {

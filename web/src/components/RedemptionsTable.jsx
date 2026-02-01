@@ -63,7 +63,7 @@ const RedemptionsTable = () => {
   const [searching, setSearching] = useState(false);
 
   const loadRedemptions = useCallback(async (startIdx) => {
-    const res = await API.get(`/api/redemption/?p=${startIdx}`);
+    const res = await API.get(`/api/v1/admin/redemption/?p=${startIdx}`);
     const { success, message, data } = res.data;
     if (success) {
       if (startIdx === 0) {
@@ -100,15 +100,15 @@ const RedemptionsTable = () => {
     let res;
     switch (action) {
       case 'delete':
-        res = await API.delete(`/api/redemption/${id}/`);
+        res = await API.delete(`/api/v1/admin/redemption/${id}/`);
         break;
       case 'enable':
         data.status = 1;
-        res = await API.put('/api/redemption/?status_only=true', data);
+        res = await API.put('/api/v1/admin/redemption/?status_only=true', data);
         break;
       case 'disable':
         data.status = 2;
-        res = await API.put('/api/redemption/?status_only=true', data);
+        res = await API.put('/api/v1/admin/redemption/?status_only=true', data);
         break;
       default:
         return;
@@ -139,7 +139,7 @@ const RedemptionsTable = () => {
     }
     setSearching(true);
     const res = await API.get(
-      `/api/redemption/search?keyword=${searchKeyword}`
+      `/api/v1/admin/redemption/search?keyword=${searchKeyword}`
     );
     const { success, message, data } = res.data;
     if (success) {

@@ -92,7 +92,15 @@
     "edit": {
       "title_edit": "更新渠道信息",
       "title_create": "创建新的渠道",
-      "type": "类型",
+      "type": "接口类型",
+      "model_provider": "模型供应商",
+      "model_provider_options": {
+        "gpt": "GPT",
+        "gemini": "Gemini",
+        "claude": "Claude",
+        "deepseek": "DeepSeek",
+        "qwen": "千问"
+      },
       "name": "名称",
       "name_placeholder": "请输入名称",
       "group": "分组",

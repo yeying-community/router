@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common/ctxkey"
+	commonutils "github.com/yeying-community/router/common/utils"
 	"github.com/yeying-community/router/internal/admin/model"
 	relay "github.com/yeying-community/router/internal/relay"
 	"github.com/yeying-community/router/internal/relay/adaptor/openai"
@@ -40,6 +41,41 @@ func modelBelongsToProvider(provider string, model string) bool {
 		// fallback: if provider name appears inside model string
 		return strings.Contains(m, p)
 	}
+}
+
+func normalizeModelProviderFilter(provider string) string {
+	trimmed := strings.TrimSpace(provider)
+	if trimmed == "" {
+		return ""
+	}
+	lower := strings.ToLower(trimmed)
+	switch lower {
+	case "gpt", "openai":
+		return "openai"
+	case "gemini", "google":
+		return "google"
+	case "claude", "anthropic":
+		return "anthropic"
+	case "deepseek":
+		return "deepseek"
+	case "qwen", "qwq", "qvq", "千问":
+		return "qwen"
+	default:
+		return lower
+	}
+}
+
+func filterModelsByProvider(models []string, provider string) []string {
+	if provider == "" {
+		return models
+	}
+	filtered := make([]string, 0, len(models))
+	for _, modelName := range models {
+		if commonutils.ResolveModelProvider(modelName) == provider {
+			filtered = append(filtered, modelName)
+		}
+	}
+	return filtered
 }
 
 // https://platform.openai.com/docs/api-reference/models/list
@@ -143,29 +179,33 @@ func init() {
 
 // DashboardListModels godoc
 // @Summary List channel models for UI
-// @Description When provider is specified, the response shape becomes docs.ChannelModelsProviderResponse (data is string[] and meta is an object).
+// @Description When provider is specified, the response shape becomes docs.ChannelModelsProviderResponse (data is string[] and meta is an object). model_provider filters by model naming rules.
 // @Tags public
 // @Security BearerAuth
 // @Produce json
 // @Param provider query string false "Provider name"
+// @Param model_provider query string false "Model provider filter (gpt/gemini/claude/deepseek/qwen)"
 // @Success 200 {object} docs.ChannelModelsResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/public/channel/models [get]
 func DashboardListModels(c *gin.Context) {
 	// optional filter: provider (channel) name, case-insensitive
 	provider := strings.ToLower(strings.TrimSpace(c.Query("provider")))
+	modelProvider := normalizeModelProviderFilter(c.Query("model_provider"))
 
 	// backward compatibility: keep original map response, and add metadata list for UI friendliness
 	metaList := make([]gin.H, 0, len(channelId2Models))
+	filteredMap := make(map[int][]string, len(channelId2Models))
 	for id, models := range channelId2Models {
 		name := ""
 		if id >= 0 && id < len(channeltype.ChannelTypeNames) {
 			name = channeltype.ChannelTypeNames[id]
 		}
+		filteredModels := filterModelsByProvider(models, modelProvider)
 		metaList = append(metaList, gin.H{
 			"id":     id,
 			"name":   name,
-			"models": models,
+			"models": filteredModels,
 		})
 		// if provider is specified and matches, short‑circuit with filtered payload
 		if provider != "" && strings.ToLower(name) == provider {
@@ -174,15 +214,16 @@ func DashboardListModels(c *gin.Context) {
 				"message":  "",
 				"provider": name,
 				"id":       id,
-				"data":     models,
+				"data":     filteredModels,
 				"meta": gin.H{
 					"id":     id,
 					"name":   name,
-					"models": models,
+					"models": filteredModels,
 				},
 			})
 			return
 		}
+		filteredMap[id] = filteredModels
 	}
 
 	if provider != "" {
@@ -197,7 +238,7 @@ func DashboardListModels(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    channelId2Models,
+		"data":    filteredMap,
 		"meta":    metaList,
 	})
 }

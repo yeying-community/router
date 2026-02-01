@@ -25,7 +25,7 @@ const OtherSetting = () => {
   let [loading, setLoading] = useState(false);
 
   const getOptions = useCallback(async () => {
-    const res = await API.get('/api/option/');
+    const res = await API.get('/api/v1/admin/option/');
     const { success, message, data } = res.data;
     if (success) {
       let newInputs = {};
@@ -46,7 +46,7 @@ const OtherSetting = () => {
 
   const updateOption = async (key, value) => {
     setLoading(true);
-    const res = await API.put('/api/option/', {
+    const res = await API.put('/api/v1/admin/option/', {
       key,
       value,
     });

@@ -1,7 +1,7 @@
 import { API, showError } from '../helpers';
 
 export async function getOAuthState() {
-  const res = await API.get('/api/oauth/state');
+  const res = await API.get('/api/v1/public/oauth/state');
   const { success, message, data } = res.data;
   if (success) {
     return data;

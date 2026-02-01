@@ -103,7 +103,7 @@ const Header = () => {
 
   async function logout() {
     setShowSidebar(false);
-    await API.get('/api/user/logout');
+    await API.get('/api/v1/public/user/logout');
     try {
       await logoutWallet();
     } catch (e) {
