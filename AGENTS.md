@@ -65,7 +65,7 @@
 ---
 
 ## 新代码（boss_router/main）带来的额外注意点
-- **前端改为 Vite**：仍输出 `web/build`，但构建命令是 `npm run build --prefix web`。  
+- **前端改为 Vite**：输出 `web/dist`，但构建命令是 `npm run build --prefix web`。  
   开发端口为 5181，前端 API 基地址环境变量从 `REACT_APP_SERVER` 改为 `VITE_SERVER`。
 - **新增 UCAN（可选）**：支持 `/api/v1/public/profile` 使用 UCAN 或原有钱包 JWT。  
   可选环境变量：`UCAN_AUD` / `UCAN_RESOURCE` / `UCAN_ACTION`。

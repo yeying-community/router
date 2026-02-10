@@ -6,10 +6,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/config"
+	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/relay"
 	"github.com/yeying-community/router/internal/relay/adaptor"
@@ -90,6 +94,33 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 
 func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralOpenAIRequest, adaptor adaptor.Adaptor) (io.Reader, error) {
 	if meta.Mode == relaymode.Responses {
+		if normalizeResponsesInput(textRequest) {
+			jsonData, err := json.Marshal(textRequest)
+			if err != nil {
+				return nil, err
+			}
+			preview := string(jsonData)
+			if len(preview) > 400 {
+				preview = preview[:400]
+			}
+			logger.SysLogf("[responses_body] len=%d preview=%s", len(jsonData), preview)
+			return bytes.NewBuffer(jsonData), nil
+		}
+		rawBody, _ := common.GetRequestBody(c)
+		if rawBody != nil {
+			rid := helper.GetRequestID(c.Request.Context())
+			if rid != "" {
+				dumpPath := filepath.Join("/tmp", "resp_body_"+rid+".json")
+				_ = os.WriteFile(dumpPath, rawBody, 0644)
+				logger.SysLogf("[responses_body_dump] path=%s len=%d", dumpPath, len(rawBody))
+			}
+			preview := string(rawBody)
+			if len(preview) > 400 {
+				preview = preview[:400]
+			}
+			logger.SysLogf("[responses_body_raw] len=%d preview=%s", len(rawBody), preview)
+			return bytes.NewBuffer(rawBody), nil
+		}
 		return c.Request.Body, nil
 	}
 	if !config.EnforceIncludeUsage &&
@@ -116,4 +147,30 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 	logger.Debugf(c.Request.Context(), "converted request: \n%s", string(jsonData))
 	requestBody = bytes.NewBuffer(jsonData)
 	return requestBody, nil
+}
+
+func normalizeResponsesInput(req *model.GeneralOpenAIRequest) bool {
+	if req == nil || req.Input == nil {
+		return false
+	}
+	switch v := req.Input.(type) {
+	case string:
+		req.Input = []model.Message{{Role: "user", Content: v}}
+		return true
+	case []any:
+		if len(v) == 0 {
+			return false
+		}
+		msgs := make([]model.Message, 0, len(v))
+		for _, item := range v {
+			s, ok := item.(string)
+			if !ok {
+				return false
+			}
+			msgs = append(msgs, model.Message{Role: "user", Content: s})
+		}
+		req.Input = msgs
+		return true
+	}
+	return false
 }

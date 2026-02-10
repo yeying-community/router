@@ -912,139 +912,118 @@ const Dashboard = () => {
   return (
     <div className='dashboard-container'>
       <div className='dashboard-spend-section'>
-        <Grid columns={3} stackable className='dashboard-spend-grid'>
-          <Grid.Column>
-            <Card fluid className='chart-card dashboard-spend-card'>
-              <Card.Content>
-                <Card.Header>{t('dashboard.spending.overview.title')}</Card.Header>
-                <div className='dashboard-spend-summary'>
-                  <div className='dashboard-spend-summary-row'>
-                    <div className='dashboard-spend-metric'>
-                      <div className='dashboard-spend-label'>
-                        {t('dashboard.spending.overview.yesterday_cost')}
-                      </div>
-                      <div className='dashboard-spend-value'>
-                        {formatCurrencyValue(overviewSummary?.yesterday_cost || 0)}
-                      </div>
+        <div className='dashboard-spend-stack'>
+          <Card fluid className='chart-card dashboard-spend-card'>
+            <Card.Content>
+              <Card.Header>{t('dashboard.spending.overview.title')}</Card.Header>
+              <div className='dashboard-spend-summary'>
+                <div className='dashboard-spend-summary-row'>
+                  <div className='dashboard-spend-metric'>
+                    <div className='dashboard-spend-label'>
+                      {t('dashboard.spending.overview.yesterday_cost')}
                     </div>
-                    <div className='dashboard-spend-metric'>
-                      <div className='dashboard-spend-label dashboard-spend-label-row'>
-                        <span>
-                          {t('dashboard.spending.overview.period_cost', {
-                            period: periodLabel,
-                          })}
-                        </span>
-                        <Dropdown
-                          className='dashboard-spend-period'
-                          selection
-                          options={overviewPeriodOptions}
-                          value={overviewPeriod}
-                          onChange={(e, { value }) => setOverviewPeriod(value)}
-                        />
-                      </div>
-                      <div className='dashboard-spend-value'>
-                        {formatCurrencyValue(overviewSummary?.period_cost || 0)}
-                      </div>
+                    <div className='dashboard-spend-value'>
+                      {formatCurrencyValue(overviewSummary?.yesterday_cost || 0)}
                     </div>
                   </div>
-                  <div className='dashboard-spend-summary-row'>
-                    <div className='dashboard-spend-metric'>
-                      <div className='dashboard-spend-label'>
-                        {t('dashboard.spending.overview.yesterday_revenue')}
-                      </div>
-                      <div className='dashboard-spend-value'>
-                        {formatCurrencyValue(overviewSummary?.yesterday_revenue || 0)}
-                      </div>
+                  <div className='dashboard-spend-metric'>
+                    <div className='dashboard-spend-label'>
+                      {t('dashboard.spending.overview.period_cost', {
+                        period: periodLabel,
+                      })}
                     </div>
-                    <div className='dashboard-spend-metric'>
-                      <div className='dashboard-spend-label'>
-                        {t('dashboard.spending.overview.period_revenue', {
-                          period: periodLabel,
-                        })}
-                      </div>
-                      <div className='dashboard-spend-value'>
-                        {formatCurrencyValue(overviewSummary?.period_revenue || 0)}
-                      </div>
+                    <div className='dashboard-spend-period-row'>
+                      <Dropdown
+                        className='dashboard-spend-period'
+                        selection
+                        fluid
+                        options={overviewPeriodOptions}
+                        value={overviewPeriod}
+                        onChange={(e, { value }) => setOverviewPeriod(value)}
+                      />
+                    </div>
+                    <div className='dashboard-spend-value'>
+                      {formatCurrencyValue(overviewSummary?.period_cost || 0)}
                     </div>
                   </div>
                 </div>
-                <div className='dashboard-drill-hint'>
-                  <span className='dashboard-drill-arrow' aria-hidden='true' />
-                  <span>{t('dashboard.spending.overview.drill_hint')}</span>
-                </div>
-                <div className='dashboard-spend-metric-switch'>
-                  <Button.Group size='small'>
-                    <Button
-                      active={overviewMetric === 'requests'}
-                      onClick={() => setOverviewMetric('requests')}
-                    >
-                      {t('dashboard.spending.metrics.requests')}
-                    </Button>
-                    <Button
-                      active={overviewMetric === 'tokens'}
-                      onClick={() => setOverviewMetric('tokens')}
-                    >
-                      {t('dashboard.spending.metrics.tokens')}
-                    </Button>
-                    <Button
-                      active={overviewMetric === 'cost'}
-                      onClick={() => setOverviewMetric('cost')}
-                    >
-                      {t('dashboard.spending.metrics.cost')}
-                    </Button>
-                  </Button.Group>
-                </div>
-                <div className='chart-container'>
-                  <ResponsiveContainer width='100%' height={180}>
-                    <LineChart data={overviewLineData}>
-                      <CartesianGrid
-                        strokeDasharray='3 3'
-                        vertical={chartConfig.lineChart.grid.vertical}
-                        horizontal={chartConfig.lineChart.grid.horizontal}
-                        opacity={chartConfig.lineChart.grid.opacity}
-                      />
-                      <XAxis
-                        dataKey='date'
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 12, fill: '#A3AED0' }}
-                        minTickGap={10}
-                      />
-                      <YAxis hide={true} />
-                      <Tooltip
-                        contentStyle={{
-                          background: '#fff',
-                          border: 'none',
-                          borderRadius: '4px',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                        }}
-                        formatter={(value) => [
-                          overviewMetricSetting.formatter(value),
-                          overviewMetricSetting.label,
-                        ]}
-                        labelFormatter={(label) =>
-                          `${t('dashboard.statistics.tooltip.date')}: ${label}`
-                        }
-                      />
-                      <Line
-                        type='monotone'
-                        dataKey={overviewMetricSetting.key}
-                        stroke={overviewMetricSetting.color}
-                        strokeWidth={chartConfig.lineChart.line.strokeWidth}
-                        dot={chartConfig.lineChart.line.dot}
-                        activeDot={chartConfig.lineChart.line.activeDot}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card.Content>
-            </Card>
-          </Grid.Column>
-          <Grid.Column>
-            <Card fluid className='chart-card dashboard-spend-card'>
-              <Card.Content>
-                <Card.Header>{t('dashboard.spending.calendar.title')}</Card.Header>
-                <div className='dashboard-calendar-controls'>
+              </div>
+              <div className='dashboard-drill-hint'>
+                <span className='dashboard-drill-arrow' aria-hidden='true' />
+                <span>{t('dashboard.spending.overview.drill_hint')}</span>
+              </div>
+              <div className='dashboard-spend-metric-switch'>
+                <Button.Group size='small'>
+                  <Button
+                    active={overviewMetric === 'requests'}
+                    onClick={() => setOverviewMetric('requests')}
+                  >
+                    {t('dashboard.spending.metrics.requests')}
+                  </Button>
+                  <Button
+                    active={overviewMetric === 'tokens'}
+                    onClick={() => setOverviewMetric('tokens')}
+                  >
+                    {t('dashboard.spending.metrics.tokens')}
+                  </Button>
+                  <Button
+                    active={overviewMetric === 'cost'}
+                    onClick={() => setOverviewMetric('cost')}
+                  >
+                    {t('dashboard.spending.metrics.cost')}
+                  </Button>
+                </Button.Group>
+              </div>
+              <div className='chart-container'>
+                <ResponsiveContainer width='100%' height={180}>
+                  <LineChart data={overviewLineData}>
+                    <CartesianGrid
+                      strokeDasharray='3 3'
+                      vertical={chartConfig.lineChart.grid.vertical}
+                      horizontal={chartConfig.lineChart.grid.horizontal}
+                      opacity={chartConfig.lineChart.grid.opacity}
+                    />
+                    <XAxis
+                      dataKey='date'
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#A3AED0' }}
+                      minTickGap={10}
+                    />
+                    <YAxis hide={true} />
+                    <Tooltip
+                      contentStyle={{
+                        background: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      }}
+                      formatter={(value) => [
+                        overviewMetricSetting.formatter(value),
+                        overviewMetricSetting.label,
+                      ]}
+                      labelFormatter={(label) =>
+                        `${t('dashboard.statistics.tooltip.date')}: ${label}`
+                      }
+                    />
+                    <Line
+                      type='monotone'
+                      dataKey={overviewMetricSetting.key}
+                      stroke={overviewMetricSetting.color}
+                      strokeWidth={chartConfig.lineChart.line.strokeWidth}
+                      dot={chartConfig.lineChart.line.dot}
+                      activeDot={chartConfig.lineChart.line.activeDot}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card.Content>
+          </Card>
+          <Card fluid className='chart-card dashboard-spend-card'>
+            <Card.Content>
+              <Card.Header>{t('dashboard.spending.calendar.title')}</Card.Header>
+              <div className='dashboard-calendar-toolbar'>
+                <div className='calendar-view-toggle'>
                   <Button.Group size='small'>
                     <Button
                       active={calendarView === 'calendar'}
@@ -1059,6 +1038,8 @@ const Dashboard = () => {
                       {t('dashboard.spending.calendar.view.bar')}
                     </Button>
                   </Button.Group>
+                </div>
+                <div className='calendar-granularity-toggle'>
                   <Button.Group size='small'>
                     {['hour', 'day', 'week', 'month', 'year'].map((unit) => (
                       <Button
@@ -1070,6 +1051,8 @@ const Dashboard = () => {
                       </Button>
                     ))}
                   </Button.Group>
+                </div>
+                <div className='calendar-unit-toggle'>
                   <Button.Group size='small'>
                     <Button
                       active={calendarUnit === 'usd'}
@@ -1085,15 +1068,50 @@ const Dashboard = () => {
                     </Button>
                   </Button.Group>
                 </div>
-                {calendarView === 'calendar' ? (
-                  <div className='dashboard-calendar-grid'>
+              </div>
+              <div className='dashboard-calendar-nav'>
+                <button type='button' className='calendar-nav-button' aria-label='prev'>
+                  ‹
+                </button>
+                <div className='dashboard-calendar-current'>
+                  {calendarGranularity === 'week'
+                    ? '本周'
+                    : calendarGranularity === 'month' || calendarGranularity === 'year'
+                      ? '本年'
+                      : '当月'}
+                </div>
+                <button type='button' className='calendar-nav-button' aria-label='next'>
+                  ›
+                </button>
+              </div>
+              {calendarView === 'calendar' ? (
+                <>
+                  {calendarGranularity === 'day' && (
+                    <div className='dashboard-calendar-weekdays'>
+                      {['日', '一', '二', '三', '四', '五', '六'].map((label) => (
+                        <div key={label} className='dashboard-calendar-weekday'>
+                          {label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div
+                    className={`dashboard-calendar-grid ${
+                      calendarGranularity === 'day' ? 'is-day' : 'is-card'
+                    }`}
+                  >
                     {calendarBuckets.length === 0 ? (
                       <div className='dashboard-calendar-empty'>
                         {t('dashboard.spending.calendar.empty')}
                       </div>
                     ) : (
-                      calendarBuckets.map((item) => (
-                        <div key={item.label} className='dashboard-calendar-cell'>
+                      calendarBuckets.map((item, index) => (
+                        <div
+                          key={item.label}
+                          className={`dashboard-calendar-cell ${
+                            index === 0 ? 'is-active' : ''
+                          }`}
+                        >
                           <div className='dashboard-calendar-label'>{item.label}</div>
                           <div className='dashboard-calendar-value'>
                             {formatCalendarValue(item.value)}
@@ -1102,88 +1120,86 @@ const Dashboard = () => {
                       ))
                     )}
                   </div>
-                ) : (
-                  <div className='chart-container'>
-                    <ResponsiveContainer width='100%' height={220}>
-                      <BarChart data={calendarBuckets}>
-                        <CartesianGrid strokeDasharray='3 3' vertical={false} opacity={0.1} />
-                        <XAxis
-                          dataKey='label'
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fontSize: 12, fill: '#A3AED0' }}
-                          minTickGap={10}
-                        />
-                        <YAxis
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fontSize: 12, fill: '#A3AED0' }}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            background: '#fff',
-                            border: 'none',
-                            borderRadius: '4px',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                          }}
-                          formatter={(value) => formatCalendarValue(value)}
-                          labelFormatter={(label) =>
-                            `${t('dashboard.statistics.tooltip.date')}: ${label}`
-                          }
-                        />
-                        <Bar
-                          dataKey='value'
-                          fill={
-                            calendarUnit === 'usd'
-                              ? chartConfig.colors.quota
-                              : chartConfig.colors.tokens
-                          }
-                          radius={[4, 4, 0, 0]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
+                </>
+              ) : (
+                <div className='chart-container'>
+                  <ResponsiveContainer width='100%' height={220}>
+                    <BarChart data={calendarBuckets}>
+                      <CartesianGrid strokeDasharray='3 3' vertical={false} opacity={0.1} />
+                      <XAxis
+                        dataKey='label'
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: '#A3AED0' }}
+                        minTickGap={10}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: '#A3AED0' }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        }}
+                        formatter={(value) => formatCalendarValue(value)}
+                        labelFormatter={(label) =>
+                          `${t('dashboard.statistics.tooltip.date')}: ${label}`
+                        }
+                      />
+                      <Bar
+                        dataKey='value'
+                        fill={
+                          calendarUnit === 'usd'
+                            ? chartConfig.colors.quota
+                            : chartConfig.colors.tokens
+                        }
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </Card.Content>
+          </Card>
+          <Card fluid className='chart-card dashboard-spend-card'>
+            <Card.Content>
+              <Card.Header>
+                {t('dashboard.spending.details.title')}
+                <Dropdown
+                  selection
+                  options={detailSortOptions}
+                  value={detailSort}
+                  onChange={(e, { value }) => setDetailSort(value)}
+                />
+              </Card.Header>
+              <div className='dashboard-spend-dimension'>
+                {t('dashboard.spending.details.dimension', {
+                  dimension: t(`dashboard.spending.calendar.granularity.${calendarGranularity}`),
+                })}
+              </div>
+              <div className='dashboard-spend-list'>
+                {detailRows.length === 0 ? (
+                  <div className='dashboard-spend-empty'>
+                    {t('dashboard.spending.details.empty')}
                   </div>
-                )}
-              </Card.Content>
-            </Card>
-          </Grid.Column>
-          <Grid.Column>
-            <Card fluid className='chart-card dashboard-spend-card'>
-              <Card.Content>
-                <Card.Header>
-                  {t('dashboard.spending.details.title')}
-                  <Dropdown
-                    selection
-                    options={detailSortOptions}
-                    value={detailSort}
-                    onChange={(e, { value }) => setDetailSort(value)}
-                  />
-                </Card.Header>
-                <div className='dashboard-spend-dimension'>
-                  {t('dashboard.spending.details.dimension', {
-                    dimension: t(`dashboard.spending.calendar.granularity.${calendarGranularity}`),
-                  })}
-                </div>
-                <div className='dashboard-spend-list'>
-                  {detailRows.length === 0 ? (
-                    <div className='dashboard-spend-empty'>
-                      {t('dashboard.spending.details.empty')}
+                ) : (
+                  detailRows.map((item) => (
+                    <div key={item.model} className='dashboard-spend-list-item'>
+                      <span className='dashboard-spend-list-name'>{item.model}</span>
+                      <span className='dashboard-spend-list-value'>
+                        {formatCalendarValue(item.value)}
+                      </span>
                     </div>
-                  ) : (
-                    detailRows.map((item) => (
-                      <div key={item.model} className='dashboard-spend-list-item'>
-                        <span className='dashboard-spend-list-name'>{item.model}</span>
-                        <span className='dashboard-spend-list-value'>
-                          {formatCalendarValue(item.value)}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </Card.Content>
-            </Card>
-          </Grid.Column>
-        </Grid>
+                  ))
+                )}
+              </div>
+            </Card.Content>
+          </Card>
+        </div>
       </div>
       <Card fluid className='chart-card dashboard-filter-card'>
         <Card.Content>

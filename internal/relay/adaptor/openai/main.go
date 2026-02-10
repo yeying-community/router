@@ -96,6 +96,131 @@ func StreamHandler(c *gin.Context, resp *http.Response, relayMode int) (*model.E
 	return nil, responseText, usage
 }
 
+type responsesStreamEnvelope struct {
+	Usage    *responsesUsage `json:"usage"`
+	Response struct {
+		Usage *responsesUsage `json:"usage"`
+	} `json:"response"`
+}
+
+type responsesStreamTextPayload struct {
+	Delta      string `json:"delta"`
+	Text       string `json:"text"`
+	OutputText string `json:"output_text"`
+}
+
+func StreamResponsesHandler(c *gin.Context, resp *http.Response, modelName string, promptTokens int) (*model.ErrorWithStatusCode, *model.Usage) {
+	responseText := ""
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Split(bufio.ScanLines)
+	var usage *model.Usage
+	currentEvent := ""
+	doneRendered := false
+
+	common.SetEventStreamHeaders(c)
+
+	for scanner.Scan() {
+		rawLine := scanner.Text()
+		line := strings.TrimSuffix(rawLine, "\r")
+
+		_, _ = c.Writer.Write([]byte(rawLine + "\n"))
+		c.Writer.Flush()
+
+		if line == "" {
+			currentEvent = ""
+			continue
+		}
+		if strings.HasPrefix(line, "event:") {
+			currentEvent = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+			continue
+		}
+		if !strings.HasPrefix(line, dataPrefix) {
+			continue
+		}
+
+		data := strings.TrimSpace(strings.TrimPrefix(line, dataPrefix))
+		if data == done {
+			doneRendered = true
+			continue
+		}
+		if data == "" {
+			continue
+		}
+
+		var envelope responsesStreamEnvelope
+		if err := json.Unmarshal([]byte(data), &envelope); err == nil {
+			if envelope.Usage != nil {
+				usage = &model.Usage{
+					PromptTokens:     envelope.Usage.InputTokens,
+					CompletionTokens: envelope.Usage.OutputTokens,
+					TotalTokens:      envelope.Usage.TotalTokens,
+				}
+			} else if envelope.Response.Usage != nil {
+				usage = &model.Usage{
+					PromptTokens:     envelope.Response.Usage.InputTokens,
+					CompletionTokens: envelope.Response.Usage.OutputTokens,
+					TotalTokens:      envelope.Response.Usage.TotalTokens,
+				}
+			}
+		}
+
+		var textPayload responsesStreamTextPayload
+		if err := json.Unmarshal([]byte(data), &textPayload); err != nil {
+			continue
+		}
+		switch currentEvent {
+		case "response.output_text.delta":
+			if textPayload.Delta != "" {
+				responseText += textPayload.Delta
+			} else if textPayload.Text != "" {
+				responseText += textPayload.Text
+			} else if textPayload.OutputText != "" {
+				responseText += textPayload.OutputText
+			}
+		case "response.output_text":
+			if textPayload.Text != "" {
+				responseText += textPayload.Text
+			} else if textPayload.OutputText != "" {
+				responseText += textPayload.OutputText
+			}
+		case "response.completed":
+			if textPayload.Text != "" {
+				responseText += textPayload.Text
+			} else if textPayload.OutputText != "" {
+				responseText += textPayload.OutputText
+			} else if textPayload.Delta != "" {
+				responseText += textPayload.Delta
+			}
+		default:
+			if textPayload.Text != "" {
+				responseText += textPayload.Text
+			} else if textPayload.OutputText != "" {
+				responseText += textPayload.OutputText
+			} else if textPayload.Delta != "" {
+				responseText += textPayload.Delta
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		logger.SysError("error reading stream: " + err.Error())
+	}
+
+	if !doneRendered {
+		render.Done(c)
+	}
+
+	if err := resp.Body.Close(); err != nil {
+		return ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
+	}
+
+	if usage == nil || usage.TotalTokens == 0 {
+		usage = ResponseText2Usage(responseText, modelName, promptTokens)
+	}
+
+	return nil, usage
+}
+
 func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.ErrorWithStatusCode, *model.Usage) {
 	var textResponse SlimTextResponse
 	responseBody, err := io.ReadAll(resp.Body)
