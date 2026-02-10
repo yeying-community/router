@@ -19,7 +19,7 @@ VITE_SERVER=http://localhost:3011 npm run dev
 # Runs the app in the development mode
 npm run dev
 
-# Builds the app for production to the `build` folder
+# Builds the app for production to the `dist` folder
 npm run build
 ```
 

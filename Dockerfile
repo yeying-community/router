@@ -34,7 +34,7 @@ ADD go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-COPY --from=builder /web/build ./web/build
+COPY --from=builder /web/dist ./web/dist
 
 RUN go build -trimpath -ldflags "-s -w -X 'github.com/yeying-community/router/common.Version=$(cat VERSION)' -linkmode external -extldflags '-static'" -o router ./cmd/router
 
