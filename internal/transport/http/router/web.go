@@ -18,7 +18,7 @@ func SetWebRouter(engine *gin.Engine, buildFS embed.FS, indexPage []byte) {
 	engine.Use(gzip.Gzip(gzip.DefaultCompression))
 	engine.Use(middleware.GlobalWebRateLimit())
 	engine.Use(middleware.Cache())
-	engine.Use(static.Serve("/", common.EmbedFolder(buildFS, "web/build")))
+	engine.Use(static.Serve("/", common.EmbedFolder(buildFS, "web/dist")))
 
 	engine.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.RequestURI, "/v1") || strings.HasPrefix(c.Request.RequestURI, "/api") {

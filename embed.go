@@ -2,5 +2,5 @@ package app
 
 import "embed"
 
-//go:embed web/build/*
+//go:embed web/dist/*
 var BuildFS embed.FS

@@ -4,10 +4,12 @@ upload
 *.exe
 *.db
 build
+output
 *.db-journal
 logs
 data
 /web/node_modules
+/web/dist
 cmd.md
 .env
 temp

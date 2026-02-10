@@ -16,7 +16,7 @@ import (
 )
 
 func SetRouter(engine *gin.Engine, buildFS embed.FS) {
-	indexPage, err := buildFS.ReadFile("web/build/index.html")
+	indexPage, err := buildFS.ReadFile("web/dist/index.html")
 	if err != nil {
 		panic(err)
 	}
