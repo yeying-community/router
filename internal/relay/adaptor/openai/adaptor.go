@@ -119,10 +119,15 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 			return nil, ErrorWrapper(errors.New("resp is nil"), "nil_response", http.StatusInternalServerError)
 		}
 		if meta.IsStream {
-			if respErr := relayRawResponse(c, resp); respErr != nil {
+			respErr, usage := StreamResponsesHandler(c, resp, meta.ActualModelName, meta.PromptTokens)
+			if respErr != nil {
 				return nil, respErr
 			}
-			return nil, nil
+			if usage != nil && usage.TotalTokens != 0 && usage.PromptTokens == 0 {
+				usage.PromptTokens = meta.PromptTokens
+				usage.CompletionTokens = usage.TotalTokens - meta.PromptTokens
+			}
+			return usage, nil
 		}
 		usage, respErr := relayResponsesResponse(c, resp)
 		if respErr != nil {
