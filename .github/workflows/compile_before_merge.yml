@@ -35,7 +35,9 @@ jobs:
           node-version: '20'
 
       - name: Build backend
-        run: make build
+        run: |
+          mkdir -p build
+          go build -o build/router ./cmd/router
 
       - name: Install frontend dependencies
         working-directory: web
