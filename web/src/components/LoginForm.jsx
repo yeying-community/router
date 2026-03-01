@@ -1,11 +1,12 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Button, Divider, Form, Grid, Header, Image, Message, Card } from 'semantic-ui-react';
+import { Button, Divider, Form, Image, Message } from 'semantic-ui-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserContext } from '../context/User';
 import { StatusContext } from '../context/Status';
 import { API, getLogo, showError, showSuccess, showWarning } from '../helpers';
 import { loginWithWallet } from '../services/web3Auth';
+import './LoginForm.css';
 
 const LoginForm = () => {
   const { t } = useTranslation();
@@ -17,8 +18,10 @@ const LoginForm = () => {
   const { username, password } = inputs;
   const [, userDispatch] = useContext(UserContext);
   const [statusState] = useContext(StatusContext);
-  let navigate = useNavigate();
+  const navigate = useNavigate();
   const logo = getLogo();
+  const loginBannerText =
+    '帮助您更好的管理、分发、路由和使用各大模型厂商接口服务';
   const storedStatus = (() => {
     const raw = localStorage.getItem('status');
     if (!raw) {
@@ -40,8 +43,6 @@ const LoginForm = () => {
       showError(t('messages.error.login_expired'));
     }
   }, [searchParams, t]);
-
-  // 微信登录已下线
 
   const onWalletLoginClicked = async () => {
     try {
@@ -77,14 +78,12 @@ const LoginForm = () => {
     }
   };
 
-  // 微信登录已移除
-
   function handleChange(e) {
     const { name, value } = e.target;
-    setInputs((inputs) => ({ ...inputs, [name]: value }));
+    setInputs((previousInputs) => ({ ...previousInputs, [name]: value }));
   }
 
-  async function handleSubmit(e) {
+  async function handleSubmit() {
     if (username && password) {
       const res = await API.post(`/api/v1/public/user/login`, {
         username,
@@ -94,13 +93,10 @@ const LoginForm = () => {
       if (success) {
         userDispatch({ type: 'login', payload: data });
         localStorage.setItem('user', JSON.stringify(data));
+        navigate('/token');
+        showSuccess(t('messages.success.login'));
         if (username === 'root' && password === '123456') {
-          navigate('/user/edit');
-          showSuccess(t('messages.success.login'));
           showWarning(t('messages.error.root_password'));
-        } else {
-          navigate('/token');
-          showSuccess(t('messages.success.login'));
         }
       } else {
         showError(message);
@@ -115,133 +111,105 @@ const LoginForm = () => {
   }, [walletLoginDisabled]);
 
   return (
-    <Grid textAlign='center' style={{ marginTop: '48px' }}>
-      <Grid.Column style={{ maxWidth: 450 }}>
-        <Card
-          fluid
-          className='chart-card'
-          style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }}
-        >
-          <Card.Content>
-            <Card.Header>
-              <Header
-                as='h2'
-                textAlign='center'
-                style={{ marginBottom: '1.5em' }}
-              >
-                <Image src={logo} style={{ marginBottom: '10px' }} />
-                <Header.Content>{t('auth.login.title')}</Header.Content>
-              </Header>
-            </Card.Header>
-            <Button
-              fluid
-              size='large'
-              color='orange'
-              onClick={onWalletLoginClicked}
-              disabled={walletLoginDisabled}
-              style={{ marginBottom: '0.75em' }}
-            >
-              {t('auth.login.wallet_button', '使用钱包登录')}
-            </Button>
-            {walletLoginDisabled && (
-              <Message warning size='small' style={{ marginBottom: '1.25em' }}>
-                {t(
-                  'auth.login.wallet_disabled',
-                  '钱包登录未开启，请联系管理员'
-                )}
-              </Message>
-            )}
+    <div className='router-login-page'>
+      <div className='router-login-floating-container'>
+        <div className='router-login-top-banner'>
+          <div className='router-login-top-banner-inner'>
+            <Image src={logo} className='router-login-top-banner-logo' />
+            <span>
+              {loginBannerText}
+              <a href='https://www.yeying.pub' target='_blank' rel='noopener noreferrer'>
+                了解夜莺社区
+              </a>
+            </span>
+          </div>
+        </div>
 
-            <Divider horizontal style={{ color: '#666', fontSize: '0.9em' }}>
-              {t('auth.login.password_title', '或使用账号密码')}
-            </Divider>
-
-            {!showPasswordLogin && walletLoginEnabled && (
+        <div className='router-login-hero'>
+          <div className='router-login-card'>
+            <div className='router-login-section'>
               <Button
-                basic
                 fluid
-                onClick={() => setShowPasswordLogin(true)}
-                style={{ marginBottom: '1em' }}
+                size='large'
+                className='router-login-main-btn router-wallet-button'
+                onClick={onWalletLoginClicked}
+                disabled={walletLoginDisabled}
               >
-                {t('auth.login.password_toggle', '使用账号密码登录')}
+                {t('auth.login.wallet_button', '使用钱包登录')}
               </Button>
-            )}
+              {walletLoginDisabled && (
+                <Message warning size='small'>
+                  {t('auth.login.wallet_disabled', '钱包登录未开启，请联系管理员')}
+                </Message>
+              )}
+            </div>
 
-            {showPasswordLogin && (
-              <>
-                <Form size='large'>
-                  <Form.Input
-                    fluid
-                    icon='user'
-                    iconPosition='left'
-                    placeholder={t('auth.login.username')}
-                    name='username'
-                    value={username}
-                    onChange={handleChange}
-                    style={{ marginBottom: '1em' }}
-                  />
-                  <Form.Input
-                    fluid
-                    icon='lock'
-                    iconPosition='left'
-                    placeholder={t('auth.login.password')}
-                    name='password'
-                    type='password'
-                    value={password}
-                    onChange={handleChange}
-                    style={{ marginBottom: '1.5em' }}
-                  />
-                  <Button
-                    fluid
-                    size='large'
-                    style={{
-                      background: '#2F73FF',
-                      color: 'white',
-                      marginBottom: '1.5em',
-                    }}
-                    onClick={handleSubmit}
-                  >
-                    {t('auth.login.button')}
-                  </Button>
-                </Form>
+            <Divider horizontal>或</Divider>
 
-                <Message
-                  style={{ background: 'transparent', boxShadow: 'none' }}
+            <div className='router-login-section'>
+              {walletLoginEnabled && (
+                <Button
+                  basic
+                  fluid
+                  size='large'
+                  className='router-login-main-btn router-password-toggle'
+                  onClick={() =>
+                    setShowPasswordLogin((previousState) => !previousState)
+                  }
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontSize: '0.9em',
-                      color: '#666',
-                    }}
-                  >
+                  使用账密登陆
+                </Button>
+              )}
+
+              {showPasswordLogin && (
+                <>
+                  <Form size='large' className='router-login-form'>
+                    <Form.Input
+                      fluid
+                      icon='user'
+                      iconPosition='left'
+                      placeholder={t('auth.login.username')}
+                      name='username'
+                      value={username}
+                      onChange={handleChange}
+                    />
+                    <Form.Input
+                      fluid
+                      icon='lock'
+                      iconPosition='left'
+                      placeholder={t('auth.login.password')}
+                      name='password'
+                      type='password'
+                      value={password}
+                      onChange={handleChange}
+                    />
+                    <Button
+                      fluid
+                      size='large'
+                      className='router-password-submit'
+                      onClick={handleSubmit}
+                    >
+                      {t('auth.login.button')}
+                    </Button>
+                  </Form>
+
+                  <div className='router-login-links'>
                     <div>
                       {t('auth.login.forgot_password')}
-                      <Link
-                        to='/reset'
-                        style={{ color: '#2185d0', marginLeft: '2px' }}
-                      >
-                        {t('auth.login.reset_password')}
-                      </Link>
+                      <Link to='/reset'>{t('auth.login.reset_password')}</Link>
                     </div>
                     <div>
                       {t('auth.login.no_account')}
-                      <Link
-                        to='/register'
-                        style={{ color: '#2185d0', marginLeft: '2px' }}
-                      >
-                        {t('auth.login.register')}
-                      </Link>
+                      <Link to='/register'>{t('auth.login.register')}</Link>
                     </div>
                   </div>
-                </Message>
-              </>
-            )}
-          </Card.Content>
-        </Card>
-      </Grid.Column>
-    </Grid>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, useLocation } from 'react-router-dom';
 import { Container } from 'semantic-ui-react';
 import App from './App';
 import Header from './components/Header';
@@ -13,18 +13,33 @@ import 'react-toastify/dist/ReactToastify.css';
 import { StatusProvider } from './context/Status';
 import './i18n';
 
+function AppShell() {
+  const location = useLocation();
+  const isLoginPage = location.pathname === '/login';
+
+  return (
+    <>
+      {!isLoginPage && <Header />}
+      {isLoginPage ? (
+        <App />
+      ) : (
+        <Container className={'main-content'}>
+          <App />
+        </Container>
+      )}
+      <ToastContainer />
+      {!isLoginPage && <Footer />}
+    </>
+  );
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <StatusProvider>
       <UserProvider>
         <BrowserRouter>
-          <Header />
-          <Container className={'main-content'}>
-            <App />
-          </Container>
-          <ToastContainer />
-          <Footer />
+          <AppShell />
         </BrowserRouter>
       </UserProvider>
     </StatusProvider>

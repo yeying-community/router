@@ -14,7 +14,6 @@ import {
 import {
   API,
   getLogo,
-  getSystemName,
   isAdmin,
   isMobile,
   showSuccess,
@@ -98,7 +97,6 @@ const Header = () => {
   const buttons = useHeaderButtons();
 
   const [showSidebar, setShowSidebar] = useState(false);
-  const systemName = getSystemName();
   const logo = getLogo();
 
   async function logout() {
@@ -199,11 +197,13 @@ const Header = () => {
               padding: isMobile() ? '0 10px' : '0 20px',
             }}
           >
-            <Menu.Item as={Link} to='/'>
-              <img src={logo} alt='logo' style={{ marginRight: '0.75em' }} />
-              <div style={{ fontSize: '20px' }}>
-                <b>{systemName}</b>
-              </div>
+            <Menu.Item
+              as='a'
+              href='https://www.yeying.pub'
+              target='_blank'
+              rel='noopener noreferrer'
+            >
+              <img src={logo} alt='logo' />
             </Menu.Item>
             <Menu.Menu position='right'>
               <Menu.Item onClick={toggleSidebar}>
@@ -282,17 +282,14 @@ const Header = () => {
             padding: isMobile() ? '0 10px' : '0 20px',
           }}
         >
-          <Menu.Item as={Link} to='/' className={'hide-on-mobile'}>
-            <img src={logo} alt='logo' style={{ marginRight: '0.75em' }} />
-            <div
-              style={{
-                fontSize: '18px',
-                fontWeight: '500',
-                color: '#333',
-              }}
-            >
-              {systemName}
-            </div>
+          <Menu.Item
+            as='a'
+            href='https://www.yeying.pub'
+            target='_blank'
+            rel='noopener noreferrer'
+            className={'hide-on-mobile'}
+          >
+            <img src={logo} alt='logo' />
           </Menu.Item>
           {renderButtons(false)}
           <Menu.Menu position='right'>

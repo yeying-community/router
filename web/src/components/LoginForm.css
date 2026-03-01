@@ -1,0 +1,224 @@
+.router-login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 100vh;
+  padding: 24px;
+  box-sizing: border-box;
+  color: #606266;
+  background: linear-gradient(180deg, #f6f9ff 0%, #eef3ff 45%, #f8fbff 100%);
+}
+
+.router-login-floating-container {
+  width: min(1080px, 94vw);
+  height: min(860px, 90vh);
+  min-height: 620px;
+  background: #ffffff;
+  border: 1px solid #dbe5f2;
+  border-radius: 20px;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.14);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.router-login-top-banner {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 14px 24px;
+  box-sizing: border-box;
+  background: #eaf1fb;
+  border-bottom: 1px solid #dce7f7;
+}
+
+.router-login-top-banner-inner {
+  width: min(960px, 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #2f3f57;
+  line-height: 1.5;
+  text-align: center;
+  flex-wrap: wrap;
+}
+
+.router-login-top-banner-inner span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.router-login-top-banner-inner a {
+  color: #2f7df6;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.router-login-top-banner-inner a:hover {
+  text-decoration: underline;
+}
+
+.router-login-top-banner-logo {
+  width: 22px !important;
+  height: 22px !important;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.router-login-hero {
+  flex: 1;
+  width: 100%;
+  padding: clamp(24px, 4vw, 44px);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.router-login-card {
+  width: min(430px, 100%);
+  background: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: none;
+  margin-top: -20px;
+}
+
+.router-login-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.router-login-main-btn.ui.button {
+  width: min(220px, 100%);
+  min-height: 40px;
+  font-size: 1.14285714rem !important;
+  border-radius: 10px !important;
+  align-self: center;
+  font-weight: 500 !important;
+  margin: 0 !important;
+}
+
+.router-wallet-button.ui.button {
+  background: #111827 !important;
+  color: #ffffff !important;
+}
+
+.router-wallet-button.ui.button:hover {
+  background: #1f2937 !important;
+}
+
+.router-password-toggle.ui.button {
+  border-radius: 10px !important;
+}
+
+.router-login-card .ui.horizontal.divider {
+  margin: 2px 0 !important;
+  color: #9aa5b5 !important;
+  font-size: 12px !important;
+}
+
+.router-login-card .ui.form .field {
+  margin-bottom: 12px !important;
+}
+
+.router-login-card .ui.form .field:last-child {
+  margin-bottom: 0 !important;
+}
+
+.router-login-card .ui.input > input {
+  border-radius: 10px !important;
+}
+
+.router-password-submit.ui.button {
+  width: 100%;
+  margin-top: 6px !important;
+  background: #2f73ff !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+}
+
+.router-password-submit.ui.button:hover {
+  background: #2462db !important;
+}
+
+.router-login-links {
+  margin-top: 2px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.router-login-links a {
+  margin-left: 4px;
+  color: #2f73ff;
+  text-decoration: none;
+}
+
+.router-login-links a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 980px) {
+  .router-login-hero {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 700px) {
+  .router-login-page {
+    padding: 0;
+  }
+
+  .router-login-floating-container {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .router-login-top-banner {
+    padding: 10px 12px;
+  }
+
+  .router-login-top-banner-inner {
+    font-size: 12px;
+  }
+
+  .router-login-hero {
+    padding: 18px 14px;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .router-login-card {
+    width: 100%;
+    padding: 14px;
+    margin-top: -8px;
+  }
+
+  .router-login-links {
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+  }
+}

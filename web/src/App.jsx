@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useCallback, useContext, useEffect } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import Loading from './components/Loading';
 import User from './pages/User';
 import { PrivateRoute } from './components/PrivateRoute';
@@ -26,7 +26,6 @@ import Chat from './pages/Chat';
 import Dashboard from './pages/Dashboard';
 
 const Home = lazy(() => import('./pages/Home'));
-const About = lazy(() => import('./pages/About'));
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || '';
 
 function App() {
@@ -95,11 +94,7 @@ function App() {
     <Routes>
       <Route
         path='/'
-        element={
-          <Suspense fallback={<Loading></Loading>}>
-            <Home />
-          </Suspense>
-        }
+        element={<Navigate to='/token' replace />}
       />
       <Route
         path='/channel'
@@ -269,7 +264,7 @@ function App() {
         path='/about'
         element={
           <Suspense fallback={<Loading></Loading>}>
-            <About />
+            <Home />
           </Suspense>
         }
       />
