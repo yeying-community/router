@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Form, Icon, Label, Modal, Segment, Table } from 'semantic-ui-react';
 import { API, showError, showInfo, showSuccess, timestamp2string } from '../helpers';
@@ -117,7 +123,7 @@ const OFFICIAL_PROVIDER_BASE_URLS = {
   minimax: 'https://api.minimax.chat/v1',
 };
 
-const ModelProvidersManager = () => {
+const ModelProvidersManager = forwardRef((_, ref) => {
   const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -174,10 +180,14 @@ const ModelProvidersManager = () => {
   };
 
   const openCreateModal = () => {
-    if (editing) return;
+    if (editing || creating || saving) return;
     setCreateRow(createEmptyRow());
     setCreating(true);
   };
+
+  useImperativeHandle(ref, () => ({
+    openCreateModal,
+  }));
 
   const closeCreateModal = () => {
     setCreating(false);
@@ -548,7 +558,7 @@ const ModelProvidersManager = () => {
         </Button>
         <Button type='button' onClick={rollbackEditor} disabled={saving}>
           <Icon name='undo' />
-          {t('channel.providers.dialog.cancel')}
+          {t('channel.providers.dialog.cancel_create')}
         </Button>
         <Button
           type='button'
@@ -681,21 +691,13 @@ const ModelProvidersManager = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: '12px' }}>
-        <Button
-          type='button'
-          onClick={openCreateModal}
-          disabled={editing || creating || saving}
-        >
-          {t('channel.providers.buttons.add_provider')}
-        </Button>
-      </div>
-
       {renderCreateModal()}
       {renderDeleteModal()}
       {editing ? renderEditor() : renderRows()}
     </div>
   );
-};
+});
+
+ModelProvidersManager.displayName = 'ModelProvidersManager';
 
 export default ModelProvidersManager;

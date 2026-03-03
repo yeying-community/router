@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {Button, Card, Form, Input, Message} from 'semantic-ui-react';
 import {useNavigate, useParams} from 'react-router-dom';
@@ -123,57 +123,97 @@ const normalizeModelProviderSelection = (provider) => {
   }
 };
 
-const resolveModelProvider = (modelName) => {
-  const name =
-    typeof modelName === 'string'
-      ? modelName.trim()
-      : normalizeModelId(modelName)?.trim();
-  if (!name) return 'unknown';
-  if (name.includes('/')) {
-    const [prefix] = name.split('/', 2);
-    return prefix ? prefix.trim().toLowerCase() : 'unknown';
-  }
-  const lower = name.toLowerCase();
-  switch (true) {
-    case lower.startsWith('gpt-'):
-    case lower.startsWith('o1'):
-    case lower.startsWith('o3'):
-    case lower.startsWith('o4'):
-    case lower.startsWith('chatgpt-'):
-      return 'openai';
-    case lower.startsWith('claude-'):
-      return 'anthropic';
-    case lower.startsWith('gemini-'):
-      return 'google';
-    case lower.startsWith('grok-'):
-      return 'xai';
-    case lower.startsWith('mistral-'):
-      return 'mistral';
-    case lower.startsWith('command-r'):
-    case lower.startsWith('cohere-'):
-      return 'cohere';
-    case lower.startsWith('deepseek-'):
-      return 'deepseek';
-    case lower.startsWith('qwen-'):
-    case lower.startsWith('qwq-'):
-    case lower.startsWith('qvq-'):
-      return 'qwen';
-    case lower.startsWith('glm-'):
-    case lower.startsWith('cogview-'):
-      return 'zhipu';
-    case lower.startsWith('hunyuan-'):
-      return 'hunyuan';
-    case lower.startsWith('doubao-'):
-    case lower.startsWith('ark-'):
-      return 'volcengine';
-    case lower.startsWith('abab'):
-    case lower.startsWith('minimax-'):
-      return 'minimax';
-    case lower.startsWith('ernie-'):
-      return 'baidu';
-    default:
-      return 'unknown';
-  }
+const buildFallbackModelProviderOptions = (t) => [
+  {
+    key: 'openai',
+    text: t('channel.edit.model_provider_options.gpt'),
+    value: 'openai',
+  },
+  {
+    key: 'google',
+    text: t('channel.edit.model_provider_options.gemini'),
+    value: 'google',
+  },
+  {
+    key: 'anthropic',
+    text: t('channel.edit.model_provider_options.claude'),
+    value: 'anthropic',
+  },
+  {
+    key: 'deepseek',
+    text: t('channel.edit.model_provider_options.deepseek'),
+    value: 'deepseek',
+  },
+  {
+    key: 'qwen',
+    text: t('channel.edit.model_provider_options.qwen'),
+    value: 'qwen',
+  },
+  {
+    key: 'xai',
+    text: t('channel.edit.model_provider_options.xai'),
+    value: 'xai',
+  },
+  {
+    key: 'mistral',
+    text: t('channel.edit.model_provider_options.mistral'),
+    value: 'mistral',
+  },
+  {
+    key: 'cohere',
+    text: t('channel.edit.model_provider_options.cohere'),
+    value: 'cohere',
+  },
+  {
+    key: 'zhipu',
+    text: t('channel.edit.model_provider_options.zhipu'),
+    value: 'zhipu',
+  },
+  {
+    key: 'hunyuan',
+    text: t('channel.edit.model_provider_options.hunyuan'),
+    value: 'hunyuan',
+  },
+  {
+    key: 'volcengine',
+    text: t('channel.edit.model_provider_options.volcengine'),
+    value: 'volcengine',
+  },
+  {
+    key: 'minimax',
+    text: t('channel.edit.model_provider_options.minimax'),
+    value: 'minimax',
+  },
+];
+
+const buildModelProviderOptionsFromCatalog = (items) => {
+  if (!Array.isArray(items)) return [];
+  const indexByProvider = new Map();
+  const options = [];
+  items.forEach((item) => {
+    const provider = normalizeModelProviderSelection(
+      item?.provider || item?.name || ''
+    );
+    if (!provider) return;
+    const name = typeof item?.name === 'string' ? item.name.trim() : '';
+    const text =
+      name && name.toLowerCase() !== provider
+        ? `${name} (${provider})`
+        : name || provider;
+    const option = {
+      key: provider,
+      text,
+      value: provider,
+    };
+    if (indexByProvider.has(provider)) {
+      const index = indexByProvider.get(provider);
+      options[index] = option;
+      return;
+    }
+    indexByProvider.set(provider, options.length);
+    options.push(option);
+  });
+  return options.sort((a, b) => a.value.localeCompare(b.value));
 };
 
 function type2secretPrompt(type, t) {
@@ -223,6 +263,7 @@ const EditChannel = () => {
   const [groupOptions, setGroupOptions] = useState([]);
   const [basicModels, setBasicModels] = useState([]);
   const [fullModels, setFullModels] = useState([]);
+  const [catalogModelProviderOptions, setCatalogModelProviderOptions] = useState([]);
   const [customModel, setCustomModel] = useState('');
   const [fetchModelsLoading, setFetchModelsLoading] = useState(false);
   const [config, setConfig] = useState({
@@ -235,68 +276,29 @@ const EditChannel = () => {
     user_agent: '',
     use_responses: false,
   });
-  const modelProviderOptions = [
-    {
-      key: 'openai',
-      text: t('channel.edit.model_provider_options.gpt'),
-      value: 'openai',
-    },
-    {
-      key: 'google',
-      text: t('channel.edit.model_provider_options.gemini'),
-      value: 'google',
-    },
-    {
-      key: 'anthropic',
-      text: t('channel.edit.model_provider_options.claude'),
-      value: 'anthropic',
-    },
-    {
-      key: 'deepseek',
-      text: t('channel.edit.model_provider_options.deepseek'),
-      value: 'deepseek',
-    },
-    {
-      key: 'qwen',
-      text: t('channel.edit.model_provider_options.qwen'),
-      value: 'qwen',
-    },
-    {
-      key: 'xai',
-      text: t('channel.edit.model_provider_options.xai'),
-      value: 'xai',
-    },
-    {
-      key: 'mistral',
-      text: t('channel.edit.model_provider_options.mistral'),
-      value: 'mistral',
-    },
-    {
-      key: 'cohere',
-      text: t('channel.edit.model_provider_options.cohere'),
-      value: 'cohere',
-    },
-    {
-      key: 'zhipu',
-      text: t('channel.edit.model_provider_options.zhipu'),
-      value: 'zhipu',
-    },
-    {
-      key: 'hunyuan',
-      text: t('channel.edit.model_provider_options.hunyuan'),
-      value: 'hunyuan',
-    },
-    {
-      key: 'volcengine',
-      text: t('channel.edit.model_provider_options.volcengine'),
-      value: 'volcengine',
-    },
-    {
-      key: 'minimax',
-      text: t('channel.edit.model_provider_options.minimax'),
-      value: 'minimax',
-    },
-  ];
+  const fallbackModelProviderOptions = useMemo(
+    () => buildFallbackModelProviderOptions(t),
+    [t]
+  );
+  const modelProviderOptions = useMemo(() => {
+    const baseOptions =
+      catalogModelProviderOptions.length > 0
+        ? catalogModelProviderOptions
+        : fallbackModelProviderOptions;
+    const selectedProvider = normalizeModelProviderSelection(
+      inputs.model_provider
+    );
+    if (!selectedProvider) {
+      return baseOptions;
+    }
+    if (baseOptions.some((option) => option.value === selectedProvider)) {
+      return baseOptions;
+    }
+    return [
+      ...baseOptions,
+      { key: selectedProvider, text: selectedProvider, value: selectedProvider },
+    ];
+  }, [catalogModelProviderOptions, fallbackModelProviderOptions, inputs.model_provider]);
   const handleInputChange = (e, { name, value }) => {
     setInputs((inputs) => ({ ...inputs, [name]: value }));
     if (name === 'type') {
@@ -405,11 +407,7 @@ const EditChannel = () => {
       }
 
       const { ids } = buildModelOptions(models);
-      const filteredModels = selectedProvider
-        ? ids.filter((model) => resolveModelProvider(model) === selectedProvider)
-        : ids;
-
-      if (filteredModels.length === 0) {
+      if (ids.length === 0) {
         showInfo(
           selectedProvider
             ? '未找到符合所选供应商的模型'
@@ -418,7 +416,7 @@ const EditChannel = () => {
         return;
       }
 
-      setInputs((prev) => ({ ...prev, models: filteredModels }));
+      setInputs((prev) => ({ ...prev, models: ids }));
       showSuccess(t('channel.messages.operation_success'));
     } catch (error) {
       showError(error?.message || error);
@@ -441,6 +439,23 @@ const EditChannel = () => {
       showError(error.message);
     }
   }, []);
+
+  const fetchModelProviders = useCallback(async () => {
+    try {
+      const res = await API.get(`/api/v1/admin/model-provider`);
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('channel.providers.messages.load_failed'));
+        return;
+      }
+      const options = buildModelProviderOptionsFromCatalog(data);
+      if (options.length > 0) {
+        setCatalogModelProviderOptions(options);
+      }
+    } catch (error) {
+      showError(error?.message || error);
+    }
+  }, [t]);
 
   useEffect(() => {
     let localModelOptions = [...originModelOptions];
@@ -468,7 +483,8 @@ const EditChannel = () => {
   useEffect(() => {
     fetchModels().then();
     fetchGroups().then();
-  }, [fetchModels, fetchGroups]);
+    fetchModelProviders().then();
+  }, [fetchModels, fetchGroups, fetchModelProviders]);
 
   const submit = async () => {
     if (inputs.key === '') {

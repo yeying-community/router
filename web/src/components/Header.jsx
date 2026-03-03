@@ -22,14 +22,14 @@ const ADMIN_HEADER_BUTTONS = [
     icon: 'chart bar',
   },
   {
-    name: 'header.channel',
-    to: '/admin/channel',
-    icon: 'sitemap',
-  },
-  {
     name: 'header.model_providers',
     to: '/admin/model-provider',
     icon: 'cubes',
+  },
+  {
+    name: 'header.channel',
+    to: '/admin/channel',
+    icon: 'sitemap',
   },
   {
     name: 'header.user',
