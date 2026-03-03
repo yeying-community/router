@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/helper"
+	commonutils "github.com/yeying-community/router/common/utils"
 	"github.com/yeying-community/router/internal/admin/model"
 	channelsvc "github.com/yeying-community/router/internal/admin/service/channel"
 )
@@ -124,6 +125,7 @@ func AddChannel(c *gin.Context) {
 		return
 	}
 	channel.CreatedTime = helper.GetTimestamp()
+	channel.ModelProvider = commonutils.NormalizeModelProvider(channel.ModelProvider)
 	keys := strings.Split(channel.Key, "\n")
 	channels := make([]model.Channel, 0, len(keys))
 	for _, key := range keys {
@@ -221,6 +223,7 @@ func UpdateChannel(c *gin.Context) {
 		})
 		return
 	}
+	channel.ModelProvider = commonutils.NormalizeModelProvider(channel.ModelProvider)
 	err = channelsvc.Update(&channel)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{

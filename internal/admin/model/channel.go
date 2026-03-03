@@ -37,6 +37,7 @@ type Channel struct {
 	SystemPrompt       *string `json:"system_prompt" gorm:"type:text"`
 	ModelRatio         *string `json:"model_ratio" gorm:"type:text;default:''"`
 	CompletionRatio    *string `json:"completion_ratio" gorm:"type:text;default:''"`
+	ModelProvider      string  `json:"model_provider" gorm:"type:varchar(32);default:''"`
 }
 
 type ChannelConfig struct {

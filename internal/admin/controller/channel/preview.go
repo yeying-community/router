@@ -10,19 +10,22 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/yeying-community/router/common/client"
+	commonutils "github.com/yeying-community/router/common/utils"
 	"github.com/yeying-community/router/internal/relay/channeltype"
 )
 
 type previewModelsRequest struct {
-	Type    int             `json:"type"`
-	Key     string          `json:"key"`
-	BaseURL string          `json:"base_url"`
-	Config  json.RawMessage `json:"config"`
+	Type          int             `json:"type"`
+	Key           string          `json:"key"`
+	BaseURL       string          `json:"base_url"`
+	Config        json.RawMessage `json:"config"`
+	ModelProvider string          `json:"model_provider"`
 }
 
 type openAIModelsResponse struct {
 	Data []struct {
-		ID string `json:"id"`
+		ID      string `json:"id"`
+		OwnedBy string `json:"owned_by"`
 	} `json:"data"`
 	Error *struct {
 		Message string `json:"message"`
@@ -33,6 +36,16 @@ func isOpenAICompatibleType(channelType int) bool {
 	return channelType == channeltype.OpenAICompatible || channelType == channeltype.GeminiOpenAICompatible
 }
 
+// PreviewChannelModels godoc
+// @Summary Preview models for OpenAI-compatible channel (admin)
+// @Tags admin
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param body body docs.ChannelPreviewModelsRequest true "Preview payload"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/admin/channel/preview/models [post]
 func PreviewChannelModels(c *gin.Context) {
 	var req previewModelsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -58,6 +71,7 @@ func PreviewChannelModels(c *gin.Context) {
 		})
 		return
 	}
+	modelProvider := commonutils.NormalizeModelProvider(req.ModelProvider)
 
 	baseURL := strings.TrimSpace(req.BaseURL)
 	if baseURL == "" {
@@ -123,15 +137,29 @@ func PreviewChannelModels(c *gin.Context) {
 	}
 
 	modelIDs := make([]string, 0, len(parsed.Data))
+	seen := make(map[string]struct{}, len(parsed.Data))
 	for _, item := range parsed.Data {
-		if item.ID != "" {
-			modelIDs = append(modelIDs, item.ID)
+		id := strings.TrimSpace(item.ID)
+		if id == "" {
+			continue
 		}
+		if !commonutils.MatchModelProvider(id, item.OwnedBy, modelProvider) {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		modelIDs = append(modelIDs, id)
 	}
 	if len(modelIDs) == 0 {
+		msg := "未返回可用模型"
+		if modelProvider != "" {
+			msg = "未找到符合所选模型供应商的模型"
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "未返回可用模型",
+			"message": msg,
 		})
 		return
 	}

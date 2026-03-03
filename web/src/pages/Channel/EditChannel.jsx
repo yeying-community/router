@@ -168,6 +168,7 @@ const EditChannel = () => {
     model_ratio: '',
     completion_ratio: '',
     system_prompt: '',
+    model_provider: '',
     models: [],
     groups: ['default'],
   };
@@ -179,7 +180,6 @@ const EditChannel = () => {
   const [basicModels, setBasicModels] = useState([]);
   const [fullModels, setFullModels] = useState([]);
   const [customModel, setCustomModel] = useState('');
-  const [modelProvider, setModelProvider] = useState('');
   const [fetchModelsLoading, setFetchModelsLoading] = useState(false);
   const [config, setConfig] = useState({
     region: '',
@@ -193,19 +193,19 @@ const EditChannel = () => {
   });
   const modelProviderOptions = [
     {
-      key: 'gpt',
+      key: 'openai',
       text: t('channel.edit.model_provider_options.gpt'),
-      value: 'gpt',
+      value: 'openai',
     },
     {
-      key: 'gemini',
+      key: 'google',
       text: t('channel.edit.model_provider_options.gemini'),
-      value: 'gemini',
+      value: 'google',
     },
     {
-      key: 'claude',
+      key: 'anthropic',
       text: t('channel.edit.model_provider_options.claude'),
-      value: 'claude',
+      value: 'anthropic',
     },
     {
       key: 'deepseek',
@@ -243,6 +243,7 @@ const EditChannel = () => {
       } else {
         data.groups = data.group.split(',');
       }
+      data.model_provider = normalizeModelProviderSelection(data.model_provider);
       if (data.model_mapping !== '') {
         data.model_mapping = JSON.stringify(
           JSON.parse(data.model_mapping),
@@ -290,7 +291,9 @@ const EditChannel = () => {
   }, []);
 
   const handleFetchModels = async () => {
-    const selectedProvider = normalizeModelProviderSelection(modelProvider);
+    const selectedProvider = normalizeModelProviderSelection(
+      inputs.model_provider
+    );
     setFetchModelsLoading(true);
     try {
       let models = [];
@@ -304,6 +307,7 @@ const EditChannel = () => {
           key: inputs.key,
           base_url: inputs.base_url,
           config,
+          model_provider: selectedProvider,
         });
         const { success, message, data } = res.data || {};
         if (!success) {
@@ -432,6 +436,9 @@ const EditChannel = () => {
     if (localInputs.type === 3 && localInputs.other === '') {
       localInputs.other = '2024-03-01-preview';
     }
+    localInputs.model_provider = normalizeModelProviderSelection(
+      localInputs.model_provider
+    );
     let res;
     localInputs.models = localInputs.models.join(',');
     localInputs.group = localInputs.groups.join(',');
@@ -489,11 +496,13 @@ const EditChannel = () => {
             <Form.Field>
               <Form.Select
                 label={t('channel.edit.model_provider')}
-                name='modelProvider'
+                name='model_provider'
                 clearable
                 options={modelProviderOptions}
-                value={modelProvider}
-                onChange={(e, { value }) => setModelProvider(value)}
+                value={inputs.model_provider}
+                onChange={(e, { name, value }) =>
+                  handleInputChange(e, { name, value: value || '' })
+                }
               />
             </Form.Field>
             <Form.Field>

@@ -167,6 +167,50 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/channel/preview/models": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Preview models for OpenAI-compatible channel (admin)",
+                "parameters": [
+                    {
+                        "description": "Preview payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/docs.ChannelPreviewModelsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/channel/search": {
             "get": {
                 "security": [
@@ -4105,7 +4149,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_yeying-community_router_internal_admin_controller_user.LoginRequest"
+                            "$ref": "#/definitions/user.LoginRequest"
                         }
                     }
                 ],
@@ -4208,7 +4252,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_yeying-community_router_internal_admin_controller.PasswordResetRequest"
+                            "$ref": "#/definitions/controller.PasswordResetRequest"
                         }
                     }
                 ],
@@ -4442,6 +4486,17 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "controller.PasswordResetRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "docs.AdminCreateUserRequest": {
             "type": "object",
             "properties": {
@@ -4548,6 +4603,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "{}"
                 },
+                "model_provider": {
+                    "type": "string",
+                    "example": "openai"
+                },
                 "model_ratio": {
                     "type": "string",
                     "example": "{}"
@@ -4629,6 +4688,28 @@ const docTemplate = `{
                 }
             }
         },
+        "docs.ChannelPreviewModelsRequest": {
+            "type": "object",
+            "properties": {
+                "base_url": {
+                    "type": "string",
+                    "example": "https://api.openai.com"
+                },
+                "config": {},
+                "key": {
+                    "type": "string",
+                    "example": "sk-***"
+                },
+                "model_provider": {
+                    "type": "string",
+                    "example": "openai"
+                },
+                "type": {
+                    "type": "integer",
+                    "example": 50
+                }
+            }
+        },
         "docs.ChannelUpdateRequest": {
             "type": "object",
             "properties": {
@@ -4659,6 +4740,10 @@ const docTemplate = `{
                 "model_mapping": {
                     "type": "string",
                     "example": "{}"
+                },
+                "model_provider": {
+                    "type": "string",
+                    "example": "openai"
                 },
                 "model_ratio": {
                     "type": "string",
@@ -6643,40 +6728,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_yeying-community_router_Codex_Router_LvRouter_internal_admin_controller.PasswordResetRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_yeying-community_router_Codex_Router_LvRouter_internal_admin_controller_user.LoginRequest": {
-            "type": "object",
-            "properties": {
-                "password": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_yeying-community_router_internal_admin_controller.PasswordResetRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_yeying-community_router_internal_admin_controller_user.LoginRequest": {
+        "user.LoginRequest": {
             "type": "object",
             "properties": {
                 "password": {

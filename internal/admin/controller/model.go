@@ -43,35 +43,13 @@ func modelBelongsToProvider(provider string, model string) bool {
 	}
 }
 
-func normalizeModelProviderFilter(provider string) string {
-	trimmed := strings.TrimSpace(provider)
-	if trimmed == "" {
-		return ""
-	}
-	lower := strings.ToLower(trimmed)
-	switch lower {
-	case "gpt", "openai":
-		return "openai"
-	case "gemini", "google":
-		return "google"
-	case "claude", "anthropic":
-		return "anthropic"
-	case "deepseek":
-		return "deepseek"
-	case "qwen", "qwq", "qvq", "千问":
-		return "qwen"
-	default:
-		return lower
-	}
-}
-
 func filterModelsByProvider(models []string, provider string) []string {
 	if provider == "" {
 		return models
 	}
 	filtered := make([]string, 0, len(models))
 	for _, modelName := range models {
-		if commonutils.ResolveModelProvider(modelName) == provider {
+		if commonutils.MatchModelProvider(modelName, "", provider) {
 			filtered = append(filtered, modelName)
 		}
 	}
@@ -191,7 +169,7 @@ func init() {
 func DashboardListModels(c *gin.Context) {
 	// optional filter: provider (channel) name, case-insensitive
 	provider := strings.ToLower(strings.TrimSpace(c.Query("provider")))
-	modelProvider := normalizeModelProviderFilter(c.Query("model_provider"))
+	modelProvider := commonutils.NormalizeModelProvider(c.Query("model_provider"))
 
 	// backward compatibility: keep original map response, and add metadata list for UI friendliness
 	metaList := make([]gin.H, 0, len(channelId2Models))

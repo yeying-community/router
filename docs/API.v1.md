@@ -199,9 +199,11 @@ Authorization: Bearer <JWT>
   "type": 50,
   "key": "sk-***",
   "base_url": "https://api.openai.com",
+  "model_provider": "openai",
   "config": {}
 }
 ```
+- `model_provider` 可选，支持 `openai/gpt`、`google/gemini`、`anthropic/claude`、`deepseek`、`qwen/千问` 等别名；设置后服务端会按供应商过滤返回模型。
 - 响应体：
 ```json
 {
