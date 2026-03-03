@@ -113,7 +113,7 @@ func runModelProviderMigrations() error {
 	if err := backfillChannelModelProviderFromModels(); err != nil {
 		return err
 	}
-	if err := ensureModelProviderCatalogOption(); err != nil {
+	if err := ensureModelProviderCatalogTable(); err != nil {
 		return err
 	}
 	return nil
@@ -202,45 +202,200 @@ func inferModelProviderFromModelList(modelList string) string {
 	return items[0].provider
 }
 
-func ensureModelProviderCatalogOption() error {
+func ensureModelProviderCatalogTable() error {
+	tableItems, err := loadModelProviderCatalogFromTable()
+	if err != nil {
+		return err
+	}
+
+	if len(tableItems) == 0 {
+		legacyItems, legacyErr := loadModelProviderCatalogFromLegacyOption()
+		if legacyErr != nil {
+			return legacyErr
+		}
+		if len(legacyItems) > 0 {
+			tableItems = legacyItems
+			logger.SysLog("migration: imported model providers from options.ModelProviderCatalog")
+		} else {
+			tableItems = buildMainstreamModelProviderCatalog(helper.GetTimestamp())
+			logger.SysLog("migration: initialized model providers from mainstream defaults")
+		}
+	}
+
+	normalizedItems, normalizeErr := normalizeModelProviderCatalogItems(tableItems)
+	if normalizeErr != nil {
+		logger.SysError("migration: normalize model providers failed, fallback to mainstream defaults: " + normalizeErr.Error())
+		normalizedItems = buildMainstreamModelProviderCatalog(helper.GetTimestamp())
+	}
+
+	if err := saveModelProviderCatalogToTable(normalizedItems); err != nil {
+		return err
+	}
+
+	// Legacy fallback source is no longer used after table migration.
+	if err := DB.Where("key = ?", optionKeyModelProviderCatalog).Delete(&Option{}).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func normalizeModelProviderCatalogItems(items []modelProviderCatalogMigrationItem) ([]modelProviderCatalogMigrationItem, error) {
+	raw, err := json.Marshal(items)
+	if err != nil {
+		return nil, err
+	}
+	normalizedRaw, err := normalizeModelProviderCatalogRaw(string(raw))
+	if err != nil {
+		return nil, err
+	}
+	normalized := make([]modelProviderCatalogMigrationItem, 0)
+	if err := json.Unmarshal([]byte(normalizedRaw), &normalized); err != nil {
+		return nil, err
+	}
+	return normalized, nil
+}
+
+func loadModelProviderCatalogFromLegacyOption() ([]modelProviderCatalogMigrationItem, error) {
 	var option Option
 	err := DB.Where("key = ?", optionKeyModelProviderCatalog).First(&option).Error
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
 		}
-		raw, buildErr := buildDefaultModelProviderCatalogRaw()
-		if buildErr != nil {
-			return buildErr
+		return nil, err
+	}
+	raw := strings.TrimSpace(option.Value)
+	if raw == "" {
+		return nil, nil
+	}
+	normalizedRaw, normalizeErr := normalizeModelProviderCatalogRaw(raw)
+	if normalizeErr != nil {
+		logger.SysError("migration: failed to parse options.ModelProviderCatalog, fallback to defaults: " + normalizeErr.Error())
+		return nil, nil
+	}
+	items := make([]modelProviderCatalogMigrationItem, 0)
+	if err := json.Unmarshal([]byte(normalizedRaw), &items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func parseModelProviderModels(raw string) []string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return make([]string, 0)
+	}
+	modelSet := make(map[string]struct{})
+	jsonModels := make([]string, 0)
+	if err := json.Unmarshal([]byte(trimmed), &jsonModels); err == nil {
+		for _, modelName := range jsonModels {
+			name := strings.TrimSpace(modelName)
+			if name == "" {
+				continue
+			}
+			modelSet[name] = struct{}{}
 		}
-		created := Option{
-			Key:   optionKeyModelProviderCatalog,
-			Value: raw,
+		models := make([]string, 0, len(modelSet))
+		for name := range modelSet {
+			models = append(models, name)
 		}
-		if createErr := DB.Create(&created).Error; createErr != nil {
-			return createErr
-		}
-		logger.SysLog("migration: initialized ModelProviderCatalog option")
-		return nil
+		sort.Strings(models)
+		return models
 	}
 
-	normalizedRaw, normalizeErr := normalizeModelProviderCatalogRaw(option.Value)
-	if normalizeErr != nil {
-		normalizedRaw, normalizeErr = buildDefaultModelProviderCatalogRaw()
-		if normalizeErr != nil {
-			return normalizeErr
+	for _, modelName := range strings.FieldsFunc(trimmed, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r'
+	}) {
+		name := strings.TrimSpace(modelName)
+		if name == "" {
+			continue
 		}
+		modelSet[name] = struct{}{}
 	}
-	if normalizedRaw == option.Value {
-		return nil
+	models := make([]string, 0, len(modelSet))
+	for name := range modelSet {
+		models = append(models, name)
 	}
-	if err := DB.Model(&Option{}).
-		Where("key = ?", optionKeyModelProviderCatalog).
-		Update("value", normalizedRaw).Error; err != nil {
-		return err
+	sort.Strings(models)
+	return models
+}
+
+func loadModelProviderCatalogFromTable() ([]modelProviderCatalogMigrationItem, error) {
+	rows := make([]ModelProvider, 0)
+	if err := DB.Order("provider asc").Find(&rows).Error; err != nil {
+		return nil, err
 	}
-	logger.SysLog("migration: normalized ModelProviderCatalog option")
-	return nil
+	items := make([]modelProviderCatalogMigrationItem, 0, len(rows))
+	for _, row := range rows {
+		provider := commonutils.NormalizeModelProvider(row.Provider)
+		if provider == "" {
+			continue
+		}
+		items = append(items, modelProviderCatalogMigrationItem{
+			Provider:  provider,
+			Name:      strings.TrimSpace(row.Name),
+			Models:    parseModelProviderModels(row.Models),
+			BaseURL:   strings.TrimSpace(row.BaseURL),
+			APIKey:    strings.TrimSpace(row.APIKey),
+			Source:    strings.TrimSpace(strings.ToLower(row.Source)),
+			UpdatedAt: row.UpdatedAt,
+		})
+	}
+	return items, nil
+}
+
+func saveModelProviderCatalogToTable(items []modelProviderCatalogMigrationItem) error {
+	now := helper.GetTimestamp()
+	rows := make([]ModelProvider, 0, len(items))
+	for _, item := range items {
+		provider := commonutils.NormalizeModelProvider(item.Provider)
+		if provider == "" {
+			continue
+		}
+		modelSet := make(map[string]struct{}, len(item.Models))
+		for _, modelName := range item.Models {
+			name := strings.TrimSpace(modelName)
+			if name == "" {
+				continue
+			}
+			modelSet[name] = struct{}{}
+		}
+		models := make([]string, 0, len(modelSet))
+		for name := range modelSet {
+			models = append(models, name)
+		}
+		sort.Strings(models)
+		modelsRaw, err := json.Marshal(models)
+		if err != nil {
+			return err
+		}
+		updatedAt := item.UpdatedAt
+		if updatedAt == 0 {
+			updatedAt = now
+		}
+		source := strings.TrimSpace(strings.ToLower(item.Source))
+		if source == "" {
+			source = "manual"
+		}
+		rows = append(rows, ModelProvider{
+			Provider:  provider,
+			Name:      strings.TrimSpace(item.Name),
+			Models:    string(modelsRaw),
+			BaseURL:   strings.TrimSpace(item.BaseURL),
+			APIKey:    strings.TrimSpace(item.APIKey),
+			Source:    source,
+			UpdatedAt: updatedAt,
+		})
+	}
+	return DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("1 = 1").Delete(&ModelProvider{}).Error; err != nil {
+			return err
+		}
+		if len(rows) == 0 {
+			return nil
+		}
+		return tx.Create(&rows).Error
+	})
 }
 
 func buildMainstreamModelProviderCatalog(now int64) []modelProviderCatalogMigrationItem {

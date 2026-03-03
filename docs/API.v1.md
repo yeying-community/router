@@ -219,10 +219,11 @@ Authorization: Bearer <JWT>
 - `GET  /api/v1/admin/model-provider/defaults`（读取系统预置的 12 家主流供应商默认目录）
 - `POST /api/v1/admin/model-provider/fetch`（通过供应商 OpenAI 兼容 API 拉取模型并按供应商过滤）
 
-说明：服务启动时 migration 会自动确保 `ModelProviderCatalog` 已写入数据库，并补齐预置的 12 家主流供应商。
+说明：服务启动时 migration 会自动确保 `model_providers` 表已初始化，并补齐预置的 12 家主流供应商。
 
 #### /api/v1/admin/model-provider
 用于读取/保存供应商模型目录（可手动编辑）。
+数据存储：`model_providers` 表（不再使用 `options` 的 `ModelProviderCatalog` 键）。
 
 `PUT` 请求体示例：
 ```json

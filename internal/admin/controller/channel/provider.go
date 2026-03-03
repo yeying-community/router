@@ -9,13 +9,10 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/helper"
 	commonutils "github.com/yeying-community/router/common/utils"
 	"github.com/yeying-community/router/internal/admin/model"
 )
-
-const modelProviderCatalogOptionKey = "ModelProviderCatalog"
 
 type modelProviderCatalogItem struct {
 	Provider  string   `json:"provider"`
@@ -223,16 +220,41 @@ func normalizeModelProviderCatalog(items []modelProviderCatalogItem) []modelProv
 	return normalized
 }
 
-func loadModelProviderCatalog() ([]modelProviderCatalogItem, error) {
-	config.OptionMapRWMutex.RLock()
-	raw := strings.TrimSpace(config.OptionMap[modelProviderCatalogOptionKey])
-	config.OptionMapRWMutex.RUnlock()
-	if raw == "" {
-		return make([]modelProviderCatalogItem, 0), nil
+func parseModelProviderModelsRaw(raw string) []string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return make([]string, 0)
 	}
-	items := make([]modelProviderCatalogItem, 0)
-	if err := json.Unmarshal([]byte(raw), &items); err != nil {
+	models := make([]string, 0)
+	if err := json.Unmarshal([]byte(trimmed), &models); err == nil {
+		return normalizeAndSortModels(models)
+	}
+	parts := strings.FieldsFunc(trimmed, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r'
+	})
+	return normalizeAndSortModels(parts)
+}
+
+func loadModelProviderCatalog() ([]modelProviderCatalogItem, error) {
+	rows := make([]model.ModelProvider, 0)
+	if err := model.DB.Order("provider asc").Find(&rows).Error; err != nil {
 		return nil, err
+	}
+	items := make([]modelProviderCatalogItem, 0, len(rows))
+	for _, row := range rows {
+		provider := commonutils.NormalizeModelProvider(row.Provider)
+		if provider == "" {
+			continue
+		}
+		items = append(items, modelProviderCatalogItem{
+			Provider:  provider,
+			Name:      strings.TrimSpace(row.Name),
+			Models:    parseModelProviderModelsRaw(row.Models),
+			BaseURL:   strings.TrimSpace(row.BaseURL),
+			APIKey:    strings.TrimSpace(row.APIKey),
+			Source:    strings.TrimSpace(strings.ToLower(row.Source)),
+			UpdatedAt: row.UpdatedAt,
+		})
 	}
 	return normalizeModelProviderCatalog(items), nil
 }
@@ -245,11 +267,37 @@ func saveModelProviderCatalog(items []modelProviderCatalogItem) ([]modelProvider
 			normalized[i].UpdatedAt = now
 		}
 	}
-	raw, err := json.Marshal(normalized)
-	if err != nil {
+	rows := make([]model.ModelProvider, 0, len(normalized))
+	for _, item := range normalized {
+		modelsRaw, err := json.Marshal(item.Models)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, model.ModelProvider{
+			Provider:  item.Provider,
+			Name:      strings.TrimSpace(item.Name),
+			Models:    string(modelsRaw),
+			BaseURL:   strings.TrimSpace(item.BaseURL),
+			APIKey:    strings.TrimSpace(item.APIKey),
+			Source:    strings.TrimSpace(strings.ToLower(item.Source)),
+			UpdatedAt: item.UpdatedAt,
+		})
+	}
+	tx := model.DB.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	if err := tx.Where("1 = 1").Delete(&model.ModelProvider{}).Error; err != nil {
+		_ = tx.Rollback()
 		return nil, err
 	}
-	if err := model.UpdateOption(modelProviderCatalogOptionKey, string(raw)); err != nil {
+	if len(rows) > 0 {
+		if err := tx.Create(&rows).Error; err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
 		return nil, err
 	}
 	return normalized, nil

@@ -122,7 +122,6 @@ const ModelProvidersManager = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [loadingDefaults, setLoadingDefaults] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createRow, setCreateRow] = useState(createEmptyRow());
 
@@ -192,29 +191,59 @@ const ModelProvidersManager = () => {
     }));
   };
 
-  const removeRow = (index) => {
-    setRows((prev) => prev.filter((_, idx) => idx !== index));
-  };
+  const saveCatalog = async (nextRows) => {
+    const providers = [];
+    for (const row of nextRows) {
+      const provider = normalizeProvider(row.provider);
+      const name = (row.name || '').trim();
+      const models = textToModels(row.modelsText);
+      const baseURL = (row.base_url || '').trim();
+      const apiKey = (row.api_key || '').trim();
+      const hasContent =
+        provider || name || models.length > 0 || baseURL !== '' || apiKey !== '';
+      if (!hasContent) continue;
+      if (!provider) {
+        showInfo(t('channel.providers.messages.provider_required'));
+        return false;
+      }
+      providers.push({
+        provider,
+        name: name || provider,
+        models,
+        base_url: baseURL,
+        api_key: apiKey,
+        source: row.source || 'manual',
+        updated_at: row.updated_at || 0,
+      });
+    }
 
-  const loadDefaults = async () => {
-    setLoadingDefaults(true);
+    setSaving(true);
     try {
-      const res = await API.get('/api/v1/admin/model-provider/defaults');
+      const res = await API.put('/api/v1/admin/model-provider', {
+        providers,
+      });
       const { success, message, data } = res.data || {};
       if (!success) {
-        showError(message || t('channel.providers.messages.load_defaults_failed'));
-        return;
+        showError(message || t('channel.providers.messages.save_failed'));
+        return false;
       }
       setRows(toEditableRows(data));
-      showSuccess(t('channel.providers.messages.defaults_loaded'));
+      showSuccess(t('channel.providers.messages.save_success'));
+      return true;
     } catch (error) {
       showError(error);
+      return false;
     } finally {
-      setLoadingDefaults(false);
+      setSaving(false);
     }
   };
 
-  const applyEditToRows = () => {
+  const removeRow = async (index) => {
+    const nextRows = rows.filter((_, idx) => idx !== index);
+    await saveCatalog(nextRows);
+  };
+
+  const applyEditToRows = async () => {
     const provider = normalizeProvider(editRow.provider);
     if (!provider) {
       showInfo(t('channel.providers.messages.provider_required'));
@@ -244,19 +273,17 @@ const ModelProvidersManager = () => {
       updated_at: now,
     };
 
-    setRows((prev) => {
-      if (editIndex < 0 || editIndex >= prev.length) {
-        return [...prev, normalizedRow];
-      }
-      return prev.map((row, index) => {
-        if (index !== editIndex) return row;
-        return normalizedRow;
-      });
-    });
-    rollbackEditor();
+    const nextRows =
+      editIndex < 0 || editIndex >= rows.length
+        ? [...rows, normalizedRow]
+        : rows.map((row, index) => (index === editIndex ? normalizedRow : row));
+    const saved = await saveCatalog(nextRows);
+    if (saved) {
+      rollbackEditor();
+    }
   };
 
-  const applyCreateToRows = () => {
+  const applyCreateToRows = async () => {
     const provider = normalizeProvider(createRow.provider);
     if (!provider) {
       showInfo(t('channel.providers.messages.provider_required'));
@@ -285,52 +312,10 @@ const ModelProvidersManager = () => {
       updated_at: now,
     };
 
-    setRows((prev) => [...prev, normalizedRow]);
-    closeCreateModal();
-  };
-
-  const saveCatalog = async () => {
-    const providers = [];
-    for (const row of rows) {
-      const provider = normalizeProvider(row.provider);
-      const name = (row.name || '').trim();
-      const models = textToModels(row.modelsText);
-      const baseURL = (row.base_url || '').trim();
-      const apiKey = (row.api_key || '').trim();
-      const hasContent =
-        provider || name || models.length > 0 || baseURL !== '' || apiKey !== '';
-      if (!hasContent) continue;
-      if (!provider) {
-        showInfo(t('channel.providers.messages.provider_required'));
-        return;
-      }
-      providers.push({
-        provider,
-        name: name || provider,
-        models,
-        base_url: baseURL,
-        api_key: apiKey,
-        source: row.source || 'manual',
-        updated_at: row.updated_at || 0,
-      });
-    }
-
-    setSaving(true);
-    try {
-      const res = await API.put('/api/v1/admin/model-provider', {
-        providers,
-      });
-      const { success, message, data } = res.data || {};
-      if (!success) {
-        showError(message || t('channel.providers.messages.save_failed'));
-        return;
-      }
-      setRows(toEditableRows(data));
-      showSuccess(t('channel.providers.messages.save_success'));
-    } catch (error) {
-      showError(error);
-    } finally {
-      setSaving(false);
+    const nextRows = [...rows, normalizedRow];
+    const saved = await saveCatalog(nextRows);
+    if (saved) {
+      closeCreateModal();
     }
   };
 
@@ -388,10 +373,7 @@ const ModelProvidersManager = () => {
           <Table.HeaderCell width={2}>
             {t('channel.providers.table.name')}
           </Table.HeaderCell>
-          <Table.HeaderCell width={2}>
-            {t('channel.providers.table.key')}
-          </Table.HeaderCell>
-          <Table.HeaderCell width={6}>
+          <Table.HeaderCell width={7}>
             {t('channel.providers.table.models')}
           </Table.HeaderCell>
           <Table.HeaderCell width={1}>
@@ -400,7 +382,7 @@ const ModelProvidersManager = () => {
           <Table.HeaderCell width={2}>
             {t('channel.providers.table.updated_at')}
           </Table.HeaderCell>
-          <Table.HeaderCell width={1}>
+          <Table.HeaderCell width={2}>
             {t('channel.providers.table.actions')}
           </Table.HeaderCell>
         </Table.Row>
@@ -408,7 +390,7 @@ const ModelProvidersManager = () => {
       <Table.Body>
         {rows.length === 0 ? (
           <Table.Row>
-            <Table.Cell colSpan={7} textAlign='center'>
+            <Table.Cell colSpan={6} textAlign='center'>
               {t('channel.providers.table.empty')}
             </Table.Cell>
           </Table.Row>
@@ -421,13 +403,6 @@ const ModelProvidersManager = () => {
               <Table.Row key={`${row.provider}-${index}`}>
                 <Table.Cell>{row.provider || '-'}</Table.Cell>
                 <Table.Cell>{row.name || row.provider || '-'}</Table.Cell>
-                <Table.Cell textAlign='center'>
-                  <Label color={row.api_key ? 'green' : undefined}>
-                    {row.api_key
-                      ? t('channel.providers.table.key_set')
-                      : t('channel.providers.table.key_not_set')}
-                  </Label>
-                </Table.Cell>
                 <Table.Cell>
                   <div style={{ marginBottom: '6px' }}>
                     <Label basic size='tiny'>
@@ -459,13 +434,13 @@ const ModelProvidersManager = () => {
                 <Table.Cell textAlign='center'>
                   {row.updated_at ? timestamp2string(row.updated_at) : '-'}
                 </Table.Cell>
-                <Table.Cell textAlign='center'>
+                <Table.Cell textAlign='center' style={{ whiteSpace: 'nowrap' }}>
                   <Button
                     type='button'
                     icon
                     size='tiny'
                     color='blue'
-                    disabled={creating}
+                    disabled={creating || saving}
                     onClick={() => openEditor(index)}
                   >
                     <Icon name='edit' />
@@ -475,7 +450,7 @@ const ModelProvidersManager = () => {
                     icon
                     size='tiny'
                     color='red'
-                    disabled={creating}
+                    disabled={creating || saving}
                     onClick={() => removeRow(index)}
                   >
                     <Icon name='trash' />
@@ -543,16 +518,22 @@ const ModelProvidersManager = () => {
           type='button'
           color='green'
           loading={fetchingFromApi}
-          disabled={fetchingFromApi}
+          disabled={fetchingFromApi || saving}
           onClick={() => fetchModelsFromProviderApi(editRow, setEditRow)}
         >
           {t('channel.providers.buttons.fetch_from_api')}
         </Button>
-        <Button type='button' onClick={rollbackEditor}>
+        <Button type='button' onClick={rollbackEditor} disabled={saving}>
           <Icon name='undo' />
           {t('channel.providers.dialog.cancel')}
         </Button>
-        <Button type='button' color='blue' onClick={applyEditToRows}>
+        <Button
+          type='button'
+          color='blue'
+          loading={saving}
+          disabled={saving || fetchingFromApi}
+          onClick={applyEditToRows}
+        >
           <Icon name='check' />
           {t('channel.providers.dialog.confirm')}
         </Button>
@@ -616,16 +597,22 @@ const ModelProvidersManager = () => {
           type='button'
           color='green'
           loading={fetchingFromApi}
-          disabled={fetchingFromApi}
+          disabled={fetchingFromApi || saving}
           onClick={() => fetchModelsFromProviderApi(createRow, setCreateRow)}
         >
           {t('channel.providers.buttons.fetch_from_api')}
         </Button>
-        <Button type='button' onClick={closeCreateModal}>
+        <Button type='button' onClick={closeCreateModal} disabled={saving}>
           <Icon name='undo' />
           {t('channel.providers.dialog.cancel_create')}
         </Button>
-        <Button type='button' color='blue' onClick={applyCreateToRows}>
+        <Button
+          type='button'
+          color='blue'
+          loading={saving}
+          disabled={saving || fetchingFromApi}
+          onClick={applyCreateToRows}
+        >
           <Icon name='check' />
           {t('channel.providers.dialog.confirm')}
         </Button>
@@ -638,31 +625,10 @@ const ModelProvidersManager = () => {
       <div style={{ marginBottom: '12px' }}>
         <Button
           type='button'
-          onClick={loadCatalog}
-          loading={loading}
-          disabled={editing || creating}
+          onClick={openCreateModal}
+          disabled={editing || creating || saving}
         >
-          {t('channel.providers.buttons.reload')}
-        </Button>
-        <Button
-          type='button'
-          onClick={loadDefaults}
-          loading={loadingDefaults}
-          disabled={loadingDefaults || editing || creating}
-        >
-          {t('channel.providers.buttons.load_defaults')}
-        </Button>
-        <Button type='button' onClick={openCreateModal} disabled={editing || creating}>
           {t('channel.providers.buttons.add_provider')}
-        </Button>
-        <Button
-          type='button'
-          color='blue'
-          loading={saving}
-          disabled={saving || editing || creating}
-          onClick={saveCatalog}
-        >
-          {t('channel.providers.buttons.save')}
         </Button>
       </div>
 
