@@ -165,6 +165,10 @@ var InitialRootAccessToken = ""
 var GeminiVersion = "v1"
 
 var OnlyOneLogFile = false
+var LogRotateMaxSizeMB = 100
+var LogRotateMaxBackups = 10
+var LogRotateMaxAgeDays = 14
+var LogRotateCompress = false
 
 var RelayProxy = ""
 var UserContentRequestProxy = ""

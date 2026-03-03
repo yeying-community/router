@@ -104,3 +104,11 @@ bootstrap:
 
 logging:
   only_one_log_file: false
+  # 单个日志文件达到该大小（MB）后轮转
+  rotate_max_size_mb: 100
+  # 保留的历史文件数量，0 表示不限制
+  rotate_max_backups: 10
+  # 保留的历史文件天数，0 表示不按天删除
+  rotate_max_age_days: 14
+  # 是否压缩历史日志
+  rotate_compress: false

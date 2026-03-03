@@ -145,7 +145,11 @@ type BootstrapRuntimeConfig struct {
 }
 
 type LoggingRuntimeConfig struct {
-	OnlyOneLogFile bool `yaml:"only_one_log_file"`
+	OnlyOneLogFile   bool `yaml:"only_one_log_file"`
+	RotateMaxSizeMB  int  `yaml:"rotate_max_size_mb"`
+	RotateMaxBackups int  `yaml:"rotate_max_backups"`
+	RotateMaxAgeDays int  `yaml:"rotate_max_age_days"`
+	RotateCompress   bool `yaml:"rotate_compress"`
 }
 
 func defaultRuntimeConfig() RuntimeConfig {
@@ -234,7 +238,11 @@ func defaultRuntimeConfig() RuntimeConfig {
 			InitialRootAccessToken: "",
 		},
 		Logging: LoggingRuntimeConfig{
-			OnlyOneLogFile: false,
+			OnlyOneLogFile:   false,
+			RotateMaxSizeMB:  100,
+			RotateMaxBackups: 10,
+			RotateMaxAgeDays: 14,
+			RotateCompress:   false,
 		},
 	}
 }
@@ -443,6 +451,22 @@ func ApplyRuntimeConfig(cfg *RuntimeConfig, portFlagSet bool, logDirFlagSet bool
 	config.InitialRootToken = strings.TrimSpace(cfg.Bootstrap.InitialRootToken)
 	config.InitialRootAccessToken = strings.TrimSpace(cfg.Bootstrap.InitialRootAccessToken)
 	config.OnlyOneLogFile = cfg.Logging.OnlyOneLogFile
+	if cfg.Logging.RotateMaxSizeMB > 0 {
+		config.LogRotateMaxSizeMB = cfg.Logging.RotateMaxSizeMB
+	} else {
+		config.LogRotateMaxSizeMB = 100
+	}
+	if cfg.Logging.RotateMaxBackups >= 0 {
+		config.LogRotateMaxBackups = cfg.Logging.RotateMaxBackups
+	} else {
+		config.LogRotateMaxBackups = 10
+	}
+	if cfg.Logging.RotateMaxAgeDays >= 0 {
+		config.LogRotateMaxAgeDays = cfg.Logging.RotateMaxAgeDays
+	} else {
+		config.LogRotateMaxAgeDays = 14
+	}
+	config.LogRotateCompress = cfg.Logging.RotateCompress
 
 	setCompatibilityEnvs()
 	return nil
@@ -527,6 +551,10 @@ func setCompatibilityEnvs() {
 	_ = os.Setenv("INITIAL_ROOT_ACCESS_TOKEN", config.InitialRootAccessToken)
 	_ = os.Setenv("GEMINI_VERSION", config.GeminiVersion)
 	_ = os.Setenv("ONLY_ONE_LOG_FILE", strconv.FormatBool(config.OnlyOneLogFile))
+	_ = os.Setenv("LOG_ROTATE_MAX_SIZE_MB", strconv.Itoa(config.LogRotateMaxSizeMB))
+	_ = os.Setenv("LOG_ROTATE_MAX_BACKUPS", strconv.Itoa(config.LogRotateMaxBackups))
+	_ = os.Setenv("LOG_ROTATE_MAX_AGE_DAYS", strconv.Itoa(config.LogRotateMaxAgeDays))
+	_ = os.Setenv("LOG_ROTATE_COMPRESS", strconv.FormatBool(config.LogRotateCompress))
 	_ = os.Setenv("RELAY_PROXY", config.RelayProxy)
 	_ = os.Setenv("USER_CONTENT_REQUEST_PROXY", config.UserContentRequestProxy)
 	_ = os.Setenv("USER_CONTENT_REQUEST_TIMEOUT", strconv.Itoa(config.UserContentRequestTimeout))

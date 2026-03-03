@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/helper"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type loggerLevel string
@@ -38,6 +38,28 @@ var routerErrorWriter io.Writer
 var setupWorkDirOnce sync.Once
 var workDir string
 
+func newRotatingWriter(path string) io.Writer {
+	maxSizeMB := config.LogRotateMaxSizeMB
+	if maxSizeMB <= 0 {
+		maxSizeMB = 100
+	}
+	maxBackups := config.LogRotateMaxBackups
+	if maxBackups < 0 {
+		maxBackups = 10
+	}
+	maxAgeDays := config.LogRotateMaxAgeDays
+	if maxAgeDays < 0 {
+		maxAgeDays = 14
+	}
+	return &lumberjack.Logger{
+		Filename:   path,
+		MaxSize:    maxSizeMB,
+		MaxBackups: maxBackups,
+		MaxAge:     maxAgeDays,
+		Compress:   config.LogRotateCompress,
+	}
+}
+
 func SetupLogger() {
 	setupLogOnce.Do(func() {
 		logDir := LogDir
@@ -46,12 +68,9 @@ func SetupLogger() {
 		}
 		_ = os.MkdirAll(logDir, 0755)
 		routerPath := filepath.Join(logDir, "router.log")
-		routerFD, err := os.OpenFile(routerPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			log.Fatal("failed to open router log file")
-		}
-		routerInfoWriter = io.MultiWriter(os.Stdout, routerFD)
-		routerErrorWriter = io.MultiWriter(os.Stderr, routerFD)
+		routerWriter := newRotatingWriter(routerPath)
+		routerInfoWriter = io.MultiWriter(os.Stdout, routerWriter)
+		routerErrorWriter = io.MultiWriter(os.Stderr, routerWriter)
 
 		SetupApiLogger()
 		if apiWriter != nil {
@@ -73,11 +92,7 @@ func SetupLoginLogger() {
 		}
 		_ = os.MkdirAll(logDir, 0755)
 		logPath := filepath.Join(logDir, "login.log")
-		fd, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			log.Fatal("failed to open login log file")
-		}
-		loginWriter = fd
+		loginWriter = newRotatingWriter(logPath)
 	})
 }
 
@@ -90,11 +105,7 @@ func SetupApiLogger() {
 		}
 		_ = os.MkdirAll(logDir, 0755)
 		logPath := filepath.Join(logDir, "api.log")
-		fd, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			log.Fatal("failed to open api log file")
-		}
-		apiWriter = fd
+		apiWriter = newRotatingWriter(logPath)
 	})
 }
 
