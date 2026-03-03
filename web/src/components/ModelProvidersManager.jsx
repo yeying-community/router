@@ -122,6 +122,7 @@ const ModelProvidersManager = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingIndex, setDeletingIndex] = useState(-1);
   const [creating, setCreating] = useState(false);
   const [createRow, setCreateRow] = useState(createEmptyRow());
 
@@ -240,7 +241,29 @@ const ModelProvidersManager = () => {
 
   const removeRow = async (index) => {
     const nextRows = rows.filter((_, idx) => idx !== index);
-    await saveCatalog(nextRows);
+    return await saveCatalog(nextRows);
+  };
+
+  const openDeleteModal = (index) => {
+    if (saving || creating || editing) return;
+    if (index < 0 || index >= rows.length) return;
+    setDeletingIndex(index);
+  };
+
+  const closeDeleteModal = () => {
+    if (saving) return;
+    setDeletingIndex(-1);
+  };
+
+  const confirmDeleteRow = async () => {
+    if (deletingIndex < 0 || deletingIndex >= rows.length) {
+      setDeletingIndex(-1);
+      return;
+    }
+    const saved = await removeRow(deletingIndex);
+    if (saved) {
+      setDeletingIndex(-1);
+    }
   };
 
   const applyEditToRows = async () => {
@@ -451,7 +474,7 @@ const ModelProvidersManager = () => {
                     size='tiny'
                     color='red'
                     disabled={creating || saving}
-                    onClick={() => removeRow(index)}
+                    onClick={() => openDeleteModal(index)}
                   >
                     <Icon name='trash' />
                   </Button>
@@ -620,6 +643,42 @@ const ModelProvidersManager = () => {
     </Modal>
   );
 
+  const renderDeleteModal = () => {
+    const targetRow =
+      deletingIndex >= 0 && deletingIndex < rows.length
+        ? rows[deletingIndex]
+        : null;
+    const providerName = targetRow?.name || targetRow?.provider || '-';
+    return (
+      <Modal
+        open={!!targetRow}
+        onClose={closeDeleteModal}
+        size='tiny'
+        closeOnDimmerClick={!saving}
+      >
+        <Modal.Header>{t('channel.providers.dialog.delete_title')}</Modal.Header>
+        <Modal.Content>
+          {t('channel.providers.dialog.delete_content', { provider: providerName })}
+        </Modal.Content>
+        <Modal.Actions>
+          <Button type='button' onClick={closeDeleteModal} disabled={saving}>
+            {t('channel.providers.dialog.cancel_create')}
+          </Button>
+          <Button
+            type='button'
+            color='red'
+            loading={saving}
+            disabled={saving}
+            onClick={confirmDeleteRow}
+          >
+            <Icon name='trash' />
+            {t('channel.providers.dialog.delete_confirm')}
+          </Button>
+        </Modal.Actions>
+      </Modal>
+    );
+  };
+
   return (
     <div>
       <div style={{ marginBottom: '12px' }}>
@@ -633,6 +692,7 @@ const ModelProvidersManager = () => {
       </div>
 
       {renderCreateModal()}
+      {renderDeleteModal()}
       {editing ? renderEditor() : renderRows()}
     </div>
   );

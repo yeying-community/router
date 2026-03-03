@@ -128,6 +128,9 @@
       "dialog": {
         "title_create": "Add Model Provider",
         "title_edit": "Edit Model Provider",
+        "delete_title": "Confirm Delete Model Provider",
+        "delete_content": "Are you sure you want to delete model provider {{provider}}?",
+        "delete_confirm": "Delete",
         "provider": "Provider ID",
         "provider_placeholder": "e.g. openai / google / anthropic",
         "name": "Display Name",

@@ -128,6 +128,9 @@
       "dialog": {
         "title_create": "新增模型供应商",
         "title_edit": "编辑模型供应商",
+        "delete_title": "确认删除模型供应商",
+        "delete_content": "确定要删除模型供应商 {{provider}} 吗？",
+        "delete_confirm": "确认删除",
         "provider": "供应商标识",
         "provider_placeholder": "例如 openai / google / anthropic",
         "name": "展示名称",
