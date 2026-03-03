@@ -33,22 +33,32 @@ var setupLoginLogOnce sync.Once
 var loginWriter io.Writer
 var setupApiLogOnce sync.Once
 var apiWriter io.Writer
+var routerInfoWriter io.Writer
+var routerErrorWriter io.Writer
+var setupWorkDirOnce sync.Once
+var workDir string
 
 func SetupLogger() {
 	setupLogOnce.Do(func() {
-		if LogDir != "" {
-			var logPath string
-			if config.OnlyOneLogFile {
-				logPath = filepath.Join(LogDir, "oneapi.log")
-			} else {
-				logPath = filepath.Join(LogDir, fmt.Sprintf("oneapi-%s.log", time.Now().Format("20060102")))
-			}
-			fd, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err != nil {
-				log.Fatal("failed to open log file")
-			}
-			gin.DefaultWriter = io.MultiWriter(os.Stdout, fd)
-			gin.DefaultErrorWriter = io.MultiWriter(os.Stderr, fd)
+		logDir := LogDir
+		if logDir == "" {
+			logDir = "./logs"
+		}
+		_ = os.MkdirAll(logDir, 0755)
+		routerPath := filepath.Join(logDir, "router.log")
+		routerFD, err := os.OpenFile(routerPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatal("failed to open router log file")
+		}
+		routerInfoWriter = io.MultiWriter(os.Stdout, routerFD)
+		routerErrorWriter = io.MultiWriter(os.Stderr, routerFD)
+
+		SetupApiLogger()
+		if apiWriter != nil {
+			gin.DefaultWriter = io.MultiWriter(os.Stdout, apiWriter)
+		}
+		if routerErrorWriter != nil {
+			gin.DefaultErrorWriter = routerErrorWriter
 		}
 	})
 }
@@ -174,21 +184,27 @@ func ApiLogf(ctx context.Context, level loggerLevel, format string, a ...any) {
 }
 
 func logHelper(ctx context.Context, level loggerLevel, msg string) {
-	writer := gin.DefaultErrorWriter
+	SetupLogger()
+	writer := routerErrorWriter
 	if level == loggerINFO {
-		writer = gin.DefaultWriter
+		writer = routerInfoWriter
+	}
+	if writer == nil {
+		writer = gin.DefaultErrorWriter
+		if level == loggerINFO {
+			writer = gin.DefaultWriter
+		}
 	}
 	var requestId string
 	if ctx != nil {
 		rawRequestId := helper.GetRequestID(ctx)
 		if rawRequestId != "" {
-			requestId = fmt.Sprintf(" | %s", rawRequestId)
+			requestId = fmt.Sprintf(" %s", rawRequestId)
 		}
 	}
 	lineInfo, funcName := getLineInfo()
 	now := time.Now()
-	_, _ = fmt.Fprintf(writer, "[%s] %v%s%s %s%s \n", level, now.Format("2006/01/02 - 15:04:05"), requestId, lineInfo, funcName, msg)
-	SetupLogger()
+	_, _ = fmt.Fprintf(writer, "%v [%s]%s%s %s%s \n", now.Format("2006/01/02 - 15:04:05"), level, requestId, lineInfo, funcName, msg)
 	if level == loggerFatal {
 		os.Exit(1)
 	}
@@ -196,14 +212,72 @@ func logHelper(ctx context.Context, level loggerLevel, msg string) {
 
 // loginLogHelper mirrors logHelper but targets the dedicated login log file.
 func loginLogHelper(ctx context.Context, level loggerLevel, msg string) {
-	// unify into main log
-	logHelper(ctx, level, "[login] "+msg)
+	SetupLoginLogger()
+	writer := loginWriter
+	if writer == nil {
+		logHelper(ctx, level, "[login] "+msg)
+		return
+	}
+	var requestId string
+	if ctx != nil {
+		rawRequestId := helper.GetRequestID(ctx)
+		if rawRequestId != "" {
+			requestId = fmt.Sprintf(" %s", rawRequestId)
+		}
+	}
+	lineInfo, funcName := getLineInfo()
+	now := time.Now()
+	_, _ = fmt.Fprintf(writer, "%v [%s]%s%s %s[login] %s \n", now.Format("2006/01/02 - 15:04:05"), level, requestId, lineInfo, funcName, msg)
 }
 
 // apiLogHelper mirrors logHelper but targets api.log
 func apiLogHelper(ctx context.Context, level loggerLevel, msg string) {
-	// unify into main log
-	logHelper(ctx, level, "[api] "+msg)
+	SetupApiLogger()
+	writer := apiWriter
+	if writer == nil {
+		logHelper(ctx, level, "[api] "+msg)
+		return
+	}
+	var requestId string
+	if ctx != nil {
+		rawRequestId := helper.GetRequestID(ctx)
+		if rawRequestId != "" {
+			requestId = fmt.Sprintf(" %s", rawRequestId)
+		}
+	}
+	lineInfo, funcName := getLineInfo()
+	now := time.Now()
+	_, _ = fmt.Fprintf(writer, "%v [%s]%s%s %s[api] %s \n", now.Format("2006/01/02 - 15:04:05"), level, requestId, lineInfo, funcName, msg)
+}
+
+func getWorkDir() string {
+	setupWorkDirOnce.Do(func() {
+		wd, err := os.Getwd()
+		if err == nil {
+			workDir = filepath.Clean(wd)
+		}
+	})
+	return workDir
+}
+
+func makeRelativePath(file string) string {
+	cleanFile := filepath.Clean(file)
+	root := getWorkDir()
+	if root != "" {
+		if rel, err := filepath.Rel(root, cleanFile); err == nil {
+			rel = filepath.ToSlash(rel)
+			if rel != "" && rel != "." && !strings.HasPrefix(rel, "../") {
+				return rel
+			}
+		}
+	}
+	normalized := filepath.ToSlash(cleanFile)
+	for _, marker := range []string{"/internal/", "/common/", "/cmd/", "/docs/", "/scripts/", "/web/"} {
+		if idx := strings.Index(normalized, marker); idx >= 0 {
+			return normalized[idx+1:]
+		}
+	}
+	return normalized
 }
 
 func getLineInfo() (string, string) {
@@ -218,9 +292,5 @@ func getLineInfo() (string, string) {
 		file = "unknown"
 		line = 0
 	}
-	parts := strings.Split(file, "one-api/")
-	if len(parts) > 1 {
-		file = parts[1]
-	}
-	return fmt.Sprintf(" | %s:%d", file, line), funcName
+	return fmt.Sprintf(" %s:%d", makeRelativePath(file), line), funcName
 }

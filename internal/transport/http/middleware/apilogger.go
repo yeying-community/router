@@ -7,14 +7,13 @@ import (
 	"github.com/yeying-community/router/common/logger"
 )
 
-// ApiLogger writes per-request info to logs/api.log with context data set by auth middlewares.
+// ApiLogger writes request context audit logs to router.log.
 func ApiLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		// before
-		logger.ApiLogf(
+		logger.Infof(
 			c.Request.Context(),
-			"INFO",
 			"REQ method=%s path=%s ip=%s ua=%s",
 			c.Request.Method,
 			c.Request.URL.Path,
@@ -31,9 +30,8 @@ func ApiLogger() gin.HandlerFunc {
 		role := c.GetInt("role")
 		tokenId := c.GetInt("token_id")
 		channelId := c.GetInt("channel_id")
-		logger.ApiLogf(
+		logger.Infof(
 			c.Request.Context(),
-			"INFO",
 			"RESP method=%s path=%s status=%d latency=%s user_id=%d role=%d token_id=%d channel_id=%d",
 			c.Request.Method,
 			c.Request.URL.Path,

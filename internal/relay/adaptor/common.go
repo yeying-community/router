@@ -52,7 +52,7 @@ func DoRequestHelper(a Adaptor, c *gin.Context, meta *meta.Meta, requestBody io.
 			headers["Api-Key"] = "***"
 		}
 		b, _ := json.Marshal(headers)
-		logger.ApiLogf(c.Request.Context(), "INFO", "UPSTREAM url=%s headers=%s", fullRequestURL, string(b))
+		logger.Infof(c.Request.Context(), "UPSTREAM url=%s headers=%s", fullRequestURL, string(b))
 	}
 	resp, err := DoRequest(c, req)
 	if err != nil {

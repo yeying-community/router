@@ -12,7 +12,7 @@ func SetUpLogger(server *gin.Engine) {
 		if param.Keys != nil {
 			requestID = param.Keys[helper.RequestIdKey].(string)
 		}
-		return fmt.Sprintf("[GIN] %s | %s | %3d | %13v | %15s | %7s %s\n",
+		return fmt.Sprintf("%s | %s | %3d | %13v | %15s | %7s %s\n",
 			param.TimeStamp.Format("2006/01/02 - 15:04:05"),
 			requestID,
 			param.StatusCode,
