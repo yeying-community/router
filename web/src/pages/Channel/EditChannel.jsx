@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {Button, Card, Form, Input, Message} from 'semantic-ui-react';
-import {useNavigate, useParams} from 'react-router-dom';
+import {useLocation, useNavigate, useParams} from 'react-router-dom';
 import {API, copy, getChannelModels, showError, showInfo, showSuccess, verifyJSON,} from '../../helpers';
 import {getChannelOptions, loadChannelOptions} from '../../helpers/helper';
 import {renderChannelTip} from '../../helpers/render';
@@ -234,10 +234,17 @@ function type2secretPrompt(type, t) {
 const EditChannel = () => {
   const { t } = useTranslation();
   const params = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const channelId = params.id;
   const isEdit = channelId !== undefined;
-  const [loading, setLoading] = useState(isEdit);
+  const copyFromId = useMemo(() => {
+    if (isEdit) return 0;
+    const query = new URLSearchParams(location.search);
+    const id = Number(query.get('copy_from') || 0);
+    return Number.isInteger(id) && id > 0 ? id : 0;
+  }, [isEdit, location.search]);
+  const [loading, setLoading] = useState(isEdit || copyFromId > 0);
   const handleCancel = () => {
     navigate('/channel');
   };
@@ -256,7 +263,6 @@ const EditChannel = () => {
     models: [],
     groups: ['default'],
   };
-  const [batch, setBatch] = useState(false);
   const [inputs, setInputs] = useState(originInputs);
   const [originModelOptions, setOriginModelOptions] = useState([]);
   const [modelOptions, setModelOptions] = useState([]);
@@ -312,8 +318,8 @@ const EditChannel = () => {
     setConfig((inputs) => ({ ...inputs, [name]: value }));
   };
 
-  const loadChannel = useCallback(async () => {
-    let res = await API.get(`/api/v1/admin/channel/${channelId}`);
+  const loadChannelById = useCallback(async (targetId, forCopy = false) => {
+    let res = await API.get(`/api/v1/admin/channel/${targetId}`);
     const { success, message, data } = res.data;
     if (success) {
       if (data.models === '') {
@@ -348,7 +354,24 @@ const EditChannel = () => {
       } else {
         data.completion_ratio = '';
       }
-      setInputs(data);
+      if (forCopy) {
+        setInputs({
+          name: data.name || '',
+          type: data.type || 1,
+          key: data.key || '',
+          base_url: data.base_url || '',
+          other: data.other || '',
+          model_mapping: data.model_mapping || '',
+          model_ratio: data.model_ratio || '',
+          completion_ratio: data.completion_ratio || '',
+          system_prompt: data.system_prompt || '',
+          model_provider: data.model_provider || '',
+          models: data.models || [],
+          groups: data.groups && data.groups.length > 0 ? data.groups : ['default'],
+        });
+      } else {
+        setInputs(data);
+      }
       if (data.config !== '') {
         const parsedConfig = JSON.parse(data.config);
         delete parsedConfig.use_responses;
@@ -359,7 +382,7 @@ const EditChannel = () => {
       showError(message);
     }
     setLoading(false);
-  }, [channelId]);
+  }, []);
 
   const fetchModels = useCallback(async () => {
     try {
@@ -484,12 +507,24 @@ const EditChannel = () => {
 
   useEffect(() => {
     if (isEdit) {
-      loadChannel().then();
-    } else {
+      setLoading(true);
+      loadChannelById(channelId).then();
+      return;
+    }
+    if (copyFromId > 0) {
+      setLoading(true);
+      loadChannelById(copyFromId, true).then();
+      return;
+    }
+    setLoading(false);
+  }, [channelId, copyFromId, isEdit, loadChannelById]);
+
+  useEffect(() => {
+    if (!isEdit && copyFromId <= 0) {
       let localModels = getChannelModels(inputs.type);
       setBasicModels(localModels);
     }
-  }, [isEdit, inputs.type, loadChannel]);
+  }, [copyFromId, inputs.type, isEdit]);
 
   useEffect(() => {
     fetchModels().then();
@@ -499,18 +534,19 @@ const EditChannel = () => {
   }, [fetchModels, fetchGroups, fetchModelProviders, fetchChannelTypes]);
 
   const submit = async () => {
-    if (inputs.key === '') {
+    let effectiveKey = inputs.key || '';
+    if (effectiveKey === '') {
       if (config.ak !== '' && config.sk !== '' && config.region !== '') {
-        inputs.key = `${config.ak}|${config.sk}|${config.region}`;
+        effectiveKey = `${config.ak}|${config.sk}|${config.region}`;
       } else if (
         config.region !== '' &&
         config.vertex_ai_project_id !== '' &&
         config.vertex_ai_adc !== ''
       ) {
-        inputs.key = `${config.region}|${config.vertex_ai_project_id}|${config.vertex_ai_adc}`;
+        effectiveKey = `${config.region}|${config.vertex_ai_project_id}|${config.vertex_ai_adc}`;
       }
     }
-    if (!isEdit && (inputs.name === '' || inputs.key === '')) {
+    if (!isEdit && (inputs.name.trim() === '' || effectiveKey.trim() === '')) {
       showInfo(t('channel.edit.messages.name_required'));
       return;
     }
@@ -534,7 +570,7 @@ const EditChannel = () => {
       showInfo('补全倍率必须是合法的 JSON 格式！');
       return;
     }
-    let localInputs = { ...inputs };
+    let localInputs = { ...inputs, key: effectiveKey };
     if (localInputs.key === 'undefined|undefined|undefined') {
       localInputs.key = ''; // prevent potential bug
     }
@@ -711,24 +747,7 @@ const EditChannel = () => {
               )}
 
             {inputs.type !== 33 &&
-              inputs.type !== 42 &&
-              (batch ? (
-                <Form.Field>
-                  <Form.TextArea
-                    label={t('channel.edit.key')}
-                    name='key'
-                    required
-                    placeholder={t('channel.edit.batch_placeholder')}
-                    onChange={handleInputChange}
-                    value={inputs.key}
-                    style={{
-                      minHeight: 150,
-                      fontFamily: 'JetBrains Mono, Consolas',
-                    }}
-                    autoComplete='new-password'
-                  />
-                </Form.Field>
-              ) : (
+              inputs.type !== 42 && (
                 <Form.Field>
                   <Form.Input
                     label={t('channel.edit.key')}
@@ -740,7 +759,7 @@ const EditChannel = () => {
                     autoComplete='new-password'
                   />
                 </Form.Field>
-              ))}
+              )}
             {isOpenAICompatibleType(inputs.type) && (
               <>
                 <Form.Field>
@@ -760,15 +779,6 @@ const EditChannel = () => {
                 </Form.Field>
               </>
             )}
-            {inputs.type !== 33 && !isEdit && (
-              <Form.Checkbox
-                checked={batch}
-                label={t('channel.edit.batch')}
-                name='batch'
-                onChange={() => setBatch(!batch)}
-              />
-            )}
-
             <Form.Field>
               <Form.Dropdown
                 label={t('channel.edit.group')}

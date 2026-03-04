@@ -675,6 +675,13 @@ const ChannelsTable = () => {
                       <Button
                         size={'tiny'}
                         as={Link}
+                        to={`/channel/add?copy_from=${channel.id}`}
+                      >
+                        {t('channel.buttons.copy')}
+                      </Button>
+                      <Button
+                        size={'tiny'}
+                        as={Link}
                         to={'/channel/edit/' + channel.id}
                       >
                         {t('channel.buttons.edit')}

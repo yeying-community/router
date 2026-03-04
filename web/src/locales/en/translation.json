@@ -79,6 +79,7 @@
       "enable": "Enable",
       "disable": "Disable",
       "edit": "Edit",
+      "copy": "Copy",
       "add": "Add New Channel",
       "test_all": "Test All Channels",
       "test_disabled": "Test Disabled Channels",
@@ -200,8 +201,6 @@
         "placeholder": "e.g. codex-cli",
         "help": "Fill this only if upstream enforces a client allowlist; empty means no User-Agent override"
       },
-      "batch": "Batch Create",
-      "batch_placeholder": "Please enter keys, one per line",
       "buttons": {
         "cancel": "Cancel",
         "submit": "Submit",

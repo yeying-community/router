@@ -79,6 +79,7 @@
       "enable": "启用",
       "disable": "禁用",
       "edit": "编辑",
+      "copy": "复制",
       "add": "新增渠道",
       "test_all": "测试所有渠道",
       "test_disabled": "测试禁用渠道",
@@ -200,8 +201,6 @@
         "placeholder": "例如：codex-cli",
         "help": "上游开启客户端白名单时填写；为空则不加 User-Agent"
       },
-      "batch": "批量创建",
-      "batch_placeholder": "请输入密钥，一行一个",
       "buttons": {
         "cancel": "取消",
         "submit": "提交",
