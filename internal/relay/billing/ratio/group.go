@@ -7,9 +7,7 @@ import (
 )
 
 var groupRatioLock sync.RWMutex
-var GroupRatio = map[string]float64{
-	"default": 1,
-}
+var GroupRatio = map[string]float64{}
 
 func GroupRatio2JSONString() string {
 	jsonBytes, err := json.Marshal(GroupRatio)

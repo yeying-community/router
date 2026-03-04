@@ -18,7 +18,7 @@ const EditUser = () => {
     wechat_id: '',
     email: '',
     quota: 0,
-    group: 'default',
+    group: '',
   });
   const [groupOptions, setGroupOptions] = useState([]);
   const {

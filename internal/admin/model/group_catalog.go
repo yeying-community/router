@@ -1,14 +1,12 @@
 package model
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/yeying-community/router/common/helper"
-	"github.com/yeying-community/router/common/logger"
 	"gorm.io/gorm"
 )
 
@@ -149,9 +147,6 @@ func deleteGroupCatalogWithDB(db *gorm.DB, name string) error {
 	if groupName == "" {
 		return fmt.Errorf("分组名称不能为空")
 	}
-	if groupName == "default" {
-		return fmt.Errorf("默认分组不允许删除")
-	}
 	inUse, err := isGroupInUseWithDB(db, groupName)
 	if err != nil {
 		return err
@@ -197,81 +192,6 @@ func isGroupInUseWithDB(db *gorm.DB, name string) (bool, error) {
 		}
 	}
 	return false, nil
-}
-
-func syncGroupCatalogFromGroupRatioJSON(groupRatioRaw string) error {
-	return syncGroupCatalogFromGroupRatioJSONWithDB(DB, groupRatioRaw)
-}
-
-func syncGroupCatalogFromGroupRatioJSONWithDB(db *gorm.DB, groupRatioRaw string) error {
-	names := parseGroupNamesFromGroupRatioJSON(groupRatioRaw)
-	return upsertMissingGroupCatalogNamesWithDB(db, names, "group_ratio")
-}
-
-func upsertMissingGroupCatalogNamesWithDB(db *gorm.DB, names []string, source string) error {
-	if db == nil {
-		return nil
-	}
-	deduplicated := normalizeGroupNames(names)
-	if len(deduplicated) == 0 {
-		return nil
-	}
-
-	existingRows := make([]GroupCatalog, 0)
-	if err := db.Find(&existingRows).Error; err != nil {
-		return err
-	}
-	existing := make(map[string]GroupCatalog, len(existingRows))
-	maxSortOrder := 0
-	for _, row := range existingRows {
-		name := strings.TrimSpace(row.Name)
-		if name == "" {
-			continue
-		}
-		existing[name] = row
-		if row.SortOrder > maxSortOrder {
-			maxSortOrder = row.SortOrder
-		}
-	}
-
-	now := helper.GetTimestamp()
-	for _, name := range deduplicated {
-		if _, ok := existing[name]; ok {
-			continue
-		}
-		maxSortOrder++
-		row := GroupCatalog{
-			Name:      name,
-			Source:    strings.TrimSpace(source),
-			Enabled:   true,
-			SortOrder: maxSortOrder,
-			UpdatedAt: now,
-		}
-		if row.Source == "" {
-			row.Source = "system"
-		}
-		if err := db.Create(&row).Error; err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func parseGroupNamesFromGroupRatioJSON(raw string) []string {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return nil
-	}
-	ratioMap := make(map[string]float64)
-	if err := json.Unmarshal([]byte(trimmed), &ratioMap); err != nil {
-		logger.SysError("failed to parse GroupRatio while syncing group catalog: " + err.Error())
-		return nil
-	}
-	names := make([]string, 0, len(ratioMap))
-	for name := range ratioMap {
-		names = append(names, name)
-	}
-	return normalizeGroupNames(names)
 }
 
 func parseGroupNamesFromCSV(raw string) []string {

@@ -153,12 +153,6 @@ func UpdateOptionMap(key string, value string) (err error) {
 		err = billingratio.UpdateModelRatioByJSONString(value)
 	case "GroupRatio":
 		err = billingratio.UpdateGroupRatioByJSONString(value)
-		if err == nil {
-			syncErr := syncGroupCatalogFromGroupRatioJSON(value)
-			if syncErr != nil {
-				logger.SysError("sync group catalog from GroupRatio failed: " + syncErr.Error())
-			}
-		}
 	case "CompletionRatio":
 		err = billingratio.UpdateCompletionRatioByJSONString(value)
 	case "TopUpLink":

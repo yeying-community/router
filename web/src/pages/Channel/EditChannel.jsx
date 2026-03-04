@@ -260,7 +260,7 @@ const EditChannel = () => {
     system_prompt: '',
     model_provider: '',
     models: [],
-    groups: ['default'],
+    groups: [],
   };
   const [inputs, setInputs] = useState(originInputs);
   const [originModelOptions, setOriginModelOptions] = useState([]);
@@ -366,7 +366,7 @@ const EditChannel = () => {
           system_prompt: data.system_prompt || '',
           model_provider: data.model_provider || '',
           models: data.models || [],
-          groups: data.groups && data.groups.length > 0 ? data.groups : ['default'],
+          groups: data.groups && data.groups.length > 0 ? data.groups : [],
         });
       } else {
         setInputs(data);
@@ -551,6 +551,10 @@ const EditChannel = () => {
     }
     if (normalizeModelProviderSelection(inputs.model_provider) === '') {
       showInfo(t('channel.edit.messages.model_provider_required'));
+      return;
+    }
+    if (inputs.groups.length === 0) {
+      showInfo(t('channel.edit.messages.groups_required'));
       return;
     }
     if (inputs.type !== 43 && inputs.models.length === 0) {

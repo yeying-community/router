@@ -183,6 +183,13 @@ func AddChannel(c *gin.Context) {
 		})
 		return
 	}
+	if strings.TrimSpace(channel.Group) == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "分组不能为空",
+		})
+		return
+	}
 	keys := strings.Split(channel.Key, "\n")
 	channels := make([]model.Channel, 0, len(keys))
 	for _, key := range keys {
@@ -302,6 +309,13 @@ func UpdateChannel(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "模型供应商不能为空",
+		})
+		return
+	}
+	if _, ok := fields["group"]; ok && strings.TrimSpace(channel.Group) == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "分组不能为空",
 		})
 		return
 	}

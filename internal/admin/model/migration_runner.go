@@ -41,13 +41,6 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return runMainBaselineMigrationWithDB(tx)
 			},
 		},
-		{
-			Version:     "202603040102_remove_legacy_default_groups",
-			Description: "normalize default groups and drop legacy vip/svip seeds",
-			Up: func(tx *gorm.DB) error {
-				return runRemoveLegacyDefaultGroupsMigrationWithDB(tx)
-			},
-		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

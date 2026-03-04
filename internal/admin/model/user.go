@@ -35,7 +35,7 @@ type User struct {
 	Quota            int64   `json:"quota" gorm:"bigint;default:0"`
 	UsedQuota        int64   `json:"used_quota" gorm:"bigint;default:0;column:used_quota"`
 	RequestCount     int     `json:"request_count" gorm:"type:int;default:0;"`
-	Group            string  `json:"group" gorm:"type:varchar(32);default:'default'"`
+	Group            string  `json:"group" gorm:"type:varchar(32);default:''"`
 	AffCode          string  `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
 	InviterId        string  `json:"inviter_id" gorm:"type:char(36);column:inviter_id;index"`
 }

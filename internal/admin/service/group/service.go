@@ -1,26 +1,14 @@
 package group
 
 import (
-	"sort"
-
-	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/admin/model"
-	billingratio "github.com/yeying-community/router/internal/relay/billing/ratio"
 )
 
 func List() []string {
 	groupNames, err := model.ListEnabledGroupNames()
-	if err == nil && len(groupNames) > 0 {
-		return groupNames
-	}
 	if err != nil {
-		logger.SysError("list groups from catalog failed, fallback to GroupRatio: " + err.Error())
+		return []string{}
 	}
-	groupNames = make([]string, 0, len(billingratio.GroupRatio))
-	for groupName := range billingratio.GroupRatio {
-		groupNames = append(groupNames, groupName)
-	}
-	sort.Strings(groupNames)
 	return groupNames
 }
 
