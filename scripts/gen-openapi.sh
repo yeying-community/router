@@ -9,8 +9,8 @@ if [ -z "$SWAG_BIN" ]; then
   SWAG_BIN="$(go env GOPATH)/bin/swag"
 fi
 
-"$SWAG_BIN" init --generalInfo docs/swagger.go --output docs --parseDependency --parseInternal
+"$SWAG_BIN" init --generalInfo docs/swagger/swagger.go --output docs/swagger --parseDependency --parseInternal
 
-if [ -f docs/swagger.json ]; then
-  mv docs/swagger.json docs/openapi.json
+if [ -f docs/swagger/swagger.json ]; then
+  mv docs/swagger/swagger.json docs/swagger/openapi.json
 fi

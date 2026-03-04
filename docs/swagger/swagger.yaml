@@ -1915,6 +1915,51 @@ paths:
       summary: Test channel (admin)
       tags:
       - admin
+  /api/v1/admin/channel/test_model:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Channel test model payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update channel test model (admin)
+      tags:
+      - admin
+  /api/v1/admin/channel/types:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get channel interface type catalog (admin)
+      tags:
+      - admin
   /api/v1/admin/channel/update_balance:
     get:
       produces:
@@ -1973,6 +2018,86 @@ paths:
       security:
       - BearerAuth: []
       summary: List groups (admin)
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create group (admin)
+      tags:
+      - admin
+    put:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update group (admin)
+      tags:
+      - admin
+  /api/v1/admin/group/{name}:
+    delete:
+      parameters:
+      - description: Group name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete group (admin)
+      tags:
+      - admin
+  /api/v1/admin/group/catalog:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List groups catalog (admin)
       tags:
       - admin
   /api/v1/admin/log:
@@ -2178,7 +2303,7 @@ paths:
             $ref: '#/definitions/docs.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get default model providers from built-in model lists (admin)
+      summary: Get default mainstream model provider catalog (admin)
       tags:
       - admin
   /api/v1/admin/model-provider/fetch:
