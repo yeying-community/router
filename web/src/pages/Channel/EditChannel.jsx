@@ -67,6 +67,12 @@ const OPENAI_COMPATIBLE_TYPES = new Set([50, 51]);
 
 const isOpenAICompatibleType = (type) => OPENAI_COMPATIBLE_TYPES.has(type);
 
+const normalizeBaseURL = (baseURL) =>
+  (baseURL || '').trim().replace(/\/+$/, '');
+
+const buildChannelConnectionSignature = ({ type, key, baseURL }) =>
+  `${type}|${normalizeBaseURL(baseURL)}|${(key || '').trim()}`;
+
 function type2secretPrompt(type, t) {
   switch (type) {
     case 15:
@@ -123,6 +129,7 @@ const EditChannel = () => {
   const [fetchModelsLoading, setFetchModelsLoading] = useState(false);
   const [modelsSyncError, setModelsSyncError] = useState('');
   const [modelsLastSyncedAt, setModelsLastSyncedAt] = useState(0);
+  const [verifiedModelSignature, setVerifiedModelSignature] = useState('');
   const [config, setConfig] = useState({
     region: '',
     sk: '',
@@ -133,6 +140,82 @@ const EditChannel = () => {
     user_agent: '',
   });
   const fetchingModelsRef = useRef(false);
+  const isOpenAICompatibleCreate = !isEdit && isOpenAICompatibleType(inputs.type);
+  const hasModelPreviewCredentials =
+    (inputs.key || '').trim() !== '' &&
+    (normalizeBaseURL(inputs.base_url) !== '' || inputs.type === 51);
+  const currentModelSignature = useMemo(
+    () =>
+      buildChannelConnectionSignature({
+        type: inputs.type,
+        key: inputs.key,
+        baseURL: inputs.base_url,
+      }),
+    [inputs.base_url, inputs.key, inputs.type]
+  );
+  const requiresConnectionVerification = isOpenAICompatibleCreate && inputs.type !== 43;
+  const showCreateModelFlowGuide = !isEdit && inputs.type !== 43;
+  const isCurrentSignatureVerified =
+    requiresConnectionVerification &&
+    verifiedModelSignature !== '' &&
+    currentModelSignature === verifiedModelSignature;
+  const visibleModelOptions =
+    requiresConnectionVerification && !isCurrentSignatureVerified
+      ? []
+      : modelOptions;
+  const modelSyncStatusText = useMemo(() => {
+    if (!requiresConnectionVerification) {
+      return null;
+    }
+    if (fetchModelsLoading) {
+      return t('channel.edit.model_selector.verify_in_progress');
+    }
+    if (!hasModelPreviewCredentials) {
+      return t('channel.edit.model_selector.verify_prerequisite');
+    }
+    if (isCurrentSignatureVerified) {
+      return t('channel.edit.model_selector.verify_ready');
+    }
+    if (
+      verifiedModelSignature !== '' &&
+      verifiedModelSignature !== currentModelSignature
+    ) {
+      return t('channel.edit.model_selector.verify_stale');
+    }
+    return t('channel.edit.model_selector.verify_required');
+  }, [
+    currentModelSignature,
+    fetchModelsLoading,
+    hasModelPreviewCredentials,
+    isCurrentSignatureVerified,
+    requiresConnectionVerification,
+    t,
+    verifiedModelSignature,
+  ]);
+  const modelSyncStatusColor =
+    isCurrentSignatureVerified ? '#1f8f4b' : 'rgba(0, 0, 0, 0.6)';
+  const fetchModelsButtonText = requiresConnectionVerification
+    ? t('channel.edit.buttons.verify_and_fetch_models')
+    : t('channel.edit.buttons.fetch_models');
+  const flowStepsText = requiresConnectionVerification
+    ? t('channel.edit.model_selector.flow_steps')
+    : t('channel.edit.model_selector.flow_steps_no_verify');
+  const protocolVerifySupportText = requiresConnectionVerification
+    ? t('channel.edit.model_selector.protocol_support_yes')
+    : t('channel.edit.model_selector.protocol_support_no');
+  const unifiedModelStatusText = useMemo(() => {
+    if (requiresConnectionVerification) {
+      return modelSyncStatusText;
+    }
+    if (showCreateModelFlowGuide) {
+      return t('channel.edit.model_selector.manual_mode_hint');
+    }
+    return null;
+  }, [modelSyncStatusText, requiresConnectionVerification, showCreateModelFlowGuide, t]);
+  const unifiedModelStatusColor = requiresConnectionVerification
+    ? modelSyncStatusColor
+    : 'rgba(0, 0, 0, 0.6)';
+
   const handleInputChange = (e, { name, value }) => {
     setInputs((inputs) => ({ ...inputs, [name]: value }));
   };
@@ -242,23 +325,31 @@ const EditChannel = () => {
       setFetchModelsLoading(true);
       try {
         let models = [];
-        if (
+        const normalizedBaseURL = normalizeBaseURL(inputs.base_url);
+        const key = (inputs.key || '').trim();
+        const useChannelPreviewAPI =
           isOpenAICompatibleType(inputs.type) &&
-          inputs.key &&
-          inputs.key.trim() !== '' &&
-          inputs.base_url &&
-          inputs.base_url.trim() !== ''
+          key !== '' &&
+          (normalizedBaseURL !== '' || inputs.type === 51);
+        const requestSignature = buildChannelConnectionSignature({
+          type: inputs.type,
+          key,
+          baseURL: normalizedBaseURL,
+        });
+        if (
+          useChannelPreviewAPI
         ) {
           const res = await API.post(`/api/v1/admin/channel/preview/models`, {
             type: inputs.type,
-            key: inputs.key,
-            base_url: inputs.base_url,
+            key,
+            base_url: normalizedBaseURL,
             config,
           });
           const { success, message, data } = res.data || {};
           if (!success) {
             const errorMessage = message || t('channel.edit.messages.fetch_models_failed');
             setModelsSyncError(errorMessage);
+            setVerifiedModelSignature('');
             if (!silent) {
               showError(errorMessage);
             }
@@ -276,6 +367,9 @@ const EditChannel = () => {
         if (ids.length === 0) {
           const message = t('channel.edit.messages.models_empty');
           setModelsSyncError(message);
+          if (useChannelPreviewAPI) {
+            setVerifiedModelSignature('');
+          }
           if (!silent) {
             showInfo(message);
           }
@@ -284,6 +378,9 @@ const EditChannel = () => {
 
         setModelsSyncError('');
         setModelsLastSyncedAt(Date.now());
+        if (useChannelPreviewAPI) {
+          setVerifiedModelSignature(requestSignature);
+        }
         if (!silent) {
           showSuccess(t('channel.messages.operation_success'));
         }
@@ -291,6 +388,7 @@ const EditChannel = () => {
       } catch (error) {
         const errorMessage = error?.message || t('channel.edit.messages.fetch_models_failed');
         setModelsSyncError(errorMessage);
+        setVerifiedModelSignature('');
         if (!silent) {
           showError(errorMessage);
         }
@@ -382,6 +480,37 @@ const EditChannel = () => {
   }, [channelId, copyFromId, isEdit, loadChannelById]);
 
   useEffect(() => {
+    if (!requiresConnectionVerification) {
+      return;
+    }
+    if (verifiedModelSignature === '') {
+      return;
+    }
+    if (verifiedModelSignature === currentModelSignature) {
+      return;
+    }
+    setOriginModelOptions([]);
+    setInputs((prev) => ({ ...prev, models: [] }));
+    setModelsLastSyncedAt(0);
+    setModelsSyncError(t('channel.edit.model_selector.verify_stale'));
+  }, [
+    currentModelSignature,
+    requiresConnectionVerification,
+    t,
+    verifiedModelSignature,
+  ]);
+
+  useEffect(() => {
+    if (requiresConnectionVerification) {
+      return;
+    }
+    if (verifiedModelSignature === '') {
+      return;
+    }
+    setVerifiedModelSignature('');
+  }, [requiresConnectionVerification, verifiedModelSignature]);
+
+  useEffect(() => {
     if (loading) {
       return;
     }
@@ -391,15 +520,14 @@ const EditChannel = () => {
     if (inputs.type === 43) {
       return;
     }
-    if (
-      isOpenAICompatibleType(inputs.type) &&
-      (inputs.key || '').trim() !== '' &&
-      (inputs.base_url || '').trim() !== ''
-    ) {
+    if (isOpenAICompatibleCreate && hasModelPreviewCredentials) {
       const timer = setTimeout(() => {
         handleFetchModels({ silent: true, selectAll: true }).then();
       }, 700);
       return () => clearTimeout(timer);
+    }
+    if (isOpenAICompatibleCreate) {
+      return;
     }
     const timer = setTimeout(() => {
       fetchModels(true).then();
@@ -407,19 +535,23 @@ const EditChannel = () => {
     return () => clearTimeout(timer);
   }, [
     fetchModels,
+    hasModelPreviewCredentials,
     handleFetchModels,
     inputs.base_url,
     inputs.key,
     inputs.type,
     isEdit,
+    isOpenAICompatibleCreate,
     loading,
   ]);
 
   useEffect(() => {
-    fetchModels(true).then();
+    if (isEdit || copyFromId > 0) {
+      fetchModels(true).then();
+    }
     fetchGroups().then();
     fetchChannelTypes().then();
-  }, [fetchModels, fetchGroups, fetchChannelTypes]);
+  }, [copyFromId, fetchModels, fetchGroups, fetchChannelTypes, isEdit]);
 
   const submit = async () => {
     let effectiveKey = inputs.key || '';
@@ -441,6 +573,16 @@ const EditChannel = () => {
     if (inputs.groups.length === 0) {
       showInfo(t('channel.edit.messages.groups_required'));
       return;
+    }
+    if (requiresConnectionVerification) {
+      if (!hasModelPreviewCredentials) {
+        showInfo(t('channel.edit.model_selector.verify_prerequisite'));
+        return;
+      }
+      if (!isCurrentSignatureVerified) {
+        showInfo(t('channel.edit.model_selector.verify_required'));
+        return;
+      }
     }
     if (inputs.type !== 43 && inputs.models.length === 0) {
       showInfo(t('channel.edit.messages.models_required'));
@@ -500,9 +642,7 @@ const EditChannel = () => {
   };
 
   const isRealtimeModelFetchAvailable =
-    isOpenAICompatibleType(inputs.type) &&
-    (inputs.key || '').trim() !== '' &&
-    (inputs.base_url || '').trim() !== '';
+    isOpenAICompatibleType(inputs.type) && hasModelPreviewCredentials;
 
   return (
     <div className='dashboard-container'>
@@ -534,6 +674,11 @@ const EditChannel = () => {
                 value={inputs.type}
                 onChange={handleInputChange}
               />
+              {!isEdit && (
+                <div style={{ color: 'rgba(0, 0, 0, 0.6)', marginTop: '4px' }}>
+                  {protocolVerifySupportText}
+                </div>
+              )}
             </Form.Field>
             {inputs.type === 3 && (
               <Form.Field>
@@ -741,6 +886,16 @@ const EditChannel = () => {
             {inputs.type !== 43 && (
               <Form.Field>
                 <label>{t('channel.edit.models')}</label>
+                {showCreateModelFlowGuide && (
+                  <Message info style={{ marginBottom: '10px' }}>
+                    <Message.Header>
+                      {t('channel.edit.model_selector.flow_title')}
+                    </Message.Header>
+                    <p style={{ marginTop: '6px', marginBottom: 0 }}>
+                      {flowStepsText}
+                    </p>
+                  </Message>
+                )}
                 <div
                   style={{
                     display: 'flex',
@@ -754,7 +909,7 @@ const EditChannel = () => {
                   <span style={{ color: 'rgba(0, 0, 0, 0.6)' }}>
                     {t('channel.edit.model_selector.summary', {
                       selected: inputs.models.length,
-                      total: modelOptions.length,
+                      total: visibleModelOptions.length,
                     })}
                   </span>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -762,7 +917,7 @@ const EditChannel = () => {
                       type='button'
                       size='tiny'
                       onClick={selectAllModels}
-                      disabled={modelOptions.length === 0}
+                      disabled={visibleModelOptions.length === 0}
                     >
                       {t('channel.edit.buttons.select_all')}
                     </Button>
@@ -779,12 +934,16 @@ const EditChannel = () => {
                       size='tiny'
                       color='green'
                       loading={fetchModelsLoading}
-                      disabled={fetchModelsLoading}
+                      disabled={
+                        fetchModelsLoading ||
+                        (requiresConnectionVerification &&
+                          !hasModelPreviewCredentials)
+                      }
                       onClick={() =>
                         handleFetchModels({ silent: false, selectAll: true })
                       }
                     >
-                      {t('channel.edit.buttons.fetch_models')}
+                      {fetchModelsButtonText}
                     </Button>
                   </div>
                 </div>
@@ -793,6 +952,11 @@ const EditChannel = () => {
                     {isRealtimeModelFetchAvailable
                       ? t('channel.edit.model_selector.realtime_enabled')
                       : t('channel.edit.model_selector.realtime_hint')}
+                  </div>
+                )}
+                {unifiedModelStatusText && (
+                  <div style={{ color: unifiedModelStatusColor, marginBottom: '8px' }}>
+                    {unifiedModelStatusText}
                   </div>
                 )}
                 <div
@@ -807,12 +971,12 @@ const EditChannel = () => {
                     gap: '8px 16px',
                   }}
                 >
-                  {modelOptions.length === 0 ? (
+                  {visibleModelOptions.length === 0 ? (
                     <div style={{ color: 'rgba(0, 0, 0, 0.55)' }}>
                       {t('channel.edit.model_selector.empty')}
                     </div>
                   ) : (
-                    modelOptions.map((option) => (
+                    visibleModelOptions.map((option) => (
                       <Checkbox
                         key={option.key}
                         label={option.text}
@@ -1001,6 +1165,7 @@ const EditChannel = () => {
               type={isEdit ? 'button' : 'submit'}
               positive
               onClick={submit}
+              disabled={requiresConnectionVerification && !isCurrentSignatureVerified}
             >
               {t('channel.edit.buttons.submit')}
             </Button>
