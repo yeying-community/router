@@ -1,13 +1,11 @@
 import React, {
-  forwardRef,
   useCallback,
   useEffect,
-  useImperativeHandle,
   useMemo,
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Form, Icon, Label, Modal, Segment, Table } from 'semantic-ui-react';
+import { Button, Form, Icon, Label, Modal, Table } from 'semantic-ui-react';
 import { API, showError, showInfo, showSuccess, timestamp2string } from '../helpers';
 
 const normalizeProvider = (provider) => {
@@ -220,11 +218,12 @@ const MODEL_TYPE_OPTIONS = [
   { key: 'audio', value: 'audio', text: 'audio' },
 ];
 
-const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
+const ModelProvidersManager = () => {
   const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [deletingIndex, setDeletingIndex] = useState(-1);
   const [creating, setCreating] = useState(false);
   const [createRow, setCreateRow] = useState(createEmptyRow());
@@ -232,7 +231,9 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
   const [editing, setEditing] = useState(false);
   const [editIndex, setEditIndex] = useState(-1);
   const [editRow, setEditRow] = useState(createEmptyRow());
+  const [editModelSearchKeyword, setEditModelSearchKeyword] = useState('');
   const [viewingProvider, setViewingProvider] = useState('');
+  const [viewModelSearchKeyword, setViewModelSearchKeyword] = useState('');
   const [draggingIndex, setDraggingIndex] = useState(-1);
   const [dragOverIndex, setDragOverIndex] = useState(-1);
 
@@ -319,6 +320,7 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
     if (index < 0 || index >= rows.length || creating) return;
     resetDragState();
     setViewingProvider('');
+    setEditModelSearchKeyword('');
     setEditIndex(index);
     setEditRow({ ...rows[index] });
     setEditing(true);
@@ -327,6 +329,7 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
   const rollbackEditor = () => {
     setEditing(false);
     setEditIndex(-1);
+    setEditModelSearchKeyword('');
     setEditRow(createEmptyRow());
   };
 
@@ -338,10 +341,6 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
     setCreating(true);
   };
 
-  useImperativeHandle(ref, () => ({
-    openCreateModal,
-  }));
-
   const closeCreateModal = () => {
     setCreating(false);
     setCreateRow(createEmptyRow());
@@ -352,10 +351,12 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
     const normalized = normalizeProvider(provider);
     if (!normalized) return;
     resetDragState();
+    setViewModelSearchKeyword('');
     setViewingProvider(normalized);
   };
 
   const closeViewer = () => {
+    setViewModelSearchKeyword('');
     setViewingProvider('');
   };
 
@@ -401,7 +402,7 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
 
   const addModelDetailRow = (setter, row) => {
     const details = Array.isArray(row.model_details) ? [...row.model_details] : [];
-    details.push(createEmptyModelDetail(''));
+    details.unshift(createEmptyModelDetail(''));
     setter('model_details', details);
   };
 
@@ -583,27 +584,72 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
     resetDragState();
   };
 
-  const renderModelDetailsTable = (row, setValueFn, disabled = false) => {
+  const renderModelDetailsTable = (row, setValueFn, disabled = false, options = {}) => {
     const details = Array.isArray(row.model_details) ? row.model_details : [];
+    const searchable = options.searchable === true;
+    const modelSearchKeyword =
+      typeof options.searchKeyword === 'string' ? options.searchKeyword : '';
+    const normalizedModelSearchKeyword = modelSearchKeyword.trim().toLowerCase();
+    const detailRows = details.map((detail, index) => ({ detail, index }));
+    const visibleDetailRows =
+      normalizedModelSearchKeyword === ''
+        ? detailRows
+        : detailRows.filter(({ detail }) => {
+            const haystack = [
+              detail.model || '',
+              detail.type || '',
+              detail.price_unit || '',
+              detail.currency || '',
+              detail.source || '',
+            ]
+              .join(' ')
+              .toLowerCase();
+            return haystack.includes(normalizedModelSearchKeyword);
+          });
     return (
       <div>
-        <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          style={{
+            marginTop: 6,
+            marginBottom: 4,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
           <div style={{ fontWeight: 600 }}>{t('channel.providers.dialog.model_details')}</div>
-          <Button
-            type='button'
-            size='tiny'
-            disabled={disabled}
-            onClick={() => addModelDetailRow(setValueFn, row)}
-          >
-            <Icon name='plus' />
-            {t('channel.providers.model_detail_table.add')}
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {searchable ? (
+              <Form.Input
+                size='small'
+                icon='search'
+                iconPosition='left'
+                style={{ width: 260 }}
+                placeholder={t('channel.providers.model_detail_table.search_placeholder')}
+                value={modelSearchKeyword}
+                onChange={(e, { value }) => {
+                  if (typeof options.onSearchChange === 'function') {
+                    options.onSearchChange(value || '');
+                  }
+                }}
+              />
+            ) : null}
+            <Button
+              type='button'
+              size='tiny'
+              disabled={disabled}
+              onClick={() => addModelDetailRow(setValueFn, row)}
+            >
+              <Icon name='plus' />
+              {t('channel.providers.model_detail_table.add')}
+            </Button>
+          </div>
         </div>
         <Table compact size='small' celled>
           <Table.Header>
             <Table.Row>
-              <Table.HeaderCell>{t('channel.providers.model_detail_table.model')}</Table.HeaderCell>
-              <Table.HeaderCell>{t('channel.providers.model_detail_table.type')}</Table.HeaderCell>
+              <Table.HeaderCell width={4}>{t('channel.providers.model_detail_table.model')}</Table.HeaderCell>
+              <Table.HeaderCell width={2}>{t('channel.providers.model_detail_table.type')}</Table.HeaderCell>
               <Table.HeaderCell>{t('channel.providers.model_detail_table.input_price')}</Table.HeaderCell>
               <Table.HeaderCell>{t('channel.providers.model_detail_table.output_price')}</Table.HeaderCell>
               <Table.HeaderCell>{t('channel.providers.model_detail_table.price_unit')}</Table.HeaderCell>
@@ -613,27 +659,27 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {details.length === 0 ? (
+            {visibleDetailRows.length === 0 ? (
                 <Table.Row>
                   <Table.Cell colSpan={8} textAlign='center'>
                   {t('channel.providers.model_detail_table.empty')}
                   </Table.Cell>
                 </Table.Row>
             ) : (
-              details.map((detail, index) => (
-                <Table.Row key={`${detail.model || 'model'}-${index}`}>
-                  <Table.Cell>
+              visibleDetailRows.map(({ detail, index: detailIndex }) => (
+                <Table.Row key={`${detail.model || 'model'}-${detailIndex}`}>
+                  <Table.Cell style={{ minWidth: 260 }}>
                     <Form.Input
                       fluid
                       size='small'
                       value={detail.model || ''}
                       disabled={disabled}
                       onChange={(e, { value }) =>
-                        setModelDetailField(setValueFn, row, index, 'model', value || '')
+                        setModelDetailField(setValueFn, row, detailIndex, 'model', value || '')
                       }
                     />
                   </Table.Cell>
-                  <Table.Cell>
+                  <Table.Cell style={{ minWidth: 120 }}>
                     <Form.Select
                       fluid
                       size='small'
@@ -641,7 +687,7 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
                       value={detail.type || 'text'}
                       disabled={disabled}
                       onChange={(e, { value }) =>
-                        setModelDetailField(setValueFn, row, index, 'type', value || 'text')
+                        setModelDetailField(setValueFn, row, detailIndex, 'type', value || 'text')
                       }
                     />
                   </Table.Cell>
@@ -654,7 +700,7 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
                       value={detail.input_price || 0}
                       disabled={disabled}
                       onChange={(e, { value }) =>
-                        setModelDetailField(setValueFn, row, index, 'input_price', value || 0)
+                        setModelDetailField(setValueFn, row, detailIndex, 'input_price', value || 0)
                       }
                     />
                   </Table.Cell>
@@ -667,7 +713,7 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
                       value={detail.output_price || 0}
                       disabled={disabled}
                       onChange={(e, { value }) =>
-                        setModelDetailField(setValueFn, row, index, 'output_price', value || 0)
+                        setModelDetailField(setValueFn, row, detailIndex, 'output_price', value || 0)
                       }
                     />
                   </Table.Cell>
@@ -678,7 +724,7 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
                       value={detail.price_unit || ''}
                       disabled={disabled}
                       onChange={(e, { value }) =>
-                        setModelDetailField(setValueFn, row, index, 'price_unit', value || '')
+                        setModelDetailField(setValueFn, row, detailIndex, 'price_unit', value || '')
                       }
                     />
                   </Table.Cell>
@@ -689,7 +735,7 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
                       value={detail.currency || 'USD'}
                       disabled={disabled}
                       onChange={(e, { value }) =>
-                        setModelDetailField(setValueFn, row, index, 'currency', value || 'USD')
+                        setModelDetailField(setValueFn, row, detailIndex, 'currency', value || 'USD')
                       }
                     />
                   </Table.Cell>
@@ -700,7 +746,7 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
                       value={detail.source || 'manual'}
                       disabled={disabled}
                       onChange={(e, { value }) =>
-                        setModelDetailField(setValueFn, row, index, 'source', value || 'manual')
+                        setModelDetailField(setValueFn, row, detailIndex, 'source', value || 'manual')
                       }
                     />
                   </Table.Cell>
@@ -711,7 +757,7 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
                       size='tiny'
                       color='red'
                       disabled={disabled}
-                      onClick={() => removeModelDetailRow(setValueFn, row, index)}
+                      onClick={() => removeModelDetailRow(setValueFn, row, detailIndex)}
                     >
                       <Icon name='trash' />
                     </Button>
@@ -725,18 +771,61 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
     );
   };
 
-  const renderModelDetailsReadonly = (row) => {
+  const renderModelDetailsReadonly = (row, options = {}) => {
     const details = Array.isArray(row?.model_details) ? row.model_details : [];
+    const searchable = options.searchable === true;
+    const modelSearchKeyword =
+      typeof options.searchKeyword === 'string' ? options.searchKeyword : '';
+    const normalizedModelSearchKeyword = modelSearchKeyword.trim().toLowerCase();
+    const visibleDetailRows =
+      normalizedModelSearchKeyword === ''
+        ? details
+        : details.filter((detail) => {
+            const haystack = [
+              detail.model || '',
+              detail.type || '',
+              detail.price_unit || '',
+              detail.currency || '',
+              detail.source || '',
+            ]
+              .join(' ')
+              .toLowerCase();
+            return haystack.includes(normalizedModelSearchKeyword);
+          });
     return (
       <div style={{ marginTop: 12 }}>
-        <div style={{ marginBottom: 8, fontWeight: 600 }}>
-          {t('channel.providers.dialog.model_details')}
+        <div
+          style={{
+            marginBottom: 8,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div style={{ fontWeight: 600 }}>
+            {t('channel.providers.dialog.model_details')}
+          </div>
+          {searchable ? (
+            <Form.Input
+              size='small'
+              icon='search'
+              iconPosition='left'
+              style={{ width: 260 }}
+              placeholder={t('channel.providers.model_detail_table.search_placeholder')}
+              value={modelSearchKeyword}
+              onChange={(e, { value }) => {
+                if (typeof options.onSearchChange === 'function') {
+                  options.onSearchChange(value || '');
+                }
+              }}
+            />
+          ) : null}
         </div>
         <Table compact size='small' celled>
           <Table.Header>
             <Table.Row>
-              <Table.HeaderCell>{t('channel.providers.model_detail_table.model')}</Table.HeaderCell>
-              <Table.HeaderCell>{t('channel.providers.model_detail_table.type')}</Table.HeaderCell>
+              <Table.HeaderCell width={4}>{t('channel.providers.model_detail_table.model')}</Table.HeaderCell>
+              <Table.HeaderCell width={2}>{t('channel.providers.model_detail_table.type')}</Table.HeaderCell>
               <Table.HeaderCell>{t('channel.providers.model_detail_table.input_price')}</Table.HeaderCell>
               <Table.HeaderCell>{t('channel.providers.model_detail_table.output_price')}</Table.HeaderCell>
               <Table.HeaderCell>{t('channel.providers.model_detail_table.price_unit')}</Table.HeaderCell>
@@ -745,17 +834,17 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {details.length === 0 ? (
+            {visibleDetailRows.length === 0 ? (
               <Table.Row>
                 <Table.Cell colSpan={7} textAlign='center'>
                   {t('channel.providers.model_detail_table.empty')}
                 </Table.Cell>
               </Table.Row>
             ) : (
-              details.map((detail, index) => (
+              visibleDetailRows.map((detail, index) => (
                 <Table.Row key={`${detail.model || 'model'}-${index}`}>
-                  <Table.Cell>{detail.model || '-'}</Table.Cell>
-                  <Table.Cell>{detail.type || 'text'}</Table.Cell>
+                  <Table.Cell style={{ minWidth: 260 }}>{detail.model || '-'}</Table.Cell>
+                  <Table.Cell style={{ minWidth: 120 }}>{detail.type || 'text'}</Table.Cell>
                   <Table.Cell>{detail.input_price || 0}</Table.Cell>
                   <Table.Cell>{detail.output_price || 0}</Table.Cell>
                   <Table.Cell>{detail.price_unit || '-'}</Table.Cell>
@@ -771,108 +860,149 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
   };
 
   const renderRows = () => (
-    <Table basic='very' compact size='small' stackable>
-      <Table.Header>
-        <Table.Row>
-          <Table.HeaderCell width={3}>{t('channel.providers.table.provider')}</Table.HeaderCell>
-          <Table.HeaderCell width={4}>{t('channel.providers.table.name')}</Table.HeaderCell>
-          <Table.HeaderCell width={2} textAlign='left'>{t('channel.providers.table.source')}</Table.HeaderCell>
-          <Table.HeaderCell width={3} textAlign='left'>{t('channel.providers.table.updated_at')}</Table.HeaderCell>
-          <Table.HeaderCell width={2} textAlign='left'>{t('channel.providers.table.actions')}</Table.HeaderCell>
-        </Table.Row>
-      </Table.Header>
-      <Table.Body>
-        {visibleRows.length === 0 ? (
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+          marginBottom: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Button type='button' disabled={saving || loading} onClick={openCreateModal}>
+            {t('channel.providers.buttons.add_provider')}
+          </Button>
+        </div>
+        <Form style={{ width: '320px', maxWidth: '100%' }}>
+          <Form.Input
+            icon='search'
+            iconPosition='left'
+            placeholder={t('channel.providers.search')}
+            value={searchKeyword}
+            onChange={(e, { value }) => setSearchKeyword(value || '')}
+          />
+        </Form>
+      </div>
+      <Table basic='very' compact size='small' stackable>
+        <Table.Header>
           <Table.Row>
-            <Table.Cell colSpan={5} textAlign='center'>
-              {loading ? t('common.loading') : t('channel.providers.table.empty')}
-            </Table.Cell>
+            <Table.HeaderCell width={3}>{t('channel.providers.table.provider')}</Table.HeaderCell>
+            <Table.HeaderCell width={4}>{t('channel.providers.table.name')}</Table.HeaderCell>
+            <Table.HeaderCell width={2} textAlign='left'>{t('channel.providers.table.source')}</Table.HeaderCell>
+            <Table.HeaderCell width={3} textAlign='left'>{t('channel.providers.table.updated_at')}</Table.HeaderCell>
+            <Table.HeaderCell width={2} textAlign='left'>{t('channel.providers.table.actions')}</Table.HeaderCell>
           </Table.Row>
-        ) : (
-          visibleRows.map(({ row, index }) => (
-            <Table.Row
-              key={`${row.provider}-${index}`}
-              draggable={!creating && !editing && !saving}
-              onClick={() => {
-                openViewer(row.provider);
-              }}
-              onDragStart={() => {
-                if (creating || editing || saving) return;
-                setDraggingIndex(index);
-                setDragOverIndex(index);
-              }}
-              onDragEnter={(e) => {
-                e.preventDefault();
-                if (creating || editing || saving) return;
-                if (draggingIndex >= 0) {
-                  setDragOverIndex(index);
-                }
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-              }}
-              onDrop={async (e) => {
-                e.preventDefault();
-                await onDropRow(index);
-              }}
-              onDragEnd={resetDragState}
-              style={{
-                cursor: creating || editing || saving ? 'default' : 'pointer',
-                backgroundColor:
-                  dragOverIndex === index && draggingIndex !== index
-                    ? 'rgba(33, 133, 208, 0.06)'
-                    : undefined,
-              }}
-            >
-              <Table.Cell>{row.provider || '-'}</Table.Cell>
-              <Table.Cell>{row.name || row.provider || '-'}</Table.Cell>
-              <Table.Cell textAlign='left'>
-                <Label>{row.source || '-'}</Label>
-              </Table.Cell>
-              <Table.Cell textAlign='left'>
-                {row.updated_at ? timestamp2string(row.updated_at) : '-'}
-              </Table.Cell>
-              <Table.Cell textAlign='left' style={{ whiteSpace: 'nowrap' }}>
-                <Button
-                  type='button'
-                  icon
-                  size='tiny'
-                  color='blue'
-                  disabled={creating || saving}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEditor(index);
-                  }}
-                >
-                  <Icon name='edit' />
-                </Button>
-                <Button
-                  type='button'
-                  icon
-                  size='tiny'
-                  color='red'
-                  disabled={creating || saving}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openDeleteModal(index);
-                  }}
-                >
-                  <Icon name='trash' />
-                </Button>
+        </Table.Header>
+        <Table.Body>
+          {visibleRows.length === 0 ? (
+            <Table.Row>
+              <Table.Cell colSpan={5} textAlign='center'>
+                {loading ? t('common.loading') : t('channel.providers.table.empty')}
               </Table.Cell>
             </Table.Row>
-          ))
-        )}
-      </Table.Body>
-    </Table>
+          ) : (
+            visibleRows.map(({ row, index }) => (
+              <Table.Row
+                key={`${row.provider}-${index}`}
+                draggable={!creating && !editing && !saving}
+                onClick={() => {
+                  openViewer(row.provider);
+                }}
+                onDragStart={() => {
+                  if (creating || editing || saving) return;
+                  setDraggingIndex(index);
+                  setDragOverIndex(index);
+                }}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  if (creating || editing || saving) return;
+                  if (draggingIndex >= 0) {
+                    setDragOverIndex(index);
+                  }
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                }}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  await onDropRow(index);
+                }}
+                onDragEnd={resetDragState}
+                style={{
+                  cursor: creating || editing || saving ? 'default' : 'pointer',
+                  backgroundColor:
+                    dragOverIndex === index && draggingIndex !== index
+                      ? 'rgba(33, 133, 208, 0.06)'
+                      : undefined,
+                }}
+              >
+                <Table.Cell>{row.provider || '-'}</Table.Cell>
+                <Table.Cell>{row.name || row.provider || '-'}</Table.Cell>
+                <Table.Cell textAlign='left'>
+                  <Label>{row.source || '-'}</Label>
+                </Table.Cell>
+                <Table.Cell textAlign='left'>
+                  {row.updated_at ? timestamp2string(row.updated_at) : '-'}
+                </Table.Cell>
+                <Table.Cell textAlign='left' style={{ whiteSpace: 'nowrap' }}>
+                  <Button
+                    type='button'
+                    icon
+                    size='tiny'
+                    color='blue'
+                    disabled={creating || saving}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditor(index);
+                    }}
+                  >
+                    <Icon name='edit' />
+                  </Button>
+                  <Button
+                    type='button'
+                    icon
+                    size='tiny'
+                    color='red'
+                    disabled={creating || saving}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDeleteModal(index);
+                    }}
+                  >
+                    <Icon name='trash' />
+                  </Button>
+                </Table.Cell>
+              </Table.Row>
+            ))
+          )}
+        </Table.Body>
+      </Table>
+    </div>
   );
 
   const renderEditor = () => (
-    <Segment>
-      <div style={{ fontWeight: 600, marginBottom: 12 }}>
-        {editIndex >= 0
-          ? t('channel.providers.dialog.title_edit')
-          : t('channel.providers.dialog.title_create')}
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          gap: '8px',
+          flexWrap: 'wrap',
+          marginBottom: 12,
+        }}
+      >
+        <Button type='button' onClick={rollbackEditor} disabled={saving}>
+          <Icon name='undo' />
+          {t('channel.providers.dialog.cancel_create')}
+        </Button>
+        <Button type='button' color='blue' loading={saving} disabled={saving} onClick={applyEditToRows}>
+          <Icon name='check' />
+          {t('channel.providers.dialog.confirm')}
+        </Button>
       </div>
       <Form>
         <Form.Group widths='equal'>
@@ -897,27 +1027,41 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
         />
       </Form>
 
-      {renderModelDetailsTable(editRow, setEditValue, saving)}
-
-      <div style={{ marginTop: 12 }}>
-        <Button type='button' onClick={rollbackEditor} disabled={saving}>
-          <Icon name='undo' />
-          {t('channel.providers.dialog.cancel_create')}
-        </Button>
-        <Button type='button' color='blue' loading={saving} disabled={saving} onClick={applyEditToRows}>
-          <Icon name='check' />
-          {t('channel.providers.dialog.confirm')}
-        </Button>
-      </div>
-    </Segment>
+      {renderModelDetailsTable(editRow, setEditValue, saving, {
+        searchable: true,
+        searchKeyword: editModelSearchKeyword,
+        onSearchChange: setEditModelSearchKeyword,
+      })}
+    </div>
   );
 
   const renderViewer = () => {
     if (!viewingRow) return null;
     return (
-      <Segment>
-        <div style={{ fontWeight: 600, marginBottom: 12 }}>
-          {t('channel.providers.dialog.title_detail')}
+      <div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            gap: '8px',
+            flexWrap: 'wrap',
+            marginBottom: 12,
+          }}
+        >
+          <Button type='button' onClick={closeViewer} disabled={saving}>
+            <Icon name='undo' />
+            {t('channel.providers.dialog.cancel')}
+          </Button>
+          <Button
+            type='button'
+            color='blue'
+            disabled={saving}
+            onClick={() => openEditorByProvider(viewingRow.provider)}
+          >
+            <Icon name='edit' />
+            {t('channel.providers.dialog.edit')}
+          </Button>
         </div>
         <Form>
           <Form.Group widths='equal'>
@@ -950,23 +1094,12 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
             readOnly
           />
         </Form>
-        {renderModelDetailsReadonly(viewingRow)}
-        <div style={{ marginTop: 12 }}>
-          <Button type='button' onClick={closeViewer} disabled={saving}>
-            <Icon name='undo' />
-            {t('channel.providers.dialog.cancel')}
-          </Button>
-          <Button
-            type='button'
-            color='blue'
-            disabled={saving}
-            onClick={() => openEditorByProvider(viewingRow.provider)}
-          >
-            <Icon name='edit' />
-            {t('channel.providers.dialog.edit')}
-          </Button>
-        </div>
-      </Segment>
+        {renderModelDetailsReadonly(viewingRow, {
+          searchable: true,
+          searchKeyword: viewModelSearchKeyword,
+          onSearchChange: setViewModelSearchKeyword,
+        })}
+      </div>
     );
   };
 
@@ -1057,8 +1190,6 @@ const ModelProvidersManager = forwardRef(({ searchKeyword = '' }, ref) => {
       {editing ? renderEditor() : viewingProvider ? renderViewer() : renderRows()}
     </div>
   );
-});
-
-ModelProvidersManager.displayName = 'ModelProvidersManager';
+};
 
 export default ModelProvidersManager;

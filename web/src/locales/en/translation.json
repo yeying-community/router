@@ -134,6 +134,7 @@
       },
       "model_detail_table": {
         "add": "Add Model",
+        "search_placeholder": "Search model details...",
         "model": "Model",
         "type": "Type",
         "input_price": "Input Price",

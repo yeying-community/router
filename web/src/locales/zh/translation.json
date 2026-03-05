@@ -134,6 +134,7 @@
       },
       "model_detail_table": {
         "add": "新增模型",
+        "search_placeholder": "搜索模型明细...",
         "model": "模型",
         "type": "类型",
         "input_price": "输入价格",
