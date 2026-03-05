@@ -50,7 +50,7 @@
       "id": "ID",
       "name": "名称",
       "group": "分组",
-      "type": "类型",
+      "type": "协议类型",
       "status": "状态",
       "response_time": "响应时间",
       "balance": "余额",

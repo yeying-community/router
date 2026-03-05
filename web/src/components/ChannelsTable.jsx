@@ -37,10 +37,20 @@ function buildTypeMap(options, t) {
 }
 
 function renderType(type, typeMap) {
+  const option = typeMap[type];
+  const colorMap = {
+    grey: 'rgba(0, 0, 0, 0.5)',
+    green: '#1f8f4b',
+    red: '#d64545',
+    yellow: '#b58105',
+    olive: '#7f8b24',
+    blue: '#2185d0',
+    orange: '#c66900',
+  };
   return (
-    <Label basic color={typeMap[type]?.color}>
-      {typeMap[type] ? typeMap[type].text : type}
-    </Label>
+    <span style={{ color: colorMap[option?.color] || 'inherit', fontWeight: 500 }}>
+      {option ? option.text : type}
+    </span>
   );
 }
 
@@ -245,20 +255,19 @@ const ChannelsTable = () => {
   };
 
   const renderStatus = (status, t) => {
+    const plainStatusText = (text, color) => (
+      <span style={{ color, fontWeight: 500 }}>{text}</span>
+    );
     switch (status) {
       case 1:
-        return (
-          <Label basic color='green'>
-            {t('channel.table.status_enabled')}
-          </Label>
-        );
+        return plainStatusText(t('channel.table.status_enabled'), '#1f8f4b');
       case 2:
         return (
           <Popup
             trigger={
-              <Label basic color='red'>
+              <span style={{ color: '#d64545', fontWeight: 500 }}>
                 {t('channel.table.status_disabled')}
-              </Label>
+              </span>
             }
             content={t('channel.table.status_disabled_tip')}
             basic
@@ -268,26 +277,18 @@ const ChannelsTable = () => {
         return (
           <Popup
             trigger={
-              <Label basic color='yellow'>
+              <span style={{ color: '#b58105', fontWeight: 500 }}>
                 {t('channel.table.status_auto_disabled')}
-              </Label>
+              </span>
             }
             content={t('channel.table.status_auto_disabled_tip')}
             basic
           />
         );
       case channelStatusCreating:
-        return (
-          <Label basic color='blue'>
-            {t('channel.table.status_creating')}
-          </Label>
-        );
+        return plainStatusText(t('channel.table.status_creating'), '#2185d0');
       default:
-        return (
-          <Label basic color='grey'>
-            {t('channel.table.status_unknown')}
-          </Label>
-        );
+        return plainStatusText(t('channel.table.status_unknown'), 'rgba(0, 0, 0, 0.5)');
     }
   };
 
@@ -295,35 +296,15 @@ const ChannelsTable = () => {
     let time = responseTime / 1000;
     time = time.toFixed(2) + 's';
     if (responseTime === 0) {
-      return (
-        <Label basic color='grey'>
-          {t('channel.table.not_tested')}
-        </Label>
-      );
+      return <span style={{ color: 'rgba(0, 0, 0, 0.5)' }}>{t('channel.table.not_tested')}</span>;
     } else if (responseTime <= 1000) {
-      return (
-        <Label basic color='green'>
-          {time}
-        </Label>
-      );
+      return <span style={{ color: '#1f8f4b', fontWeight: 500 }}>{time}</span>;
     } else if (responseTime <= 3000) {
-      return (
-        <Label basic color='olive'>
-          {time}
-        </Label>
-      );
+      return <span style={{ color: '#7f8b24', fontWeight: 500 }}>{time}</span>;
     } else if (responseTime <= 5000) {
-      return (
-        <Label basic color='yellow'>
-          {time}
-        </Label>
-      );
+      return <span style={{ color: '#b58105', fontWeight: 500 }}>{time}</span>;
     } else {
-      return (
-        <Label basic color='red'>
-          {time}
-        </Label>
-      );
+      return <span style={{ color: '#d64545', fontWeight: 500 }}>{time}</span>;
     }
   };
 
@@ -914,7 +895,9 @@ const ChannelsTable = () => {
             <Table.HeaderCell>
               {t('channel.table.test_model')}
             </Table.HeaderCell>
-            <Table.HeaderCell>{t('channel.table.actions')}</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: '280px' }}>
+              {t('channel.table.actions')}
+            </Table.HeaderCell>
           </Table.Row>
         </Table.Header>
 
@@ -1023,14 +1006,14 @@ const ChannelsTable = () => {
                       }}
                     />
                   </Table.Cell>
-                  <Table.Cell>
+                  <Table.Cell style={{ width: '280px' }}>
                     <div
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         flexWrap: 'wrap',
-                        gap: '2px',
-                        rowGap: '6px',
+                        gap: '4px',
+                        rowGap: '4px',
                       }}
                     >
                       <Button

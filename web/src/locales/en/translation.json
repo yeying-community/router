@@ -50,7 +50,7 @@
       "id": "ID",
       "name": "Name",
       "group": "Group",
-      "type": "Type",
+      "type": "Protocol Type",
       "status": "Status",
       "response_time": "Response Time",
       "balance": "Balance",
