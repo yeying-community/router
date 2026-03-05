@@ -104,6 +104,7 @@
     },
     "providers": {
       "title": "Model Provider Catalog",
+      "search": "Search provider, name, source, model...",
       "fetch": {
         "provider": "Provider",
         "base_url": "Base URL",
@@ -131,38 +132,55 @@
         "empty": "No model provider catalog",
         "model_count": "{{count}} models"
       },
-      "dialog": {
-        "title_create": "Add Model Provider",
-        "title_edit": "Edit Model Provider",
-        "delete_title": "Confirm Delete Model Provider",
-        "delete_content": "Are you sure you want to delete model provider {{provider}}?",
+      "model_detail_table": {
+        "add": "Add Model",
+        "model": "Model",
+        "type": "Type",
+        "input_price": "Input Price",
+        "output_price": "Output Price",
+        "price_unit": "Price Unit",
+        "currency": "Currency",
+        "source": "Source",
+        "actions": "Actions",
+        "empty": "No model details"
+      },
+    "dialog": {
+      "title_create": "Add Model Provider",
+      "title_edit": "Edit Model Provider",
+      "title_detail": "Model Provider Details",
+      "delete_title": "Confirm Delete Model Provider",
+      "delete_content": "Are you sure you want to delete model provider {{provider}}?",
         "delete_confirm": "Delete",
+        "edit": "Edit",
         "provider": "Provider ID",
         "provider_placeholder": "e.g. openai / google / anthropic",
         "name": "Display Name",
         "name_placeholder": "Optional, defaults to provider id",
         "base_url": "Base URL",
         "base_url_placeholder": "Leave empty to use official default URL",
-        "key": "API Key",
-        "key_placeholder": "Used when fetching models from provider API",
-        "models": "Models (one per line, or comma-separated)",
-        "models_placeholder": "e.g. gpt-4o-mini",
-        "cancel": "Back",
-        "cancel_create": "Cancel",
-        "confirm": "Confirm"
-      },
+      "key": "API Key",
+      "key_placeholder": "Used when fetching models from provider API",
+      "models": "Models (one per line, or comma-separated)",
+      "models_placeholder": "e.g. gpt-4o-mini",
+      "model_details": "Model Details",
+      "model_details_placeholder": "[{\"model\":\"gpt-4o-mini\",\"type\":\"text\",\"input_price\":0.00015,\"output_price\":0.0006,\"price_unit\":\"per_1k_tokens\",\"currency\":\"USD\"}]",
+      "cancel": "Back",
+      "cancel_create": "Cancel",
+      "confirm": "Confirm"
+    },
       "messages": {
         "load_failed": "Failed to load model provider catalog",
         "load_defaults_failed": "Failed to load default model list",
         "defaults_loaded": "Built-in default model list loaded",
         "provider_required": "Provider id is required",
         "provider_exists": "This provider already exists, please edit it directly",
-        "save_failed": "Failed to save model provider catalog",
-        "save_success": "Model provider catalog saved",
-        "fetch_provider_required": "Please choose a provider first",
-        "fetch_key_required": "Please provide API key first, or save one in provider config",
-        "fetch_failed": "Failed to fetch models from provider API",
-        "fetch_success": "Models fetched and applied to catalog"
+      "save_failed": "Failed to save model provider catalog",
+      "save_success": "Model provider catalog saved",
+      "model_details_invalid": "Invalid model_details JSON format",
+      "fetch_provider_required": "Please choose a provider first",
+      "fetch_key_required": "Please provide API key first, or save one in provider config",
+      "fetch_failed": "Failed to fetch models from provider API",
+      "fetch_success": "Models fetched and applied to catalog"
       }
     },
     "edit": {
