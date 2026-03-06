@@ -791,6 +791,13 @@ const EditChannel = () => {
         const capabilityProfiles = normalizeCapabilityProfiles(
           data.capability_profiles
         );
+        const storedCapabilityResults = normalizeCapabilityResults(
+          data.capability_results
+        );
+        const storedCapabilityTestedAt =
+          Number(data.capability_last_tested_at || 0) > 0
+            ? Number(data.capability_last_tested_at) * 1000
+            : 0;
         if (data.model_mapping !== '') {
           data.model_mapping = JSON.stringify(
             JSON.parse(data.model_mapping),
@@ -822,6 +829,14 @@ const EditChannel = () => {
           delete parsedConfig.use_responses;
         }
         const normalizedProtocol = resolveProtocolFromChannelPayload(data);
+        const loadedCapabilitySignature = buildChannelCapabilitySignature({
+          protocol: normalizedProtocol,
+          key: '',
+          baseURL: data.base_url || '',
+          draftID: data.id || targetId,
+          models: selectedModels,
+          capabilityProfiles,
+        });
 
         if (forCopy) {
           setInputs({
@@ -837,6 +852,10 @@ const EditChannel = () => {
             models: selectedModels,
             capability_profiles: capabilityProfiles,
           });
+          setCapabilityResults([]);
+          setCapabilityTestError('');
+          setCapabilityTestedAt(0);
+          setCapabilityTestedSignature('');
         } else {
           setInputs({
             id: data.id,
@@ -856,6 +875,14 @@ const EditChannel = () => {
             weight: data.weight,
             priority: data.priority,
           });
+          setCapabilityResults(storedCapabilityResults);
+          setCapabilityTestError('');
+          setCapabilityTestedAt(storedCapabilityTestedAt);
+          setCapabilityTestedSignature(
+            storedCapabilityResults.length > 0 && storedCapabilityTestedAt > 0
+              ? loadedCapabilitySignature
+              : ''
+          );
         }
         const { options } = buildModelOptions(
           availableModels.length > 0 ? availableModels : selectedModels
@@ -1975,7 +2002,7 @@ const EditChannel = () => {
                             : 'red';
                         return (
                           <Table.Row
-                            key={`${item.capability}-${item.endpoint}`}
+                            key={`${item.capability}-${item.client_profile}-${item.endpoint}-${item.model}`}
                           >
                             <Table.Cell>{item.label}</Table.Cell>
                             <Table.Cell>{item.endpoint || '-'}</Table.Cell>

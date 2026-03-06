@@ -42,9 +42,12 @@ type Channel struct {
 	CompletionRatio            *string                        `json:"completion_ratio" gorm:"type:text;default:''"`
 	TestModel                  string                         `json:"test_model" gorm:"type:varchar(255);default:''"`
 	CapabilityProfiles         []ChannelCapabilityProfileRule `json:"capability_profiles,omitempty" gorm:"-"`
+	CapabilityResults          []ChannelCapabilityResult      `json:"capability_results,omitempty" gorm:"-"`
+	CapabilityLastTestedAt     int64                          `json:"capability_last_tested_at,omitempty" gorm:"-"`
 	KeySet                     bool                           `json:"key_set" gorm:"-"`
 	ModelsProvided             bool                           `json:"-" gorm:"-"`
 	CapabilityProfilesProvided bool                           `json:"-" gorm:"-"`
+	CapabilityResultsStale     bool                           `json:"-" gorm:"-"`
 }
 
 type ChannelConfig struct {
@@ -157,6 +160,14 @@ func (channel *Channel) SetCapabilityProfiles(rules []ChannelCapabilityProfileRu
 		return
 	}
 	channel.CapabilityProfiles = NormalizeChannelCapabilityProfileRules(rules)
+}
+
+func (channel *Channel) SetCapabilityResults(results []ChannelCapabilityResult) {
+	if channel == nil {
+		return
+	}
+	channel.CapabilityResults = NormalizeChannelCapabilityResultRows(results)
+	channel.CapabilityLastTestedAt = calcChannelCapabilityLastTestedAt(channel.CapabilityResults)
 }
 
 func (channel *Channel) CapabilityProfilesByCapability(capability string) []ChannelCapabilityProfileRule {

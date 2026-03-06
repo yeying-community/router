@@ -48,6 +48,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return runChannelCapabilityProfilesMigrationWithDB(tx)
 			},
 		},
+		{
+			Version:     "202603071700_add_channel_capability_results",
+			Description: "add channel capability result table",
+			Up: func(tx *gorm.DB) error {
+				return runChannelCapabilityResultsMigrationWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

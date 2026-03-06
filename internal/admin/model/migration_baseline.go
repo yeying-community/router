@@ -18,6 +18,7 @@ func runMainBaselineMigrationWithDB(tx *gorm.DB) error {
 		&Channel{},
 		&ChannelModel{},
 		&ChannelCapabilityProfile{},
+		&ChannelCapabilityResult{},
 		&Token{},
 		&Redemption{},
 		&Ability{},

@@ -425,7 +425,8 @@ const ChannelsTable = () => {
       const res = await API.get(
         `/api/v1/admin/channel/test/${encodeURIComponent(channelId)}?model=${encodeURIComponent(modelName)}`
       );
-      const { success: ok, message, time, model } = res.data || {};
+      const { success: ok, message, time, modelName: testedModelName } =
+        res.data || {};
       success = !!ok;
       responseTime = Number(time || 0) * 1000;
       if (success) {
@@ -433,7 +434,7 @@ const ChannelsTable = () => {
           showSuccess(
             t('channel.messages.test_success', {
               name: channel.name,
-              model,
+              model: testedModelName || channel.test_model || '-',
               time,
               message,
             })

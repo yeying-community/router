@@ -89,7 +89,7 @@
       "refresh": "Refresh"
     },
     "messages": {
-      "test_success": "Channel {{name}} test successful, model {{model}}, time {{time}}s, output: {{message}}",
+      "test_success": "Channel {{name}} test successful, model {{model}}, time {{time}}s, result: {{message}}",
       "test_all_started": "Channel testing started successfully, please refresh page to see results.",
       "batch_test_select_required": "Please select at least one channel first.",
       "batch_test_done": "Batch testing finished: {{success}} succeeded, {{failed}} failed.",

@@ -89,7 +89,7 @@
       "refresh": "刷新"
     },
     "messages": {
-      "test_success": "渠道 {{name}} 测试成功，模型 {{model}}，耗时 {{time}} 秒，模型输出：{{message}}",
+      "test_success": "渠道 {{name}} 测试成功，测试模型 {{model}}，耗时 {{time}} 秒，结果：{{message}}",
       "test_all_started": "已成功开始测试渠道，请刷新页面查看结果。",
       "batch_test_select_required": "请先选择至少一个渠道。",
       "batch_test_done": "批量测试完成：成功 {{success}}，失败 {{failed}}。",

@@ -75,6 +75,31 @@ const (
 	previewCapabilityStatusSkipped     = "skipped"
 )
 
+func persistPreviewCapabilityResults(channelID string, results []previewCapabilityResult) error {
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return nil
+	}
+	rows := make([]model.ChannelCapabilityResult, 0, len(results))
+	for idx, item := range results {
+		rows = append(rows, model.ChannelCapabilityResult{
+			ChannelId:     normalizedChannelID,
+			Capability:    strings.TrimSpace(item.Capability),
+			ClientProfile: model.NormalizeClientProfileName(item.ClientProfile),
+			Label:         strings.TrimSpace(item.Label),
+			Endpoint:      strings.TrimSpace(item.Endpoint),
+			Model:         strings.TrimSpace(item.Model),
+			UserAgent:     strings.TrimSpace(item.UserAgent),
+			Status:        model.NormalizeChannelCapabilityStatus(item.Status),
+			Supported:     item.Supported && item.Status == previewCapabilityStatusSupported,
+			Message:       strings.TrimSpace(item.Message),
+			LatencyMs:     item.LatencyMs,
+			SortOrder:     int64(idx),
+		})
+	}
+	return model.ReplaceChannelCapabilityResultsWithDB(model.DB, normalizedChannelID, rows)
+}
+
 func resolveModelsURL(baseURL string) string {
 	resolvedBaseURL := strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	lower := strings.ToLower(resolvedBaseURL)
@@ -253,6 +278,110 @@ func buildClientProfileDisplayNames(profiles []model.ClientProfile) map[string]s
 		result[name] = displayName
 	}
 	return result
+}
+
+func runChannelCapabilityTests(channel *model.Channel, userAgent string) ([]previewCapabilityResult, error) {
+	textModel, imageModel, audioModel := pickCapabilityModels(channel)
+	clientProfiles, err := model.ListEnabledClientProfilesWithDB(model.DB)
+	if err != nil {
+		return nil, fmt.Errorf("读取客户端画像失败: %w", err)
+	}
+	clientProfileNames := buildClientProfileDisplayNames(clientProfiles)
+	results := make([]previewCapabilityResult, 0, 4)
+
+	if strings.TrimSpace(textModel) == "" {
+		results = append(results, previewCapabilityResult{
+			Capability: "chat",
+			Label:      "Chat",
+			Endpoint:   "/v1/chat/completions",
+			Status:     previewCapabilityStatusSkipped,
+			Message:    "未找到可用于文本能力测试的模型",
+		})
+		results = append(results, previewCapabilityResult{
+			Capability: "responses",
+			Label:      "Responses",
+			Endpoint:   "/v1/responses",
+			Status:     previewCapabilityStatusSkipped,
+			Message:    "未找到可用于文本能力测试的模型",
+		})
+	} else {
+		latencyMs, message, execErr := executePreviewTextCapability(channel, "/v1/chat/completions", &relaymodel.GeneralOpenAIRequest{
+			Model: textModel,
+			Messages: []relaymodel.Message{{
+				Role:    "user",
+				Content: "Reply with pong.",
+			}},
+		}, userAgent)
+		results = append(results, buildPreviewCapabilityResult("chat", "Chat", "/v1/chat/completions", textModel, latencyMs, message, execErr))
+
+		responseRules := channel.CapabilityProfilesByCapability(model.ChannelCapabilityResponses)
+		if len(responseRules) == 0 {
+			results = append(results, previewCapabilityResult{
+				Capability: model.ChannelCapabilityResponses,
+				Label:      "Responses",
+				Endpoint:   "/v1/responses",
+				Model:      textModel,
+				Status:     previewCapabilityStatusSkipped,
+				Message:    "未选择 responses 客户端白名单，已跳过 responses 测试",
+			})
+		} else {
+			for _, rule := range responseRules {
+				resolvedUserAgent := channel.ResolveCapabilityUpstreamUserAgent(model.ChannelCapabilityResponses, rule.ClientProfile, clientProfiles, userAgent)
+				latencyMs, message, execErr = executePreviewTextCapability(channel, "/v1/responses", &relaymodel.GeneralOpenAIRequest{
+					Model: textModel,
+					Input: "Reply with pong.",
+				}, resolvedUserAgent)
+				label := "Responses"
+				if displayName := clientProfileNames[rule.ClientProfile]; displayName != "" {
+					label = "Responses / " + displayName
+				}
+				result := buildPreviewCapabilityResult("responses:"+rule.ClientProfile, label, "/v1/responses", textModel, latencyMs, message, execErr)
+				result.ClientProfile = rule.ClientProfile
+				result.UserAgent = resolvedUserAgent
+				if resolvedUserAgent != "" {
+					if strings.TrimSpace(result.Message) == "" {
+						result.Message = "User-Agent: " + resolvedUserAgent
+					} else {
+						result.Message = "User-Agent: " + resolvedUserAgent + " | " + result.Message
+					}
+				}
+				results = append(results, result)
+			}
+		}
+	}
+
+	if strings.TrimSpace(imageModel) == "" {
+		results = append(results, previewCapabilityResult{
+			Capability: "images",
+			Label:      "Images",
+			Endpoint:   "/v1/images/generations",
+			Status:     previewCapabilityStatusSkipped,
+			Message:    "未选择图片模型，已跳过图片能力测试",
+		})
+	} else {
+		latencyMs, message, execErr := executePreviewImageCapability(channel, imageModel, userAgent)
+		results = append(results, buildPreviewCapabilityResult("images", "Images", "/v1/images/generations", imageModel, latencyMs, message, execErr))
+	}
+
+	if strings.TrimSpace(audioModel) == "" {
+		results = append(results, previewCapabilityResult{
+			Capability: "audio",
+			Label:      "Audio",
+			Endpoint:   "/v1/audio/speech",
+			Status:     previewCapabilityStatusSkipped,
+			Message:    "未选择音频模型，已跳过音频能力测试",
+		})
+	} else {
+		latencyMs, message, execErr := executePreviewAudioCapability(channel, audioModel, userAgent)
+		result := buildPreviewCapabilityResult("audio", "Audio", "/v1/audio/speech", audioModel, latencyMs, message, execErr)
+		if execErr != nil && strings.Contains(strings.ToLower(execErr.Error()), "暂不自动探测") {
+			result.Status = previewCapabilityStatusSkipped
+			result.Message = execErr.Error()
+		}
+		results = append(results, result)
+	}
+
+	return results, nil
 }
 
 func pickCapabilityModels(channel *model.Channel) (string, string, string) {
@@ -582,6 +711,9 @@ func PreviewChannelModels(c *gin.Context) {
 			})
 			return
 		}
+		if err := model.DeleteChannelCapabilityResultsByChannelIDWithDB(model.DB, draftID); err != nil {
+			logger.SysWarnf("channel preview capability results reset failed: draft_id=%s err=%v", draftID, err)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -639,109 +771,24 @@ func PreviewChannelCapabilities(c *gin.Context) {
 		return
 	}
 
-	textModel, imageModel, audioModel := pickCapabilityModels(previewChannel)
 	userAgent := strings.TrimSpace(c.Request.UserAgent())
-	clientProfiles, err := model.ListEnabledClientProfilesWithDB(model.DB)
+	results, err := runChannelCapabilityTests(previewChannel, userAgent)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "读取客户端画像失败: " + err.Error(),
+			"message": err.Error(),
 		})
 		return
 	}
-	clientProfileNames := buildClientProfileDisplayNames(clientProfiles)
-	results := make([]previewCapabilityResult, 0, 4)
-
-	if strings.TrimSpace(textModel) == "" {
-		results = append(results, previewCapabilityResult{
-			Capability: "chat",
-			Label:      "Chat",
-			Endpoint:   "/v1/chat/completions",
-			Status:     previewCapabilityStatusSkipped,
-			Message:    "未找到可用于文本能力测试的模型",
-		})
-		results = append(results, previewCapabilityResult{
-			Capability: "responses",
-			Label:      "Responses",
-			Endpoint:   "/v1/responses",
-			Status:     previewCapabilityStatusSkipped,
-			Message:    "未找到可用于文本能力测试的模型",
-		})
-	} else {
-		latencyMs, message, execErr := executePreviewTextCapability(previewChannel, "/v1/chat/completions", &relaymodel.GeneralOpenAIRequest{
-			Model: textModel,
-			Messages: []relaymodel.Message{{
-				Role:    "user",
-				Content: "Reply with pong.",
-			}},
-		}, userAgent)
-		results = append(results, buildPreviewCapabilityResult("chat", "Chat", "/v1/chat/completions", textModel, latencyMs, message, execErr))
-
-		responseRules := previewChannel.CapabilityProfilesByCapability(model.ChannelCapabilityResponses)
-		if len(responseRules) == 0 {
-			results = append(results, previewCapabilityResult{
-				Capability: model.ChannelCapabilityResponses,
-				Label:      "Responses",
-				Endpoint:   "/v1/responses",
-				Model:      textModel,
-				Status:     previewCapabilityStatusSkipped,
-				Message:    "未选择 responses 客户端白名单，已跳过 responses 测试",
+	if draftID := strings.TrimSpace(req.DraftID); draftID != "" {
+		if err := persistPreviewCapabilityResults(draftID, results); err != nil {
+			logger.SysWarnf("channel preview capability results save failed: draft_id=%s err=%v", draftID, err)
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "保存能力测试结果失败",
 			})
-		} else {
-			for _, rule := range responseRules {
-				resolvedUserAgent := previewChannel.ResolveCapabilityUpstreamUserAgent(model.ChannelCapabilityResponses, rule.ClientProfile, clientProfiles, userAgent)
-				latencyMs, message, execErr = executePreviewTextCapability(previewChannel, "/v1/responses", &relaymodel.GeneralOpenAIRequest{
-					Model: textModel,
-					Input: "Reply with pong.",
-				}, resolvedUserAgent)
-				label := "Responses"
-				if displayName := clientProfileNames[rule.ClientProfile]; displayName != "" {
-					label = "Responses / " + displayName
-				}
-				result := buildPreviewCapabilityResult("responses:"+rule.ClientProfile, label, "/v1/responses", textModel, latencyMs, message, execErr)
-				result.ClientProfile = rule.ClientProfile
-				result.UserAgent = resolvedUserAgent
-				if resolvedUserAgent != "" {
-					if strings.TrimSpace(result.Message) == "" {
-						result.Message = "User-Agent: " + resolvedUserAgent
-					} else {
-						result.Message = "User-Agent: " + resolvedUserAgent + " | " + result.Message
-					}
-				}
-				results = append(results, result)
-			}
+			return
 		}
-	}
-
-	if strings.TrimSpace(imageModel) == "" {
-		results = append(results, previewCapabilityResult{
-			Capability: "images",
-			Label:      "Images",
-			Endpoint:   "/v1/images/generations",
-			Status:     previewCapabilityStatusSkipped,
-			Message:    "未选择图片模型，已跳过图片能力测试",
-		})
-	} else {
-		latencyMs, message, execErr := executePreviewImageCapability(previewChannel, imageModel, userAgent)
-		results = append(results, buildPreviewCapabilityResult("images", "Images", "/v1/images/generations", imageModel, latencyMs, message, execErr))
-	}
-
-	if strings.TrimSpace(audioModel) == "" {
-		results = append(results, previewCapabilityResult{
-			Capability: "audio",
-			Label:      "Audio",
-			Endpoint:   "/v1/audio/speech",
-			Status:     previewCapabilityStatusSkipped,
-			Message:    "未选择音频模型，已跳过音频能力测试",
-		})
-	} else {
-		latencyMs, message, execErr := executePreviewAudioCapability(previewChannel, audioModel, userAgent)
-		result := buildPreviewCapabilityResult("audio", "Audio", "/v1/audio/speech", audioModel, latencyMs, message, execErr)
-		if execErr != nil && strings.Contains(strings.ToLower(execErr.Error()), "暂不自动探测") {
-			result.Status = previewCapabilityStatusSkipped
-			result.Message = execErr.Error()
-		}
-		results = append(results, result)
 	}
 
 	logger.SysLogf("channel preview capabilities fetched: source=%s draft_id=%s base_url=%s results=%d", keySource, strings.TrimSpace(req.DraftID), previewChannel.GetBaseURL(), len(results))
