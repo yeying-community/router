@@ -55,6 +55,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return dropChannelCapabilityProfileTablesWithDB(tx)
 			},
 		},
+		{
+			Version:     "202603072130_simplify_channel_capability_results",
+			Description: "drop legacy client profile fields from channel capability results",
+			Up: func(tx *gorm.DB) error {
+				return simplifyChannelCapabilityResultsWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

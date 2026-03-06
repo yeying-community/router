@@ -458,8 +458,6 @@ const EditChannel = () => {
     }
     localInputs.models = (localInputs.models || []).join(',');
     const submitConfig = { ...config };
-    delete submitConfig.use_responses;
-    delete submitConfig.user_agent;
     localInputs.config = JSON.stringify(submitConfig);
     return localInputs;
   }, [buildEffectiveKey, config, inputs]);
@@ -743,7 +741,6 @@ const EditChannel = () => {
         let parsedConfig = {};
         if (data.config !== '') {
           parsedConfig = JSON.parse(data.config);
-          delete parsedConfig.use_responses;
         }
         const normalizedProtocol = resolveProtocolFromChannelPayload(data);
         const loadedCapabilitySignature = buildChannelCapabilitySignature({

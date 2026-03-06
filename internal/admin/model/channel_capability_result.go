@@ -18,19 +18,17 @@ const (
 )
 
 type ChannelCapabilityResult struct {
-	ChannelId     string `json:"channel_id,omitempty" gorm:"primaryKey;type:char(36);index"`
-	Capability    string `json:"capability" gorm:"primaryKey;type:varchar(128)"`
-	ClientProfile string `json:"client_profile,omitempty" gorm:"primaryKey;type:varchar(64)"`
-	Label         string `json:"label" gorm:"type:varchar(255)"`
-	Endpoint      string `json:"endpoint" gorm:"type:varchar(255)"`
-	Model         string `json:"model,omitempty" gorm:"type:varchar(255)"`
-	UserAgent     string `json:"user_agent,omitempty" gorm:"type:text"`
-	Status        string `json:"status" gorm:"type:varchar(32);index"`
-	Supported     bool   `json:"supported" gorm:"not null;default:false"`
-	Message       string `json:"message,omitempty" gorm:"type:text"`
-	LatencyMs     int64  `json:"latency_ms,omitempty" gorm:"bigint"`
-	SortOrder     int64  `json:"sort_order,omitempty" gorm:"bigint;default:0"`
-	TestedAt      int64  `json:"tested_at,omitempty" gorm:"bigint;index"`
+	ChannelId  string `json:"channel_id,omitempty" gorm:"primaryKey;type:char(36);index"`
+	Capability string `json:"capability" gorm:"primaryKey;type:varchar(128)"`
+	Label      string `json:"label" gorm:"type:varchar(255)"`
+	Endpoint   string `json:"endpoint" gorm:"type:varchar(255)"`
+	Model      string `json:"model,omitempty" gorm:"type:varchar(255)"`
+	Status     string `json:"status" gorm:"type:varchar(32);index"`
+	Supported  bool   `json:"supported" gorm:"not null;default:false"`
+	Message    string `json:"message,omitempty" gorm:"type:text"`
+	LatencyMs  int64  `json:"latency_ms,omitempty" gorm:"bigint"`
+	SortOrder  int64  `json:"sort_order,omitempty" gorm:"bigint;default:0"`
+	TestedAt   int64  `json:"tested_at,omitempty" gorm:"bigint;index"`
 }
 
 func (ChannelCapabilityResult) TableName() string {
@@ -48,52 +46,102 @@ func NormalizeChannelCapabilityStatus(status string) string {
 	}
 }
 
+func normalizeChannelCapabilityResultName(capability string) string {
+	normalized := strings.TrimSpace(strings.ToLower(capability))
+	switch {
+	case normalized == "":
+		return ""
+	case strings.HasPrefix(normalized, "responses:"):
+		return "responses"
+	default:
+		return normalized
+	}
+}
+
+func compareChannelCapabilityResultPriority(left ChannelCapabilityResult, right ChannelCapabilityResult) int {
+	leftStatus := NormalizeChannelCapabilityStatus(left.Status)
+	rightStatus := NormalizeChannelCapabilityStatus(right.Status)
+	leftRank := 2
+	rightRank := 2
+	if left.Supported || leftStatus == ChannelCapabilityStatusSupported {
+		leftRank = 0
+	} else if leftStatus == ChannelCapabilityStatusSkipped {
+		leftRank = 1
+	}
+	if right.Supported || rightStatus == ChannelCapabilityStatusSupported {
+		rightRank = 0
+	} else if rightStatus == ChannelCapabilityStatusSkipped {
+		rightRank = 1
+	}
+	if leftRank != rightRank {
+		if leftRank < rightRank {
+			return -1
+		}
+		return 1
+	}
+	if left.TestedAt != right.TestedAt {
+		if left.TestedAt > right.TestedAt {
+			return -1
+		}
+		return 1
+	}
+	if left.SortOrder != right.SortOrder {
+		if left.SortOrder < right.SortOrder {
+			return -1
+		}
+		return 1
+	}
+	return 0
+}
+
 func NormalizeChannelCapabilityResultRows(rows []ChannelCapabilityResult) []ChannelCapabilityResult {
 	if len(rows) == 0 {
 		return []ChannelCapabilityResult{}
 	}
 	normalized := make([]ChannelCapabilityResult, 0, len(rows))
-	seen := make(map[string]struct{}, len(rows))
+	indexByKey := make(map[string]int, len(rows))
 	for idx, row := range rows {
 		channelID := strings.TrimSpace(row.ChannelId)
-		capability := strings.TrimSpace(row.Capability)
-		clientProfile := strings.TrimSpace(strings.ToLower(row.ClientProfile))
+		capability := normalizeChannelCapabilityResultName(row.Capability)
 		if channelID == "" || capability == "" {
 			continue
 		}
-		key := channelID + "::" + capability + "::" + clientProfile
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
 		sortOrder := row.SortOrder
 		if sortOrder == 0 && idx > 0 {
 			sortOrder = int64(idx)
 		}
-		normalized = append(normalized, ChannelCapabilityResult{
-			ChannelId:     channelID,
-			Capability:    capability,
-			ClientProfile: clientProfile,
-			Label:         strings.TrimSpace(row.Label),
-			Endpoint:      strings.TrimSpace(row.Endpoint),
-			Model:         strings.TrimSpace(row.Model),
-			UserAgent:     strings.TrimSpace(row.UserAgent),
-			Status:        NormalizeChannelCapabilityStatus(row.Status),
-			Supported:     row.Supported && NormalizeChannelCapabilityStatus(row.Status) == ChannelCapabilityStatusSupported,
-			Message:       strings.TrimSpace(row.Message),
-			LatencyMs:     row.LatencyMs,
-			SortOrder:     sortOrder,
-			TestedAt:      row.TestedAt,
-		})
+		candidate := ChannelCapabilityResult{
+			ChannelId:  channelID,
+			Capability: capability,
+			Label:      strings.TrimSpace(row.Label),
+			Endpoint:   strings.TrimSpace(row.Endpoint),
+			Model:      strings.TrimSpace(row.Model),
+			Status:     NormalizeChannelCapabilityStatus(row.Status),
+			Supported:  row.Supported && NormalizeChannelCapabilityStatus(row.Status) == ChannelCapabilityStatusSupported,
+			Message:    strings.TrimSpace(row.Message),
+			LatencyMs:  row.LatencyMs,
+			SortOrder:  sortOrder,
+			TestedAt:   row.TestedAt,
+		}
+		if candidate.Capability == "responses" {
+			candidate.Label = "Responses"
+			candidate.Endpoint = "/v1/responses"
+		}
+		key := channelID + "::" + capability
+		if existingIdx, ok := indexByKey[key]; ok {
+			if compareChannelCapabilityResultPriority(candidate, normalized[existingIdx]) < 0 {
+				normalized[existingIdx] = candidate
+			}
+			continue
+		}
+		indexByKey[key] = len(normalized)
+		normalized = append(normalized, candidate)
 	}
 	sort.SliceStable(normalized, func(i, j int) bool {
 		if normalized[i].SortOrder != normalized[j].SortOrder {
 			return normalized[i].SortOrder < normalized[j].SortOrder
 		}
-		if normalized[i].Capability != normalized[j].Capability {
-			return normalized[i].Capability < normalized[j].Capability
-		}
-		return normalized[i].ClientProfile < normalized[j].ClientProfile
+		return normalized[i].Capability < normalized[j].Capability
 	})
 	return normalized
 }
@@ -190,7 +238,7 @@ func loadChannelCapabilityResultRowsByChannelIDs(db *gorm.DB, channelIDs []strin
 	}
 	rows := make([]ChannelCapabilityResult, 0)
 	if err := db.Where("channel_id IN ?", normalizedIDs).
-		Order("channel_id asc, sort_order asc, capability asc, client_profile asc").
+		Order("channel_id asc, sort_order asc, capability asc").
 		Find(&rows).Error; err != nil {
 		return nil, err
 	}
