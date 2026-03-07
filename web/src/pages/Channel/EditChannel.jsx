@@ -574,7 +574,6 @@ const EditChannel = () => {
   const fetchModelsButtonText = t('channel.edit.buttons.fetch_models');
   const inputReadonlyProps = isDetailMode ? { readOnly: true } : {};
   const textAreaReadonlyProps = isDetailMode ? { readOnly: true } : {};
-  const selectDisabledProps = isDetailMode ? { disabled: true } : {};
   const visibleModelConfigs = useMemo(
     () => normalizeChannelModelConfigs(inputs.model_configs),
     [inputs.model_configs],
@@ -587,6 +586,130 @@ const EditChannel = () => {
   const handleConfigChange = (e, { name, value }) => {
     setConfig((inputs) => ({ ...inputs, [name]: value }));
   };
+
+  const baseURLField = useMemo(() => {
+    if (inputs.protocol === 'azure') {
+      return (
+        <Form.Field>
+          <Form.Input
+            label={t('channel.edit.base_url')}
+            name='base_url'
+            placeholder='请输入 AZURE_OPENAI_ENDPOINT，例如：https://docs-test-001.openai.azure.com'
+            onChange={handleInputChange}
+            value={inputs.base_url}
+            autoComplete='new-password'
+            {...inputReadonlyProps}
+          />
+        </Form.Field>
+      );
+    }
+    if (inputs.protocol === 'custom') {
+      return (
+        <Form.Field>
+          <Form.Input
+            required
+            label={t('channel.edit.proxy_url')}
+            name='base_url'
+            placeholder={t('channel.edit.proxy_url_placeholder')}
+            onChange={handleInputChange}
+            value={inputs.base_url}
+            autoComplete='new-password'
+            {...inputReadonlyProps}
+          />
+        </Form.Field>
+      );
+    }
+    if (inputs.protocol === 'openai') {
+      return (
+        <Form.Field>
+          <Form.Input
+            label={t('channel.edit.base_url')}
+            name='base_url'
+            placeholder={t('channel.edit.base_url_placeholder')}
+            onChange={handleInputChange}
+            value={inputs.base_url}
+            autoComplete='new-password'
+            {...inputReadonlyProps}
+          />
+        </Form.Field>
+      );
+    }
+    if (inputs.protocol === 'fastgpt') {
+      return (
+        <Form.Field>
+          <Form.Input
+            label={t('channel.edit.base_url')}
+            name='base_url'
+            placeholder={
+              '请输入私有部署地址，格式为：https://fastgpt.run' +
+              '/api' +
+              '/openapi'
+            }
+            onChange={handleInputChange}
+            value={inputs.base_url}
+            autoComplete='new-password'
+            {...inputReadonlyProps}
+          />
+        </Form.Field>
+      );
+    }
+    if (inputs.protocol !== 'awsclaude') {
+      return (
+        <Form.Field>
+          <Form.Input
+            label={t('channel.edit.proxy_url')}
+            name='base_url'
+            placeholder={t('channel.edit.proxy_url_placeholder')}
+            onChange={handleInputChange}
+            value={inputs.base_url}
+            autoComplete='new-password'
+            {...inputReadonlyProps}
+          />
+        </Form.Field>
+      );
+    }
+    return null;
+  }, [
+    handleInputChange,
+    inputReadonlyProps,
+    inputs.base_url,
+    inputs.protocol,
+    t,
+  ]);
+
+  const keyField = useMemo(() => {
+    if (inputs.protocol === 'awsclaude' || inputs.protocol === 'vertexai') {
+      return null;
+    }
+    return (
+      <Form.Field>
+        <Form.Input
+          label={t('channel.edit.key')}
+          name='key'
+          type='password'
+          required={isCreateMode && !canReuseStoredKeyForCreate}
+          placeholder={
+            channelKeySet && (inputs.key || '').trim() === ''
+              ? '********'
+              : protocol2secretPrompt(inputs.protocol, t)
+          }
+          onChange={handleInputChange}
+          value={inputs.key}
+          autoComplete='new-password'
+          {...inputReadonlyProps}
+        />
+      </Form.Field>
+    );
+  }, [
+    canReuseStoredKeyForCreate,
+    channelKeySet,
+    handleInputChange,
+    inputReadonlyProps,
+    inputs.key,
+    inputs.protocol,
+    isCreateMode,
+    t,
+  ]);
 
   const clearCreateDraft = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -1616,132 +1739,49 @@ const EditChannel = () => {
             )}
             {showStepOne && (
               <>
-                <Form.Field>
-                  <Form.Input
-                    label={t('channel.edit.name')}
-                    name='name'
-                    placeholder={t('channel.edit.name_placeholder')}
-                    onChange={handleInputChange}
-                    value={inputs.name}
-                    readOnly={isDetailMode}
-                    required
-                  />
-                </Form.Field>
-                <Form.Field>
-                  {isDetailMode ? (
+                <Form.Group widths='equal'>
+                  <Form.Field>
                     <Form.Input
-                      label={t('channel.edit.type')}
-                      value={currentProtocolOption?.text || inputs.protocol || '-'}
-                      readOnly
-                    />
-                  ) : (
-                    <Form.Select
-                      label={t('channel.edit.type')}
-                      name='protocol'
+                      label={t('channel.edit.name')}
+                      name='name'
+                      placeholder={t('channel.edit.name_placeholder')}
+                      onChange={handleInputChange}
+                      value={inputs.name}
+                      readOnly={isDetailMode}
                       required
-                      search
-                      options={channelProtocolOptions}
-                      value={inputs.protocol}
-                      onChange={handleInputChange}
-                      {...selectDisabledProps}
-                    />
-                  )}
-                </Form.Field>
-                {inputs.protocol === 'azure' && (
-                  <Form.Field>
-                    <Form.Input
-                      label='AZURE_OPENAI_ENDPOINT'
-                      name='base_url'
-                      placeholder='请输入 AZURE_OPENAI_ENDPOINT，例如：https://docs-test-001.openai.azure.com'
-                      onChange={handleInputChange}
-                      value={inputs.base_url}
-                      autoComplete='new-password'
-                      {...inputReadonlyProps}
                     />
                   </Form.Field>
-                )}
-                {inputs.protocol === 'custom' && (
                   <Form.Field>
-                    <Form.Input
-                      required
-                      label={t('channel.edit.proxy_url')}
-                      name='base_url'
-                      placeholder={t('channel.edit.proxy_url_placeholder')}
-                      onChange={handleInputChange}
-                      value={inputs.base_url}
-                      autoComplete='new-password'
-                      {...inputReadonlyProps}
-                    />
-                  </Form.Field>
-                )}
-                {inputs.protocol === 'openai' && (
-                  <Form.Field>
-                    <Form.Input
-                      label={t('channel.edit.base_url')}
-                      name='base_url'
-                      placeholder={t('channel.edit.base_url_placeholder')}
-                      onChange={handleInputChange}
-                      value={inputs.base_url}
-                      autoComplete='new-password'
-                      {...inputReadonlyProps}
-                    />
-                  </Form.Field>
-                )}
-                {inputs.protocol === 'fastgpt' && (
-                  <Form.Field>
-                    <Form.Input
-                      label='私有部署地址'
-                      name='base_url'
-                      placeholder={
-                        '请输入私有部署地址，格式为：https://fastgpt.run' +
-                        '/api' +
-                        '/openapi'
-                      }
-                      onChange={handleInputChange}
-                      value={inputs.base_url}
-                      autoComplete='new-password'
-                      {...inputReadonlyProps}
-                    />
-                  </Form.Field>
-                )}
-                {inputs.protocol !== 'azure' &&
-                  inputs.protocol !== 'awsclaude' &&
-                  inputs.protocol !== 'custom' &&
-                  inputs.protocol !== 'openai' &&
-                  inputs.protocol !== 'fastgpt' && (
-                    <Form.Field>
+                    {isDetailMode ? (
                       <Form.Input
-                        label={t('channel.edit.proxy_url')}
-                        name='base_url'
-                        placeholder={t('channel.edit.proxy_url_placeholder')}
-                        onChange={handleInputChange}
-                        value={inputs.base_url}
-                        autoComplete='new-password'
-                        {...inputReadonlyProps}
+                        label={t('channel.edit.type')}
+                        value={currentProtocolOption?.text || inputs.protocol || '-'}
+                        readOnly
                       />
-                    </Form.Field>
-                  )}
-
-                {inputs.protocol !== 'awsclaude' &&
-                  inputs.protocol !== 'vertexai' && (
-                    <Form.Field>
-                      <Form.Input
-                        label={t('channel.edit.key')}
-                        name='key'
-                        type='password'
-                        required={isCreateMode && !canReuseStoredKeyForCreate}
-                        placeholder={
-                          channelKeySet && (inputs.key || '').trim() === ''
-                            ? '********'
-                            : protocol2secretPrompt(inputs.protocol, t)
-                        }
+                    ) : (
+                      <Form.Select
+                        label={t('channel.edit.type')}
+                        name='protocol'
+                        required
+                        search
+                        options={channelProtocolOptions}
+                        value={inputs.protocol}
                         onChange={handleInputChange}
-                        value={inputs.key}
-                        autoComplete='new-password'
-                        {...inputReadonlyProps}
                       />
-                    </Form.Field>
-                  )}
+                    )}
+                  </Form.Field>
+                </Form.Group>
+                {baseURLField && keyField ? (
+                  <Form.Group widths='equal'>
+                    {baseURLField}
+                    {keyField}
+                  </Form.Group>
+                ) : (
+                  <>
+                    {baseURLField}
+                    {keyField}
+                  </>
+                )}
                 {/* Azure OpenAI specific fields */}
                 {inputs.protocol === 'azure' && (
                   <>
