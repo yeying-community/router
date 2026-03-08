@@ -1,13 +1,17 @@
 package model
 
-import "context"
+import (
+	"context"
+	"strings"
+)
 
 type Ability struct {
-	Group     string `json:"group" gorm:"type:varchar(32);primaryKey;autoIncrement:false"`
-	Model     string `json:"model" gorm:"primaryKey;autoIncrement:false"`
-	ChannelId string `json:"channel_id" gorm:"type:varchar(64);primaryKey;autoIncrement:false;index"`
-	Enabled   bool   `json:"enabled"`
-	Priority  *int64 `json:"priority" gorm:"bigint;default:0;index"`
+	Group         string `json:"group" gorm:"type:varchar(32);primaryKey;autoIncrement:false"`
+	Model         string `json:"model" gorm:"primaryKey;autoIncrement:false"`
+	ChannelId     string `json:"channel_id" gorm:"type:varchar(64);primaryKey;autoIncrement:false;index"`
+	UpstreamModel string `json:"upstream_model" gorm:"type:varchar(255);default:'';index"`
+	Enabled       bool   `json:"enabled"`
+	Priority      *int64 `json:"priority" gorm:"bigint;default:0;index"`
 }
 
 const (
@@ -52,4 +56,12 @@ func GetTopChannelByModel(group string, model string) (*Channel, error) {
 
 func GetGroupModels(ctx context.Context, group string) ([]string, error) {
 	return mustAbilityRepo().GetGroupModels(ctx, group)
+}
+
+func NormalizeAbilityUpstreamModel(modelName string, upstreamModel string) string {
+	upstream := strings.TrimSpace(upstreamModel)
+	if upstream != "" {
+		return upstream
+	}
+	return strings.TrimSpace(modelName)
 }

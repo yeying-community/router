@@ -166,6 +166,7 @@ func CacheGetGroupModels(ctx context.Context, group string) ([]string, error) {
 }
 
 var group2model2channels map[string]map[string][]*Channel
+var group2model2channel2upstream map[string]map[string]map[string]string
 var channelSyncLock sync.RWMutex
 
 func InitChannelCache() {
@@ -185,8 +186,10 @@ func InitChannelCache() {
 		groups[groupName] = true
 	}
 	newGroup2model2channels := make(map[string]map[string][]*Channel)
+	newGroup2model2channel2upstream := make(map[string]map[string]map[string]string)
 	for group := range groups {
 		newGroup2model2channels[group] = make(map[string][]*Channel)
+		newGroup2model2channel2upstream[group] = make(map[string]map[string]string)
 	}
 	channelByID := make(map[string]*Channel, len(channels))
 	for _, channel := range channels {
@@ -212,7 +215,11 @@ func InitChannelCache() {
 		if _, ok := newGroup2model2channels[groupName][modelName]; !ok {
 			newGroup2model2channels[groupName][modelName] = make([]*Channel, 0)
 		}
+		if _, ok := newGroup2model2channel2upstream[groupName][modelName]; !ok {
+			newGroup2model2channel2upstream[groupName][modelName] = make(map[string]string)
+		}
 		newGroup2model2channels[groupName][modelName] = append(newGroup2model2channels[groupName][modelName], channel)
+		newGroup2model2channel2upstream[groupName][modelName][channelID] = NormalizeAbilityUpstreamModel(modelName, ability.UpstreamModel)
 	}
 
 	// sort by priority
@@ -227,6 +234,7 @@ func InitChannelCache() {
 
 	channelSyncLock.Lock()
 	group2model2channels = newGroup2model2channels
+	group2model2channel2upstream = newGroup2model2channel2upstream
 	channelSyncLock.Unlock()
 	logger.SysLog("channels synced from database")
 }
@@ -244,6 +252,54 @@ func CacheListSatisfiedChannels(group string, model string) ([]*Channel, error) 
 	result := make([]*Channel, 0, len(channels))
 	result = append(result, channels...)
 	return result, nil
+}
+
+func CacheGetGroupModelMapping(group string, modelName string, channelID string) map[string]string {
+	group = strings.TrimSpace(group)
+	modelName = strings.TrimSpace(modelName)
+	channelID = strings.TrimSpace(channelID)
+	if group == "" || modelName == "" || channelID == "" {
+		return nil
+	}
+
+	upstreamModel := ""
+	if config.MemoryCacheEnabled {
+		channelSyncLock.RLock()
+		if groupModels, ok := group2model2channel2upstream[group]; ok {
+			if channelMappings, ok := groupModels[modelName]; ok {
+				upstreamModel = strings.TrimSpace(channelMappings[channelID])
+			}
+		}
+		channelSyncLock.RUnlock()
+	} else {
+		groupCol := `"group"`
+		record := Ability{}
+		if err := DB.Where(groupCol+" = ? AND model = ? AND channel_id = ?", group, modelName, channelID).Take(&record).Error; err == nil {
+			upstreamModel = NormalizeAbilityUpstreamModel(modelName, record.UpstreamModel)
+		}
+	}
+
+	upstreamModel = strings.TrimSpace(upstreamModel)
+	if upstreamModel == "" || upstreamModel == modelName {
+		return nil
+	}
+	return map[string]string{
+		modelName: upstreamModel,
+	}
+}
+
+func RefreshAbilityCachesForGroups(groupIDs ...string) {
+	for _, groupID := range normalizeTrimmedValuesPreserveOrder(groupIDs) {
+		if groupID == "" || !common.RedisEnabled {
+			continue
+		}
+		if err := common.RedisDel(fmt.Sprintf("group_models:%s", groupID)); err != nil {
+			logger.SysError("Redis delete group models error: " + err.Error())
+		}
+	}
+	if config.MemoryCacheEnabled {
+		InitChannelCache()
+	}
 }
 
 func SyncChannelCache(frequency int) {

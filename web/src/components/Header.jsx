@@ -34,7 +34,7 @@ const ADMIN_HEADER_BUTTONS = [
   {
     name: 'header.group',
     to: '/admin/group',
-    icon: 'layer group',
+    icon: 'group',
   },
   {
     name: 'header.user',

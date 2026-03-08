@@ -96,7 +96,18 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 		c.Set(ctxkey.SystemPrompt, *channel.SystemPrompt)
 	}
 	c.Set(ctxkey.ChannelModelConfigs, channel.GetSelectedModelConfigs())
-	c.Set(ctxkey.ModelMapping, channel.GetModelMapping())
+	mapping := channel.GetModelMapping()
+	if groupID := c.GetString(ctxkey.Group); groupID != "" {
+		if override := model.CacheGetGroupModelMapping(groupID, modelName, channel.Id); len(override) > 0 {
+			if mapping == nil {
+				mapping = make(map[string]string, len(override))
+			}
+			for key, value := range override {
+				mapping[key] = value
+			}
+		}
+	}
+	c.Set(ctxkey.ModelMapping, mapping)
 	c.Set(ctxkey.OriginalModel, modelName) // for retry
 	c.Request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", channel.Key))
 	c.Set(ctxkey.BaseURL, channel.GetBaseURL())

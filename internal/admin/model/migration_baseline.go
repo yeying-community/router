@@ -40,6 +40,9 @@ func runMainBaselineMigrationWithDB(tx *gorm.DB) error {
 	if err := syncModelProviderCatalogWithDB(tx); err != nil {
 		return err
 	}
+	if err := syncAbilityUpstreamModelsWithDB(tx); err != nil {
+		return err
+	}
 	return syncChannelTestModelsWithDB(tx)
 }
 
@@ -86,4 +89,11 @@ func syncChannelTestModelsWithDB(db *gorm.DB) error {
 		}
 	}
 	return nil
+}
+
+func syncAbilityUpstreamModelsWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	return db.Exec(`UPDATE group_model_channels SET upstream_model = model WHERE COALESCE(upstream_model, '') = ''`).Error
 }

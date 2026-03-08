@@ -11,13 +11,14 @@ import (
 )
 
 type upsertGroupRequest struct {
-	Id           string   `json:"id"`
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	BillingRatio *float64 `json:"billing_ratio"`
-	Enabled      *bool    `json:"enabled"`
-	SortOrder    int      `json:"sort_order"`
-	ChannelIDs   []string `json:"channel_ids"`
+	Id           string                       `json:"id"`
+	Name         string                       `json:"name"`
+	Description  string                       `json:"description"`
+	BillingRatio *float64                     `json:"billing_ratio"`
+	Enabled      *bool                        `json:"enabled"`
+	SortOrder    int                          `json:"sort_order"`
+	ChannelIDs   []string                     `json:"channel_ids"`
+	ModelConfigs []model.GroupModelConfigItem `json:"model_configs"`
 }
 
 type updateGroupChannelsRequest struct {
@@ -98,13 +99,19 @@ func CreateGroup(c *gin.Context) {
 		})
 		return
 	}
-	row, err := groupsvc.CreateWithChannelBindings(model.GroupCatalog{
+	createItem := model.GroupCatalog{
 		Id:           strings.TrimSpace(req.Id),
 		Name:         strings.TrimSpace(req.Name),
 		Description:  strings.TrimSpace(req.Description),
 		Source:       "manual",
 		BillingRatio: billingRatio,
-	}, req.ChannelIDs)
+	}
+	row := model.GroupCatalog{}
+	if req.ModelConfigs != nil {
+		row, err = groupsvc.CreateWithConfig(createItem, req.ChannelIDs, req.ModelConfigs)
+	} else {
+		row, err = groupsvc.CreateWithChannelBindings(createItem, req.ChannelIDs)
+	}
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -168,7 +175,9 @@ func UpdateGroup(c *gin.Context) {
 		SortOrder:    req.SortOrder,
 	}
 	row := model.GroupCatalog{}
-	if req.ChannelIDs != nil {
+	if req.ModelConfigs != nil {
+		row, err = groupsvc.UpdateWithConfig(item, req.ChannelIDs, req.ModelConfigs, req.ChannelIDs != nil, true)
+	} else if req.ChannelIDs != nil {
 		row, err = groupsvc.UpdateWithChannelBindings(item, req.ChannelIDs)
 	} else {
 		row, err = groupsvc.Update(item)
@@ -301,6 +310,85 @@ func GetGroupModels(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data":    rows,
+	})
+}
+
+// GetGroupModelConfigs godoc
+// @Summary List group model configs (admin)
+// @Tags admin
+// @Security BearerAuth
+// @Produce json
+// @Param id path string true "Group ID"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/admin/group/{id}/model-configs [get]
+func GetGroupModelConfigs(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "分组标识不能为空",
+		})
+		return
+	}
+	payload, err := groupsvc.GetModelConfigPayload(id)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    payload,
+	})
+}
+
+type updateGroupModelConfigsRequest struct {
+	ChannelIDs   []string                     `json:"channel_ids"`
+	ModelConfigs []model.GroupModelConfigItem `json:"model_configs"`
+}
+
+// UpdateGroupModelConfigs godoc
+// @Summary Update group model configs (admin)
+// @Tags admin
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Group ID"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/admin/group/{id}/model-configs [put]
+func UpdateGroupModelConfigs(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "分组标识不能为空",
+		})
+		return
+	}
+
+	req := updateGroupModelConfigsRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	if err := groupsvc.ReplaceModelConfigs(id, req.ChannelIDs, req.ModelConfigs, req.ChannelIDs != nil); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
 	})
 }
 

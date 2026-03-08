@@ -138,22 +138,27 @@ func replaceGroupChannelBindingsWithDB(db *gorm.DB, groupID string, channelIDs [
 		}
 	}
 
+	groupCol := `"group"`
+	existing := make([]Ability, 0)
+	if err := db.Where(groupCol+" = ?", groupID).Find(&existing).Error; err != nil {
+		return err
+	}
+	existingByChannelID := make(map[string][]Ability, len(existing))
+	for _, item := range existing {
+		channelID := strings.TrimSpace(item.ChannelId)
+		if channelID == "" {
+			continue
+		}
+		existingByChannelID[channelID] = append(existingByChannelID[channelID], item)
+	}
+
 	abilities := make([]Ability, 0)
 	for _, id := range normalizedChannelIDs {
 		channel := channelsByID[id]
-		models := normalizeModelNames(channel.SelectedModelIDs())
-		for _, modelName := range models {
-			abilities = append(abilities, Ability{
-				Group:     groupID,
-				Model:     modelName,
-				ChannelId: channel.Id,
-				Enabled:   channel.Status == ChannelStatusEnabled,
-				Priority:  channel.Priority,
-			})
-		}
+		channelAbilities := SyncGroupAbilitiesForChannel(groupID, &channel, existingByChannelID[id])
+		abilities = append(abilities, channelAbilities...)
 	}
 
-	groupCol := `"group"`
 	if err := db.Where(groupCol+" = ?", groupID).Delete(&Ability{}).Error; err != nil {
 		return err
 	}
@@ -202,5 +207,76 @@ func normalizeModelNames(models []string) []string {
 		result = append(result, normalized)
 	}
 	sort.Strings(result)
+	return result
+}
+
+func SyncGroupAbilitiesForChannel(groupID string, channel *Channel, existing []Ability) []Ability {
+	if channel == nil {
+		return nil
+	}
+	selectedConfigs := channelSelectedModelConfigs(channel)
+	if len(existing) == 0 {
+		return buildDefaultAbilitiesForGroupChannel(groupID, channel)
+	}
+
+	selectedUpstreamSet := make(map[string]struct{}, len(selectedConfigs))
+	defaultByUpstream := make(map[string]Ability, len(selectedConfigs))
+	for _, row := range selectedConfigs {
+		upstream := NormalizeAbilityUpstreamModel(row.Model, row.UpstreamModel)
+		if upstream == "" {
+			continue
+		}
+		selectedUpstreamSet[upstream] = struct{}{}
+		if _, ok := defaultByUpstream[upstream]; ok {
+			continue
+		}
+		defaultByUpstream[upstream] = Ability{
+			Group:         strings.TrimSpace(groupID),
+			Model:         strings.TrimSpace(row.Model),
+			ChannelId:     strings.TrimSpace(channel.Id),
+			UpstreamModel: upstream,
+			Enabled:       channel.Status == ChannelStatusEnabled,
+			Priority:      channel.Priority,
+		}
+	}
+
+	result := make([]Ability, 0, len(existing)+len(defaultByUpstream))
+	existingUpstreamSet := make(map[string]struct{}, len(existing))
+	seenAbilityKeys := make(map[string]struct{}, len(existing))
+	for _, item := range existing {
+		modelName := strings.TrimSpace(item.Model)
+		channelID := strings.TrimSpace(item.ChannelId)
+		upstream := NormalizeAbilityUpstreamModel(modelName, item.UpstreamModel)
+		if modelName == "" || channelID == "" || upstream == "" {
+			continue
+		}
+		if _, ok := selectedUpstreamSet[upstream]; !ok {
+			continue
+		}
+		key := modelName + "::" + channelID
+		if _, ok := seenAbilityKeys[key]; ok {
+			continue
+		}
+		seenAbilityKeys[key] = struct{}{}
+		existingUpstreamSet[upstream] = struct{}{}
+		item.Group = strings.TrimSpace(groupID)
+		item.ChannelId = channelID
+		item.Model = modelName
+		item.UpstreamModel = upstream
+		item.Enabled = channel.Status == ChannelStatusEnabled
+		item.Priority = channel.Priority
+		result = append(result, item)
+	}
+	for upstream, ability := range defaultByUpstream {
+		if _, ok := existingUpstreamSet[upstream]; ok {
+			continue
+		}
+		key := ability.Model + "::" + ability.ChannelId
+		if _, ok := seenAbilityKeys[key]; ok {
+			continue
+		}
+		seenAbilityKeys[key] = struct{}{}
+		result = append(result, ability)
+	}
 	return result
 }

@@ -63,6 +63,7 @@ func CreateGroupCatalogWithChannelBindings(item GroupCatalog, channelIDs []strin
 	if err := syncGroupBillingRatiosRuntimeWithDB(DB); err != nil {
 		return GroupCatalog{}, err
 	}
+	RefreshAbilityCachesForGroups(row.Id)
 	return row, nil
 }
 
@@ -95,6 +96,7 @@ func UpdateGroupCatalogWithChannelBindings(item GroupCatalog, channelIDs []strin
 	if err := syncGroupBillingRatiosRuntimeWithDB(DB); err != nil {
 		return GroupCatalog{}, err
 	}
+	RefreshAbilityCachesForGroups(row.Id)
 	return row, nil
 }
 
@@ -102,7 +104,62 @@ func DeleteGroupCatalog(id string) error {
 	if err := deleteGroupCatalogWithDB(DB, id); err != nil {
 		return err
 	}
+	RefreshAbilityCachesForGroups(id)
 	return syncGroupBillingRatiosRuntimeWithDB(DB)
+}
+
+func CreateGroupCatalogWithConfig(item GroupCatalog, channelIDs []string, modelConfigs []GroupModelConfigItem) (GroupCatalog, error) {
+	row := GroupCatalog{}
+	if err := DB.Transaction(func(tx *gorm.DB) error {
+		created, err := createGroupCatalogWithDB(tx, item)
+		if err != nil {
+			return err
+		}
+		row = created
+		explicitChannels := channelIDs != nil
+		explicitModels := modelConfigs != nil
+		switch {
+		case explicitModels:
+			return replaceGroupModelConfigsWithDB(tx, created.Id, channelIDs, modelConfigs, explicitChannels)
+		case explicitChannels:
+			return replaceGroupChannelBindingsWithDB(tx, created.Id, channelIDs)
+		default:
+			return nil
+		}
+	}); err != nil {
+		return GroupCatalog{}, err
+	}
+	if err := syncGroupBillingRatiosRuntimeWithDB(DB); err != nil {
+		return GroupCatalog{}, err
+	}
+	RefreshAbilityCachesForGroups(row.Id)
+	return row, nil
+}
+
+func UpdateGroupCatalogWithConfig(item GroupCatalog, channelIDs []string, modelConfigs []GroupModelConfigItem, updateChannels bool, updateModels bool) (GroupCatalog, error) {
+	row := GroupCatalog{}
+	if err := DB.Transaction(func(tx *gorm.DB) error {
+		updated, err := updateGroupCatalogWithDB(tx, item)
+		if err != nil {
+			return err
+		}
+		row = updated
+		switch {
+		case updateModels:
+			return replaceGroupModelConfigsWithDB(tx, updated.Id, channelIDs, modelConfigs, updateChannels)
+		case updateChannels:
+			return replaceGroupChannelBindingsWithDB(tx, updated.Id, channelIDs)
+		default:
+			return nil
+		}
+	}); err != nil {
+		return GroupCatalog{}, err
+	}
+	if err := syncGroupBillingRatiosRuntimeWithDB(DB); err != nil {
+		return GroupCatalog{}, err
+	}
+	RefreshAbilityCachesForGroups(row.Id)
+	return row, nil
 }
 
 func listGroupCatalogWithDB(db *gorm.DB) ([]GroupCatalog, error) {

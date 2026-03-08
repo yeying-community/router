@@ -240,7 +240,9 @@ func SetApiRouter(engine *gin.Engine) {
 			adminGroupRoute.DELETE("/:id", group.DeleteGroup)
 			adminGroupRoute.GET("/:id/channels", group.GetGroupChannels)
 			adminGroupRoute.GET("/:id/models", group.GetGroupModels)
+			adminGroupRoute.GET("/:id/model-configs", group.GetGroupModelConfigs)
 			adminGroupRoute.PUT("/:id/channels", group.UpdateGroupChannels)
+			adminGroupRoute.PUT("/:id/model-configs", group.UpdateGroupModelConfigs)
 		}
 
 		adminProviderRoute := adminRouter.Group("/provider")

@@ -353,6 +353,7 @@
     },
     "buttons": {
       "add": "新增分组",
+      "add_model": "新增模型",
       "back": "返回",
       "refresh": "刷新",
       "edit": "编辑",
@@ -372,11 +373,24 @@
     },
     "detail": {
       "model": "模型",
+      "channel_count": "渠道数",
       "model_channels": "渠道",
+      "model_search_placeholder": "搜索模型或渠道",
       "supported_models": "支持模型",
       "empty_models": "暂无支持模型",
       "bound_channels": "已绑定渠道",
       "empty_channels": "暂无绑定渠道"
+    },
+    "edit": {
+      "model_configs": "分组模型映射",
+      "model": "分组模型",
+      "channel": "渠道",
+      "upstream_model": "渠道模型",
+      "model_placeholder": "输入分组对外展示的模型名",
+      "channel_placeholder": "选择承载该模型的渠道",
+      "upstream_model_placeholder": "选择该渠道实际调用的模型",
+      "model_search_placeholder": "搜索分组模型、渠道或上游模型",
+      "empty_model_configs": "暂无分组模型配置"
     },
     "messages": {
       "loading": "加载中...",
@@ -386,6 +400,9 @@
       "load_failed": "加载分组失败",
       "bind_load_failed": "加载分组渠道失败",
       "model_load_failed": "加载分组模型失败",
+      "model_config_load_failed": "加载分组模型配置失败",
+      "model_config_incomplete": "请先完善分组模型配置后再提交",
+      "model_config_duplicate": "同一分组模型下的渠道不能重复",
       "create_success": "分组创建成功",
       "create_failed": "分组创建失败",
       "update_success": "分组更新成功",

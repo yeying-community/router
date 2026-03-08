@@ -16,6 +16,12 @@ const createEmptyForm = () => ({
   sort_order: 0,
 });
 
+const createEmptyModelConfig = () => ({
+  model: '',
+  channel_id: '',
+  upstream_model: '',
+});
+
 const sortCatalogRows = (items) =>
   [...items].sort((a, b) => {
     const aOrder = Number(a.sort_order || 0);
@@ -48,6 +54,68 @@ const toBoundChannelIDs = (items) =>
 
 const toBoundChannelRows = (items) =>
   (Array.isArray(items) ? items : []).filter((item) => !!item.bound);
+
+const encodeChannelModelOptionValue = (item) =>
+  JSON.stringify({
+    model: item?.model || '',
+    upstream_model: item?.upstream_model || '',
+  });
+
+const decodeChannelModelOptionValue = (value) => {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return { model: '', upstream_model: '' };
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return {
+      model: parsed?.model || '',
+      upstream_model: parsed?.upstream_model || '',
+    };
+  } catch (error) {
+    return { model: '', upstream_model: '' };
+  }
+};
+
+const buildChannelLookup = (items) => {
+  const lookup = {};
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    if (!item?.id) return;
+    lookup[item.id] = item;
+  });
+  return lookup;
+};
+
+const ensureSelectedChannelsHaveModelRows = (rows, selectedChannelIDs, channelLookup) => {
+  const currentRows = Array.isArray(rows) ? rows : [];
+  const selectedIDs = Array.isArray(selectedChannelIDs) ? selectedChannelIDs : [];
+  if (selectedIDs.length === 0) {
+    return currentRows;
+  }
+  const existingChannelIDs = new Set(
+    currentRows
+      .map((item) => (typeof item?.channel_id === 'string' ? item.channel_id.trim() : ''))
+      .filter((item) => item !== '')
+  );
+  const additions = [];
+  selectedIDs.forEach((channelID) => {
+    if (!channelID || existingChannelIDs.has(channelID)) {
+      return;
+    }
+    const channel = channelLookup[channelID];
+    const models = Array.isArray(channel?.models) ? channel.models : [];
+    models.forEach((item) => {
+      additions.push({
+        model: item?.model || item?.upstream_model || '',
+        channel_id: channelID,
+        upstream_model: item?.upstream_model || item?.model || '',
+      });
+    });
+  });
+  if (additions.length === 0) {
+    return currentRows;
+  }
+  return [...currentRows, ...additions];
+};
 
 const formatChannelDisplayName = (item) => {
   if (!item) return '-';
@@ -83,14 +151,29 @@ const GroupsManager = () => {
   const [formChannelOptions, setFormChannelOptions] = useState([]);
   const [formChannelIDs, setFormChannelIDs] = useState([]);
   const [formChannelLoading, setFormChannelLoading] = useState(false);
+  const [formModelChannels, setFormModelChannels] = useState([]);
+  const [formModelConfigs, setFormModelConfigs] = useState([]);
+  const [formModelLoading, setFormModelLoading] = useState(false);
+  const [editModelSearchKeyword, setEditModelSearchKeyword] = useState('');
 
   const [detailChannelRows, setDetailChannelRows] = useState([]);
   const [detailChannelLoading, setDetailChannelLoading] = useState(false);
   const [detailModelRows, setDetailModelRows] = useState([]);
   const [detailModelLoading, setDetailModelLoading] = useState(false);
+  const [detailModelSearchKeyword, setDetailModelSearchKeyword] = useState('');
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const formModelChannelLookup = useMemo(
+    () => buildChannelLookup(formModelChannels),
+    [formModelChannels]
+  );
+
+  const selectedFormChannelOptions = useMemo(
+    () => toChannelOptions(formModelChannels.filter((item) => formChannelIDs.includes(item.id))),
+    [formModelChannels, formChannelIDs]
+  );
 
   const loadCatalog = useCallback(async () => {
     setLoading(true);
@@ -129,11 +212,24 @@ const GroupsManager = () => {
     });
   }, [rows, searchKeyword]);
 
+  useEffect(() => {
+    if (mode !== MODE_EDIT) {
+      return;
+    }
+    setFormModelConfigs((prev) =>
+      ensureSelectedChannelsHaveModelRows(prev, formChannelIDs, formModelChannelLookup)
+    );
+  }, [mode, formChannelIDs, formModelChannelLookup]);
+
   const resetFormState = () => {
     setForm(createEmptyForm());
     setFormChannelOptions([]);
     setFormChannelIDs([]);
     setFormChannelLoading(false);
+    setFormModelChannels([]);
+    setFormModelConfigs([]);
+    setFormModelLoading(false);
+    setEditModelSearchKeyword('');
   };
 
   const resetDetailState = () => {
@@ -141,6 +237,7 @@ const GroupsManager = () => {
     setDetailChannelLoading(false);
     setDetailModelRows([]);
     setDetailModelLoading(false);
+    setDetailModelSearchKeyword('');
   };
 
   const clearDeleteState = () => {
@@ -211,18 +308,30 @@ const GroupsManager = () => {
     }
   }, [t]);
 
-  const loadEditChannelRows = useCallback(async (groupID) => {
+  const loadEditModelConfigs = useCallback(async (groupID) => {
     setFormChannelLoading(true);
+    setFormModelLoading(true);
     try {
-      const rows = await fetchGroupChannels(groupID);
-      setFormChannelOptions(toChannelOptions(rows));
-      setFormChannelIDs(toBoundChannelIDs(rows));
+      const encodedID = encodeURIComponent(groupID || '');
+      const res = await API.get(`/api/v1/admin/group/${encodedID}/model-configs`);
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('group_manage.messages.model_config_load_failed'));
+        return;
+      }
+      const channels = Array.isArray(data?.channels) ? data.channels : [];
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setFormModelChannels(channels);
+      setFormChannelOptions(toChannelOptions(channels));
+      setFormChannelIDs(toBoundChannelIDs(channels));
+      setFormModelConfigs(items);
     } catch (error) {
       showError(error);
     } finally {
       setFormChannelLoading(false);
+      setFormModelLoading(false);
     }
-  }, [fetchGroupChannels]);
+  }, [t]);
 
   const resetToList = () => {
     setMode(MODE_LIST);
@@ -262,7 +371,10 @@ const GroupsManager = () => {
     setForm(buildFormFromRow(row));
     setFormChannelOptions([]);
     setFormChannelIDs([]);
-    loadEditChannelRows(row.id || '').then();
+    setFormModelChannels([]);
+    setFormModelConfigs([]);
+    setEditModelSearchKeyword('');
+    loadEditModelConfigs(row.id || '').then();
   };
 
   const submitCreate = async () => {
@@ -311,6 +423,35 @@ const GroupsManager = () => {
       showInfo(t('group_manage.messages.billing_ratio_invalid'));
       return;
     }
+    const selectedChannelIDSet = new Set(formChannelIDs);
+    const normalizedModelConfigs = [];
+    const seenModelConfigKeys = new Set();
+    for (const item of Array.isArray(formModelConfigs) ? formModelConfigs : []) {
+      const model = (item?.model || '').trim();
+      const channelID = (item?.channel_id || '').trim();
+      const upstreamModel = (item?.upstream_model || '').trim();
+      if (model === '' && channelID === '' && upstreamModel === '') {
+        continue;
+      }
+      if (!selectedChannelIDSet.has(channelID)) {
+        continue;
+      }
+      if (model === '' || channelID === '' || upstreamModel === '') {
+        showInfo(t('group_manage.messages.model_config_incomplete'));
+        return;
+      }
+      const dedupeKey = `${model}::${channelID}`;
+      if (seenModelConfigKeys.has(dedupeKey)) {
+        showInfo(t('group_manage.messages.model_config_duplicate'));
+        return;
+      }
+      seenModelConfigKeys.add(dedupeKey);
+      normalizedModelConfigs.push({
+        model,
+        channel_id: channelID,
+        upstream_model: upstreamModel,
+      });
+    }
     setSubmitting(true);
     try {
       const res = await API.put('/api/v1/admin/group/', {
@@ -320,6 +461,7 @@ const GroupsManager = () => {
         billing_ratio: billingRatio,
         sort_order: Number(form.sort_order || 0),
         channel_ids: formChannelIDs,
+        model_configs: normalizedModelConfigs,
       });
       const { success, message, data } = res.data || {};
       if (!success) {
@@ -617,63 +759,336 @@ const GroupsManager = () => {
     </div>
   );
 
-  const renderModelSummaryTable = (items, loadingState) => (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ fontWeight: 600, marginBottom: 8 }}>
-        {t('group_manage.detail.supported_models')}
+  const renderModelSummaryTable = (items, loadingState) => {
+    const keyword = detailModelSearchKeyword.trim().toLowerCase();
+    const visibleItems =
+      keyword === ''
+        ? items
+        : items.filter((item) => {
+            const modelName = (item.model || '').toLowerCase();
+            const channels = Array.isArray(item.channels)
+              ? item.channels
+                  .map((channel) =>
+                    `${formatChannelDisplayName(channel)} ${channel.protocol || ''}`.toLowerCase()
+                  )
+                  .join(' ')
+              : '';
+            return modelName.includes(keyword) || channels.includes(keyword);
+          });
+
+    return (
+      <div style={{ marginTop: 12 }}>
+        <div
+          style={{
+            marginBottom: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ fontWeight: 600 }}>
+            {t('group_manage.detail.supported_models')}
+          </div>
+          <Form.Input
+            size='small'
+            icon='search'
+            iconPosition='left'
+            style={{ width: 280, maxWidth: '100%' }}
+            placeholder={t('group_manage.detail.model_search_placeholder')}
+            value={detailModelSearchKeyword}
+            onChange={(e, { value }) => setDetailModelSearchKeyword(value || '')}
+          />
+        </div>
+        <Table compact size='small' celled>
+          <Table.Header>
+            <Table.Row>
+              <Table.HeaderCell>{t('group_manage.detail.model')}</Table.HeaderCell>
+              <Table.HeaderCell collapsing>{t('group_manage.detail.channel_count')}</Table.HeaderCell>
+              <Table.HeaderCell>{t('group_manage.detail.model_channels')}</Table.HeaderCell>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
+            {loadingState ? (
+              <Table.Row>
+                <Table.Cell colSpan={3} textAlign='center'>
+                  {t('group_manage.messages.loading')}
+                </Table.Cell>
+              </Table.Row>
+            ) : visibleItems.length === 0 ? (
+              <Table.Row>
+                <Table.Cell colSpan={3} textAlign='center'>
+                  {t('group_manage.detail.empty_models')}
+                </Table.Cell>
+              </Table.Row>
+            ) : (
+              visibleItems.map((item) => (
+                <Table.Row key={item.model}>
+                  <Table.Cell style={{ minWidth: 240 }}>{item.model || '-'}</Table.Cell>
+                  <Table.Cell textAlign='center'>
+                    {Array.isArray(item.channels) ? item.channels.length : 0}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {Array.isArray(item.channels) && item.channels.length > 0 ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        {item.channels.map((channel) => (
+                          <Label
+                            key={`${item.model}-${channel.id}`}
+                            size='tiny'
+                            basic
+                            color={channelStatusColor(channel.status)}
+                          >
+                            {formatChannelDisplayName(channel)}
+                            {` · ${channel.protocol || '-'}`}
+                          </Label>
+                        ))}
+                      </div>
+                    ) : (
+                      '-'
+                    )}
+                  </Table.Cell>
+                </Table.Row>
+              ))
+            )}
+          </Table.Body>
+        </Table>
+      </div>
+    );
+  };
+
+  const getChannelModelOptions = (channelID) => {
+    const channel = formModelChannelLookup[channelID];
+    const models = Array.isArray(channel?.models) ? channel.models : [];
+    return models.map((item) => ({
+      key: `${channelID}-${item.upstream_model}-${item.model}`,
+      text: item.label || item.model || item.upstream_model || '-',
+      value: encodeChannelModelOptionValue(item),
+    }));
+  };
+
+  const resolveChannelModelOptionValue = (item) => {
+    const channelID = (item?.channel_id || '').trim();
+    if (!channelID) {
+      return '';
+    }
+    const channel = formModelChannelLookup[channelID];
+    const models = Array.isArray(channel?.models) ? channel.models : [];
+    const upstreamModel = (item?.upstream_model || '').trim();
+    if (upstreamModel !== '') {
+      const matched = models.find((row) => (row?.upstream_model || '') === upstreamModel);
+      if (matched) {
+        return encodeChannelModelOptionValue(matched);
+      }
+    }
+    const modelName = (item?.model || '').trim();
+    if (modelName !== '') {
+      const matched = models.find((row) => (row?.model || '') === modelName);
+      if (matched) {
+        return encodeChannelModelOptionValue(matched);
+      }
+    }
+    return '';
+  };
+
+  const visibleEditModelConfigs = useMemo(() => {
+    const keyword = editModelSearchKeyword.trim().toLowerCase();
+    const selectedChannelIDSet = new Set(formChannelIDs);
+    const entries = (Array.isArray(formModelConfigs) ? formModelConfigs : [])
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => {
+        const channelID = (item?.channel_id || '').trim();
+        return channelID === '' || selectedChannelIDSet.has(channelID);
+      });
+    if (keyword === '') {
+      return entries;
+    }
+    return entries.filter(({ item }) => {
+      const channel = formModelChannelLookup[item?.channel_id || ''];
+      const haystacks = [
+        item?.model || '',
+        item?.upstream_model || '',
+        channel?.name || '',
+        channel?.id || '',
+        channel?.protocol || '',
+      ];
+      return haystacks.some((value) => value.toLowerCase().includes(keyword));
+    });
+  }, [editModelSearchKeyword, formChannelIDs, formModelConfigs, formModelChannelLookup]);
+
+  const addEmptyModelConfigRow = () => {
+    setFormModelConfigs((prev) => [createEmptyModelConfig(), ...(Array.isArray(prev) ? prev : [])]);
+  };
+
+  const updateModelConfigRow = (index, updater) => {
+    setFormModelConfigs((prev) =>
+      (Array.isArray(prev) ? prev : []).map((item, itemIndex) => {
+        if (itemIndex !== index) {
+          return item;
+        }
+        return typeof updater === 'function' ? updater(item) : item;
+      })
+    );
+  };
+
+  const removeModelConfigRow = (index) => {
+    setFormModelConfigs((prev) =>
+      (Array.isArray(prev) ? prev : []).filter((item, itemIndex) => itemIndex !== index)
+    );
+  };
+
+  const renderEditModelConfigTable = () => (
+    <div style={{ marginTop: 18 }}>
+      <div
+        style={{
+          marginBottom: 8,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 600 }}>{t('group_manage.edit.model_configs')}</div>
+          <Button
+            type='button'
+            size='tiny'
+            disabled={submitting || formModelLoading}
+            onClick={addEmptyModelConfigRow}
+          >
+            {t('group_manage.buttons.add_model')}
+          </Button>
+        </div>
+        <Form.Input
+          size='small'
+          icon='search'
+          iconPosition='left'
+          style={{ width: 280, maxWidth: '100%' }}
+          placeholder={t('group_manage.edit.model_search_placeholder')}
+          value={editModelSearchKeyword}
+          onChange={(e, { value }) => setEditModelSearchKeyword(value || '')}
+        />
       </div>
       <Table compact size='small' celled>
         <Table.Header>
           <Table.Row>
-            <Table.HeaderCell>{t('group_manage.detail.model')}</Table.HeaderCell>
-            <Table.HeaderCell>{t('group_manage.detail.model_channels')}</Table.HeaderCell>
+            <Table.HeaderCell style={{ minWidth: 260 }}>
+              {t('group_manage.edit.model')}
+            </Table.HeaderCell>
+            <Table.HeaderCell style={{ minWidth: 240 }}>
+              {t('group_manage.edit.channel')}
+            </Table.HeaderCell>
+            <Table.HeaderCell style={{ minWidth: 280 }}>
+              {t('group_manage.edit.upstream_model')}
+            </Table.HeaderCell>
+            <Table.HeaderCell collapsing>
+              {t('group_manage.table.actions')}
+            </Table.HeaderCell>
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {loadingState ? (
+          {formModelLoading ? (
             <Table.Row>
-              <Table.Cell colSpan={2} textAlign='center'>
+              <Table.Cell colSpan={4} textAlign='center'>
                 {t('group_manage.messages.loading')}
               </Table.Cell>
             </Table.Row>
-          ) : items.length === 0 ? (
+          ) : visibleEditModelConfigs.length === 0 ? (
             <Table.Row>
-              <Table.Cell colSpan={2} textAlign='center'>
-                {t('group_manage.detail.empty_models')}
+              <Table.Cell colSpan={4} textAlign='center'>
+                {t('group_manage.edit.empty_model_configs')}
               </Table.Cell>
             </Table.Row>
           ) : (
-            items.map((item) => (
-              <Table.Row key={item.model}>
-                <Table.Cell style={{ minWidth: 240 }}>{item.model || '-'}</Table.Cell>
-                <Table.Cell>
-                  {Array.isArray(item.channels) && item.channels.length > 0 ? (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        flexWrap: 'wrap',
+            visibleEditModelConfigs.map(({ item, index }) => {
+              const modelOptions = getChannelModelOptions(item?.channel_id || '');
+              return (
+                <Table.Row key={`group-model-config-${index}`}>
+                  <Table.Cell>
+                    <Form.Input
+                      size='small'
+                      fluid
+                      placeholder={t('group_manage.edit.model_placeholder')}
+                      value={item?.model || ''}
+                      onChange={(e, { value }) =>
+                        updateModelConfigRow(index, (current) => ({
+                          ...current,
+                          model: value || '',
+                        }))
+                      }
+                    />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Form.Dropdown
+                      fluid
+                      selection
+                      search
+                      size='small'
+                      options={selectedFormChannelOptions}
+                      placeholder={t('group_manage.edit.channel_placeholder')}
+                      value={item?.channel_id || ''}
+                      onChange={(e, { value }) => {
+                        const nextChannelID = value || '';
+                        const nextChannel = formModelChannelLookup[nextChannelID];
+                        const nextModels = Array.isArray(nextChannel?.models) ? nextChannel.models : [];
+                        const firstModel = nextModels[0] || null;
+                        updateModelConfigRow(index, (current) => ({
+                          ...current,
+                          channel_id: nextChannelID,
+                          upstream_model: firstModel?.upstream_model || '',
+                          model:
+                            (current?.model || '').trim() !== ''
+                              ? current.model
+                              : firstModel?.model || '',
+                        }));
                       }}
+                    />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Form.Dropdown
+                      fluid
+                      selection
+                      search
+                      size='small'
+                      disabled={(item?.channel_id || '') === '' || modelOptions.length === 0}
+                      options={modelOptions}
+                      placeholder={t('group_manage.edit.upstream_model_placeholder')}
+                      value={resolveChannelModelOptionValue(item)}
+                      onChange={(e, { value }) => {
+                        const decoded = decodeChannelModelOptionValue(value);
+                        updateModelConfigRow(index, (current) => ({
+                          ...current,
+                          upstream_model: decoded.upstream_model || '',
+                          model:
+                            (current?.model || '').trim() !== ''
+                              ? current.model
+                              : decoded.model || '',
+                        }));
+                      }}
+                    />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Button
+                      type='button'
+                      size='tiny'
+                      negative
+                      disabled={submitting}
+                      onClick={() => removeModelConfigRow(index)}
                     >
-                      {item.channels.map((channel) => (
-                        <Label
-                          key={`${item.model}-${channel.id}`}
-                          size='tiny'
-                          basic
-                          color={channelStatusColor(channel.status)}
-                        >
-                          {formatChannelDisplayName(channel)}
-                          {` · ${channel.protocol || '-'}`}
-                        </Label>
-                      ))}
-                    </div>
-                  ) : (
-                    '-'
-                  )}
-                </Table.Cell>
-              </Table.Row>
-            ))
+                      {t('group_manage.buttons.delete')}
+                    </Button>
+                  </Table.Cell>
+                </Table.Row>
+              );
+            })
           )}
         </Table.Body>
       </Table>
@@ -817,8 +1232,8 @@ const GroupsManager = () => {
           multiple
           search
           selection
-          loading={formChannelLoading}
-          disabled={formChannelLoading || submitting}
+          loading={formChannelLoading || formModelLoading}
+          disabled={formChannelLoading || formModelLoading || submitting}
           label={t('group_manage.form.channels')}
           placeholder={t('group_manage.form.channels_placeholder')}
           options={formChannelOptions}
@@ -828,6 +1243,7 @@ const GroupsManager = () => {
           }
         />
       </Form>
+      {renderEditModelConfigTable()}
     </div>
   );
 

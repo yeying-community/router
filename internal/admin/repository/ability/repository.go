@@ -106,6 +106,7 @@ func AddAbilities(channel *model.Channel) error {
 	if channel == nil {
 		return nil
 	}
+	model.RefreshAbilityCachesForGroups()
 	return nil
 }
 
@@ -139,24 +140,29 @@ func buildAbilitiesForChannel(channel *model.Channel, groups []string) []model.A
 	if channel == nil || len(groups) == 0 {
 		return nil
 	}
-	models := channel.SelectedModelIDs()
-	abilities := make([]model.Ability, 0, len(models)*len(groups))
-	for _, modelName := range models {
-		normalizedModel := strings.TrimSpace(modelName)
+	selectedConfigs := channel.GetModelConfigs()
+	abilities := make([]model.Ability, 0, len(selectedConfigs)*len(groups))
+	for _, row := range selectedConfigs {
+		if !row.Selected {
+			continue
+		}
+		normalizedModel := strings.TrimSpace(row.Model)
 		if normalizedModel == "" {
 			continue
 		}
+		upstream := model.NormalizeAbilityUpstreamModel(normalizedModel, row.UpstreamModel)
 		for _, group := range groups {
 			normalizedGroup := strings.TrimSpace(group)
 			if normalizedGroup == "" {
 				continue
 			}
 			ability := model.Ability{
-				Group:     normalizedGroup,
-				Model:     normalizedModel,
-				ChannelId: channel.Id,
-				Enabled:   channel.Status == model.ChannelStatusEnabled,
-				Priority:  channel.Priority,
+				Group:         normalizedGroup,
+				Model:         normalizedModel,
+				ChannelId:     channel.Id,
+				UpstreamModel: upstream,
+				Enabled:       channel.Status == model.ChannelStatusEnabled,
+				Priority:      channel.Priority,
 			}
 			abilities = append(abilities, ability)
 		}
@@ -165,7 +171,18 @@ func buildAbilitiesForChannel(channel *model.Channel, groups []string) []model.A
 }
 
 func DeleteAbilities(channel *model.Channel) error {
-	return model.DB.Where("channel_id = ?", channel.Id).Delete(&model.Ability{}).Error
+	if channel == nil {
+		return nil
+	}
+	groups, err := listBoundGroupsByChannelID(channel.Id)
+	if err != nil {
+		return err
+	}
+	if err := model.DB.Where("channel_id = ?", channel.Id).Delete(&model.Ability{}).Error; err != nil {
+		return err
+	}
+	model.RefreshAbilityCachesForGroups(groups...)
+	return nil
 }
 
 func UpdateAbilities(channel *model.Channel) error {
@@ -176,19 +193,47 @@ func UpdateAbilities(channel *model.Channel) error {
 	if err != nil {
 		return err
 	}
-	abilities := buildAbilitiesForChannel(channel, groups)
-	err = DeleteAbilities(channel)
+	err = model.DB.Transaction(func(tx *gorm.DB) error {
+		for _, groupID := range groups {
+			groupID = strings.TrimSpace(groupID)
+			if groupID == "" {
+				continue
+			}
+			existing := make([]model.Ability, 0)
+			groupCol := `"group"`
+			if err := tx.Where(groupCol+" = ? AND channel_id = ?", groupID, channel.Id).Find(&existing).Error; err != nil {
+				return err
+			}
+			next := model.SyncGroupAbilitiesForChannel(groupID, channel, existing)
+			if err := tx.Where(groupCol+" = ? AND channel_id = ?", groupID, channel.Id).Delete(&model.Ability{}).Error; err != nil {
+				return err
+			}
+			if len(next) == 0 {
+				continue
+			}
+			if err := tx.Create(&next).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	if len(abilities) == 0 {
-		return nil
-	}
-	return model.DB.Create(&abilities).Error
+	model.RefreshAbilityCachesForGroups(groups...)
+	return nil
 }
 
 func UpdateAbilityStatus(channelId string, status bool) error {
-	return model.DB.Model(&model.Ability{}).Where("channel_id = ?", channelId).Select("enabled").Update("enabled", status).Error
+	groups, err := listBoundGroupsByChannelID(channelId)
+	if err != nil {
+		return err
+	}
+	if err := model.DB.Model(&model.Ability{}).Where("channel_id = ?", channelId).Select("enabled").Update("enabled", status).Error; err != nil {
+		return err
+	}
+	model.RefreshAbilityCachesForGroups(groups...)
+	return nil
 }
 
 func GetTopChannelByModel(group string, modelName string) (*model.Channel, error) {

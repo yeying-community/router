@@ -353,6 +353,7 @@
     },
     "buttons": {
       "add": "Add Group",
+      "add_model": "Add Model",
       "back": "Back",
       "refresh": "Refresh",
       "edit": "Edit",
@@ -372,11 +373,24 @@
     },
     "detail": {
       "model": "Model",
+      "channel_count": "Channel Count",
       "model_channels": "Channels",
+      "model_search_placeholder": "Search model or channel",
       "supported_models": "Supported Models",
       "empty_models": "No supported models",
       "bound_channels": "Bound Channels",
       "empty_channels": "No bound channels"
+    },
+    "edit": {
+      "model_configs": "Group Model Mappings",
+      "model": "Visible Model",
+      "channel": "Channel",
+      "upstream_model": "Channel Model",
+      "model_placeholder": "Enter the model name exposed to clients",
+      "channel_placeholder": "Select the channel for this model",
+      "upstream_model_placeholder": "Select the actual upstream model used by the channel",
+      "model_search_placeholder": "Search visible model, channel, or upstream model",
+      "empty_model_configs": "No group model configs"
     },
     "messages": {
       "loading": "Loading...",
@@ -386,6 +400,9 @@
       "load_failed": "Failed to load groups",
       "bind_load_failed": "Failed to load group channels",
       "model_load_failed": "Failed to load group models",
+      "model_config_load_failed": "Failed to load group model configs",
+      "model_config_incomplete": "Please complete the group model config before submitting",
+      "model_config_duplicate": "The same visible model cannot use the same channel twice",
       "create_success": "Group created successfully",
       "create_failed": "Failed to create group",
       "update_success": "Group updated successfully",
