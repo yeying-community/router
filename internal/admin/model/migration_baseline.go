@@ -151,8 +151,12 @@ func syncChannelModelTypesWithDB(db *gorm.DB) error {
 	}
 
 	for _, row := range rows {
-		normalizedType := normalizeChannelModelType(row.Type, row.UpstreamModel, row.Model)
-		normalizedPriceUnit := normalizeChannelModelPriceUnit(row.PriceUnit, normalizedType, row.UpstreamModel, row.Model)
+		channelProtocol, err := loadChannelProtocolByChannelIDWithDB(db, row.ChannelId)
+		if err != nil {
+			return err
+		}
+		normalizedType := resolveChannelModelType(row.Type, channelProtocol, row.UpstreamModel, row.Model)
+		normalizedPriceUnit := normalizeChannelModelPriceUnit(row.PriceUnit, normalizedType, channelProtocol, row.UpstreamModel, row.Model)
 		currentType := strings.TrimSpace(strings.ToLower(row.Type))
 		currentPriceUnit := strings.TrimSpace(strings.ToLower(row.PriceUnit))
 		if currentType == normalizedType && currentPriceUnit == normalizedPriceUnit {

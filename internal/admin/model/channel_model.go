@@ -173,7 +173,27 @@ func SyncFetchedChannelModelsWithDB(db *gorm.DB, channelID string, modelIDs []st
 	if err != nil {
 		return err
 	}
-	rows := BuildFetchedChannelModelConfigs(existingRows, normalizedModelIDs, channelProtocol, true)
+	rows := BuildFetchedChannelModelConfigs(existingRows, BuildDefaultChannelModelConfigsWithProtocol(normalizedModelIDs, channelProtocol), channelProtocol, true)
+	return ReplaceChannelModelConfigsWithDB(db, normalizedChannelID, rows)
+}
+
+func SyncFetchedChannelModelConfigsWithDB(db *gorm.DB, channelID string, fetchedRows []ChannelModel) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return nil
+	}
+	existingRows, err := listChannelModelRowsByChannelIDWithDB(db, normalizedChannelID)
+	if err != nil {
+		return err
+	}
+	channelProtocol, err := loadChannelProtocolByChannelIDWithDB(db, normalizedChannelID)
+	if err != nil {
+		return err
+	}
+	rows := BuildFetchedChannelModelConfigs(existingRows, fetchedRows, channelProtocol, true)
 	return ReplaceChannelModelConfigsWithDB(db, normalizedChannelID, rows)
 }
 
@@ -362,8 +382,8 @@ func normalizeChannelModelRow(row *ChannelModel) {
 	if row.UpstreamModel == "" {
 		row.UpstreamModel = row.Model
 	}
-	row.Type = normalizeChannelModelType(row.Type, row.UpstreamModel, row.Model)
-	row.PriceUnit = normalizeChannelModelPriceUnit(row.PriceUnit, row.Type, row.UpstreamModel, row.Model)
+	row.Type = normalizeExplicitChannelModelType(row.Type)
+	row.PriceUnit = strings.TrimSpace(strings.ToLower(row.PriceUnit))
 	row.Currency = normalizeChannelModelCurrency(row.Currency)
 	row.InputPrice = cloneNormalizedChannelModelPrice(row.InputPrice)
 	row.OutputPrice = cloneNormalizedChannelModelPrice(row.OutputPrice)
@@ -423,8 +443,8 @@ func replaceChannelModelRowsWithDB(db *gorm.DB, channelID string, rows []Channel
 	})
 }
 
-func BuildFetchedChannelModelConfigs(existingRows []ChannelModel, modelIDs []string, channelProtocol int, selectAll bool) []ChannelModel {
-	normalizedModelIDs := NormalizeChannelModelIDsPreserveOrder(modelIDs)
+func BuildFetchedChannelModelConfigs(existingRows []ChannelModel, fetchedRows []ChannelModel, channelProtocol int, selectAll bool) []ChannelModel {
+	normalizedFetchedRows := NormalizeChannelModelConfigsPreserveOrder(fetchedRows)
 	normalizedExisting := NormalizeChannelModelConfigsPreserveOrder(existingRows)
 	existingByUpstream := make(map[string]ChannelModel, len(normalizedExisting))
 	for _, row := range normalizedExisting {
@@ -441,16 +461,33 @@ func BuildFetchedChannelModelConfigs(existingRows []ChannelModel, modelIDs []str
 		completeChannelModelRowDefaults(&row, channelProtocol)
 		existingByUpstream[upstream] = row
 	}
-	rows := make([]ChannelModel, 0, len(normalizedModelIDs))
-	for idx, modelID := range normalizedModelIDs {
-		row, ok := existingByUpstream[modelID]
+	rows := make([]ChannelModel, 0, len(normalizedFetchedRows))
+	for idx, fetchedRow := range normalizedFetchedRows {
+		upstreamModel := strings.TrimSpace(fetchedRow.UpstreamModel)
+		if upstreamModel == "" {
+			upstreamModel = strings.TrimSpace(fetchedRow.Model)
+		}
+		if upstreamModel == "" {
+			continue
+		}
+		row, ok := existingByUpstream[upstreamModel]
 		if !ok {
-			row = ChannelModel{
-				Model:         modelID,
-				UpstreamModel: modelID,
+			row = fetchedRow
+		} else {
+			if strings.TrimSpace(row.Model) == "" && strings.TrimSpace(fetchedRow.Model) != "" {
+				row.Model = strings.TrimSpace(fetchedRow.Model)
+			}
+			if strings.TrimSpace(fetchedRow.Type) != "" {
+				row.Type = strings.TrimSpace(fetchedRow.Type)
+			}
+			if strings.TrimSpace(fetchedRow.PriceUnit) != "" {
+				row.PriceUnit = strings.TrimSpace(fetchedRow.PriceUnit)
+			}
+			if strings.TrimSpace(fetchedRow.Currency) != "" {
+				row.Currency = strings.TrimSpace(fetchedRow.Currency)
 			}
 		}
-		row.UpstreamModel = modelID
+		row.UpstreamModel = upstreamModel
 		if selectAll {
 			row.Selected = true
 		}
@@ -488,24 +525,63 @@ func completeChannelModelRowDefaults(row *ChannelModel, channelProtocol int) {
 		return
 	}
 	normalizeChannelModelRow(row)
-	_ = channelProtocol
-	row.Type = normalizeChannelModelType(row.Type, row.UpstreamModel, row.Model)
-	row.PriceUnit = normalizeChannelModelPriceUnit(row.PriceUnit, row.Type, row.UpstreamModel, row.Model)
+	row.Type = resolveChannelModelType(row.Type, channelProtocol, row.UpstreamModel, row.Model)
+	row.PriceUnit = normalizeChannelModelPriceUnit(row.PriceUnit, row.Type, channelProtocol, row.UpstreamModel, row.Model)
 	row.Currency = normalizeChannelModelCurrency(row.Currency)
 	row.InputPrice = cloneNormalizedChannelModelPrice(row.InputPrice)
 	row.OutputPrice = cloneNormalizedChannelModelPrice(row.OutputPrice)
 }
 
-func normalizeChannelModelType(raw string, upstreamModel string, model string) string {
+func normalizeExplicitChannelModelType(raw string) string {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case ModelProviderModelTypeImage:
+		return ModelProviderModelTypeImage
+	case ModelProviderModelTypeAudio:
+		return ModelProviderModelTypeAudio
+	default:
+		return ""
+	}
+}
+
+func resolveChannelModelProviderDetail(channelProtocol int, upstreamModel string, model string) (ResolvedModelPricing, bool) {
+	candidates := normalizeTrimmedValuesPreserveOrder([]string{upstreamModel, model})
+	for _, candidate := range candidates {
+		if detail, ok := lookupProviderDefaultModelPricing(candidate, channelProtocol); ok {
+			return detail, true
+		}
+	}
+	return ResolvedModelPricing{}, false
+}
+
+func resolveChannelModelType(raw string, channelProtocol int, upstreamModel string, model string) string {
+	explicit := normalizeExplicitChannelModelType(raw)
+	if explicit != "" {
+		return explicit
+	}
+	if detail, ok := resolveChannelModelProviderDetail(channelProtocol, upstreamModel, model); ok {
+		resolved := normalizeModelType(detail.Type, detail.Model)
+		if resolved != "" {
+			return resolved
+		}
+	}
 	referenceModel := strings.TrimSpace(upstreamModel)
 	if referenceModel == "" {
 		referenceModel = strings.TrimSpace(model)
 	}
-	return normalizeModelType(raw, referenceModel)
+	return normalizeModelType("", referenceModel)
 }
 
-func normalizeChannelModelPriceUnit(raw string, modelType string, upstreamModel string, model string) string {
+func normalizeChannelModelPriceUnit(raw string, modelType string, channelProtocol int, upstreamModel string, model string) string {
 	priceUnit := strings.TrimSpace(strings.ToLower(raw))
+	if detail, ok := resolveChannelModelProviderDetail(channelProtocol, upstreamModel, model); ok {
+		providerPriceUnit := strings.TrimSpace(strings.ToLower(detail.PriceUnit))
+		if providerPriceUnit == "" {
+			providerPriceUnit = defaultPriceUnitByType(detail.Type, detail.Model)
+		}
+		if providerPriceUnit != "" && (priceUnit == "" || priceUnit == ModelProviderPriceUnitPer1KTokens) {
+			return providerPriceUnit
+		}
+	}
 	if priceUnit != "" {
 		return priceUnit
 	}

@@ -46,11 +46,26 @@ type previewCapabilitiesRequest struct {
 	TestModel    string               `json:"test_model"`
 }
 
+type openAIModelCard struct {
+	ID               string         `json:"id"`
+	OwnedBy          string         `json:"owned_by"`
+	Type             string         `json:"type"`
+	Modality         string         `json:"modality"`
+	Modalities       []string       `json:"modalities"`
+	InputModalities  []string       `json:"input_modalities"`
+	OutputModalities []string       `json:"output_modalities"`
+	Capabilities     map[string]any `json:"capabilities"`
+	Architecture     struct {
+		Type             string   `json:"type"`
+		Modality         string   `json:"modality"`
+		Modalities       []string `json:"modalities"`
+		InputModalities  []string `json:"input_modalities"`
+		OutputModalities []string `json:"output_modalities"`
+	} `json:"architecture"`
+}
+
 type openAIModelsResponse struct {
-	Data []struct {
-		ID      string `json:"id"`
-		OwnedBy string `json:"owned_by"`
-	} `json:"data"`
+	Data  []openAIModelCard `json:"data"`
 	Error *struct {
 		Message string `json:"message"`
 	} `json:"error,omitempty"`
@@ -120,7 +135,79 @@ func resolveModelsURL(baseURL string) string {
 	return resolvedBaseURL + "/v1/models"
 }
 
-func fetchModelsByConfiguredChannelDetailed(key, baseURL, modelProvider string) ([]string, string, error) {
+func normalizeUpstreamCapabilityModelType(raw string) string {
+	lower := strings.TrimSpace(strings.ToLower(raw))
+	switch {
+	case lower == "":
+		return ""
+	case strings.Contains(lower, "image"),
+		strings.Contains(lower, "vision"),
+		strings.Contains(lower, "diffusion"):
+		return model.ModelProviderModelTypeImage
+	case strings.Contains(lower, "audio"),
+		strings.Contains(lower, "speech"),
+		strings.Contains(lower, "tts"),
+		strings.Contains(lower, "transcription"):
+		return model.ModelProviderModelTypeAudio
+	case strings.Contains(lower, "text"),
+		strings.Contains(lower, "chat"),
+		strings.Contains(lower, "completion"),
+		strings.Contains(lower, "response"),
+		strings.Contains(lower, "reason"):
+		return model.ModelProviderModelTypeText
+	default:
+		return ""
+	}
+}
+
+func inferUpstreamModelCardType(item openAIModelCard) string {
+	candidates := []string{
+		item.Type,
+		item.Modality,
+		item.Architecture.Type,
+		item.Architecture.Modality,
+	}
+	for _, candidate := range candidates {
+		if normalized := normalizeUpstreamCapabilityModelType(candidate); normalized != "" {
+			return normalized
+		}
+	}
+
+	multiValueCandidates := [][]string{
+		item.OutputModalities,
+		item.Architecture.OutputModalities,
+		item.Modalities,
+		item.Architecture.Modalities,
+		item.InputModalities,
+		item.Architecture.InputModalities,
+	}
+	for _, values := range multiValueCandidates {
+		for _, value := range values {
+			if normalized := normalizeUpstreamCapabilityModelType(value); normalized != "" {
+				if normalized == model.ModelProviderModelTypeImage || normalized == model.ModelProviderModelTypeAudio {
+					return normalized
+				}
+				if normalized == model.ModelProviderModelTypeText {
+					return normalized
+				}
+			}
+		}
+	}
+
+	for key, raw := range item.Capabilities {
+		enabled, ok := raw.(bool)
+		if !ok || !enabled {
+			continue
+		}
+		if normalized := normalizeUpstreamCapabilityModelType(key); normalized != "" {
+			return normalized
+		}
+	}
+
+	return ""
+}
+
+func fetchModelsByConfiguredChannelDetailed(key, baseURL, modelProvider string) ([]model.ChannelModel, string, error) {
 	trimmedKey := strings.TrimSpace(key)
 	if trimmedKey == "" {
 		return nil, "", fmt.Errorf("请先填写 Key")
@@ -162,7 +249,7 @@ func fetchModelsByConfiguredChannelDetailed(key, baseURL, modelProvider string) 
 
 	provider := commonutils.NormalizeModelProvider(modelProvider)
 	seen := make(map[string]struct{}, len(parsed.Data))
-	modelIDs := make([]string, 0, len(parsed.Data))
+	modelRows := make([]model.ChannelModel, 0, len(parsed.Data))
 	for _, item := range parsed.Data {
 		id := strings.TrimSpace(item.ID)
 		if id == "" {
@@ -175,15 +262,20 @@ func fetchModelsByConfiguredChannelDetailed(key, baseURL, modelProvider string) 
 			continue
 		}
 		seen[id] = struct{}{}
-		modelIDs = append(modelIDs, id)
+		modelRows = append(modelRows, model.ChannelModel{
+			Model:         id,
+			UpstreamModel: id,
+			Type:          inferUpstreamModelCardType(item),
+			Selected:      true,
+		})
 	}
-	if len(modelIDs) == 0 {
+	if len(modelRows) == 0 {
 		if provider != "" {
 			return nil, modelsURL, fmt.Errorf("未找到符合所选模型供应商的模型")
 		}
 		return nil, modelsURL, fmt.Errorf("未返回可用模型")
 	}
-	return modelIDs, modelsURL, nil
+	return modelRows, modelsURL, nil
 }
 
 func resolvePreviewBaseURL(protocol string, baseURL string) string {
@@ -704,7 +796,7 @@ func PreviewChannelModels(c *gin.Context) {
 		return
 	}
 	baseURL := resolvePreviewBaseURL(previewChannel.GetProtocol(), previewChannel.GetBaseURL())
-	modelIDs, modelsURL, err := fetchModelsByConfiguredChannelDetailed(previewChannel.Key, baseURL, "")
+	fetchedRows, modelsURL, err := fetchModelsByConfiguredChannelDetailed(previewChannel.Key, baseURL, "")
 	if err != nil {
 		logChannelAdminWarn(c, "preview_models", stringField("source", keySource), stringField("draft_id", strings.TrimSpace(req.DraftID)), stringField("models_url", modelsURL), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{
@@ -714,10 +806,10 @@ func PreviewChannelModels(c *gin.Context) {
 		return
 	}
 	draftID := strings.TrimSpace(req.DraftID)
-	modelConfigs := model.BuildFetchedChannelModelConfigs(previewChannel.GetModelConfigs(), modelIDs, previewChannel.GetChannelProtocol(), true)
-	logChannelAdminInfo(c, "preview_models", stringField("source", keySource), stringField("draft_id", draftID), stringField("models_url", modelsURL), intField("count", len(modelIDs)))
+	modelConfigs := model.BuildFetchedChannelModelConfigs(previewChannel.GetModelConfigs(), fetchedRows, previewChannel.GetChannelProtocol(), true)
+	logChannelAdminInfo(c, "preview_models", stringField("source", keySource), stringField("draft_id", draftID), stringField("models_url", modelsURL), intField("count", len(fetchedRows)))
 	if draftID != "" {
-		if err := model.SyncFetchedChannelModelsWithDB(model.DB, draftID, modelIDs); err != nil {
+		if err := model.SyncFetchedChannelModelConfigsWithDB(model.DB, draftID, fetchedRows); err != nil {
 			logChannelAdminWarn(c, "preview_models_save", stringField("draft_id", draftID), stringField("reason", err.Error()))
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
