@@ -535,6 +535,7 @@
     }
   },
   "common": {
+    "no_data": "暂无数据",
     "quota": {
       "display": "等价金额：${{amount}}",
       "display_short": "${{amount}}",

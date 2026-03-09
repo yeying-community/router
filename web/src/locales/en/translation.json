@@ -535,6 +535,7 @@
     }
   },
   "common": {
+    "no_data": "No data",
     "quota": {
       "display": "Equivalent: ${{amount}}",
       "display_short": "${{amount}}",

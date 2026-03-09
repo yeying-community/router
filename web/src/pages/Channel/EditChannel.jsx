@@ -356,6 +356,7 @@ const resolveProviderIdentifierFromModelName = (modelName) => {
   if (lower.startsWith('ernie-')) return 'baidu';
   if (lower.startsWith('spark-')) return 'xunfei';
   if (lower.startsWith('moonshot-') || lower.startsWith('kimi-')) return 'moonshot';
+  if (lower.startsWith('llama')) return 'meta-llama';
   if (lower.startsWith('baichuan-')) return 'baichuan';
   if (lower.startsWith('yi-')) return 'lingyiwanwu';
   if (lower.startsWith('step-')) return 'stepfun';
