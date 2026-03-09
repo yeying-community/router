@@ -57,23 +57,273 @@ code {
     font-weight: inherit !important;
 }
 
+.ui.dropdown.router-header-dropdown,
+.ui.dropdown.router-header-dropdown > .text,
+.ui.dropdown.router-header-dropdown .menu > .item {
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+}
+
+.ui.dropdown.router-header-dropdown .menu > .item {
+    padding: 0.78rem 0.95rem !important;
+}
+
+.ui.button.router-auth-button,
+.ui.buttons .button.router-auth-button {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 1.25 !important;
+    min-height: 44px !important;
+    padding: 0.82em 1.15em !important;
+    border-radius: 10px !important;
+}
+
+.ui.button.router-auth-button > .icon,
+.ui.buttons .button.router-auth-button > .icon {
+    font-size: 0.95em !important;
+}
+
+.ui.form .field .ui.input.router-auth-input input,
+.ui.input.router-auth-input > input {
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    min-height: 44px !important;
+    padding-top: 0.78em !important;
+    padding-bottom: 0.78em !important;
+    border-radius: 10px !important;
+}
+
+.ui.icon.input.router-auth-input > i.icon {
+    opacity: 0.76 !important;
+}
+
+.ui.form .field .ui.checkbox.router-section-checkbox label,
+.ui.form .inline.fields .field .ui.checkbox.router-section-checkbox label {
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+}
+
+.ui.form .field .ui.checkbox.router-section-checkbox,
+.ui.form .inline.fields .field .ui.checkbox.router-section-checkbox {
+    min-height: 24px !important;
+}
+
+.ui.button.router-page-button,
+.ui.buttons .button.router-page-button {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 1.25 !important;
+    min-height: 36px !important;
+    padding: 0.72em 1.05em !important;
+}
+
+.ui.button.router-page-button > .icon,
+.ui.buttons .button.router-page-button > .icon {
+    font-size: 0.95em !important;
+}
+
 .ui.selection.dropdown.router-page-dropdown,
 .ui.selection.dropdown.router-page-dropdown > .text,
 .ui.selection.dropdown.router-page-dropdown > .default.text,
 .ui.selection.dropdown.router-page-dropdown .menu > .item {
-    font-size: 14px !important;
+    font-size: 15px !important;
     font-weight: 500 !important;
     line-height: 1.45 !important;
 }
 
 .ui.selection.dropdown.router-page-dropdown {
-    min-height: 38px !important;
+    min-height: 40px !important;
+    height: 40px !important;
     display: inline-flex !important;
     align-items: center !important;
 }
 
+.ui.selection.dropdown.router-page-dropdown .menu > .item {
+    padding: 0.85rem 1rem !important;
+}
+
 .ui.selection.dropdown.router-page-dropdown .menu {
     border-radius: 10px !important;
+}
+
+.ui.multiple.selection.dropdown.router-page-dropdown > .label {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    margin: 0.22rem 0.36rem 0.22rem 0 !important;
+    padding: 0.46em 0.7em !important;
+    border-radius: 8px !important;
+}
+
+.ui.button.router-section-button,
+.ui.buttons .button.router-section-button {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 1.25 !important;
+    min-height: 38px !important;
+    padding: 0.68em 1em !important;
+}
+
+.ui.button.router-section-button > .icon,
+.ui.buttons .button.router-section-button > .icon {
+    font-size: 0.95em !important;
+}
+
+.ui.selection.dropdown.router-section-dropdown,
+.ui.selection.dropdown.router-section-dropdown > .text,
+.ui.selection.dropdown.router-section-dropdown > .default.text,
+.ui.selection.dropdown.router-section-dropdown .menu > .item {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    line-height: 1.4 !important;
+}
+
+.ui.selection.dropdown.router-section-dropdown {
+    min-height: 38px !important;
+    height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+.ui.selection.dropdown.router-section-dropdown .menu > .item {
+    padding: 0.8rem 0.96rem !important;
+}
+
+.ui.multiple.selection.dropdown.router-section-dropdown > .label {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    margin: 0.22rem 0.36rem 0.22rem 0 !important;
+    padding: 0.46em 0.7em !important;
+    border-radius: 8px !important;
+}
+
+.ui.form .field .ui.input.router-section-input input,
+.ui.input.router-section-input > input {
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    padding-top: 0.68em !important;
+    padding-bottom: 0.68em !important;
+}
+
+.ui.icon.input.router-section-input > i.icon {
+    opacity: 0.72 !important;
+}
+
+.ui.form textarea.router-section-textarea {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    padding: 0.78em 1em !important;
+}
+
+.ui.button.router-modal-button,
+.ui.buttons .button.router-modal-button {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 1.2 !important;
+    min-height: 36px !important;
+    padding: 0.64em 0.96em !important;
+}
+
+.ui.button.router-modal-button > .icon,
+.ui.buttons .button.router-modal-button > .icon {
+    font-size: 0.92em !important;
+}
+
+.ui.selection.dropdown.router-modal-dropdown,
+.ui.selection.dropdown.router-modal-dropdown > .text,
+.ui.selection.dropdown.router-modal-dropdown > .default.text,
+.ui.selection.dropdown.router-modal-dropdown .menu > .item {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    line-height: 1.4 !important;
+}
+
+.ui.selection.dropdown.router-modal-dropdown {
+    min-height: 36px !important;
+    height: 36px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+.ui.selection.dropdown.router-modal-dropdown .menu > .item {
+    padding: 0.76rem 0.94rem !important;
+}
+
+.ui.multiple.selection.dropdown.router-modal-dropdown > .label {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    margin: 0.2rem 0.34rem 0.2rem 0 !important;
+    padding: 0.44em 0.68em !important;
+    border-radius: 8px !important;
+}
+
+.ui.form .field .ui.input.router-modal-input input,
+.ui.input.router-modal-input > input {
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding-top: 0.64em !important;
+    padding-bottom: 0.64em !important;
+}
+
+.ui.icon.input.router-modal-input > i.icon {
+    opacity: 0.72 !important;
+}
+
+.ui.form textarea.router-modal-textarea {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    padding: 0.76em 0.96em !important;
+}
+
+.ui.button.router-inline-button,
+.ui.buttons .button.router-inline-button {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    line-height: 1.2 !important;
+    min-height: 30px !important;
+    padding: 0.54em 0.82em !important;
+}
+
+.ui.button.router-inline-button > .icon,
+.ui.buttons .button.router-inline-button > .icon {
+    font-size: 0.9em !important;
+}
+
+.ui.selection.dropdown.router-inline-dropdown,
+.ui.selection.dropdown.router-inline-dropdown > .text,
+.ui.selection.dropdown.router-inline-dropdown > .default.text,
+.ui.selection.dropdown.router-inline-dropdown .menu > .item {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    line-height: 1.35 !important;
+}
+
+.ui.selection.dropdown.router-inline-dropdown {
+    min-height: 34px !important;
+    height: 34px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+.ui.selection.dropdown.router-inline-dropdown .menu > .item {
+    padding: 0.72rem 0.92rem !important;
+}
+
+.ui.form .field .ui.input.router-inline-input input,
+.ui.input.router-inline-input > input {
+    font-size: 13px !important;
+    line-height: 1.35 !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    padding-top: 0.62em !important;
+    padding-bottom: 0.62em !important;
+}
+
+.ui.icon.input.router-inline-input > i.icon {
+    opacity: 0.72 !important;
 }
 
 @media only screen and (max-width: 600px) {

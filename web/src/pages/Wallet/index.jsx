@@ -133,7 +133,7 @@ const WalletPage = () => {
         </Message>
       )}
       <Segment>
-        <Button primary onClick={connect} disabled={!hasWallet}>
+        <Button className='router-section-button' primary onClick={connect} disabled={!hasWallet}>
           <Icon name='plug' />
           连接钱包
         </Button>
@@ -142,7 +142,7 @@ const WalletPage = () => {
           <div>链 ID：{chainId || '-'}</div>
           <div>余额：{balance ? `${balance} ETH` : '-'}</div>
         </div>
-        <Button basic style={{ marginTop: '8px' }} onClick={() => refreshBalance()}>
+        <Button className='router-section-button' basic style={{ marginTop: '8px' }} onClick={() => refreshBalance()}>
           刷新余额
         </Button>
       </Segment>
@@ -152,11 +152,12 @@ const WalletPage = () => {
           <Card.Header>签名测试</Card.Header>
           <Form>
             <Form.TextArea
+              className='router-section-textarea'
               label='待签名消息'
               value={messageToSign}
               onChange={(e) => setMessageToSign(e.target.value)}
             />
-            <Button color='orange' onClick={signMessage}>
+            <Button className='router-section-button' color='orange' onClick={signMessage}>
               personal_sign
             </Button>
             {signResult && (
@@ -173,19 +174,21 @@ const WalletPage = () => {
           <Card.Header>发送 ETH</Card.Header>
           <Form>
             <Form.Input
+              className='router-section-input'
               label='收款地址'
               placeholder='0x...'
               value={tx.to}
               onChange={(e) => setTx({ ...tx, to: e.target.value })}
             />
             <Form.Input
+              className='router-section-input'
               label='金额（ETH）'
               type='number'
               placeholder='0.01'
               value={tx.value}
               onChange={(e) => setTx({ ...tx, value: e.target.value })}
             />
-            <Button color='green' loading={loading} onClick={sendTx}>
+            <Button className='router-section-button' color='green' loading={loading} onClick={sendTx}>
               发送
             </Button>
           </Form>

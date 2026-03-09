@@ -75,10 +75,11 @@ const RedemptionDetail = () => {
               flexWrap: 'wrap',
             }}
           >
-            <Button onClick={() => navigate('/redemption')}>
+            <Button className='router-page-button' onClick={() => navigate('/redemption')}>
               {t('redemption.detail.buttons.back')}
             </Button>
             <Button
+              className='router-page-button'
               primary
               onClick={() => navigate(`/redemption/edit/${id}`)}
             >
@@ -89,11 +90,13 @@ const RedemptionDetail = () => {
           <Form loading={loading}>
             <Form.Group widths='equal'>
               <Form.Input
+                className='router-section-input'
                 label={t('redemption.table.name')}
                 value={redemption?.name || t('redemption.table.no_name')}
                 readOnly
               />
               <Form.Input
+                className='router-section-input'
                 label={t('redemption.detail.code')}
                 value={redemption?.code || ''}
                 readOnly
@@ -107,6 +110,7 @@ const RedemptionDetail = () => {
                 </div>
               </Form.Field>
               <Form.Input
+                className='router-section-input'
                 label={t('redemption.table.quota')}
                 value={redemption ? renderQuota(redemption.quota, t) : ''}
                 readOnly
@@ -114,11 +118,13 @@ const RedemptionDetail = () => {
             </Form.Group>
             <Form.Group widths='equal'>
               <Form.Input
+                className='router-section-input'
                 label={t('redemption.table.created_time')}
                 value={redemption?.created_time ? timestamp2string(redemption.created_time) : ''}
                 readOnly
               />
               <Form.Input
+                className='router-section-input'
                 label={t('redemption.table.redeemed_time')}
                 value={
                   redemption?.redeemed_time

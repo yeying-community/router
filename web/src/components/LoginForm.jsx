@@ -143,7 +143,7 @@ const LoginForm = () => {
               <Button
                 fluid
                 size='large'
-                className='router-login-main-btn router-wallet-button'
+                className='router-login-main-btn router-auth-button router-wallet-button'
                 onClick={onWalletLoginClicked}
                 disabled={walletLoginDisabled}
               >
@@ -164,7 +164,7 @@ const LoginForm = () => {
                   basic
                   fluid
                   size='large'
-                  className='router-login-main-btn router-password-toggle'
+                  className='router-login-main-btn router-auth-button router-password-toggle'
                   onClick={() =>
                     setShowPasswordLogin((previousState) => !previousState)
                   }
@@ -177,6 +177,7 @@ const LoginForm = () => {
                 <>
                   <Form size='large' className='router-login-form'>
                     <Form.Input
+                      className='router-auth-input'
                       fluid
                       icon='user'
                       iconPosition='left'
@@ -186,6 +187,7 @@ const LoginForm = () => {
                       onChange={handleChange}
                     />
                     <Form.Input
+                      className='router-auth-input'
                       fluid
                       icon='lock'
                       iconPosition='left'
@@ -198,7 +200,7 @@ const LoginForm = () => {
                     <Button
                       fluid
                       size='large'
-                      className='router-password-submit'
+                      className='router-auth-button router-password-submit'
                       onClick={handleSubmit}
                     >
                       {t('auth.login.button')}

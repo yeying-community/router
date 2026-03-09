@@ -312,9 +312,9 @@ const LogsTable = () => {
       <Form>
         <Form.Group>
           <Form.Input
+            className='router-section-input'
             fluid
             label={t('log.table.token_name')}
-            size={'small'}
             width={3}
             value={token_name}
             placeholder={t('log.table.token_name_placeholder')}
@@ -322,9 +322,9 @@ const LogsTable = () => {
             onChange={handleInputChange}
           />
           <Form.Input
+            className='router-section-input'
             fluid
             label={t('log.table.model_name')}
-            size={'small'}
             width={3}
             value={model_name}
             placeholder={t('log.table.model_name_placeholder')}
@@ -332,9 +332,9 @@ const LogsTable = () => {
             onChange={handleInputChange}
           />
           <Form.Input
+            className='router-section-input'
             fluid
             label={t('log.table.start_time')}
-            size={'small'}
             width={4}
             value={start_timestamp}
             type='datetime-local'
@@ -342,9 +342,9 @@ const LogsTable = () => {
             onChange={handleInputChange}
           />
           <Form.Input
+            className='router-section-input'
             fluid
             label={t('log.table.end_time')}
-            size={'small'}
             width={4}
             value={end_timestamp}
             type='datetime-local'
@@ -352,9 +352,9 @@ const LogsTable = () => {
             onChange={handleInputChange}
           />
           <Form.Button
+            className='router-section-button'
             fluid
             label={t('log.buttons.query')}
-            size={'small'}
             width={2}
             onClick={refresh}
           >
@@ -365,9 +365,9 @@ const LogsTable = () => {
           <>
             <Form.Group>
               <Form.Input
+                className='router-section-input'
                 fluid
                 label={t('log.table.channel_id')}
-                size={'small'}
                 width={3}
                 value={channel}
                 placeholder={t('log.table.channel_id_placeholder')}
@@ -375,9 +375,9 @@ const LogsTable = () => {
                 onChange={handleInputChange}
               />
               <Form.Input
+                className='router-section-input'
                 fluid
                 label={t('log.table.username')}
-                size={'small'}
                 width={3}
                 value={username}
                 placeholder={t('log.table.username_placeholder')}
@@ -388,6 +388,7 @@ const LogsTable = () => {
           </>
         )}
         <Form.Input
+          className='router-section-input'
           icon='search'
           placeholder={t('log.search')}
           value={searchKeyword}
@@ -565,6 +566,7 @@ const LogsTable = () => {
           <Table.Row>
             <Table.HeaderCell colSpan={'10'}>
               <Select
+                className='router-section-dropdown'
                 placeholder={t('log.type.select')}
                 options={LOG_OPTIONS}
                 style={{ marginRight: '8px' }}
@@ -574,7 +576,7 @@ const LogsTable = () => {
                   setLogType(value);
                 }}
               />
-              <Button size='small' onClick={refresh} loading={loading}>
+              <Button className='router-page-button' onClick={refresh} loading={loading}>
                 {t('log.buttons.refresh')}
               </Button>
               <Pagination

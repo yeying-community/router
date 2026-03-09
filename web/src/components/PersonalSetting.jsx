@@ -197,7 +197,7 @@ const PersonalSetting = () => {
         <p style={{ color: '#666' }}>
           {walletBinding ? `当前绑定地址：${walletBinding}` : '尚未绑定钱包'}
         </p>
-        <Button primary onClick={bindWallet} disabled={!status.wallet_login}>
+        <Button className='router-section-button' primary onClick={bindWallet} disabled={!status.wallet_login}>
           {status.wallet_login ? '绑定 / 更换钱包' : '管理员未开启钱包登录'}
         </Button>
         {!status.wallet_login && (
@@ -209,7 +209,7 @@ const PersonalSetting = () => {
 
       <Segment>
         <Header as='h3'>{t('setting.personal.tokens.title', '令牌与邀请')}</Header>
-        <Button color='blue' onClick={generateAccessToken} style={{ marginBottom: '8px' }}>
+        <Button className='router-section-button' color='blue' onClick={generateAccessToken} style={{ marginBottom: '8px' }}>
           生成并复制系统令牌
         </Button>
         {systemToken && (
@@ -218,7 +218,7 @@ const PersonalSetting = () => {
           </Message>
         )}
         <Divider />
-        <Button onClick={getAffLink}>生成并复制邀请链接</Button>
+        <Button className='router-section-button' onClick={getAffLink}>生成并复制邀请链接</Button>
         {affLink && (
           <Message success size='small' style={{ wordBreak: 'break-all' }}>
             {affLink}
@@ -232,6 +232,7 @@ const PersonalSetting = () => {
         </Header>
         <Form>
           <Form.Input
+            className='router-section-input'
             label={t('user.edit.password')}
             placeholder={t('user.edit.password_placeholder')}
             type='password'
@@ -240,6 +241,7 @@ const PersonalSetting = () => {
             autoComplete='new-password'
           />
           <Form.Input
+            className='router-section-input'
             label={t('auth.register.confirm_password')}
             placeholder={t('auth.register.confirm_password')}
             type='password'
@@ -248,6 +250,7 @@ const PersonalSetting = () => {
             autoComplete='new-password'
           />
           <Button
+            className='router-section-button'
             primary
             loading={passwordLoading}
             onClick={submitPasswordChange}
@@ -264,13 +267,14 @@ const PersonalSetting = () => {
         <p style={{ color: '#666' }}>删除账户将同时清除钱包绑定与令牌。</p>
         <Form>
           <Form.Input
+            className='router-section-input'
             label='请输入账户名以确认删除'
             placeholder={userState.user?.username}
             name='self_account_deletion_confirmation'
             value={inputs.self_account_deletion_confirmation}
             onChange={handleInputChange}
           />
-          <Button negative loading={loading} onClick={deleteAccount}>
+          <Button className='router-section-button' negative loading={loading} onClick={deleteAccount}>
             {t('setting.personal.delete.confirm', '确认删除')}
           </Button>
         </Form>

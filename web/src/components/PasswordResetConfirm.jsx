@@ -90,6 +90,7 @@ const PasswordResetConfirm = () => {
             </Card.Header>
             <Form size='large'>
               <Form.Input
+                className='router-auth-input'
                 fluid
                 icon='mail'
                 iconPosition='left'
@@ -101,6 +102,7 @@ const PasswordResetConfirm = () => {
               />
               {newPassword && (
                 <Form.Input
+                  className='router-auth-input'
                   fluid
                   icon='lock'
                   iconPosition='left'
@@ -121,6 +123,7 @@ const PasswordResetConfirm = () => {
                 />
               )}
               <Button
+                className='router-auth-button'
                 fluid
                 size='large'
                 onClick={handleSubmit}

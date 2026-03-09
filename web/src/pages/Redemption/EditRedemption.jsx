@@ -92,6 +92,7 @@ const EditRedemption = () => {
           <Form loading={loading} autoComplete='new-password'>
             <Form.Field>
               <Form.Input
+                className='router-section-input'
                 label={t('redemption.edit.name')}
                 name='name'
                 placeholder={t('redemption.edit.name_placeholder')}
@@ -103,6 +104,7 @@ const EditRedemption = () => {
             </Form.Field>
             <Form.Field>
               <Form.Input
+                className='router-section-input'
                 label={`${t('redemption.edit.quota')}${renderQuotaWithPrompt(quota, t)}`}
                 name='quota'
                 placeholder={t('redemption.edit.quota_placeholder')}
@@ -116,6 +118,7 @@ const EditRedemption = () => {
               <>
                 <Form.Field>
                   <Form.Input
+                    className='router-section-input'
                     label={t('redemption.edit.count')}
                     name='count'
                     placeholder={t('redemption.edit.count_placeholder')}
@@ -127,10 +130,10 @@ const EditRedemption = () => {
                 </Form.Field>
               </>
             )}
-            <Button positive onClick={submit}>
+            <Button className='router-page-button' positive onClick={submit}>
               {t('redemption.edit.buttons.submit')}
             </Button>
-            <Button onClick={handleCancel}>
+            <Button className='router-page-button' onClick={handleCancel}>
               {t('redemption.edit.buttons.cancel')}
             </Button>
           </Form>

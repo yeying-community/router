@@ -858,11 +858,11 @@ const ChannelsTable = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {selectionMode === selectionModeNone ? (
             <>
-              <Button size='tiny' as={Link} to='/channel/add' disabled={actionBusy}>
+              <Button className='router-page-button' as={Link} to='/channel/add' disabled={actionBusy}>
                 {t('channel.buttons.add')}
               </Button>
               <Button
-                size='tiny'
+                className='router-page-button'
                 disabled={actionBusy}
                 onClick={() => {
                   setSelectionMode(selectionModeTest);
@@ -872,7 +872,7 @@ const ChannelsTable = () => {
                 {t('channel.buttons.test_channel')}
               </Button>
               <Button
-                size='tiny'
+                className='router-page-button'
                 color='orange'
                 disabled={actionBusy}
                 onClick={() => {
@@ -883,7 +883,7 @@ const ChannelsTable = () => {
                 {t('channel.buttons.disable_channel')}
               </Button>
               <Button
-                size='tiny'
+                className='router-page-button'
                 negative
                 disabled={actionBusy}
                 onClick={() => {
@@ -897,7 +897,7 @@ const ChannelsTable = () => {
           ) : (
             <>
               <Button
-                size='tiny'
+                className='router-page-button'
                 positive={selectionMode === selectionModeTest}
                 negative={selectionMode === selectionModeDelete}
                 color={selectionMode === selectionModeDisable ? 'orange' : undefined}
@@ -918,7 +918,7 @@ const ChannelsTable = () => {
                 {t('channel.buttons.confirm')}
               </Button>
               <Button
-                size='tiny'
+                className='router-page-button'
                 disabled={batchTesting || batchDeleting || batchDisabling}
                 onClick={cancelBatchSelection}
               >
@@ -926,13 +926,14 @@ const ChannelsTable = () => {
               </Button>
             </>
           )}
-          <Button size='tiny' onClick={refresh} loading={loading} disabled={actionBusy}>
+          <Button className='router-page-button' onClick={refresh} loading={loading} disabled={actionBusy}>
             {t('channel.buttons.refresh')}
           </Button>
         </div>
 
         <Form onSubmit={searchChannels} style={{ width: '320px', maxWidth: '100%' }}>
           <Form.Input
+            className='router-section-input'
             icon='search'
             iconPosition='left'
             placeholder={t('channel.search')}
@@ -1077,6 +1078,7 @@ const ChannelsTable = () => {
                     <Popup
                       trigger={
                         <Input
+                          className='router-inline-input'
                           type='number'
                           defaultValue={channel.priority}
                           onBlur={(event) => {
@@ -1097,6 +1099,7 @@ const ChannelsTable = () => {
                   </Table.Cell>
                   <Table.Cell onClick={stopRowClick}>
                     <Dropdown
+                      className='router-inline-dropdown'
                       placeholder={t('channel.table.select_test_model')}
                       selection
                       options={channel.model_options}
@@ -1117,7 +1120,7 @@ const ChannelsTable = () => {
                       }}
                     >
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         positive
                         onClick={() => {
                           testChannel(channel, idx);
@@ -1126,7 +1129,7 @@ const ChannelsTable = () => {
                         {t('channel.buttons.test_capability')}
                       </Button>
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         onClick={() => {
                           testChannelModel(channel, idx);
                         }}
@@ -1135,7 +1138,7 @@ const ChannelsTable = () => {
                         {t('channel.buttons.test_model')}
                       </Button>
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         onClick={() => {
                           manageChannel(
                             channel.id,
@@ -1149,14 +1152,14 @@ const ChannelsTable = () => {
                           : t('channel.buttons.enable')}
                       </Button>
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         as={Link}
                         to={`/channel/add?copy_from=${channel.id}`}
                       >
                         {t('channel.buttons.copy')}
                       </Button>
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         as={Link}
                         to={'/channel/edit/' + channel.id}
                       >

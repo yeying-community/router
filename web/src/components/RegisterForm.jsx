@@ -71,6 +71,7 @@ const RegisterForm = () => {
             </Card.Header>
             <Form size='large'>
               <Form.Input
+                className='router-auth-input'
                 fluid
                 icon='user'
                 iconPosition='left'
@@ -80,6 +81,7 @@ const RegisterForm = () => {
                 style={{ marginBottom: '1em' }}
               />
               <Form.Input
+                className='router-auth-input'
                 fluid
                 icon='lock'
                 iconPosition='left'
@@ -90,6 +92,7 @@ const RegisterForm = () => {
                 style={{ marginBottom: '1em' }}
               />
               <Form.Input
+                className='router-auth-input'
                 fluid
                 icon='lock'
                 iconPosition='left'
@@ -100,6 +103,7 @@ const RegisterForm = () => {
                 style={{ marginBottom: '1.5em' }}
               />
               <Button
+                className='router-auth-button'
                 fluid
                 size='large'
                 onClick={handleSubmit}

@@ -575,7 +575,7 @@ const ModelProvidersManager = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {searchable ? (
               <Form.Input
-                size='small'
+                className='router-inline-input'
                 icon='search'
                 iconPosition='left'
                 style={{ width: 260 }}
@@ -590,7 +590,7 @@ const ModelProvidersManager = () => {
             ) : null}
             <Button
               type='button'
-              size='tiny'
+              className='router-inline-button'
               disabled={disabled}
               onClick={() => addModelDetailRow(setValueFn, row)}
             >
@@ -624,8 +624,8 @@ const ModelProvidersManager = () => {
                 <Table.Row key={`${detail.model || 'model'}-${detailIndex}`}>
                   <Table.Cell style={{ minWidth: 260 }}>
                     <Form.Input
+                      className='router-inline-input'
                       fluid
-                      size='small'
                       value={detail.model || ''}
                       disabled={disabled}
                       onChange={(e, { value }) =>
@@ -635,8 +635,8 @@ const ModelProvidersManager = () => {
                   </Table.Cell>
                   <Table.Cell style={{ minWidth: 120 }}>
                     <Form.Select
+                      className='router-inline-dropdown'
                       fluid
-                      size='small'
                       options={MODEL_TYPE_OPTIONS}
                       value={detail.type || 'text'}
                       disabled={disabled}
@@ -647,8 +647,8 @@ const ModelProvidersManager = () => {
                   </Table.Cell>
                   <Table.Cell>
                     <Form.Input
+                      className='router-inline-input'
                       fluid
-                      size='small'
                       type='number'
                       step='0.000001'
                       value={detail.input_price || 0}
@@ -660,8 +660,8 @@ const ModelProvidersManager = () => {
                   </Table.Cell>
                   <Table.Cell>
                     <Form.Input
+                      className='router-inline-input'
                       fluid
-                      size='small'
                       type='number'
                       step='0.000001'
                       value={detail.output_price || 0}
@@ -673,8 +673,8 @@ const ModelProvidersManager = () => {
                   </Table.Cell>
                   <Table.Cell>
                     <Form.Input
+                      className='router-inline-input'
                       fluid
-                      size='small'
                       value={detail.price_unit || ''}
                       disabled={disabled}
                       onChange={(e, { value }) =>
@@ -684,8 +684,8 @@ const ModelProvidersManager = () => {
                   </Table.Cell>
                   <Table.Cell>
                     <Form.Input
+                      className='router-inline-input'
                       fluid
-                      size='small'
                       value={detail.currency || 'USD'}
                       disabled={disabled}
                       onChange={(e, { value }) =>
@@ -695,8 +695,8 @@ const ModelProvidersManager = () => {
                   </Table.Cell>
                   <Table.Cell>
                     <Form.Input
+                      className='router-inline-input'
                       fluid
-                      size='small'
                       value={detail.source || 'manual'}
                       disabled={disabled}
                       onChange={(e, { value }) =>
@@ -707,8 +707,8 @@ const ModelProvidersManager = () => {
                   <Table.Cell textAlign='center'>
                     <Button
                       type='button'
+                      className='router-inline-button'
                       icon
-                      size='tiny'
                       color='red'
                       disabled={disabled}
                       onClick={() => removeModelDetailRow(setValueFn, row, detailIndex)}
@@ -773,7 +773,7 @@ const ModelProvidersManager = () => {
           </div>
           {searchable ? (
             <Form.Input
-              size='small'
+              className='router-inline-input'
               icon='search'
               iconPosition='left'
               style={{ width: 260 }}
@@ -858,7 +858,12 @@ const ModelProvidersManager = () => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Button type='button' size='tiny' disabled={saving || loading} onClick={openCreatePanel}>
+          <Button
+            type='button'
+            className='router-page-button'
+            disabled={saving || loading}
+            onClick={openCreatePanel}
+          >
             {t('channel.providers.buttons.add_provider')}
           </Button>
         </div>
@@ -928,8 +933,8 @@ const ModelProvidersManager = () => {
                   <Table.Cell textAlign='left' style={{ whiteSpace: 'nowrap' }}>
                     <Button
                       type='button'
+                      className='router-inline-button'
                       icon
-                      size='tiny'
                       color='blue'
                       disabled={creating || saving}
                       onClick={(e) => {
@@ -941,8 +946,8 @@ const ModelProvidersManager = () => {
                     </Button>
                     <Button
                       type='button'
+                      className='router-inline-button'
                       icon
-                      size='tiny'
                       color='red'
                       disabled={creating || saving}
                       onClick={(e) => {
@@ -985,11 +990,11 @@ const ModelProvidersManager = () => {
           marginBottom: 12,
         }}
       >
-        <Button type='button' onClick={rollbackEditor} disabled={saving}>
+        <Button type='button' className='router-page-button' onClick={rollbackEditor} disabled={saving}>
           <Icon name='undo' />
           {t('channel.providers.dialog.cancel_create')}
         </Button>
-        <Button type='button' color='blue' loading={saving} disabled={saving} onClick={applyEditToRows}>
+        <Button type='button' className='router-page-button' color='blue' loading={saving} disabled={saving} onClick={applyEditToRows}>
           <Icon name='check' />
           {t('channel.providers.dialog.confirm')}
         </Button>
@@ -997,11 +1002,13 @@ const ModelProvidersManager = () => {
       <Form>
         <Form.Group widths='equal'>
           <Form.Input
+            className='router-section-input'
             label={t('channel.providers.dialog.provider')}
             value={editRow.id}
             readOnly
           />
           <Form.Input
+            className='router-section-input'
             label={t('channel.providers.dialog.name')}
             placeholder={t('channel.providers.dialog.name_placeholder')}
             value={editRow.name}
@@ -1009,6 +1016,7 @@ const ModelProvidersManager = () => {
           />
         </Form.Group>
         <Form.Input
+          className='router-section-input'
           label={t('channel.providers.dialog.base_url')}
           placeholder={t('channel.providers.dialog.base_url_placeholder')}
           value={editRow.base_url}
@@ -1038,12 +1046,13 @@ const ModelProvidersManager = () => {
             marginBottom: 12,
           }}
         >
-          <Button type='button' onClick={closeViewer} disabled={saving}>
+          <Button type='button' className='router-page-button' onClick={closeViewer} disabled={saving}>
             <Icon name='undo' />
             {t('channel.providers.dialog.cancel')}
           </Button>
           <Button
             type='button'
+            className='router-page-button'
             color='blue'
             disabled={saving}
             onClick={() => openEditor(viewRow)}
@@ -1055,11 +1064,13 @@ const ModelProvidersManager = () => {
         <Form>
           <Form.Group widths='equal'>
             <Form.Input
+              className='router-section-input'
               label={t('channel.providers.dialog.provider')}
               value={viewRow.id || ''}
               readOnly
             />
             <Form.Input
+              className='router-section-input'
               label={t('channel.providers.dialog.name')}
               value={viewRow.name || ''}
               readOnly
@@ -1067,17 +1078,20 @@ const ModelProvidersManager = () => {
           </Form.Group>
           <Form.Group widths='equal'>
             <Form.Input
+              className='router-section-input'
               label={t('channel.providers.dialog.base_url')}
               value={viewRow.base_url || ''}
               readOnly
             />
             <Form.Input
+              className='router-section-input'
               label={t('channel.providers.table.source')}
               value={viewRow.source || '-'}
               readOnly
             />
           </Form.Group>
           <Form.Input
+            className='router-section-input'
             label={t('channel.providers.table.updated_at')}
             value={viewRow.updated_at ? timestamp2string(viewRow.updated_at) : '-'}
             readOnly
@@ -1110,11 +1124,11 @@ const ModelProvidersManager = () => {
           marginBottom: 12,
         }}
       >
-        <Button type='button' onClick={closeCreatePanel} disabled={saving}>
+        <Button type='button' className='router-page-button' onClick={closeCreatePanel} disabled={saving}>
           <Icon name='undo' />
           {t('channel.providers.dialog.cancel_create')}
         </Button>
-        <Button type='button' color='blue' loading={saving} disabled={saving} onClick={applyCreateToRows}>
+        <Button type='button' className='router-page-button' color='blue' loading={saving} disabled={saving} onClick={applyCreateToRows}>
           <Icon name='check' />
           {t('channel.providers.dialog.confirm')}
         </Button>
@@ -1122,12 +1136,14 @@ const ModelProvidersManager = () => {
       <Form>
         <Form.Group widths='equal'>
           <Form.Input
+            className='router-section-input'
             label={t('channel.providers.dialog.provider')}
             placeholder={t('channel.providers.dialog.provider_placeholder')}
             value={createRow.id}
             onChange={(e, { value }) => setCreateValue('id', normalizeProvider(value || ''))}
           />
           <Form.Input
+            className='router-section-input'
             label={t('channel.providers.dialog.name')}
             placeholder={t('channel.providers.dialog.name_placeholder')}
             value={createRow.name}
@@ -1135,6 +1151,7 @@ const ModelProvidersManager = () => {
           />
         </Form.Group>
         <Form.Input
+          className='router-section-input'
           label={t('channel.providers.dialog.base_url')}
           placeholder={t('channel.providers.dialog.base_url_placeholder')}
           value={createRow.base_url}
@@ -1160,11 +1177,12 @@ const ModelProvidersManager = () => {
           {t('channel.providers.dialog.delete_content', { provider: providerName })}
         </Modal.Content>
         <Modal.Actions>
-          <Button type='button' onClick={closeDeleteModal} disabled={saving}>
+          <Button type='button' className='router-modal-button' onClick={closeDeleteModal} disabled={saving}>
             {t('channel.providers.dialog.cancel_create')}
           </Button>
           <Button
             type='button'
+            className='router-modal-button'
             color='red'
             loading={saving}
             disabled={saving}

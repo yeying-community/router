@@ -108,6 +108,7 @@ const EditUser = () => {
           <Form loading={loading} autoComplete='new-password'>
             <Form.Field>
               <Form.Input
+                className='router-section-input'
                 label={t('user.edit.username')}
                 name='username'
                 placeholder={t('user.edit.username_placeholder')}
@@ -118,6 +119,7 @@ const EditUser = () => {
             </Form.Field>
             <Form.Field>
               <Form.Input
+                className='router-section-input'
                 label={t('user.edit.password')}
                 name='password'
                 type={'password'}
@@ -129,6 +131,7 @@ const EditUser = () => {
             </Form.Field>
             <Form.Field>
               <Form.Input
+                className='router-section-input'
                 label={t('user.edit.display_name')}
                 name='display_name'
                 placeholder={t('user.edit.display_name_placeholder')}
@@ -141,6 +144,7 @@ const EditUser = () => {
               <>
                 <Form.Field>
                   <Form.Dropdown
+                    className='router-section-dropdown'
                     label={t('user.edit.group')}
                     placeholder={t('user.edit.group_placeholder')}
                     name='group'
@@ -157,6 +161,7 @@ const EditUser = () => {
                 </Form.Field>
                 <Form.Field>
                   <Form.Input
+                    className='router-section-input'
                     label={`${t('user.edit.quota')}${renderQuotaWithPrompt(
                       quota,
                       t
@@ -173,6 +178,7 @@ const EditUser = () => {
             )}
             <Form.Field>
               <Form.Input
+                className='router-section-input'
                 label={t('user.edit.github_id')}
                 name='github_id'
                 value={github_id}
@@ -183,6 +189,7 @@ const EditUser = () => {
             </Form.Field>
             <Form.Field>
               <Form.Input
+                className='router-section-input'
                 label={t('user.edit.wechat_id')}
                 name='wechat_id'
                 value={wechat_id}
@@ -193,6 +200,7 @@ const EditUser = () => {
             </Form.Field>
             <Form.Field>
               <Form.Input
+                className='router-section-input'
                 label={t('user.edit.email')}
                 name='email'
                 value={email}
@@ -201,10 +209,10 @@ const EditUser = () => {
                 readOnly
               />
             </Form.Field>
-            <Button onClick={handleCancel}>
+            <Button className='router-page-button' onClick={handleCancel}>
               {t('user.edit.buttons.cancel')}
             </Button>
-            <Button positive onClick={submit}>
+            <Button className='router-page-button' positive onClick={submit}>
               {t('user.edit.buttons.submit')}
             </Button>
           </Form>

@@ -196,14 +196,14 @@ const RedemptionsTable = () => {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Button
-            size='small'
+            className='router-page-button'
             as={Link}
             to='/redemption/add'
             loading={loading}
           >
             {t('redemption.buttons.add')}
           </Button>
-          <Button size='small' onClick={refresh} loading={loading}>
+          <Button className='router-page-button' onClick={refresh} loading={loading}>
             {t('redemption.buttons.refresh')}
           </Button>
         </div>
@@ -212,6 +212,7 @@ const RedemptionsTable = () => {
           style={{ marginLeft: 'auto', width: 'min(360px, 100%)' }}
         >
           <Form.Input
+            className='router-section-input'
             icon='search'
             fluid
             iconPosition='left'
@@ -306,7 +307,7 @@ const RedemptionsTable = () => {
                   >
                     <div>
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         positive
                         onClick={async () => {
                           if (await copy(redemption.code)) {
@@ -321,7 +322,7 @@ const RedemptionsTable = () => {
                       </Button>
                       <Popup
                         trigger={
-                          <Button size='tiny' negative>
+                          <Button className='router-inline-button' negative>
                             {t('redemption.buttons.delete')}
                           </Button>
                         }
@@ -330,6 +331,7 @@ const RedemptionsTable = () => {
                         hoverable
                       >
                         <Button
+                          className='router-inline-button'
                           negative
                           onClick={() => {
                             manageRedemption(redemption.id, 'delete', idx);
@@ -339,7 +341,7 @@ const RedemptionsTable = () => {
                         </Button>
                       </Popup>
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         disabled={redemption.status === 3} // used
                         onClick={() => {
                           manageRedemption(
@@ -354,7 +356,7 @@ const RedemptionsTable = () => {
                           : t('redemption.buttons.enable')}
                       </Button>
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         as={Link}
                         to={'/redemption/edit/' + redemption.id}
                       >

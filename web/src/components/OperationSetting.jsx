@@ -157,6 +157,7 @@ const OperationSetting = () => {
           <Header as='h3'>{t('setting.operation.quota.title')}</Header>
           <Form.Group widths='equal'>
             <Form.Input
+              className='router-section-input'
               label={t('setting.operation.quota.new_user')}
               name='QuotaForNewUser'
               onChange={handleInputChange}
@@ -167,6 +168,7 @@ const OperationSetting = () => {
               placeholder={t('setting.operation.quota.new_user_placeholder')}
             />
             <Form.Input
+              className='router-section-input'
               label={t('setting.operation.quota.pre_consume')}
               name='PreConsumedQuota'
               onChange={handleInputChange}
@@ -177,6 +179,7 @@ const OperationSetting = () => {
               placeholder={t('setting.operation.quota.pre_consume_placeholder')}
             />
             <Form.Input
+              className='router-section-input'
               label={t('setting.operation.quota.inviter_reward')}
               name='QuotaForInviter'
               onChange={handleInputChange}
@@ -189,6 +192,7 @@ const OperationSetting = () => {
               )}
             />
             <Form.Input
+              className='router-section-input'
               label={t('setting.operation.quota.invitee_reward')}
               name='QuotaForInvitee'
               onChange={handleInputChange}
@@ -202,6 +206,7 @@ const OperationSetting = () => {
             />
           </Form.Group>
           <Form.Button
+            className='router-section-button'
             onClick={() => {
               submitConfig('quota').then();
             }}
@@ -212,6 +217,7 @@ const OperationSetting = () => {
           <Header as='h3'>{t('setting.operation.log.title')}</Header>
           <Form.Group inline>
             <Form.Checkbox
+              className='router-section-checkbox'
               checked={inputs.LogConsumeEnabled === 'true'}
               label={t('setting.operation.log.enable_consume')}
               name='LogConsumeEnabled'
@@ -220,6 +226,7 @@ const OperationSetting = () => {
           </Form.Group>
           <Form.Group widths={4}>
             <Form.Input
+              className='router-section-input'
               label={t('setting.operation.log.target_time')}
               value={historyTimestamp}
               type='datetime-local'
@@ -230,6 +237,7 @@ const OperationSetting = () => {
             />
           </Form.Group>
           <Form.Button
+            className='router-section-button'
             onClick={() => {
               deleteHistoryLogs().then();
             }}
@@ -241,6 +249,7 @@ const OperationSetting = () => {
           <Header as='h3'>{t('setting.operation.monitor.title')}</Header>
           <Form.Group widths={3}>
             <Form.Input
+              className='router-section-input'
               label={t('setting.operation.monitor.max_response_time')}
               name='ChannelDisableThreshold'
               onChange={handleInputChange}
@@ -253,6 +262,7 @@ const OperationSetting = () => {
               )}
             />
             <Form.Input
+              className='router-section-input'
               label={t('setting.operation.monitor.quota_reminder')}
               name='QuotaRemindThreshold'
               onChange={handleInputChange}
@@ -267,12 +277,14 @@ const OperationSetting = () => {
           </Form.Group>
           <Form.Group inline>
             <Form.Checkbox
+              className='router-section-checkbox'
               checked={inputs.AutomaticDisableChannelEnabled === 'true'}
               label={t('setting.operation.monitor.auto_disable')}
               name='AutomaticDisableChannelEnabled'
               onChange={handleInputChange}
             />
             <Form.Checkbox
+              className='router-section-checkbox'
               checked={inputs.AutomaticEnableChannelEnabled === 'true'}
               label={t('setting.operation.monitor.auto_enable')}
               name='AutomaticEnableChannelEnabled'
@@ -280,6 +292,7 @@ const OperationSetting = () => {
             />
           </Form.Group>
           <Form.Button
+            className='router-section-button'
             onClick={() => {
               submitConfig('monitor').then();
             }}
@@ -291,6 +304,7 @@ const OperationSetting = () => {
           <Header as='h3'>{t('setting.operation.general.title')}</Header>
           <Form.Group widths={4}>
             <Form.Input
+              className='router-section-input'
               label={t('setting.operation.general.topup_link')}
               name='TopUpLink'
               onChange={handleInputChange}
@@ -302,6 +316,7 @@ const OperationSetting = () => {
               )}
             />
             <Form.Input
+              className='router-section-input'
               label={t('setting.operation.general.chat_link')}
               name='ChatLink'
               onChange={handleInputChange}
@@ -311,6 +326,7 @@ const OperationSetting = () => {
               placeholder={t('setting.operation.general.chat_link_placeholder')}
             />
             <Form.Input
+              className='router-section-input'
               label={t('setting.operation.general.quota_per_unit')}
               name='QuotaPerUnit'
               onChange={handleInputChange}
@@ -323,6 +339,7 @@ const OperationSetting = () => {
               )}
             />
             <Form.Input
+              className='router-section-input'
               label={t('setting.operation.general.retry_times')}
               name='RetryTimes'
               type={'number'}
@@ -338,18 +355,21 @@ const OperationSetting = () => {
           </Form.Group>
           <Form.Group inline>
             <Form.Checkbox
+              className='router-section-checkbox'
               checked={inputs.DisplayInCurrencyEnabled === 'true'}
               label={t('setting.operation.general.display_in_currency')}
               name='DisplayInCurrencyEnabled'
               onChange={handleInputChange}
             />
             <Form.Checkbox
+              className='router-section-checkbox'
               checked={inputs.DisplayTokenStatEnabled === 'true'}
               label={t('setting.operation.general.display_token_stat')}
               name='DisplayTokenStatEnabled'
               onChange={handleInputChange}
             />
             <Form.Checkbox
+              className='router-section-checkbox'
               checked={inputs.ApproximateTokenEnabled === 'true'}
               label={t('setting.operation.general.approximate_token')}
               name='ApproximateTokenEnabled'
@@ -357,6 +377,7 @@ const OperationSetting = () => {
             />
           </Form.Group>
           <Form.Button
+            className='router-section-button'
             onClick={() => {
               submitConfig('general').then();
             }}

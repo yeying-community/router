@@ -944,6 +944,32 @@ const EditChannel = () => {
       return owners.length === 0 && inferAssignableProviderForRow(row) !== '';
     });
   }, [getProviderOwnersForModel, inferAssignableProviderForRow, visibleModelConfigs]);
+  const modelSelectionSummaryText = useMemo(
+    () =>
+      t('channel.edit.model_selector.summary', {
+        selected: inputs.models.length,
+        total: visibleModelConfigs.length,
+      }),
+    [inputs.models.length, t, visibleModelConfigs.length],
+  );
+  const modelAssignmentSummaryText = useMemo(() => {
+    if (!isDetailMode) {
+      return '';
+    }
+    return t('channel.edit.model_selector.assignment_summary', {
+      assigned: detailModelStats.assigned,
+      unassigned: detailModelStats.unassigned,
+      auto: detailModelStats.autoAssignable,
+      manual: detailModelStats.manualRequired,
+    });
+  }, [detailModelStats, isDetailMode, t]);
+  const modelSectionMetaText = useMemo(() => {
+    const parts = [modelSelectionSummaryText];
+    if (modelAssignmentSummaryText) {
+      parts.push(modelAssignmentSummaryText);
+    }
+    return parts.filter(Boolean).join(' · ');
+  }, [modelAssignmentSummaryText, modelSelectionSummaryText]);
 
   const handleInputChange = (e, { name, value }) => {
     const nextValue =
@@ -960,6 +986,7 @@ const EditChannel = () => {
       return (
         <Form.Field>
           <Form.Input
+            className='router-section-input'
             label={t('channel.edit.base_url')}
             name='base_url'
             placeholder='请输入 AZURE_OPENAI_ENDPOINT，例如：https://docs-test-001.openai.azure.com'
@@ -975,6 +1002,7 @@ const EditChannel = () => {
       return (
         <Form.Field>
           <Form.Input
+            className='router-section-input'
             required
             label={t('channel.edit.proxy_url')}
             name='base_url'
@@ -991,6 +1019,7 @@ const EditChannel = () => {
       return (
         <Form.Field>
           <Form.Input
+            className='router-section-input'
             label={t('channel.edit.base_url')}
             name='base_url'
             placeholder={t('channel.edit.base_url_placeholder')}
@@ -1006,6 +1035,7 @@ const EditChannel = () => {
       return (
         <Form.Field>
           <Form.Input
+            className='router-section-input'
             label={t('channel.edit.base_url')}
             name='base_url'
             placeholder={
@@ -1025,6 +1055,7 @@ const EditChannel = () => {
       return (
         <Form.Field>
           <Form.Input
+            className='router-section-input'
             label={t('channel.edit.proxy_url')}
             name='base_url'
             placeholder={t('channel.edit.proxy_url_placeholder')}
@@ -1052,6 +1083,7 @@ const EditChannel = () => {
     return (
       <Form.Field>
         <Form.Input
+          className='router-section-input'
           label={t('channel.edit.key')}
           name='key'
           type='password'
@@ -2277,7 +2309,7 @@ const EditChannel = () => {
         <Modal.Content>
           <Form>
             <Form.Select
-              className='router-page-dropdown'
+              className='router-modal-dropdown'
               label={t('channel.edit.model_selector.append_dialog.provider')}
               placeholder={t(
                 'channel.edit.model_selector.append_dialog.provider_placeholder',
@@ -2292,6 +2324,7 @@ const EditChannel = () => {
               }
             />
             <Form.Input
+              className='router-modal-input'
               label={t('channel.edit.model_selector.append_dialog.model')}
               value={appendProviderForm.model}
               onChange={(e, { value }) =>
@@ -2302,7 +2335,7 @@ const EditChannel = () => {
               }
             />
             <Form.Select
-              className='router-page-dropdown'
+              className='router-modal-dropdown'
               label={t('channel.edit.model_selector.append_dialog.type')}
               options={CHANNEL_MODEL_TYPE_OPTIONS}
               value={appendProviderForm.type}
@@ -2316,11 +2349,12 @@ const EditChannel = () => {
           </Form>
         </Modal.Content>
         <Modal.Actions>
-          <Button type='button' onClick={closeAppendProviderModal}>
+          <Button type='button' className='router-modal-button' onClick={closeAppendProviderModal}>
             {t('channel.edit.model_selector.append_dialog.cancel')}
           </Button>
           <Button
             type='button'
+            className='router-modal-button'
             color='blue'
             loading={appendingProviderModel}
             disabled={appendingProviderModel}
@@ -2343,11 +2377,11 @@ const EditChannel = () => {
                 marginBottom: 12,
               }}
             >
-              <Button type='button' onClick={handleCancel}>
+              <Button type='button' className='router-page-button' onClick={handleCancel}>
                 <Icon name='undo' />
                 {t('channel.edit.buttons.back')}
               </Button>
-              <Button type='button' color='blue' onClick={openEditPage}>
+              <Button type='button' className='router-page-button' color='blue' onClick={openEditPage}>
                 <Icon name='edit' />
                 {t('channel.buttons.edit')}
               </Button>
@@ -2364,11 +2398,12 @@ const EditChannel = () => {
                 marginBottom: 12,
               }}
             >
-              <Button type='button' onClick={handleCancel}>
+              <Button type='button' className='router-page-button' onClick={handleCancel}>
                 {t('channel.edit.buttons.cancel')}
               </Button>
               <Button
                 type='button'
+                className='router-page-button'
                 positive
                 onClick={submit}
                 disabled={
@@ -2400,7 +2435,7 @@ const EditChannel = () => {
                 >
                   <Button
                     type='button'
-                    size='tiny'
+                    className='router-page-button'
                     basic={createStep !== 1}
                     color={createStep === 1 ? 'blue' : undefined}
                     onClick={() => goToCreateStep(1)}
@@ -2409,7 +2444,7 @@ const EditChannel = () => {
                   </Button>
                   <Button
                     type='button'
-                    size='tiny'
+                    className='router-page-button'
                     basic={createStep !== 2}
                     color={createStep === 2 ? 'blue' : undefined}
                     onClick={moveToStepTwo}
@@ -2418,7 +2453,7 @@ const EditChannel = () => {
                   </Button>
                   <Button
                     type='button'
-                    size='tiny'
+                    className='router-page-button'
                     basic={createStep !== 3}
                     color={createStep === 3 ? 'blue' : undefined}
                     onClick={moveToStepThree}
@@ -2427,7 +2462,7 @@ const EditChannel = () => {
                   </Button>
                   <Button
                     type='button'
-                    size='tiny'
+                    className='router-page-button'
                     basic={createStep !== 4}
                     color={createStep === 4 ? 'blue' : undefined}
                     onClick={moveToStepFour}
@@ -2442,6 +2477,7 @@ const EditChannel = () => {
                 <Form.Group widths='equal'>
                   <Form.Field>
                     <Form.Input
+                      className='router-section-input'
                       label={t('channel.edit.identifier')}
                       name='id'
                       placeholder={t('channel.edit.identifier_placeholder')}
@@ -2454,6 +2490,7 @@ const EditChannel = () => {
                   </Form.Field>
                   <Form.Field>
                     <Form.Input
+                      className='router-section-input'
                       label={t('channel.edit.name')}
                       name='name'
                       placeholder={t('channel.edit.name_placeholder')}
@@ -2467,12 +2504,14 @@ const EditChannel = () => {
                   <Form.Field>
                     {isDetailMode ? (
                       <Form.Input
+                        className='router-section-input'
                         label={t('channel.edit.type')}
                         value={currentProtocolOption?.text || inputs.protocol || '-'}
                         readOnly
                       />
                     ) : (
                       <Form.Select
+                        className='router-section-dropdown'
                         label={t('channel.edit.type')}
                         name='protocol'
                         required
@@ -2513,6 +2552,7 @@ const EditChannel = () => {
                     </Message>
                     <Form.Field>
                       <Form.Input
+                        className='router-section-input'
                         label='默认 API 版本'
                         name='other'
                         placeholder='请输入默认 API 版本，例如：2024-03-01-preview，该配置可以被实际的请求查询参数所覆盖'
@@ -2528,6 +2568,7 @@ const EditChannel = () => {
                 {inputs.protocol === 'xunfei' && (
                   <Form.Field>
                     <Form.Input
+                      className='router-section-input'
                       label={t('channel.edit.spark_version')}
                       name='other'
                       placeholder={t('channel.edit.spark_version_placeholder')}
@@ -2541,6 +2582,7 @@ const EditChannel = () => {
                 {inputs.protocol === 'aiproxy-library' && (
                   <Form.Field>
                     <Form.Input
+                      className='router-section-input'
                       label={t('channel.edit.knowledge_id')}
                       name='other'
                       placeholder={t('channel.edit.knowledge_id_placeholder')}
@@ -2554,6 +2596,7 @@ const EditChannel = () => {
                 {inputs.protocol === 'ali' && (
                   <Form.Field>
                     <Form.Input
+                      className='router-section-input'
                       label={t('channel.edit.plugin_param')}
                       name='other'
                       placeholder={t('channel.edit.plugin_param_placeholder')}
@@ -2584,93 +2627,100 @@ const EditChannel = () => {
             )}
             {showStepTwo && inputs.protocol !== 'proxy' && (
               <Form.Field>
-                <label>{t('channel.edit.models')}</label>
                 <div
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'flex-start',
+                    alignItems: 'center',
                     flexWrap: 'wrap',
                     gap: '12px',
                     marginBottom: '10px',
                   }}
                 >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <span style={{ color: 'rgba(0, 0, 0, 0.6)' }}>
-                      {t('channel.edit.model_selector.summary', {
-                        selected: inputs.models.length,
-                        total: visibleModelConfigs.length,
-                      })}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <span style={{ fontWeight: 600 }}>
+                      {t('channel.edit.models')}
                     </span>
-                    {isDetailMode && (
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: '8px',
-                          flexWrap: 'wrap',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Label basic>
-                          {t('channel.edit.model_selector.assignment_summary', {
-                            assigned: detailModelStats.assigned,
-                            unassigned: detailModelStats.unassigned,
-                            auto: detailModelStats.autoAssignable,
-                            manual: detailModelStats.manualRequired,
-                          })}
-                        </Label>
-                        <Form.Select
-                          className='router-page-dropdown'
-                          size='small'
-                          compact
-                          options={[
-                            {
-                              key: 'all',
-                              value: 'all',
-                              text: t('channel.edit.model_selector.filters.all'),
-                            },
-                            {
-                              key: 'unassigned',
-                              value: 'unassigned',
-                              text: t(
-                                'channel.edit.model_selector.filters.unassigned',
-                              ),
-                            },
-                            {
-                              key: 'manual',
-                              value: 'manual',
-                              text: t('channel.edit.model_selector.filters.manual'),
-                            },
-                          ]}
-                          value={detailModelFilter}
-                          onChange={(e, { value }) =>
-                            setDetailModelFilter((value || 'all').toString())
-                          }
-                        />
-                        <Button
-                          type='button'
-                          size='tiny'
-                          color='blue'
-                          loading={autoAssigningProviders}
-                          disabled={
-                            autoAssigningProviders ||
-                            providerCatalogLoading ||
-                            autoAssignableRows.length === 0
-                          }
-                          onClick={handleAutoAssignModels}
-                        >
-                          {t('channel.edit.model_selector.auto_assign')}
-                        </Button>
-                      </div>
-                    )}
+                    <span
+                      style={{
+                        color: 'rgba(0, 0, 0, 0.58)',
+                        fontSize: '13px',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      ({modelSectionMetaText})
+                    </span>
                   </div>
-                  {!isDetailMode && (
+                  {isDetailMode ? (
                     <div
-                      style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}
+                      style={{
+                        display: 'flex',
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Form.Select
+                        className='router-section-dropdown'
+                        compact
+                        options={[
+                          {
+                            key: 'all',
+                            value: 'all',
+                            text: t('channel.edit.model_selector.filters.all'),
+                          },
+                          {
+                            key: 'unassigned',
+                            value: 'unassigned',
+                            text: t(
+                              'channel.edit.model_selector.filters.unassigned',
+                            ),
+                          },
+                          {
+                            key: 'manual',
+                            value: 'manual',
+                            text: t('channel.edit.model_selector.filters.manual'),
+                          },
+                        ]}
+                        value={detailModelFilter}
+                        onChange={(e, { value }) =>
+                          setDetailModelFilter((value || 'all').toString())
+                        }
+                      />
+                      <Button
+                        type='button'
+                        className='router-section-button'
+                        color='blue'
+                        loading={autoAssigningProviders}
+                        disabled={
+                          autoAssigningProviders ||
+                          providerCatalogLoading ||
+                          autoAssignableRows.length === 0
+                        }
+                        onClick={handleAutoAssignModels}
+                      >
+                        {t('channel.edit.model_selector.auto_assign')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                      }}
                     >
                       <Button
                         type='button'
-                        size='tiny'
+                        className='router-page-button'
                         color='green'
                         loading={fetchModelsLoading}
                         disabled={
@@ -2686,7 +2736,7 @@ const EditChannel = () => {
                       </Button>
                       <Button
                         type='button'
-                        size='tiny'
+                        className='router-page-button'
                         onClick={selectAllModels}
                         disabled={visibleModelConfigs.length === 0}
                       >
@@ -2694,7 +2744,7 @@ const EditChannel = () => {
                       </Button>
                       <Button
                         type='button'
-                        size='tiny'
+                        className='router-page-button'
                         onClick={clearSelectedModels}
                         disabled={inputs.models.length === 0}
                       >
@@ -2814,7 +2864,7 @@ const EditChannel = () => {
                               ) : !isDetailMode ? (
                                 <Button
                                   type='button'
-                                  size='tiny'
+                                  className='router-inline-button'
                                   basic
                                   onClick={() => openAppendProviderModal(row)}
                                 >
@@ -2842,6 +2892,7 @@ const EditChannel = () => {
                                 row.model
                               ) : (
                                 <Form.Input
+                                  className='router-inline-input'
                                   transparent
                                   style={{ minWidth: 220 }}
                                   value={row.model}
@@ -2862,6 +2913,7 @@ const EditChannel = () => {
                                 </span>
                               ) : (
                                 <Form.Input
+                                  className='router-inline-input'
                                   transparent
                                   readOnly
                                   value={row.price_unit}
@@ -2875,6 +2927,7 @@ const EditChannel = () => {
                                 </span>
                               ) : (
                                 <Form.Input
+                                  className='router-inline-input'
                                   type='number'
                                   min='0'
                                   step='0.01'
@@ -2898,6 +2951,7 @@ const EditChannel = () => {
                                 </span>
                               ) : (
                                 <Form.Input
+                                  className='router-inline-input'
                                   type='number'
                                   min='0'
                                   step='0.01'
@@ -2922,7 +2976,7 @@ const EditChannel = () => {
                                 {isUnassigned ? (
                                   <Button
                                     type='button'
-                                    size='tiny'
+                                    className='router-inline-button'
                                     basic
                                     onClick={() => openAppendProviderModal(row)}
                                   >
@@ -3114,6 +3168,7 @@ const EditChannel = () => {
             {showStepOne && inputs.protocol === 'awsclaude' && (
               <Form.Field>
                 <Form.Input
+                  className='router-section-input'
                   label='Region'
                   name='region'
                   required
@@ -3124,6 +3179,7 @@ const EditChannel = () => {
                   {...inputReadonlyProps}
                 />
                 <Form.Input
+                  className='router-section-input'
                   label='AK'
                   name='ak'
                   required
@@ -3134,6 +3190,7 @@ const EditChannel = () => {
                   {...inputReadonlyProps}
                 />
                 <Form.Input
+                  className='router-section-input'
                   label='SK'
                   name='sk'
                   required
@@ -3148,6 +3205,7 @@ const EditChannel = () => {
             {showStepOne && inputs.protocol === 'vertexai' && (
               <Form.Field>
                 <Form.Input
+                  className='router-section-input'
                   label='Region'
                   name='region'
                   required
@@ -3158,6 +3216,7 @@ const EditChannel = () => {
                   {...inputReadonlyProps}
                 />
                 <Form.Input
+                  className='router-section-input'
                   label={t('channel.edit.vertex_project_id')}
                   name='vertex_ai_project_id'
                   required
@@ -3168,6 +3227,7 @@ const EditChannel = () => {
                   {...inputReadonlyProps}
                 />
                 <Form.Input
+                  className='router-section-input'
                   label={t('channel.edit.vertex_credentials')}
                   name='vertex_ai_adc'
                   required
@@ -3181,6 +3241,7 @@ const EditChannel = () => {
             )}
             {showStepOne && inputs.protocol === 'coze' && (
               <Form.Input
+                className='router-section-input'
                 label={t('channel.edit.user_id')}
                 name='user_id'
                 required
@@ -3194,6 +3255,7 @@ const EditChannel = () => {
             {showStepOne && inputs.protocol === 'cloudflare' && (
               <Form.Field>
                 <Form.Input
+                  className='router-section-input'
                   label='Account ID'
                   name='user_id'
                   required
@@ -3209,17 +3271,18 @@ const EditChannel = () => {
             )}
             {isDetailMode || isEditMode ? null : (
               <>
-                <Button type='button' onClick={handleCancel}>
+                <Button type='button' className='router-page-button' onClick={handleCancel}>
                   {t('channel.edit.buttons.cancel')}
                 </Button>
                 {createStep > CREATE_CHANNEL_STEP_MIN && (
-                  <Button type='button' onClick={moveToPreviousCreateStep}>
+                  <Button type='button' className='router-page-button' onClick={moveToPreviousCreateStep}>
                     {t('channel.edit.buttons.previous_step')}
                   </Button>
                 )}
                 {createStep < CREATE_CHANNEL_STEP_MAX ? (
                   <Button
                     type='button'
+                    className='router-page-button'
                     positive
                     onClick={
                       createStep === 1
@@ -3234,6 +3297,7 @@ const EditChannel = () => {
                 ) : (
                   <Button
                     type='button'
+                    className='router-page-button'
                     positive
                     onClick={submit}
                     disabled={

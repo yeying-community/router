@@ -264,12 +264,13 @@ const UsersTable = () => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <Button size='small' as={Link} to='/user/add' loading={loading}>
+          <Button className='router-page-button' as={Link} to='/user/add' loading={loading}>
             {t('user.buttons.add')}
           </Button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Dropdown
+            className='router-section-dropdown'
             placeholder={t('user.table.sort_by')}
             selection
             options={[
@@ -296,6 +297,7 @@ const UsersTable = () => {
           />
           <Form onSubmit={searchUsers} style={{ width: '240px', maxWidth: '100%' }}>
             <Form.Input
+              className='router-section-input'
               icon='search'
               iconPosition='left'
               placeholder={t('user.search')}
@@ -433,7 +435,7 @@ const UsersTable = () => {
                       renderRole(user.role, t)
                     ) : (
                       <Dropdown
-                        className='router-role-dropdown'
+                        className='router-inline-dropdown router-role-dropdown'
                         selection
                         compact
                         options={ROLE_OPTIONS(t)}
@@ -450,7 +452,7 @@ const UsersTable = () => {
                       <Popup
                         trigger={
                           <Button
-                            size='tiny'
+                            className='router-inline-button'
                             negative
                             disabled={user.role === 100}
                           >
@@ -462,8 +464,8 @@ const UsersTable = () => {
                         hoverable
                       >
                         <Button
+                          className='router-inline-button'
                           negative
-                          size={'tiny'}
                           onClick={() => {
                             manageUser(user.username, 'delete', idx);
                           }}
@@ -472,7 +474,7 @@ const UsersTable = () => {
                         </Button>
                       </Popup>
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         onClick={() => {
                           manageUser(
                             user.username,
@@ -487,7 +489,7 @@ const UsersTable = () => {
                           : t('user.buttons.enable')}
                       </Button>
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         as={Link}
                         to={'/user/edit/' + user.id}
                       >

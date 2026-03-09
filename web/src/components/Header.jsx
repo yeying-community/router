@@ -263,11 +263,9 @@ const Header = ({ workspace = 'user' }) => {
               {renderButtons(true)}
               {hasAdminAccess && (
                 <Menu.Item>
-                  <Button.Group
-                    fluid
-                    size='small'
-                  >
+                  <Button.Group fluid>
                     <Button
+                      className='router-page-button'
                       basic={currentWorkspace !== 'admin'}
                       primary={currentWorkspace === 'admin'}
                       onClick={() => goToWorkspace('admin')}
@@ -275,6 +273,7 @@ const Header = ({ workspace = 'user' }) => {
                       {t('header.admin_workspace')}
                     </Button>
                     <Button
+                      className='router-page-button'
                       basic={currentWorkspace !== 'user'}
                       primary={currentWorkspace === 'user'}
                       onClick={() => goToWorkspace('user')}
@@ -286,6 +285,7 @@ const Header = ({ workspace = 'user' }) => {
               )}
               <Menu.Item>
                 <Dropdown
+                  className='router-header-dropdown'
                   selection
                   trigger={
                     <Icon
@@ -301,6 +301,7 @@ const Header = ({ workspace = 'user' }) => {
               <Menu.Item>
                 {userState.user ? (
                   <Button
+                    className='router-page-button'
                     onClick={logout}
                     style={{ color: '#666666' }}
                   >
@@ -309,6 +310,7 @@ const Header = ({ workspace = 'user' }) => {
                 ) : (
                   <>
                     <Button
+                      className='router-page-button'
                       onClick={() => {
                         setShowSidebar(false);
                         navigate('/login');
@@ -317,6 +319,7 @@ const Header = ({ workspace = 'user' }) => {
                       {t('header.login')}
                     </Button>
                     <Button
+                      className='router-page-button'
                       onClick={() => {
                         setShowSidebar(false);
                         navigate('/register');
@@ -370,6 +373,7 @@ const Header = ({ workspace = 'user' }) => {
           <Menu.Menu position='right'>
             {hasAdminAccess && (
               <Dropdown
+                className='link item router-header-dropdown'
                 item
                 text={
                   currentWorkspace === 'admin'
@@ -377,7 +381,6 @@ const Header = ({ workspace = 'user' }) => {
                     : t('header.user_workspace')
                 }
                 pointing
-                className='link item'
                 style={{
                   fontSize: '15px',
                   fontWeight: '400',
@@ -411,6 +414,7 @@ const Header = ({ workspace = 'user' }) => {
               </Dropdown>
             )}
             <Dropdown
+              className='router-header-dropdown'
               item
               trigger={
                 <Icon
@@ -430,9 +434,9 @@ const Header = ({ workspace = 'user' }) => {
             />
             {userState.user ? (
               <Dropdown
+                className='link item router-header-dropdown'
                 text={userState.user.username}
                 pointing
-                className='link item'
                 style={{
                   fontSize: '15px',
                   fontWeight: '400',

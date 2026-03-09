@@ -41,6 +41,7 @@ const PasswordResetForm = () => {
             </Card.Header>
             <Form size='large'>
               <Form.Input
+                className='router-auth-input'
                 fluid
                 icon='mail'
                 iconPosition='left'
@@ -50,6 +51,7 @@ const PasswordResetForm = () => {
                 style={{ marginBottom: '1em' }}
               />
               <Button
+                className='router-auth-button'
                 fluid
                 size='large'
                 onClick={sendResetEmail}

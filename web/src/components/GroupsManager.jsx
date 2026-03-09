@@ -590,7 +590,7 @@ const GroupsManager = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <Button
             type='button'
-            size='tiny'
+            className='router-page-button'
             disabled={submitting || loading}
             onClick={openCreatePanel}
           >
@@ -598,7 +598,7 @@ const GroupsManager = () => {
           </Button>
           <Button
             type='button'
-            size='tiny'
+            className='router-page-button'
             disabled={submitting}
             loading={loading}
             onClick={loadCatalog}
@@ -684,7 +684,7 @@ const GroupsManager = () => {
                     }}
                   >
                     <Button
-                      size='tiny'
+                      className='router-inline-button'
                       color={row.enabled ? 'orange' : 'green'}
                       disabled={submitting || loading}
                       onClick={(e) => {
@@ -697,7 +697,7 @@ const GroupsManager = () => {
                         : t('group_manage.buttons.enable')}
                     </Button>
                     <Button
-                      size='tiny'
+                      className='router-inline-button'
                       negative
                       disabled={submitting || loading}
                       onClick={(e) => {
@@ -792,7 +792,7 @@ const GroupsManager = () => {
             {t('group_manage.detail.supported_models')}
           </div>
           <Form.Input
-            size='small'
+            className='router-inline-input'
             icon='search'
             iconPosition='left'
             style={{ width: 280, maxWidth: '100%' }}
@@ -960,7 +960,7 @@ const GroupsManager = () => {
           <div style={{ fontWeight: 600 }}>{t('group_manage.edit.model_configs')}</div>
           <Button
             type='button'
-            size='tiny'
+            className='router-inline-button'
             disabled={submitting || formModelLoading}
             onClick={addEmptyModelConfigRow}
           >
@@ -968,7 +968,7 @@ const GroupsManager = () => {
           </Button>
         </div>
         <Form.Input
-          size='small'
+          className='router-inline-input'
           icon='search'
           iconPosition='left'
           style={{ width: 280, maxWidth: '100%' }}
@@ -1014,7 +1014,7 @@ const GroupsManager = () => {
                 <Table.Row key={`group-model-config-${index}`}>
                   <Table.Cell>
                     <Form.Input
-                      size='small'
+                      className='router-inline-input'
                       fluid
                       placeholder={t('group_manage.edit.model_placeholder')}
                       value={item?.model || ''}
@@ -1028,10 +1028,10 @@ const GroupsManager = () => {
                   </Table.Cell>
                   <Table.Cell>
                     <Form.Dropdown
+                      className='router-inline-dropdown'
                       fluid
                       selection
                       search
-                      size='small'
                       options={selectedFormChannelOptions}
                       placeholder={t('group_manage.edit.channel_placeholder')}
                       value={item?.channel_id || ''}
@@ -1054,10 +1054,10 @@ const GroupsManager = () => {
                   </Table.Cell>
                   <Table.Cell>
                     <Form.Dropdown
+                      className='router-inline-dropdown'
                       fluid
                       selection
                       search
-                      size='small'
                       disabled={(item?.channel_id || '') === '' || modelOptions.length === 0}
                       options={modelOptions}
                       placeholder={t('group_manage.edit.upstream_model_placeholder')}
@@ -1078,7 +1078,7 @@ const GroupsManager = () => {
                   <Table.Cell>
                     <Button
                       type='button'
-                      size='tiny'
+                      className='router-inline-button'
                       negative
                       disabled={submitting}
                       onClick={() => removeModelConfigRow(index)}
@@ -1100,11 +1100,11 @@ const GroupsManager = () => {
     return (
       <div>
         <div style={actionBarStyle}>
-          <Button type='button' onClick={backToList} disabled={submitting}>
+          <Button type='button' className='router-page-button' onClick={backToList} disabled={submitting}>
             <Icon name='undo' />
             {t('group_manage.buttons.back')}
           </Button>
-          <Button type='button' color='blue' disabled={submitting} onClick={() => openEditPanel()}>
+          <Button type='button' className='router-page-button' color='blue' disabled={submitting} onClick={() => openEditPanel()}>
             <Icon name='edit' />
             {t('group_manage.buttons.edit')}
           </Button>
@@ -1112,28 +1112,33 @@ const GroupsManager = () => {
         <Form>
           <Form.Group widths='equal'>
             <Form.Input
+              className='router-section-input'
               label={t('group_manage.form.id')}
               value={activeGroup.id || ''}
               readOnly
             />
             <Form.Input
+              className='router-section-input'
               label={t('group_manage.form.name')}
               value={activeGroup.name || ''}
               readOnly
             />
           </Form.Group>
           <Form.TextArea
+            className='router-section-textarea'
             label={t('group_manage.form.description')}
             value={activeGroup.description || ''}
             readOnly
           />
           <Form.Group widths='equal'>
             <Form.Input
+              className='router-section-input'
               label={t('group_manage.form.billing_ratio')}
               value={Number(activeGroup.billing_ratio ?? 1).toFixed(2)}
               readOnly
             />
             <Form.Input
+              className='router-section-input'
               label={t('group_manage.table.status')}
               value={
                 activeGroup.enabled
@@ -1145,11 +1150,13 @@ const GroupsManager = () => {
           </Form.Group>
           <Form.Group widths='equal'>
             <Form.Input
+              className='router-section-input'
               label={t('group_manage.form.sort_order')}
               value={activeGroup.sort_order || 0}
               readOnly
             />
             <Form.Input
+              className='router-section-input'
               label={t('group_manage.table.updated_at')}
               value={activeGroup.updated_at ? timestamp2string(activeGroup.updated_at) : '-'}
               readOnly
@@ -1165,10 +1172,10 @@ const GroupsManager = () => {
   const renderEdit = () => (
     <div>
       <div style={actionBarStyle}>
-        <Button type='button' onClick={() => setMode(MODE_VIEW)} disabled={submitting}>
+        <Button type='button' className='router-page-button' onClick={() => setMode(MODE_VIEW)} disabled={submitting}>
           {t('group_manage.buttons.cancel')}
         </Button>
-        <Button type='button' color='blue' loading={submitting} disabled={submitting} onClick={submitEdit}>
+        <Button type='button' className='router-page-button' color='blue' loading={submitting} disabled={submitting} onClick={submitEdit}>
           <Icon name='check' />
           {t('group_manage.buttons.confirm')}
         </Button>
@@ -1176,11 +1183,13 @@ const GroupsManager = () => {
       <Form>
         <Form.Group widths='equal'>
           <Form.Input
+            className='router-section-input'
             label={t('group_manage.form.id')}
             value={form.id}
             readOnly
           />
           <Form.Input
+            className='router-section-input'
             label={t('group_manage.form.name')}
             placeholder={t('group_manage.form.name_placeholder')}
             value={form.name}
@@ -1190,6 +1199,7 @@ const GroupsManager = () => {
           />
         </Form.Group>
         <Form.TextArea
+          className='router-section-textarea'
           label={t('group_manage.form.description')}
           placeholder={t('group_manage.form.description_placeholder')}
           value={form.description}
@@ -1202,6 +1212,7 @@ const GroupsManager = () => {
         />
         <Form.Group widths='equal'>
           <Form.Input
+            className='router-section-input'
             type='number'
             min='0'
             step='0.01'
@@ -1216,6 +1227,7 @@ const GroupsManager = () => {
             }
           />
           <Form.Input
+            className='router-section-input'
             type='number'
             label={t('group_manage.form.sort_order')}
             value={form.sort_order}
@@ -1228,6 +1240,7 @@ const GroupsManager = () => {
           />
         </Form.Group>
         <Form.Dropdown
+          className='router-section-dropdown'
           fluid
           multiple
           search
@@ -1250,10 +1263,10 @@ const GroupsManager = () => {
   const renderCreate = () => (
     <div>
       <div style={actionBarStyle}>
-        <Button type='button' onClick={backToList} disabled={submitting}>
+        <Button type='button' className='router-page-button' onClick={backToList} disabled={submitting}>
           {t('group_manage.buttons.cancel')}
         </Button>
-        <Button type='button' color='blue' loading={submitting} disabled={submitting} onClick={submitCreate}>
+        <Button type='button' className='router-page-button' color='blue' loading={submitting} disabled={submitting} onClick={submitCreate}>
           <Icon name='check' />
           {t('group_manage.buttons.confirm')}
         </Button>
@@ -1261,6 +1274,7 @@ const GroupsManager = () => {
       <Form>
         <Form.Group widths='equal'>
           <Form.Input
+            className='router-section-input'
             required
             label={t('group_manage.form.id')}
             placeholder={t('group_manage.form.id_placeholder')}
@@ -1270,6 +1284,7 @@ const GroupsManager = () => {
             }
           />
           <Form.Input
+            className='router-section-input'
             label={t('group_manage.form.name')}
             placeholder={t('group_manage.form.name_placeholder')}
             value={form.name}
@@ -1279,6 +1294,7 @@ const GroupsManager = () => {
           />
         </Form.Group>
         <Form.TextArea
+          className='router-section-textarea'
           label={t('group_manage.form.description')}
           placeholder={t('group_manage.form.description_placeholder')}
           value={form.description}
@@ -1291,6 +1307,7 @@ const GroupsManager = () => {
         />
         <Form.Group widths='equal'>
           <Form.Input
+            className='router-section-input'
             type='number'
             min='0'
             step='0.01'
@@ -1305,6 +1322,7 @@ const GroupsManager = () => {
             }
           />
           <Form.Dropdown
+            className='router-section-dropdown'
             fluid
             multiple
             search
@@ -1342,10 +1360,10 @@ const GroupsManager = () => {
           })}
         </Modal.Content>
         <Modal.Actions>
-          <Button onClick={closeDeleteModal} disabled={submitting}>
+          <Button className='router-modal-button' onClick={closeDeleteModal} disabled={submitting}>
             {t('group_manage.buttons.cancel')}
           </Button>
-          <Button negative onClick={submitDelete} loading={submitting}>
+          <Button className='router-modal-button' negative onClick={submitDelete} loading={submitting}>
             {t('group_manage.buttons.confirm')}
           </Button>
         </Modal.Actions>

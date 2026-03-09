@@ -142,6 +142,7 @@ const TopUp = () => {
                         style={{ textAlign: 'center', paddingBottom: '1em' }}
                       >
                         <Button
+                          className='router-section-button'
                           primary
                           size='large'
                           onClick={openTopUpLink}
@@ -193,6 +194,7 @@ const TopUp = () => {
                       }}
                     >
                       <Form.Input
+                        className='router-section-input'
                         fluid
                         icon='key'
                         iconPosition='left'
@@ -208,6 +210,7 @@ const TopUp = () => {
                         }}
                         action={
                           <Button
+                            className='router-section-button'
                             icon='paste'
                             content={t('topup.redeem_code.paste')}
                             onClick={async () => {
@@ -225,6 +228,7 @@ const TopUp = () => {
 
                       <div style={{ paddingBottom: '1em' }}>
                         <Button
+                          className='router-section-button'
                           color='green'
                           fluid
                           size='large'

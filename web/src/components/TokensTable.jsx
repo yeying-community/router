@@ -307,6 +307,7 @@ const TokensTable = () => {
     <>
       <Form onSubmit={searchTokens}>
         <Form.Input
+          className='router-section-input'
           icon='search'
           fluid
           iconPosition='left'
@@ -417,31 +418,31 @@ const TokensTable = () => {
                   </Table.Cell>
                   <Table.Cell>
                     <div>
-                      <Button.Group color='green' size={'tiny'}>
+                      <Button.Group color='green'>
                         <Button
-                          size={'tiny'}
+                          className='router-inline-button'
                           positive
                           onClick={async () => await onCopy('', token.key)}
                         >
                           {t('token.buttons.copy')}
                         </Button>
                         <Dropdown
-                          className='button icon'
+                          className='button icon router-inline-button'
                           floating
                           options={copyOptionsWithHandlers}
                           trigger={<></>}
                         />
                       </Button.Group>{' '}
-                      <Button.Group color='olive' size={'tiny'}>
+                      <Button.Group color='olive'>
                         <Button
-                          size={'tiny'}
+                          className='router-inline-button'
                           positive
                           onClick={() => onOpenLink('', token.key)}
                         >
                           {t('token.buttons.chat')}
                         </Button>
                         <Dropdown
-                          className='button icon'
+                          className='button icon router-inline-button'
                           floating
                           options={openLinkOptionsWithHandlers}
                           trigger={<></>}
@@ -449,7 +450,7 @@ const TokensTable = () => {
                       </Button.Group>{' '}
                       <Popup
                         trigger={
-                          <Button size='mini' negative>
+                          <Button className='router-inline-button' negative>
                             {t('token.buttons.delete')}
                           </Button>
                         }
@@ -458,7 +459,7 @@ const TokensTable = () => {
                         hoverable
                       >
                         <Button
-                          size={'tiny'}
+                          className='router-inline-button'
                           negative
                           onClick={() => {
                             manageToken(token.id, 'delete', idx);
@@ -468,7 +469,7 @@ const TokensTable = () => {
                         </Button>
                       </Popup>
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         onClick={() => {
                           manageToken(
                             token.id,
@@ -482,7 +483,7 @@ const TokensTable = () => {
                           : t('token.buttons.enable')}
                       </Button>
                       <Button
-                        size={'tiny'}
+                        className='router-inline-button'
                         as={Link}
                         to={'/token/edit/' + token.id}
                       >
@@ -498,13 +499,14 @@ const TokensTable = () => {
         <Table.Footer>
           <Table.Row>
             <Table.HeaderCell colSpan='7'>
-              <Button size='small' as={Link} to='/token/add' loading={loading}>
+              <Button className='router-page-button' as={Link} to='/token/add' loading={loading}>
                 {t('token.buttons.add')}
               </Button>
-              <Button size='small' onClick={refresh} loading={loading}>
+              <Button className='router-page-button' onClick={refresh} loading={loading}>
                 {t('token.buttons.refresh')}
               </Button>
               <Dropdown
+                className='router-section-dropdown'
                 placeholder={t('token.sort.placeholder')}
                 selection
                 options={[

@@ -101,6 +101,7 @@ const SystemSetting = () => {
       <Header as='h3'>{t('setting.system.general.title')}</Header>
       <Form>
         <Form.Input
+          className='router-section-input'
           label={t('setting.system.general.server_address')}
           placeholder={t('setting.system.general.server_address_placeholder')}
           name='ServerAddress'
@@ -108,36 +109,41 @@ const SystemSetting = () => {
           onChange={handleChange}
         />
         <Form.Input
+          className='router-section-input'
           label={t('setting.system.general.system_name')}
           name='SystemName'
           value={inputs.SystemName}
           onChange={handleChange}
         />
         <Form.Input
+          className='router-section-input'
           label={t('setting.system.general.logo')}
           name='Logo'
           value={inputs.Logo}
           onChange={handleChange}
         />
         <Form.TextArea
+          className='router-section-textarea'
           label='Footer HTML'
           name='Footer'
           value={inputs.Footer}
           onChange={handleChange}
         />
         <Form.Input
+          className='router-section-input'
           label={t('setting.system.top_up_link', '充值链接')}
           name='TopUpLink'
           value={inputs.TopUpLink}
           onChange={handleChange}
         />
         <Form.Input
+          className='router-section-input'
           label={t('setting.system.chat_link', '聊天链接')}
           name='ChatLink'
           value={inputs.ChatLink}
           onChange={handleChange}
         />
-        <Button primary onClick={submitGeneral}>
+        <Button className='router-section-button' primary onClick={submitGeneral}>
           {t('setting.system.buttons.save')}
         </Button>
       </Form>
@@ -148,6 +154,7 @@ const SystemSetting = () => {
       <Form>
         <Form.Group widths={3}>
           <Form.Input
+            className='router-section-input'
             label={t('setting.system.smtp.server')}
             placeholder={t('setting.system.smtp.server_placeholder')}
             name='SMTPServer'
@@ -155,6 +162,7 @@ const SystemSetting = () => {
             value={inputs.SMTPServer}
           />
           <Form.Input
+            className='router-section-input'
             label={t('setting.system.smtp.port')}
             placeholder={t('setting.system.smtp.port_placeholder')}
             name='SMTPPort'
@@ -162,6 +170,7 @@ const SystemSetting = () => {
             value={inputs.SMTPPort}
           />
           <Form.Input
+            className='router-section-input'
             label={t('setting.system.smtp.account')}
             placeholder={t('setting.system.smtp.account_placeholder')}
             name='SMTPAccount'
@@ -171,6 +180,7 @@ const SystemSetting = () => {
         </Form.Group>
         <Form.Group widths={2}>
           <Form.Input
+            className='router-section-input'
             label={t('setting.system.smtp.from')}
             placeholder={t('setting.system.smtp.from_placeholder')}
             name='SMTPFrom'
@@ -178,6 +188,7 @@ const SystemSetting = () => {
             value={inputs.SMTPFrom}
           />
           <Form.Input
+            className='router-section-input'
             label={t('setting.system.smtp.token')}
             placeholder={t('setting.system.smtp.token_placeholder')}
             name='SMTPToken'
@@ -185,7 +196,7 @@ const SystemSetting = () => {
             value={inputs.SMTPToken}
           />
         </Form.Group>
-        <Button primary onClick={submitSMTP}>
+        <Button className='router-section-button' primary onClick={submitSMTP}>
           {t('setting.system.buttons.save')}
         </Button>
       </Form>
@@ -194,36 +205,40 @@ const SystemSetting = () => {
       <Header as='h3'>{t('setting.system.login.title')}</Header>
       <Form>
         <Form.Checkbox
+          className='router-section-checkbox'
           label={t('setting.system.login.password_login')}
           name='PasswordLoginEnabled'
           checked={inputs.PasswordLoginEnabled === 'true' || inputs.PasswordLoginEnabled === true}
           onChange={(_, data) => handleChange(_, { ...data, value: data.checked ? 'true' : 'false' })}
         />
         <Form.Checkbox
+          className='router-section-checkbox'
           label={t('setting.system.login.password_register')}
           name='PasswordRegisterEnabled'
           checked={inputs.PasswordRegisterEnabled === 'true' || inputs.PasswordRegisterEnabled === true}
           onChange={(_, data) => handleChange(_, { ...data, value: data.checked ? 'true' : 'false' })}
         />
         <Form.Checkbox
+          className='router-section-checkbox'
           label={t('setting.system.login.registration')}
           name='RegisterEnabled'
           checked={inputs.RegisterEnabled === 'true' || inputs.RegisterEnabled === true}
           onChange={(_, data) => handleChange(_, { ...data, value: data.checked ? 'true' : 'false' })}
         />
-        <Button onClick={submitAuth}>{t('setting.system.buttons.save')}</Button>
+        <Button className='router-section-button' onClick={submitAuth}>{t('setting.system.buttons.save')}</Button>
       </Form>
 
       <Divider />
       <Header as='h3'>{t('setting.system.notice', '站点公告')}</Header>
       <Form>
         <Form.TextArea
+          className='router-section-textarea'
           name='Notice'
           value={inputs.Notice}
           onChange={handleChange}
           placeholder={t('setting.system.notice_placeholder', '支持 Markdown')}
         />
-        <Button onClick={submitNotice}>{t('setting.system.buttons.save')}</Button>
+        <Button className='router-section-button' onClick={submitNotice}>{t('setting.system.buttons.save')}</Button>
       </Form>
     </Segment>
   );

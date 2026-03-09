@@ -934,7 +934,7 @@ const Dashboard = () => {
                     </div>
                     <div className='dashboard-spend-period-row'>
                       <Dropdown
-                        className='dashboard-spend-period router-page-dropdown'
+                        className='dashboard-spend-period router-section-dropdown'
                         selection
                         fluid
                         options={overviewPeriodOptions}
@@ -953,20 +953,23 @@ const Dashboard = () => {
                 <span>{t('dashboard.spending.overview.drill_hint')}</span>
               </div>
               <div className='dashboard-spend-metric-switch'>
-                <Button.Group size='small'>
+                <Button.Group>
                   <Button
+                    className='router-inline-button'
                     active={overviewMetric === 'requests'}
                     onClick={() => setOverviewMetric('requests')}
                   >
                     {t('dashboard.spending.metrics.requests')}
                   </Button>
                   <Button
+                    className='router-inline-button'
                     active={overviewMetric === 'tokens'}
                     onClick={() => setOverviewMetric('tokens')}
                   >
                     {t('dashboard.spending.metrics.tokens')}
                   </Button>
                   <Button
+                    className='router-inline-button'
                     active={overviewMetric === 'cost'}
                     onClick={() => setOverviewMetric('cost')}
                   >
@@ -1024,14 +1027,16 @@ const Dashboard = () => {
               <Card.Header>{t('dashboard.spending.calendar.title')}</Card.Header>
               <div className='dashboard-calendar-toolbar'>
                 <div className='calendar-view-toggle'>
-                  <Button.Group size='small'>
+                  <Button.Group>
                     <Button
+                      className='router-inline-button'
                       active={calendarView === 'calendar'}
                       onClick={() => setCalendarView('calendar')}
                     >
                       {t('dashboard.spending.calendar.view.calendar')}
                     </Button>
                     <Button
+                      className='router-inline-button'
                       active={calendarView === 'bar'}
                       onClick={() => setCalendarView('bar')}
                     >
@@ -1040,10 +1045,11 @@ const Dashboard = () => {
                   </Button.Group>
                 </div>
                 <div className='calendar-granularity-toggle'>
-                  <Button.Group size='small'>
+                  <Button.Group>
                     {['hour', 'day', 'week', 'month', 'year'].map((unit) => (
                       <Button
                         key={unit}
+                        className='router-inline-button'
                         active={calendarGranularity === unit}
                         onClick={() => setCalendarGranularity(unit)}
                       >
@@ -1053,14 +1059,16 @@ const Dashboard = () => {
                   </Button.Group>
                 </div>
                 <div className='calendar-unit-toggle'>
-                  <Button.Group size='small'>
+                  <Button.Group>
                     <Button
+                      className='router-inline-button'
                       active={calendarUnit === 'usd'}
                       onClick={() => setCalendarUnit('usd')}
                     >
                       {t('dashboard.spending.calendar.unit.usd')}
                     </Button>
                     <Button
+                      className='router-inline-button'
                       active={calendarUnit === 'token'}
                       onClick={() => setCalendarUnit('token')}
                     >
@@ -1168,14 +1176,24 @@ const Dashboard = () => {
           <Card fluid className='chart-card dashboard-spend-card'>
             <Card.Content>
               <Card.Header>
-                {t('dashboard.spending.details.title')}
-                <Dropdown
-                  className='router-page-dropdown'
-                  selection
-                  options={detailSortOptions}
-                  value={detailSort}
-                  onChange={(e, { value }) => setDetailSort(value)}
-                />
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span>{t('dashboard.spending.details.title')}</span>
+                  <Dropdown
+                    className='router-section-dropdown'
+                    selection
+                    options={detailSortOptions}
+                    value={detailSort}
+                    onChange={(e, { value }) => setDetailSort(value)}
+                  />
+                </div>
               </Card.Header>
               <div className='dashboard-spend-dimension'>
                 {t('dashboard.spending.details.dimension', {
@@ -1210,7 +1228,7 @@ const Dashboard = () => {
               <Form.Field>
                 <label>{t('dashboard.filters.granularity')}</label>
                 <Dropdown
-                  className='router-page-dropdown'
+                  className='router-section-dropdown'
                   selection
                   options={granularityOptions}
                   value={granularity}
@@ -1220,6 +1238,7 @@ const Dashboard = () => {
               <Form.Field>
                 <label>{t('dashboard.filters.start')}</label>
                 <Input
+                  className='router-section-input'
                   type='date'
                   value={startDate}
                   onChange={handleStartChange}
@@ -1228,21 +1247,21 @@ const Dashboard = () => {
               <Form.Field>
                 <label>{t('dashboard.filters.span')}</label>
                 <Input
+                  className={`router-section-input ${spanAuto ? 'dashboard-muted' : ''}`.trim()}
                   type='number'
                   min={1}
                   max={spanLimits[granularity]}
                   value={span}
                   onChange={handleSpanChange}
-                  className={spanAuto ? 'dashboard-muted' : ''}
                 />
               </Form.Field>
               <Form.Field>
                 <label>{t('dashboard.filters.end')}</label>
                 <Input
+                  className={`router-section-input ${endAuto ? 'dashboard-muted' : ''}`.trim()}
                   type='date'
                   value={endDate}
                   onChange={handleEndChange}
-                  className={endAuto ? 'dashboard-muted' : ''}
                 />
               </Form.Field>
             </Form.Group>
