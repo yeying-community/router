@@ -5,8 +5,9 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Form, Icon, Label, Modal, Table } from 'semantic-ui-react';
+import { Button, Form, Icon, Label, Modal, Pagination, Table } from 'semantic-ui-react';
 import { API, showError, showInfo, showSuccess, timestamp2string } from '../helpers';
+import { ITEMS_PER_PAGE } from '../constants';
 
 const normalizeProvider = (provider) => {
   if (typeof provider !== 'string') return '';
@@ -165,14 +166,6 @@ const detailsFromCatalogItem = (item) => {
   return [];
 };
 
-const moveRow = (list, fromIndex, toIndex) => {
-  if (!Array.isArray(list) || fromIndex === toIndex) return list;
-  const next = [...list];
-  const [item] = next.splice(fromIndex, 1);
-  next.splice(toIndex, 0, item);
-  return next;
-};
-
 const createEmptyRow = () => ({
   id: '',
   name: '',
@@ -224,34 +217,47 @@ const ModelProvidersManager = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [deletingIndex, setDeletingIndex] = useState(-1);
+  const [activePage, setActivePage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [deletingRow, setDeletingRow] = useState(null);
   const [creating, setCreating] = useState(false);
   const [createRow, setCreateRow] = useState(createEmptyRow());
 
   const [editing, setEditing] = useState(false);
-  const [editIndex, setEditIndex] = useState(-1);
   const [editRow, setEditRow] = useState(createEmptyRow());
   const [editModelSearchKeyword, setEditModelSearchKeyword] = useState('');
   const [viewingProvider, setViewingProvider] = useState('');
+  const [viewRow, setViewRow] = useState(null);
   const [viewModelSearchKeyword, setViewModelSearchKeyword] = useState('');
-  const [draggingIndex, setDraggingIndex] = useState(-1);
-  const [dragOverIndex, setDragOverIndex] = useState(-1);
 
-  const resetDragState = () => {
-    setDraggingIndex(-1);
-    setDragOverIndex(-1);
-  };
+  const normalizedSearchKeyword = useMemo(
+    () => (typeof searchKeyword === 'string' ? searchKeyword.trim() : ''),
+    [searchKeyword]
+  );
 
-  const loadCatalog = useCallback(async () => {
+  const totalPages = useMemo(() => {
+    if (totalCount <= 0) return 1;
+    return Math.ceil(totalCount / ITEMS_PER_PAGE);
+  }, [totalCount]);
+
+  const loadCatalog = useCallback(async (page, keyword) => {
     setLoading(true);
     try {
-      const res = await API.get('/api/v1/admin/provider');
+      const res = await API.get('/api/v1/admin/provider', {
+        params: {
+          p: Math.max((page || 1) - 1, 0),
+          page_size: ITEMS_PER_PAGE,
+          keyword: keyword || undefined,
+        },
+      });
       const { success, message, data } = res.data || {};
       if (!success) {
         showError(message || t('channel.providers.messages.load_failed'));
         return;
       }
-      setRows(toEditableRows(data));
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setRows(toEditableRows(items));
+      setTotalCount(Number(data?.total || 0));
     } catch (error) {
       showError(error);
     } finally {
@@ -260,52 +266,14 @@ const ModelProvidersManager = () => {
   }, [t]);
 
   useEffect(() => {
-    loadCatalog().then();
-  }, [loadCatalog]);
-
-  const normalizedSearchKeyword = useMemo(
-    () => (typeof searchKeyword === 'string' ? searchKeyword.trim().toLowerCase() : ''),
-    [searchKeyword]
-  );
-
-  const visibleRows = useMemo(() => {
-    const indexed = rows.map((row, index) => ({ row, index }));
-    if (!normalizedSearchKeyword) {
-      return indexed;
-    }
-    return indexed.filter(({ row }) => {
-      const modelNames = (row.model_details || []).map((item) => item.model || '').join(' ');
-      const haystack = [
-        row.id || '',
-        row.name || '',
-        row.base_url || '',
-        row.source || '',
-        modelNames,
-      ]
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(normalizedSearchKeyword);
-    });
-  }, [rows, normalizedSearchKeyword]);
-
-  const viewingRow = useMemo(() => {
-    if (!viewingProvider) return null;
-    return (
-      rows.find((row) => normalizeProvider(row.id) === normalizeProvider(viewingProvider)) ||
-      null
-    );
-  }, [rows, viewingProvider]);
-
-  const editingRowProvider = useMemo(() => {
-    if (editIndex < 0 || editIndex >= rows.length) return '';
-    return normalizeProvider(rows[editIndex]?.id || '');
-  }, [editIndex, rows]);
+    loadCatalog(activePage, normalizedSearchKeyword).then();
+  }, [activePage, normalizedSearchKeyword, loadCatalog]);
 
   useEffect(() => {
-    if (viewingProvider && !viewingRow) {
-      setViewingProvider('');
+    if (activePage > totalPages) {
+      setActivePage(totalPages);
     }
-  }, [viewingProvider, viewingRow]);
+  }, [activePage, totalPages]);
 
   const setEditValue = (key, value) => {
     setEditRow((prev) => ({
@@ -321,27 +289,25 @@ const ModelProvidersManager = () => {
     }));
   };
 
-  const openEditor = (index) => {
-    if (index < 0 || index >= rows.length || creating) return;
-    resetDragState();
+  const openEditor = (row) => {
+    if (!row || creating) return;
     setViewingProvider('');
+    setViewRow(null);
     setEditModelSearchKeyword('');
-    setEditIndex(index);
-    setEditRow({ ...rows[index] });
+    setEditRow({ ...row });
     setEditing(true);
   };
 
   const rollbackEditor = () => {
     setEditing(false);
-    setEditIndex(-1);
     setEditModelSearchKeyword('');
     setEditRow(createEmptyRow());
   };
 
   const openCreateModal = () => {
     if (editing || creating || saving) return;
-    resetDragState();
     setViewingProvider('');
+    setViewRow(null);
     setCreateRow(createEmptyRow());
     setCreating(true);
   };
@@ -351,26 +317,19 @@ const ModelProvidersManager = () => {
     setCreateRow(createEmptyRow());
   };
 
-  const openViewer = (provider) => {
+  const openViewer = (row) => {
     if (creating || editing || saving) return;
-    const normalized = normalizeProvider(provider);
+    const normalized = normalizeProvider(row?.id || '');
     if (!normalized) return;
-    resetDragState();
     setViewModelSearchKeyword('');
     setViewingProvider(normalized);
+    setViewRow({ ...row });
   };
 
   const closeViewer = () => {
     setViewModelSearchKeyword('');
     setViewingProvider('');
-  };
-
-  const openEditorByProvider = (provider) => {
-    const normalized = normalizeProvider(provider);
-    if (!normalized) return;
-    const index = rows.findIndex((row) => normalizeProvider(row.id) === normalized);
-    if (index === -1) return;
-    openEditor(index);
+    setViewRow(null);
   };
 
   const setModelDetailField = (setter, row, index, key, value) => {
@@ -418,99 +377,97 @@ const ModelProvidersManager = () => {
     setter('model_details', details);
   };
 
-  const saveCatalog = async (nextRows) => {
-    const orderedRows = Array.isArray(nextRows)
-      ? nextRows.map((row, index) => ({
-          ...row,
-          sort_order: (index + 1) * 10,
-        }))
-      : [];
+  const reloadCurrentPage = async () => {
+    await loadCatalog(activePage, normalizedSearchKeyword);
+  };
 
-    const providers = [];
-    for (const row of orderedRows) {
-      const provider = normalizeProvider(row.id);
-      const name = (row.name || '').trim();
-      const baseURL = (row.base_url || '').trim();
-      const details = normalizeModelDetails(row.model_details || []);
-      const hasContent = provider || name || baseURL || details.length > 0;
-      if (!hasContent) continue;
-      if (!provider) {
-        showInfo(t('channel.providers.messages.provider_required'));
-        return false;
-      }
-      providers.push({
-        id: provider,
-        name: name || provider,
-        models: details.map((detail) => detail.model),
-        model_details: details,
-        base_url: baseURL,
-        sort_order: Number(row.sort_order || 0),
-        source: row.source || 'manual',
-        updated_at: row.updated_at || 0,
-      });
+  const saveProvider = async (method, url, row, options = {}) => {
+    const provider = normalizeProvider(row.id);
+    if (!provider) {
+      showInfo(t('channel.providers.messages.provider_required'));
+      return null;
     }
-
+    const payload = {
+      id: provider,
+      name: (row.name || '').trim() || provider,
+      base_url: (row.base_url || '').trim() || OFFICIAL_PROVIDER_BASE_URLS[provider] || '',
+      model_details: normalizeModelDetails(row.model_details || []),
+      sort_order: Number(row.sort_order || 0),
+      source: row.source || 'manual',
+      updated_at: row.updated_at || 0,
+    };
     setSaving(true);
     try {
-      const res = await API.put('/api/v1/admin/provider', { providers });
+      const res = await API({
+        method,
+        url,
+        data: payload,
+      });
       const { success, message, data } = res.data || {};
       if (!success) {
         showError(message || t('channel.providers.messages.save_failed'));
-        return false;
+        return null;
       }
-      setRows(toEditableRows(data));
-      showSuccess(t('channel.providers.messages.save_success'));
-      return true;
+      const savedRow = toEditableRows([data])[0] || null;
+      showSuccess(options.successMessage || t('channel.providers.messages.save_success'));
+      await reloadCurrentPage();
+      return savedRow;
     } catch (error) {
       showError(error);
-      return false;
+      return null;
     } finally {
       setSaving(false);
     }
   };
 
-  const removeRow = async (index) => {
-    const nextRows = rows.filter((_, idx) => idx !== index);
-    return await saveCatalog(nextRows);
-  };
-
-  const openDeleteModal = (index) => {
+  const openDeleteModal = (row) => {
     if (saving || creating || editing) return;
-    if (index < 0 || index >= rows.length) return;
-    setDeletingIndex(index);
+    if (!row) return;
+    setDeletingRow(row);
   };
 
   const closeDeleteModal = () => {
     if (saving) return;
-    setDeletingIndex(-1);
+    setDeletingRow(null);
   };
 
   const confirmDeleteRow = async () => {
-    if (deletingIndex < 0 || deletingIndex >= rows.length) {
-      setDeletingIndex(-1);
+    const provider = normalizeProvider(deletingRow?.id || '');
+    if (!provider) {
+      setDeletingRow(null);
       return;
     }
-    const saved = await removeRow(deletingIndex);
-    if (saved) {
-      setDeletingIndex(-1);
+    setSaving(true);
+    try {
+      const res = await API.delete(`/api/v1/admin/provider/${provider}`);
+      const { success, message } = res.data || {};
+      if (!success) {
+        showError(message || t('channel.providers.dialog.delete_confirm'));
+        return;
+      }
+      showSuccess(t('channel.providers.dialog.delete_confirm'));
+      if (viewingProvider === provider) {
+        closeViewer();
+      }
+      if (rows.length === 1 && activePage > 1) {
+        setActivePage((prev) => Math.max(prev - 1, 1));
+      } else {
+        await reloadCurrentPage();
+      }
+      setDeletingRow(null);
+    } catch (error) {
+      showError(error);
+    } finally {
+      setSaving(false);
     }
   };
 
   const applyEditToRows = async () => {
-    const provider = editingRowProvider || normalizeProvider(editRow.id);
+    const provider = normalizeProvider(editRow.id);
     if (!provider) {
       showInfo(t('channel.providers.messages.provider_required'));
       return;
     }
-    const duplicatedIndex = rows.findIndex(
-      (row, index) => index !== editIndex && normalizeProvider(row.id) === provider
-    );
-    if (duplicatedIndex !== -1) {
-      showInfo(t('channel.providers.messages.provider_exists'));
-      return;
-    }
-
-    const now = Math.floor(Date.now() / 1000);
     const normalizedRow = {
       ...editRow,
       id: provider,
@@ -519,16 +476,17 @@ const ModelProvidersManager = () => {
       model_details: normalizeModelDetails(editRow.model_details || []),
       sort_order: Number(editRow.sort_order || 0),
       source: editRow.source || 'manual',
-      updated_at: now,
+      updated_at: Math.floor(Date.now() / 1000),
     };
-
-    const nextRows =
-      editIndex < 0 || editIndex >= rows.length
-        ? [...rows, normalizedRow]
-        : rows.map((row, index) => (index === editIndex ? normalizedRow : row));
-    const saved = await saveCatalog(nextRows);
+    const saved = await saveProvider(
+      'put',
+      `/api/v1/admin/provider/${provider}`,
+      normalizedRow
+    );
     if (saved) {
       rollbackEditor();
+      setViewingProvider(saved.id || '');
+      setViewRow(saved);
     }
   };
 
@@ -538,55 +496,22 @@ const ModelProvidersManager = () => {
       showInfo(t('channel.providers.messages.provider_required'));
       return;
     }
-    const duplicatedIndex = rows.findIndex((row) => normalizeProvider(row.id) === provider);
-    if (duplicatedIndex !== -1) {
-      showInfo(t('channel.providers.messages.provider_exists'));
-      return;
-    }
-
-    const now = Math.floor(Date.now() / 1000);
     const normalizedRow = {
       ...createRow,
       id: provider,
       name: (createRow.name || '').trim() || provider,
       base_url: (createRow.base_url || '').trim() || OFFICIAL_PROVIDER_BASE_URLS[provider] || '',
       model_details: normalizeModelDetails(createRow.model_details || []),
-      sort_order: (rows.length + 1) * 10,
+      sort_order: Number(createRow.sort_order || 0),
       source: createRow.source || 'manual',
-      updated_at: now,
+      updated_at: Math.floor(Date.now() / 1000),
     };
-
-    const nextRows = [...rows, normalizedRow];
-    const saved = await saveCatalog(nextRows);
+    const saved = await saveProvider('post', '/api/v1/admin/provider', normalizedRow);
     if (saved) {
       closeCreateModal();
+      setViewingProvider(saved.id || '');
+      setViewRow(saved);
     }
-  };
-
-  const onDropRow = async (targetIndex) => {
-    if (saving || creating || editing) {
-      resetDragState();
-      return;
-    }
-    if (
-      draggingIndex < 0 ||
-      targetIndex < 0 ||
-      draggingIndex >= rows.length ||
-      targetIndex >= rows.length
-    ) {
-      resetDragState();
-      return;
-    }
-    if (draggingIndex === targetIndex) {
-      resetDragState();
-      return;
-    }
-    const reordered = moveRow(rows, draggingIndex, targetIndex).map((row, index) => ({
-      ...row,
-      sort_order: (index + 1) * 10,
-    }));
-    await saveCatalog(reordered);
-    resetDragState();
   };
 
   const renderModelDetailsTable = (row, setValueFn, disabled = false, options = {}) => {
@@ -887,7 +812,10 @@ const ModelProvidersManager = () => {
             iconPosition='left'
             placeholder={t('channel.providers.search')}
             value={searchKeyword}
-            onChange={(e, { value }) => setSearchKeyword(value || '')}
+            onChange={(e, { value }) => {
+              setSearchKeyword(value || '');
+              setActivePage(1);
+            }}
           />
         </Form>
       </div>
@@ -902,46 +830,21 @@ const ModelProvidersManager = () => {
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {visibleRows.length === 0 ? (
+          {rows.length === 0 ? (
             <Table.Row>
               <Table.Cell colSpan={5} textAlign='center'>
                 {loading ? t('common.loading') : t('channel.providers.table.empty')}
               </Table.Cell>
             </Table.Row>
           ) : (
-            visibleRows.map(({ row, index }) => (
+            rows.map((row, index) => (
               <Table.Row
                 key={`${row.id}-${index}`}
-                draggable={!creating && !editing && !saving}
                 onClick={() => {
-                  openViewer(row.id);
+                  openViewer(row);
                 }}
-                onDragStart={() => {
-                  if (creating || editing || saving) return;
-                  setDraggingIndex(index);
-                  setDragOverIndex(index);
-                }}
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  if (creating || editing || saving) return;
-                  if (draggingIndex >= 0) {
-                    setDragOverIndex(index);
-                  }
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                }}
-                onDrop={async (e) => {
-                  e.preventDefault();
-                  await onDropRow(index);
-                }}
-                onDragEnd={resetDragState}
                 style={{
                   cursor: creating || editing || saving ? 'default' : 'pointer',
-                  backgroundColor:
-                    dragOverIndex === index && draggingIndex !== index
-                      ? 'rgba(33, 133, 208, 0.06)'
-                      : undefined,
                 }}
               >
                 <Table.Cell>{row.id || '-'}</Table.Cell>
@@ -961,7 +864,7 @@ const ModelProvidersManager = () => {
                     disabled={creating || saving}
                     onClick={(e) => {
                       e.stopPropagation();
-                      openEditor(index);
+                      openEditor(row);
                     }}
                   >
                     <Icon name='edit' />
@@ -974,7 +877,7 @@ const ModelProvidersManager = () => {
                     disabled={creating || saving}
                     onClick={(e) => {
                       e.stopPropagation();
-                      openDeleteModal(index);
+                      openDeleteModal(row);
                     }}
                   >
                     <Icon name='trash' />
@@ -985,6 +888,17 @@ const ModelProvidersManager = () => {
           )}
         </Table.Body>
       </Table>
+      {totalPages > 1 ? (
+        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+          <Pagination
+            activePage={activePage}
+            totalPages={totalPages}
+            onPageChange={(e, { activePage: nextActivePage }) => {
+              setActivePage(Number(nextActivePage) || 1);
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 
@@ -1013,7 +927,7 @@ const ModelProvidersManager = () => {
         <Form.Group widths='equal'>
           <Form.Input
             label={t('channel.providers.dialog.provider')}
-            value={editingRowProvider || editRow.id}
+            value={editRow.id}
             readOnly
           />
           <Form.Input
@@ -1040,7 +954,7 @@ const ModelProvidersManager = () => {
   );
 
   const renderViewer = () => {
-    if (!viewingRow) return null;
+    if (!viewRow) return null;
     return (
       <div>
         <div
@@ -1061,7 +975,7 @@ const ModelProvidersManager = () => {
             type='button'
             color='blue'
             disabled={saving}
-            onClick={() => openEditorByProvider(viewingRow.id)}
+            onClick={() => openEditor(viewRow)}
           >
             <Icon name='edit' />
             {t('channel.providers.dialog.edit')}
@@ -1071,34 +985,34 @@ const ModelProvidersManager = () => {
           <Form.Group widths='equal'>
             <Form.Input
               label={t('channel.providers.dialog.provider')}
-              value={viewingRow.id || ''}
+              value={viewRow.id || ''}
               readOnly
             />
             <Form.Input
               label={t('channel.providers.dialog.name')}
-              value={viewingRow.name || ''}
+              value={viewRow.name || ''}
               readOnly
             />
           </Form.Group>
           <Form.Group widths='equal'>
             <Form.Input
               label={t('channel.providers.dialog.base_url')}
-              value={viewingRow.base_url || ''}
+              value={viewRow.base_url || ''}
               readOnly
             />
             <Form.Input
               label={t('channel.providers.table.source')}
-              value={viewingRow.source || '-'}
+              value={viewRow.source || '-'}
               readOnly
             />
           </Form.Group>
           <Form.Input
             label={t('channel.providers.table.updated_at')}
-            value={viewingRow.updated_at ? timestamp2string(viewingRow.updated_at) : '-'}
+            value={viewRow.updated_at ? timestamp2string(viewRow.updated_at) : '-'}
             readOnly
           />
         </Form>
-        {renderModelDetailsReadonly(viewingRow, {
+        {renderModelDetailsReadonly(viewRow, {
           searchable: true,
           searchKeyword: viewModelSearchKeyword,
           onSearchChange: setViewModelSearchKeyword,
@@ -1155,11 +1069,10 @@ const ModelProvidersManager = () => {
   );
 
   const renderDeleteModal = () => {
-    const targetRow = deletingIndex >= 0 && deletingIndex < rows.length ? rows[deletingIndex] : null;
-    const providerName = targetRow?.name || targetRow?.id || '-';
+    const providerName = deletingRow?.name || deletingRow?.id || '-';
     return (
       <Modal
-        open={!!targetRow}
+        open={!!deletingRow}
         onClose={closeDeleteModal}
         size='tiny'
         closeOnDimmerClick={!saving}
@@ -1191,7 +1104,7 @@ const ModelProvidersManager = () => {
     <div>
       {renderCreateModal()}
       {renderDeleteModal()}
-      {editing ? renderEditor() : viewingProvider ? renderViewer() : renderRows()}
+      {editing ? renderEditor() : viewingProvider && viewRow ? renderViewer() : renderRows()}
     </div>
   );
 };

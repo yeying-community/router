@@ -54,8 +54,16 @@ func canonicalizeModelNameForProvider(provider string, modelName string) string 
 }
 
 func LoadModelProviderModelDetailsMap(db *gorm.DB) (map[string][]ModelProviderModelDetail, error) {
+	return LoadModelProviderModelDetailsMapForProviders(db, nil)
+}
+
+func LoadModelProviderModelDetailsMapForProviders(db *gorm.DB, providers []string) (map[string][]ModelProviderModelDetail, error) {
 	rows := make([]ModelProviderModel, 0)
-	if err := db.Order("provider asc, model asc").Find(&rows).Error; err != nil {
+	query := db.Order("provider asc, model asc")
+	if len(providers) > 0 {
+		query = query.Where("provider IN ?", providers)
+	}
+	if err := query.Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	result := make(map[string][]ModelProviderModelDetail, 0)

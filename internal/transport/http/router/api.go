@@ -249,7 +249,10 @@ func SetApiRouter(engine *gin.Engine) {
 		adminProviderRoute.Use(middleware.AdminAuth())
 		{
 			adminProviderRoute.GET("/", channel.GetModelProviders)
-			adminProviderRoute.PUT("/", channel.UpdateModelProviders)
+			adminProviderRoute.POST("/", channel.CreateModelProvider)
+			adminProviderRoute.GET("/:id", channel.GetModelProvider)
+			adminProviderRoute.PUT("/:id", channel.UpdateModelProvider)
+			adminProviderRoute.DELETE("/:id", channel.DeleteModelProvider)
 		}
 	}
 
