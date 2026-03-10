@@ -196,7 +196,12 @@ func InitChannelCache() {
 		if channel == nil {
 			continue
 		}
-		channelByID[channel.Id] = channel
+		channel.NormalizeIdentity()
+		channelID := strings.TrimSpace(channel.Id)
+		if channelID == "" {
+			continue
+		}
+		channelByID[channelID] = channel
 	}
 	for _, ability := range abilities {
 		if ability == nil {

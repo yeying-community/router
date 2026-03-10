@@ -118,7 +118,7 @@ func executeChannelModelTest(ctx context.Context, channel *model.Channel, option
 		targetChannel.TestModel = testModel
 	}
 	startedAt := time.Now()
-	results, err := runChannelModelTests(&targetChannel, testMode, testModel, nil)
+	results, err := runChannelModelTests(nil, &targetChannel, testMode, testModel, nil)
 	if err != nil {
 		modelName := testModel
 		if modelName == "" {

@@ -317,9 +317,6 @@ func Update(channel *model.Channel) error {
 			if err := model.DeleteChannelTestsByChannelIDWithDB(tx, channel.Id); err != nil {
 				return err
 			}
-			if err := model.ResetChannelModelTestStateWithDB(tx, channel.Id, nil); err != nil {
-				return err
-			}
 		}
 		return nil
 	})
@@ -417,10 +414,7 @@ func UpdateTestModelByID(id string, testModel string) error {
 		if err := tx.Model(&model.Channel{}).Where("id = ?", id).Update("test_model", testModel).Error; err != nil {
 			return err
 		}
-		if err := model.DeleteChannelTestsByChannelIDWithDB(tx, id); err != nil {
-			return err
-		}
-		return model.ResetChannelModelTestStateWithDB(tx, id, nil)
+		return model.DeleteChannelTestsByChannelIDWithDB(tx, id)
 	})
 }
 

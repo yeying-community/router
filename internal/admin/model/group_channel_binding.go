@@ -73,9 +73,14 @@ func listGroupChannelBindingsWithDB(db *gorm.DB, groupID string, enabledOnly boo
 
 	items := make([]GroupChannelBindingItem, 0, len(channels))
 	for _, channel := range channels {
-		_, bound := boundSet[channel.Id]
+		channel.NormalizeIdentity()
+		channelID := strings.TrimSpace(channel.Id)
+		if channelID == "" {
+			continue
+		}
+		_, bound := boundSet[channelID]
 		items = append(items, GroupChannelBindingItem{
-			Id:       channel.Id,
+			Id:       channelID,
 			Name:     channel.DisplayName(),
 			Protocol: channel.GetProtocol(),
 			Status:   channel.Status,
@@ -173,9 +178,14 @@ func loadEnabledChannelsByIDWithDB(db *gorm.DB, channelIDs []string) (map[string
 	disabled := make([]string, 0)
 	for i := range channels {
 		channel := &channels[i]
-		channelsByID[channel.Id] = channel
+		channel.NormalizeIdentity()
+		channelID := strings.TrimSpace(channel.Id)
+		if channelID == "" {
+			continue
+		}
+		channelsByID[channelID] = channel
 		if channel.Status != ChannelStatusEnabled {
-			disabled = append(disabled, channel.Id)
+			disabled = append(disabled, channelID)
 		}
 	}
 

@@ -1,6 +1,8 @@
 package channel
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -58,6 +60,21 @@ func quotedField(key string, value string) string {
 		return ""
 	}
 	return fmt.Sprintf("%s=%q", key, normalized)
+}
+
+func structuredPayloadField(key string, value string) string {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return ""
+	}
+	pretty := normalized
+	if (strings.HasPrefix(normalized, "{") || strings.HasPrefix(normalized, "[")) && json.Valid([]byte(normalized)) {
+		buffer := bytes.NewBuffer(nil)
+		if err := json.Indent(buffer, []byte(normalized), "", "  "); err == nil {
+			pretty = buffer.String()
+		}
+	}
+	return fmt.Sprintf("%s=\n%s", key, pretty)
 }
 
 func intField(key string, value int) string {

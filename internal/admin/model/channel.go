@@ -8,6 +8,7 @@ import (
 
 	"github.com/yeying-community/router/common/random"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
+	"gorm.io/gorm"
 )
 
 const (
@@ -99,6 +100,12 @@ func (channel *Channel) NormalizeIdentity() {
 	}
 	channel.Id = strings.TrimSpace(channel.Id)
 	channel.Name = NormalizeChannelIdentifier(channel.Name)
+}
+
+func (channel *Channel) AfterFind(tx *gorm.DB) error {
+	channel.NormalizeIdentity()
+	channel.NormalizeProtocol()
+	return nil
 }
 
 func (channel *Channel) ValidateIdentifier() error {

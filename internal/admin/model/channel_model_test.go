@@ -85,3 +85,34 @@ func TestBuildFetchedChannelModelConfigsPreservesExistingSelectionsAndMarksMissi
 		t.Fatalf("rows[2].Inactive = false, want true")
 	}
 }
+
+func TestApplyChannelTestResultsToModelConfigsAppliesSupportDecision(t *testing.T) {
+	rows := []ChannelModel{
+		{
+			ChannelId:     "channel-1",
+			Model:         "gpt-5.1",
+			UpstreamModel: "gpt-5.1",
+			Type:          ProviderModelTypeText,
+			Selected:      true,
+		},
+	}
+	results := []ChannelTest{
+		{
+			ChannelId:     "channel-1",
+			Model:         "gpt-5.1",
+			UpstreamModel: "gpt-5.1",
+			Type:          ProviderModelTypeText,
+			Endpoint:      ChannelModelEndpointResponses,
+			Status:        ChannelTestStatusSupported,
+			Supported:     true,
+		},
+	}
+
+	updated := ApplyChannelTestResultsToModelConfigs(rows, results)
+	if len(updated) != 1 {
+		t.Fatalf("ApplyChannelTestResultsToModelConfigs returned %d rows, want 1", len(updated))
+	}
+	if !updated[0].Selected {
+		t.Fatalf("updated[0].Selected = false, want true")
+	}
+}

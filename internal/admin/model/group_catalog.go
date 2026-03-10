@@ -35,6 +35,11 @@ func (item *GroupCatalog) NormalizeIdentity() {
 	item.Name = strings.TrimSpace(item.Name)
 }
 
+func (item *GroupCatalog) AfterFind(tx *gorm.DB) error {
+	item.NormalizeIdentity()
+	return nil
+}
+
 func (item *GroupCatalog) EnsureID() {
 	if item == nil {
 		return
@@ -310,8 +315,13 @@ func hydrateGroupCatalogChannelsWithDB(db *gorm.DB, rows []GroupCatalog) error {
 
 	channelsByID := make(map[string]GroupChannelBindingItem, len(channels))
 	for _, channel := range channels {
-		channelsByID[channel.Id] = GroupChannelBindingItem{
-			Id:       channel.Id,
+		channel.NormalizeIdentity()
+		channelID := strings.TrimSpace(channel.Id)
+		if channelID == "" {
+			continue
+		}
+		channelsByID[channelID] = GroupChannelBindingItem{
+			Id:       channelID,
 			Name:     channel.DisplayName(),
 			Protocol: channel.GetProtocol(),
 			Status:   channel.Status,
@@ -321,7 +331,8 @@ func hydrateGroupCatalogChannelsWithDB(db *gorm.DB, rows []GroupCatalog) error {
 	}
 
 	for index := range rows {
-		channelIDs := normalizeChannelIDList(groupChannelIDs[rows[index].Id])
+		groupID := strings.TrimSpace(rows[index].Id)
+		channelIDs := normalizeChannelIDList(groupChannelIDs[groupID])
 		items := make([]GroupChannelBindingItem, 0, len(channelIDs))
 		for _, channelID := range channelIDs {
 			item, ok := channelsByID[channelID]

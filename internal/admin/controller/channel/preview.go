@@ -470,8 +470,6 @@ func buildPreviewChannelTestResult(row model.ChannelModel, execution previewMode
 		Endpoint:      endpoint,
 		LatencyMs:     execution.LatencyMs,
 		Message:       strings.TrimSpace(execution.Message),
-		InputPayload:  execution.InputPayload,
-		OutputPayload: execution.OutputPayload,
 	}
 	if result.UpstreamModel == "" {
 		result.UpstreamModel = result.Model
@@ -493,7 +491,7 @@ func buildPreviewChannelTestResult(row model.ChannelModel, execution previewMode
 	return result
 }
 
-func runSingleChannelModelTest(channel *model.Channel, row model.ChannelModel) model.ChannelTest {
+func runSingleChannelModelTest(channel *model.Channel, row model.ChannelModel) (model.ChannelTest, previewModelTestExecution) {
 	modelType := resolveSelectionModelType(row)
 	endpoint := model.NormalizeChannelModelEndpoint(modelType, row.Endpoint)
 
@@ -505,7 +503,7 @@ func runSingleChannelModelTest(channel *model.Channel, row model.ChannelModel) m
 			UpstreamModel: row.UpstreamModel,
 			Type:          modelType,
 			Endpoint:      model.ChannelModelEndpointImages,
-		}, execution)
+		}, execution), execution
 	case model.ProviderModelTypeAudio:
 		execution := executePreviewAudioModelTest(channel, row.Model)
 		return buildPreviewChannelTestResult(model.ChannelModel{
@@ -513,7 +511,7 @@ func runSingleChannelModelTest(channel *model.Channel, row model.ChannelModel) m
 			UpstreamModel: row.UpstreamModel,
 			Type:          modelType,
 			Endpoint:      model.ChannelModelEndpointAudio,
-		}, execution)
+		}, execution), execution
 	case model.ProviderModelTypeVideo:
 		execution := executePreviewVideoModelTest(channel, row.Model)
 		return buildPreviewChannelTestResult(model.ChannelModel{
@@ -521,7 +519,7 @@ func runSingleChannelModelTest(channel *model.Channel, row model.ChannelModel) m
 			UpstreamModel: row.UpstreamModel,
 			Type:          modelType,
 			Endpoint:      model.ChannelModelEndpointVideos,
-		}, execution)
+		}, execution), execution
 	default:
 		if endpoint == model.ChannelModelEndpointChat {
 			execution := executePreviewTextModelTest(channel, endpoint, &relaymodel.GeneralOpenAIRequest{
@@ -536,7 +534,7 @@ func runSingleChannelModelTest(channel *model.Channel, row model.ChannelModel) m
 				UpstreamModel: row.UpstreamModel,
 				Type:          modelType,
 				Endpoint:      endpoint,
-			}, execution)
+			}, execution), execution
 		}
 		execution := executePreviewTextModelTest(channel, model.ChannelModelEndpointResponses, &relaymodel.GeneralOpenAIRequest{
 			Model: row.Model,
@@ -550,11 +548,34 @@ func runSingleChannelModelTest(channel *model.Channel, row model.ChannelModel) m
 			UpstreamModel: row.UpstreamModel,
 			Type:          modelType,
 			Endpoint:      model.ChannelModelEndpointResponses,
-		}, execution)
+		}, execution), execution
 	}
 }
 
-func runChannelModelTests(channel *model.Channel, mode string, requestedModel string, requestedModels []string) ([]model.ChannelTest, error) {
+func logChannelModelTestExecution(c *gin.Context, channelID string, result model.ChannelTest, execution previewModelTestExecution) {
+	if c == nil {
+		return
+	}
+	fields := []string{
+		stringField("channel_id", channelID),
+		stringField("model", result.Model),
+		stringField("upstream_model", result.UpstreamModel),
+		stringField("type", result.Type),
+		stringField("endpoint", result.Endpoint),
+		stringField("status", result.Status),
+		int64Field("latency_ms", result.LatencyMs),
+		stringField("message", result.Message),
+		structuredPayloadField("request_payload", execution.InputPayload),
+		structuredPayloadField("response_payload", execution.OutputPayload),
+	}
+	if result.Supported {
+		logChannelAdminInfo(c, "test_model_result", fields...)
+		return
+	}
+	logChannelAdminWarn(c, "test_model_result", fields...)
+}
+
+func runChannelModelTests(c *gin.Context, channel *model.Channel, mode string, requestedModel string, requestedModels []string) ([]model.ChannelTest, error) {
 	targetRows := resolvePreviewTargetModels(channel, mode, requestedModel, requestedModels)
 	if len(targetRows) == 0 {
 		return nil, fmt.Errorf("未找到可用于测试的模型")
@@ -565,10 +586,11 @@ func runChannelModelTests(channel *model.Channel, mode string, requestedModel st
 	}
 	results := make([]model.ChannelTest, 0, len(targetRows))
 	for _, row := range targetRows {
-		testResult := runSingleChannelModelTest(channel, row)
+		testResult, execution := runSingleChannelModelTest(channel, row)
 		if strings.TrimSpace(testResult.ChannelId) == "" {
 			testResult.ChannelId = channelID
 		}
+		logChannelModelTestExecution(c, channelID, testResult, execution)
 		results = append(results, testResult)
 	}
 	return model.NormalizeChannelTestRows(results), nil
@@ -1141,8 +1163,8 @@ func RefreshChannelModels(c *gin.Context) {
 			stringField("source", keySource),
 			stringField("channel_id", channelID),
 			stringField("models_url", fetchTrace.ModelsURL),
-			quotedField("request_payload", fetchTrace.RequestPayload),
-			quotedField("response_payload", fetchTrace.ResponsePayload),
+			structuredPayloadField("request_payload", fetchTrace.RequestPayload),
+			structuredPayloadField("response_payload", fetchTrace.ResponsePayload),
 			stringField("reason", err.Error()),
 		)
 		c.JSON(http.StatusOK, gin.H{
@@ -1157,8 +1179,8 @@ func RefreshChannelModels(c *gin.Context) {
 		stringField("source", keySource),
 		stringField("channel_id", channelID),
 		stringField("models_url", fetchTrace.ModelsURL),
-		quotedField("request_payload", fetchTrace.RequestPayload),
-		quotedField("response_payload", fetchTrace.ResponsePayload),
+		structuredPayloadField("request_payload", fetchTrace.RequestPayload),
+		structuredPayloadField("response_payload", fetchTrace.ResponsePayload),
 		intField("count", len(fetchedRows)),
 	)
 	if err := model.SyncFetchedChannelModelConfigsFromBaseWithDB(model.DB, channelID, previewChannel.GetModelConfigs(), fetchedRows); err != nil {
@@ -1243,7 +1265,7 @@ func TestChannelModels(c *gin.Context) {
 	if len(req.TargetModels) == 1 || strings.TrimSpace(req.TestModel) != "" {
 		testMode = previewChannelTestModeSingle
 	}
-	results, err := runChannelModelTests(previewChannel, testMode, req.TestModel, req.TargetModels)
+	results, err := runChannelModelTests(c, previewChannel, testMode, req.TestModel, req.TargetModels)
 	if err != nil {
 		logChannelAdminWarn(c, "test_models", stringField("source", keySource), stringField("channel_id", channelID), stringField("base_url", previewChannel.GetBaseURL()), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{

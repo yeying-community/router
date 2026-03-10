@@ -69,8 +69,13 @@ func ListGroupModelSummaries(groupID string) ([]GroupModelSummaryItem, error) {
 
 	channelsByID := make(map[string]GroupModelSummaryChannel, len(channels))
 	for _, channel := range channels {
-		channelsByID[channel.Id] = GroupModelSummaryChannel{
-			Id:       channel.Id,
+		channel.NormalizeIdentity()
+		channelID := strings.TrimSpace(channel.Id)
+		if channelID == "" {
+			continue
+		}
+		channelsByID[channelID] = GroupModelSummaryChannel{
+			Id:       channelID,
 			Name:     channel.DisplayName(),
 			Protocol: channel.GetProtocol(),
 			Status:   channel.Status,

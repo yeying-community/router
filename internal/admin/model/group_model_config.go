@@ -115,10 +115,15 @@ func listGroupModelConfigItemsWithDB(db *gorm.DB, groupID string) ([]GroupModelC
 	}
 	channelByID := make(map[string]Channel, len(channels))
 	for _, channel := range channels {
+		channel.NormalizeIdentity()
+		channelID := strings.TrimSpace(channel.Id)
+		if channelID == "" {
+			continue
+		}
 		if channel.Status != ChannelStatusEnabled {
 			continue
 		}
-		channelByID[channel.Id] = channel
+		channelByID[channelID] = channel
 	}
 
 	items := make([]GroupModelConfigItem, 0, len(abilities))
@@ -186,9 +191,14 @@ func listGroupModelConfigChannelsWithDB(db *gorm.DB, groupID string) ([]GroupMod
 
 	items := make([]GroupModelConfigChannel, 0, len(channels))
 	for _, channel := range channels {
-		_, bound := boundSet[channel.Id]
+		channel.NormalizeIdentity()
+		channelID := strings.TrimSpace(channel.Id)
+		if channelID == "" {
+			continue
+		}
+		_, bound := boundSet[channelID]
 		items = append(items, GroupModelConfigChannel{
-			Id:       channel.Id,
+			Id:       channelID,
 			Name:     channel.DisplayName(),
 			Protocol: channel.GetProtocol(),
 			Status:   channel.Status,

@@ -28,8 +28,6 @@ type ChannelTest struct {
 	Status        string `json:"status" gorm:"type:varchar(32);index"`
 	Supported     bool   `json:"supported" gorm:"not null;default:false"`
 	Message       string `json:"message,omitempty" gorm:"type:text"`
-	InputPayload  string `json:"input_payload,omitempty" gorm:"type:text"`
-	OutputPayload string `json:"output_payload,omitempty" gorm:"type:text"`
 	LatencyMs     int64  `json:"latency_ms,omitempty" gorm:"bigint"`
 	SortOrder     int64  `json:"sort_order,omitempty" gorm:"bigint;default:0"`
 	TestedAt      int64  `json:"tested_at,omitempty" gorm:"bigint;index"`
@@ -67,8 +65,6 @@ func NormalizeChannelTestRows(rows []ChannelTest) []ChannelTest {
 			Status:        NormalizeChannelTestStatus(row.Status),
 			Supported:     row.Supported && NormalizeChannelTestStatus(row.Status) == ChannelTestStatusSupported,
 			Message:       strings.TrimSpace(row.Message),
-			InputPayload:  row.InputPayload,
-			OutputPayload: row.OutputPayload,
 			LatencyMs:     row.LatencyMs,
 			SortOrder:     row.SortOrder,
 			TestedAt:      row.TestedAt,
