@@ -30,11 +30,12 @@ import (
 )
 
 type previewModelsRequest struct {
-	Protocol string          `json:"protocol"`
-	Key      string          `json:"key"`
-	BaseURL  string          `json:"base_url"`
-	DraftID  string          `json:"draft_id"`
-	Config   json.RawMessage `json:"config"`
+	Protocol     string               `json:"protocol"`
+	Key          string               `json:"key"`
+	BaseURL      string               `json:"base_url"`
+	DraftID      string               `json:"draft_id"`
+	Config       json.RawMessage      `json:"config"`
+	ModelConfigs []model.ChannelModel `json:"model_configs"`
 }
 
 type previewModelTestsRequest struct {
@@ -885,7 +886,16 @@ func PreviewChannelModels(c *gin.Context) {
 		})
 		return
 	}
-	previewChannel, keySource, err := loadPreviewChannel(req.Protocol, req.Key, req.BaseURL, req.DraftID, req.Config, nil, nil, "")
+	draftID := strings.TrimSpace(req.DraftID)
+	if draftID == "" {
+		logChannelAdminWarn(c, "preview_models", stringField("reason", "请先保存渠道后再刷新模型"))
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "请先保存渠道后再刷新模型",
+		})
+		return
+	}
+	previewChannel, keySource, err := loadPreviewChannel(req.Protocol, req.Key, req.BaseURL, draftID, req.Config, nil, req.ModelConfigs, "")
 	if err != nil {
 		logChannelAdminWarn(c, "preview_models", stringField("draft_id", strings.TrimSpace(req.DraftID)), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{
@@ -904,53 +914,54 @@ func PreviewChannelModels(c *gin.Context) {
 		})
 		return
 	}
-	draftID := strings.TrimSpace(req.DraftID)
-	modelConfigs := model.BuildFetchedChannelModelConfigs(previewChannel.GetModelConfigs(), fetchedRows, previewChannel.GetChannelProtocol(), true)
 	logChannelAdminInfo(c, "preview_models", stringField("source", keySource), stringField("draft_id", draftID), stringField("models_url", modelsURL), intField("count", len(fetchedRows)))
-	if draftID != "" {
-		if err := model.SyncFetchedChannelModelConfigsWithDB(model.DB, draftID, fetchedRows); err != nil {
-			logChannelAdminWarn(c, "preview_models_save", stringField("draft_id", draftID), stringField("reason", err.Error()))
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "保存渠道模型失败",
-			})
-			return
-		}
-		if err := model.EnsureChannelTestModelWithDB(model.DB, draftID); err != nil {
-			logChannelAdminWarn(c, "preview_test_model_sync", stringField("draft_id", draftID), stringField("reason", err.Error()))
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "保存测试模型失败",
-			})
-			return
-		}
-		if err := model.DeleteChannelTestsByChannelIDWithDB(model.DB, draftID); err != nil {
-			logChannelAdminWarn(c, "preview_tests_reset", stringField("draft_id", draftID), stringField("reason", err.Error()))
-		}
-		if err := model.ResetChannelModelTestStateWithDB(model.DB, draftID, nil); err != nil {
-			logChannelAdminWarn(c, "preview_tests_state_reset", stringField("draft_id", draftID), stringField("reason", err.Error()))
-		}
-		savedChannel, getErr := channelsvc.GetByID(draftID, true)
-		if getErr != nil {
-			logChannelAdminWarn(c, "preview_models_reload", stringField("draft_id", draftID), stringField("reason", getErr.Error()))
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "读取渠道模型失败",
-			})
-			return
-		}
-		modelConfigs = savedChannel.GetModelConfigs()
+	if err := model.SyncFetchedChannelModelConfigsFromBaseWithDB(model.DB, draftID, previewChannel.GetModelConfigs(), fetchedRows); err != nil {
+		logChannelAdminWarn(c, "preview_models_save", stringField("draft_id", draftID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "保存渠道模型失败",
+		})
+		return
 	}
+	if err := model.EnsureChannelTestModelWithDB(model.DB, draftID); err != nil {
+		logChannelAdminWarn(c, "preview_test_model_sync", stringField("draft_id", draftID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "保存测试模型失败",
+		})
+		return
+	}
+	if err := model.DeleteChannelTestsByChannelIDWithDB(model.DB, draftID); err != nil {
+		logChannelAdminWarn(c, "preview_tests_reset", stringField("draft_id", draftID), stringField("reason", err.Error()))
+	}
+	if err := model.ResetChannelModelTestStateWithDB(model.DB, draftID, nil); err != nil {
+		logChannelAdminWarn(c, "preview_tests_state_reset", stringField("draft_id", draftID), stringField("reason", err.Error()))
+	}
+	savedChannel, getErr := channelsvc.GetByID(draftID, true)
+	if getErr != nil {
+		logChannelAdminWarn(c, "preview_models_reload", stringField("draft_id", draftID), stringField("reason", getErr.Error()))
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "读取渠道模型失败",
+		})
+		return
+	}
+	modelConfigs := savedChannel.GetModelConfigs()
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    modelConfigs,
+		"data": gin.H{
+			"model_configs":    modelConfigs,
+			"available_models": savedChannel.AvailableModels,
+			"selected_models":  savedChannel.SelectedModelIDs(),
+		},
 		"meta": gin.H{
 			"source":     "channel",
 			"key_source": keySource,
 			"draft_id":   draftID,
 			"models_url": modelsURL,
+			"count":      len(modelConfigs),
 		},
 	})
 }

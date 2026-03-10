@@ -198,7 +198,23 @@ func SyncFetchedChannelModelConfigsWithDB(db *gorm.DB, channelID string, fetched
 	if err != nil {
 		return err
 	}
-	rows := BuildFetchedChannelModelConfigs(existingRows, fetchedRows, channelProtocol, true)
+	rows := BuildFetchedChannelModelConfigs(existingRows, fetchedRows, channelProtocol, false)
+	return ReplaceChannelModelConfigsWithDB(db, normalizedChannelID, rows)
+}
+
+func SyncFetchedChannelModelConfigsFromBaseWithDB(db *gorm.DB, channelID string, baseRows []ChannelModel, fetchedRows []ChannelModel) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return nil
+	}
+	channelProtocol, err := loadChannelProtocolByChannelIDWithDB(db, normalizedChannelID)
+	if err != nil {
+		return err
+	}
+	rows := BuildFetchedChannelModelConfigs(baseRows, fetchedRows, channelProtocol, false)
 	return ReplaceChannelModelConfigsWithDB(db, normalizedChannelID, rows)
 }
 

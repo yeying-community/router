@@ -533,51 +533,6 @@ const buildChannelModelState = (modelConfigs) => {
   };
 };
 
-const buildFetchedModelConfigs = (
-  previousConfigs,
-  models,
-  selectAll = true,
-) => {
-  const fetchedConfigs = normalizeChannelModelConfigs(models);
-  if (fetchedConfigs.length > 0) {
-    return fetchedConfigs.map((row) => ({
-      ...row,
-      selected: selectAll ? true : row.selected !== false,
-    }));
-  }
-
-  const previousRows = normalizeChannelModelConfigs(previousConfigs);
-  const previousByUpstream = new Map();
-  previousRows.forEach((row) => {
-    const upstreamModel = row.upstream_model || row.model;
-    if (!upstreamModel || previousByUpstream.has(upstreamModel)) {
-      return;
-    }
-    previousByUpstream.set(upstreamModel, row);
-  });
-  return buildModelIDs(models).map((modelId) => {
-    const existing = previousByUpstream.get(modelId);
-    if (existing) {
-      return {
-        ...existing,
-        upstream_model: modelId,
-        selected: selectAll ? true : existing.selected,
-      };
-    }
-    return {
-      model: modelId,
-      upstream_model: modelId,
-      type: 'text',
-      endpoint: defaultChannelModelEndpoint('text'),
-      selected: selectAll,
-      input_price: null,
-      output_price: null,
-      price_unit: 'per_1k_tokens',
-      currency: 'USD',
-    };
-  });
-};
-
 const buildNextInputsWithModelConfigs = (previousInputs, modelConfigs) => {
   const { modelConfigs: normalizedConfigs, selectedModels } =
     buildChannelModelState(modelConfigs);
@@ -1727,43 +1682,49 @@ const EditChannel = () => {
     [hasChannelID],
   );
 
-  const applyModelCandidates = useCallback(
-    (models, selectAll = false) => {
-      const nextConfigs = buildFetchedModelConfigs(
-        inputs.model_configs,
-        models,
-        selectAll,
-      );
-      const nextInputs = buildNextInputsWithModelConfigs(inputs, nextConfigs);
-      setInputs(nextInputs);
-      return nextInputs.models;
-    },
-    [inputs],
-  );
-
   const handleFetchModels = useCallback(
-    async ({ silent = false, selectAll = true } = {}) => {
+    async ({ silent = false } = {}) => {
       if (fetchingModelsRef.current) {
         return false;
       }
       fetchingModelsRef.current = true;
       setFetchModelsLoading(true);
       try {
-        let models = [];
+        if (isCreateMode) {
+          const ok = await ensureDraftChannel();
+          if (!ok) {
+            return false;
+          }
+        }
+        const targetChannelId = (
+          previewChannelID ||
+          draftChannelIdRef.current ||
+          draftChannelId ||
+          ''
+        ).trim();
+        if (targetChannelId === '') {
+          const errorMessage = t('channel.edit.messages.update_draft_failed');
+          setModelsSyncError(errorMessage);
+          if (!silent) {
+            showError(errorMessage);
+          }
+          return false;
+        }
         const normalizedBaseURL = normalizeBaseURL(inputs.base_url);
         const key = buildEffectiveKey().trim();
         const requestSignature = buildChannelConnectionSignature({
           protocol: inputs.protocol,
           key,
           baseURL: normalizedBaseURL,
-          draftID: previewChannelID,
+          draftID: targetChannelId,
         });
         const res = await API.post(`/api/v1/admin/channel/preview/models`, {
           protocol: inputs.protocol,
           key,
           base_url: normalizedBaseURL,
-          draft_id: previewChannelID,
+          draft_id: targetChannelId,
           config,
+          model_configs: visibleModelConfigs,
         });
         const { success, message, data } = res.data || {};
         if (!success) {
@@ -1776,9 +1737,9 @@ const EditChannel = () => {
           }
           return false;
         }
-        models = Array.isArray(data) ? data.filter((model) => model) : [];
-
-        const ids = applyModelCandidates(models, selectAll);
+        const nextConfigs = normalizeChannelModelConfigs(data?.model_configs);
+        const nextInputs = buildNextInputsWithModelConfigs(inputs, nextConfigs);
+        const ids = nextInputs.models;
         if (ids.length === 0) {
           const message = t('channel.edit.messages.models_empty');
           setModelsSyncError(message);
@@ -1789,6 +1750,7 @@ const EditChannel = () => {
           return false;
         }
 
+        setInputs(nextInputs);
         setModelsSyncError('');
         setModelsLastSyncedAt(Date.now());
         setVerifiedModelSignature(requestSignature);
@@ -1811,13 +1773,17 @@ const EditChannel = () => {
       }
     },
     [
-      applyModelCandidates,
       buildEffectiveKey,
       config,
+      draftChannelId,
+      ensureDraftChannel,
       inputs.base_url,
+      inputs,
       inputs.protocol,
+      isCreateMode,
       previewChannelID,
       t,
+      visibleModelConfigs,
     ],
   );
 
