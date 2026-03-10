@@ -563,6 +563,60 @@ const extractChannelModelListItems = (payload) => {
   return [];
 };
 
+const fetchAllChannelModelConfigs = async (channelId) => {
+  const normalizedChannelId = (channelId || '').toString().trim();
+  if (normalizedChannelId === '') {
+    return [];
+  }
+  const items = [];
+  let page = 0;
+  while (page < 50) {
+    const res = await API.get(`/api/v1/admin/channel/${normalizedChannelId}/models`, {
+      params: {
+        p: page,
+        page_size: 100,
+      },
+    });
+    const { success, message, data } = res.data || {};
+    if (!success) {
+      throw new Error(message || 'fetch channel models failed');
+    }
+    const pageItems = normalizeChannelModelConfigs(
+      extractChannelModelListItems(data)
+    );
+    items.push(...pageItems);
+    const total = Number(data?.total || pageItems.length || 0);
+    if (
+      pageItems.length === 0 ||
+      items.length >= total ||
+      pageItems.length < 100
+    ) {
+      break;
+    }
+    page += 1;
+  }
+  return normalizeChannelModelConfigs(items);
+};
+
+const fetchChannelTests = async (channelId) => {
+  const normalizedChannelId = (channelId || '').toString().trim();
+  if (normalizedChannelId === '') {
+    return {
+      items: [],
+      lastTestedAt: 0,
+    };
+  }
+  const res = await API.get(`/api/v1/admin/channel/${normalizedChannelId}/tests`);
+  const { success, message, data } = res.data || {};
+  if (!success) {
+    throw new Error(message || 'fetch channel tests failed');
+  }
+  return {
+    items: normalizeModelTestResults(data?.items),
+    lastTestedAt: Number(data?.last_tested_at || 0),
+  };
+};
+
 const validateModelConfigs = (modelConfigs, t) => {
   const seen = new Set();
   for (const row of Array.isArray(modelConfigs) ? modelConfigs : []) {
@@ -1518,22 +1572,13 @@ const EditChannel = () => {
         return false;
       }
       try {
-        const checkRes = await API.get(
-          `/api/v1/admin/channel/${targetChannelID}?select_all=1`
+        const remoteConfigs = await loadChannelModelConfigsFromServer(
+          targetChannelID
         );
-        const { success, data } = checkRes.data || {};
-        if (!success || !data) {
-          return false;
-        }
         const remoteModels = normalizeModelIDs(
-          Array.isArray(data.model_configs) && data.model_configs.length > 0
-            ? data.model_configs
-                .filter((row) => row && row.selected === true)
-                .map((row) => row.model)
-            : (data.models || '')
-                .split(',')
-                .map((item) => item.trim())
-                .filter((item) => item !== '')
+          remoteConfigs
+            .filter((row) => row && row.selected === true)
+            .map((row) => row.model)
         );
         const localModels = normalizeModelIDs(expectedModels);
         if (remoteModels.length !== localModels.length) {
@@ -1549,7 +1594,7 @@ const EditChannel = () => {
         return false;
       }
     },
-    [creatingChannelId]
+    [creatingChannelId, loadChannelModelConfigsFromServer]
   );
 
   const ensureCreatingChannel = useCallback(async () => {
@@ -1679,167 +1724,137 @@ const EditChannel = () => {
     t,
   ]);
 
-  const loadChannelById = useCallback(
-    async (
-      targetId,
-      forCopy = false,
-      selectAll = true,
-      fromCreating = false
-    ) => {
-      const query = selectAll ? '?select_all=1' : '';
-      let res = await API.get(`/api/v1/admin/channel/${targetId}${query}`);
-      const { success, message, data } = res.data;
-      if (success) {
-        const keySet = !!data.key_set;
-        const selectedModels =
-          data.models === ''
-            ? []
-            : (data.models || '')
-                .split(',')
-                .map((item) => item.trim())
-                .filter((item) => item !== '');
-        const availableModels = Array.isArray(data.available_models)
-          ? data.available_models
-          : [];
-        const storedModelTestResults = normalizeModelTestResults(
-          data.channel_tests
-        );
-        const storedModelTestedAt =
-          Number(data.channel_tests_last_tested_at || 0) > 0
-            ? Number(data.channel_tests_last_tested_at) * 1000
-            : 0;
-        let parsedConfig = {};
-        if (data.config !== '') {
-          parsedConfig = JSON.parse(data.config);
-        }
-        const normalizedProtocol = resolveProtocolFromChannelPayload(data);
-        const modelState = buildChannelModelState(
-          buildModelConfigsFromLegacyFields({
-            modelConfigs: data.model_configs,
-            availableModels:
-              availableModels.length > 0 ? availableModels : selectedModels,
-            selectedModels,
-            modelMapping: data.model_mapping || '',
-            inputPrice: data.input_price || '',
-            outputPrice: data.output_price || '',
-            priceUnit: data.price_unit || '',
-            currency: data.currency || '',
-          })
-        );
-        const loadedModelTestSignature = buildChannelModelTestSignature({
-          protocol: normalizedProtocol,
-          key: '',
-          baseURL: data.base_url || '',
-          channelID: data.id || targetId,
-          models: modelState.selectedModels,
-          modelConfigs: modelState.modelConfigs,
-        });
-
-        if (forCopy) {
-          setInputs({
-            id: '',
-            name: '',
-            protocol: normalizedProtocol,
-            key: '',
-            base_url: data.base_url || '',
-            other: data.other || '',
-            model_configs: modelState.modelConfigs,
-            system_prompt: data.system_prompt || '',
-            models: modelState.selectedModels,
-            test_model: data.test_model || modelState.selectedModels[0] || '',
-          });
-          setModelTestResults([]);
-          setModelTestError('');
-          setModelTestedAt(0);
-          setModelTestedSignature('');
-          setModelTestTargetModels([]);
-        } else {
-          setInputs({
-            id: data.id,
-            name: data.name || '',
-            protocol: normalizedProtocol,
-            key: '',
-            base_url: data.base_url || '',
-            other: data.other || '',
-            model_configs: modelState.modelConfigs,
-            system_prompt: data.system_prompt || '',
-            models: modelState.selectedModels,
-            test_model: data.test_model || modelState.selectedModels[0] || '',
-            status: data.status,
-            weight: data.weight,
-            priority: data.priority,
-          });
-          setModelTestResults(storedModelTestResults);
-          setModelTestError('');
-          setModelTestedAt(storedModelTestedAt);
-          setModelTestedSignature(
-            storedModelTestResults.length > 0 && storedModelTestedAt > 0
-              ? loadedModelTestSignature
-              : ''
-          );
-          setModelTestTargetModels([]);
-        }
-        setConfig((prev) => ({
-          ...prev,
-          ...parsedConfig,
-        }));
-        if (fromCreating || hasChannelID) {
-          setChannelKeySet(keySet);
-        } else {
-          setChannelKeySet(false);
-        }
-        if (fromCreating && !creatingStepProvidedRef.current) {
-          setCreateStep(inferCreatingChannelStepFromPayload(data));
-        }
-      } else {
-        showError(message);
-      }
-      setLoading(false);
-    },
-    [hasChannelID]
-  );
-
   const loadChannelModelConfigsFromServer = useCallback(
     async (targetChannelId) => {
-      const normalizedChannelId = (targetChannelId || '').toString().trim();
-      if (normalizedChannelId === '') {
-        return [];
-      }
-      const items = [];
-      let page = 0;
-      while (page < 50) {
-        const res = await API.get(
-          `/api/v1/admin/channel/${normalizedChannelId}/models`,
-          {
-            params: {
-              p: page,
-              page_size: 100,
-            },
-          }
+      try {
+        return await fetchAllChannelModelConfigs(targetChannelId);
+      } catch (error) {
+        throw new Error(
+          error?.message || t('channel.edit.messages.fetch_models_failed')
         );
-        const { success, message, data } = res.data || {};
-        if (!success) {
-          throw new Error(
-            message || t('channel.edit.messages.fetch_models_failed')
-          );
-        }
-        const pageItems = normalizeChannelModelConfigs(
-          extractChannelModelListItems(data)
-        );
-        items.push(...pageItems);
-        const total = Number(data?.total || pageItems.length || 0);
-        if (
-          pageItems.length === 0 ||
-          items.length >= total ||
-          pageItems.length < 100
-        ) {
-          break;
-        }
-        page += 1;
       }
-      return normalizeChannelModelConfigs(items);
     },
     [t]
+  );
+
+  const loadChannelTestsFromServer = useCallback(
+    async (targetChannelId) => {
+      try {
+        return await fetchChannelTests(targetChannelId);
+      } catch (error) {
+        throw new Error(
+          error?.message || t('channel.edit.model_tester.test_failed')
+        );
+      }
+    },
+    [t]
+  );
+
+  const loadChannelById = useCallback(
+    async (targetId, forCopy = false, fromCreating = false) => {
+      try {
+        let res = await API.get(`/api/v1/admin/channel/${targetId}`);
+        const { success, message, data } = res.data;
+        if (success) {
+          const [remoteModelConfigs, channelTestsData] = await Promise.all([
+            loadChannelModelConfigsFromServer(data.id || targetId),
+            forCopy
+              ? Promise.resolve({ items: [], lastTestedAt: 0 })
+              : loadChannelTestsFromServer(data.id || targetId),
+          ]);
+          const storedModelTestResults = normalizeModelTestResults(
+            channelTestsData.items
+          );
+          const storedModelTestedAt =
+            Number(channelTestsData.lastTestedAt || 0) > 0
+              ? Number(channelTestsData.lastTestedAt) * 1000
+              : 0;
+          let parsedConfig = {};
+          if (data.config !== '') {
+            parsedConfig = JSON.parse(data.config);
+          }
+          const normalizedProtocol = resolveProtocolFromChannelPayload(data);
+          const modelState = buildChannelModelState(remoteModelConfigs);
+          const loadedModelTestSignature = buildChannelModelTestSignature({
+            protocol: normalizedProtocol,
+            key: '',
+            baseURL: data.base_url || '',
+            channelID: data.id || targetId,
+            models: modelState.selectedModels,
+            modelConfigs: modelState.modelConfigs,
+          });
+
+          if (forCopy) {
+            setInputs({
+              id: '',
+              name: '',
+              protocol: normalizedProtocol,
+              key: '',
+              base_url: data.base_url || '',
+              other: data.other || '',
+              model_configs: modelState.modelConfigs,
+              system_prompt: data.system_prompt || '',
+              models: modelState.selectedModels,
+              test_model: data.test_model || modelState.selectedModels[0] || '',
+            });
+            setModelTestResults([]);
+            setModelTestError('');
+            setModelTestedAt(0);
+            setModelTestedSignature('');
+            setModelTestTargetModels([]);
+          } else {
+            setInputs({
+              id: data.id,
+              name: data.name || '',
+              protocol: normalizedProtocol,
+              key: '',
+              base_url: data.base_url || '',
+              other: data.other || '',
+              model_configs: modelState.modelConfigs,
+              system_prompt: data.system_prompt || '',
+              models: modelState.selectedModels,
+              test_model: data.test_model || modelState.selectedModels[0] || '',
+              status: data.status,
+              weight: data.weight,
+              priority: data.priority,
+            });
+            setModelTestResults(storedModelTestResults);
+            setModelTestError('');
+            setModelTestedAt(storedModelTestedAt);
+            setModelTestedSignature(
+              storedModelTestResults.length > 0 && storedModelTestedAt > 0
+                ? loadedModelTestSignature
+                : ''
+            );
+            setModelTestTargetModels([]);
+          }
+          setConfig((prev) => ({
+            ...prev,
+            ...parsedConfig,
+          }));
+          if (fromCreating || hasChannelID) {
+            setChannelKeySet(!!data.key_set);
+          } else {
+            setChannelKeySet(false);
+          }
+          if (fromCreating && !creatingStepProvidedRef.current) {
+            setCreateStep(
+              inferCreatingChannelStepFromPayload({
+                ...data,
+                model_configs: modelState.modelConfigs,
+                channel_tests: storedModelTestResults,
+                channel_tests_last_tested_at: channelTestsData.lastTestedAt,
+              })
+            );
+          }
+        } else {
+          showError(message);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [hasChannelID, loadChannelModelConfigsFromServer, loadChannelTestsFromServer]
   );
 
   const handleFetchModels = useCallback(
@@ -2444,12 +2459,12 @@ const EditChannel = () => {
   useEffect(() => {
     if (hasChannelID) {
       setLoading(true);
-      loadChannelById(channelId, false, true, false).then();
+      loadChannelById(channelId, false, false).then();
       return;
     }
     if (copyFromId !== '') {
       setLoading(true);
-      loadChannelById(copyFromId, true, true, false).then();
+      loadChannelById(copyFromId, true, false).then();
       return;
     }
     if (creatingChannelIdFromQuery !== '') {
@@ -2459,7 +2474,7 @@ const EditChannel = () => {
         return;
       }
       setLoading(true);
-      loadChannelById(creatingChannelIdFromQuery, false, true, true).then();
+      loadChannelById(creatingChannelIdFromQuery, false, true).then();
       return;
     }
     setChannelKeySet(false);

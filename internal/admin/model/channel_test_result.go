@@ -261,6 +261,21 @@ func DeleteChannelTestsByChannelIDsWithDB(db *gorm.DB, channelIDs []string) erro
 	return db.Where("channel_id IN ?", normalizedIDs).Delete(&ChannelTest{}).Error
 }
 
+func ListLatestChannelTestsByChannelIDWithDB(db *gorm.DB, channelID string) ([]ChannelTest, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return []ChannelTest{}, nil
+	}
+	rowsByChannelID, err := loadChannelTestRowsByChannelIDs(db, []string{normalizedChannelID})
+	if err != nil {
+		return nil, err
+	}
+	return NormalizeChannelTestRows(rowsByChannelID[normalizedChannelID]), nil
+}
+
 func loadChannelTestRowsByChannelIDs(db *gorm.DB, channelIDs []string) (map[string][]ChannelTest, error) {
 	rowsByChannelID := make(map[string][]ChannelTest)
 	normalizedIDs := normalizeTrimmedValuesPreserveOrder(channelIDs)

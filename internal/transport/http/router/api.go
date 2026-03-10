@@ -192,11 +192,11 @@ func SetApiRouter(engine *gin.Engine) {
 		adminChannelRoute := adminRouter.Group("/channel")
 		adminChannelRoute.Use(middleware.AdminAuth())
 		{
-			adminChannelRoute.GET("/search", channel.SearchChannels)
 			adminChannelRoute.GET("/protocols", channel.GetChannelProtocols)
 			adminChannelRoute.POST("/create", channel.CreateChannel)
 			adminChannelRoute.GET("/:id", channel.GetChannel)
 			adminChannelRoute.GET("/:id/models", channel.GetChannelModels)
+			adminChannelRoute.GET("/:id/tests", channel.GetChannelTests)
 			adminChannelRoute.POST("/:id/models/refresh", channel.RefreshChannelModels)
 			adminChannelRoute.POST("/:id/tests", channel.TestChannelModels)
 			adminChannelRoute.GET("/test", channel.TestChannels)

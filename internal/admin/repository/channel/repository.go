@@ -13,8 +13,6 @@ import (
 
 func init() {
 	model.BindChannelRepository(model.ChannelRepository{
-		GetAllChannels:               GetAll,
-		SearchChannels:               Search,
 		GetChannelById:               GetByID,
 		Insert:                       Insert,
 		Update:                       Update,
@@ -86,44 +84,52 @@ func GetAll(startIdx int, num int, status string) ([]*model.Channel, error) {
 	if err := model.HydrateChannelsWithModels(model.DB, channels); err != nil {
 		return nil, err
 	}
-	return channels, model.HydrateChannelsWithTests(model.DB, channels)
+	return channels, nil
 }
 
-func Search(keyword string) ([]*model.Channel, error) {
-	var channels []*model.Channel
-	trimmed := strings.TrimSpace(keyword)
-	if trimmed == "" {
-		return channels, nil
-	}
-	normalizedID := model.NormalizeChannelIdentifier(trimmed)
-	err := model.DB.Omit("key").
-		Where("name LIKE ?", normalizedID+"%").
-		Find(&channels).Error
-	if err != nil {
-		return nil, err
-	}
-	if err := model.HydrateChannelsWithModels(model.DB, channels); err != nil {
-		return nil, err
-	}
-	return channels, model.HydrateChannelsWithTests(model.DB, channels)
-}
-
-func GetByID(id string, selectAll bool) (*model.Channel, error) {
+func GetByID(id string) (*model.Channel, error) {
 	id = strings.TrimSpace(id)
 	channel := model.Channel{Id: id}
-	var err error
-	if selectAll {
-		err = model.DB.First(&channel, "id = ?", id).Error
-	} else {
-		err = model.DB.Omit("key").First(&channel, "id = ?", id).Error
-	}
-	if err != nil {
+	if err := model.DB.First(&channel, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	if err := model.HydrateChannelWithModels(model.DB, &channel); err != nil {
 		return nil, err
 	}
 	return &channel, model.HydrateChannelWithTests(model.DB, &channel)
+}
+
+func GetBasicByID(id string) (*model.Channel, error) {
+	id = strings.TrimSpace(id)
+	channel := model.Channel{Id: id}
+	if err := model.DB.Omit("key").First(&channel, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &channel, nil
+}
+
+func GetAllBasic(startIdx int, num int, status string, selectAll bool) ([]*model.Channel, error) {
+	var channels []*model.Channel
+	query := model.DB.Order("created_time desc")
+	if !selectAll {
+		query = query.Omit("key")
+	}
+	switch status {
+	case "all":
+	case "disabled":
+		query = query.Where("status = ? or status = ?", model.ChannelStatusAutoDisabled, model.ChannelStatusManuallyDisabled)
+	default:
+		if num > 0 {
+			query = query.Limit(num).Offset(startIdx)
+		}
+		if !selectAll {
+			query = query.Omit("key")
+		}
+	}
+	if err := query.Find(&channels).Error; err != nil {
+		return nil, err
+	}
+	return channels, nil
 }
 
 func prepareChannelForCreate(channel *model.Channel) error {

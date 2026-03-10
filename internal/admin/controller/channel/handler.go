@@ -225,33 +225,6 @@ func GetChannels(c *gin.Context) {
 	})
 }
 
-// SearchChannels godoc
-// @Summary Search channels (admin)
-// @Tags admin
-// @Security BearerAuth
-// @Produce json
-// @Param keyword query string false "Keyword"
-// @Success 200 {object} docs.StandardResponse
-// @Failure 401 {object} docs.ErrorResponse
-// @Router /api/v1/admin/channel/search [get]
-func SearchChannels(c *gin.Context) {
-	page, pageSize, keyword := parseChannelListPageParams(c)
-	data, err := listChannelsPage(page, pageSize, keyword)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    data.Items,
-	})
-	return
-}
-
 // GetChannel godoc
 // @Summary Get channel by ID (admin)
 // @Tags admin
@@ -270,13 +243,8 @@ func GetChannel(c *gin.Context) {
 		})
 		return
 	}
-	selectAll := false
-	selectAllRaw := strings.TrimSpace(c.Query("select_all"))
-	if selectAllRaw == "1" || strings.EqualFold(selectAllRaw, "true") {
-		selectAll = true
-	}
 	var err error
-	channel, err := channelsvc.GetByID(id, selectAll)
+	channel, err := channelsvc.GetBasicByID(id)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -554,7 +522,7 @@ func UpdateChannelTestModel(c *gin.Context) {
 		})
 		return
 	}
-	channel, err := channelsvc.GetByID(req.ID, true)
+	channel, err := channelsvc.GetByID(req.ID)
 	if err != nil {
 		logChannelAdminWarn(c, "update_test_model", stringField("channel_id", req.ID), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{

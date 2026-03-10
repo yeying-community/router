@@ -152,16 +152,8 @@ func (channel *Channel) GetChannelProtocol() int {
 	return relaychannel.TypeByProtocol(channel.GetProtocol())
 }
 
-func GetAllChannels(startIdx int, num int, scope string) ([]*Channel, error) {
-	return mustChannelRepo().GetAllChannels(startIdx, num, scope)
-}
-
-func SearchChannels(keyword string) ([]*Channel, error) {
-	return mustChannelRepo().SearchChannels(keyword)
-}
-
-func GetChannelById(id string, selectAll bool) (*Channel, error) {
-	return mustChannelRepo().GetChannelById(id, selectAll)
+func GetChannelById(id string) (*Channel, error) {
+	return mustChannelRepo().GetChannelById(id)
 }
 
 func (channel *Channel) GetPriority() int64 {

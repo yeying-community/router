@@ -30,6 +30,64 @@ function renderTimestamp(timestamp) {
   return <>{timestamp2string(timestamp)}</>;
 }
 
+async function fetchSelectedChannelModels(channelId) {
+  const normalizedChannelId = (channelId || '').toString().trim();
+  if (normalizedChannelId === '') {
+    return [];
+  }
+  const items = [];
+  let page = 0;
+  while (page < 50) {
+    const res = await API.get(`/api/v1/admin/channel/${normalizedChannelId}/models`, {
+      params: {
+        p: page,
+        page_size: 100,
+      },
+    });
+    const { success, data } = res.data || {};
+    if (!success) {
+      return [];
+    }
+    const pageItems = Array.isArray(data?.items) ? data.items : [];
+    items.push(...pageItems);
+    const total = Number(data?.total || pageItems.length || 0);
+    if (
+      pageItems.length === 0 ||
+      items.length >= total ||
+      pageItems.length < 100
+    ) {
+      break;
+    }
+    page += 1;
+  }
+  return items
+    .filter((item) => item && item.selected === true && item.inactive !== true)
+    .map((item) => (item.model || '').toString().trim())
+    .filter((item) => item !== '');
+}
+
+async function fetchChannelLatestTests(channelId) {
+  const normalizedChannelId = (channelId || '').toString().trim();
+  if (normalizedChannelId === '') {
+    return {
+      last_tested_at: 0,
+      items: [],
+    };
+  }
+  const res = await API.get(`/api/v1/admin/channel/${normalizedChannelId}/tests`);
+  const { success, data } = res.data || {};
+  if (!success) {
+    return {
+      last_tested_at: 0,
+      items: [],
+    };
+  }
+  return {
+    last_tested_at: Number(data?.last_tested_at || 0),
+    items: Array.isArray(data?.items) ? data.items : [],
+  };
+}
+
 function buildProtocolMap(options, t) {
   const protocolMap = {};
   if (Array.isArray(options)) {
@@ -466,27 +524,19 @@ const ChannelsTable = () => {
     setSelectedChannelIds([]);
   };
 
-  const inferCreatingStepFromDetail = (channel) => {
+  const inferCreatingStepFromState = (channel, selectedModels, testData) => {
     if (!channel || typeof channel !== 'object') {
       return 1;
     }
     if (channel.protocol === 'proxy') {
       return 1;
     }
-    const models = Array.isArray(channel.models)
-      ? channel.models
-      : (channel.models || '')
-          .toString()
-          .split(',')
-          .map((item) => item.trim())
-          .filter((item) => item !== '');
+    const models = Array.isArray(selectedModels) ? selectedModels : [];
     if (models.length === 0) {
       return 2;
     }
-    const testedAt = Number(channel.channel_tests_last_tested_at || 0);
-    const testResults = Array.isArray(channel.channel_tests)
-      ? channel.channel_tests
-      : [];
+    const testedAt = Number(testData?.last_tested_at || 0);
+    const testResults = Array.isArray(testData?.items) ? testData.items : [];
     if (testedAt > 0 || testResults.length > 0) {
       return 4;
     }
@@ -505,13 +555,11 @@ const ChannelsTable = () => {
       return storedStep;
     }
     try {
-      const res = await API.get(
-        `/api/v1/admin/channel/${encodeURIComponent(channel.id)}?select_all=1`
-      );
-      const { success, data } = res.data || {};
-      if (success && data && typeof data === 'object') {
-        return inferCreatingStepFromDetail(data);
-      }
+      const [selectedModels, testData] = await Promise.all([
+        fetchSelectedChannelModels(channel.id),
+        fetchChannelLatestTests(channel.id),
+      ]);
+      return inferCreatingStepFromState(channel, selectedModels, testData);
     } catch {
       // Fallback to step 1 when details cannot be loaded.
     }

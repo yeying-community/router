@@ -53,7 +53,7 @@ func Distribute() func(c *gin.Context) {
 		channelId, ok := c.Get(ctxkey.SpecificChannelId)
 		if ok {
 			id := fmt.Sprintf("%v", channelId)
-			channel, err = model.GetChannelById(id, true)
+			channel, err = model.GetChannelById(id)
 			if err != nil {
 				abortWithMessage(c, http.StatusBadRequest, "无效的渠道 Id")
 				return

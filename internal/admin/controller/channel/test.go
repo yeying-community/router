@@ -137,7 +137,7 @@ func executeChannelModelTest(ctx context.Context, channel *model.Channel, option
 			recordModelTestLog(ctx, channel, modelName, false, message, startedAt)
 			return nil, false, message, 0, modelName, nil, 0, err
 		}
-		if savedChannel, getErr := channelsvc.GetByID(channel.Id, true); getErr == nil {
+		if savedChannel, getErr := channelsvc.GetByID(channel.Id); getErr == nil {
 			_ = savedChannel.UpdateAbilities()
 		}
 	}
@@ -176,7 +176,7 @@ func TestChannel(c *gin.Context) {
 		return
 	}
 	var err error
-	channel, err := channelsvc.GetByID(id, true)
+	channel, err := channelsvc.GetByID(id)
 	if err != nil {
 		logChannelAdminWarn(c, "test", stringField("channel_id", id), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{

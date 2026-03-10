@@ -1,9 +1,7 @@
 package model
 
 type ChannelRepository struct {
-	GetAllChannels               func(startIdx int, num int, scope string) ([]*Channel, error)
-	SearchChannels               func(keyword string) ([]*Channel, error)
-	GetChannelById               func(id string, selectAll bool) (*Channel, error)
+	GetChannelById               func(id string) (*Channel, error)
 	Insert                       func(channel *Channel) error
 	Update                       func(channel *Channel) error
 	UpdateResponseTime           func(channel *Channel, responseTime int64)

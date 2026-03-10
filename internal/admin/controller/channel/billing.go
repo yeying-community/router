@@ -417,7 +417,7 @@ func UpdateChannelBalance(c *gin.Context) {
 		return
 	}
 	var err error
-	channel, err := channelsvc.GetByID(id, true)
+	channel, err := channelsvc.GetByID(id)
 	if err != nil {
 		logChannelAdminWarn(c, "refresh_balance", stringField("channel_id", id), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{
@@ -445,7 +445,7 @@ func UpdateChannelBalance(c *gin.Context) {
 }
 
 func updateAllChannelsBalance() error {
-	channels, err := channelsvc.GetAll(0, 0, "all")
+	channels, err := channelsvc.GetAllBasic(0, 0, "all", true)
 	if err != nil {
 		return err
 	}

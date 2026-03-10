@@ -96,6 +96,11 @@ type channelModelListData struct {
 	InactiveCount int                  `json:"inactive_count"`
 }
 
+type channelTestListData struct {
+	Items        []model.ChannelTest `json:"items"`
+	LastTestedAt int64               `json:"last_tested_at"`
+}
+
 type previewModelTestExecution struct {
 	LatencyMs     int64
 	Message       string
@@ -324,7 +329,7 @@ func loadPreviewChannel(protocol string, key string, baseURL string, channelID s
 	}
 
 	if trimmedChannelID != "" {
-		savedChannel, err := channelsvc.GetByID(trimmedChannelID, true)
+		savedChannel, err := channelsvc.GetByID(trimmedChannelID)
 		if err != nil {
 			return nil, keySource, fmt.Errorf("渠道不存在或已删除")
 		}
@@ -1059,7 +1064,7 @@ func buildChannelModelListData(channelID string, page int, pageSize int, keyword
 	if err != nil {
 		return channelModelListData{}, err
 	}
-	channelRow, err := channelsvc.GetByID(channelID, true)
+	channelRow, err := channelsvc.GetByID(channelID)
 	if err != nil {
 		return channelModelListData{}, err
 	}
@@ -1088,6 +1093,17 @@ func buildChannelModelListData(channelID string, page int, pageSize int, keyword
 	}, nil
 }
 
+func buildChannelTestListData(channelID string) (channelTestListData, error) {
+	rows, err := model.ListLatestChannelTestsByChannelIDWithDB(model.DB, channelID)
+	if err != nil {
+		return channelTestListData{}, err
+	}
+	return channelTestListData{
+		Items:        rows,
+		LastTestedAt: model.CalcChannelTestsLastTestedAt(rows),
+	}, nil
+}
+
 // GetChannelModels godoc
 // @Summary List channel models (admin)
 // @Tags admin
@@ -1113,6 +1129,40 @@ func GetChannelModels(c *gin.Context) {
 	data, err := buildChannelModelListData(channelID, page, pageSize, keyword)
 	if err != nil {
 		logChannelAdminWarn(c, "list_models", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    data,
+	})
+}
+
+// GetChannelTests godoc
+// @Summary List latest channel tests (admin)
+// @Tags admin
+// @Security BearerAuth
+// @Produce json
+// @Param id path string true "Channel ID"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/admin/channel/{id}/tests [get]
+func GetChannelTests(c *gin.Context) {
+	channelID := strings.TrimSpace(c.Param("id"))
+	if channelID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "渠道 ID 无效",
+		})
+		return
+	}
+	data, err := buildChannelTestListData(channelID)
+	if err != nil {
+		logChannelAdminWarn(c, "list_tests", stringField("channel_id", channelID), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": err.Error(),
@@ -1282,7 +1332,7 @@ func TestChannelModels(c *gin.Context) {
 		})
 		return
 	}
-	savedChannel, getErr := channelsvc.GetByID(channelID, true)
+	savedChannel, getErr := channelsvc.GetByID(channelID)
 	if getErr != nil {
 		logChannelAdminWarn(c, "test_models_reload", stringField("channel_id", channelID), stringField("reason", getErr.Error()))
 		c.JSON(http.StatusOK, gin.H{
