@@ -811,6 +811,7 @@ const EditChannel = () => {
   const fetchingModelsRef = useRef(false);
   const draftChannelIdRef = useRef(draftIdFromQuery);
   const draftStepProvidedRef = useRef(false);
+  const skipNextDraftReloadRef = useRef('');
   const deferredModelSearchKeyword = useDeferredValue(modelSearchKeyword);
   const currentProtocolOption = useMemo(() => {
     const normalizedProtocol = (inputs.protocol || '').toString().trim().toLowerCase();
@@ -1303,6 +1304,7 @@ const EditChannel = () => {
         const restoredDraftID = draft.draft_channel_id.trim();
         setDraftChannelId(restoredDraftID);
         draftChannelIdRef.current = restoredDraftID;
+        skipNextDraftReloadRef.current = restoredDraftID;
       }
       if (typeof draft.channel_key_set === 'boolean') {
         setChannelKeySet(draft.channel_key_set);
@@ -1376,6 +1378,7 @@ const EditChannel = () => {
     }
     setDraftChannelId(id);
     draftChannelIdRef.current = id;
+    skipNextDraftReloadRef.current = id;
     if ((payload.key || '').trim() !== '') {
       setChannelKeySet(true);
     }
@@ -2266,6 +2269,11 @@ const EditChannel = () => {
       return;
     }
     if (draftIdFromQuery !== '') {
+      if (skipNextDraftReloadRef.current === draftIdFromQuery) {
+        skipNextDraftReloadRef.current = '';
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       loadChannelById(draftIdFromQuery, false, true, true).then();
       return;
