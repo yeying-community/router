@@ -9,7 +9,7 @@ import {
   Table,
   Dropdown,
 } from 'semantic-ui-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { API, copy, isRoot, showError, showSuccess } from '../helpers';
 import { useTranslation } from 'react-i18next';
 
@@ -49,6 +49,7 @@ const maskWalletAddress = (walletAddress) => {
 
 const UsersTable = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [groupMap, setGroupMap] = useState({});
   const [loading, setLoading] = useState(true);
@@ -224,6 +225,10 @@ const UsersTable = () => {
     setSearchKeyword(value.trim());
   };
 
+  const stopRowClick = (event) => {
+    event.stopPropagation();
+  };
+
   const sortUser = (key) => {
     if (users.length === 0) return;
     setLoading(true);
@@ -359,7 +364,7 @@ const UsersTable = () => {
         </div>
       </div>
 
-      <Table basic={'very'} compact className='router-list-table'>
+      <Table basic={'very'} compact className='router-hover-table router-list-table'>
         <Table.Header>
           <Table.Row>
             <Table.HeaderCell
@@ -438,7 +443,11 @@ const UsersTable = () => {
             .map((user, idx) => {
               if (user.deleted) return <></>;
               return (
-                <Table.Row key={user.id}>
+                <Table.Row
+                  key={user.id}
+                  className='router-row-clickable'
+                  onClick={() => navigate(`/user/edit/${user.id}`)}
+                >
                   <Table.Cell>
                     <Popup
                       content={user.email ? user.email : '未绑定邮箱地址'}
@@ -450,7 +459,7 @@ const UsersTable = () => {
                       hoverable
                     />
                   </Table.Cell>
-                  <Table.Cell>
+                  <Table.Cell onClick={stopRowClick}>
                     {user.wallet_address ? (
                       <span className='router-action-group'>
                         <Popup
@@ -491,7 +500,7 @@ const UsersTable = () => {
                     )}
                   </Table.Cell>
                   <Table.Cell>{renderStatus(user.status)}</Table.Cell>
-                  <Table.Cell>
+                  <Table.Cell onClick={stopRowClick}>
                     <div className='router-action-group'>
                       <Popup
                         trigger={

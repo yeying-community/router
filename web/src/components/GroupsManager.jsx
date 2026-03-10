@@ -650,7 +650,7 @@ const GroupsManager = () => {
             <Table.HeaderCell>{t('group_manage.table.billing_ratio')}</Table.HeaderCell>
             <Table.HeaderCell>{t('group_manage.table.status')}</Table.HeaderCell>
             <Table.HeaderCell>{t('group_manage.table.updated_at')}</Table.HeaderCell>
-            <Table.HeaderCell className='router-cell-min-240'>
+            <Table.HeaderCell className='router-table-action-cell'>
               {t('group_manage.table.actions')}
             </Table.HeaderCell>
           </Table.Row>
@@ -689,7 +689,7 @@ const GroupsManager = () => {
                 <Table.Cell>{Number(row.billing_ratio ?? 1).toFixed(2)}</Table.Cell>
                 <Table.Cell>{renderGroupStatus(row.enabled)}</Table.Cell>
                 <Table.Cell>{row.updated_at ? timestamp2string(row.updated_at) : '-'}</Table.Cell>
-                <Table.Cell>
+                <Table.Cell className='router-table-action-cell'>
                   <div className='router-action-group'>
                     <Button
                       className='router-inline-button'
