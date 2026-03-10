@@ -415,24 +415,22 @@ const ChannelsTable = () => {
     }
   };
 
-  const renderResponseTime = (responseTime, t) => {
-    let time = responseTime / 1000;
-    time = time.toFixed(2) + 's';
-    if (responseTime === 0) {
-      return (
-        <span className='router-text-muted'>
-          {t('channel.table.not_tested')}
-        </span>
-      );
-    } else if (responseTime <= 1000) {
-      return <span className='router-text-success'>{time}</span>;
-    } else if (responseTime <= 3000) {
-      return <span className='router-text-olive'>{time}</span>;
-    } else if (responseTime <= 5000) {
-      return <span className='router-text-warning'>{time}</span>;
-    } else {
-      return <span className='router-text-danger'>{time}</span>;
+  const renderCapabilities = (capabilities, t) => {
+    const normalized = Array.isArray(capabilities)
+      ? capabilities.filter(Boolean).map((item) => item.toString().toLowerCase())
+      : [];
+    if (normalized.length === 0) {
+      return <span className='router-text-muted'>-</span>;
     }
+    const order = ['text', 'image', 'audio', 'video'];
+    const capabilitySet = new Set(normalized);
+    const ordered = order.filter((item) => capabilitySet.has(item));
+    return ordered.map((capability, index) => (
+      <span key={`${capability}-${index}`}>
+        {t(`channel.model_types.${capability}`, capability)}
+        {index === ordered.length - 1 ? '' : ' / '}
+      </span>
+    ));
   };
 
   const searchChannels = async () => {
@@ -467,12 +465,14 @@ const ChannelsTable = () => {
     setLoading(true);
     let sortedChannels = [...channels];
     sortedChannels.sort((a, b) => {
-      if (!isNaN(a[key])) {
+      const leftValue = Array.isArray(a[key]) ? a[key].join(',') : a[key];
+      const rightValue = Array.isArray(b[key]) ? b[key].join(',') : b[key];
+      if (!isNaN(leftValue)) {
         // If the value is numeric, subtract to sort
-        return a[key] - b[key];
+        return leftValue - rightValue;
       } else {
         // If the value is not numeric, sort as strings
-        return ('' + a[key]).localeCompare(b[key]);
+        return ('' + leftValue).localeCompare(String(rightValue));
       }
     });
     if (sortedChannels[0].id === channels[0].id) {
@@ -865,10 +865,10 @@ const ChannelsTable = () => {
             <Table.HeaderCell
               className='router-sortable-header'
               onClick={() => {
-                sortChannel('response_time');
+                sortChannel('capabilities');
               }}
             >
-              {t('channel.table.response_time')}
+              {t('channel.table.capabilities')}
             </Table.HeaderCell>
             <Table.HeaderCell
               className='router-sortable-header'
@@ -923,22 +923,7 @@ const ChannelsTable = () => {
                 </Table.Cell>
                 <Table.Cell>{renderStatus(channel.status, t)}</Table.Cell>
                 <Table.Cell>
-                  <Popup
-                    content={
-                      channel.test_time
-                        ? renderTimestamp(channel.test_time)
-                        : t('channel.table.not_tested')
-                    }
-                    key={channel.id}
-                    trigger={
-                      channel.testing ? (
-                        <Icon name='spinner' loading />
-                      ) : (
-                        renderResponseTime(channel.response_time, t)
-                      )
-                    }
-                    basic
-                  />
+                  {renderCapabilities(channel.capabilities, t)}
                 </Table.Cell>
                 <Table.Cell onClick={stopRowClick}>
                   <Popup

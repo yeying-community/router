@@ -288,9 +288,9 @@ const ProvidersManager = () => {
   const loadCatalog = useCallback(async (page, keyword) => {
     setLoading(true);
     try {
-      const res = await API.get('/api/v1/admin/provider', {
+      const res = await API.get('/api/v1/admin/providers', {
         params: {
-          p: Math.max((page || 1) - 1, 0),
+          page: Math.max(page || 1, 1),
           page_size: ITEMS_PER_PAGE,
           keyword: keyword || undefined,
         },
@@ -486,7 +486,7 @@ const ProvidersManager = () => {
     }
     setSaving(true);
     try {
-      const res = await API.delete(`/api/v1/admin/provider/${provider}`);
+      const res = await API.delete(`/api/v1/admin/providers/${provider}`);
       const { success, message } = res.data || {};
       if (!success) {
         showError(message || t('channel.providers.dialog.delete_confirm'));
@@ -527,7 +527,7 @@ const ProvidersManager = () => {
     };
     const saved = await saveProvider(
       'put',
-      `/api/v1/admin/provider/${provider}`,
+      `/api/v1/admin/providers/${provider}`,
       normalizedRow
     );
     if (saved) {
@@ -553,7 +553,7 @@ const ProvidersManager = () => {
       source: createRow.source || 'manual',
       updated_at: Math.floor(Date.now() / 1000),
     };
-    const saved = await saveProvider('post', '/api/v1/admin/provider', normalizedRow);
+    const saved = await saveProvider('post', '/api/v1/admin/providers', normalizedRow);
     if (saved) {
       closeCreatePanel();
       setViewingProvider(saved.id || '');

@@ -197,7 +197,7 @@ func SetApiRouter(engine *gin.Engine) {
 			adminChannelRoute.GET("/:id", channel.GetChannel)
 			adminChannelRoute.GET("/:id/models", channel.GetChannelModels)
 			adminChannelRoute.GET("/:id/tests", channel.GetChannelTests)
-			adminChannelRoute.POST("/:id/models/refresh", channel.RefreshChannelModels)
+			adminChannelRoute.POST("/:id/refresh", channel.RefreshChannelModels)
 			adminChannelRoute.POST("/:id/tests", channel.TestChannelModels)
 			adminChannelRoute.GET("/test", channel.TestChannels)
 			adminChannelRoute.GET("/test/:id", channel.TestChannel)
@@ -253,7 +253,7 @@ func SetApiRouter(engine *gin.Engine) {
 			adminGroupRoute.PUT("/:id/model-configs", group.UpdateGroupModelConfigs)
 		}
 
-		adminProviderRoute := adminRouter.Group("/provider")
+		adminProviderRoute := adminRouter.Group("/providers")
 		adminProviderRoute.Use(middleware.AdminAuth())
 		{
 			adminProviderRoute.GET("/", channel.GetProviders)

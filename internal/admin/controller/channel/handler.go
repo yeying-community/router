@@ -30,20 +30,20 @@ type createChannelRequest struct {
 }
 
 type channelListItem struct {
-	ID                 string  `json:"id"`
-	Protocol           string  `json:"protocol"`
-	Status             int     `json:"status"`
-	Name               string  `json:"name"`
-	Weight             *uint   `json:"weight,omitempty"`
-	CreatedTime        int64   `json:"created_time"`
-	TestTime           int64   `json:"test_time"`
-	ResponseTime       int     `json:"response_time"`
-	BaseURL            string  `json:"base_url,omitempty"`
-	Other              string  `json:"other,omitempty"`
-	Balance            float64 `json:"balance"`
-	BalanceUpdatedTime int64   `json:"balance_updated_time"`
-	UsedQuota          int64   `json:"used_quota"`
-	Priority           int64   `json:"priority"`
+	ID                 string   `json:"id"`
+	Protocol           string   `json:"protocol"`
+	Status             int      `json:"status"`
+	Name               string   `json:"name"`
+	Weight             *uint    `json:"weight,omitempty"`
+	CreatedTime        int64    `json:"created_time"`
+	TestTime           int64    `json:"test_time"`
+	Capabilities       []string `json:"capabilities"`
+	BaseURL            string   `json:"base_url,omitempty"`
+	Other              string   `json:"other,omitempty"`
+	Balance            float64  `json:"balance"`
+	BalanceUpdatedTime int64    `json:"balance_updated_time"`
+	UsedQuota          int64    `json:"used_quota"`
+	Priority           int64    `json:"priority"`
 }
 
 type channelListPageData struct {
@@ -87,6 +87,7 @@ func buildChannelListItem(channel *model.Channel) channelListItem {
 		return channelListItem{}
 	}
 	channel.NormalizeProtocol()
+	capabilities := collectChannelCapabilities(channel)
 	baseURL := ""
 	if channel.BaseURL != nil {
 		baseURL = strings.TrimSpace(*channel.BaseURL)
@@ -103,7 +104,7 @@ func buildChannelListItem(channel *model.Channel) channelListItem {
 		Weight:             channel.Weight,
 		CreatedTime:        channel.CreatedTime,
 		TestTime:           channel.TestTime,
-		ResponseTime:       channel.ResponseTime,
+		Capabilities:       capabilities,
 		BaseURL:            baseURL,
 		Other:              other,
 		Balance:            channel.Balance,
@@ -111,6 +112,33 @@ func buildChannelListItem(channel *model.Channel) channelListItem {
 		UsedQuota:          channel.UsedQuota,
 		Priority:           channel.GetPriority(),
 	}
+}
+
+func collectChannelCapabilities(channel *model.Channel) []string {
+	if channel == nil {
+		return []string{}
+	}
+	selectedTypes := map[string]struct{}{}
+	for _, row := range channel.GetModelConfigs() {
+		if !row.Selected || row.Inactive {
+			continue
+		}
+		modelType := strings.TrimSpace(strings.ToLower(row.Type))
+		switch modelType {
+		case "image", "audio", "video":
+			selectedTypes[modelType] = struct{}{}
+		default:
+			selectedTypes["text"] = struct{}{}
+		}
+	}
+	order := []string{"text", "image", "audio", "video"}
+	result := make([]string, 0, len(order))
+	for _, item := range order {
+		if _, ok := selectedTypes[item]; ok {
+			result = append(result, item)
+		}
+	}
+	return result
 }
 
 func parseChannelListPageParams(c *gin.Context) (page int, pageSize int, keyword string) {

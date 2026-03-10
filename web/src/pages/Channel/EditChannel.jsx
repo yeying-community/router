@@ -1893,7 +1893,7 @@ const EditChannel = () => {
           channelID: targetChannelId,
         });
         const res = await API.post(
-          `/api/v1/admin/channel/${targetChannelId}/models/refresh`
+          `/api/v1/admin/channel/${targetChannelId}/refresh`
         );
         const { success, message } = res.data || {};
         if (!success) {
@@ -1980,9 +1980,9 @@ const EditChannel = () => {
         let page = 0;
         let total = 0;
         while (page < 20) {
-          const res = await API.get('/api/v1/admin/provider', {
+          const res = await API.get('/api/v1/admin/providers', {
             params: {
-              p: page,
+              page: page + 1,
               page_size: 100,
             },
           });
@@ -2080,7 +2080,7 @@ const EditChannel = () => {
     }
     setAppendingProviderModel(true);
     try {
-      const res = await API.post(`/api/v1/admin/provider/${providerId}/model`, {
+      const res = await API.post(`/api/v1/admin/providers/${providerId}/model`, {
         model: modelName,
         type: normalizeChannelModelType(appendProviderForm.type),
       });
@@ -2149,7 +2149,7 @@ const EditChannel = () => {
         }
         try {
           const res = await API.post(
-            `/api/v1/admin/provider/${providerId}/model`,
+            `/api/v1/admin/providers/${providerId}/model`,
             {
               model: modelName,
               type: normalizeChannelModelType(row?.type),

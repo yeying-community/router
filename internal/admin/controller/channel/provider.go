@@ -116,9 +116,9 @@ func parseProviderPageParams(c *gin.Context) (page int, pageSize int) {
 	if pageSize > maxProviderPageSize {
 		pageSize = maxProviderPageSize
 	}
-	page = 0
-	if raw := strings.TrimSpace(c.Query("p")); raw != "" {
-		if parsed, err := strconv.Atoi(raw); err == nil && parsed >= 0 {
+	page = 1
+	if raw := strings.TrimSpace(c.Query("page")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
 			page = parsed
 		}
 	}
@@ -180,6 +180,9 @@ func buildProviderListQuery(keyword string) *gorm.DB {
 }
 
 func listProviderCatalog(page int, pageSize int, keyword string) (providerCatalogListData, error) {
+	if page < 1 {
+		page = 1
+	}
 	total := int64(0)
 	if err := buildProviderListQuery(keyword).Count(&total).Error; err != nil {
 		return providerCatalogListData{}, err
@@ -188,7 +191,7 @@ func listProviderCatalog(page int, pageSize int, keyword string) (providerCatalo
 	if err := buildProviderListQuery(keyword).
 		Order("sort_order asc, id asc").
 		Limit(pageSize).
-		Offset(page * pageSize).
+		Offset((page - 1) * pageSize).
 		Find(&rows).Error; err != nil {
 		return providerCatalogListData{}, err
 	}
@@ -459,9 +462,12 @@ func appendModelToProviderItem(id string, req appendProviderModelRequest) (provi
 // @Tags admin
 // @Security BearerAuth
 // @Produce json
+// @Param page query int false "Page (1-based)"
+// @Param page_size query int false "Page size"
+// @Param keyword query string false "Keyword"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
-// @Router /api/v1/admin/provider [get]
+// @Router /api/v1/admin/providers [get]
 func GetProviders(c *gin.Context) {
 	page, pageSize := parseProviderPageParams(c)
 	data, err := listProviderCatalog(page, pageSize, c.Query("keyword"))
@@ -487,7 +493,7 @@ func GetProviders(c *gin.Context) {
 // @Param id path string true "Provider ID"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
-// @Router /api/v1/admin/provider/{id} [get]
+// @Router /api/v1/admin/providers/{id} [get]
 func GetProvider(c *gin.Context) {
 	item, err := getProviderCatalogItemByID(c.Param("id"))
 	if err != nil {
@@ -516,7 +522,7 @@ func GetProvider(c *gin.Context) {
 // @Produce json
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
-// @Router /api/v1/admin/provider [post]
+// @Router /api/v1/admin/providers [post]
 func CreateProvider(c *gin.Context) {
 	req := providerCatalogItem{}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -550,7 +556,7 @@ func CreateProvider(c *gin.Context) {
 // @Param id path string true "Provider ID"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
-// @Router /api/v1/admin/provider/{id} [put]
+// @Router /api/v1/admin/providers/{id} [put]
 func UpdateProvider(c *gin.Context) {
 	req := providerCatalogItem{}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -589,7 +595,7 @@ func UpdateProvider(c *gin.Context) {
 // @Param id path string true "Provider ID"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
-// @Router /api/v1/admin/provider/{id}/model [post]
+// @Router /api/v1/admin/providers/{id}/model [post]
 func AppendProviderModel(c *gin.Context) {
 	req := appendProviderModelRequest{}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -628,7 +634,7 @@ func AppendProviderModel(c *gin.Context) {
 // @Param id path string true "Provider ID"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
-// @Router /api/v1/admin/provider/{id} [delete]
+// @Router /api/v1/admin/providers/{id} [delete]
 func DeleteProvider(c *gin.Context) {
 	if err := deleteProviderCatalogItem(c.Param("id")); err != nil {
 		message := "删除供应商失败: " + err.Error()

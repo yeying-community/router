@@ -1156,14 +1156,14 @@ func GetChannelTests(c *gin.Context) {
 }
 
 // RefreshChannelModels godoc
-// @Summary Refresh channel models from upstream (admin)
+// @Summary Refresh channel runtime data from upstream (admin)
 // @Tags admin
 // @Security BearerAuth
 // @Produce json
 // @Param id path string true "Channel ID"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
-// @Router /api/v1/admin/channel/{id}/models/refresh [post]
+// @Router /api/v1/admin/channel/{id}/refresh [post]
 func RefreshChannelModels(c *gin.Context) {
 	channelID := strings.TrimSpace(c.Param("id"))
 	if channelID == "" {
