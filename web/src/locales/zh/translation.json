@@ -624,7 +624,10 @@
     "click_to_view": "点击查看",
     "filters": {
       "add": "添加条件",
-      "none": "当前未添加附加筛选条件"
+      "none": "当前未添加附加筛选条件",
+      "range_separator": "至",
+      "empty": "未设置",
+      "remove": "移除条件"
     },
     "type": {
       "select": "选择明细分类",
@@ -647,6 +650,7 @@
       "model_name_placeholder": "可选值",
       "start_time": "起始时间",
       "end_time": "结束时间",
+      "time_range": "起止时间",
       "channel_id": "渠道 ID",
       "channel_id_placeholder": "可选值",
       "username_placeholder": "可选值",

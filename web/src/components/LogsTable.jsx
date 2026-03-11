@@ -3,9 +3,10 @@ import {
   Button,
   Dropdown,
   Form,
-  Header,
+  Icon,
   Label,
   Pagination,
+  Popup,
   Select,
   Table,
 } from 'semantic-ui-react';
@@ -130,10 +131,28 @@ function getLogChannelLabel(log) {
   return log.channel_name || log.channel || '';
 }
 
+function renderFilterSummary(filterKey, inputs, t) {
+  if (filterKey === 'time_range') {
+    const start = (inputs?.start_timestamp || '').toString().trim();
+    const end = (inputs?.end_timestamp || '').toString().trim();
+    if (start === '' && end === '') {
+      return t('log.filters.empty');
+    }
+    if (start !== '' && end !== '') {
+      return `${start} ${t('log.filters.range_separator')} ${end}`;
+    }
+    return start || end || t('log.filters.empty');
+  }
+  const value = (inputs?.[filterKey] || '').toString().trim();
+  if (value === '') {
+    return t('log.filters.empty');
+  }
+  return value;
+}
+
 const LogsTable = () => {
   const { t } = useTranslation();
   const [logs, setLogs] = useState([]);
-  const [showStat, setShowStat] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -156,12 +175,6 @@ const LogsTable = () => {
     end_timestamp,
     channel,
   } = inputs;
-
-  const [stat, setStat] = useState({
-    quota: 0,
-    token: 0,
-  });
-  const [pendingFilterKey, setPendingFilterKey] = useState('token_name');
   const [activeFilterKeys, setActiveFilterKeys] = useState([]);
 
   const LOG_OPTIONS = [
@@ -180,14 +193,21 @@ const LogsTable = () => {
   const conditionalFilterConfig = useMemo(() => {
     const items = [
       {
+        key: 'time_range',
+        label: t('log.table.time_range'),
+        type: 'time_range',
+      },
+      {
         key: 'token_name',
         label: t('log.table.token_name'),
         placeholder: t('log.table.token_name_placeholder'),
+        type: 'text',
       },
       {
         key: 'model_name',
         label: t('log.table.model_name'),
         placeholder: t('log.table.model_name_placeholder'),
+        type: 'text',
       },
     ];
     if (isAdminUser) {
@@ -196,11 +216,13 @@ const LogsTable = () => {
           key: 'channel',
           label: t('log.table.channel'),
           placeholder: t('log.table.channel_id_placeholder'),
+          type: 'text',
         },
         {
           key: 'username',
           label: t('log.table.username'),
           placeholder: t('log.table.username_placeholder'),
+          type: 'text',
         }
       );
     }
@@ -225,67 +247,29 @@ const LogsTable = () => {
     [activeFilterKeys, conditionalFilterConfig]
   );
 
-  const addConditionalFilter = useCallback(() => {
-    const targetKey = (pendingFilterKey || '').toString().trim();
-    if (targetKey === '') {
-      return;
-    }
-    setActiveFilterKeys((prev) => {
-      if (prev.includes(targetKey)) {
-        return prev;
-      }
-      return [...prev, targetKey];
-    });
-  }, [pendingFilterKey]);
+  const availableConditionalFilterOptions = useMemo(
+    () =>
+      conditionalFilterOptions.filter(
+        (item) => !activeFilterKeys.includes(item.value)
+      ),
+    [activeFilterKeys, conditionalFilterOptions]
+  );
 
   const removeConditionalFilter = useCallback((filterKey) => {
     setActiveFilterKeys((prev) => prev.filter((item) => item !== filterKey));
+    if (filterKey === 'time_range') {
+      setInputs((prev) => ({
+        ...prev,
+        start_timestamp: timestamp2string(0),
+        end_timestamp: timestamp2string(now.getTime() / 1000 + 3600),
+      }));
+      return;
+    }
     setInputs((prev) => ({
       ...prev,
       [filterKey]: '',
     }));
-  }, []);
-
-  const getLogSelfStat = async () => {
-    let localStartTimestamp = Date.parse(start_timestamp) / 1000;
-    let localEndTimestamp = Date.parse(end_timestamp) / 1000;
-    const statLogType = logType === 0 ? 2 : logType;
-    let res = await API.get(
-      `/api/v1/public/log/self/stat?type=${statLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}`
-    );
-    const { success, message, data } = res.data;
-    if (success) {
-      setStat(data);
-    } else {
-      showError(message);
-    }
-  };
-
-  const getLogStat = async () => {
-    let localStartTimestamp = Date.parse(start_timestamp) / 1000;
-    let localEndTimestamp = Date.parse(end_timestamp) / 1000;
-    const statLogType = logType === 0 ? 2 : logType;
-    let res = await API.get(
-      `/api/v1/admin/log/stat?type=${statLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}`
-    );
-    const { success, message, data } = res.data;
-    if (success) {
-      setStat(data);
-    } else {
-      showError(message);
-    }
-  };
-
-  const handleEyeClick = async () => {
-    if (!showStat) {
-      if (isAdminUser) {
-        await getLogStat();
-      } else {
-        await getLogSelfStat();
-      }
-    }
-    setShowStat(!showStat);
-  };
+  }, [now]);
 
   const showUserTokenQuota = () => {
     return logType !== 5;
@@ -351,6 +335,10 @@ const LogsTable = () => {
     refresh().then();
   }, [refresh]);
 
+  useEffect(() => {
+    setActivePage(1);
+  }, [searchKeyword, activeFilterKeys, username, token_name, model_name, channel, start_timestamp, end_timestamp]);
+
   const sortLog = (key) => {
     if (logs.length === 0) return;
     setLoading(true);
@@ -374,125 +362,145 @@ const LogsTable = () => {
     setLoading(false);
   };
 
+  const filteredLogs = useMemo(() => {
+    const keyword = (searchKeyword || '').toString().trim().toLowerCase();
+    if (keyword === '') {
+      return logs;
+    }
+    return logs.filter((log) => {
+      const haystacks = [
+        log?.content,
+        log?.model_name,
+        log?.token_name,
+        log?.username,
+        log?.channel_name,
+        log?.channel,
+        log?.trace_id,
+      ]
+        .map((item) => (item || '').toString().toLowerCase())
+        .filter((item) => item !== '');
+      return haystacks.some((item) => item.includes(keyword));
+    });
+  }, [logs, searchKeyword]);
+
   return (
     <>
-      <Header as='h3' className='router-section-title'>
-        {t('log.usage_details')}（{t('log.total_quota')}：
-        {showStat && renderQuota(stat.quota, t)}
-        {!showStat && (
-          <span
-            onClick={handleEyeClick}
-            className='router-row-clickable router-text-muted'
-          >
-            {t('log.click_to_view')}
-          </span>
-        )}
-        ）
-      </Header>
       <Form>
-        <div className='router-toolbar router-block-gap-sm'>
-          <div className='router-toolbar-start'>
-            <Form.Input
-              className='router-section-input'
-              fluid
-              label={t('log.table.start_time')}
-              width={4}
-              value={start_timestamp}
-              type='datetime-local'
-              name='start_timestamp'
-              onChange={handleInputChange}
+        <div className='router-toolbar router-log-toolbar router-block-gap-sm'>
+          <div className='router-toolbar-start router-log-toolbar-start'>
+            <Dropdown
+              floating
+              icon={null}
+              trigger={
+                <Button type='button' className='router-section-button'>
+                  <Icon name='plus' />
+                  {t('log.filters.add')}
+                </Button>
+              }
+              options={availableConditionalFilterOptions.map((item) => ({
+                ...item,
+                onClick: () => {
+                  setActiveFilterKeys((prev) =>
+                    prev.includes(item.value) ? prev : [...prev, item.value]
+                  );
+                },
+              }))}
+              disabled={availableConditionalFilterOptions.length === 0}
             />
-            <Form.Input
-              className='router-section-input'
-              fluid
-              label={t('log.table.end_time')}
-              width={4}
-              value={end_timestamp}
-              type='datetime-local'
-              name='end_timestamp'
-              onChange={handleInputChange}
-            />
-            <Form.Field width={3}>
-              <label>{t('log.filters.add')}</label>
-              <Dropdown
-                selection
-                className='router-section-dropdown'
-                options={conditionalFilterOptions}
-                value={pendingFilterKey}
-                onChange={(e, { value }) => setPendingFilterKey(value)}
-              />
-            </Form.Field>
-            <Form.Field width={2}>
-              <label>{t('log.buttons.query')}</label>
-              <Button
-                type='button'
-                className='router-section-button'
-                onClick={addConditionalFilter}
-              >
-                {t('log.filters.add')}
-              </Button>
-            </Form.Field>
-            <Form.Field width={2}>
-              <label>{t('log.buttons.query')}</label>
-              <Button
-                type='button'
-                className='router-section-button'
-                onClick={refresh}
-              >
-                {t('log.buttons.submit')}
-              </Button>
-            </Form.Field>
           </div>
-          <div className='router-toolbar-end'>
-            <Form.Input
-              className='router-section-input'
-              icon='search'
-              placeholder={t('log.search')}
-              value={searchKeyword}
-              onChange={(e, { value }) => setSearchKeyword(value)}
-            />
+          <div className='router-toolbar-end router-log-query-wrap'>
+            <div className='router-log-query-box router-log-query-box-inline'>
+              <div className='router-log-query-fields'>
+                {visibleFilterConfig.map((item) => (
+                  <Popup
+                    key={item.key}
+                    on='click'
+                    position='bottom left'
+                    hoverable
+                    trigger={
+                      <button type='button' className='router-log-filter-chip'>
+                        <span className='router-log-filter-chip-label'>
+                          {item.label}
+                        </span>
+                        <span className='router-log-filter-chip-value'>
+                          {renderFilterSummary(item.key, inputs, t)}
+                        </span>
+                      </button>
+                    }
+                    content={
+                      <div className='router-log-filter-editor'>
+                        <div className='router-log-filter-editor-title'>
+                          {item.label}
+                        </div>
+                        {item.type === 'time_range' ? (
+                          <div className='router-log-filter-editor-range'>
+                            <input
+                              type='datetime-local'
+                              value={start_timestamp}
+                              onChange={(e) =>
+                                handleInputChange(e, {
+                                  name: 'start_timestamp',
+                                  value: e.target.value,
+                                })
+                              }
+                            />
+                            <input
+                              type='datetime-local'
+                              value={end_timestamp}
+                              onChange={(e) =>
+                                handleInputChange(e, {
+                                  name: 'end_timestamp',
+                                  value: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <input
+                            className='router-log-filter-editor-input'
+                            type='text'
+                            value={inputs[item.key] || ''}
+                            placeholder={item.placeholder}
+                            onChange={(e) =>
+                              handleInputChange(e, {
+                                name: item.key,
+                                value: e.target.value,
+                              })
+                            }
+                          />
+                        )}
+                        <div className='router-log-filter-editor-actions'>
+                          <Button
+                            type='button'
+                            size='mini'
+                            className='router-inline-button'
+                            onClick={() => removeConditionalFilter(item.key)}
+                          >
+                            {t('log.filters.remove')}
+                          </Button>
+                        </div>
+                      </div>
+                    }
+                  />
+                ))}
+                <div className='router-log-search-input'>
+                  <input
+                    placeholder={t('log.search')}
+                    value={searchKeyword}
+                    onChange={(e) => setSearchKeyword(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+            <Button
+              type='button'
+              className='router-section-button router-log-query-button'
+              onClick={refresh}
+            >
+              {t('log.buttons.submit')}
+            </Button>
           </div>
         </div>
-        {visibleFilterConfig.length > 0 && (
-          <div className='router-toolbar router-block-gap-sm'>
-            <div className='router-toolbar-start'>
-              {visibleFilterConfig.map((item) => (
-                <Form.Input
-                  key={item.key}
-                  className='router-section-input'
-                  fluid
-                  label={
-                    <span>
-                      {item.label}
-                      <button
-                        type='button'
-                        onClick={() => removeConditionalFilter(item.key)}
-                        style={{
-                          marginLeft: 8,
-                          border: 'none',
-                          background: 'transparent',
-                          cursor: 'pointer',
-                          padding: 0,
-                          color: 'inherit',
-                        }}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  }
-                  width={3}
-                  value={inputs[item.key] || ''}
-                  placeholder={item.placeholder}
-                  name={item.key}
-                  onChange={handleInputChange}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-        {visibleFilterConfig.length === 0 && (
-          <div className='router-toolbar-meta'>{t('log.filters.none')}</div>
-        )}
       </Form>
       <Table basic={'very'} compact className='router-list-table'>
         <Table.Header>
@@ -591,7 +599,7 @@ const LogsTable = () => {
         </Table.Header>
 
         <Table.Body>
-          {logs
+          {filteredLogs
             .slice(
               (activePage - 1) * ITEMS_PER_PAGE,
               activePage * ITEMS_PER_PAGE
@@ -688,8 +696,8 @@ const LogsTable = () => {
                   onPageChange={onPaginationChange}
                   siblingRange={1}
                   totalPages={
-                    Math.ceil(logs.length / ITEMS_PER_PAGE) +
-                    (logs.length % ITEMS_PER_PAGE === 0 ? 1 : 0)
+                    Math.ceil(filteredLogs.length / ITEMS_PER_PAGE) +
+                    (filteredLogs.length % ITEMS_PER_PAGE === 0 ? 1 : 0)
                   }
                 />
               </div>

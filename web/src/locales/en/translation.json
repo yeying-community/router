@@ -624,7 +624,10 @@
     "click_to_view": "Click to View",
     "filters": {
       "add": "Add Filter",
-      "none": "No additional filters selected"
+      "none": "No additional filters selected",
+      "range_separator": "to",
+      "empty": "Unset",
+      "remove": "Remove"
     },
     "type": {
       "select": "Select Log Type",
@@ -647,6 +650,7 @@
       "model_name_placeholder": "Optional",
       "start_time": "Start Time",
       "end_time": "End Time",
+      "time_range": "Time Range",
       "channel_id": "Channel ID",
       "channel_id_placeholder": "Optional",
       "username_placeholder": "Optional",

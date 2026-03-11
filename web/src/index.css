@@ -913,6 +913,183 @@ code {
     justify-content: flex-end;
 }
 
+.router-log-toolbar {
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.router-log-query-wrap {
+    flex: 1 1 460px;
+    min-width: 320px;
+    display: flex;
+    align-items: stretch;
+    flex-wrap: nowrap !important;
+    gap: 6px;
+}
+
+.router-log-toolbar-start {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.router-log-toolbar > .router-toolbar-end {
+    flex-wrap: nowrap !important;
+    min-width: 0;
+}
+
+.router-log-toolbar .router-section-button {
+    min-height: 38px !important;
+    height: 38px !important;
+    white-space: nowrap;
+}
+
+.router-log-query-box {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid rgba(34, 36, 38, 0.15);
+    border-radius: 9px;
+    background: #fff;
+    padding: 5px 8px;
+    display: flex;
+    align-items: center;
+}
+
+.router-log-query-box-inline {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.router-log-query-button {
+    flex: 0 0 auto;
+}
+
+.router-log-query-fields {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+}
+
+.router-log-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 26px;
+    padding: 3px 7px;
+    border-radius: 7px;
+    background: rgba(15, 23, 42, 0.05);
+    flex: 0 0 auto;
+    border: none;
+    cursor: pointer;
+}
+
+.router-log-filter-chip-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.72);
+    white-space: nowrap;
+}
+
+.router-log-filter-chip-value {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: rgba(15, 23, 42, 0.82);
+}
+
+.router-log-filter-chip input,
+.router-log-search-input input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 13px;
+    line-height: 1.35;
+    min-width: 80px;
+    color: #1f2937;
+}
+
+.router-log-filter-chip input[type="datetime-local"] {
+    min-width: 156px;
+}
+
+.router-log-filter-range {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.router-log-filter-range-separator {
+    font-size: 11px;
+    color: rgba(15, 23, 42, 0.6);
+    white-space: nowrap;
+}
+
+.router-log-filter-chip-remove {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    color: rgba(15, 23, 42, 0.56);
+    font-size: 16px;
+    line-height: 1;
+}
+
+.router-log-search-input {
+    display: inline-flex;
+    align-items: center;
+    min-width: 120px;
+    flex: 1 0 140px;
+    min-height: 28px;
+}
+
+.router-log-search-input input {
+    width: 100%;
+    height: 28px;
+}
+
+.router-log-filter-editor {
+    min-width: 260px;
+}
+
+.router-log-filter-editor-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #1f2937;
+}
+
+.router-log-filter-editor-input,
+.router-log-filter-editor-range input {
+    width: 100%;
+    min-height: 40px;
+    border: 1px solid rgba(34, 36, 38, 0.15);
+    border-radius: 8px;
+    padding: 0.7em 0.9em;
+    font-size: 14px;
+    line-height: 1.35;
+    outline: none;
+}
+
+.router-log-filter-editor-range {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.router-log-filter-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
 .router-toolbar-meta {
     color: rgba(0, 0, 0, 0.58);
     font-size: 13px;
