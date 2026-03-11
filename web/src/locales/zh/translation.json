@@ -622,6 +622,10 @@
     "usage_details": "使用明细",
     "total_quota": "总消耗额度",
     "click_to_view": "点击查看",
+    "filters": {
+      "add": "添加条件",
+      "none": "当前未添加附加筛选条件"
+    },
     "type": {
       "select": "选择明细分类",
       "all": "全部",

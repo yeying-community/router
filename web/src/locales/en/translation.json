@@ -622,6 +622,10 @@
     "usage_details": "Usage Details",
     "total_quota": "Total Quota Used",
     "click_to_view": "Click to View",
+    "filters": {
+      "add": "Add Filter",
+      "none": "No additional filters selected"
+    },
     "type": {
       "select": "Select Log Type",
       "all": "All",

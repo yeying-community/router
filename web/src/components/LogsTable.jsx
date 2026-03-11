@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
+  Dropdown,
   Form,
   Header,
   Label,
@@ -160,6 +161,8 @@ const LogsTable = () => {
     quota: 0,
     token: 0,
   });
+  const [pendingFilterKey, setPendingFilterKey] = useState('token_name');
+  const [activeFilterKeys, setActiveFilterKeys] = useState([]);
 
   const LOG_OPTIONS = [
     { key: '0', text: t('log.type.all'), value: 0 },
@@ -173,6 +176,75 @@ const LogsTable = () => {
   const handleInputChange = (e, { name, value }) => {
     setInputs((inputs) => ({ ...inputs, [name]: value }));
   };
+
+  const conditionalFilterConfig = useMemo(() => {
+    const items = [
+      {
+        key: 'token_name',
+        label: t('log.table.token_name'),
+        placeholder: t('log.table.token_name_placeholder'),
+      },
+      {
+        key: 'model_name',
+        label: t('log.table.model_name'),
+        placeholder: t('log.table.model_name_placeholder'),
+      },
+    ];
+    if (isAdminUser) {
+      items.push(
+        {
+          key: 'channel',
+          label: t('log.table.channel'),
+          placeholder: t('log.table.channel_id_placeholder'),
+        },
+        {
+          key: 'username',
+          label: t('log.table.username'),
+          placeholder: t('log.table.username_placeholder'),
+        }
+      );
+    }
+    return items;
+  }, [isAdminUser, t]);
+
+  const conditionalFilterOptions = useMemo(
+    () =>
+      conditionalFilterConfig.map((item) => ({
+        key: item.key,
+        text: item.label,
+        value: item.key,
+      })),
+    [conditionalFilterConfig]
+  );
+
+  const visibleFilterConfig = useMemo(
+    () =>
+      conditionalFilterConfig.filter((item) =>
+        activeFilterKeys.includes(item.key)
+      ),
+    [activeFilterKeys, conditionalFilterConfig]
+  );
+
+  const addConditionalFilter = useCallback(() => {
+    const targetKey = (pendingFilterKey || '').toString().trim();
+    if (targetKey === '') {
+      return;
+    }
+    setActiveFilterKeys((prev) => {
+      if (prev.includes(targetKey)) {
+        return prev;
+      }
+      return [...prev, targetKey];
+    });
+  }, [pendingFilterKey]);
+
+  const removeConditionalFilter = useCallback((filterKey) => {
+    setActiveFilterKeys((prev) => prev.filter((item) => item !== filterKey));
+    setInputs((prev) => ({
+      ...prev,
+      [filterKey]: '',
+    }));
+  }, []);
 
   const getLogSelfStat = async () => {
     let localStartTimestamp = Date.parse(start_timestamp) / 1000;
@@ -318,90 +390,109 @@ const LogsTable = () => {
         ）
       </Header>
       <Form>
-        <Form.Group>
-          <Form.Input
-            className='router-section-input'
-            fluid
-            label={t('log.table.token_name')}
-            width={3}
-            value={token_name}
-            placeholder={t('log.table.token_name_placeholder')}
-            name='token_name'
-            onChange={handleInputChange}
-          />
-          <Form.Input
-            className='router-section-input'
-            fluid
-            label={t('log.table.model_name')}
-            width={3}
-            value={model_name}
-            placeholder={t('log.table.model_name_placeholder')}
-            name='model_name'
-            onChange={handleInputChange}
-          />
-          <Form.Input
-            className='router-section-input'
-            fluid
-            label={t('log.table.start_time')}
-            width={4}
-            value={start_timestamp}
-            type='datetime-local'
-            name='start_timestamp'
-            onChange={handleInputChange}
-          />
-          <Form.Input
-            className='router-section-input'
-            fluid
-            label={t('log.table.end_time')}
-            width={4}
-            value={end_timestamp}
-            type='datetime-local'
-            name='end_timestamp'
-            onChange={handleInputChange}
-          />
-          <Form.Button
-            className='router-section-button'
-            fluid
-            label={t('log.buttons.query')}
-            width={2}
-            onClick={refresh}
-          >
-            {t('log.buttons.submit')}
-          </Form.Button>
-        </Form.Group>
-        {isAdminUser && (
-          <>
-            <Form.Group>
-              <Form.Input
-                className='router-section-input'
-                fluid
-                label={t('log.table.channel_id')}
-                width={3}
-                value={channel}
-                placeholder={t('log.table.channel_id_placeholder')}
-                name='channel'
-                onChange={handleInputChange}
+        <div className='router-toolbar router-block-gap-sm'>
+          <div className='router-toolbar-start'>
+            <Form.Input
+              className='router-section-input'
+              fluid
+              label={t('log.table.start_time')}
+              width={4}
+              value={start_timestamp}
+              type='datetime-local'
+              name='start_timestamp'
+              onChange={handleInputChange}
+            />
+            <Form.Input
+              className='router-section-input'
+              fluid
+              label={t('log.table.end_time')}
+              width={4}
+              value={end_timestamp}
+              type='datetime-local'
+              name='end_timestamp'
+              onChange={handleInputChange}
+            />
+            <Form.Field width={3}>
+              <label>{t('log.filters.add')}</label>
+              <Dropdown
+                selection
+                className='router-section-dropdown'
+                options={conditionalFilterOptions}
+                value={pendingFilterKey}
+                onChange={(e, { value }) => setPendingFilterKey(value)}
               />
-              <Form.Input
-                className='router-section-input'
-                fluid
-                label={t('log.table.username')}
-                width={3}
-                value={username}
-                placeholder={t('log.table.username_placeholder')}
-                name='username'
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-          </>
+            </Form.Field>
+            <Form.Field width={2}>
+              <label>{t('log.buttons.query')}</label>
+              <Button
+                type='button'
+                className='router-section-button'
+                onClick={addConditionalFilter}
+              >
+                {t('log.filters.add')}
+              </Button>
+            </Form.Field>
+            <Form.Field width={2}>
+              <label>{t('log.buttons.query')}</label>
+              <Button
+                type='button'
+                className='router-section-button'
+                onClick={refresh}
+              >
+                {t('log.buttons.submit')}
+              </Button>
+            </Form.Field>
+          </div>
+          <div className='router-toolbar-end'>
+            <Form.Input
+              className='router-section-input'
+              icon='search'
+              placeholder={t('log.search')}
+              value={searchKeyword}
+              onChange={(e, { value }) => setSearchKeyword(value)}
+            />
+          </div>
+        </div>
+        {visibleFilterConfig.length > 0 && (
+          <div className='router-toolbar router-block-gap-sm'>
+            <div className='router-toolbar-start'>
+              {visibleFilterConfig.map((item) => (
+                <Form.Input
+                  key={item.key}
+                  className='router-section-input'
+                  fluid
+                  label={
+                    <span>
+                      {item.label}
+                      <button
+                        type='button'
+                        onClick={() => removeConditionalFilter(item.key)}
+                        style={{
+                          marginLeft: 8,
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          padding: 0,
+                          color: 'inherit',
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  }
+                  width={3}
+                  value={inputs[item.key] || ''}
+                  placeholder={item.placeholder}
+                  name={item.key}
+                  onChange={handleInputChange}
+                />
+              ))}
+            </div>
+          </div>
         )}
-        <Form.Input
-          className='router-section-input'
-          icon='search'
-          placeholder={t('log.search')}
-          value={searchKeyword}
-          onChange={(e, { value }) => setSearchKeyword(value)}
-        />
+        {visibleFilterConfig.length === 0 && (
+          <div className='router-toolbar-meta'>{t('log.filters.none')}</div>
+        )}
       </Form>
       <Table basic={'very'} compact className='router-list-table'>
         <Table.Header>
