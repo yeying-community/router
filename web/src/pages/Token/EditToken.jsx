@@ -2,14 +2,15 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
+  Card,
+  Checkbox,
   Form,
   Message,
-  Card,
+  Table,
 } from 'semantic-ui-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   API,
-  copy,
   showError,
   showSuccess,
   timestamp2string,
@@ -23,6 +24,8 @@ const EditToken = () => {
   const isEdit = tokenId !== undefined;
   const [loading, setLoading] = useState(isEdit);
   const [modelOptions, setModelOptions] = useState([]);
+  const [allModelsSelected, setAllModelsSelected] = useState(!isEdit);
+  const [modelKeyword, setModelKeyword] = useState('');
   const originInputs = {
     name: '',
     remain_quota: isEdit ? 0 : 500000,
@@ -34,6 +37,15 @@ const EditToken = () => {
   const [inputs, setInputs] = useState(originInputs);
   const { name, remain_quota, expired_time, unlimited_quota } = inputs;
   const navigate = useNavigate();
+  const allModelValues = modelOptions.map((option) => option.value);
+  const filteredModelOptions = modelOptions.filter((option) =>
+    option.value.toLowerCase().includes(modelKeyword.trim().toLowerCase())
+  );
+  const isEveryModelSelected = modelOptions.length > 0 && (
+    allModelsSelected || inputs.models.length === modelOptions.length
+  );
+  const selectedModels = isEveryModelSelected ? allModelValues : inputs.models;
+
   const handleInputChange = (e, { name, value }) => {
     setInputs((inputs) => ({ ...inputs, [name]: value }));
   };
@@ -75,8 +87,10 @@ const EditToken = () => {
           data.models === undefined
         ) {
           data.models = [];
+          setAllModelsSelected(true);
         } else {
           data.models = data.models.split(',');
+          setAllModelsSelected(false);
         }
         setInputs(data);
       } else {
@@ -101,13 +115,20 @@ const EditToken = () => {
           };
         });
         setModelOptions(options);
+        if (!isEdit) {
+          setAllModelsSelected(true);
+          setInputs((prev) => ({
+            ...prev,
+            models: options.map((option) => option.value),
+          }));
+        }
       } else {
         showError(message || 'Failed to load models');
       }
     } catch (error) {
       showError(error.message || 'Network error');
     }
-  }, []);
+  }, [isEdit]);
 
   useEffect(() => {
     if (isEdit) {
@@ -135,7 +156,11 @@ const EditToken = () => {
     } else {
       localInputs.expired_time = -1;
     }
-    localInputs.models = localInputs.models.join(',');
+    if (!isEveryModelSelected && localInputs.models.length === 0 && modelOptions.length > 0) {
+      showError(t('token.edit.messages.models_required'));
+      return;
+    }
+    localInputs.models = isEveryModelSelected ? '' : localInputs.models.join(',');
     let res;
     if (isEdit) {
       res = await API.put(`/api/v1/public/token/`, {
@@ -159,14 +184,49 @@ const EditToken = () => {
     }
   };
 
+  const toggleAllModels = (_, { checked }) => {
+    const normalizedChecked = !!checked;
+    setAllModelsSelected(normalizedChecked);
+    setInputs((prev) => ({
+      ...prev,
+      models: normalizedChecked ? allModelValues : [],
+    }));
+  };
+
+  const toggleModel = (modelName, checked) => {
+    const selected = new Set(inputs.models);
+    if (checked) {
+      selected.add(modelName);
+    } else {
+      selected.delete(modelName);
+    }
+    const nextModels = allModelValues.filter((value) => selected.has(value));
+    setAllModelsSelected(nextModels.length === allModelValues.length && allModelValues.length > 0);
+    setInputs((prev) => ({
+      ...prev,
+      models: nextModels,
+    }));
+  };
+
+  const handleModelKeywordChange = (_, { value }) => {
+    setModelKeyword(value || '');
+  };
+
   return (
     <div className='dashboard-container'>
       <Card fluid className='chart-card'>
         <Card.Content>
-          <Card.Header className='header router-page-title'>
-            {isEdit ? t('token.edit.title_edit') : t('token.edit.title_create')}
-          </Card.Header>
-          <Form loading={loading} autoComplete='new-password'>
+          <div className='router-toolbar'>
+            <div className='router-toolbar-end'>
+              <Button className='router-page-button' onClick={handleCancel}>
+                {t('token.edit.buttons.cancel')}
+              </Button>
+              <Button className='router-page-button' positive onClick={submit}>
+                {t('token.edit.buttons.submit')}
+              </Button>
+            </div>
+          </div>
+          <Form loading={loading} autoComplete='new-password' className='router-block-top-sm'>
             <Form.Field>
               <Form.Input
                 className='router-section-input'
@@ -180,23 +240,59 @@ const EditToken = () => {
               />
             </Form.Field>
             <Form.Field>
-              <Form.Dropdown
-                className='router-section-dropdown'
-                label={t('token.edit.models')}
-                placeholder={t('token.edit.models_placeholder')}
-                name='models'
-                fluid
-                multiple
-                search
-                onLabelClick={(e, { value }) => {
-                  copy(value).then();
-                }}
-                selection
-                onChange={handleInputChange}
-                value={inputs.models}
-                autoComplete='new-password'
-                options={modelOptions}
+              <label>{t('token.edit.models')}</label>
+              <Message className='router-section-message'>
+                {t('token.edit.models_table_notice')}
+              </Message>
+              <Form.Input
+                className='router-section-input router-token-model-search'
+                placeholder={t('token.edit.models_search_placeholder')}
+                value={modelKeyword}
+                onChange={handleModelKeywordChange}
               />
+              <div className='router-token-model-table-wrap'>
+                <Table basic='very' compact className='router-list-table router-token-model-table'>
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.HeaderCell collapsing>
+                        <Checkbox
+                          checked={isEveryModelSelected}
+                          label={t('token.edit.models_select_all')}
+                          onChange={toggleAllModels}
+                        />
+                      </Table.HeaderCell>
+                      <Table.HeaderCell>{t('token.edit.models_table_name')}</Table.HeaderCell>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {modelOptions.length === 0 ? (
+                      <Table.Row>
+                        <Table.Cell colSpan='2' className='router-empty-cell'>
+                          {t('token.edit.models_table_empty')}
+                        </Table.Cell>
+                      </Table.Row>
+                    ) : filteredModelOptions.length === 0 ? (
+                      <Table.Row>
+                        <Table.Cell colSpan='2' className='router-empty-cell'>
+                          {t('token.edit.models_search_empty')}
+                        </Table.Cell>
+                      </Table.Row>
+                    ) : (
+                      filteredModelOptions.map((option) => (
+                        <Table.Row key={option.value}>
+                          <Table.Cell collapsing>
+                            <Checkbox
+                              checked={selectedModels.includes(option.value)}
+                              onChange={(_, data) => toggleModel(option.value, !!data.checked)}
+                            />
+                          </Table.Cell>
+                          <Table.Cell>{option.text}</Table.Cell>
+                        </Table.Row>
+                      ))
+                    )}
+                  </Table.Body>
+                </Table>
+              </div>
             </Form.Field>
             <Form.Field>
               <Form.Input
@@ -221,7 +317,7 @@ const EditToken = () => {
                 type='datetime-local'
               />
             </Form.Field>
-            <div className='router-toolbar-start router-block-gap-xs'>
+            <div className='router-token-expire-actions'>
               <Button
                 className='router-inline-button'
                 type={'button'}
@@ -296,14 +392,6 @@ const EditToken = () => {
                 ? t('token.edit.buttons.cancel_unlimited')
                 : t('token.edit.buttons.unlimited_quota')}
             </Button>
-            <div className='router-toolbar-end router-block-top-sm'>
-              <Button className='router-page-button' onClick={handleCancel}>
-                {t('token.edit.buttons.cancel')}
-              </Button>
-              <Button className='router-page-button' positive onClick={submit}>
-                {t('token.edit.buttons.submit')}
-              </Button>
-            </div>
           </Form>
         </Card.Content>
       </Card>

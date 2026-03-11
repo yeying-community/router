@@ -11,6 +11,108 @@ import (
 	"github.com/yeying-community/router/internal/relay/relaymode"
 )
 
+func normalizeResponsesInputValue(input any) (any, bool) {
+	if input == nil {
+		return nil, false
+	}
+	switch value := input.(type) {
+	case string:
+		if strings.TrimSpace(value) == "" {
+			return input, false
+		}
+		return []relaymodel.Message{{
+			Role:    "user",
+			Content: value,
+		}}, true
+	case []string:
+		if len(value) == 0 {
+			return input, false
+		}
+		messages := make([]relaymodel.Message, 0, len(value))
+		for _, item := range value {
+			if strings.TrimSpace(item) == "" {
+				continue
+			}
+			messages = append(messages, relaymodel.Message{
+				Role:    "user",
+				Content: item,
+			})
+		}
+		if len(messages) == 0 {
+			return input, false
+		}
+		return messages, true
+	case []any:
+		if len(value) == 0 {
+			return input, false
+		}
+		messages := make([]relaymodel.Message, 0, len(value))
+		for _, item := range value {
+			text, ok := item.(string)
+			if !ok {
+				return input, false
+			}
+			if strings.TrimSpace(text) == "" {
+				continue
+			}
+			messages = append(messages, relaymodel.Message{
+				Role:    "user",
+				Content: text,
+			})
+		}
+		if len(messages) == 0 {
+			return input, false
+		}
+		return messages, true
+	}
+
+	payload, err := json.Marshal(input)
+	if err != nil {
+		return input, false
+	}
+
+	var list []any
+	if err := json.Unmarshal(payload, &list); err == nil {
+		if len(list) == 0 {
+			return input, false
+		}
+		return list, false
+	}
+
+	var single map[string]any
+	if err := json.Unmarshal(payload, &single); err == nil && len(single) > 0 {
+		return []any{single}, true
+	}
+
+	return input, false
+}
+
+func normalizeResponsesInput(req *relaymodel.GeneralOpenAIRequest) bool {
+	if req == nil {
+		return false
+	}
+	normalized, changed := normalizeResponsesInputValue(req.Input)
+	if changed {
+		req.Input = normalized
+	}
+	return changed
+}
+
+func normalizeResponsesRequestBody(raw []byte) ([]byte, error) {
+	if len(raw) == 0 {
+		return raw, nil
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, err
+	}
+	normalized, changed := normalizeResponsesInputValue(payload["input"])
+	if changed {
+		payload["input"] = normalized
+	}
+	return json.Marshal(payload)
+}
+
 func cloneGeneralOpenAIRequest(req *relaymodel.GeneralOpenAIRequest) (*relaymodel.GeneralOpenAIRequest, error) {
 	if req == nil {
 		return nil, fmt.Errorf("request is nil")
@@ -89,16 +191,19 @@ func parseInputAsMessages(input any) []relaymodel.Message {
 	return nil
 }
 
-func resolveChannelTextUpstream(meta *meta.Meta, originModelName string, actualModelName string) (int, string) {
+func resolveChannelTextUpstream(meta *meta.Meta, originModelName string, actualModelName string) (int, string, error) {
 	if meta == nil {
-		return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat
+		return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
 	}
 	if row, ok := adminmodel.FindSelectedChannelModelConfig(meta.ChannelModelConfigs, originModelName, actualModelName); ok {
 		endpoint := adminmodel.NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
 		if endpoint == adminmodel.ChannelModelEndpointResponses {
-			return relaymode.Responses, endpoint
+			return relaymode.Responses, endpoint, nil
 		}
-		return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat
+		if meta.Mode == relaymode.Responses {
+			return 0, "", fmt.Errorf("channel model %q does not support %s", strings.TrimSpace(row.Model), adminmodel.ChannelModelEndpointResponses)
+		}
+		return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
 	}
 
 	fallbackEndpoint := ""
@@ -114,22 +219,25 @@ func resolveChannelTextUpstream(meta *meta.Meta, originModelName string, actualM
 		}
 		endpoint := adminmodel.NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
 		if endpoint == adminmodel.ChannelModelEndpointResponses {
-			return relaymode.Responses, adminmodel.ChannelModelEndpointResponses
+			return relaymode.Responses, adminmodel.ChannelModelEndpointResponses, nil
 		}
 		if fallbackEndpoint == "" {
 			fallbackEndpoint = endpoint
 		}
 	}
 	if fallbackEndpoint == adminmodel.ChannelModelEndpointChat {
-		return relaymode.ChatCompletions, fallbackEndpoint
+		if meta.Mode == relaymode.Responses {
+			return 0, "", fmt.Errorf("selected channel models do not support %s", adminmodel.ChannelModelEndpointResponses)
+		}
+		return relaymode.ChatCompletions, fallbackEndpoint, nil
 	}
 	if fallbackEndpoint == adminmodel.ChannelModelEndpointResponses {
-		return relaymode.Responses, fallbackEndpoint
+		return relaymode.Responses, fallbackEndpoint, nil
 	}
 	if meta.Mode == relaymode.Responses {
-		return relaymode.Responses, adminmodel.ChannelModelEndpointResponses
+		return 0, "", fmt.Errorf("channel does not support %s", adminmodel.ChannelModelEndpointResponses)
 	}
-	return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat
+	return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
 }
 
 func convertTextRequestForUpstream(req *relaymodel.GeneralOpenAIRequest, downstreamMode int, upstreamMode int) (*relaymodel.GeneralOpenAIRequest, error) {

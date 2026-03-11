@@ -349,7 +349,7 @@ func TokenAuth() func(c *gin.Context) {
 			c.Set(ctxkey.SpecificChannelId, channelId)
 		}
 
-		logger.Loginf(c.Request.Context(), "token auth success user=%s tokenId=%s", token.UserId, token.Id)
+		logger.Debugf(c.Request.Context(), "[login] token auth success user=%s tokenId=%s", token.UserId, token.Id)
 
 		c.Next()
 	}

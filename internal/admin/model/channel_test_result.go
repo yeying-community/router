@@ -290,7 +290,7 @@ func loadChannelTestRowsByChannelIDs(db *gorm.DB, channelIDs []string) (map[stri
 	}
 	latestByKey := make(map[string]ChannelTest, len(rows))
 	for _, row := range NormalizeChannelTestRows(rows) {
-		key := row.ChannelId + "::" + row.Model
+		key := row.ChannelId + "::" + row.Model + "::" + row.Endpoint
 		if existing, ok := latestByKey[key]; ok {
 			if existing.Round > row.Round || (existing.Round == row.Round && existing.TestedAt >= row.TestedAt) {
 				continue

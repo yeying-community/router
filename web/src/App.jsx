@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useContext, useEffect } from 'react';
+import React, { Suspense, useCallback, useContext, useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Loading from './components/Loading';
 import User from './pages/User';
@@ -39,7 +39,6 @@ import TaskDetail from './pages/Task/Detail';
 import AdminLayout from './layouts/AdminLayout';
 import UserLayout from './layouts/UserLayout';
 
-const Home = lazy(() => import('./pages/Home'));
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || '';
 
 function AdminOnlyRoute({ children }) {
@@ -219,9 +218,10 @@ function App() {
         <Route
           path='/workspace/about'
           element={
-            <Suspense fallback={<Loading />}>
-              <Home />
-            </Suspense>
+            <Navigate
+              to='/workspace/token'
+              replace
+            />
           }
         />
         <Route
@@ -422,7 +422,7 @@ function App() {
         path='/about'
         element={
           <Navigate
-            to='/workspace/about'
+            to='/workspace/token'
             replace
           />
         }

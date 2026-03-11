@@ -244,7 +244,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
 	}
 	if resp.StatusCode != http.StatusOK {
-		return RelayErrorHandler(resp)
+		return RelayErrorHandler(meta, resp)
 	}
 	succeed = true
 	quotaDelta := quota - preConsumedQuota

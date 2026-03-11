@@ -65,8 +65,14 @@ type channelModelFetchTrace struct {
 }
 
 type channelModelTestsRequest struct {
-	TargetModels []string `json:"target_models"`
-	TestModel    string   `json:"test_model,omitempty"`
+	TargetModels  []string                     `json:"target_models"`
+	TargetConfigs []channelModelTestTargetItem `json:"target_configs"`
+	TestModel     string                       `json:"test_model,omitempty"`
+}
+
+type channelModelTestTargetItem struct {
+	Model    string `json:"model"`
+	Endpoint string `json:"endpoint,omitempty"`
 }
 
 type channelModelListData struct {
@@ -687,6 +693,60 @@ func parseChannelUpstreamError(statusCode int, body []byte) error {
 	return fmt.Errorf("http status code: %d, error message: %s", statusCode, message)
 }
 
+func normalizeResponsesTestInput(request *relaymodel.GeneralOpenAIRequest) {
+	if request == nil {
+		return
+	}
+	switch value := request.Input.(type) {
+	case string:
+		if strings.TrimSpace(value) == "" {
+			return
+		}
+		request.Input = []relaymodel.Message{{
+			Role:    "user",
+			Content: value,
+		}}
+	case []string:
+		if len(value) == 0 {
+			return
+		}
+		messages := make([]relaymodel.Message, 0, len(value))
+		for _, item := range value {
+			if strings.TrimSpace(item) == "" {
+				continue
+			}
+			messages = append(messages, relaymodel.Message{
+				Role:    "user",
+				Content: item,
+			})
+		}
+		if len(messages) > 0 {
+			request.Input = messages
+		}
+	case []any:
+		if len(value) == 0 {
+			return
+		}
+		messages := make([]relaymodel.Message, 0, len(value))
+		for _, item := range value {
+			text, ok := item.(string)
+			if !ok {
+				return
+			}
+			if strings.TrimSpace(text) == "" {
+				continue
+			}
+			messages = append(messages, relaymodel.Message{
+				Role:    "user",
+				Content: text,
+			})
+		}
+		if len(messages) > 0 {
+			request.Input = messages
+		}
+	}
+}
+
 func executeChannelTextModelTest(ctx context.Context, channel *model.Channel, path string, request *relaymodel.GeneralOpenAIRequest) channelModelTestExecution {
 	execution := channelModelTestExecution{}
 	if request == nil {
@@ -715,6 +775,13 @@ func executeChannelTextModelTest(ctx context.Context, channel *model.Channel, pa
 	}
 	relayMeta.OriginModelName = request.Model
 	relayMeta.ActualModelName = request.Model
+	if path == model.ChannelModelEndpointResponses {
+		if request.Input == nil && len(request.Messages) > 0 {
+			request.Input = request.Messages
+			request.Messages = nil
+		}
+		normalizeResponsesTestInput(request)
+	}
 	convertedRequest, err := adaptor.ConvertRequest(c, relayMeta.Mode, request)
 	if err != nil {
 		execution.Err = err
@@ -1423,7 +1490,14 @@ func TestChannelModels(c *gin.Context) {
 		})
 		return
 	}
-	tasks, createdCount, reusedCount, err := CreateChannelModelTestTasks(channelID, c.GetString(ctxkey.Id), strings.TrimSpace(req.TestModel), req.TargetModels, c.GetString(helper.TraceIDKey))
+	tasks, createdCount, reusedCount, err := CreateChannelModelTestTasks(
+		channelID,
+		c.GetString(ctxkey.Id),
+		strings.TrimSpace(req.TestModel),
+		req.TargetModels,
+		req.TargetConfigs,
+		c.GetString(helper.TraceIDKey),
+	)
 	if err != nil {
 		logChannelAdminWarn(c, "test_models", stringField("channel_id", channelID), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{

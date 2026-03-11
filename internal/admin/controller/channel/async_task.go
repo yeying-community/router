@@ -40,15 +40,19 @@ func buildChannelRefreshBalanceTaskDedupeKey(channelID string) string {
 	return fmt.Sprintf("%s:%s", model.AsyncTaskTypeChannelRefreshBalance, strings.TrimSpace(channelID))
 }
 
-func buildChannelModelTestTaskPayload(row model.ChannelModel, channelID string) string {
+func buildChannelModelTestTaskPayload(row model.ChannelModel, channelID string, endpointOverride string) string {
+	endpoint := model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), endpointOverride)
+	if strings.TrimSpace(endpointOverride) == "" {
+		endpoint = model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), row.Endpoint)
+	}
 	return marshalJSONForLog(channelModelTestTaskPayload{
 		ChannelID: strings.TrimSpace(channelID),
 		Model:     strings.TrimSpace(row.Model),
-		Endpoint:  model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), row.Endpoint),
+		Endpoint:  endpoint,
 	})
 }
 
-func CreateChannelModelTestTasks(channelID string, createdBy string, requestedTestModel string, requestedModels []string, traceID string) ([]model.AsyncTask, int, int, error) {
+func CreateChannelModelTestTasks(channelID string, createdBy string, requestedTestModel string, requestedModels []string, requestedConfigs []channelModelTestTargetItem, traceID string) ([]model.AsyncTask, int, int, error) {
 	normalizedChannelID := strings.TrimSpace(channelID)
 	if normalizedChannelID == "" {
 		return nil, 0, 0, fmt.Errorf("渠道 ID 无效")
@@ -68,14 +72,27 @@ func CreateChannelModelTestTasks(channelID string, createdBy string, requestedTe
 	tasks := make([]model.AsyncTask, 0, len(targetRows))
 	createdCount := 0
 	reusedCount := 0
+	endpointOverrides := make(map[string]string, len(requestedConfigs))
+	for _, item := range requestedConfigs {
+		modelID := strings.TrimSpace(item.Model)
+		if modelID == "" {
+			continue
+		}
+		endpointOverrides[modelID] = strings.TrimSpace(item.Endpoint)
+	}
 	for _, row := range targetRows {
+		endpoint := endpointOverrides[strings.TrimSpace(row.Model)]
+		if endpoint != "" {
+			row.Endpoint = endpoint
+		}
+		normalizedEndpoint := model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), row.Endpoint)
 		task, reused, err := model.CreateOrReuseAsyncTaskWithDB(model.DB, model.AsyncTask{
 			Type:      model.AsyncTaskTypeChannelModelTest,
 			DedupeKey: buildChannelModelTestTaskDedupeKey(normalizedChannelID, row),
 			ChannelId: normalizedChannelID,
 			Model:     strings.TrimSpace(row.Model),
-			Endpoint:  model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), row.Endpoint),
-			Payload:   buildChannelModelTestTaskPayload(row, normalizedChannelID),
+			Endpoint:  normalizedEndpoint,
+			Payload:   buildChannelModelTestTaskPayload(row, normalizedChannelID, endpoint),
 			CreatedBy: strings.TrimSpace(createdBy),
 			TraceID:   strings.TrimSpace(traceID),
 		})

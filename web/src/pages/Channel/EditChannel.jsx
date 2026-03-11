@@ -752,6 +752,11 @@ const normalizeModelTestResults = (results) => {
     }));
 };
 
+const buildModelTestResultKey = (modelName, endpoint) =>
+  `${(modelName || '').toString().trim()}::${(endpoint || '')
+    .toString()
+    .trim()}`;
+
 const normalizeAsyncTaskStatus = (value) => {
   const normalized = (value || '').toString().trim().toLowerCase();
   switch (normalized) {
@@ -795,19 +800,23 @@ const normalizeAsyncTasks = (items) => {
 const mergeModelTestResults = (previousResults, nextResults) => {
   const merged = new Map();
   normalizeModelTestResults(previousResults).forEach((item) => {
-    if (!item.model) {
+    const key = buildModelTestResultKey(item.model, item.endpoint);
+    if (!item.model || !item.endpoint || key === '::') {
       return;
     }
-    merged.set(item.model, item);
+    merged.set(key, item);
   });
   normalizeModelTestResults(nextResults).forEach((item) => {
-    if (!item.model) {
+    const key = buildModelTestResultKey(item.model, item.endpoint);
+    if (!item.model || !item.endpoint || key === '::') {
       return;
     }
-    merged.set(item.model, item);
+    merged.set(key, item);
   });
   return Array.from(merged.values()).sort((a, b) =>
-    (a.model || '').localeCompare(b.model || '')
+    buildModelTestResultKey(a.model, a.endpoint).localeCompare(
+      buildModelTestResultKey(b.model, b.endpoint)
+    )
   );
 };
 
@@ -1003,6 +1012,7 @@ const EditChannel = () => {
   const [modelTestedAt, setModelTestedAt] = useState(0);
   const [modelTestedSignature, setModelTestedSignature] = useState('');
   const [modelTestTargetModels, setModelTestTargetModels] = useState([]);
+  const [detailModelMutating, setDetailModelMutating] = useState(false);
   const [config, setConfig] = useState(CHANNEL_DEFAULT_CONFIG);
   const [providerOptions, setProviderOptions] = useState([]);
   const [providerModelOwners, setProviderModelOwners] = useState({});
@@ -1127,27 +1137,44 @@ const EditChannel = () => {
     () => normalizeChannelModelConfigs(inputs.model_configs),
     [inputs.model_configs]
   );
-  const modelTestResultsByModel = useMemo(() => {
+  const modelTestResultsByKey = useMemo(() => {
     const index = new Map();
     normalizeModelTestResults(modelTestResults).forEach((item) => {
-      if (!item.model) {
+      const key = buildModelTestResultKey(item.model, item.endpoint);
+      if (!item.model || !item.endpoint || key === '::') {
         return;
       }
-      index.set(item.model, item);
+      index.set(key, item);
+    });
+    return index;
+  }, [modelTestResults]);
+  const testedEndpointsByModel = useMemo(() => {
+    const index = new Map();
+    normalizeModelTestResults(modelTestResults).forEach((item) => {
+      const modelName = (item.model || '').toString().trim();
+      const endpoint = (item.endpoint || '').toString().trim();
+      if (modelName === '' || endpoint === '') {
+        return;
+      }
+      const existing = index.get(modelName) || new Set();
+      existing.add(endpoint);
+      index.set(modelName, existing);
     });
     return index;
   }, [modelTestResults]);
   const modelTestRows = useMemo(() => {
     return visibleModelConfigs.filter((row) => {
+      const endpoint = normalizeChannelModelEndpoint(row.type, row.endpoint);
+      const resultKey = buildModelTestResultKey(row.model, endpoint);
       if (row.inactive) {
         return false;
       }
       if (row.selected) {
         return true;
       }
-      return modelTestResultsByModel.has(row.model);
+      return modelTestResultsByKey.has(resultKey);
     });
-  }, [modelTestResultsByModel, visibleModelConfigs]);
+  }, [modelTestResultsByKey, visibleModelConfigs]);
   const allModelTestTargetsSelected = useMemo(() => {
     if (modelTestRows.length === 0) {
       return false;
@@ -1603,10 +1630,10 @@ const EditChannel = () => {
     goToCreateStep(createStep - 1);
   }, [createStep, goToCreateStep]);
 
-  const buildChannelPayload = useCallback(() => {
+  const buildChannelPayloadFromState = useCallback((baseInputs, baseConfig) => {
     const effectiveKey = buildEffectiveKey();
-    const derivedModelState = buildChannelModelState(inputs.model_configs);
-    let localInputs = { ...inputs, key: effectiveKey };
+    const derivedModelState = buildChannelModelState(baseInputs.model_configs);
+    let localInputs = { ...baseInputs, key: effectiveKey };
     localInputs.id = (localInputs.id || '').toString().trim();
     localInputs.name = normalizeChannelIdentifier(localInputs.name);
     if (localInputs.key === 'undefined|undefined|undefined') {
@@ -1623,10 +1650,14 @@ const EditChannel = () => {
     }
     localInputs.model_configs = derivedModelState.modelConfigs;
     localInputs.models = derivedModelState.selectedModels.join(',');
-    const submitConfig = { ...config };
+    const submitConfig = { ...baseConfig };
     localInputs.config = JSON.stringify(submitConfig);
     return localInputs;
-  }, [buildEffectiveKey, config, inputs]);
+  }, [buildEffectiveKey]);
+
+  const buildChannelPayload = useCallback(() => {
+    return buildChannelPayloadFromState(inputs, config);
+  }, [buildChannelPayloadFromState, config, inputs]);
 
   const createChannelRecord = useCallback(async () => {
     const payload = buildChannelPayload();
@@ -1709,6 +1740,52 @@ const EditChannel = () => {
     const targetChannelID = await persistWorkingChannel({ status: 4 });
     return targetChannelID !== '';
   }, [persistWorkingChannel]);
+
+  const persistDetailModelConfigs = useCallback(
+    async (nextModelConfigs) => {
+      if (!isDetailMode) {
+        return true;
+      }
+      const targetChannelID = ((channelId || creatingChannelId) || '')
+        .toString()
+        .trim();
+      if (targetChannelID === '') {
+        return false;
+      }
+      const nextInputs = buildNextInputsWithModelConfigs(inputs, nextModelConfigs);
+      const payload = buildChannelPayloadFromState(nextInputs, config);
+      setDetailModelMutating(true);
+      try {
+        const res = await API.put('/api/v1/admin/channel/', {
+          ...payload,
+          id: targetChannelID,
+        });
+        const { success, message } = res.data || {};
+        if (!success) {
+          showError(message || t('channel.edit.messages.save_channel_failed'));
+          return false;
+        }
+        setInputs(nextInputs);
+        return true;
+      } catch (error) {
+        showError(
+          error?.message || t('channel.edit.messages.save_channel_failed')
+        );
+        return false;
+      } finally {
+        setDetailModelMutating(false);
+      }
+    },
+    [
+      buildChannelPayloadFromState,
+      channelId,
+      config,
+      creatingChannelId,
+      inputs,
+      isDetailMode,
+      t,
+    ]
+  );
 
   const verifyChannelModelsPersisted = useCallback(
     async (expectedModels) => {
@@ -1917,7 +1994,9 @@ const EditChannel = () => {
         modelConfigs: nextInputs.model_configs,
       });
       setInputs(nextInputs);
-      setModelTestResults(normalizeModelTestResults(nextTests.items));
+      setModelTestResults((prev) =>
+        mergeModelTestResults(prev, nextTests.items)
+      );
       setModelTestError('');
       setModelTestedAt(
         Number(nextTests.lastTestedAt || 0) > 0
@@ -2421,6 +2500,12 @@ const EditChannel = () => {
         creatingChannelId ||
         ''
       ).trim();
+      const targetConfigs = visibleModelConfigs
+        .filter((row) => normalizedTargets.includes(row.model))
+        .map((row) => ({
+          model: row.model,
+          endpoint: normalizeChannelModelEndpoint(row.type, row.endpoint),
+        }));
       setModelTesting(true);
       setModelTestingScope(scope === 'single' ? 'single' : 'batch');
       setModelTestingTargets(normalizedTargets);
@@ -2430,6 +2515,7 @@ const EditChannel = () => {
           {
             test_model: inputs.test_model || '',
             target_models: normalizedTargets,
+            target_configs: targetConfigs,
           }
         );
         const { success, message, data, meta } = res.data || {};
@@ -2474,6 +2560,7 @@ const EditChannel = () => {
       persistWorkingChannel,
       previewChannelID,
       t,
+      visibleModelConfigs,
     ]
   );
 
@@ -2502,39 +2589,39 @@ const EditChannel = () => {
   );
 
   const updateModelTestEndpoint = useCallback(
-    (modelName, endpoint) => {
-      setInputs((prev) =>
-        buildNextInputsWithModelConfigs(
-          prev,
-          visibleModelConfigs.map((row) => {
-            if (row.model !== modelName) {
-              return row;
-            }
-            return {
-              ...row,
-              endpoint: normalizeChannelModelEndpoint(row.type, endpoint),
-            };
-          })
-        )
-      );
+    async (modelName, endpoint) => {
+      const nextConfigs = visibleModelConfigs.map((row) => {
+        if (row.model !== modelName) {
+          return row;
+        }
+        return {
+          ...row,
+          endpoint: normalizeChannelModelEndpoint(row.type, endpoint),
+        };
+      });
+      if (isDetailMode) {
+        await persistDetailModelConfigs(nextConfigs);
+        return;
+      }
+      setInputs((prev) => buildNextInputsWithModelConfigs(prev, nextConfigs));
     },
-    [visibleModelConfigs]
+    [isDetailMode, persistDetailModelConfigs, visibleModelConfigs]
   );
 
   const toggleModelSelection = useCallback(
-    (upstreamModel, checked) => {
-      setInputs((prev) =>
-        buildNextInputsWithModelConfigs(
-          prev,
-          visibleModelConfigs.map((row) =>
-            row.upstream_model === upstreamModel && canSelectChannelModel(row)
-              ? { ...row, selected: !!checked }
-              : row
-          )
-        )
+    async (upstreamModel, checked) => {
+      const nextConfigs = visibleModelConfigs.map((row) =>
+        row.upstream_model === upstreamModel && canSelectChannelModel(row)
+          ? { ...row, selected: !!checked }
+          : row
       );
+      if (isDetailMode) {
+        await persistDetailModelConfigs(nextConfigs);
+        return;
+      }
+      setInputs((prev) => buildNextInputsWithModelConfigs(prev, nextConfigs));
     },
-    [canSelectChannelModel, visibleModelConfigs]
+    [canSelectChannelModel, isDetailMode, persistDetailModelConfigs, visibleModelConfigs]
   );
 
   const updateModelConfigField = useCallback(
@@ -2580,25 +2667,28 @@ const EditChannel = () => {
   );
 
   const selectAllModels = useCallback(() => {
-    setInputs((prev) =>
-      buildNextInputsWithModelConfigs(
-        prev,
-        visibleModelConfigs.map((row) => ({
-          ...row,
-          selected: canSelectChannelModel(row),
-        }))
-      )
-    );
-  }, [canSelectChannelModel, visibleModelConfigs]);
+    const nextConfigs = visibleModelConfigs.map((row) => ({
+      ...row,
+      selected: canSelectChannelModel(row),
+    }));
+    if (isDetailMode) {
+      persistDetailModelConfigs(nextConfigs).then();
+      return;
+    }
+    setInputs((prev) => buildNextInputsWithModelConfigs(prev, nextConfigs));
+  }, [canSelectChannelModel, isDetailMode, persistDetailModelConfigs, visibleModelConfigs]);
 
   const clearSelectedModels = useCallback(() => {
-    setInputs((prev) =>
-      buildNextInputsWithModelConfigs(
-        prev,
-        visibleModelConfigs.map((row) => ({ ...row, selected: false }))
-      )
-    );
-  }, [visibleModelConfigs]);
+    const nextConfigs = visibleModelConfigs.map((row) => ({
+      ...row,
+      selected: false,
+    }));
+    if (isDetailMode) {
+      persistDetailModelConfigs(nextConfigs).then();
+      return;
+    }
+    setInputs((prev) => buildNextInputsWithModelConfigs(prev, nextConfigs));
+  }, [isDetailMode, persistDetailModelConfigs, visibleModelConfigs]);
 
   useEffect(() => {
     const selectedModels = visibleModelConfigs
@@ -2875,19 +2965,6 @@ const EditChannel = () => {
     }
     setVerifiedModelSignature('');
   }, [requiresConnectionVerification, verifiedModelSignature]);
-
-  useEffect(() => {
-    if (modelTestedSignature === '') {
-      return;
-    }
-    if (modelTestedSignature === currentModelTestSignature) {
-      return;
-    }
-    setModelTestResults([]);
-    setModelTestError(t('channel.edit.model_tester.stale'));
-    setModelTestedAt(0);
-    setModelTestedSignature('');
-  }, [modelTestedSignature, currentModelTestSignature, t]);
 
   useEffect(() => {
     fetchChannelTypes().then();
@@ -3364,7 +3441,26 @@ const EditChannel = () => {
                     </span>
                   </div>
                   {isDetailMode ? (
-                    <div className='router-toolbar-end'>
+                    <div className='router-toolbar-end router-block-gap-sm'>
+                      <Button
+                        type='button'
+                        className='router-page-button'
+                        onClick={selectAllModels}
+                        disabled={
+                          detailModelMutating ||
+                          visibleModelConfigs.length === 0
+                        }
+                      >
+                        {t('channel.edit.buttons.select_all')}
+                      </Button>
+                      <Button
+                        type='button'
+                        className='router-page-button'
+                        onClick={clearSelectedModels}
+                        disabled={detailModelMutating || inputs.models.length === 0}
+                      >
+                        {t('channel.edit.buttons.clear')}
+                      </Button>
                       <Dropdown
                         selection
                         className='router-section-dropdown router-dropdown-min-170'
@@ -3401,6 +3497,7 @@ const EditChannel = () => {
                         color='blue'
                         loading={autoAssigningProviders}
                         disabled={
+                          detailModelMutating ||
                           autoAssigningProviders ||
                           providerCatalogLoading ||
                           autoAssignableRows.length === 0
@@ -3556,7 +3653,7 @@ const EditChannel = () => {
                               <Checkbox
                                 checked={!!row.selected}
                                 disabled={
-                                  isDetailMode ||
+                                  detailModelMutating ||
                                   providerCatalogLoading ||
                                   (!canSelectRow && !row.selected)
                                 }
@@ -3613,27 +3710,18 @@ const EditChannel = () => {
                                     'channel.edit.model_selector.provider_loading'
                                   )}
                                 </Label>
-                              ) : !isDetailMode ? (
+                              ) : (
                                 <Button
                                   type='button'
                                   className='router-inline-button'
                                   basic
+                                  disabled={providerCatalogLoading}
                                   onClick={() => openAppendProviderModal(row)}
                                 >
                                   {t(
                                     'channel.edit.model_selector.provider_add'
                                   )}
                                 </Button>
-                              ) : (
-                                <Label
-                                  basic
-                                  color='orange'
-                                  className='router-tag'
-                                >
-                                  {t(
-                                    'channel.edit.model_selector.provider_unassigned'
-                                  )}
-                                </Label>
                               )}
                             </Table.Cell>
                             <Table.Cell
@@ -3783,35 +3871,34 @@ const EditChannel = () => {
                     isDetailMode ? 'router-toolbar-end' : 'router-toolbar'
                   } router-block-gap-sm`}
                 >
-                  {!isDetailMode && (
-                    <>
-                      <Button
-                        type='button'
-                        className='router-section-button'
-                        color='blue'
-                        loading={modelTesting && modelTestingScope === 'batch'}
-                        disabled={
-                          modelTesting ||
-                          modelTestTargetModels.length === 0 ||
-                          selectedModelTestHasActiveTasks
-                        }
-                        onClick={() =>
-                          handleRunModelTests({
-                            targetModels: modelTestTargetModels,
-                            scope: 'batch',
-                          })
-                        }
-                      >
-                        {t('channel.edit.model_tester.button')}
-                      </Button>
-                      <Label basic className='router-tag'>
-                        {t('channel.edit.model_tester.selection', {
-                          selected: modelTestTargetModels.length,
-                          total: modelTestRows.length,
-                        })}
-                      </Label>
-                    </>
-                  )}
+                  <>
+                    <Button
+                      type='button'
+                      className='router-section-button'
+                      color='blue'
+                      loading={modelTesting && modelTestingScope === 'batch'}
+                      disabled={
+                        detailModelMutating ||
+                        modelTesting ||
+                        modelTestTargetModels.length === 0 ||
+                        selectedModelTestHasActiveTasks
+                      }
+                      onClick={() =>
+                        handleRunModelTests({
+                          targetModels: modelTestTargetModels,
+                          scope: 'batch',
+                        })
+                      }
+                    >
+                      {t('channel.edit.model_tester.button')}
+                    </Button>
+                    <Label basic className='router-tag'>
+                      {t('channel.edit.model_tester.selection', {
+                        selected: modelTestTargetModels.length,
+                        total: modelTestRows.length,
+                      })}
+                    </Label>
+                  </>
                   <Button
                     type='button'
                     className='router-page-button'
@@ -3860,16 +3947,15 @@ const EditChannel = () => {
                 <Table celled stackable className='router-detail-table'>
                   <Table.Header>
                     <Table.Row>
-                      {!isDetailMode && (
-                        <Table.HeaderCell collapsing textAlign='center'>
-                          <Checkbox
-                            checked={allModelTestTargetsSelected}
-                            onChange={(e, { checked }) =>
-                              toggleAllModelTestTargets(!!checked)
-                            }
-                          />
-                        </Table.HeaderCell>
-                      )}
+                      <Table.HeaderCell collapsing textAlign='center'>
+                        <Checkbox
+                          checked={allModelTestTargetsSelected}
+                          disabled={detailModelMutating}
+                          onChange={(e, { checked }) =>
+                            toggleAllModelTestTargets(!!checked)
+                          }
+                        />
+                      </Table.HeaderCell>
                       <Table.HeaderCell>
                         {t('channel.edit.model_tester.table.model')}
                       </Table.HeaderCell>
@@ -3888,11 +3974,9 @@ const EditChannel = () => {
                       <Table.HeaderCell>
                         {t('channel.edit.model_tester.table.message')}
                       </Table.HeaderCell>
-                      {!isDetailMode && (
-                        <Table.HeaderCell collapsing>
-                          {t('channel.edit.model_tester.table.actions')}
-                        </Table.HeaderCell>
-                      )}
+                      <Table.HeaderCell collapsing>
+                        {t('channel.edit.model_tester.table.actions')}
+                      </Table.HeaderCell>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
@@ -3900,23 +3984,42 @@ const EditChannel = () => {
                       <Table.Row>
                         <Table.Cell
                           className='router-empty-cell'
-                          colSpan={isDetailMode ? '6' : '8'}
+                          colSpan='8'
                         >
                           {t('channel.edit.model_tester.empty')}
                         </Table.Cell>
                       </Table.Row>
                     ) : (
                       modelTestRows.map((row) => {
-                        const item = modelTestResultsByModel.get(row.model);
+                        const normalizedEndpoint = normalizeChannelModelEndpoint(
+                          row.type,
+                          row.endpoint
+                        );
+                        const item = modelTestResultsByKey.get(
+                          buildModelTestResultKey(row.model, normalizedEndpoint)
+                        );
                         const activeTask =
                           activeChannelTasksByModel.get(row.model) || null;
+                        const hasTestedOtherEndpoint = (
+                          testedEndpointsByModel.get(row.model) || new Set()
+                        ).size > 0;
+                        const isStale =
+                          !activeTask &&
+                          !item &&
+                          hasTestedOtherEndpoint;
                         const effectiveStatus =
-                          activeTask?.status || item?.status || 'unsupported';
+                          activeTask?.status ||
+                          item?.status ||
+                          (isStale ? 'stale' : 'untested');
                         const labelColor =
                           effectiveStatus === 'running'
                             ? 'blue'
                             : effectiveStatus === 'pending'
                             ? 'orange'
+                            : effectiveStatus === 'stale'
+                            ? 'yellow'
+                            : effectiveStatus === 'untested'
+                            ? undefined
                             : effectiveStatus === 'supported'
                             ? 'green'
                             : effectiveStatus === 'skipped'
@@ -3924,28 +4027,26 @@ const EditChannel = () => {
                             : 'red';
                         return (
                           <Table.Row key={row.model}>
-                            {!isDetailMode && (
-                              <Table.Cell textAlign='center'>
-                                <Checkbox
-                                  checked={modelTestTargetModels.includes(
-                                    row.model
-                                  )}
-                                  onChange={(e, { checked }) =>
-                                    toggleModelTestTarget(row.model, !!checked)
-                                  }
-                                />
-                              </Table.Cell>
-                            )}
+                            <Table.Cell textAlign='center'>
+                              <Checkbox
+                                checked={modelTestTargetModels.includes(
+                                  row.model
+                                )}
+                                disabled={detailModelMutating}
+                                onChange={(e, { checked }) =>
+                                  toggleModelTestTarget(row.model, !!checked)
+                                }
+                              />
+                            </Table.Cell>
                             <Table.Cell>{row.model || '-'}</Table.Cell>
                             <Table.Cell>{row.type || '-'}</Table.Cell>
                             <Table.Cell>
-                              {isDetailMode ? (
-                                row.endpoint || '-'
-                              ) : row.type === 'text' ? (
+                              {row.type === 'text' ? (
                                 <Dropdown
                                   selection
                                   className='router-mini-dropdown'
                                   options={TEXT_MODEL_ENDPOINT_OPTIONS}
+                                  disabled={detailModelMutating}
                                   value={
                                     row.endpoint ||
                                     defaultChannelModelEndpoint(row.type)
@@ -3959,6 +4060,7 @@ const EditChannel = () => {
                                   selection
                                   className='router-mini-dropdown'
                                   options={IMAGE_MODEL_ENDPOINT_OPTIONS}
+                                  disabled={detailModelMutating}
                                   value={
                                     row.endpoint ||
                                     defaultChannelModelEndpoint(row.type)
@@ -3989,34 +4091,40 @@ const EditChannel = () => {
                                 ? `${item.latency_ms} ms`
                                 : '-'}
                             </Table.Cell>
-                            <Table.Cell>{item?.message || '-'}</Table.Cell>
-                            {!isDetailMode && (
-                              <Table.Cell collapsing>
-                                <Button
-                                  type='button'
-                                  className='router-inline-button'
-                                  basic
-                                  loading={
-                                    (modelTesting &&
-                                      modelTestingScope === 'single' &&
-                                      modelTestingTargetSet.has(row.model)) ||
-                                    !!activeTask
-                                  }
-                                  disabled={
-                                    modelTesting ||
-                                    activeChannelTasksByModel.has(row.model)
-                                  }
-                                  onClick={() =>
-                                    handleRunModelTests({
-                                      targetModels: [row.model],
-                                      scope: 'single',
-                                    })
-                                  }
-                                >
-                                  {t('channel.edit.model_tester.single')}
-                                </Button>
-                              </Table.Cell>
-                            )}
+                            <Table.Cell>
+                              {item?.message ||
+                                (isStale
+                                  ? t('channel.edit.model_tester.stale')
+                                  : effectiveStatus === 'untested'
+                                  ? t('channel.edit.model_tester.untested')
+                                  : '-')}
+                            </Table.Cell>
+                            <Table.Cell collapsing>
+                              <Button
+                                type='button'
+                                className='router-inline-button'
+                                basic
+                                loading={
+                                  (modelTesting &&
+                                    modelTestingScope === 'single' &&
+                                    modelTestingTargetSet.has(row.model)) ||
+                                  !!activeTask
+                                }
+                                disabled={
+                                  detailModelMutating ||
+                                  modelTesting ||
+                                  activeChannelTasksByModel.has(row.model)
+                                }
+                                onClick={() =>
+                                  handleRunModelTests({
+                                    targetModels: [row.model],
+                                    scope: 'single',
+                                  })
+                                }
+                              >
+                                {t('channel.edit.model_tester.single')}
+                              </Button>
+                            </Table.Cell>
                           </Table.Row>
                         );
                       })

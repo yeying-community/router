@@ -4,12 +4,13 @@ import {
   Button,
   Dropdown,
   Form,
+  Icon,
   Label,
   Pagination,
   Popup,
   Table,
 } from 'semantic-ui-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   API,
   copy,
@@ -61,16 +62,21 @@ function renderStatus(status, t) {
   }
 }
 
+function renderShortToken(key) {
+  const raw = typeof key === 'string' ? key.trim() : '';
+  if (raw === '') {
+    return '-';
+  }
+  const withPrefix = raw.startsWith('sk-') ? raw : `sk-${raw}`;
+  if (withPrefix.length <= 16) {
+    return withPrefix;
+  }
+  return `${withPrefix.slice(0, 8)}...${withPrefix.slice(-6)}`;
+}
+
 const TokensTable = () => {
   const { t } = useTranslation();
-
-  const COPY_OPTIONS = [
-    { key: 'raw', text: t('token.copy_options.raw'), value: '' },
-    { key: 'next', text: t('token.copy_options.next'), value: 'next' },
-    { key: 'ama', text: t('token.copy_options.ama'), value: 'ama' },
-    { key: 'opencat', text: t('token.copy_options.opencat'), value: 'opencat' },
-    { key: 'lobe', text: t('token.copy_options.lobe'), value: 'lobechat' },
-  ];
+  const navigate = useNavigate();
 
   const OPEN_LINK_OPTIONS = [
     { key: 'next', text: t('token.copy_options.next'), value: 'next' },
@@ -279,6 +285,10 @@ const TokensTable = () => {
     setSearchKeyword(value.trim());
   };
 
+  const stopRowClick = (event) => {
+    event.stopPropagation();
+  };
+
   const sortToken = (key) => {
     if (tokens.length === 0) return;
     setLoading(true);
@@ -315,18 +325,40 @@ const TokensTable = () => {
             {t('token.buttons.refresh')}
           </Button>
         </div>
-        <Form onSubmit={searchTokens} style={{ minWidth: '320px', marginLeft: 'auto' }}>
-          <Form.Input
-            className='router-section-input'
-            icon='search'
-            fluid
-            iconPosition='left'
-            placeholder={t('token.search')}
-            value={searchKeyword}
-            loading={searching}
-            onChange={handleKeywordChange}
+        <div className='router-toolbar-end'>
+          <Dropdown
+            className='router-section-dropdown router-dropdown-min-170'
+            placeholder={t('token.sort.placeholder')}
+            selection
+            options={[
+              { key: '', text: t('token.sort.default'), value: '' },
+              {
+                key: 'remain_quota',
+                text: t('token.sort.by_remain'),
+                value: 'remain_quota',
+              },
+              {
+                key: 'used_quota',
+                text: t('token.sort.by_used'),
+                value: 'used_quota',
+              },
+            ]}
+            value={orderBy}
+            onChange={handleOrderByChange}
           />
-        </Form>
+          <Form onSubmit={searchTokens} className='router-search-form-xs'>
+            <Form.Input
+              className='router-section-input'
+              icon='search'
+              fluid
+              iconPosition='left'
+              placeholder={t('token.search')}
+              value={searchKeyword}
+              loading={searching}
+              onChange={handleKeywordChange}
+            />
+          </Form>
+        </div>
       </div>
 
       <Table basic={'very'} compact className='router-list-table'>
@@ -348,6 +380,7 @@ const TokensTable = () => {
             >
               {t('token.table.status')}
             </Table.HeaderCell>
+            <Table.HeaderCell>{t('token.table.token')}</Table.HeaderCell>
             <Table.HeaderCell
               className='router-sortable-header'
               onClick={() => {
@@ -393,13 +426,6 @@ const TokensTable = () => {
             .map((token, idx) => {
               if (token.deleted) return <></>;
 
-              const copyOptionsWithHandlers = COPY_OPTIONS.map((option) => ({
-                ...option,
-                onClick: async () => {
-                  await onCopy(option.value, token.key);
-                },
-              }));
-
               const openLinkOptionsWithHandlers = OPEN_LINK_OPTIONS.map(
                 (option) => ({
                   ...option,
@@ -410,11 +436,25 @@ const TokensTable = () => {
               );
 
               return (
-                <Table.Row key={token.id}>
+                <Table.Row
+                  key={token.id}
+                  className='router-row-clickable'
+                  onClick={() => navigate(`/token/edit/${token.id}`)}
+                >
                   <Table.Cell>
                     {token.name ? token.name : t('token.table.no_name')}
                   </Table.Cell>
                   <Table.Cell>{renderStatus(token.status, t)}</Table.Cell>
+                  <Table.Cell onClick={stopRowClick}>
+                    <span className='router-action-group'>
+                      <span>{renderShortToken(token.key)}</span>
+                      <Icon
+                        name='copy outline'
+                        link
+                        onClick={async () => await onCopy('', token.key)}
+                      />
+                    </span>
+                  </Table.Cell>
                   <Table.Cell>{renderQuota(token.used_quota, t)}</Table.Cell>
                   <Table.Cell>
                     {token.unlimited_quota
@@ -427,23 +467,8 @@ const TokensTable = () => {
                       ? t('token.table.never_expire')
                       : renderTimestamp(token.expired_time)}
                   </Table.Cell>
-                  <Table.Cell>
+                  <Table.Cell onClick={stopRowClick}>
                     <div className='router-action-group'>
-                      <Button.Group color='green'>
-                        <Button
-                          className='router-inline-button'
-                          positive
-                          onClick={async () => await onCopy('', token.key)}
-                        >
-                          {t('token.buttons.copy')}
-                        </Button>
-                        <Dropdown
-                          className='button icon router-inline-button'
-                          floating
-                          options={copyOptionsWithHandlers}
-                          trigger={<></>}
-                        />
-                      </Button.Group>{' '}
                       <Button.Group color='olive'>
                         <Button
                           className='router-inline-button'
@@ -509,30 +534,8 @@ const TokensTable = () => {
 
         <Table.Footer>
           <Table.Row>
-            <Table.HeaderCell colSpan='7'>
+            <Table.HeaderCell colSpan='8'>
               <div className='router-toolbar'>
-                <div className='router-toolbar-start'>
-                  <Dropdown
-                    className='router-section-dropdown'
-                    placeholder={t('token.sort.placeholder')}
-                    selection
-                    options={[
-                      { key: '', text: t('token.sort.default'), value: '' },
-                      {
-                        key: 'remain_quota',
-                        text: t('token.sort.by_remain'),
-                        value: 'remain_quota',
-                      },
-                      {
-                        key: 'used_quota',
-                        text: t('token.sort.by_used'),
-                        value: 'used_quota',
-                      },
-                    ]}
-                    value={orderBy}
-                    onChange={handleOrderByChange}
-                  />
-                </div>
                 <Pagination
                   className='router-page-pagination'
                   activePage={activePage}

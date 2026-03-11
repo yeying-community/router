@@ -11,7 +11,7 @@ export function renderText(text, limit) {
 
 export function renderGroup(group) {
   if (group === '') {
-    return <Label>default</Label>;
+    return '-';
   }
   let groups = group.split(',');
   groups.sort();

@@ -41,12 +41,18 @@ func DoRequestHelper(a Adaptor, c *gin.Context, meta *meta.Meta, requestBody io.
 	if err != nil {
 		return nil, fmt.Errorf("setup request header failed: %w", err)
 	}
-	headers, _ := json.Marshal(maskHeaders(req.Header))
-	logger.RelayInfof(c.Request.Context(), relaylogging.NewFields("UPSTREAM_REQ").
-		String("method", req.Method).
-		String("url", fullRequestURL).
-		String("headers", string(headers)).
-		Build())
+	if meta != nil && meta.ChannelId != "" {
+		headers, _ := json.Marshal(maskHeaders(req.Header))
+		logger.Debugf(
+			c.Request.Context(),
+			"[upstream_req] method=%s url=%s channel_id=%s model=%s headers=%s",
+			req.Method,
+			fullRequestURL,
+			strings.TrimSpace(meta.ChannelId),
+			strings.TrimSpace(meta.ActualModelName),
+			string(headers),
+		)
+	}
 	resp, err := DoRequest(c, req)
 	if err != nil {
 		logger.RelayErrorf(c.Request.Context(), relaylogging.NewFields("UPSTREAM_ERR").
@@ -67,8 +73,6 @@ func DoRequestHelper(a Adaptor, c *gin.Context, meta *meta.Meta, requestBody io.
 		logger.RelayErrorf(c.Request.Context(), respFields)
 	case resp.StatusCode >= http.StatusBadRequest:
 		logger.RelayWarnf(c.Request.Context(), respFields)
-	default:
-		logger.RelayInfof(c.Request.Context(), respFields)
 	}
 	return resp, nil
 }

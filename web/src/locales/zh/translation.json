@@ -12,7 +12,6 @@
     "log": "日志",
     "task": "任务",
     "setting": "设置",
-    "about": "关于",
     "chat": "聊天",
     "admin_workspace": "管理工作区",
     "user_workspace": "用户工作区",
@@ -311,9 +310,12 @@
         "test_success": "模型测试任务已提交",
         "test_failed": "模型测试失败",
         "stale": "连接信息、模型选择或端点已变更，请重新执行模型测试。",
+        "untested": "当前端点尚未执行测试。",
         "status": {
           "pending": "排队中",
           "running": "运行中",
+          "untested": "未测试",
+          "stale": "待重测",
           "supported": "支持",
           "unsupported": "不支持",
           "skipped": "已跳过"
@@ -475,19 +477,20 @@
     "title": "令牌管理",
     "search": "搜索令牌的名称 ...",
     "table": {
-      "name": "名称",
-      "status": "状态",
-      "used_quota": "已用额度",
-      "remain_quota": "剩余额度",
-      "created_time": "创建时间",
+    "name": "名称",
+    "status": "状态",
+    "token": "令牌",
+    "used_quota": "已用额度",
+    "remain_quota": "剩余额度",
+    "created_time": "创建时间",
       "expired_time": "过期时间",
       "actions": "操作",
       "no_name": "无",
       "never_expire": "永不过期",
-      "unlimited": "无限制",
-      "status_enabled": "已启用",
-      "status_disabled": "已禁用",
-      "status_expired": "已过期",
+    "unlimited": "无限制",
+    "status_enabled": "已启用",
+    "status_disabled": "已禁用",
+    "status_expired": "已过期",
       "status_depleted": "已耗尽",
       "status_unknown": "未知状态"
     },
@@ -499,19 +502,25 @@
       "enable": "启用",
       "disable": "禁用",
       "edit": "编辑",
-      "add": "添加新的令牌",
+      "add": "新增令牌",
       "refresh": "刷新"
     },
     "edit": {
       "title_edit": "更新令牌信息",
-      "title_create": "创建新的令牌",
-      "name": "名称",
-      "name_placeholder": "请输入名称",
-      "models": "模型范围",
-      "models_placeholder": "请选择允许使用的模型，留空则不进行限制",
-      "ip_limit": "IP 限制",
-      "ip_limit_placeholder": "请输入允许访问的网段，例如：192.168.0.0/24，请使用英文逗号分隔多个网段",
-      "expire_time": "过期时间",
+    "title_create": "创建新的令牌",
+    "name": "名称",
+    "name_placeholder": "请输入名称",
+    "models": "模型范围",
+    "models_placeholder": "请选择允许使用的模型，留空则不进行限制",
+    "models_table_notice": "默认全部选中。全部选中时表示不额外限制，后续账号新增可用模型时该令牌会自动继承。",
+    "models_select_all": "全选",
+    "models_table_name": "模型名称",
+    "models_table_empty": "暂无可选模型",
+    "models_search_placeholder": "搜索模型名称",
+    "models_search_empty": "没有匹配的模型",
+    "ip_limit": "IP 限制",
+    "ip_limit_placeholder": "请输入允许访问的网段，例如：192.168.0.0/24，请使用英文逗号分隔多个网段",
+    "expire_time": "过期时间",
       "expire_time_placeholder": "请输入过期时间，格式为 yyyy-MM-dd HH:mm:ss，-1 表示无限制",
       "quota_notice": "注意，令牌的额度仅用于限制令牌本身的最大额度使用量，实际的使用受到账户的剩余额度限制。",
       "quota": "额度",
@@ -527,12 +536,13 @@
         "submit": "提交",
         "cancel": "取消"
       },
-      "messages": {
-        "update_success": "令牌更新成功！",
-        "create_success": "令牌创建成功，请在列表页面点击复制获取令牌！",
-        "expire_time_invalid": "过期时间格式错误！"
-      }
-    },
+    "messages": {
+      "update_success": "令牌更新成功！",
+      "create_success": "令牌创建成功，请在列表页面点击复制获取令牌！",
+      "expire_time_invalid": "过期时间格式错误！",
+      "models_required": "请至少选择一个模型。"
+    }
+  },
     "copy_options": {
       "raw": "复制原始令牌",
       "ama": "复制 AMA 链接",
@@ -622,6 +632,13 @@
     "usage_details": "使用明细",
     "total_quota": "总消耗额度",
     "click_to_view": "点击查看",
+    "filters": {
+      "add": "添加条件",
+      "none": "当前未添加附加筛选条件",
+      "range_separator": "至",
+      "empty": "未设置",
+      "remove": "移除条件"
+    },
     "type": {
       "select": "选择明细分类",
       "all": "全部",
@@ -643,6 +660,7 @@
       "model_name_placeholder": "可选值",
       "start_time": "起始时间",
       "end_time": "结束时间",
+      "time_range": "起止时间",
       "channel_id": "渠道 ID",
       "channel_id_placeholder": "可选值",
       "username_placeholder": "可选值",
@@ -1179,45 +1197,11 @@
       }
     }
   },
-  "about": {
-    "title": "关于",
-    "description": "Router 是一个开源的接口管理和代理平台。",
-    "repository": "项目地址：",
-    "loading_failed": "加载失败"
-  },
   "footer": {
     "built_by": "由",
     "built_by_name": "JustSong",
     "license": "构建，源代码遵循",
     "mit": "MIT 协议"
-  },
-  "home": {
-    "welcome": {
-      "title": "欢迎使用 Router",
-      "description": "Router 是一个 LLM API 接口管理和分发系统，可以帮助您更好地管理和使用各大厂商的 LLM API。",
-      "login_notice": "如需使用，请先登录或注册。"
-    },
-    "system_status": {
-      "title": "系统状况",
-      "info": {
-        "title": "系统信息",
-        "name": "名称：",
-        "version": "版本：",
-        "source": "源码：",
-        "source_link": "GitHub 仓库",
-        "start_time": "启动时间："
-      },
-      "config": {
-        "title": "系统配置",
-        "email_verify": "邮箱验证：",
-        "github_oauth": "GitHub 身份验证：",
-        "wechat_login": "微信身份验证：",
-        "turnstile": "Turnstile 校验：",
-        "enabled": "已启用",
-        "disabled": "未启用"
-      }
-    },
-    "loading_failed": "加载首页内容失败..."
   },
   "auth": {
     "login": {

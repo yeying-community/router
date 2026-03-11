@@ -12,7 +12,6 @@
     "log": "Log",
     "task": "Tasks",
     "setting": "Settings",
-    "about": "About",
     "chat": "Chat",
     "admin_workspace": "Admin Workspace",
     "user_workspace": "User Workspace",
@@ -311,9 +310,12 @@
         "test_success": "Model test tasks submitted",
         "test_failed": "Model test failed",
         "stale": "Connection info, model selection, or endpoint changed. Please run model tests again.",
+        "untested": "The current endpoint has not been tested yet.",
         "status": {
           "pending": "Pending",
           "running": "Running",
+          "untested": "Untested",
+          "stale": "Retest Needed",
           "supported": "Supported",
           "unsupported": "Unsupported",
           "skipped": "Skipped"
@@ -475,19 +477,20 @@
     "title": "Token Management",
     "search": "Search tokens by name ...",
     "table": {
-      "name": "Name",
-      "status": "Status",
-      "used_quota": "Used Quota",
-      "remain_quota": "Remaining Quota",
-      "created_time": "Created Time",
+    "name": "Name",
+    "status": "Status",
+    "token": "Token",
+    "used_quota": "Used Quota",
+    "remain_quota": "Remaining Quota",
+    "created_time": "Created Time",
       "expired_time": "Expiry Time",
       "actions": "Actions",
       "no_name": "None",
       "never_expire": "never",
-      "unlimited": "Unlimited",
-      "status_enabled": "Enabled",
-      "status_disabled": "Disabled",
-      "status_expired": "Expired",
+    "unlimited": "Unlimited",
+    "status_enabled": "Enabled",
+    "status_disabled": "Disabled",
+    "status_expired": "Expired",
       "status_depleted": "Depleted",
       "status_unknown": "Unknown Status"
     },
@@ -504,14 +507,20 @@
     },
     "edit": {
       "title_edit": "Update Token Information",
-      "title_create": "Create New Token",
-      "name": "Name",
-      "name_placeholder": "Please enter name",
-      "models": "Model Scope",
-      "models_placeholder": "Please select allowed models, leave empty for no restrictions",
-      "ip_limit": "IP Restriction",
-      "ip_limit_placeholder": "Please enter allowed subnets, e.g.: 192.168.0.0/24, use commas to separate multiple subnets",
-      "expire_time": "Expiry Time",
+    "title_create": "Create New Token",
+    "name": "Name",
+    "name_placeholder": "Please enter name",
+    "models": "Model Scope",
+    "models_placeholder": "Please select allowed models, leave empty for no restrictions",
+    "models_table_notice": "All models are selected by default. Keeping all selected means no extra restriction, so newly available account models remain accessible to this token.",
+    "models_select_all": "Select All",
+    "models_table_name": "Model",
+    "models_table_empty": "No available models",
+    "models_search_placeholder": "Search models",
+    "models_search_empty": "No matching models",
+    "ip_limit": "IP Restriction",
+    "ip_limit_placeholder": "Please enter allowed subnets, e.g.: 192.168.0.0/24, use commas to separate multiple subnets",
+    "expire_time": "Expiry Time",
       "expire_time_placeholder": "Please enter expiry time in yyyy-MM-dd HH:mm:ss format, -1 for no limit",
       "quota_notice": "Note: Token quota only limits the maximum usage of the token itself, actual usage is subject to account remaining quota.",
       "quota": "Quota",
@@ -527,12 +536,13 @@
         "submit": "Submit",
         "cancel": "Cancel"
       },
-      "messages": {
-        "update_success": "Token updated successfully!",
-        "create_success": "Token created successfully, please copy it from the list page!",
-        "expire_time_invalid": "Invalid expiry time format!"
-      }
-    },
+    "messages": {
+      "update_success": "Token updated successfully!",
+      "create_success": "Token created successfully, please copy it from the list page!",
+      "expire_time_invalid": "Invalid expiry time format!",
+      "models_required": "Please select at least one model."
+    }
+  },
     "copy_options": {
       "raw": "Copy Raw Token",
       "ama": "Copy AMA Link",
@@ -622,6 +632,13 @@
     "usage_details": "Usage Details",
     "total_quota": "Total Quota Used",
     "click_to_view": "Click to View",
+    "filters": {
+      "add": "Add Filter",
+      "none": "No additional filters selected",
+      "range_separator": "to",
+      "empty": "Unset",
+      "remove": "Remove"
+    },
     "type": {
       "select": "Select Log Type",
       "all": "All",
@@ -643,6 +660,7 @@
       "model_name_placeholder": "Optional",
       "start_time": "Start Time",
       "end_time": "End Time",
+      "time_range": "Time Range",
       "channel_id": "Channel ID",
       "channel_id_placeholder": "Optional",
       "username_placeholder": "Optional",
@@ -1189,34 +1207,6 @@
     "license": ", source code is licensed under the",
     "mit": "MIT License"
   },
-  "home": {
-    "welcome": {
-      "title": "Welcome to Router",
-      "description": "Router is a LLM API management and distribution system that helps you better manage and use LLM APIs from various providers.",
-      "login_notice": "To use the service, please login or register first."
-    },
-    "system_status": {
-      "title": "System Status",
-      "info": {
-        "title": "System Information",
-        "name": "Name: ",
-        "version": "Version: ",
-        "source": "Source: ",
-        "source_link": "GitHub Repository",
-        "start_time": "Start Time: "
-      },
-      "config": {
-        "title": "System Configuration",
-        "email_verify": "Email Verification: ",
-        "github_oauth": "GitHub OAuth: ",
-        "wechat_login": "WeChat Login: ",
-        "turnstile": "Turnstile Check: ",
-        "enabled": "Enabled",
-        "disabled": "Disabled"
-      }
-    },
-    "loading_failed": "Failed to load homepage content..."
-  },
   "auth": {
     "login": {
       "title": "User Login",
@@ -1262,12 +1252,6 @@
         "notice": "New password has been generated, please click the password field or button above to copy. Please login and change your password as soon as possible!"
       }
     }
-  },
-  "about": {
-    "title": "About",
-    "description": "Router is an open-source API management and proxy platform.",
-    "repository": "Repository: ",
-    "loading_failed": "Loading failed"
   },
   "messages": {
     "success": {

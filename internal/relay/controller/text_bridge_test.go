@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"testing"
 
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
@@ -21,7 +22,10 @@ func TestResolveChannelTextUpstreamPrefersSelectedModelEndpoint(t *testing.T) {
 		}},
 	}
 
-	mode, path := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
+	mode, path, err := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
+	if err != nil {
+		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
+	}
 	if mode != relaymode.Responses || path != adminmodel.ChannelModelEndpointResponses {
 		t.Fatalf("resolveChannelTextUpstream selected responses = (%d, %q), want (%d, %q)", mode, path, relaymode.Responses, adminmodel.ChannelModelEndpointResponses)
 	}
@@ -38,9 +42,29 @@ func TestResolveChannelTextUpstreamFallsBackToSelectedModels(t *testing.T) {
 		}},
 	}
 
-	mode, path := resolveChannelTextUpstream(meta, "unknown", "unknown")
+	mode, path, err := resolveChannelTextUpstream(meta, "unknown", "unknown")
+	if err != nil {
+		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
+	}
 	if mode != relaymode.Responses || path != adminmodel.ChannelModelEndpointResponses {
 		t.Fatalf("resolveChannelTextUpstream selected-model fallback = (%d, %q), want (%d, %q)", mode, path, relaymode.Responses, adminmodel.ChannelModelEndpointResponses)
+	}
+}
+
+func TestResolveChannelTextUpstreamRejectsResponsesWhenChannelOnlySupportsChat(t *testing.T) {
+	meta := &meta.Meta{
+		Mode: relaymode.Responses,
+		ChannelModelConfigs: []adminmodel.ChannelModel{{
+			Model:    "gpt-4.1",
+			Type:     adminmodel.ProviderModelTypeText,
+			Selected: true,
+			Endpoint: adminmodel.ChannelModelEndpointChat,
+		}},
+	}
+
+	_, _, err := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
+	if err == nil {
+		t.Fatalf("resolveChannelTextUpstream returned nil error, want unsupported responses endpoint")
 	}
 }
 
@@ -88,5 +112,32 @@ func TestConvertTextRequestForUpstreamToChat(t *testing.T) {
 	}
 	if converted.MaxTokens != 256 {
 		t.Fatalf("converted.MaxTokens = %d, want 256", converted.MaxTokens)
+	}
+}
+
+func TestNormalizeResponsesRequestBodyPreservesUnknownFields(t *testing.T) {
+	raw := []byte(`{"model":"gpt-5.2-codex","instructions":"keep me","input":"hello","tools":[{"type":"web_search"}]}`)
+	normalized, err := normalizeResponsesRequestBody(raw)
+	if err != nil {
+		t.Fatalf("normalizeResponsesRequestBody returned error: %v", err)
+	}
+
+	payload := map[string]any{}
+	if err := json.Unmarshal(normalized, &payload); err != nil {
+		t.Fatalf("json.Unmarshal normalized body returned error: %v", err)
+	}
+	if payload["instructions"] != "keep me" {
+		t.Fatalf("payload.instructions = %#v, want %q", payload["instructions"], "keep me")
+	}
+	input, ok := payload["input"].([]any)
+	if !ok || len(input) != 1 {
+		t.Fatalf("payload.input = %#v, want single-item array", payload["input"])
+	}
+	first, ok := input[0].(map[string]any)
+	if !ok {
+		t.Fatalf("payload.input[0] = %#v, want object", input[0])
+	}
+	if first["role"] != "user" || first["content"] != "hello" {
+		t.Fatalf("payload.input[0] = %#v, want user message", first)
 	}
 }

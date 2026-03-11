@@ -89,11 +89,6 @@ const USER_HEADER_BUTTONS = [
     to: '/workspace/setting',
     icon: 'setting',
   },
-  {
-    name: 'header.about',
-    to: '/workspace/about',
-    icon: 'info circle',
-  },
 ];
 
 const Header = ({ workspace = 'user' }) => {

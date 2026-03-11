@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/logger"
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
@@ -63,7 +65,10 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return bizErr
 	}
 
-	upstreamMode, upstreamPath := resolveChannelTextUpstream(meta, meta.OriginModelName, textRequest.Model)
+	upstreamMode, upstreamPath, err := resolveChannelTextUpstream(meta, meta.OriginModelName, textRequest.Model)
+	if err != nil {
+		return openai.ErrorWrapper(err, "unsupported_channel_endpoint", http.StatusBadRequest)
+	}
 	meta.UpstreamMode = upstreamMode
 	meta.UpstreamRequestPath = upstreamPath
 	upstreamRequest, err := convertTextRequestForUpstream(textRequest, meta.Mode, upstreamMode)
@@ -93,7 +98,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	}
 	if isErrorHappened(meta, resp) {
 		billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId, meta.UserId)
-		return RelayErrorHandler(resp)
+		return RelayErrorHandler(meta, resp)
 	}
 
 	// do response
@@ -113,6 +118,24 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 	if meta.UpstreamMode != 0 {
 		upstreamMode = meta.UpstreamMode
 	}
+	if meta.Mode == relaymode.Responses && upstreamMode == relaymode.Responses {
+		rawBody, err := common.GetRequestBody(c)
+		if err != nil {
+			return nil, err
+		}
+		jsonData, err := normalizeResponsesRequestBody(rawBody)
+		if err != nil {
+			return nil, err
+		}
+		logger.Debugf(
+			c.Request.Context(),
+			"[responses_body] len=%d model=%s stream=%t",
+			len(jsonData),
+			strings.TrimSpace(meta.ActualModelName),
+			meta.IsStream,
+		)
+		return bytes.NewBuffer(jsonData), nil
+	}
 	if upstreamMode == relaymode.Responses {
 		if textRequest.Input == nil && len(textRequest.Messages) > 0 {
 			textRequest.Input = textRequest.Messages
@@ -123,11 +146,13 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 		if err != nil {
 			return nil, err
 		}
-		preview := string(jsonData)
-		if len(preview) > 400 {
-			preview = preview[:400]
-		}
-		logger.SysLogf("[responses_body] len=%d preview=%s", len(jsonData), preview)
+		logger.Debugf(
+			c.Request.Context(),
+			"[responses_body] len=%d model=%s stream=%t",
+			len(jsonData),
+			strings.TrimSpace(meta.ActualModelName),
+			meta.IsStream,
+		)
 		return bytes.NewBuffer(jsonData), nil
 	}
 	if !config.EnforceIncludeUsage &&
@@ -154,30 +179,4 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 	logger.Debugf(c.Request.Context(), "converted request: \n%s", string(jsonData))
 	requestBody = bytes.NewBuffer(jsonData)
 	return requestBody, nil
-}
-
-func normalizeResponsesInput(req *model.GeneralOpenAIRequest) bool {
-	if req == nil || req.Input == nil {
-		return false
-	}
-	switch v := req.Input.(type) {
-	case string:
-		req.Input = []model.Message{{Role: "user", Content: v}}
-		return true
-	case []any:
-		if len(v) == 0 {
-			return false
-		}
-		msgs := make([]model.Message, 0, len(v))
-		for _, item := range v {
-			s, ok := item.(string)
-			if !ok {
-				return false
-			}
-			msgs = append(msgs, model.Message{Role: "user", Content: s})
-		}
-		req.Input = msgs
-		return true
-	}
-	return false
 }
