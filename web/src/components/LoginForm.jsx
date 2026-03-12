@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserContext } from '../context/User';
 import { StatusContext } from '../context/Status';
-import { API, getLogo, showError, showSuccess, showWarning } from '../helpers';
+import { API, getLogo, showError, showSuccess } from '../helpers';
 import { loginWithWallet } from '../services/web3Auth';
 import './LoginForm.css';
 
@@ -36,7 +36,8 @@ const LoginForm = () => {
   const status = statusState?.status || storedStatus || {};
   const walletLoginDisabled = status?.wallet_login === false;
   const walletLoginEnabled = !walletLoginDisabled;
-  const [showPasswordLogin, setShowPasswordLogin] = useState(walletLoginDisabled);
+  const [showPasswordLogin, setShowPasswordLogin] =
+    useState(walletLoginDisabled);
   const resolveLandingPath = (role) =>
     Number(role) >= 10 ? '/admin/dashboard' : '/workspace/token';
 
@@ -51,7 +52,9 @@ const LoginForm = () => {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.delete('expired');
       const nextSearch = nextParams.toString();
-      navigate(`/login${nextSearch ? `?${nextSearch}` : ''}`, { replace: true });
+      navigate(`/login${nextSearch ? `?${nextSearch}` : ''}`, {
+        replace: true,
+      });
       return;
     }
   }, [searchParams, t, navigate]);
@@ -67,7 +70,7 @@ const LoginForm = () => {
       if (payload?.expiresAt) {
         localStorage.setItem(
           'wallet_token_expires_at',
-          new Date(payload.expiresAt).toISOString()
+          new Date(payload.expiresAt).toISOString(),
         );
       }
       const selfResp = await API.get('/api/v1/public/user/self');
@@ -107,9 +110,6 @@ const LoginForm = () => {
         localStorage.setItem('user', JSON.stringify(data));
         navigate(resolveLandingPath(data.role));
         showSuccess(t('messages.success.login'));
-        if (username === 'root' && password === '123456') {
-          showWarning(t('messages.error.root_password'));
-        }
       } else {
         showError(message);
       }
@@ -130,7 +130,11 @@ const LoginForm = () => {
             <Image src={logo} className='router-login-top-banner-logo' />
             <span>
               {loginBannerText}
-              <a href='https://www.yeying.pub' target='_blank' rel='noopener noreferrer'>
+              <a
+                href='https://www.yeying.pub'
+                target='_blank'
+                rel='noopener noreferrer'
+              >
                 了解夜莺社区
               </a>
             </span>
@@ -150,7 +154,10 @@ const LoginForm = () => {
               </Button>
               {walletLoginDisabled && (
                 <Message warning className='router-auth-message'>
-                  {t('auth.login.wallet_disabled', '钱包登录未开启，请联系管理员')}
+                  {t(
+                    'auth.login.wallet_disabled',
+                    '钱包登录未开启，请联系管理员',
+                  )}
                 </Message>
               )}
             </div>

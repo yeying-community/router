@@ -1,7 +1,7 @@
-import {toast} from 'react-toastify';
-import {toastConstants} from '../constants';
+import { toast } from 'react-toastify';
+import { toastConstants } from '../constants';
 import React from 'react';
-import {API} from './api';
+import { API } from './api';
 
 const HTMLToastContent = ({ htmlContent }) => {
   return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />;
@@ -15,11 +15,15 @@ export function isAdmin() {
   return user.role >= 10;
 }
 
-export function isRoot() {
+export function canManageUsers() {
   let user = localStorage.getItem('user');
   if (!user) return false;
   user = JSON.parse(user);
-  return user.role >= 100;
+  return user.can_manage_users === true;
+}
+
+export function isRoot() {
+  return canManageUsers();
 }
 
 export function getSystemName() {
@@ -159,7 +163,7 @@ export function timestamp2string(timestamp) {
     second = '0' + second;
   }
   return (
-      year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second
+    year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second
   );
 }
 
@@ -243,7 +247,8 @@ export async function loadChannelModels() {
   if (Array.isArray(data)) {
     if (Object.keys(modelMap).length === 0) {
       data.forEach((entry) => {
-        if (!entry || typeof entry !== 'object' || entry.id === undefined) return;
+        if (!entry || typeof entry !== 'object' || entry.id === undefined)
+          return;
         const models = normalizeModelList(entry.models);
         modelMap[entry.id] = models;
       });

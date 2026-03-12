@@ -23,15 +23,23 @@ import {
 function renderRole(role, t) {
   switch (role) {
     case 1:
-      return <Label className='router-tag'>{t('user.table.role_types.normal')}</Label>;
-    case 10:
-      return <Label color='yellow' className='router-tag'>{t('user.table.role_types.admin')}</Label>;
-    case 100:
       return (
-        <Label color='orange' className='router-tag'>{t('user.table.role_types.super_admin')}</Label>
+        <Label className='router-tag'>
+          {t('user.table.role_types.normal')}
+        </Label>
+      );
+    case 10:
+      return (
+        <Label color='yellow' className='router-tag'>
+          {t('user.table.role_types.admin')}
+        </Label>
       );
     default:
-      return <Label color='red' className='router-tag'>{t('user.table.role_types.unknown')}</Label>;
+      return (
+        <Label color='red' className='router-tag'>
+          {t('user.table.role_types.unknown')}
+        </Label>
+      );
   }
 }
 
@@ -59,21 +67,26 @@ const UsersTable = () => {
   const [orderBy, setOrderBy] = useState('');
   const [roleUpdatingUsername, setRoleUpdatingUsername] = useState('');
 
-  const loadUsers = useCallback(async (page) => {
-    const normalizedPage = Number(page) > 0 ? Number(page) : 1;
-    const res = await API.get(`/api/v1/admin/user/?page=${normalizedPage}&order=${orderBy}`);
-    const { success, message, data } = res.data;
-    if (success) {
-      if (normalizedPage === 1) {
-        setUsers(data);
+  const loadUsers = useCallback(
+    async (page) => {
+      const normalizedPage = Number(page) > 0 ? Number(page) : 1;
+      const res = await API.get(
+        `/api/v1/admin/user/?page=${normalizedPage}&order=${orderBy}`,
+      );
+      const { success, message, data } = res.data;
+      if (success) {
+        if (normalizedPage === 1) {
+          setUsers(data);
+        } else {
+          setUsers((prev) => [...prev, ...data]);
+        }
       } else {
-        setUsers((prev) => [...prev, ...data]);
+        showError(message);
       }
-    } else {
-      showError(message);
-    }
-    setLoading(false);
-  }, [orderBy]);
+      setLoading(false);
+    },
+    [orderBy],
+  );
 
   const refresh = async () => {
     setLoading(true);
@@ -99,7 +112,11 @@ const UsersTable = () => {
         const pageItems = Array.isArray(data?.items) ? data.items : [];
         rows.push(...pageItems);
         const total = Number(data?.total || pageItems.length || 0);
-        if (pageItems.length === 0 || rows.length >= total || pageItems.length < 100) {
+        if (
+          pageItems.length === 0 ||
+          rows.length >= total ||
+          pageItems.length < 100
+        ) {
           break;
         }
         page += 1;
@@ -181,7 +198,11 @@ const UsersTable = () => {
   const renderStatus = (status) => {
     switch (status) {
       case 1:
-        return <Label basic className='router-tag'>{t('user.table.status_types.activated')}</Label>;
+        return (
+          <Label basic className='router-tag'>
+            {t('user.table.status_types.activated')}
+          </Label>
+        );
       case 2:
         return (
           <Label basic color='red' className='router-tag'>
@@ -215,7 +236,9 @@ const UsersTable = () => {
       return;
     }
     setSearching(true);
-    const res = await API.get(`/api/v1/admin/user/search?keyword=${searchKeyword}`);
+    const res = await API.get(
+      `/api/v1/admin/user/search?keyword=${searchKeyword}`,
+    );
     const { success, message, data } = res.data;
     if (success) {
       setUsers(data);
@@ -280,7 +303,7 @@ const UsersTable = () => {
   };
 
   const quotaPerUnit = parseFloat(
-    localStorage.getItem('quota_per_unit') || '1'
+    localStorage.getItem('quota_per_unit') || '1',
   );
 
   const formatFullNumber = (value) => {
@@ -298,7 +321,7 @@ const UsersTable = () => {
     });
   };
 
-  const renderQuotaValue = (value) => (
+  const renderQuotaValue = (value) =>
     (() => {
       const numericValue = Number(value);
       const base = Number.isFinite(numericValue) ? numericValue : 0;
@@ -309,8 +332,7 @@ const UsersTable = () => {
           trigger={<span>{formatCompactNumber(amount)}</span>}
         />
       );
-    })()
-  );
+    })();
 
   const renderCountValue = (value) => (
     <Popup
@@ -321,11 +343,14 @@ const UsersTable = () => {
 
   return (
     <>
-      <div
-        className='router-toolbar router-block-gap-sm'
-      >
+      <div className='router-toolbar router-block-gap-sm'>
         <div className='router-toolbar-start'>
-          <Button className='router-page-button' as={Link} to='/user/add' loading={loading}>
+          <Button
+            className='router-page-button'
+            as={Link}
+            to='/user/add'
+            loading={loading}
+          >
             {t('user.buttons.add')}
           </Button>
           <Button
@@ -377,7 +402,11 @@ const UsersTable = () => {
         </div>
       </div>
 
-      <Table basic={'very'} compact className='router-hover-table router-list-table'>
+      <Table
+        basic={'very'}
+        compact
+        className='router-hover-table router-list-table'
+      >
         <Table.Header>
           <Table.Row>
             <Table.HeaderCell
@@ -404,9 +433,7 @@ const UsersTable = () => {
               }}
             >
               {t('user.table.remaining_quota')}
-              <span className='router-inline-unit'>
-                $
-              </span>
+              <span className='router-inline-unit'>$</span>
             </Table.HeaderCell>
             <Table.HeaderCell
               className='router-sortable-header'
@@ -415,9 +442,7 @@ const UsersTable = () => {
               }}
             >
               {t('user.table.used_quota')}
-              <span className='router-inline-unit'>
-                $
-              </span>
+              <span className='router-inline-unit'>$</span>
             </Table.HeaderCell>
             <Table.HeaderCell
               className='router-sortable-header'
@@ -451,10 +476,12 @@ const UsersTable = () => {
           {users
             .slice(
               (activePage - 1) * ITEMS_PER_PAGE,
-              activePage * ITEMS_PER_PAGE
+              activePage * ITEMS_PER_PAGE,
             )
             .map((user, idx) => {
               if (user.deleted) return <></>;
+              const isAdminUser = Number(user.role) >= 10;
+              const canManageAdminUser = !isAdminUser || isRoot();
               return (
                 <Table.Row
                   key={user.id}
@@ -477,7 +504,11 @@ const UsersTable = () => {
                       <span className='router-action-group'>
                         <Popup
                           content={user.wallet_address}
-                          trigger={<span>{maskWalletAddress(user.wallet_address)}</span>}
+                          trigger={
+                            <span>
+                              {maskWalletAddress(user.wallet_address)}
+                            </span>
+                          }
                         />
                         <Icon
                           name='copy outline'
@@ -495,7 +526,9 @@ const UsersTable = () => {
                   {/*</Table.Cell>*/}
                   <Table.Cell>{renderQuotaValue(user.quota)}</Table.Cell>
                   <Table.Cell>{renderQuotaValue(user.used_quota)}</Table.Cell>
-                  <Table.Cell>{renderCountValue(user.request_count)}</Table.Cell>
+                  <Table.Cell>
+                    {renderCountValue(user.request_count)}
+                  </Table.Cell>
                   <Table.Cell>
                     {user.role === 100 ? (
                       renderRole(user.role, t)
@@ -506,9 +539,13 @@ const UsersTable = () => {
                         compact
                         options={ROLE_OPTIONS(t)}
                         value={user.role}
-                        disabled={!isRoot() || roleUpdatingUsername === user.username}
+                        disabled={
+                          !isRoot() || roleUpdatingUsername === user.username
+                        }
                         loading={roleUpdatingUsername === user.username}
-                        onChange={(e, { value }) => updateUserRole(user, idx, Number(value))}
+                        onChange={(e, { value }) =>
+                          updateUserRole(user, idx, Number(value))
+                        }
                       />
                     )}
                   </Table.Cell>
@@ -520,7 +557,7 @@ const UsersTable = () => {
                           <Button
                             className='router-inline-button'
                             negative
-                            disabled={user.role === 100}
+                            disabled={!canManageAdminUser}
                           >
                             {t('user.buttons.delete')}
                           </Button>
@@ -532,6 +569,7 @@ const UsersTable = () => {
                         <Button
                           className='router-inline-button'
                           negative
+                          disabled={!canManageAdminUser}
                           onClick={() => {
                             manageUser(user.username, 'delete', idx);
                           }}
@@ -545,10 +583,10 @@ const UsersTable = () => {
                           manageUser(
                             user.username,
                             user.status === 1 ? 'disable' : 'enable',
-                            idx
+                            idx,
                           );
                         }}
-                        disabled={user.role === 100}
+                        disabled={!canManageAdminUser}
                       >
                         {user.status === 1
                           ? t('user.buttons.disable')

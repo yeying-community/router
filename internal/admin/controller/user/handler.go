@@ -31,6 +31,24 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+func exposedUser(user *model.User) *model.User {
+	if user == nil {
+		return nil
+	}
+	clean := *user
+	clean.Role = model.ExposedRole(user)
+	clean.CanManageUsers = model.CanManageUsers(user)
+	return &clean
+}
+
+func exposedUsers(users []*model.User) []*model.User {
+	items := make([]*model.User, 0, len(users))
+	for _, user := range users {
+		items = append(items, exposedUser(user))
+	}
+	return items
+}
+
 // Login godoc
 // @Summary Password login (session/cookie)
 // @Tags public
@@ -86,16 +104,17 @@ func Login(c *gin.Context) {
 // SetupSession sets session & cookies without writing response
 func SetupSession(user *model.User, c *gin.Context) error {
 	session := sessions.Default(c)
+	effectiveRole := model.EffectiveRole(user)
 	session.Set("id", user.Id)
 	session.Set("username", user.Username)
-	session.Set("role", user.Role)
+	session.Set("role", effectiveRole)
 	session.Set("status", user.Status)
 	err := session.Save()
 	if err != nil {
 		logger.LoginErrorf(c.Request.Context(), "setup session failed user=%s err=%v", user.Id, err)
 		return err
 	}
-	logger.Loginf(c.Request.Context(), "setup session ok user=%s role=%d", user.Id, user.Role)
+	logger.Loginf(c.Request.Context(), "setup session ok user=%s role=%d", user.Id, effectiveRole)
 	return nil
 }
 
@@ -109,14 +128,15 @@ func SetupLogin(user *model.User, c *gin.Context) {
 		return
 	}
 	cleanUser := model.User{
-		Id:            user.Id,
-		Username:      user.Username,
-		DisplayName:   user.DisplayName,
-		Role:          user.Role,
-		Status:        user.Status,
-		WalletAddress: user.WalletAddress,
+		Id:             user.Id,
+		Username:       user.Username,
+		DisplayName:    user.DisplayName,
+		Role:           model.ExposedRole(user),
+		Status:         user.Status,
+		WalletAddress:  user.WalletAddress,
+		CanManageUsers: model.CanManageUsers(user),
 	}
-	logger.Loginf(c.Request.Context(), "password login success user=%s role=%d", user.Id, user.Role)
+	logger.Loginf(c.Request.Context(), "password login success user=%s role=%d", user.Id, model.EffectiveRole(user))
 	c.JSON(http.StatusOK, gin.H{
 		"message": "",
 		"success": true,
@@ -244,7 +264,7 @@ func GetAllUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    users,
+		"data":    exposedUsers(users),
 	})
 }
 
@@ -270,7 +290,7 @@ func SearchUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    users,
+		"data":    exposedUsers(users),
 	})
 	return
 }
@@ -303,7 +323,7 @@ func GetUser(c *gin.Context) {
 		return
 	}
 	myRole := c.GetInt(ctxkey.Role)
-	if myRole <= user.Role && myRole != model.RoleRootUser {
+	if myRole <= model.EffectiveRole(user) && myRole != model.RoleRootUser {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "无权获取同级或更高等级用户的信息",
@@ -313,7 +333,7 @@ func GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    user,
+		"data":    exposedUser(user),
 	})
 	return
 }
@@ -654,7 +674,7 @@ func GetSelf(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    user,
+		"data":    exposedUser(user),
 	})
 	return
 }
@@ -701,7 +721,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 	myRole := c.GetInt(ctxkey.Role)
-	if myRole <= originUser.Role && myRole != model.RoleRootUser {
+	if myRole <= model.EffectiveRole(originUser) && myRole != model.RoleRootUser {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "无权更新同权限等级或更高权限等级的用户信息",
@@ -717,6 +737,9 @@ func UpdateUser(c *gin.Context) {
 	}
 	if updatedUser.Password == "$I_LOVE_U" {
 		updatedUser.Password = "" // rollback to what it should be
+	}
+	if updatedUser.Role > model.RoleAdminUser {
+		updatedUser.Role = model.RoleAdminUser
 	}
 	updatePassword := updatedUser.Password != ""
 	if err := usersvc.Update(&updatedUser, updatePassword); err != nil {
@@ -821,7 +844,14 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 	myRole := c.GetInt("role")
-	if myRole <= originUser.Role {
+	if model.IsProtectedRootUser(originUser) {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无法删除系统级管理员账户",
+		})
+		return
+	}
+	if myRole <= model.EffectiveRole(originUser) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "无权删除同权限等级或更高权限等级的用户",
@@ -850,10 +880,10 @@ func DeleteSelf(c *gin.Context) {
 	id := c.GetString("id")
 	user, _ := usersvc.GetByID(id, false)
 
-	if user.Role == model.RoleRootUser {
+	if model.IsProtectedRootUser(user) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "不能删除超级管理员账户",
+			"message": "不能删除系统级管理员账户",
 		})
 		return
 	}
@@ -987,7 +1017,7 @@ func ManageUser(c *gin.Context) {
 	}
 	user = *foundUser
 	myRole := c.GetInt("role")
-	if myRole <= user.Role && myRole != model.RoleRootUser {
+	if myRole <= model.EffectiveRole(&user) && myRole != model.RoleRootUser {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "无权更新同权限等级或更高权限等级的用户信息",
@@ -997,20 +1027,20 @@ func ManageUser(c *gin.Context) {
 	switch req.Action {
 	case "disable":
 		user.Status = model.UserStatusDisabled
-		if user.Role == model.RoleRootUser {
+		if model.IsProtectedRootUser(&user) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法禁用超级管理员用户",
+				"message": "无法禁用系统级管理员用户",
 			})
 			return
 		}
 	case "enable":
 		user.Status = model.UserStatusEnabled
 	case "delete":
-		if user.Role == model.RoleRootUser {
+		if model.IsProtectedRootUser(&user) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法删除超级管理员用户",
+				"message": "无法删除系统级管理员用户",
 			})
 			return
 		}
@@ -1038,10 +1068,10 @@ func ManageUser(c *gin.Context) {
 		}
 		user.Role = model.RoleAdminUser
 	case "demote":
-		if user.Role == model.RoleRootUser {
+		if model.IsProtectedRootUser(&user) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无法降级超级管理员用户",
+				"message": "无法降级系统级管理员用户",
 			})
 			return
 		}
@@ -1062,10 +1092,7 @@ func ManageUser(c *gin.Context) {
 		})
 		return
 	}
-	clearUser := model.User{
-		Role:   user.Role,
-		Status: user.Status,
-	}
+	clearUser := exposedUser(&model.User{Role: user.Role, Status: user.Status, WalletAddress: user.WalletAddress})
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",

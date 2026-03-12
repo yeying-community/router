@@ -118,14 +118,15 @@ func WalletLogin(c *gin.Context) {
 	if tokenErr != nil {
 		logger.LoginErrorf(c.Request.Context(), "wallet jwt generate failed user=%s err=%v", user.Id, tokenErr)
 	}
-	logger.Loginf(c.Request.Context(), "wallet login success user=%s addr=%s role=%d token=%t exp=%s", user.Id, addr, user.Role, token != "", exp.UTC().Format(time.RFC3339))
+	logger.Loginf(c.Request.Context(), "wallet login success user=%s addr=%s role=%d token=%t exp=%s", user.Id, addr, model.EffectiveRole(user), token != "", exp.UTC().Format(time.RFC3339))
 	cleanUser := model.User{
-		Id:            user.Id,
-		Username:      user.Username,
-		DisplayName:   user.DisplayName,
-		Role:          user.Role,
-		Status:        user.Status,
-		WalletAddress: user.WalletAddress,
+		Id:             user.Id,
+		Username:       user.Username,
+		DisplayName:    user.DisplayName,
+		Role:           model.ExposedRole(user),
+		Status:         user.Status,
+		WalletAddress:  user.WalletAddress,
+		CanManageUsers: model.CanManageUsers(user),
 	}
 	resp := gin.H{
 		"message": "",
@@ -443,11 +444,12 @@ func WalletVerifyProto(c *gin.Context) {
 		"token":      token,
 		"expires_at": exp.UTC().Format(time.RFC3339),
 		"user": gin.H{
-			"id":             user.Id,
-			"username":       user.Username,
-			"wallet_address": user.WalletAddress,
-			"role":           user.Role,
-			"status":         user.Status,
+			"id":               user.Id,
+			"username":         user.Username,
+			"wallet_address":   user.WalletAddress,
+			"role":             model.ExposedRole(user),
+			"status":           user.Status,
+			"can_manage_users": model.CanManageUsers(user),
 		},
 	}
 	c.JSON(http.StatusOK, gin.H{

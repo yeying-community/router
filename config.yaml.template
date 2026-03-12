@@ -99,6 +99,9 @@ metrics:
 bootstrap:
   initial_root_token: ""
   initial_root_access_token: ""
+  # 配置为拥有系统级用户管理权限的钱包地址，支持多个地址用英文逗号分隔；
+  # 留空则不显示用户管理页面，也不授予相关权限
+  root_wallet_address: ""
 
 logging:
   only_one_log_file: false

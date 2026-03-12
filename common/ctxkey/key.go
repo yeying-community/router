@@ -5,6 +5,7 @@ const (
 	Id                  = "id"
 	Username            = "username"
 	Role                = "role"
+	CanManageUsers      = "can_manage_users"
 	Status              = "status"
 	Channel             = "channel"
 	ChannelId           = "channel_id"

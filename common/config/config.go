@@ -162,6 +162,9 @@ var InitialRootToken = ""
 
 var InitialRootAccessToken = ""
 
+var RootWalletAddress = ""
+var RootWalletAddresses []string
+
 var GeminiVersion = "v1"
 
 var OnlyOneLogFile = false

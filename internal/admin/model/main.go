@@ -8,9 +8,7 @@ import (
 
 	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/config"
-	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
-	"github.com/yeying-community/router/common/random"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -19,46 +17,7 @@ var DB *gorm.DB
 var LOG_DB *gorm.DB
 
 func CreateRootAccountIfNeed() error {
-	var user User
-	//if user.Status != util.UserStatusEnabled {
-	if err := DB.First(&user).Error; err != nil {
-		logger.SysLog("no user exists, creating a root user for you: username is root, password is 123456")
-		hashedPassword, err := common.Password2Hash("123456")
-		if err != nil {
-			return err
-		}
-		accessToken := random.GetUUID()
-		if config.InitialRootAccessToken != "" {
-			accessToken = config.InitialRootAccessToken
-		}
-		rootUser := User{
-			Id:          random.GetUUID(),
-			Username:    "root",
-			Password:    hashedPassword,
-			Role:        RoleRootUser,
-			Status:      UserStatusEnabled,
-			DisplayName: "Root User",
-			AccessToken: accessToken,
-			Quota:       500000000000000,
-		}
-		DB.Create(&rootUser)
-		if config.InitialRootToken != "" {
-			logger.SysLog("creating initial root token as requested")
-			token := Token{
-				Id:             random.GetUUID(),
-				UserId:         rootUser.Id,
-				Key:            config.InitialRootToken,
-				Status:         TokenStatusEnabled,
-				Name:           "Initial Root Token",
-				CreatedTime:    helper.GetTimestamp(),
-				AccessedTime:   helper.GetTimestamp(),
-				ExpiredTime:    -1,
-				RemainQuota:    500000000000000,
-				UnlimitedQuota: true,
-			}
-			DB.Create(&token)
-		}
-	}
+	logger.SysLog("skip default root account bootstrap; system-level user management now depends on bootstrap.root_wallet_address")
 	return nil
 }
 

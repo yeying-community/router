@@ -140,6 +140,7 @@ type MetricsRuntimeConfig struct {
 type BootstrapRuntimeConfig struct {
 	InitialRootToken       string `yaml:"initial_root_token"`
 	InitialRootAccessToken string `yaml:"initial_root_access_token"`
+	RootWalletAddress      string `yaml:"root_wallet_address"`
 }
 
 type LoggingRuntimeConfig struct {
@@ -232,6 +233,7 @@ func defaultRuntimeConfig() RuntimeConfig {
 		Bootstrap: BootstrapRuntimeConfig{
 			InitialRootToken:       "",
 			InitialRootAccessToken: "",
+			RootWalletAddress:      "",
 		},
 		Logging: LoggingRuntimeConfig{
 			OnlyOneLogFile:   false,
@@ -438,6 +440,24 @@ func ApplyRuntimeConfig(cfg *RuntimeConfig, portFlagSet bool, logDirFlagSet bool
 
 	config.InitialRootToken = strings.TrimSpace(cfg.Bootstrap.InitialRootToken)
 	config.InitialRootAccessToken = strings.TrimSpace(cfg.Bootstrap.InitialRootAccessToken)
+	config.RootWalletAddress = strings.TrimSpace(cfg.Bootstrap.RootWalletAddress)
+	config.RootWalletAddresses = nil
+	for _, item := range strings.Split(config.RootWalletAddress, ",") {
+		normalized := strings.ToLower(strings.TrimSpace(item))
+		if normalized == "" {
+			continue
+		}
+		duplicated := false
+		for _, existing := range config.RootWalletAddresses {
+			if existing == normalized {
+				duplicated = true
+				break
+			}
+		}
+		if !duplicated {
+			config.RootWalletAddresses = append(config.RootWalletAddresses, normalized)
+		}
+	}
 	config.OnlyOneLogFile = cfg.Logging.OnlyOneLogFile
 	if cfg.Logging.RotateMaxSizeMB > 0 {
 		config.LogRotateMaxSizeMB = cfg.Logging.RotateMaxSizeMB
@@ -535,6 +555,7 @@ func setCompatibilityEnvs() {
 	_ = os.Setenv("METRIC_FAIL_CHAN_SIZE", strconv.Itoa(config.MetricFailChanSize))
 	_ = os.Setenv("INITIAL_ROOT_TOKEN", config.InitialRootToken)
 	_ = os.Setenv("INITIAL_ROOT_ACCESS_TOKEN", config.InitialRootAccessToken)
+	_ = os.Setenv("ROOT_WALLET_ADDRESS", config.RootWalletAddress)
 	_ = os.Setenv("GEMINI_VERSION", config.GeminiVersion)
 	_ = os.Setenv("ONLY_ONE_LOG_FILE", strconv.FormatBool(config.OnlyOneLogFile))
 	_ = os.Setenv("LOG_ROTATE_MAX_SIZE_MB", strconv.Itoa(config.LogRotateMaxSizeMB))

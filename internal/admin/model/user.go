@@ -1,6 +1,11 @@
 package model
 
-import "context"
+import (
+	"context"
+	"strings"
+
+	"github.com/yeying-community/router/common/config"
+)
 
 const (
 	RoleGuestUser  = 0
@@ -38,6 +43,56 @@ type User struct {
 	Group            string  `json:"group" gorm:"type:varchar(32);default:''"`
 	AffCode          string  `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
 	InviterId        string  `json:"inviter_id" gorm:"type:char(36);column:inviter_id;index"`
+	CanManageUsers   bool    `json:"can_manage_users" gorm:"-"`
+}
+
+func NormalizeWalletAddress(address string) string {
+	return strings.ToLower(strings.TrimSpace(address))
+}
+
+func IsRootWalletAddress(address string) bool {
+	normalized := NormalizeWalletAddress(address)
+	if normalized == "" {
+		return false
+	}
+	for _, configured := range config.RootWalletAddresses {
+		if normalized == NormalizeWalletAddress(configured) {
+			return true
+		}
+	}
+	return false
+}
+
+func EffectiveRole(user *User) int {
+	if user == nil {
+		return RoleGuestUser
+	}
+	if user.WalletAddress != nil && IsRootWalletAddress(*user.WalletAddress) {
+		return RoleRootUser
+	}
+	if user.Role >= RoleRootUser {
+		return RoleAdminUser
+	}
+	return user.Role
+}
+
+func ExposedRole(user *User) int {
+	role := EffectiveRole(user)
+	if role >= RoleRootUser {
+		return RoleAdminUser
+	}
+	return role
+}
+
+func CanManageUsers(user *User) bool {
+	return EffectiveRole(user) >= RoleRootUser
+}
+
+func IsProtectedRootUser(user *User) bool {
+	if user == nil || user.WalletAddress == nil {
+		return false
+	}
+	return IsRootWalletAddress(*user.WalletAddress)
 }
 
 func GetMaxUserId() string {
