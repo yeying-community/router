@@ -44,11 +44,13 @@ const PersonalSetting = () => {
   }, [userState?.user]);
 
   const [username, setUsername] = useState('');
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [profileSubmitting, setProfileSubmitting] = useState(false);
   const [passwordModal, setPasswordModal] = useState(defaultPasswordModal);
 
   useEffect(() => {
     setUsername(currentUser?.username || '');
+    setIsEditingUsername(false);
   }, [currentUser?.username]);
 
   useEffect(() => {
@@ -97,10 +99,16 @@ const PersonalSetting = () => {
         return;
       }
       await syncCurrentUser();
+      setIsEditingUsername(false);
       showSuccess(t('user.messages.update_success'));
     } finally {
       setProfileSubmitting(false);
     }
+  };
+
+  const cancelUsernameEdit = () => {
+    setUsername(currentUser?.username || '');
+    setIsEditingUsername(false);
   };
 
   const openPasswordModal = (mode) => {
@@ -178,42 +186,80 @@ const PersonalSetting = () => {
           账户信息
         </Header>
         <Form>
-          <Form.Input
-            className='router-section-input'
-            label='钱包地址'
-            value={walletAddress}
-            readOnly
-          />
-          <Form.Input
-            className='router-section-input'
-            label={t('user.edit.username')}
-            name='username'
-            placeholder={t('user.edit.username_placeholder')}
-            value={username}
-            onChange={(e, { value }) => setUsername(value)}
-          />
-          <Button
-            className='router-section-button'
-            primary
-            loading={profileSubmitting}
-            onClick={submitUsername}
-          >
-            保存用户名
-          </Button>
+          <Form.Field>
+            <label>钱包地址</label>
+            <Input
+              className='router-section-input'
+              value={walletAddress}
+              readOnly
+            />
+          </Form.Field>
+          <Form.Field>
+            <label>{t('user.edit.username')}</label>
+            <div className='router-setting-inline-row'>
+              <Input
+                className='router-section-input'
+                name='username'
+                placeholder={t('user.edit.username_placeholder')}
+                value={username}
+                readOnly={!isEditingUsername}
+                onChange={(e, { value }) => setUsername(value)}
+              />
+              <div className='router-setting-inline-actions'>
+                {isEditingUsername ? (
+                  <>
+                    <Button
+                      className='router-section-button'
+                      type='button'
+                      onClick={cancelUsernameEdit}
+                      disabled={profileSubmitting}
+                    >
+                      {t('common.cancel', '取消')}
+                    </Button>
+                    <Button
+                      className='router-section-button'
+                      type='button'
+                      primary
+                      loading={profileSubmitting}
+                      disabled={(username || '').trim() === (currentUser?.username || '').trim()}
+                      onClick={submitUsername}
+                    >
+                      保存
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    className='router-section-button'
+                    type='button'
+                    onClick={() => setIsEditingUsername(true)}
+                  >
+                    编辑
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Form.Field>
+          <Form.Field>
+            <label>密码</label>
+            <div className='router-setting-inline-row'>
+              <Input
+                className='router-section-input'
+                value={hasPassword ? '已设置' : '未设置'}
+                readOnly
+              />
+              <div className='router-setting-inline-actions'>
+                <Button
+                  className='router-section-button'
+                  type='button'
+                  primary
+                  onClick={() => openPasswordModal(hasPassword ? 'modify' : 'set')}
+                >
+                  {hasPassword ? '修改密码' : '设置密码'}
+                </Button>
+              </div>
+            </div>
+          </Form.Field>
         </Form>
-      </Segment>
-
-      <Segment>
-        <Header as='h3' className='router-section-title'>
-          密码设置
-        </Header>
-        <Button
-          className='router-section-button'
-          primary
-          onClick={() => openPasswordModal(hasPassword ? 'modify' : 'set')}
-        >
-          {hasPassword ? '修改密码' : '设置密码'}
-        </Button>
       </Segment>
 
       <Modal size='tiny' open={passwordModal.open} onClose={closePasswordModal}>

@@ -871,6 +871,25 @@ code {
     flex-wrap: wrap;
 }
 
+.router-setting-inline-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.router-setting-inline-row > .ui.input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.router-setting-inline-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
 .router-field-display {
     min-height: 38px;
     display: flex;
@@ -1133,6 +1152,17 @@ code {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+@media only screen and (max-width: 640px) {
+    .router-setting-inline-row {
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    .router-setting-inline-actions {
+        width: 100%;
+    }
 }
 
 .router-cell-checkbox {
