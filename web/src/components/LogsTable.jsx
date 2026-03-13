@@ -618,7 +618,7 @@ const LogsTable = () => {
                           basic
                           className='router-tag'
                           as={Link}
-                          to={`/channel/edit/${log.channel}`}
+                          to={`/channel/detail/${log.channel}`}
                         >
                           {getLogChannelLabel(log)}
                         </Label>

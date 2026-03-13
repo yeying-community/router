@@ -237,7 +237,10 @@ func fetchChannelModelsDetailed(key, baseURL, providerFilter string) ([]model.Ch
 
 	resp, err := client.HTTPClient.Do(httpReq)
 	if err != nil {
-		return nil, trace, fmt.Errorf("请求模型列表失败")
+		trace.ResponsePayload = marshalJSONForLog(map[string]any{
+			"error": err.Error(),
+		})
+		return nil, trace, fmt.Errorf("请求模型列表失败: %w", err)
 	}
 	defer resp.Body.Close()
 

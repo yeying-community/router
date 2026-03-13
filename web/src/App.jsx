@@ -86,6 +86,19 @@ function PrefixRedirect({ from, to }) {
   );
 }
 
+function ChannelEditRedirect() {
+  const location = useLocation();
+  const suffix = location.pathname.startsWith('/admin/channel/edit/')
+    ? location.pathname.slice('/admin/channel/edit/'.length)
+    : '';
+  return (
+    <Navigate
+      to={`/admin/channel/detail/${suffix}${location.search}${location.hash}`}
+      replace
+    />
+  );
+}
+
 function App() {
   const [, userDispatch] = useContext(UserContext);
   const [, statusDispatch] = useContext(StatusContext);
@@ -275,7 +288,7 @@ function App() {
           path='/admin/channel/edit/:id'
           element={
             <Suspense fallback={<Loading />}>
-              <EditChannel />
+              <ChannelEditRedirect />
             </Suspense>
           }
         />

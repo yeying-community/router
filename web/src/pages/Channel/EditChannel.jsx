@@ -1032,7 +1032,6 @@ const EditChannel = () => {
   const hasChannelID = channelId !== undefined;
   const isDetailMode =
     hasChannelID && location.pathname.includes('/channel/detail/');
-  const isEditMode = hasChannelID && !isDetailMode;
   const isCreateMode = !hasChannelID;
   const copyFromId = useMemo(() => {
     if (hasChannelID) return '';
@@ -1078,13 +1077,6 @@ const EditChannel = () => {
     },
     [channelId, creatingChannelId, navigate],
   );
-  const openEditPage = useCallback(() => {
-    if (!channelId) {
-      return;
-    }
-    navigate(`/admin/channel/edit/${channelId}`);
-  }, [channelId, navigate]);
-
   const [inputs, setInputs] = useState(CHANNEL_ORIGIN_INPUTS);
   const [channelProtocolOptions, setChannelProtocolOptions] = useState(() =>
     getChannelProtocolOptions(),
@@ -1103,6 +1095,9 @@ const EditChannel = () => {
   const [modelTestedSignature, setModelTestedSignature] = useState('');
   const [modelTestTargetModels, setModelTestTargetModels] = useState([]);
   const [detailModelMutating, setDetailModelMutating] = useState(false);
+  const [detailBasicEditing, setDetailBasicEditing] = useState(false);
+  const [detailBasicSaving, setDetailBasicSaving] = useState(false);
+  const [detailAdvancedSaving, setDetailAdvancedSaving] = useState(false);
   const [config, setConfig] = useState(CHANNEL_DEFAULT_CONFIG);
   const [providerOptions, setProviderOptions] = useState([]);
   const [providerModelOwners, setProviderModelOwners] = useState({});
@@ -1226,8 +1221,8 @@ const EditChannel = () => {
   const requireVerificationBeforeProceed =
     requiresConnectionVerification && inputs.models.length === 0;
   const fetchModelsButtonText = t('channel.edit.buttons.fetch_models');
-  const inputReadonlyProps = isDetailMode ? { readOnly: true } : {};
-  const textAreaReadonlyProps = isDetailMode ? { readOnly: true } : {};
+  const detailBasicReadonly = isDetailMode && !detailBasicEditing;
+  const inputReadonlyProps = detailBasicReadonly ? { readOnly: true } : {};
   const visibleModelConfigs = useMemo(
     () => normalizeChannelModelConfigs(inputs.model_configs),
     [inputs.model_configs],
@@ -1941,6 +1936,91 @@ const EditChannel = () => {
     ],
   );
 
+  const persistDetailChannel = useCallback(
+    async ({
+      loadingSetter = null,
+      successMessage = '',
+      validateBasic = false,
+    } = {}) => {
+      if (!isDetailMode) {
+        return false;
+      }
+      const targetChannelID = (channelId || '').toString().trim();
+      if (targetChannelID === '') {
+        return false;
+      }
+      if (validateBasic) {
+        const identifierError = validateChannelIdentifier(inputs.name, t);
+        if (identifierError !== '') {
+          showInfo(identifierError);
+          return false;
+        }
+        if (buildEffectiveKey().trim() === '' && !channelKeySet) {
+          showInfo(t('channel.edit.messages.key_required'));
+          return false;
+        }
+      }
+      if (typeof loadingSetter === 'function') {
+        loadingSetter(true);
+      }
+      try {
+        const payload = buildChannelPayload();
+        const res = await API.put('/api/v1/admin/channel/', {
+          ...payload,
+          id: targetChannelID,
+        });
+        const { success, message } = res.data || {};
+        if (!success) {
+          showError(message || t('channel.edit.messages.save_channel_failed'));
+          return false;
+        }
+        if ((payload.key || '').trim() !== '') {
+          setChannelKeySet(true);
+        }
+        if (successMessage) {
+          showSuccess(successMessage);
+        }
+        return true;
+      } catch (error) {
+        showError(
+          error?.message || t('channel.edit.messages.save_channel_failed'),
+        );
+        return false;
+      } finally {
+        if (typeof loadingSetter === 'function') {
+          loadingSetter(false);
+        }
+      }
+    },
+    [
+      buildChannelPayload,
+      buildEffectiveKey,
+      channelId,
+      channelKeySet,
+      inputs.name,
+      isDetailMode,
+      t,
+    ],
+  );
+
+  const saveDetailBasicInfo = useCallback(async () => {
+    const ok = await persistDetailChannel({
+      loadingSetter: setDetailBasicSaving,
+      successMessage: t('channel.edit.messages.update_success'),
+      validateBasic: true,
+    });
+    if (ok) {
+      setDetailBasicEditing(false);
+    }
+  }, [persistDetailChannel, t]);
+
+  const saveDetailAdvancedConfig = useCallback(async () => {
+    await persistDetailChannel({
+      loadingSetter: setDetailAdvancedSaving,
+      successMessage: t('channel.edit.messages.update_success'),
+    });
+  }, [persistDetailChannel, t]);
+
   const verifyChannelModelsPersisted = useCallback(
     async (expectedModels) => {
       const targetChannelID = (
@@ -2291,6 +2371,16 @@ const EditChannel = () => {
       loadChannelTestsFromServer,
     ],
   );
+
+  const cancelDetailBasicEdit = useCallback(async () => {
+    if (!isDetailMode || !channelId) {
+      setDetailBasicEditing(false);
+      return;
+    }
+    setLoading(true);
+    setDetailBasicEditing(false);
+    await loadChannelById(channelId, false, false);
+  }, [channelId, isDetailMode, loadChannelById]);
 
   const handleFetchModels = useCallback(
     async ({ silent = false } = {}) => {
@@ -2879,6 +2969,12 @@ const EditChannel = () => {
   }, [hasChannelID, location.search]);
 
   useEffect(() => {
+    if (!isDetailMode) {
+      setDetailBasicEditing(false);
+    }
+  }, [isDetailMode]);
+
+  useEffect(() => {
     if (hasChannelID) {
       return;
     }
@@ -3200,12 +3296,7 @@ const EditChannel = () => {
     }
     let localInputs = buildChannelPayload();
     let res;
-    if (isEditMode) {
-      res = await API.put(`/api/v1/admin/channel/`, {
-        ...localInputs,
-        id: channelId,
-      });
-    } else if (creatingChannelId) {
+    if (creatingChannelId) {
       res = await API.put(`/api/v1/admin/channel/`, {
         ...localInputs,
         id: creatingChannelId,
@@ -3216,12 +3307,8 @@ const EditChannel = () => {
     }
     const { success, message } = res.data;
     if (success) {
-      if (isEditMode) {
-        showSuccess(t('channel.edit.messages.update_success'));
-      } else {
-        showSuccess(t('channel.edit.messages.create_success'));
-        clearCreateChannelCache();
-      }
+      showSuccess(t('channel.edit.messages.create_success'));
+      clearCreateChannelCache();
       navigate('/admin/channel', { replace: true });
       return;
     } else {
@@ -3496,38 +3583,38 @@ const EditChannel = () => {
                 <Icon name='undo' />
                 {t('channel.edit.buttons.back')}
               </Button>
-              <Button
-                type='button'
-                className='router-page-button'
-                color='blue'
-                onClick={openEditPage}
-              >
-                <Icon name='edit' />
-                {t('channel.buttons.edit')}
-              </Button>
-            </div>
-          )}
-          {isEditMode && (
-            <div className='router-toolbar-start router-block-gap-sm'>
-              <Button
-                type='button'
-                className='router-page-button'
-                onClick={handleCancel}
-              >
-                {t('channel.edit.buttons.cancel')}
-              </Button>
-              <Button
-                type='button'
-                className='router-page-button'
-                positive
-                onClick={submit}
-                disabled={
-                  requireVerificationBeforeProceed &&
-                  !isCurrentSignatureVerified
-                }
-              >
-                {t('channel.edit.buttons.submit')}
-              </Button>
+              {detailBasicEditing ? (
+                <>
+                  <Button
+                    type='button'
+                    className='router-page-button'
+                    onClick={cancelDetailBasicEdit}
+                    disabled={detailBasicSaving}
+                  >
+                    {t('channel.edit.buttons.cancel')}
+                  </Button>
+                  <Button
+                    type='button'
+                    className='router-page-button'
+                    color='blue'
+                    loading={detailBasicSaving}
+                    disabled={detailBasicSaving}
+                    onClick={saveDetailBasicInfo}
+                  >
+                    {t('channel.edit.buttons.save')}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type='button'
+                  className='router-page-button'
+                  color='blue'
+                  onClick={() => setDetailBasicEditing(true)}
+                >
+                  <Icon name='edit' />
+                  {t('channel.edit.buttons.edit_basic')}
+                </Button>
+              )}
             </div>
           )}
           {isCreateMode && (
@@ -3579,11 +3666,6 @@ const EditChannel = () => {
               )}
             </div>
           )}
-          {isEditMode && (
-            <Card.Header className='header router-page-title'>
-              {t('channel.edit.title_edit')}
-            </Card.Header>
-          )}
           <Form loading={loading} autoComplete='new-password'>
             {isCreateMode && (
               <div className='router-block-gap-sm'>
@@ -3629,6 +3711,15 @@ const EditChannel = () => {
             )}
             {showStepOne && (
               <>
+                {isDetailMode && (
+                  <div className='router-toolbar router-block-gap-xs'>
+                    <div className='router-toolbar-start'>
+                      <span className='router-section-title router-section-title-inline'>
+                        {t('channel.edit.detail_basic_title')}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <Form.Input
                   className='router-section-input'
                   label={t('channel.edit.identifier')}
@@ -3638,11 +3729,11 @@ const EditChannel = () => {
                   value={inputs.name}
                   required
                   maxLength={CHANNEL_IDENTIFIER_MAX_LENGTH}
-                  readOnly={isDetailMode}
+                  readOnly={detailBasicReadonly}
                 />
                 <Form.Group widths='equal'>
                   <Form.Field>
-                    {isDetailMode ? (
+                    {detailBasicReadonly ? (
                       <Form.Input
                         className='router-section-input'
                         label={t('channel.edit.type')}
@@ -3774,7 +3865,9 @@ const EditChannel = () => {
                 <div className='router-toolbar router-block-gap-xs'>
                   <div className='router-toolbar-start'>
                     <span className='router-section-title router-section-title-inline'>
-                      {t('channel.edit.models')}
+                      {isDetailMode
+                        ? t('channel.edit.detail_models_title')
+                        : t('channel.edit.models')}
                     </span>
                     <span className='router-toolbar-meta'>
                       ({modelSectionMetaText})
@@ -3860,6 +3953,22 @@ const EditChannel = () => {
                           setModelSearchKeyword(value || '')
                         }
                       />
+                      <Button
+                        type='button'
+                        className='router-page-button'
+                        color='green'
+                        loading={
+                          fetchModelsLoading || !!activeRefreshModelsTask
+                        }
+                        disabled={
+                          fetchModelsLoading ||
+                          !!activeRefreshModelsTask ||
+                          detailModelMutating
+                        }
+                        onClick={() => handleFetchModels({ silent: false })}
+                      >
+                        {t('channel.edit.buttons.sync_models')}
+                      </Button>
                     </div>
                   ) : (
                     <div className='router-toolbar-end'>
@@ -4245,7 +4354,13 @@ const EditChannel = () => {
             )}
             {showStepThree && inputs.protocol !== 'proxy' && (
               <Form.Field>
-                <label>{t('channel.edit.model_tester.title')}</label>
+                <div className='router-toolbar router-block-gap-xs'>
+                  <div className='router-toolbar-start'>
+                    <span className='router-section-title router-section-title-inline'>
+                      {t('channel.edit.model_tester.title')}
+                    </span>
+                  </div>
+                </div>
                 <Message info className='router-section-message'>
                   {t('channel.edit.model_tester.hint')}
                 </Message>
@@ -4517,6 +4632,27 @@ const EditChannel = () => {
             )}
             {showStepFour && inputs.protocol !== 'proxy' && (
               <Form.Field>
+                {isDetailMode && (
+                  <div className='router-toolbar router-block-gap-xs'>
+                    <div className='router-toolbar-start'>
+                      <span className='router-section-title router-section-title-inline'>
+                        {t('channel.edit.wizard.step_advanced')}
+                      </span>
+                    </div>
+                    <div className='router-toolbar-end'>
+                      <Button
+                        type='button'
+                        className='router-page-button'
+                        color='blue'
+                        loading={detailAdvancedSaving}
+                        disabled={detailAdvancedSaving}
+                        onClick={saveDetailAdvancedConfig}
+                      >
+                        {t('channel.edit.buttons.save')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <Form.TextArea
                   className='router-section-textarea router-code-textarea router-code-textarea-md'
                   label={t('channel.edit.system_prompt')}
@@ -4525,7 +4661,6 @@ const EditChannel = () => {
                   onChange={handleInputChange}
                   value={inputs.system_prompt}
                   autoComplete='new-password'
-                  {...textAreaReadonlyProps}
                 />
               </Form.Field>
             )}

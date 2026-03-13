@@ -1114,7 +1114,7 @@ const ChannelsTable = () => {
                     <Button
                       className='router-inline-button'
                       as={Link}
-                      to={'/channel/edit/' + channel.id}
+                      to={'/channel/detail/' + channel.id}
                     >
                       {t('channel.buttons.edit')}
                     </Button>

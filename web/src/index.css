@@ -928,6 +928,11 @@ code {
     gap: 8px;
 }
 
+.router-toolbar-start > .field,
+.router-toolbar-end > .field {
+    margin-bottom: 0 !important;
+}
+
 .router-toolbar-end {
     justify-content: flex-end;
 }
