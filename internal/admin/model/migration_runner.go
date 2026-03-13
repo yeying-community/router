@@ -55,6 +55,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&ChannelTest{})
 			},
 		},
+		{
+			Version:     "202603131830_redemption_redeemed_by_user",
+			Description: "add redeemed_by_user_id column for redemption detail tracking",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Redemption{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

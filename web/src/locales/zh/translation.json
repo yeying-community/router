@@ -666,6 +666,7 @@
     },
     "detail": {
       "code": "兑换码",
+      "redeemed_by": "兑换用户",
       "buttons": {
         "back": "返回"
       }

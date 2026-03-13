@@ -62,6 +62,11 @@ const RedemptionDetail = () => {
     loadRedemption().then();
   }, [loadRedemption]);
 
+  const redeemedByValue =
+    redemption?.redeemed_by_username ||
+    redemption?.redeemed_by_user_id ||
+    t('redemption.table.not_redeemed');
+
   return (
     <div className='dashboard-container'>
       <Card fluid className='chart-card'>
@@ -123,6 +128,14 @@ const RedemptionDetail = () => {
                     ? timestamp2string(redemption.redeemed_time)
                     : t('redemption.table.not_redeemed')
                 }
+                readOnly
+              />
+            </Form.Group>
+            <Form.Group widths='equal'>
+              <Form.Input
+                className='router-section-input'
+                label={t('redemption.detail.redeemed_by')}
+                value={redeemedByValue}
                 readOnly
               />
             </Form.Group>

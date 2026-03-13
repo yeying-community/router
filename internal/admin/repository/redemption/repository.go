@@ -53,6 +53,9 @@ func GetByID(id string) (*model.Redemption, error) {
 	}
 	redemption := model.Redemption{Id: id}
 	err := model.DB.First(&redemption, "id = ?", id).Error
+	if err == nil && strings.TrimSpace(redemption.RedeemedByUserId) != "" {
+		redemption.RedeemedByUsername = model.GetUsernameById(redemption.RedeemedByUserId)
+	}
 	return &redemption, err
 }
 
@@ -80,6 +83,7 @@ func Redeem(ctx context.Context, code string, userId string) (int64, error) {
 		}
 		redemption.RedeemedTime = helper.GetTimestamp()
 		redemption.Status = model.RedemptionCodeStatusUsed
+		redemption.RedeemedByUserId = strings.TrimSpace(userId)
 		return tx.Save(redemption).Error
 	})
 	if err != nil {

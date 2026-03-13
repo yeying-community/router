@@ -1113,13 +1113,6 @@ const ChannelsTable = () => {
                     </Button>
                     <Button
                       className='router-inline-button'
-                      as={Link}
-                      to={'/channel/detail/' + channel.id}
-                    >
-                      {t('channel.buttons.edit')}
-                    </Button>
-                    <Button
-                      className='router-inline-button'
                       type='button'
                       onClick={() => {
                         openChannelTasksPage(channel.id);

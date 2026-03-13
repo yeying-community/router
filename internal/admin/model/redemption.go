@@ -9,15 +9,17 @@ const (
 )
 
 type Redemption struct {
-	Id           string `json:"id" gorm:"type:char(36);primaryKey"`
-	UserId       string `json:"user_id" gorm:"type:char(36);index"`
-	Code         string `json:"code" gorm:"column:code;type:char(32);uniqueIndex"`
-	Status       int    `json:"status" gorm:"default:1"`
-	Name         string `json:"name" gorm:"index"`
-	Quota        int64  `json:"quota" gorm:"bigint;default:100"`
-	CreatedTime  int64  `json:"created_time" gorm:"bigint"`
-	RedeemedTime int64  `json:"redeemed_time" gorm:"bigint"`
-	Count        int    `json:"count" gorm:"-:all"`
+	Id                 string `json:"id" gorm:"type:char(36);primaryKey"`
+	UserId             string `json:"user_id" gorm:"type:char(36);index"`
+	RedeemedByUserId   string `json:"redeemed_by_user_id" gorm:"type:char(36);index"`
+	RedeemedByUsername string `json:"redeemed_by_username,omitempty" gorm:"-"`
+	Code               string `json:"code" gorm:"column:code;type:char(32);uniqueIndex"`
+	Status             int    `json:"status" gorm:"default:1"`
+	Name               string `json:"name" gorm:"index"`
+	Quota              int64  `json:"quota" gorm:"bigint;default:100"`
+	CreatedTime        int64  `json:"created_time" gorm:"bigint"`
+	RedeemedTime       int64  `json:"redeemed_time" gorm:"bigint"`
+	Count              int    `json:"count" gorm:"-:all"`
 }
 
 func GetAllRedemptions(startIdx int, num int) ([]*Redemption, error) {

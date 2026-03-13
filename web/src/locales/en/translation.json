@@ -666,6 +666,7 @@
     },
     "detail": {
       "code": "Code",
+      "redeemed_by": "Redeemed By",
       "buttons": {
         "back": "Back"
       }
