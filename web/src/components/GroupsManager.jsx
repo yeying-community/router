@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Form, Icon, Label, Modal, Table } from 'semantic-ui-react';
+import { Button, Form, Label, Modal, Table } from 'semantic-ui-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API, showError, showInfo, showSuccess, timestamp2string } from '../helpers';
 
@@ -1128,11 +1128,9 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       <div>
         <div className='router-toolbar-start router-block-gap-sm'>
           <Button type='button' className='router-page-button' onClick={backToList} disabled={submitting}>
-            <Icon name='undo' />
             {t('group_manage.buttons.back')}
           </Button>
           <Button type='button' className='router-page-button' color='blue' disabled={submitting} onClick={() => openEditPanel()}>
-            <Icon name='edit' />
             {t('group_manage.buttons.edit')}
           </Button>
         </div>
@@ -1195,7 +1193,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
           {t('group_manage.buttons.cancel')}
         </Button>
         <Button type='button' className='router-page-button' color='blue' loading={submitting} disabled={submitting} onClick={submitEdit}>
-          <Icon name='check' />
           {t('group_manage.buttons.confirm')}
         </Button>
       </div>
@@ -1301,7 +1298,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
           {t('group_manage.buttons.cancel')}
         </Button>
         <Button type='button' className='router-page-button' color='blue' loading={submitting} disabled={submitting} onClick={submitCreate}>
-          <Icon name='check' />
           {t('group_manage.buttons.confirm')}
         </Button>
       </div>

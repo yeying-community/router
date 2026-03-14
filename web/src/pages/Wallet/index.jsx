@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Form, Header, Icon, Message, Segment } from 'semantic-ui-react';
+import { Button, Card, Form, Header, Message, Segment } from 'semantic-ui-react';
 import { showError, showSuccess } from '../../helpers';
 
 const WalletPage = () => {
@@ -134,7 +134,6 @@ const WalletPage = () => {
       )}
       <Segment>
         <Button className='router-section-button' primary onClick={connect} disabled={!hasWallet}>
-          <Icon name='plug' />
           连接钱包
         </Button>
         <div className='router-section-copy router-section-stack'>

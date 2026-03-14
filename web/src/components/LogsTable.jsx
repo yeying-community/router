@@ -3,7 +3,6 @@ import {
   Button,
   Dropdown,
   Form,
-  Icon,
   Label,
   Pagination,
   Popup,
@@ -406,7 +405,6 @@ const LogsTable = () => {
               icon={null}
               trigger={
                 <Button type='button' className='router-section-button'>
-                  <Icon name='plus' />
                   {t('log.filters.add')}
                 </Button>
               }

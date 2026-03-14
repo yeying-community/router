@@ -1113,7 +1113,6 @@ const ProvidersManager = () => {
               disabled={disabled}
               onClick={() => addModelDetailRow(setValueFn, row)}
             >
-              <Icon name='plus' />
               {t('channel.providers.model_detail_table.add')}
             </Button>
           </div>
@@ -1326,7 +1325,6 @@ const ProvidersManager = () => {
                           addPriceComponentRow(setValueFn, row, detailIndex)
                         }
                       >
-                        <Icon name='plus' />
                         {t(
                           'channel.providers.model_detail_table.add_price_component',
                         )}
@@ -1993,7 +1991,6 @@ const ProvidersManager = () => {
           onClick={rollbackEditor}
           disabled={saving}
         >
-          <Icon name='undo' />
           {t('channel.providers.dialog.cancel_create')}
         </Button>
         <Button
@@ -2004,7 +2001,6 @@ const ProvidersManager = () => {
           disabled={saving}
           onClick={applyEditToRows}
         >
-          <Icon name='check' />
           {t('channel.providers.dialog.confirm')}
         </Button>
       </div>
@@ -2058,11 +2054,10 @@ const ProvidersManager = () => {
         <div className='router-toolbar-start router-block-gap-sm'>
           <Button
             type='button'
-            className='router-page-button'
-            onClick={closeViewer}
-            disabled={saving}
-          >
-            <Icon name='undo' />
+          className='router-page-button'
+          onClick={closeViewer}
+          disabled={saving}
+        >
             {t('channel.providers.dialog.cancel')}
           </Button>
           <Button
@@ -2072,7 +2067,6 @@ const ProvidersManager = () => {
             disabled={saving}
             onClick={() => openEditor(viewRow)}
           >
-            <Icon name='edit' />
             {t('channel.providers.dialog.edit')}
           </Button>
         </div>
@@ -2146,7 +2140,6 @@ const ProvidersManager = () => {
           onClick={closeCreatePanel}
           disabled={saving}
         >
-          <Icon name='undo' />
           {t('channel.providers.dialog.cancel_create')}
         </Button>
         <Button
@@ -2157,7 +2150,6 @@ const ProvidersManager = () => {
           disabled={saving}
           onClick={applyCreateToRows}
         >
-          <Icon name='check' />
           {t('channel.providers.dialog.confirm')}
         </Button>
       </div>
@@ -2231,12 +2223,11 @@ const ProvidersManager = () => {
           <Button
             type='button'
             className='router-modal-button'
-            color='red'
-            loading={saving}
-            disabled={saving}
-            onClick={confirmDeleteRow}
-          >
-            <Icon name='trash' />
+          color='red'
+          loading={saving}
+          disabled={saving}
+          onClick={confirmDeleteRow}
+        >
             {t('channel.providers.dialog.delete_confirm')}
           </Button>
         </Modal.Actions>

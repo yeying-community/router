@@ -3640,7 +3640,6 @@ const EditChannel = () => {
                     className='router-page-button'
                     onClick={handleCancel}
                   >
-                    <Icon name='undo' />
                     {t('channel.edit.buttons.back')}
                   </Button>
                   <Button
@@ -3649,7 +3648,6 @@ const EditChannel = () => {
                     color='blue'
                     onClick={() => setDetailBasicEditing(true)}
                   >
-                    <Icon name='edit' />
                     {t('channel.edit.buttons.edit_basic')}
                   </Button>
                 </>

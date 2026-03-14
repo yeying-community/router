@@ -190,8 +190,6 @@ const TopUp = () => {
                         action={
                           <Button
                             className='router-section-button'
-                            icon='paste'
-                            content={t('topup.redeem_code.paste')}
                             onClick={async () => {
                               try {
                                 const text =
@@ -201,7 +199,9 @@ const TopUp = () => {
                                 showError(t('topup.redeem_code.paste_error'));
                               }
                             }}
-                          />
+                          >
+                            {t('topup.redeem_code.paste')}
+                          </Button>
                         }
                       />
 
