@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/random"
 	"gorm.io/gorm"
@@ -66,6 +67,18 @@ func ListGroupCatalogPage(page int, pageSize int, keyword string) ([]GroupCatalo
 
 func GetGroupCatalogByID(id string) (GroupCatalog, error) {
 	return getGroupCatalogByIDWithDB(DB, id)
+}
+
+func ResolveGroupCatalogByReference(groupRef string) (GroupCatalog, error) {
+	return resolveGroupCatalogByReferenceWithDB(DB, groupRef)
+}
+
+func ValidateDefaultUserGroupOptionValue(groupRef string) (string, error) {
+	return validateDefaultUserGroupOptionValueWithDB(DB, groupRef)
+}
+
+func ResolveUserCreateGroupAssignment(groupRef string) (string, error) {
+	return resolveUserCreateGroupAssignmentWithDB(DB, groupRef)
 }
 
 func CreateGroupCatalog(item GroupCatalog) (GroupCatalog, error) {
@@ -354,6 +367,58 @@ func getGroupCatalogByIDWithDB(db *gorm.DB, id string) (GroupCatalog, error) {
 	return row, nil
 }
 
+func resolveGroupCatalogByReferenceWithDB(db *gorm.DB, groupRef string) (GroupCatalog, error) {
+	normalizedRef := strings.TrimSpace(groupRef)
+	if normalizedRef == "" {
+		return GroupCatalog{}, gorm.ErrRecordNotFound
+	}
+	row, err := getGroupCatalogByIDWithDB(db, normalizedRef)
+	if err == nil {
+		return row, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return GroupCatalog{}, err
+	}
+	return getGroupCatalogByNameWithDB(db, normalizedRef)
+}
+
+func validateDefaultUserGroupOptionValueWithDB(db *gorm.DB, groupRef string) (string, error) {
+	normalizedRef := strings.TrimSpace(groupRef)
+	if normalizedRef == "" {
+		return "", nil
+	}
+	row, err := resolveGroupCatalogByReferenceWithDB(db, normalizedRef)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", fmt.Errorf("默认用户分组不存在")
+		}
+		return "", err
+	}
+	if !row.Enabled {
+		return "", fmt.Errorf("默认用户分组已禁用")
+	}
+	return strings.TrimSpace(row.Id), nil
+}
+
+func resolveUserCreateGroupAssignmentWithDB(db *gorm.DB, groupRef string) (string, error) {
+	normalizedRef := strings.TrimSpace(groupRef)
+	if normalizedRef != "" {
+		row, err := resolveGroupCatalogByReferenceWithDB(db, normalizedRef)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return "", fmt.Errorf("分组不存在")
+			}
+			return "", err
+		}
+		return strings.TrimSpace(row.Id), nil
+	}
+	defaultGroupID, err := validateDefaultUserGroupOptionValueWithDB(db, config.DefaultUserGroup)
+	if err != nil {
+		return "", fmt.Errorf("%s，请先在系统设置中配置有效默认分组", err.Error())
+	}
+	return defaultGroupID, nil
+}
+
 func getGroupCatalogByNameWithDB(db *gorm.DB, name string) (GroupCatalog, error) {
 	row := GroupCatalog{}
 	if err := db.Where("name = ?", strings.TrimSpace(name)).First(&row).Error; err != nil {
@@ -429,6 +494,9 @@ func updateGroupCatalogWithDB(db *gorm.DB, item GroupCatalog) (GroupCatalog, err
 			return GroupCatalog{}, err
 		}
 	}
+	if err := validateDefaultUserGroupMutation(row, item.Enabled, false); err != nil {
+		return GroupCatalog{}, err
+	}
 
 	row.Name = nextName
 	row.Description = strings.TrimSpace(item.Description)
@@ -451,6 +519,9 @@ func deleteGroupCatalogWithDB(db *gorm.DB, id string) ([]string, error) {
 	}
 	row, err := getGroupCatalogByIDWithDB(db, groupID)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateDefaultUserGroupMutation(row, row.Enabled, true); err != nil {
 		return nil, err
 	}
 	groupRefValues := buildGroupReferenceValues(row)
@@ -510,6 +581,26 @@ func buildGroupReferenceValues(row GroupCatalog) []string {
 		values = append(values, name)
 	}
 	return normalizeGroupNames(values)
+}
+
+func validateDefaultUserGroupMutation(row GroupCatalog, nextEnabled bool, deleting bool) error {
+	defaultGroupRef := strings.TrimSpace(config.DefaultUserGroup)
+	if defaultGroupRef == "" {
+		return nil
+	}
+	for _, ref := range buildGroupReferenceValues(row) {
+		if ref != defaultGroupRef {
+			continue
+		}
+		if deleting {
+			return fmt.Errorf("当前分组已被设置为默认用户分组，请先在系统设置中修改默认用户分组")
+		}
+		if !nextEnabled {
+			return fmt.Errorf("当前分组已被设置为默认用户分组，请先在系统设置中修改默认用户分组后再禁用")
+		}
+		return nil
+	}
+	return nil
 }
 
 func parseGroupNamesFromCSV(raw string) []string {

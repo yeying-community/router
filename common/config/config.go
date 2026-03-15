@@ -106,6 +106,7 @@ var TurnstileSiteKey = ""
 var TurnstileSecretKey = ""
 
 var QuotaForNewUser int64 = 0
+var DefaultUserGroup = ""
 var QuotaForInviter int64 = 0
 var QuotaForInvitee int64 = 0
 var ChannelDisableThreshold = 5.0

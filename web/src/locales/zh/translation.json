@@ -1210,6 +1210,8 @@
         "title": "额度设置",
         "new_user": "新用户初始额度",
         "new_user_placeholder": "例如：100",
+        "default_group": "默认用户分组",
+        "default_group_placeholder": "未配置则不自动分配",
         "pre_consume": "请求预扣费额度",
         "pre_consume_placeholder": "请求结束后多退少补",
         "inviter_reward": "邀请新用户奖励额度",

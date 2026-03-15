@@ -50,6 +50,7 @@ func InitOptionMap() {
 	config.OptionMap["Logo"] = config.Logo
 	config.OptionMap["ServerAddress"] = ""
 	config.OptionMap["QuotaForNewUser"] = strconv.FormatInt(config.QuotaForNewUser, 10)
+	config.OptionMap["DefaultUserGroup"] = config.DefaultUserGroup
 	config.OptionMap["QuotaForInviter"] = strconv.FormatInt(config.QuotaForInviter, 10)
 	config.OptionMap["QuotaForInvitee"] = strconv.FormatInt(config.QuotaForInvitee, 10)
 	config.OptionMap["QuotaRemindThreshold"] = strconv.FormatInt(config.QuotaRemindThreshold, 10)
@@ -144,6 +145,8 @@ func UpdateOptionMap(key string, value string) (err error) {
 		config.Logo = value
 	case "QuotaForNewUser":
 		config.QuotaForNewUser, _ = strconv.ParseInt(value, 10, 64)
+	case "DefaultUserGroup":
+		config.DefaultUserGroup = strings.TrimSpace(value)
 	case "QuotaForInviter":
 		config.QuotaForInviter, _ = strconv.ParseInt(value, 10, 64)
 	case "QuotaForInvitee":

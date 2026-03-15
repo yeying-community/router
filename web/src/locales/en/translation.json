@@ -1212,6 +1212,8 @@
         "title": "Quota Settings",
         "new_user": "Initial Quota for New Users",
         "new_user_placeholder": "e.g.: 100",
+        "default_group": "Default User Group",
+        "default_group_placeholder": "No automatic assignment when unset",
         "pre_consume": "Pre-consumed Quota per Request",
         "pre_consume_placeholder": "Refund or charge difference after request",
         "inviter_reward": "Reward Quota for Inviter",

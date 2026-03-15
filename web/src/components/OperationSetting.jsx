@@ -13,6 +13,7 @@ const OperationSetting = () => {
   let now = new Date();
   let [inputs, setInputs] = useState({
     QuotaForNewUser: 0,
+    DefaultUserGroup: '',
     QuotaForInviter: 0,
     QuotaForInvitee: 0,
     QuotaRemindThreshold: 0,
@@ -30,6 +31,7 @@ const OperationSetting = () => {
     RetryTimes: 0,
   });
   const [originInputs, setOriginInputs] = useState({});
+  const [groupOptions, setGroupOptions] = useState([]);
   let [loading, setLoading] = useState(false);
   let [historyTimestamp, setHistoryTimestamp] = useState(
     timestamp2string(now.getTime() / 1000 - 30 * 24 * 3600)
@@ -55,7 +57,48 @@ const OperationSetting = () => {
 
   useEffect(() => {
     getOptions().then();
+    loadGroups().then();
   }, []);
+
+  const loadGroups = async () => {
+    try {
+      const rows = [];
+      let page = 1;
+      while (page <= 50) {
+        const res = await API.get('/api/v1/admin/groups', {
+          params: {
+            page,
+            page_size: 100,
+          },
+        });
+        const { success, message, data } = res.data || {};
+        if (!success) {
+          showError(message);
+          return;
+        }
+        const pageItems = Array.isArray(data?.items) ? data.items : [];
+        rows.push(...pageItems);
+        const total = Number(data?.total || pageItems.length || 0);
+        if (
+          pageItems.length === 0 ||
+          rows.length >= total ||
+          pageItems.length < 100
+        ) {
+          break;
+        }
+        page += 1;
+      }
+      setGroupOptions(
+        rows.map((group) => ({
+          key: group.id,
+          value: group.id,
+          text: group.name || group.id,
+        })),
+      );
+    } catch (error) {
+      showError(error?.message || error);
+    }
+  };
 
   const updateOption = async (key, value) => {
     setLoading(true);
@@ -76,10 +119,11 @@ const OperationSetting = () => {
   };
 
   const handleInputChange = async (e, { name, value }) => {
+    const normalizedValue = value ?? '';
     if (name.endsWith('Enabled')) {
-      await updateOption(name, value);
+      await updateOption(name, normalizedValue);
     } else {
-      setInputs((inputs) => ({ ...inputs, [name]: value }));
+      setInputs((inputs) => ({ ...inputs, [name]: normalizedValue }));
     }
   };
 
@@ -107,6 +151,9 @@ const OperationSetting = () => {
       case 'quota':
         if (originInputs['QuotaForNewUser'] !== inputs.QuotaForNewUser) {
           await updateOption('QuotaForNewUser', inputs.QuotaForNewUser);
+        }
+        if (originInputs['DefaultUserGroup'] !== inputs.DefaultUserGroup) {
+          await updateOption('DefaultUserGroup', inputs.DefaultUserGroup);
         }
         if (originInputs['QuotaForInvitee'] !== inputs.QuotaForInvitee) {
           await updateOption('QuotaForInvitee', inputs.QuotaForInvitee);
@@ -166,6 +213,18 @@ const OperationSetting = () => {
               type='number'
               min='0'
               placeholder={t('setting.operation.quota.new_user_placeholder')}
+            />
+            <Form.Dropdown
+              className='router-section-input'
+              label={t('setting.operation.quota.default_group')}
+              name='DefaultUserGroup'
+              selection
+              clearable
+              search
+              options={groupOptions}
+              onChange={handleInputChange}
+              value={inputs.DefaultUserGroup || ''}
+              placeholder={t('setting.operation.quota.default_group_placeholder')}
             />
             <Form.Input
               className='router-section-input'

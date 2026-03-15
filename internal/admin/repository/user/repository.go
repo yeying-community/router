@@ -174,6 +174,11 @@ func Create(ctx context.Context, user *model.User, inviterId string) error {
 	if strings.TrimSpace(user.Id) == "" {
 		user.Id = random.GetUUID()
 	}
+	resolvedGroup, err := model.ResolveUserCreateGroupAssignment(user.Group)
+	if err != nil {
+		return err
+	}
+	user.Group = resolvedGroup
 	user.Quota = config.QuotaForNewUser
 	user.AccessToken = random.GetUUID()
 	user.AffCode = random.GetRandomString(4)
@@ -228,6 +233,16 @@ func Update(user *model.User, updatePassword bool) error {
 			lower := strings.ToLower(trimmed)
 			user.WalletAddress = &lower
 		}
+	}
+	if strings.TrimSpace(user.Group) != "" {
+		resolvedGroup, resolveErr := model.ResolveGroupCatalogByReference(user.Group)
+		if resolveErr != nil {
+			if errors.Is(resolveErr, gorm.ErrRecordNotFound) {
+				return errors.New("分组不存在")
+			}
+			return resolveErr
+		}
+		user.Group = resolvedGroup.Id
 	}
 	if user.Status == model.UserStatusDisabled {
 		blacklist.BanUser(user.Id)
