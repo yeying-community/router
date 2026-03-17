@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Checkbox, Dropdown, Form, Grid, Input } from 'semantic-ui-react';
+import { Button, Card, Dropdown, Input } from 'semantic-ui-react';
 import {
   Bar,
   BarChart,
@@ -330,7 +330,7 @@ const Dashboard = () => {
   const initialRange = useMemo(() => getDefaultRange('day', 7), []);
   const [startDate, setStartDate] = useState(initialRange.start);
   const [endDate, setEndDate] = useState(initialRange.end);
-  const [overviewPeriod, setOverviewPeriod] = useState('last_month');
+  const [overviewPeriod, setOverviewPeriod] = useState('last_30_days');
   const [overviewSummary, setOverviewSummary] = useState(null);
   const [overviewMetric, setOverviewMetric] = useState('cost');
   const [overviewTrendData, setOverviewTrendData] = useState([]);
@@ -338,7 +338,12 @@ const Dashboard = () => {
   const [calendarGranularity, setCalendarGranularity] = useState('day');
   const [calendarUnit, setCalendarUnit] = useState('usd');
   const [calendarData, setCalendarData] = useState([]);
-  const [detailSort, setDetailSort] = useState('desc');
+  const [activeFilters, setActiveFilters] = useState(['time']);
+
+  const allModels = useMemo(
+    () => Array.from(new Set(Object.values(providers).flat())),
+    [providers]
+  );
 
   const selectedModelsKey = useMemo(
     () => selectedModels.slice().sort().join(','),
@@ -346,7 +351,11 @@ const Dashboard = () => {
   );
   const overviewGranularity = useMemo(() => {
     switch (overviewPeriod) {
-      case 'last_week':
+      case 'today':
+        return 'hour';
+      case 'last_7_days':
+      case 'last_30_days':
+      case 'this_month':
       case 'last_month':
         return 'day';
       default:
@@ -368,7 +377,6 @@ const Dashboard = () => {
   }, [granularity, startDate, endDate, selectedModelsKey, selectionReady]);
 
   useEffect(() => {
-    const allModels = Object.values(providers).flat();
     if (allModels.length === 0) return;
     if (!selectionReady) {
       setSelectedModels(allModels);
@@ -376,7 +384,7 @@ const Dashboard = () => {
       return;
     }
     setSelectedModels((prev) => prev.filter((model) => allModels.includes(model)));
-  }, [providers, selectionReady]);
+  }, [allModels, selectionReady]);
 
   useEffect(() => {
     fetchOverviewSummary();
@@ -388,11 +396,11 @@ const Dashboard = () => {
       return;
     }
     fetchOverviewTrendData();
-  }, [overviewRangeKey, overviewGranularity]);
+  }, [overviewRangeKey, overviewGranularity, selectedModelsKey, selectionReady]);
 
   useEffect(() => {
     fetchCalendarData();
-  }, [calendarGranularity]);
+  }, [calendarGranularity, selectedModelsKey, selectionReady]);
 
   const toStartTimestamp = (dateStr) => {
     const date = parseDateInput(dateStr);
@@ -417,12 +425,9 @@ const Dashboard = () => {
         granularity,
         include_meta: 1,
       };
-      const allModels = Object.values(providers).flat();
-      const shouldFilter =
-        selectedModels.length > 0 &&
-        (allModels.length === 0 || selectedModels.length < allModels.length);
-      if (shouldFilter) {
-        params.models = selectedModels.join(',');
+      const requestedModels = getRequestedModels();
+      if (requestedModels.length > 0) {
+        params.models = requestedModels.join(',');
       }
       const response = await API.get('/api/v1/public/user/dashboard', { params });
       if (response.data.success) {
@@ -437,6 +442,16 @@ const Dashboard = () => {
       console.error('Failed to fetch dashboard data:', error);
       setData([]);
     }
+  };
+
+  const getRequestedModels = () => {
+    if (!selectionReady || selectedModels.length === 0) {
+      return [];
+    }
+    if (allModels.length > 0 && selectedModels.length >= allModels.length) {
+      return [];
+    }
+    return selectedModels;
   };
 
   const fetchOverviewSummary = async () => {
@@ -457,11 +472,19 @@ const Dashboard = () => {
 
   const fetchOverviewTrendData = async () => {
     try {
+      if (selectionReady && selectedModels.length === 0) {
+        setOverviewTrendData([]);
+        return;
+      }
       const params = {
         start_timestamp: overviewSummary?.period_start || 0,
         end_timestamp: overviewSummary?.period_end || 0,
         granularity: overviewGranularity,
       };
+      const requestedModels = getRequestedModels();
+      if (requestedModels.length > 0) {
+        params.models = requestedModels.join(',');
+      }
       if (!params.start_timestamp || !params.end_timestamp) {
         setOverviewTrendData([]);
         return;
@@ -480,16 +503,22 @@ const Dashboard = () => {
 
   const fetchCalendarData = async () => {
     try {
+      if (selectionReady && selectedModels.length === 0) {
+        setCalendarData([]);
+        return;
+      }
       const range = getCalendarRange(calendarGranularity);
       if (!range.start || !range.end) {
         setCalendarData([]);
         return;
       }
+      const requestedModels = getRequestedModels();
       const response = await API.get('/api/v1/public/user/dashboard', {
         params: {
           start_timestamp: range.start,
           end_timestamp: range.end,
           granularity: calendarGranularity,
+          ...(requestedModels.length > 0 ? { models: requestedModels.join(',') } : {}),
         },
       });
       if (response.data.success) {
@@ -559,59 +588,6 @@ const Dashboard = () => {
     return map;
   };
 
-  // 处理数据以供折线图使用，补充缺失的日期
-  const processTimeSeriesData = () => {
-    if (granularity !== 'day') {
-      const grouped = {};
-      data.forEach((item) => {
-        const bucket = item.Day;
-        if (!grouped[bucket]) {
-          grouped[bucket] = {
-            date: bucket,
-            requests: 0,
-            quota: 0,
-            tokens: 0,
-          };
-        }
-        grouped[bucket].requests += item.RequestCount;
-        grouped[bucket].quota += item.Quota / 1000000;
-        grouped[bucket].tokens += item.PromptTokens + item.CompletionTokens;
-      });
-      return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date));
-    }
-
-    const dailyData = {};
-    const start = parseDateInput(startDate);
-    const end = parseDateInput(endDate);
-    if (!start || !end) return [];
-
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dateStr = formatDateInput(d);
-      dailyData[dateStr] = {
-        date: dateStr,
-        requests: 0,
-        quota: 0,
-        tokens: 0,
-      };
-    }
-
-    data.forEach((item) => {
-      if (!dailyData[item.Day]) {
-        dailyData[item.Day] = {
-          date: item.Day,
-          requests: 0,
-          quota: 0,
-          tokens: 0,
-        };
-      }
-      dailyData[item.Day].requests += item.RequestCount;
-      dailyData[item.Day].quota += item.Quota / 1000000;
-      dailyData[item.Day].tokens += item.PromptTokens + item.CompletionTokens;
-    });
-
-    return Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date));
-  };
-
   // 处理数据以供堆叠柱状图使用
   const processModelData = () => {
     const timeData = {};
@@ -668,17 +644,13 @@ const Dashboard = () => {
   ];
 
   const overviewPeriodOptions = [
-    { key: 'last_week', text: t('dashboard.spending.period.last_week'), value: 'last_week' },
+    { key: 'today', text: t('dashboard.spending.period.today'), value: 'today' },
+    { key: 'last_7_days', text: t('dashboard.spending.period.last_7_days'), value: 'last_7_days' },
+    { key: 'last_30_days', text: t('dashboard.spending.period.last_30_days'), value: 'last_30_days' },
+    { key: 'this_month', text: t('dashboard.spending.period.this_month'), value: 'this_month' },
     { key: 'last_month', text: t('dashboard.spending.period.last_month'), value: 'last_month' },
     { key: 'this_year', text: t('dashboard.spending.period.this_year'), value: 'this_year' },
-    { key: 'last_year', text: t('dashboard.spending.period.last_year'), value: 'last_year' },
-    { key: 'last_12_months', text: t('dashboard.spending.period.last_12_months'), value: 'last_12_months' },
     { key: 'all_time', text: t('dashboard.spending.period.all_time'), value: 'all_time' },
-  ];
-
-  const detailSortOptions = [
-    { key: 'desc', text: t('dashboard.spending.sort.desc'), value: 'desc' },
-    { key: 'asc', text: t('dashboard.spending.sort.asc'), value: 'asc' },
   ];
 
   const handleGranularityChange = (e, { value }) => {
@@ -753,11 +725,44 @@ const Dashboard = () => {
     }
   };
 
-  const providerEntries = useMemo(() => {
-    return Object.entries(providers).sort(([a], [b]) => a.localeCompare(b));
-  }, [providers]);
+  const modelFilterOptions = useMemo(
+    () =>
+      allModels.map((model) => ({
+        key: model,
+        text: model,
+        value: model,
+      })),
+    [allModels]
+  );
+  const addConditionOptions = useMemo(() => {
+    const options = [
+      {
+        key: 'time',
+        text: t('dashboard.filters.conditions.time'),
+        value: 'time',
+      },
+      {
+        key: 'models',
+        text: t('dashboard.filters.conditions.models'),
+        value: 'models',
+      },
+    ];
+    return options.filter((option) => !activeFilters.includes(option.value));
+  }, [activeFilters, t]);
+  const hasTimeFilter = activeFilters.includes('time');
+  const hasModelFilter = activeFilters.includes('models');
 
-  const selectedSet = useMemo(() => new Set(selectedModels), [selectedModels]);
+  const analysisScopeText = useMemo(() => {
+    if (!selectionReady || selectedModels.length === 0) {
+      return t('dashboard.spending.overview.scope.none');
+    }
+    if (allModels.length === 0 || selectedModels.length >= allModels.length) {
+      return t('dashboard.spending.overview.scope.all');
+    }
+    return t('dashboard.spending.overview.scope.selected', {
+      count: selectedModels.length,
+    });
+  }, [allModels, selectedModels, selectionReady, t]);
 
   const periodLabel = useMemo(
     () => t(`dashboard.spending.period.${overviewPeriod}`),
@@ -800,30 +805,6 @@ const Dashboard = () => {
     });
   }, [calendarData, calendarGranularity, calendarUnit]);
 
-  const detailRows = useMemo(() => {
-    if (!calendarData || calendarData.length === 0) return [];
-    const map = new Map();
-    calendarData.forEach((item) => {
-      const name = item.ModelName || 'unknown';
-      if (!map.has(name)) {
-        map.set(name, { model: name, quota: 0, tokens: 0, requests: 0 });
-      }
-      const target = map.get(name);
-      target.quota += item.Quota || 0;
-      target.tokens += (item.PromptTokens || 0) + (item.CompletionTokens || 0);
-      target.requests += item.RequestCount || 0;
-    });
-    const list = Array.from(map.values()).map((item) => ({
-      ...item,
-      value: calendarUnit === 'usd' ? toUsd(item.quota) : item.tokens,
-    }));
-    list.sort((a, b) => {
-      if (detailSort === 'asc') return a.value - b.value;
-      return b.value - a.value;
-    });
-    return list;
-  }, [calendarData, calendarUnit, detailSort]);
-
   const overviewMetricConfig = {
     requests: {
       key: 'requests',
@@ -851,29 +832,30 @@ const Dashboard = () => {
     return formatCountValue(value);
   };
 
-  const toggleProvider = (provider) => {
-    const models = providers[provider] || [];
-    const next = new Set(selectedModels);
-    const allSelected = models.every((model) => next.has(model));
-    if (allSelected) {
-      models.forEach((model) => next.delete(model));
-    } else {
-      models.forEach((model) => next.add(model));
-    }
-    setSelectedModels(Array.from(next));
+  const handleAddFilterCondition = (e, { value }) => {
+    if (!value) return;
+    setActiveFilters((prev) => {
+      if (prev.includes(value)) return prev;
+      return [...prev, value];
+    });
   };
 
-  const toggleModel = (model) => {
-    const next = new Set(selectedModels);
-    if (next.has(model)) {
-      next.delete(model);
-    } else {
-      next.add(model);
+  const handleRemoveFilterCondition = (key) => {
+    setActiveFilters((prev) => prev.filter((item) => item !== key));
+    if (key === 'models') {
+      setSelectedModels(allModels);
     }
-    setSelectedModels(Array.from(next));
   };
 
-  const timeSeriesData = processTimeSeriesData();
+  const handleClearFilterConditions = () => {
+    setActiveFilters([]);
+    setSelectedModels(allModels);
+  };
+
+  const handleModelsFilterChange = (e, { value }) => {
+    setSelectedModels(Array.isArray(value) ? value : []);
+  };
+
   const modelData = processModelData();
   const models = getUniqueModels();
 
@@ -917,108 +899,77 @@ const Dashboard = () => {
             <Card.Content>
               <Card.Header className='router-card-header router-section-title'>{t('dashboard.spending.overview.title')}</Card.Header>
               <div className='dashboard-spend-summary'>
+                <div className='dashboard-spend-period-row'>
+                  <Dropdown
+                    className='dashboard-spend-period router-section-dropdown'
+                    selection
+                    fluid
+                    options={overviewPeriodOptions}
+                    value={overviewPeriod}
+                    onChange={(e, { value }) => setOverviewPeriod(value)}
+                  />
+                </div>
                 <div className='dashboard-spend-summary-row'>
-                  <div className='dashboard-spend-metric'>
-                    <div className='dashboard-spend-label'>
-                      {t('dashboard.spending.overview.yesterday_cost')}
-                    </div>
-                    <div className='dashboard-spend-value'>
-                      {formatCurrencyValue(overviewSummary?.yesterday_cost || 0)}
-                    </div>
-                  </div>
                   <div className='dashboard-spend-metric'>
                     <div className='dashboard-spend-label'>
                       {t('dashboard.spending.overview.period_cost', {
                         period: periodLabel,
                       })}
                     </div>
-                    <div className='dashboard-spend-period-row'>
-                      <Dropdown
-                        className='dashboard-spend-period router-section-dropdown'
-                        selection
-                        fluid
-                        options={overviewPeriodOptions}
-                        value={overviewPeriod}
-                        onChange={(e, { value }) => setOverviewPeriod(value)}
-                      />
-                    </div>
                     <div className='dashboard-spend-value'>
                       {formatCurrencyValue(overviewSummary?.period_cost || 0)}
                     </div>
                   </div>
+                  <div className='dashboard-spend-metric'>
+                    <div className='dashboard-spend-label'>
+                      {t('dashboard.spending.overview.today_cost')}
+                    </div>
+                    <div className='dashboard-spend-value'>
+                      {formatCurrencyValue(
+                        overviewSummary?.today_cost ?? overviewSummary?.yesterday_cost ?? 0
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className='dashboard-drill-hint'>
-                <span className='dashboard-drill-arrow' aria-hidden='true' />
-                <span>{t('dashboard.spending.overview.drill_hint')}</span>
-              </div>
-              <div className='dashboard-spend-metric-switch'>
-                <Button.Group>
-                  <Button
-                    className='router-inline-button'
-                    active={overviewMetric === 'requests'}
-                    onClick={() => setOverviewMetric('requests')}
-                  >
-                    {t('dashboard.spending.metrics.requests')}
-                  </Button>
-                  <Button
-                    className='router-inline-button'
-                    active={overviewMetric === 'tokens'}
-                    onClick={() => setOverviewMetric('tokens')}
-                  >
-                    {t('dashboard.spending.metrics.tokens')}
-                  </Button>
-                  <Button
-                    className='router-inline-button'
-                    active={overviewMetric === 'cost'}
-                    onClick={() => setOverviewMetric('cost')}
-                  >
-                    {t('dashboard.spending.metrics.cost')}
-                  </Button>
-                </Button.Group>
-              </div>
-              <div className='chart-container'>
-                <ResponsiveContainer width='100%' height={180}>
-                  <LineChart data={overviewLineData}>
-                    <CartesianGrid
-                      strokeDasharray='3 3'
-                      vertical={chartConfig.lineChart.grid.vertical}
-                      horizontal={chartConfig.lineChart.grid.horizontal}
-                      opacity={chartConfig.lineChart.grid.opacity}
-                    />
-                    <XAxis
-                      dataKey='date'
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12, fill: '#A3AED0' }}
-                      minTickGap={10}
-                    />
-                    <YAxis hide={true} />
-                    <Tooltip
-                      contentStyle={{
-                        background: '#fff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      }}
-                      formatter={(value) => [
-                        overviewMetricSetting.formatter(value),
-                        overviewMetricSetting.label,
-                      ]}
-                      labelFormatter={(label) =>
-                        `${t('dashboard.statistics.tooltip.date')}: ${label}`
-                      }
-                    />
-                    <Line
-                      type='monotone'
-                      dataKey={overviewMetricSetting.key}
-                      stroke={overviewMetricSetting.color}
-                      strokeWidth={chartConfig.lineChart.line.strokeWidth}
-                      dot={chartConfig.lineChart.line.dot}
-                      activeDot={chartConfig.lineChart.line.activeDot}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className='dashboard-spend-summary-row'>
+                  <div className='dashboard-spend-metric'>
+                    <div className='dashboard-spend-label'>
+                      {t('dashboard.spending.overview.period_avg_cost')}
+                    </div>
+                    <div className='dashboard-spend-value'>
+                      {formatCurrencyValue(
+                        (overviewSummary?.period_cost || 0) /
+                          Math.max(1, overviewSummary?.period_days || 0)
+                      )}
+                    </div>
+                  </div>
+                  <div className='dashboard-spend-metric'>
+                    <div className='dashboard-spend-label'>
+                      {t('dashboard.spending.overview.period_requests')}
+                    </div>
+                    <div className='dashboard-spend-value'>
+                      {formatCountValue(overviewSummary?.period_requests || 0)}
+                    </div>
+                  </div>
+                </div>
+                <div className='dashboard-spend-summary-row'>
+                  <div className='dashboard-spend-metric'>
+                    <div className='dashboard-spend-label'>
+                      {t('dashboard.spending.overview.period_tokens')}
+                    </div>
+                    <div className='dashboard-spend-value'>
+                      {formatCountValue(overviewSummary?.period_tokens || 0)}
+                    </div>
+                  </div>
+                  <div className='dashboard-spend-metric'>
+                    <div className='dashboard-spend-label'>
+                      {t('dashboard.spending.overview.scope.label')}
+                    </div>
+                    <div className='dashboard-spend-value'>
+                      {t('dashboard.spending.overview.scope.all')}
+                    </div>
+                  </div>
+                </div>
               </div>
             </Card.Content>
           </Card>
@@ -1076,21 +1027,6 @@ const Dashboard = () => {
                     </Button>
                   </Button.Group>
                 </div>
-              </div>
-              <div className='dashboard-calendar-nav'>
-                <button type='button' className='calendar-nav-button' aria-label='prev'>
-                  ‹
-                </button>
-                <div className='dashboard-calendar-current'>
-                  {calendarGranularity === 'week'
-                    ? '本周'
-                    : calendarGranularity === 'month' || calendarGranularity === 'year'
-                      ? '本年'
-                      : '当月'}
-                </div>
-                <button type='button' className='calendar-nav-button' aria-label='next'>
-                  ›
-                </button>
               </div>
               {calendarView === 'calendar' ? (
                 <>
@@ -1173,299 +1109,126 @@ const Dashboard = () => {
               )}
             </Card.Content>
           </Card>
-          <Card fluid className='chart-card dashboard-spend-card'>
-            <Card.Content>
-              <Card.Header className='router-card-header router-section-title'>
-                <div className='router-toolbar'>
-                  <span>{t('dashboard.spending.details.title')}</span>
-                  <Dropdown
-                    className='router-section-dropdown'
-                    selection
-                    options={detailSortOptions}
-                    value={detailSort}
-                    onChange={(e, { value }) => setDetailSort(value)}
-                  />
-                </div>
-              </Card.Header>
-              <div className='dashboard-spend-dimension'>
-                {t('dashboard.spending.details.dimension', {
-                  dimension: t(`dashboard.spending.calendar.granularity.${calendarGranularity}`),
-                })}
-              </div>
-              <div className='dashboard-spend-list'>
-                {detailRows.length === 0 ? (
-                  <div className='dashboard-spend-empty'>
-                    {t('dashboard.spending.details.empty')}
-                  </div>
-                ) : (
-                  detailRows.map((item) => (
-                    <div key={item.model} className='dashboard-spend-list-item'>
-                      <span className='dashboard-spend-list-name'>{item.model}</span>
-                      <span className='dashboard-spend-list-value'>
-                        {formatCalendarValue(item.value)}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </Card.Content>
-          </Card>
         </div>
       </div>
-      <Card fluid className='chart-card dashboard-filter-card'>
+      <Card fluid className='chart-card dashboard-analysis-card'>
         <Card.Content>
-          <Card.Header className='router-card-header router-section-title'>{t('dashboard.filters.title')}</Card.Header>
-          <Form>
-            <Form.Group widths='equal' className='dashboard-filter-row'>
-              <Form.Field>
-                <label>{t('dashboard.filters.granularity')}</label>
+          <Card.Header className='router-card-header router-section-title'>
+            {t('dashboard.spending.analysis.title')}
+          </Card.Header>
+          <div className='dashboard-filter-toolbar'>
+            <div className='dashboard-filter-toolbar-left'>
+              <Dropdown
+                className='dashboard-add-condition'
+                button
+                floating
+                text={t('dashboard.filters.add_condition')}
+                options={addConditionOptions}
+                disabled={addConditionOptions.length === 0}
+                onChange={handleAddFilterCondition}
+              />
+              {activeFilters.length > 0 && (
+                <Button
+                  className='router-inline-button'
+                  type='button'
+                  onClick={handleClearFilterConditions}
+                >
+                  {t('dashboard.filters.clear_conditions')}
+                </Button>
+              )}
+            </div>
+          </div>
+          {hasTimeFilter && (
+            <div className='dashboard-active-condition dashboard-time-condition'>
+              <span className='dashboard-condition-tag'>
+                {t('dashboard.filters.conditions.time')}
+              </span>
+              <div className='dashboard-inline-field'>
+                <span className='dashboard-inline-label'>{t('dashboard.filters.granularity')}</span>
                 <Dropdown
-                  className='router-section-dropdown'
+                  className='dashboard-inline-dropdown'
                   selection
                   options={granularityOptions}
                   value={granularity}
                   onChange={handleGranularityChange}
                 />
-              </Form.Field>
-              <Form.Field>
-                <label>{t('dashboard.filters.start')}</label>
+              </div>
+              <div className='dashboard-inline-field'>
+                <span className='dashboard-inline-label'>{t('dashboard.filters.start')}</span>
                 <Input
-                  className='router-section-input'
+                  className='dashboard-inline-input'
                   type='date'
                   value={startDate}
                   onChange={handleStartChange}
                 />
-              </Form.Field>
-              <Form.Field>
-                <label>{t('dashboard.filters.span')}</label>
+              </div>
+              <div className='dashboard-inline-field'>
+                <span className='dashboard-inline-label'>{t('dashboard.filters.span')}</span>
                 <Input
-                  className={`router-section-input ${spanAuto ? 'dashboard-muted' : ''}`.trim()}
+                  className={`dashboard-inline-input dashboard-inline-number ${spanAuto ? 'dashboard-muted' : ''}`.trim()}
                   type='number'
                   min={1}
                   max={spanLimits[granularity]}
                   value={span}
                   onChange={handleSpanChange}
                 />
-              </Form.Field>
-              <Form.Field>
-                <label>{t('dashboard.filters.end')}</label>
+              </div>
+              <div className='dashboard-inline-field'>
+                <span className='dashboard-inline-label'>{t('dashboard.filters.end')}</span>
                 <Input
-                  className={`router-section-input ${endAuto ? 'dashboard-muted' : ''}`.trim()}
+                  className={`dashboard-inline-input ${endAuto ? 'dashboard-muted' : ''}`.trim()}
                   type='date'
                   value={endDate}
                   onChange={handleEndChange}
                 />
-              </Form.Field>
-            </Form.Group>
-          </Form>
-          <div className='dashboard-provider-section'>
-            <div className='dashboard-provider-title'>
-              {t('dashboard.filters.providers')}
+              </div>
+              <Button
+                className='router-inline-button'
+                type='button'
+                onClick={() => handleRemoveFilterCondition('time')}
+              >
+                {t('dashboard.filters.remove_condition')}
+              </Button>
             </div>
-            <div className='dashboard-provider-tree'>
-              {providerEntries.length === 0 ? (
-                <div className='dashboard-provider-empty'>
-                  {t('dashboard.filters.no_providers')}
-                </div>
-              ) : (
-                providerEntries.map(([provider, providerModels]) => {
-                  const allSelected = providerModels.every((model) =>
-                    selectedSet.has(model)
-                  );
-                  const someSelected =
-                    !allSelected &&
-                    providerModels.some((model) => selectedSet.has(model));
-                  return (
-                    <div key={provider} className='dashboard-provider-node'>
-                      <Checkbox
-                        label={provider}
-                        checked={allSelected}
-                        indeterminate={someSelected}
-                        onChange={() => toggleProvider(provider)}
-                      />
-                      <div className='dashboard-provider-models'>
-                        {providerModels.map((model) => (
-                          <Checkbox
-                            key={model}
-                            label={model}
-                            checked={selectedSet.has(model)}
-                            onChange={() => toggleModel(model)}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+          )}
+          {hasModelFilter && (
+            <div className='dashboard-active-condition'>
+              <span className='dashboard-condition-tag'>
+                {t('dashboard.filters.conditions.models')}
+              </span>
+              <Dropdown
+                className='dashboard-model-condition-dropdown'
+                multiple
+                search
+                selection
+                options={modelFilterOptions}
+                value={selectedModels}
+                placeholder={t('dashboard.filters.model_placeholder')}
+                noResultsMessage={t('dashboard.filters.no_providers')}
+                onChange={handleModelsFilterChange}
+              />
+              <Button
+                className='router-inline-button'
+                type='button'
+                onClick={() => handleRemoveFilterCondition('models')}
+              >
+                {t('dashboard.filters.remove_condition')}
+              </Button>
             </div>
-          </div>
-        </Card.Content>
-      </Card>
-      {/* 三个并排的折线图 */}
-      <Grid columns={3} stackable className='charts-grid'>
-        <Grid.Column>
-          <Card fluid className='chart-card'>
-            <Card.Content>
-              <Card.Header className='router-card-header router-section-title'>
-                {t('dashboard.charts.requests.title')}
-                {/* <span className='stat-value'>{summaryData.todayRequests}</span> */}
-              </Card.Header>
-              <div className='chart-container'>
-                <ResponsiveContainer
-                  width='100%'
-                  height={120}
-                  margin={{ left: 10, right: 10 }} // 调整容器边距
-                >
-                  <LineChart data={timeSeriesData}>
-                    <CartesianGrid
-                      strokeDasharray='3 3'
-                      vertical={chartConfig.lineChart.grid.vertical}
-                      horizontal={chartConfig.lineChart.grid.horizontal}
-                      opacity={chartConfig.lineChart.grid.opacity}
-                    />
-                    <XAxis {...xAxisConfig} />
-                    <YAxis hide={true} />
-                    <Tooltip
-                      contentStyle={{
-                        background: '#fff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      }}
-                      formatter={(value) => [
-                        value,
-                        t('dashboard.charts.requests.tooltip'),
-                      ]}
-                      labelFormatter={(label) =>
-                        `${t('dashboard.statistics.tooltip.date')}: ${label}`
-                      }
-                    />
-                    <Line
-                      type='monotone'
-                      dataKey='requests'
-                      stroke={chartConfig.colors.requests}
-                      strokeWidth={chartConfig.lineChart.line.strokeWidth}
-                      dot={chartConfig.lineChart.line.dot}
-                      activeDot={chartConfig.lineChart.line.activeDot}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </Card.Content>
-          </Card>
-        </Grid.Column>
-
-        <Grid.Column>
-          <Card fluid className='chart-card'>
-            <Card.Content>
-              <Card.Header className='router-card-header router-section-title'>
-                {t('dashboard.charts.quota.title')}
-                {/* <span className='stat-value'>
-                  ${summaryData.todayQuota.toFixed(3)}
-                </span> */}
-              </Card.Header>
-              <div className='chart-container'>
-                <ResponsiveContainer
-                  width='100%'
-                  height={120}
-                  margin={{ left: 10, right: 10 }} // 调整容器边距
-                >
-                  <LineChart data={timeSeriesData}>
-                    <CartesianGrid
-                      strokeDasharray='3 3'
-                      vertical={chartConfig.lineChart.grid.vertical}
-                      horizontal={chartConfig.lineChart.grid.horizontal}
-                      opacity={chartConfig.lineChart.grid.opacity}
-                    />
-                    <XAxis {...xAxisConfig} />
-                    <YAxis hide={true} />
-                    <Tooltip
-                      contentStyle={{
-                        background: '#fff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      }}
-                      formatter={(value) => [
-                        value.toFixed(6),
-                        t('dashboard.charts.quota.tooltip'),
-                      ]}
-                      labelFormatter={(label) =>
-                        `${t('dashboard.statistics.tooltip.date')}: ${label}`
-                      }
-                    />
-                    <Line
-                      type='monotone'
-                      dataKey='quota'
-                      stroke={chartConfig.colors.quota}
-                      strokeWidth={chartConfig.lineChart.line.strokeWidth}
-                      dot={chartConfig.lineChart.line.dot}
-                      activeDot={chartConfig.lineChart.line.activeDot}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </Card.Content>
-          </Card>
-        </Grid.Column>
-
-        <Grid.Column>
-          <Card fluid className='chart-card'>
-            <Card.Content>
-              <Card.Header className='router-card-header router-section-title'>
-                {t('dashboard.charts.tokens.title')}
-                {/* <span className='stat-value'>{summaryData.todayTokens}</span> */}
-              </Card.Header>
-              <div className='chart-container'>
-                <ResponsiveContainer
-                  width='100%'
-                  height={120}
-                  margin={{ left: 10, right: 10 }} // 调整容器边距
-                >
-                  <LineChart data={timeSeriesData}>
-                    <CartesianGrid
-                      strokeDasharray='3 3'
-                      vertical={chartConfig.lineChart.grid.vertical}
-                      horizontal={chartConfig.lineChart.grid.horizontal}
-                      opacity={chartConfig.lineChart.grid.opacity}
-                    />
-                    <XAxis {...xAxisConfig} />
-                    <YAxis hide={true} />
-                    <Tooltip
-                      contentStyle={{
-                        background: '#fff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      }}
-                      formatter={(value) => [
-                        value,
-                        t('dashboard.charts.tokens.tooltip'),
-                      ]}
-                      labelFormatter={(label) =>
-                        `${t('dashboard.statistics.tooltip.date')}: ${label}`
-                      }
-                    />
-                    <Line
-                      type='monotone'
-                      dataKey='tokens'
-                      stroke={chartConfig.colors.tokens}
-                      strokeWidth={chartConfig.lineChart.line.strokeWidth}
-                      dot={chartConfig.lineChart.line.dot}
-                      activeDot={chartConfig.lineChart.line.activeDot}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </Card.Content>
-          </Card>
-        </Grid.Column>
-      </Grid>
-
-      {/* 模型使用统计 */}
-      <Card fluid className='chart-card'>
-        <Card.Content>
-          <Card.Header className='router-card-header router-section-title'>{t('dashboard.statistics.title')}</Card.Header>
+          )}
+          {!hasTimeFilter && !hasModelFilter && (
+            <div className='dashboard-filter-hint'>
+              {t('dashboard.filters.hint')}
+            </div>
+          )}
+          {hasModelFilter && modelFilterOptions.length === 0 && (
+            <div className='dashboard-provider-empty'>{t('dashboard.filters.no_providers')}</div>
+          )}
+          {hasModelFilter && modelFilterOptions.length > 0 && (
+            <div className='dashboard-filter-hint'>
+              {t('dashboard.filters.model_note', { scope: analysisScopeText })}
+            </div>
+          )}
           <div className='chart-container'>
             <ResponsiveContainer width='100%' height={300}>
               <BarChart data={modelData}>

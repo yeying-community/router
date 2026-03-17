@@ -81,6 +81,10 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	return mustLogRepo().SumUsedQuota(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel)
 }
 
+func SumUsedQuotaByUserIdWithModels(logType int, userId string, startTimestamp int64, endTimestamp int64, models []string) (int64, error) {
+	return mustLogRepo().SumUsedQuotaByUserIdWithModels(logType, userId, startTimestamp, endTimestamp, models)
+}
+
 func SumUsedToken(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string) int {
 	return mustLogRepo().SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, tokenName)
 }

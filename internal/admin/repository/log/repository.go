@@ -57,21 +57,22 @@ func hydrateLogsWithChannelNames(logs []*model.Log) error {
 
 func init() {
 	model.BindLogRepository(model.LogRepository{
-		RecordLog:                  RecordLog,
-		RecordTopupLog:             RecordTopupLog,
-		RecordConsumeLog:           RecordConsumeLog,
-		RecordTestLog:              RecordTestLog,
-		GetAllLogs:                 GetAll,
-		GetUserLogs:                GetUser,
-		GetLogByID:                 GetByID,
-		GetUserLogByID:             GetUserByID,
-		SearchAllLogs:              SearchAll,
-		SearchUserLogs:             SearchUser,
-		SumUsedQuota:               SumUsedQuota,
-		SumUsedToken:               SumUsedToken,
-		DeleteOldLog:               DeleteOld,
-		SearchLogsByPeriodAndModel: SearchLogsByPeriodAndModel,
-		SearchLogModelsByPeriod:    SearchLogModelsByPeriod,
+		RecordLog:                      RecordLog,
+		RecordTopupLog:                 RecordTopupLog,
+		RecordConsumeLog:               RecordConsumeLog,
+		RecordTestLog:                  RecordTestLog,
+		GetAllLogs:                     GetAll,
+		GetUserLogs:                    GetUser,
+		GetLogByID:                     GetByID,
+		GetUserLogByID:                 GetUserByID,
+		SearchAllLogs:                  SearchAll,
+		SearchUserLogs:                 SearchUser,
+		SumUsedQuota:                   SumUsedQuota,
+		SumUsedQuotaByUserIdWithModels: SumUsedQuotaByUserIdWithModels,
+		SumUsedToken:                   SumUsedToken,
+		DeleteOldLog:                   DeleteOld,
+		SearchLogsByPeriodAndModel:     SearchLogsByPeriodAndModel,
+		SearchLogModelsByPeriod:        SearchLogModelsByPeriod,
 	})
 }
 
@@ -305,6 +306,23 @@ func SumUsedQuotaByUserId(logType int, userId string, startTimestamp int64, endT
 	}
 	if endTimestamp != 0 {
 		tx = tx.Where("created_at <= ?", endTimestamp)
+	}
+	var quota int64
+	err := tx.Where("type = ?", logType).Scan(&quota).Error
+	return quota, err
+}
+
+func SumUsedQuotaByUserIdWithModels(logType int, userId string, startTimestamp int64, endTimestamp int64, models []string) (int64, error) {
+	tx := model.LOG_DB.Table(model.EventLogsTableName).Select("COALESCE(sum(quota),0)")
+	tx = tx.Where("user_id = ?", userId)
+	if startTimestamp != 0 {
+		tx = tx.Where("created_at >= ?", startTimestamp)
+	}
+	if endTimestamp != 0 {
+		tx = tx.Where("created_at <= ?", endTimestamp)
+	}
+	if len(models) > 0 {
+		tx = tx.Where("model_name IN ?", models)
 	}
 	var quota int64
 	err := tx.Where("type = ?", logType).Scan(&quota).Error

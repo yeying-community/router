@@ -370,22 +370,7 @@ func GetUserDashboard(c *gin.Context) {
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
 	includeMeta := c.Query("include_meta") == "1"
 
-	modelsParam := strings.TrimSpace(c.Query("models"))
-	var models []string
-	if modelsParam != "" {
-		parts := strings.Split(modelsParam, ",")
-		modelSet := make(map[string]struct{}, len(parts))
-		for _, part := range parts {
-			name := strings.TrimSpace(part)
-			if name == "" {
-				continue
-			}
-			if _, exists := modelSet[name]; !exists {
-				modelSet[name] = struct{}{}
-				models = append(models, name)
-			}
-		}
-	}
+	models := parseModelFilters(c.Query("models"))
 
 	if startTimestamp <= 0 || endTimestamp <= 0 {
 		now := time.Now()
@@ -452,18 +437,78 @@ func GetUserDashboard(c *gin.Context) {
 	return
 }
 
+func parseModelFilters(raw string) []string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil
+	}
+	parts := strings.Split(trimmed, ",")
+	modelSet := make(map[string]struct{}, len(parts))
+	models := make([]string, 0, len(parts))
+	for _, part := range parts {
+		name := strings.TrimSpace(part)
+		if name == "" {
+			continue
+		}
+		if _, exists := modelSet[name]; exists {
+			continue
+		}
+		modelSet[name] = struct{}{}
+		models = append(models, name)
+	}
+	return models
+}
+
+func summarizeUsage(rows []*model.LogStatistic) (int64, int64) {
+	if len(rows) == 0 {
+		return 0, 0
+	}
+	var requests int64
+	var tokens int64
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		requests += int64(row.RequestCount)
+		tokens += int64(row.PromptTokens + row.CompletionTokens)
+	}
+	return requests, tokens
+}
+
+func normalizeSpendOverviewPeriod(raw string) string {
+	period := strings.ToLower(strings.TrimSpace(raw))
+	switch period {
+	case "today",
+		"last_7_days",
+		"last_30_days",
+		"this_month",
+		"last_month",
+		"this_year",
+		"last_year",
+		"last_12_months",
+		"all_time":
+		return period
+	case "last_week":
+		return "last_7_days"
+	default:
+		return "last_30_days"
+	}
+}
+
 // GetUserSpendOverview godoc
 // @Summary User spend overview
 // @Tags public
 // @Security BearerAuth
 // @Produce json
-// @Param period query string false "last_week|last_month|this_year|last_year|last_12_months|all_time"
+// @Param period query string false "today|last_7_days|last_30_days|this_month|last_month|this_year|last_year|last_12_months|all_time"
+// @Param models query string false "Comma-separated model list"
 // @Success 200 {object} docs.UserSpendOverviewResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/public/user/spend/overview [get]
 func GetUserSpendOverview(c *gin.Context) {
 	userId := c.GetString(ctxkey.Id)
-	period := strings.ToLower(strings.TrimSpace(c.DefaultQuery("period", "last_month")))
+	period := normalizeSpendOverviewPeriod(c.DefaultQuery("period", "last_30_days"))
+	models := parseModelFilters(c.Query("models"))
 	now := time.Now()
 	todayStart := startOfDay(now)
 	todayEnd := endOfDay(now)
@@ -473,10 +518,18 @@ func GetUserSpendOverview(c *gin.Context) {
 	var periodStart time.Time
 	var periodEnd time.Time
 	switch period {
-	case "last_week":
-		weekStart := startOfWeek(now)
-		periodStart = weekStart.AddDate(0, 0, -7)
-		periodEnd = weekStart.Add(-time.Second)
+	case "today":
+		periodStart = todayStart
+		periodEnd = todayEnd
+	case "last_7_days":
+		periodStart = todayStart.AddDate(0, 0, -6)
+		periodEnd = todayEnd
+	case "last_30_days":
+		periodStart = todayStart.AddDate(0, 0, -29)
+		periodEnd = todayEnd
+	case "this_month":
+		periodStart = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		periodEnd = todayEnd
 	case "last_month":
 		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 		periodEnd = monthStart.Add(-time.Second)
@@ -504,23 +557,24 @@ func GetUserSpendOverview(c *gin.Context) {
 			periodEnd = todayEnd
 		}
 	default:
-		period = "last_month"
-		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-		periodEnd = monthStart.Add(-time.Second)
-		periodStart = time.Date(periodEnd.Year(), periodEnd.Month(), 1, 0, 0, 0, 0, now.Location())
+		period = "last_30_days"
+		periodStart = todayStart.AddDate(0, 0, -29)
+		periodEnd = todayEnd
 	}
 
 	periodStartUnix := int64(0)
 	periodEndUnix := int64(0)
+	periodDays := int64(0)
 	if !periodStart.IsZero() && !periodEnd.IsZero() {
 		if periodStart.After(periodEnd) {
 			periodStart, periodEnd = periodEnd, periodStart
 		}
 		periodStartUnix = periodStart.Unix()
 		periodEndUnix = periodEnd.Unix()
+		periodDays = (periodEndUnix-periodStartUnix)/86400 + 1
 	}
 
-	yesterdayCost, err := logsvc.SumUsedQuotaByUserId(model.LogTypeConsume, userId, yesterdayStart.Unix(), yesterdayEnd.Unix())
+	todayCost, err := logsvc.SumUsedQuotaByUserIdWithModels(model.LogTypeConsume, userId, todayStart.Unix(), todayEnd.Unix(), models)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -528,7 +582,7 @@ func GetUserSpendOverview(c *gin.Context) {
 		})
 		return
 	}
-	yesterdayRevenue, err := logsvc.SumUsedQuotaByUserId(model.LogTypeTopup, userId, yesterdayStart.Unix(), yesterdayEnd.Unix())
+	todayRevenue, err := logsvc.SumUsedQuotaByUserIdWithModels(model.LogTypeTopup, userId, todayStart.Unix(), todayEnd.Unix(), models)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -536,7 +590,7 @@ func GetUserSpendOverview(c *gin.Context) {
 		})
 		return
 	}
-	periodCost, err := logsvc.SumUsedQuotaByUserId(model.LogTypeConsume, userId, periodStartUnix, periodEndUnix)
+	yesterdayCost, err := logsvc.SumUsedQuotaByUserIdWithModels(model.LogTypeConsume, userId, yesterdayStart.Unix(), yesterdayEnd.Unix(), models)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -544,7 +598,7 @@ func GetUserSpendOverview(c *gin.Context) {
 		})
 		return
 	}
-	periodRevenue, err := logsvc.SumUsedQuotaByUserId(model.LogTypeTopup, userId, periodStartUnix, periodEndUnix)
+	yesterdayRevenue, err := logsvc.SumUsedQuotaByUserIdWithModels(model.LogTypeTopup, userId, yesterdayStart.Unix(), yesterdayEnd.Unix(), models)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -552,15 +606,56 @@ func GetUserSpendOverview(c *gin.Context) {
 		})
 		return
 	}
+	periodCost, err := logsvc.SumUsedQuotaByUserIdWithModels(model.LogTypeConsume, userId, periodStartUnix, periodEndUnix, models)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无法获取统计信息",
+		})
+		return
+	}
+	periodRevenue, err := logsvc.SumUsedQuotaByUserIdWithModels(model.LogTypeTopup, userId, periodStartUnix, periodEndUnix, models)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无法获取统计信息",
+		})
+		return
+	}
+	periodUsageRows, err := usersvc.SearchLogsByPeriodAndModel(userId, int(periodStartUnix), int(periodEndUnix), "day", models)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无法获取统计信息",
+		})
+		return
+	}
+	todayUsageRows, err := usersvc.SearchLogsByPeriodAndModel(userId, int(todayStart.Unix()), int(todayEnd.Unix()), "day", models)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无法获取统计信息",
+		})
+		return
+	}
+	periodRequests, periodTokens := summarizeUsage(periodUsageRows)
+	todayRequests, todayTokens := summarizeUsage(todayUsageRows)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
 		"data": gin.H{
+			"today_cost":        todayCost,
+			"today_revenue":     todayRevenue,
+			"today_requests":    todayRequests,
+			"today_tokens":      todayTokens,
 			"yesterday_cost":    yesterdayCost,
 			"yesterday_revenue": yesterdayRevenue,
 			"period_cost":       periodCost,
 			"period_revenue":    periodRevenue,
+			"period_requests":   periodRequests,
+			"period_tokens":     periodTokens,
+			"period_days":       periodDays,
 			"period_start":      periodStartUnix,
 			"period_end":        periodEndUnix,
 			"yesterday_start":   yesterdayStart.Unix(),

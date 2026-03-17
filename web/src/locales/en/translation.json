@@ -952,6 +952,16 @@
       "span": "Span",
       "start": "Start",
       "end": "End",
+      "add_condition": "Add Condition",
+      "remove_condition": "Remove",
+      "clear_conditions": "Clear Conditions",
+      "hint": "Add \"Time Range\" or \"Model\" conditions when needed",
+      "model_placeholder": "Select models",
+      "model_note": "Current scope: {{scope}}",
+      "conditions": {
+        "time": "Time Range",
+        "models": "Model"
+      },
       "providers": "Providers",
       "no_providers": "No models available",
       "granularity_options": {
@@ -965,11 +975,21 @@
     "spending": {
       "overview": {
         "title": "Spending Overview",
+        "today_cost": "Today's Cost (USD)",
         "yesterday_cost": "Yesterday Cost (USD)",
         "period_cost": "{{period}} Cost (USD)",
+        "period_avg_cost": "Average Daily Cost (USD)",
+        "period_requests": "Period Requests",
+        "period_tokens": "Period Tokens",
         "yesterday_revenue": "Yesterday Revenue (USD)",
         "period_revenue": "{{period}} Revenue (USD)",
-        "drill_hint": "Drill down for trends and details"
+        "drill_hint": "Drill down for trends and details",
+        "scope": {
+          "label": "Scope",
+          "all": "All models",
+          "selected": "{{count}} models selected",
+          "none": "No model selected"
+        }
       },
       "calendar": {
         "title": "Spending Calendar",
@@ -996,6 +1016,10 @@
         "empty": "No details"
       },
       "period": {
+        "today": "Today",
+        "last_7_days": "Last 7 Days",
+        "last_30_days": "Last 30 Days",
+        "this_month": "This Month",
         "last_week": "Last Week",
         "last_month": "Last Month",
         "this_year": "This Year",
@@ -1016,6 +1040,9 @@
         "usd": "USD",
         "token": "Token",
         "ten_thousand": "10k"
+      },
+      "analysis": {
+        "title": "Spending Analysis"
       }
     }
   },
