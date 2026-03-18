@@ -42,10 +42,23 @@ func GetAllTokens(c *gin.Context) {
 		})
 		return
 	}
+	var total int64
+	if err := model.DB.Model(&model.Token{}).Where("user_id = ?", userId).Count(&total).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
 		"data":    tokens,
+		"meta": gin.H{
+			"total":     total,
+			"page":      page,
+			"page_size": config.ItemsPerPage,
+		},
 	})
 	return
 }

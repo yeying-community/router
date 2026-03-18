@@ -62,18 +62,30 @@ const RedemptionsTable = () => {
   const [redemptions, setRedemptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isSearchMode, setIsSearchMode] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searching, setSearching] = useState(false);
 
   const loadRedemptions = useCallback(async (page) => {
     const normalizedPage = Number(page) > 0 ? Number(page) : 1;
     const res = await API.get(`/api/v1/admin/redemption/?page=${normalizedPage}`);
-    const { success, message, data } = res.data;
+    const { success, message, data, meta } = res.data;
     if (success) {
+      setIsSearchMode(false);
+      setTotalCount(Number(meta?.total || data?.length || 0));
       if (normalizedPage === 1) {
         setRedemptions(data);
       } else {
-        setRedemptions((prev) => [...prev, ...data]);
+        setRedemptions((prev) => {
+          const next = [...prev];
+          next.splice(
+            (normalizedPage - 1) * ITEMS_PER_PAGE,
+            data.length,
+            ...data,
+          );
+          return next;
+        });
       }
     } else {
       showError(message);
@@ -83,11 +95,14 @@ const RedemptionsTable = () => {
 
   const onPaginationChange = (e, { activePage }) => {
     (async () => {
-      if (activePage === Math.ceil(redemptions.length / ITEMS_PER_PAGE) + 1) {
-        // In this case we have to load more data and then append them.
-        await loadRedemptions(activePage);
+      const nextPage = Number(activePage) > 0 ? Number(activePage) : 1;
+      const hasLoadedPageRows = redemptions
+        .slice((nextPage - 1) * ITEMS_PER_PAGE, nextPage * ITEMS_PER_PAGE)
+        .some(Boolean);
+      if (!isSearchMode && !hasLoadedPageRows) {
+        await loadRedemptions(nextPage);
       }
-      setActivePage(activePage);
+      setActivePage(nextPage);
     })();
   };
 
@@ -125,6 +140,7 @@ const RedemptionsTable = () => {
       let realIdx = (activePage - 1) * ITEMS_PER_PAGE + idx;
       if (action === 'delete') {
         newRedemptions[realIdx].deleted = true;
+        setTotalCount((prev) => Math.max(prev - 1, 0));
       } else {
         newRedemptions[realIdx].status = redemption.status;
       }
@@ -147,6 +163,8 @@ const RedemptionsTable = () => {
     );
     const { success, message, data } = res.data;
     if (success) {
+      setIsSearchMode(true);
+      setTotalCount(Array.isArray(data) ? data.length : 0);
       setRedemptions(data);
       setActivePage(1);
     } else {
@@ -184,6 +202,12 @@ const RedemptionsTable = () => {
     await loadRedemptions(1);
     setActivePage(1);
   };
+
+  const visibleRedemptionCount = redemptions.filter((row) => !row?.deleted).length;
+  const totalPages = Math.max(
+    Math.ceil((isSearchMode ? visibleRedemptionCount : totalCount) / ITEMS_PER_PAGE),
+    1,
+  );
 
   return (
     <>
@@ -366,10 +390,7 @@ const RedemptionsTable = () => {
                 activePage={activePage}
                 onPageChange={onPaginationChange}
                 siblingRange={1}
-                totalPages={
-                  Math.ceil(redemptions.length / ITEMS_PER_PAGE) +
-                  (redemptions.length % ITEMS_PER_PAGE === 0 ? 1 : 0)
-                }
+                totalPages={totalPages}
               />
             </Table.HeaderCell>
           </Table.Row>

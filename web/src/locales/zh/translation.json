@@ -621,6 +621,8 @@
     "loading": "加载中...",
     "no_data": "暂无数据",
     "download": "下载",
+    "cancel": "取消",
+    "confirm": "确认",
     "quota": {
       "display": "等价金额：${{amount}}",
       "display_short": "${{amount}}",

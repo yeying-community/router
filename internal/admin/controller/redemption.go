@@ -34,10 +34,23 @@ func GetAllRedemptions(c *gin.Context) {
 		})
 		return
 	}
+	var total int64
+	if err := model.DB.Model(&model.Redemption{}).Count(&total).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
 		"data":    redemptions,
+		"meta": gin.H{
+			"total":     total,
+			"page":      page,
+			"page_size": config.ItemsPerPage,
+		},
 	})
 	return
 }

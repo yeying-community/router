@@ -90,6 +90,8 @@ const TokensTable = () => {
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isSearchMode, setIsSearchMode] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searching, setSearching] = useState(false);
   const [orderBy, setOrderBy] = useState('');
@@ -100,8 +102,10 @@ const TokensTable = () => {
       const res = await API.get(
         `/api/v1/public/token/?page=${normalizedPage}&order=${orderBy}`,
       );
-      const { success, message, data } = res.data;
+      const { success, message, data, meta } = res.data;
       if (success) {
+        setIsSearchMode(false);
+        setTotalCount(Number(meta?.total || data?.length || 0));
         if (normalizedPage === 1) {
           setTokens(data);
         } else {
@@ -125,11 +129,14 @@ const TokensTable = () => {
 
   const onPaginationChange = (e, { activePage }) => {
     (async () => {
-      if (activePage === Math.ceil(tokens.length / ITEMS_PER_PAGE) + 1) {
-        // In this case we have to load more data and then append them.
-        await loadTokens(activePage);
+      const nextPage = Number(activePage) > 0 ? Number(activePage) : 1;
+      const hasLoadedPageRows = tokens
+        .slice((nextPage - 1) * ITEMS_PER_PAGE, nextPage * ITEMS_PER_PAGE)
+        .some(Boolean);
+      if (!isSearchMode && !hasLoadedPageRows) {
+        await loadTokens(nextPage);
       }
-      setActivePage(activePage);
+      setActivePage(nextPage);
     })();
   };
 
@@ -263,6 +270,7 @@ const TokensTable = () => {
       let realIdx = (activePage - 1) * ITEMS_PER_PAGE + idx;
       if (action === 'delete') {
         newTokens[realIdx].deleted = true;
+        setTotalCount((prev) => Math.max(prev - 1, 0));
       } else {
         newTokens[realIdx].status = token.status;
       }
@@ -286,6 +294,8 @@ const TokensTable = () => {
     );
     const { success, message, data } = res.data;
     if (success) {
+      setIsSearchMode(true);
+      setTotalCount(Array.isArray(data) ? data.length : 0);
       setTokens(data);
       setActivePage(1);
     } else {
@@ -326,6 +336,12 @@ const TokensTable = () => {
     setOrderBy(value);
     setActivePage(1);
   };
+
+  const visibleTokenCount = tokens.filter((token) => !token?.deleted).length;
+  const totalPages = Math.max(
+    Math.ceil((isSearchMode ? visibleTokenCount : totalCount) / ITEMS_PER_PAGE),
+    1,
+  );
 
   return (
     <>
@@ -588,10 +604,7 @@ const TokensTable = () => {
                   activePage={activePage}
                   onPageChange={onPaginationChange}
                   siblingRange={1}
-                  totalPages={
-                    Math.ceil(tokens.length / ITEMS_PER_PAGE) +
-                    (tokens.length % ITEMS_PER_PAGE === 0 ? 1 : 0)
-                  }
+                  totalPages={totalPages}
                 />
               </div>
             </Table.HeaderCell>

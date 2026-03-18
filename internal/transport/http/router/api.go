@@ -98,6 +98,7 @@ func SetApiRouter(engine *gin.Engine) {
 		publicLogRoute.Use(middleware.UserAuth())
 		{
 			publicLogRoute.GET("/stat", log.GetLogsSelfStat)
+			publicLogRoute.GET("/options", log.GetUserLogFilterOptions)
 			publicLogRoute.GET("", log.GetUserLogs)
 			publicLogRoute.GET("/search", log.SearchUserLogs)
 			publicLogRoute.GET("/:id", log.GetCurrentUserLog)
@@ -261,6 +262,7 @@ func SetApiRouter(engine *gin.Engine) {
 			adminLogRoute.GET("/", log.GetAllLogs)
 			adminLogRoute.DELETE("/", log.DeleteHistoryLogs)
 			adminLogRoute.GET("/stat", log.GetLogsStat)
+			adminLogRoute.GET("/options", log.GetLogFilterOptions)
 			adminLogRoute.GET("/search", log.SearchAllLogs)
 			adminLogRoute.GET("/:id", log.GetLog)
 		}

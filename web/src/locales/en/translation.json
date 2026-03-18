@@ -621,6 +621,8 @@
     "loading": "Loading...",
     "no_data": "No data",
     "download": "Download",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
     "quota": {
       "display": "Equivalent: ${{amount}}",
       "display_short": "${{amount}}",

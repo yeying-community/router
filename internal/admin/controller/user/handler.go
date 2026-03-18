@@ -259,8 +259,17 @@ func GetAllUsers(c *gin.Context) {
 
 	order := c.DefaultQuery("order", "")
 	users, err := usersvc.GetAll((page-1)*config.ItemsPerPage, config.ItemsPerPage, order)
-
 	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	var total int64
+	if err := model.DB.Model(&model.User{}).
+		Where("status != ?", model.UserStatusDeleted).
+		Count(&total).Error; err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": err.Error(),
@@ -272,6 +281,11 @@ func GetAllUsers(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data":    exposedUsers(users),
+		"meta": gin.H{
+			"total":     total,
+			"page":      page,
+			"page_size": config.ItemsPerPage,
+		},
 	})
 }
 
