@@ -711,6 +711,7 @@
     "table": {
       "time": "时间",
       "channel": "渠道",
+      "group": "分组",
       "type": "类型",
       "model": "模型",
       "username": "用户名",
@@ -723,6 +724,7 @@
       "time_range": "起止时间",
       "channel_id": "渠道 ID",
       "channel_id_placeholder": "可选值",
+      "group_id_placeholder": "可选值",
       "username_placeholder": "可选值",
       "prompt_tokens": "提示词消耗",
       "completion_tokens": "补全消耗",
@@ -751,6 +753,7 @@
         "time": "时间",
         "type": "类型",
         "channel": "渠道",
+        "group": "分组",
         "model": "模型",
         "username": "用户名",
         "token_name": "令牌名称",

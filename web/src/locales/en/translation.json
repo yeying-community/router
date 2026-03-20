@@ -711,6 +711,7 @@
     "table": {
       "time": "Time",
       "channel": "Channel",
+      "group": "Group",
       "type": "Type",
       "model": "Model",
       "username": "Username",
@@ -723,6 +724,7 @@
       "time_range": "Time Range",
       "channel_id": "Channel ID",
       "channel_id_placeholder": "Optional",
+      "group_id_placeholder": "Optional",
       "username_placeholder": "Optional",
       "prompt_tokens": "Prompt Tokens",
       "completion_tokens": "Completion Tokens",
@@ -751,6 +753,7 @@
         "time": "Time",
         "type": "Type",
         "channel": "Channel",
+        "group": "Group",
         "model": "Model",
         "username": "Username",
         "token_name": "Token Name",

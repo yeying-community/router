@@ -230,6 +230,7 @@ const LogsTable = () => {
     modelNames: [],
     usernames: [],
     channels: [],
+    groups: [],
   });
   const [inputs, setInputs] = useState({
     username: '',
@@ -238,6 +239,7 @@ const LogsTable = () => {
     start_timestamp: '',
     end_timestamp: '',
     channel: '',
+    group_id: '',
   });
   const {
     username,
@@ -246,6 +248,7 @@ const LogsTable = () => {
     start_timestamp,
     end_timestamp,
     channel,
+    group_id,
   } = inputs;
   const [activeFilterKeys, setActiveFilterKeys] = useState([]);
   const [addFilterPopupOpen, setAddFilterPopupOpen] = useState(false);
@@ -315,6 +318,17 @@ const LogsTable = () => {
           })),
         },
         {
+          key: 'group_id',
+          label: t('log.table.group'),
+          placeholder: t('log.table.group_id_placeholder'),
+          type: filterOptions.groups.length > 0 ? 'select' : 'text',
+          options: filterOptions.groups.map((item) => ({
+            key: item.id,
+            text: item.label,
+            value: item.id,
+          })),
+        },
+        {
           key: 'username',
           label: t('log.table.username'),
           placeholder: t('log.table.username_placeholder'),
@@ -328,7 +342,7 @@ const LogsTable = () => {
       );
     }
     return items;
-  }, [LOG_OPTIONS, filterOptions.channels, filterOptions.modelNames, filterOptions.tokenNames, filterOptions.usernames, isAdminScope, t]);
+  }, [LOG_OPTIONS, filterOptions.channels, filterOptions.groups, filterOptions.modelNames, filterOptions.tokenNames, filterOptions.usernames, isAdminScope, t]);
 
   const conditionalFilterOptions = useMemo(
     () =>
@@ -478,6 +492,7 @@ const LogsTable = () => {
       modelNames: Array.isArray(data?.model_names) ? data.model_names : [],
       usernames: Array.isArray(data?.usernames) ? data.usernames : [],
       channels: Array.isArray(data?.channels) ? data.channels : [],
+      groups: Array.isArray(data?.groups) ? data.groups : [],
     });
   }, [isAdminScope, t]);
 
@@ -501,9 +516,10 @@ const LogsTable = () => {
       const queryTokenName = enabledFilters.has('token_name') ? token_name : '';
       const queryModelName = enabledFilters.has('model_name') ? model_name : '';
       const queryChannel = enabledFilters.has('channel') ? channel : '';
+      const queryGroupID = enabledFilters.has('group_id') ? group_id : '';
       const queryLogType = enabledFilters.has('log_type') ? logType : 0;
       if (isAdminScope) {
-        url = `/api/v1/admin/log/?page=${normalizedPage}&type=${queryLogType}&username=${queryUsername}&token_name=${queryTokenName}&model_name=${queryModelName}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${queryChannel}`;
+        url = `/api/v1/admin/log/?page=${normalizedPage}&type=${queryLogType}&username=${queryUsername}&token_name=${queryTokenName}&model_name=${queryModelName}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group_id=${queryGroupID}&channel=${queryChannel}`;
       } else {
         url = `/api/v1/public/log?page=${normalizedPage}&type=${queryLogType}&token_name=${queryTokenName}&model_name=${queryModelName}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}`;
       }
@@ -534,6 +550,7 @@ const LogsTable = () => {
       start_timestamp,
       end_timestamp,
       channel,
+      group_id,
       activeFilterKeys,
     ]
   );
@@ -567,7 +584,7 @@ const LogsTable = () => {
 
   useEffect(() => {
     setActivePage(1);
-  }, [searchKeyword, activeFilterKeys, username, token_name, model_name, channel, start_timestamp, end_timestamp]);
+  }, [searchKeyword, activeFilterKeys, username, token_name, model_name, channel, group_id, start_timestamp, end_timestamp]);
 
   const sortLog = (key) => {
     if (logs.length === 0) return;
@@ -605,6 +622,8 @@ const LogsTable = () => {
         log?.username,
         log?.channel_name,
         log?.channel,
+        log?.group_name,
+        log?.group_id,
         log?.trace_id,
       ]
         .map((item) => (item || '').toString().toLowerCase())
@@ -619,9 +638,13 @@ const LogsTable = () => {
         const matched = filterOptions.channels.find((item) => item.id === value);
         return matched?.label || value;
       }
+      if (filterKey === 'group_id') {
+        const matched = filterOptions.groups.find((item) => item.id === value);
+        return matched?.label || value;
+      }
       return value;
     },
-    [filterOptions.channels]
+    [filterOptions.channels, filterOptions.groups]
   );
 
   const getLogTypeLabel = useCallback(
@@ -643,8 +666,8 @@ const LogsTable = () => {
   const detailBasePath = isAdminScope ? '/admin/log' : '/workspace/log';
   const tableColSpan = isAdminScope
     ? showUserTokenQuota()
-      ? 9
-      : 4
+      ? 10
+      : 5
     : showUserTokenQuota()
       ? 7
       : 3;
@@ -844,6 +867,17 @@ const LogsTable = () => {
                 {t('log.table.channel')}
               </Table.HeaderCell>
             )}
+            {isAdminScope && (
+              <Table.HeaderCell
+                className='router-sortable-header'
+                onClick={() => {
+                  sortLog('group_id');
+                }}
+                width={1}
+              >
+                {t('log.table.group')}
+              </Table.HeaderCell>
+            )}
             <Table.HeaderCell
               className='router-sortable-header'
               onClick={() => {
@@ -954,6 +988,24 @@ const LogsTable = () => {
                         </Label>
                       ) : (
                         ''
+                      )}
+                    </Table.Cell>
+                  )}
+                  {isAdminScope && (
+                    <Table.Cell>
+                      {log.group_id ? (
+                        <Label
+                          basic
+                          className='router-tag'
+                          as={Link}
+                          to={`/admin/group/detail/${log.group_id}`}
+                          state={{ from: currentPagePath }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {log.group_name || log.group_id}
+                        </Label>
+                      ) : (
+                        '-'
                       )}
                     </Table.Cell>
                   )}

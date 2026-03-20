@@ -112,6 +112,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return nil
 			},
 		},
+		{
+			Version:     "202603201030_main_event_log_group_id",
+			Description: "add group_id index column to event logs in main database",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -123,6 +130,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 			Description: "baseline: create current log schema",
 			Up: func(tx *gorm.DB) error {
 				return runLogBaselineMigrationWithDB(tx)
+			},
+		},
+		{
+			Version:     "202603201030_log_event_log_group_id",
+			Description: "add group_id index column to event logs in log database",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
 			},
 		},
 	}

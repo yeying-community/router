@@ -174,6 +174,28 @@ const LogDetail = () => {
                       )}
                     </div>
                   </div>
+                  {isAdminPage ? (
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.group')}
+                      </div>
+                      <div className='router-detail-value'>
+                        {log?.group_id ? (
+                          <Label
+                            basic
+                            className='router-tag'
+                            as={Link}
+                            to={`/admin/group/detail/${log.group_id}`}
+                            state={{ from: currentPagePath }}
+                          >
+                            {log?.group_name || log?.group_id}
+                          </Label>
+                        ) : (
+                          '-'
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
                   <div className='router-detail-item'>
                     <div className='router-detail-label'>
                       {t('log.detail.fields.model')}

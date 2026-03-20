@@ -32,25 +32,61 @@ func hydrateLogsWithChannelNames(logs []*model.Log) error {
 		seen[channelID] = struct{}{}
 		channelIDs = append(channelIDs, channelID)
 	}
-	if len(channelIDs) == 0 {
-		return nil
+	if len(channelIDs) > 0 {
+		var channels []*model.Channel
+		if err := model.DB.Select("id", "name").Where("id IN ?", channelIDs).Find(&channels).Error; err != nil {
+			return err
+		}
+		channelNameByID := make(map[string]string, len(channels))
+		for _, channel := range channels {
+			if channel == nil {
+				continue
+			}
+			channelNameByID[channel.Id] = channel.DisplayName()
+		}
+		for _, log := range logs {
+			if log == nil {
+				continue
+			}
+			log.ChannelName = channelNameByID[log.ChannelId]
+		}
 	}
-	var channels []*model.Channel
-	if err := model.DB.Select("id", "name").Where("id IN ?", channelIDs).Find(&channels).Error; err != nil {
-		return err
-	}
-	channelNameByID := make(map[string]string, len(channels))
-	for _, channel := range channels {
-		if channel == nil {
+	groupIDs := make([]string, 0, len(logs))
+	seenGroups := make(map[string]struct{}, len(logs))
+	for _, log := range logs {
+		if log == nil {
 			continue
 		}
-		channelNameByID[channel.Id] = channel.DisplayName()
+		groupID := strings.TrimSpace(log.GroupId)
+		if groupID == "" {
+			continue
+		}
+		if _, ok := seenGroups[groupID]; ok {
+			continue
+		}
+		seenGroups[groupID] = struct{}{}
+		groupIDs = append(groupIDs, groupID)
+	}
+	if len(groupIDs) == 0 {
+		return nil
+	}
+	var groups []model.GroupCatalog
+	if err := model.DB.Select("id", "name").Where("id IN ?", groupIDs).Find(&groups).Error; err != nil {
+		return err
+	}
+	groupNameByID := make(map[string]string, len(groups))
+	for _, group := range groups {
+		groupID := strings.TrimSpace(group.Id)
+		if groupID == "" {
+			continue
+		}
+		groupNameByID[groupID] = strings.TrimSpace(group.Name)
 	}
 	for _, log := range logs {
 		if log == nil {
 			continue
 		}
-		log.ChannelName = channelNameByID[log.ChannelId]
+		log.GroupName = groupNameByID[log.GroupId]
 	}
 	return nil
 }
@@ -132,7 +168,7 @@ func RecordTestLog(ctx context.Context, log *model.Log) {
 	recordLogHelper(ctx, log)
 }
 
-func GetAll(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel string) ([]*model.Log, error) {
+func GetAll(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, groupID string, startIdx int, num int, channel string) ([]*model.Log, error) {
 	var tx = model.LOG_DB
 	if logType != model.LogTypeAll {
 		tx = tx.Where("type = ?", logType)
@@ -145,6 +181,9 @@ func GetAll(logType int, startTimestamp int64, endTimestamp int64, modelName str
 	}
 	if tokenName != "" {
 		tx = tx.Where("token_name = ?", tokenName)
+	}
+	if strings.TrimSpace(groupID) != "" {
+		tx = tx.Where("group_id = ?", strings.TrimSpace(groupID))
 	}
 	if startTimestamp != 0 {
 		tx = tx.Where("created_at >= ?", startTimestamp)

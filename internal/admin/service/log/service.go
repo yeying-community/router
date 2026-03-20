@@ -5,8 +5,8 @@ import (
 	logrepo "github.com/yeying-community/router/internal/admin/repository/log"
 )
 
-func GetAll(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel string) ([]*model.Log, error) {
-	return logrepo.GetAll(logType, startTimestamp, endTimestamp, modelName, username, tokenName, startIdx, num, channel)
+func GetAll(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, groupID string, startIdx int, num int, channel string) ([]*model.Log, error) {
+	return logrepo.GetAll(logType, startTimestamp, endTimestamp, modelName, username, tokenName, groupID, startIdx, num, channel)
 }
 
 func GetUser(userId string, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int) ([]*model.Log, error) {

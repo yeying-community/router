@@ -144,6 +144,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	}
 	model.RecordConsumeLog(ctx, &model.Log{
 		UserId:            meta.UserId,
+		GroupId:           meta.Group,
 		ChannelId:         meta.ChannelId,
 		PromptTokens:      promptTokens,
 		CompletionTokens:  completionTokens,

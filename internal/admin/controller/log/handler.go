@@ -17,11 +17,17 @@ type logChannelOption struct {
 	Label string `json:"label"`
 }
 
+type logGroupOption struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
 type logFilterOptions struct {
 	TokenNames []string           `json:"token_names"`
 	ModelNames []string           `json:"model_names"`
 	Usernames  []string           `json:"usernames,omitempty"`
 	Channels   []logChannelOption `json:"channels,omitempty"`
+	Groups     []logGroupOption   `json:"groups,omitempty"`
 }
 
 func normalizeStatLogType(raw int) int {
@@ -95,6 +101,49 @@ func loadChannelOptions(channelIDs []string) ([]logChannelOption, error) {
 	return options, nil
 }
 
+func loadGroupOptions(groupIDs []string) ([]logGroupOption, error) {
+	normalizedIDs := make([]string, 0, len(groupIDs))
+	seen := make(map[string]struct{}, len(groupIDs))
+	for _, id := range groupIDs {
+		value := strings.TrimSpace(id)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		normalizedIDs = append(normalizedIDs, value)
+	}
+	if len(normalizedIDs) == 0 {
+		return []logGroupOption{}, nil
+	}
+	var groups []model.GroupCatalog
+	if err := model.DB.Select("id", "name").Where("id IN ?", normalizedIDs).Find(&groups).Error; err != nil {
+		return nil, err
+	}
+	nameByID := make(map[string]string, len(groups))
+	for _, group := range groups {
+		id := strings.TrimSpace(group.Id)
+		if id == "" {
+			continue
+		}
+		nameByID[id] = strings.TrimSpace(group.Name)
+	}
+	options := make([]logGroupOption, 0, len(normalizedIDs))
+	for _, id := range normalizedIDs {
+		label := strings.TrimSpace(nameByID[id])
+		if label == "" {
+			label = id
+		}
+		options = append(options, logGroupOption{
+			ID:    id,
+			Label: label,
+		})
+	}
+	return options, nil
+}
+
 func buildLogFilterOptions(userID string, includeAdmin bool) (logFilterOptions, error) {
 	tokenNames, err := distinctLogValues("token_name", userID)
 	if err != nil {
@@ -119,16 +168,25 @@ func buildLogFilterOptions(userID string, includeAdmin bool) (logFilterOptions, 
 	if err != nil {
 		return logFilterOptions{}, err
 	}
+	groupIDs, err := distinctLogValues("group_id", "")
+	if err != nil {
+		return logFilterOptions{}, err
+	}
 	channels, err := loadChannelOptions(channelIDs)
+	if err != nil {
+		return logFilterOptions{}, err
+	}
+	groups, err := loadGroupOptions(groupIDs)
 	if err != nil {
 		return logFilterOptions{}, err
 	}
 	options.Usernames = usernames
 	options.Channels = channels
+	options.Groups = groups
 	return options, nil
 }
 
-func countAdminLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel string) (int64, error) {
+func countAdminLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, groupID string, channel string) (int64, error) {
 	query := model.LOG_DB.Table(model.EventLogsTableName)
 	if logType != model.LogTypeAll {
 		query = query.Where("type = ?", logType)
@@ -141,6 +199,9 @@ func countAdminLogs(logType int, startTimestamp int64, endTimestamp int64, model
 	}
 	if tokenName != "" {
 		query = query.Where("token_name = ?", tokenName)
+	}
+	if strings.TrimSpace(groupID) != "" {
+		query = query.Where("group_id = ?", strings.TrimSpace(groupID))
 	}
 	if startTimestamp != 0 {
 		query = query.Where("created_at >= ?", startTimestamp)
@@ -238,6 +299,7 @@ func countUserLogs(userId string, logType int, startTimestamp int64, endTimestam
 // @Param username query string false "Username"
 // @Param token_name query string false "Token name"
 // @Param model_name query string false "Model name"
+// @Param group_id query string false "Group ID"
 // @Param channel query int false "Channel ID"
 // @Success 200 {object} docs.UserLogListResponse
 // @Failure 401 {object} docs.ErrorResponse
@@ -253,8 +315,9 @@ func GetAllLogs(c *gin.Context) {
 	username := c.Query("username")
 	tokenName := c.Query("token_name")
 	modelName := c.Query("model_name")
+	groupID := c.Query("group_id")
 	channel := c.Query("channel")
-	logs, err := logsvc.GetAll(logType, startTimestamp, endTimestamp, modelName, username, tokenName, (page-1)*config.ItemsPerPage, config.ItemsPerPage, channel)
+	logs, err := logsvc.GetAll(logType, startTimestamp, endTimestamp, modelName, username, tokenName, groupID, (page-1)*config.ItemsPerPage, config.ItemsPerPage, channel)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -262,7 +325,7 @@ func GetAllLogs(c *gin.Context) {
 		})
 		return
 	}
-	total, err := countAdminLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel)
+	total, err := countAdminLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, groupID, channel)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

@@ -431,6 +431,7 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		tokenName := c.GetString(ctxkey.TokenName)
 		model.RecordConsumeLog(ctx, &model.Log{
 			UserId:           meta.UserId,
+			GroupId:          meta.Group,
 			ChannelId:        meta.ChannelId,
 			PromptTokens:     0,
 			CompletionTokens: 0,
