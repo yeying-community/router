@@ -99,6 +99,8 @@ const DefaultUcanAction = "invoke"
 
 const AppCompatUcanResource = "app:*"
 const AppCompatUcanAction = "invoke"
+const AppScopedCompatUcanResource = "app:all:*"
+const AppScopedCompatUcanAction = "invoke"
 const CompatUcanResource = "router:llm"
 const CompatUcanAction = "invoke"
 

@@ -63,7 +63,10 @@ cors:
 ucan:
   # 公网部署建议显式设置 did:web:<your-domain>
   aud: ""
+  # 推荐资源语义: app:<scope>:<appId>（如 app:all:chat.example.com）
+  # 历史兼容: app:<appId> / llm:<host> / router:llm / profile
   resource: ""
+  # 推荐动作: invoke / read / write
   action: invoke
 
 feature:

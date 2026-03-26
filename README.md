@@ -69,6 +69,7 @@ bootstrap:
 - `ucan.aud: did:web:<公网域名>`
 - `auth.auto_register_enabled: true`（按需开启钱包自动注册）
 - `bootstrap.root_wallet_address: "0xabc...,0xdef..."`（按需开启“管理员管理管理员”的额外权限）
+- UCAN 能力定义基线见 [`docs/UCAN能力定义.md`](./docs/UCAN能力定义.md)
 
 若服务端口不是默认 `3011`，请显式设置 `ucan.aud`，否则可能出现 `UCAN audience mismatch`。
 

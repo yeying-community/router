@@ -18,37 +18,49 @@ import (
 )
 
 type UcanCapability struct {
-	Resource string `json:"resource"`
-	Action   string `json:"action"`
+	// UCAN canonical fields (recommended)
+	With string `json:"with,omitempty"`
+	Can  string `json:"can,omitempty"`
+	NB   any    `json:"nb,omitempty"`
+
+	// Compatibility fields used by existing clients.
+	Resource string `json:"resource,omitempty"`
+	Action   string `json:"action,omitempty"`
 }
 
 type ucanRootProof struct {
-	Type string           `json:"type"`
-	Iss  string           `json:"iss"`
-	Aud  string           `json:"aud"`
-	Cap  []UcanCapability `json:"cap"`
-	Exp  int64            `json:"exp"`
-	Nbf  *int64           `json:"nbf,omitempty"`
-	Siwe struct {
+	Type         string                            `json:"type"`
+	Iss          string                            `json:"iss"`
+	Aud          string                            `json:"aud"`
+	Cap          []UcanCapability                  `json:"cap,omitempty"`
+	Capabilities []UcanCapability                  `json:"capabilities,omitempty"`
+	Att          map[string]map[string]interface{} `json:"att,omitempty"`
+	Exp          int64                             `json:"exp"`
+	Nbf          *int64                            `json:"nbf,omitempty"`
+	Siwe         struct {
 		Message   string `json:"message"`
 		Signature string `json:"signature"`
 	} `json:"siwe"`
 }
 
 type ucanStatement struct {
-	Aud string           `json:"aud"`
-	Cap []UcanCapability `json:"cap"`
-	Exp int64            `json:"exp"`
-	Nbf *int64           `json:"nbf,omitempty"`
+	Aud          string                            `json:"aud"`
+	Cap          []UcanCapability                  `json:"cap,omitempty"`
+	Capabilities []UcanCapability                  `json:"capabilities,omitempty"`
+	Att          map[string]map[string]interface{} `json:"att,omitempty"`
+	Exp          int64                             `json:"exp"`
+	Nbf          *int64                            `json:"nbf,omitempty"`
 }
 
 type ucanPayload struct {
-	Iss string            `json:"iss"`
-	Aud string            `json:"aud"`
-	Cap []UcanCapability  `json:"cap"`
-	Exp int64             `json:"exp"`
-	Nbf *int64            `json:"nbf,omitempty"`
-	Prf []json.RawMessage `json:"prf"`
+	Iss          string                            `json:"iss"`
+	Aud          string                            `json:"aud"`
+	Cap          []UcanCapability                  `json:"cap,omitempty"`
+	Capabilities []UcanCapability                  `json:"capabilities,omitempty"`
+	Att          map[string]map[string]interface{} `json:"att,omitempty"`
+	Exp          int64                             `json:"exp"`
+	Nbf          *int64                            `json:"nbf,omitempty"`
+	Prf          []json.RawMessage                 `json:"prf"`
 }
 
 func ResolveUcanAudience() string {
@@ -74,13 +86,117 @@ func resolveDefaultUcanResource() string {
 	return config.DefaultUcanResourcePrefix + "localhost"
 }
 
+func normalizeAppResource(resource string) string {
+	trimmed := strings.TrimSpace(resource)
+	if trimmed == "" {
+		return ""
+	}
+	lower := strings.ToLower(trimmed)
+	if !strings.HasPrefix(lower, "app:") {
+		return trimmed
+	}
+	suffix := strings.TrimSpace(trimmed[len("app:"):])
+	if suffix == "" || suffix == "*" || strings.Contains(suffix, ":") {
+		// Keep wildcard and non-canonical legacy forms (e.g. app:127.0.0.1:8001) unchanged.
+		return trimmed
+	}
+	return "app:all:" + suffix
+}
+
+func normalizeUcanCapability(cap UcanCapability) (UcanCapability, bool) {
+	resource := strings.TrimSpace(cap.Resource)
+	if resource == "" {
+		resource = strings.TrimSpace(cap.With)
+	}
+	action := strings.TrimSpace(cap.Action)
+	if action == "" {
+		action = strings.TrimSpace(cap.Can)
+	}
+	resource = normalizeAppResource(resource)
+	if resource == "" || action == "" {
+		return UcanCapability{}, false
+	}
+	return UcanCapability{
+		With:     resource,
+		Can:      action,
+		NB:       cap.NB,
+		Resource: resource,
+		Action:   action,
+	}, true
+}
+
+func normalizeUcanCapabilities(caps []UcanCapability) []UcanCapability {
+	if len(caps) == 0 {
+		return nil
+	}
+	result := make([]UcanCapability, 0, len(caps))
+	seen := make(map[string]struct{}, len(caps))
+	for _, cap := range caps {
+		normalized, ok := normalizeUcanCapability(cap)
+		if !ok {
+			continue
+		}
+		key := strings.ToLower(strings.TrimSpace(normalized.Resource)) + "|" + strings.ToLower(strings.TrimSpace(normalized.Action))
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, normalized)
+	}
+	return result
+}
+
+func capabilitiesFromAtt(att map[string]map[string]interface{}) []UcanCapability {
+	if len(att) == 0 {
+		return nil
+	}
+	caps := make([]UcanCapability, 0)
+	for resource, actions := range att {
+		resource = strings.TrimSpace(resource)
+		if resource == "" {
+			continue
+		}
+		for action, constraints := range actions {
+			action = strings.TrimSpace(action)
+			if action == "" {
+				continue
+			}
+			caps = append(caps, UcanCapability{
+				With:     resource,
+				Can:      action,
+				NB:       constraints,
+				Resource: resource,
+				Action:   action,
+			})
+		}
+	}
+	return normalizeUcanCapabilities(caps)
+}
+
+func collectUcanCapabilities(cap []UcanCapability, capabilities []UcanCapability, att map[string]map[string]interface{}) []UcanCapability {
+	merged := make([]UcanCapability, 0, len(cap)+len(capabilities))
+	merged = append(merged, cap...)
+	merged = append(merged, capabilities...)
+	merged = append(merged, capabilitiesFromAtt(att)...)
+	return normalizeUcanCapabilities(merged)
+}
+
 func capabilityEquals(a UcanCapability, b UcanCapability) bool {
-	return strings.EqualFold(strings.TrimSpace(a.Resource), strings.TrimSpace(b.Resource)) &&
-		strings.EqualFold(strings.TrimSpace(a.Action), strings.TrimSpace(b.Action))
+	na, okA := normalizeUcanCapability(a)
+	nb, okB := normalizeUcanCapability(b)
+	if !okA || !okB {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(na.Resource), strings.TrimSpace(nb.Resource)) &&
+		strings.EqualFold(strings.TrimSpace(na.Action), strings.TrimSpace(nb.Action))
 }
 
 func appendCapabilitySetIfMissing(sets [][]UcanCapability, cap UcanCapability) [][]UcanCapability {
-	target := []UcanCapability{{Resource: strings.TrimSpace(cap.Resource), Action: strings.TrimSpace(cap.Action)}}
+	normalized, ok := normalizeUcanCapability(cap)
+	if !ok {
+		return sets
+	}
+	target := []UcanCapability{normalized}
 	for _, existing := range sets {
 		if len(existing) != 1 {
 			continue
@@ -102,9 +218,10 @@ func ResolveUcanRequiredCapabilitySets() [][]UcanCapability {
 		action = config.DefaultUcanAction
 	}
 
-	current := UcanCapability{Resource: resource, Action: action}
+	current := UcanCapability{With: resource, Can: action, Resource: resource, Action: action}
 	defaultCap := UcanCapability{Resource: resolveDefaultUcanResource(), Action: config.DefaultUcanAction}
 	compatCaps := []UcanCapability{
+		{Resource: config.AppScopedCompatUcanResource, Action: config.AppScopedCompatUcanAction},
 		{Resource: config.AppCompatUcanResource, Action: config.AppCompatUcanAction},
 		{Resource: config.CompatUcanResource, Action: config.CompatUcanAction},
 		{Resource: config.ProfileCompatUcanResource, Action: config.ProfileCompatUcanAction},
@@ -264,22 +381,31 @@ func normalizeEpochMillis(value int64) int64 {
 }
 
 func matchPattern(pattern, value string) bool {
+	pattern = strings.TrimSpace(pattern)
+	value = strings.TrimSpace(value)
+	if pattern == "" || value == "" {
+		return false
+	}
+	patternLower := strings.ToLower(pattern)
+	valueLower := strings.ToLower(value)
 	if pattern == "*" {
 		return true
 	}
-	if strings.HasSuffix(pattern, "*") {
-		return strings.HasPrefix(value, strings.TrimSuffix(pattern, "*"))
+	if strings.HasSuffix(patternLower, "*") {
+		return strings.HasPrefix(valueLower, strings.TrimSuffix(patternLower, "*"))
 	}
-	return pattern == value
+	return patternLower == valueLower
 }
 
 func capsAllow(available []UcanCapability, required []UcanCapability) bool {
-	if len(available) == 0 {
+	normalizedAvailable := normalizeUcanCapabilities(available)
+	normalizedRequired := normalizeUcanCapabilities(required)
+	if len(normalizedAvailable) == 0 || len(normalizedRequired) == 0 {
 		return false
 	}
-	for _, req := range required {
+	for _, req := range normalizedRequired {
 		matched := false
-		for _, cap := range available {
+		for _, cap := range normalizedAvailable {
 			resourceMatched :=
 				matchPattern(cap.Resource, req.Resource) ||
 					matchPattern(req.Resource, cap.Resource)
@@ -362,9 +488,9 @@ func verifyRootProof(root ucanRootProof) (ucanStatement, string, error) {
 	if exp == 0 {
 		exp = normalizeEpochMillis(root.Exp)
 	}
-	cap := statement.Cap
+	cap := collectUcanCapabilities(statement.Cap, statement.Capabilities, statement.Att)
 	if len(cap) == 0 {
-		cap = root.Cap
+		cap = collectUcanCapabilities(root.Cap, root.Capabilities, root.Att)
 	}
 
 	if aud == "" || exp == 0 || len(cap) == 0 {
@@ -398,6 +524,8 @@ func verifyRootProof(root ucanRootProof) (ucanStatement, string, error) {
 	statement.Aud = aud
 	statement.Exp = exp
 	statement.Cap = cap
+	statement.Capabilities = cap
+	statement.Att = nil
 	statement.Nbf = nbf
 
 	return *statement, iss, nil
@@ -461,6 +589,10 @@ func verifyUcanJws(token string) (ucanPayload, int64, error) {
 	if exp != 0 && nowMs > exp {
 		return ucanPayload{}, 0, errors.New("UCAN expired")
 	}
+
+	payload.Cap = collectUcanCapabilities(payload.Cap, payload.Capabilities, payload.Att)
+	payload.Capabilities = payload.Cap
+	payload.Att = nil
 
 	return payload, exp, nil
 }
