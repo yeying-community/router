@@ -719,7 +719,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
             <Table.HeaderCell>{t('group_manage.table.daily_quota_limit')}</Table.HeaderCell>
             <Table.HeaderCell>{t('group_manage.table.status')}</Table.HeaderCell>
             <Table.HeaderCell>{t('group_manage.table.updated_at')}</Table.HeaderCell>
-            <Table.HeaderCell className='router-table-action-cell'>
+            <Table.HeaderCell className='router-table-action-cell router-group-action-cell'>
               {t('group_manage.table.actions')}
             </Table.HeaderCell>
           </Table.Row>
@@ -763,11 +763,13 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                 </Table.Cell>
                 <Table.Cell>{renderGroupStatus(row.enabled)}</Table.Cell>
                 <Table.Cell>{row.updated_at ? timestamp2string(row.updated_at) : '-'}</Table.Cell>
-                <Table.Cell className='router-table-action-cell'>
-                  <div className='router-action-group'>
+                <Table.Cell className='router-table-action-cell router-group-action-cell'>
+                  <div className='router-action-group-tight'>
                     <Button
                       className='router-inline-button'
                       color={row.enabled ? 'orange' : 'green'}
+                      size='mini'
+                      compact
                       disabled={submitting || loading}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -781,6 +783,8 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                     <Button
                       className='router-inline-button'
                       negative
+                      size='mini'
+                      compact
                       disabled={submitting || loading}
                       onClick={(e) => {
                         e.stopPropagation();

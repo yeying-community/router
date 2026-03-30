@@ -1365,6 +1365,47 @@ code {
     width: 280px;
 }
 
+.router-group-action-cell {
+    width: 160px !important;
+    max-width: 160px;
+}
+
+.router-group-action-cell .router-action-group-tight {
+    gap: 3px;
+    row-gap: 3px;
+}
+
+.router-group-action-cell.ui.table td,
+.ui.table td.router-group-action-cell,
+.ui.table th.router-group-action-cell {
+    padding-left: 0.55rem !important;
+    padding-right: 0.55rem !important;
+}
+
+.router-group-action-cell .ui.button.router-inline-button,
+.router-group-action-cell .ui.buttons .button.router-inline-button {
+    min-height: 26px !important;
+    padding: 0.42em 0.62em !important;
+    font-size: 11px !important;
+}
+
+.router-redemption-action-cell {
+    width: 200px !important;
+    max-width: 200px;
+}
+
+.router-redemption-action-cell .router-action-group-tight {
+    gap: 3px;
+    row-gap: 3px;
+}
+
+.router-redemption-action-cell .ui.button.router-inline-button,
+.router-redemption-action-cell .ui.buttons .button.router-inline-button {
+    min-height: 26px !important;
+    padding: 0.42em 0.62em !important;
+    font-size: 11px !important;
+}
+
 .router-row-clickable {
     cursor: pointer;
 }

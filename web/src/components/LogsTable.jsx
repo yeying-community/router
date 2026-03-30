@@ -388,7 +388,7 @@ const LogsTable = () => {
         });
       } else if (filterKey === 'log_type') {
         setDraftFilterInputs({
-          value: logType > 0 ? String(logType) : '',
+          value: logType > 0 ? logType : '',
           start_timestamp: '',
           end_timestamp: '',
         });
@@ -755,7 +755,10 @@ const LogsTable = () => {
                           onChange={(e, { value }) =>
                             setDraftFilterInputs((prev) => ({
                               ...prev,
-                              value: value ? String(value) : '',
+                              value:
+                                value === null || value === undefined || value === ''
+                                  ? ''
+                                  : value,
                             }))
                           }
                         />

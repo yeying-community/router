@@ -281,7 +281,9 @@ const RedemptionsTable = () => {
             >
               {t('redemption.table.redeemed_time')}
             </Table.HeaderCell>
-            <Table.HeaderCell>{t('redemption.table.actions')}</Table.HeaderCell>
+            <Table.HeaderCell className='router-table-action-cell router-redemption-action-cell'>
+              {t('redemption.table.actions')}
+            </Table.HeaderCell>
           </Table.Row>
         </Table.Header>
 
@@ -319,14 +321,17 @@ const RedemptionsTable = () => {
                       : t('redemption.table.not_redeemed')}{' '}
                   </Table.Cell>
                   <Table.Cell
+                    className='router-table-action-cell router-redemption-action-cell'
                     onClick={(e) => {
                       e.stopPropagation();
                     }}
                   >
-                    <div className='router-action-group'>
+                    <div className='router-action-group-tight'>
                       <Button
                         className='router-inline-button'
                         positive
+                        size='mini'
+                        compact
                         onClick={async () => {
                           if (await copy(redemption.code)) {
                             showSuccess(t('token.messages.copy_success'));
@@ -340,7 +345,12 @@ const RedemptionsTable = () => {
                       </Button>
                       <Popup
                         trigger={
-                          <Button className='router-inline-button' negative>
+                          <Button
+                            className='router-inline-button'
+                            negative
+                            size='mini'
+                            compact
+                          >
                             {t('redemption.buttons.delete')}
                           </Button>
                         }
@@ -351,6 +361,8 @@ const RedemptionsTable = () => {
                         <Button
                           className='router-inline-button'
                           negative
+                          size='mini'
+                          compact
                           onClick={() => {
                             manageRedemption(redemption.id, 'delete', idx);
                           }}
@@ -360,6 +372,8 @@ const RedemptionsTable = () => {
                       </Popup>
                       <Button
                         className='router-inline-button'
+                        size='mini'
+                        compact
                         disabled={redemption.status === 3} // used
                         onClick={() => {
                           manageRedemption(
