@@ -5,25 +5,27 @@ import "context"
 const EventLogsTableName = "event_logs"
 
 type Log struct {
-	Id                string `json:"id" gorm:"type:char(36);primaryKey"`
-	UserId            string `json:"user_id" gorm:"type:char(36);index"`
-	CreatedAt         int64  `json:"created_at" gorm:"bigint;index:idx_created_at_type"`
-	Type              int    `json:"type" gorm:"index:idx_created_at_type"`
-	Content           string `json:"content"`
-	Username          string `json:"username" gorm:"index:index_username_model_name,priority:2;default:''"`
-	TokenName         string `json:"token_name" gorm:"index;default:''"`
-	ModelName         string `json:"model_name" gorm:"index;index:index_username_model_name,priority:1;default:''"`
-	GroupId           string `json:"group_id" gorm:"type:varchar(64);index"`
-	GroupName         string `json:"group_name,omitempty" gorm:"-"`
-	Quota             int    `json:"quota" gorm:"default:0"`
-	PromptTokens      int    `json:"prompt_tokens" gorm:"default:0"`
-	CompletionTokens  int    `json:"completion_tokens" gorm:"default:0"`
-	ChannelId         string `json:"channel" gorm:"type:varchar(64);index"`
-	ChannelName       string `json:"channel_name,omitempty" gorm:"-"`
-	TraceID           string `json:"trace_id" gorm:"column:trace_id;default:''"`
-	ElapsedTime       int64  `json:"elapsed_time" gorm:"default:0"`
-	IsStream          bool   `json:"is_stream" gorm:"default:false"`
-	SystemPromptReset bool   `json:"system_prompt_reset" gorm:"default:false"`
+	Id                 string `json:"id" gorm:"type:char(36);primaryKey"`
+	UserId             string `json:"user_id" gorm:"type:char(36);index"`
+	CreatedAt          int64  `json:"created_at" gorm:"bigint;index:idx_created_at_type"`
+	Type               int    `json:"type" gorm:"index:idx_created_at_type"`
+	Content            string `json:"content"`
+	Username           string `json:"username" gorm:"index:index_username_model_name,priority:2;default:''"`
+	TokenName          string `json:"token_name" gorm:"index;default:''"`
+	ModelName          string `json:"model_name" gorm:"index;index:index_username_model_name,priority:1;default:''"`
+	GroupId            string `json:"group_id" gorm:"type:varchar(64);index"`
+	GroupName          string `json:"group_name,omitempty" gorm:"-"`
+	Quota              int    `json:"quota" gorm:"default:0"`
+	UserDailyQuota     int    `json:"user_daily_quota" gorm:"column:user_daily_quota;default:0"`
+	UserEmergencyQuota int    `json:"user_emergency_quota" gorm:"column:user_emergency_quota;default:0"`
+	PromptTokens       int    `json:"prompt_tokens" gorm:"default:0"`
+	CompletionTokens   int    `json:"completion_tokens" gorm:"default:0"`
+	ChannelId          string `json:"channel" gorm:"type:varchar(64);index"`
+	ChannelName        string `json:"channel_name,omitempty" gorm:"-"`
+	TraceID            string `json:"trace_id" gorm:"column:trace_id;default:''"`
+	ElapsedTime        int64  `json:"elapsed_time" gorm:"default:0"`
+	IsStream           bool   `json:"is_stream" gorm:"default:false"`
+	SystemPromptReset  bool   `json:"system_prompt_reset" gorm:"default:false"`
 }
 
 func (Log) TableName() string {

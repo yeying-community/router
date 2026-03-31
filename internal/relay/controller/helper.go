@@ -107,10 +107,11 @@ func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIR
 	return preConsumedQuota, nil
 }
 
-func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, groupRatio float64, systemPromptReset bool, groupReservation model.GroupDailyQuotaReservation) {
+func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, groupRatio float64, systemPromptReset bool, groupReservation model.GroupDailyQuotaReservation, userReservation model.UserQuotaReservation) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		releaseGroupDailyQuotaReservation(ctx, groupReservation)
+		releaseUserQuotaReservation(ctx, userReservation)
 		return
 	}
 	promptTokens := usage.PromptTokens
@@ -143,19 +144,22 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	if err != nil {
 		logger.Error(ctx, "error update user quota cache: "+err.Error())
 	}
+	userQuotaUsage := settleUserQuotaReservation(ctx, userReservation, quota)
 	model.RecordConsumeLog(ctx, &model.Log{
-		UserId:            meta.UserId,
-		GroupId:           meta.Group,
-		ChannelId:         meta.ChannelId,
-		PromptTokens:      promptTokens,
-		CompletionTokens:  completionTokens,
-		ModelName:         textRequest.Model,
-		TokenName:         meta.TokenName,
-		Quota:             int(quota),
-		Content:           billing.FormatPricingLog(pricing, groupRatio),
-		IsStream:          meta.IsStream,
-		ElapsedTime:       helper.CalcElapsedTime(meta.StartTime),
-		SystemPromptReset: systemPromptReset,
+		UserId:             meta.UserId,
+		GroupId:            meta.Group,
+		ChannelId:          meta.ChannelId,
+		PromptTokens:       promptTokens,
+		CompletionTokens:   completionTokens,
+		ModelName:          textRequest.Model,
+		TokenName:          meta.TokenName,
+		Quota:              int(quota),
+		UserDailyQuota:     int(userQuotaUsage.DailyQuotaUsed),
+		UserEmergencyQuota: int(userQuotaUsage.EmergencyQuotaUsed),
+		Content:            billing.FormatPricingLog(pricing, groupRatio),
+		IsStream:           meta.IsStream,
+		ElapsedTime:        helper.CalcElapsedTime(meta.StartTime),
+		SystemPromptReset:  systemPromptReset,
 	})
 	model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 	model.UpdateChannelUsedQuota(meta.ChannelId, quota)

@@ -371,12 +371,20 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	if groupQuotaErr != nil {
 		return groupQuotaErr
 	}
-	groupQuotaSettled := false
-	defer func() {
-		if groupQuotaSettled {
-			return
-		}
+	userReservation, userQuotaErr := reserveUserQuota(meta.UserId, quota)
+	if userQuotaErr != nil {
 		releaseGroupDailyQuotaReservation(ctx, groupReservation)
+		return userQuotaErr
+	}
+	groupQuotaSettled := false
+	userQuotaSettled := false
+	defer func() {
+		if !groupQuotaSettled {
+			releaseGroupDailyQuotaReservation(ctx, groupReservation)
+		}
+		if !userQuotaSettled {
+			releaseUserQuotaReservation(ctx, userReservation)
+		}
 	}()
 
 	userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
@@ -425,6 +433,7 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 
 	defer func(ctx context.Context) {
 		if quota == 0 {
+			settleUserQuotaReservation(ctx, userReservation, 0)
 			settleGroupDailyQuotaReservation(ctx, groupReservation, 0)
 			return
 		}
@@ -440,23 +449,27 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
 			logger.SysError("error update user quota cache: " + err.Error())
 		}
+		userQuotaUsage := settleUserQuotaReservation(ctx, userReservation, quota)
 		tokenName := c.GetString(ctxkey.TokenName)
 		model.RecordConsumeLog(ctx, &model.Log{
-			UserId:           meta.UserId,
-			GroupId:          meta.Group,
-			ChannelId:        meta.ChannelId,
-			PromptTokens:     0,
-			CompletionTokens: 0,
-			ModelName:        videoRequest.Model,
-			TokenName:        tokenName,
-			Quota:            int(quota),
-			Content:          appendVideoSummaryToLogContent(billing.FormatPricingLog(pricing, groupRatio), responseSummary),
+			UserId:             meta.UserId,
+			GroupId:            meta.Group,
+			ChannelId:          meta.ChannelId,
+			PromptTokens:       0,
+			CompletionTokens:   0,
+			ModelName:          videoRequest.Model,
+			TokenName:          tokenName,
+			Quota:              int(quota),
+			UserDailyQuota:     int(userQuotaUsage.DailyQuotaUsed),
+			UserEmergencyQuota: int(userQuotaUsage.EmergencyQuotaUsed),
+			Content:            appendVideoSummaryToLogContent(billing.FormatPricingLog(pricing, groupRatio), responseSummary),
 		})
 		model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 		model.UpdateChannelUsedQuota(meta.ChannelId, quota)
 		settleGroupDailyQuotaReservation(ctx, groupReservation, quota)
 	}(c.Request.Context())
 	groupQuotaSettled = true
+	userQuotaSettled = true
 
 	for k, v := range resp.Header {
 		if len(v) == 0 {

@@ -87,6 +87,46 @@ func TestNormalizeFinalRelayErrorForUpstreamQuotaExhausted(t *testing.T) {
 	}
 }
 
+func TestNormalizeFinalRelayErrorKeepsGroupDailyQuotaExceeded(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusForbidden,
+		Error: relaymodel.Error{
+			Message: "当前分组套餐每日额度已达上限，请明日再试",
+			Type:    "one_api_error",
+			Code:    "group_daily_quota_exceeded",
+		},
+	}
+
+	normalizeFinalRelayError(err)
+
+	if err.StatusCode != http.StatusForbidden {
+		t.Fatalf("unexpected status code: got %d want %d", err.StatusCode, http.StatusForbidden)
+	}
+	if err.Message != "当前分组套餐每日额度已达上限，请明日再试" {
+		t.Fatalf("unexpected message: got %q", err.Message)
+	}
+}
+
+func TestNormalizeFinalRelayErrorKeepsUserQuotaExceeded(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusForbidden,
+		Error: relaymodel.Error{
+			Message: "当前用户今日额度及本月应急额度已达上限",
+			Type:    "one_api_error",
+			Code:    "user_quota_limit_exceeded",
+		},
+	}
+
+	normalizeFinalRelayError(err)
+
+	if err.StatusCode != http.StatusForbidden {
+		t.Fatalf("unexpected status code: got %d want %d", err.StatusCode, http.StatusForbidden)
+	}
+	if err.Message != "当前用户今日额度及本月应急额度已达上限" {
+		t.Fatalf("unexpected message: got %q", err.Message)
+	}
+}
+
 func TestShouldDisableChannelModelCapabilityForModelNotFoundCode(t *testing.T) {
 	err := &relaymodel.ErrorWithStatusCode{
 		StatusCode: http.StatusNotFound,

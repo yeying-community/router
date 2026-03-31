@@ -174,6 +174,9 @@ func Create(ctx context.Context, user *model.User, inviterId string) error {
 	if strings.TrimSpace(user.Id) == "" {
 		user.Id = random.GetUUID()
 	}
+	user.DailyQuotaLimit = model.NormalizeUserDailyQuotaLimitForWrite(user.DailyQuotaLimit)
+	user.MonthlyEmergencyQuotaLimit = model.NormalizeUserMonthlyEmergencyQuotaLimitForWrite(user.MonthlyEmergencyQuotaLimit)
+	user.QuotaResetTimezone = model.NormalizeUserQuotaResetTimezoneForWrite(user.QuotaResetTimezone)
 	resolvedGroup, err := model.ResolveUserCreateGroupAssignment(user.Group)
 	if err != nil {
 		return err
@@ -244,19 +247,34 @@ func Update(user *model.User, updatePassword bool) error {
 		}
 		user.Group = resolvedGroup.Id
 	}
+	user.DailyQuotaLimit = model.NormalizeUserDailyQuotaLimitForWrite(user.DailyQuotaLimit)
+	user.MonthlyEmergencyQuotaLimit = model.NormalizeUserMonthlyEmergencyQuotaLimitForWrite(user.MonthlyEmergencyQuotaLimit)
+	user.QuotaResetTimezone = model.NormalizeUserQuotaResetTimezoneForWrite(user.QuotaResetTimezone)
 	if user.Status == model.UserStatusDisabled {
 		blacklist.BanUser(user.Id)
 	} else if user.Status == model.UserStatusEnabled {
 		blacklist.UnbanUser(user.Id)
 	}
-
-	updates := model.DB.Model(user)
-	if user.WalletAddress == nil {
-		err = updates.Omit("wallet_address").Updates(user).Error
-	} else {
-		err = updates.Updates(user).Error
+	updates := map[string]any{
+		"username":                      user.Username,
+		"display_name":                  user.DisplayName,
+		"role":                          user.Role,
+		"status":                        user.Status,
+		"email":                         user.Email,
+		"quota":                         user.Quota,
+		"group":                         user.Group,
+		"daily_quota_limit":             user.DailyQuotaLimit,
+		"monthly_emergency_quota_limit": user.MonthlyEmergencyQuotaLimit,
+		"quota_reset_timezone":          user.QuotaResetTimezone,
 	}
-	return err
+	if updatePassword {
+		updates["password"] = user.Password
+		updates["has_password"] = true
+	}
+	if user.WalletAddress != nil {
+		updates["wallet_address"] = user.WalletAddress
+	}
+	return model.DB.Model(&model.User{}).Where("id = ?", user.Id).Updates(updates).Error
 }
 
 func Delete(user *model.User) error {

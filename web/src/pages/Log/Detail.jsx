@@ -258,6 +258,26 @@ const LogDetail = () => {
                   </div>
                   <div className='router-detail-item'>
                     <div className='router-detail-label'>
+                      {t('log.detail.fields.user_daily_quota')}
+                    </div>
+                    <div className='router-detail-value'>
+                      {typeof log?.user_daily_quota === 'number'
+                        ? renderQuota(log.user_daily_quota, t, 6)
+                        : '-'}
+                    </div>
+                  </div>
+                  <div className='router-detail-item'>
+                    <div className='router-detail-label'>
+                      {t('log.detail.fields.user_emergency_quota')}
+                    </div>
+                    <div className='router-detail-value'>
+                      {typeof log?.user_emergency_quota === 'number'
+                        ? renderQuota(log.user_emergency_quota, t, 6)
+                        : '-'}
+                    </div>
+                  </div>
+                  <div className='router-detail-item'>
+                    <div className='router-detail-label'>
                       {t('log.detail.fields.elapsed_time')}
                     </div>
                     <pre className='router-detail-value'>

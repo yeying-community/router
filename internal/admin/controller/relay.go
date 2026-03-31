@@ -221,6 +221,9 @@ func normalizeFinalRelayError(err *model.ErrorWithStatusCode) {
 	if err == nil {
 		return
 	}
+	if isLocalQuotaRelayError(err) {
+		return
+	}
 	if isUpstreamQuotaRelayError(err) {
 		err.StatusCode = http.StatusServiceUnavailable
 		err.Error.Message = "当前分组可用上游额度不足，请稍后再试"
@@ -231,6 +234,14 @@ func normalizeFinalRelayError(err *model.ErrorWithStatusCode) {
 	}
 	err.StatusCode = http.StatusServiceUnavailable
 	err.Error.Message = "当前分组可用上游暂时不可用，请稍后再试"
+}
+
+func isLocalQuotaRelayError(err *model.ErrorWithStatusCode) bool {
+	if err == nil {
+		return false
+	}
+	code := strings.ToLower(errorCodeString(err.Code))
+	return code == "group_daily_quota_exceeded" || code == "user_quota_limit_exceeded"
 }
 
 func isUpstreamQuotaRelayError(err *model.ErrorWithStatusCode) bool {

@@ -136,6 +136,19 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&GroupQuotaDailyCounter{})
 			},
 		},
+		{
+			Version:     "202603311200_user_daily_emergency_quota",
+			Description: "add user daily quota and monthly emergency quota models, counters, and log fields",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&User{}, &UserQuotaDailyCounter{}, &UserQuotaMonthlyEmergencyCounter{}, &Log{}); err != nil {
+					return err
+				}
+				return tx.Exec(
+					"UPDATE users SET quota_reset_timezone = ? WHERE COALESCE(quota_reset_timezone, '') = ''",
+					DefaultGroupQuotaResetTimezone,
+				).Error
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -152,6 +165,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 		{
 			Version:     "202603201030_log_event_log_group_id",
 			Description: "add group_id index column to event logs in log database",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202603311200_log_user_quota_usage_fields",
+			Description: "add user quota usage fields to consume logs",
 			Up: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
 			},

@@ -28,6 +28,8 @@ func runMainBaselineMigrationWithDB(tx *gorm.DB) error {
 		&ChannelProtocolCatalog{},
 		&GroupCatalog{},
 		&GroupQuotaDailyCounter{},
+		&UserQuotaDailyCounter{},
+		&UserQuotaMonthlyEmergencyCounter{},
 		&Log{},
 	); err != nil {
 		return err
