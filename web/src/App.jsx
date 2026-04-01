@@ -40,6 +40,7 @@ import Task from './pages/Task';
 import TaskDetail from './pages/Task/Detail';
 import AdminLayout from './layouts/AdminLayout';
 import UserLayout from './layouts/UserLayout';
+import UserWorkspaceLayout from './layouts/UserWorkspaceLayout';
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || '';
 
@@ -271,6 +272,15 @@ function App() {
           path='/workspace/about'
           element={<Navigate to='/workspace/token' replace />}
         />
+      </Route>
+
+      <Route
+        element={
+          <PrivateRoute>
+            <UserWorkspaceLayout />
+          </PrivateRoute>
+        }
+      >
         <Route
           path='/workspace/chat'
           element={
@@ -279,15 +289,6 @@ function App() {
             </Suspense>
           }
         />
-      </Route>
-
-      <Route
-        element={
-          <PrivateRoute>
-            <UserLayout />
-          </PrivateRoute>
-        }
-      >
         <Route path='/workspace/token' element={<Token />} />
         <Route
           path='/workspace/token/:id'
