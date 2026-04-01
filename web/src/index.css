@@ -32,7 +32,8 @@ code {
     display: flex;
     align-items: stretch;
     min-height: calc(100vh - 64px);
-    padding: 0 var(--router-shell-horizontal-padding);
+    padding: 0;
+    position: relative;
 }
 
 .router-admin-sidebar {
@@ -53,6 +54,45 @@ code {
     padding: 12px 6px;
 }
 
+.router-admin-divider-toggle {
+    position: fixed;
+    top: calc(50vh + 32px);
+    left: 248px;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    color: rgba(34, 36, 38, 0.45);
+    z-index: 1001;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    outline: none;
+}
+
+.router-admin-divider-toggle:hover {
+    background: transparent;
+    color: rgba(34, 36, 38, 0.82);
+}
+
+.router-admin-divider-toggle:focus-visible {
+    color: rgba(33, 133, 208, 0.9);
+}
+
+.router-admin-divider-toggle > .icon {
+    margin: 0 !important;
+    font-size: 10px !important;
+}
+
+.router-admin-shell.compact .router-admin-divider-toggle {
+    left: 78px;
+}
+
 .ui.container.router-admin-main {
     flex: 1;
     max-width: none !important;
@@ -69,18 +109,6 @@ code {
     border-radius: 0 !important;
 }
 
-.ui.vertical.menu.router-admin-sidebar-menu .router-admin-sidebar-toolbar {
-    border: none !important;
-    margin-bottom: 8px !important;
-    padding: 0 0 4px 0 !important;
-    display: flex;
-    justify-content: flex-end;
-}
-
-.router-admin-sidebar-toggle.ui.basic.button {
-    border-radius: 8px !important;
-}
-
 .ui.vertical.menu.router-admin-sidebar-menu .router-admin-sidebar-group {
     border-radius: 10px !important;
     margin-bottom: 6px !important;
@@ -92,6 +120,34 @@ code {
 .ui.vertical.menu.router-admin-sidebar-menu .router-admin-sidebar-group.active {
     border-color: transparent !important;
     background: rgba(33, 133, 208, 0.05);
+}
+
+.ui.popup.router-admin-compact-popup {
+    min-width: 180px;
+    padding: 6px !important;
+    border-radius: 10px !important;
+}
+
+.ui.vertical.menu.router-admin-compact-popup-menu {
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+}
+
+.ui.vertical.menu.router-admin-compact-popup-menu .router-admin-compact-popup-item {
+    font-size: 13px !important;
+    border-radius: 8px !important;
+    margin: 2px 0 !important;
+}
+
+.ui.vertical.menu.router-admin-compact-popup-menu .router-admin-compact-popup-item.active {
+    color: #2185d0 !important;
+    font-weight: 600 !important;
+    background: rgba(33, 133, 208, 0.1) !important;
+}
+
+.router-admin-compact-popup-item-label {
+    display: inline;
 }
 
 .router-admin-sidebar-group-header {
@@ -126,10 +182,6 @@ code {
     color: #2185d0 !important;
     font-weight: 600 !important;
     background: rgba(33, 133, 208, 0.1) !important;
-}
-
-.router-admin-sidebar.compact .router-admin-sidebar-toolbar {
-    justify-content: center !important;
 }
 
 .router-admin-sidebar.compact .router-admin-sidebar-group-label,
@@ -1694,6 +1746,10 @@ code {
 
   .router-admin-sidebar {
     display: none;
+  }
+
+  .router-admin-divider-toggle {
+    display: none !important;
   }
 
   .router-admin-main {

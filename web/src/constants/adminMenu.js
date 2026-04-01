@@ -108,6 +108,7 @@ export const isAdminRouteActive = (location, to) => {
     if (currentTab !== targetTab) {
       return false;
     }
+    return true;
   }
   const entries = Array.from(targetParams.entries());
   if (entries.length === 0) {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Icon, Menu } from 'semantic-ui-react';
+import { Icon, Menu, Popup } from 'semantic-ui-react';
 import { useTranslation } from 'react-i18next';
 import {
   ADMIN_MENU_GROUPS,
@@ -43,13 +43,14 @@ const buildInitialCollapsedState = () => {
   }
 };
 
-const AdminSidebar = ({ compact = false, onToggleCompact }) => {
+const AdminSidebar = ({ compact = false }) => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsedGroups, setCollapsedGroups] = useState(
     buildInitialCollapsedState,
   );
+  const [compactPopupGroup, setCompactPopupGroup] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -61,46 +62,89 @@ const AdminSidebar = ({ compact = false, onToggleCompact }) => {
     );
   }, [collapsedGroups]);
 
-  const toggleGroup = (groupKey) => {
+  useEffect(() => {
+    if (!compact) {
+      setCompactPopupGroup('');
+    }
+  }, [compact]);
+
+  useEffect(() => {
+    setCompactPopupGroup('');
+  }, [location.pathname, location.search, location.hash]);
+
+  const toggleGroup = (group) => {
+    if (!group?.key) {
+      return;
+    }
     setCollapsedGroups((prev) => ({
       ...prev,
-      [groupKey]: !prev[groupKey],
+      [group.key]: !prev[group.key],
     }));
   };
 
-  const isGroupCollapsed = (group) => {
-    const groupActive = isAdminGroupActive(location, group);
-    if (groupActive) {
-      return false;
-    }
-    return Boolean(collapsedGroups[group.key]);
-  };
+  const isGroupCollapsed = (group) => Boolean(collapsedGroups[group.key]);
 
   return (
     <Menu vertical fluid className='router-admin-sidebar-menu'>
-      <Menu.Item className='router-admin-sidebar-toolbar'>
-        <Button
-          basic
-          icon
-          size='mini'
-          type='button'
-          className='router-admin-sidebar-toggle'
-          title={
-            compact
-              ? t('header.sidebar_expand')
-              : t('header.sidebar_compact')
-          }
-          onClick={() => {
-            if (typeof onToggleCompact === 'function') {
-              onToggleCompact();
-            }
-          }}
-        >
-          <Icon name={compact ? 'angle double right' : 'angle double left'} />
-        </Button>
-      </Menu.Item>
       {ADMIN_MENU_GROUPS.map((group) => {
         const groupActive = isAdminGroupActive(location, group);
+        if (compact) {
+          const popupOpen = compactPopupGroup === group.key;
+          return (
+            <Popup
+              key={group.key}
+              className='router-admin-compact-popup'
+              on='click'
+              position='right center'
+              open={popupOpen}
+              onClose={() =>
+                setCompactPopupGroup((previous) =>
+                  previous === group.key ? '' : previous,
+                )
+              }
+              trigger={
+                <Menu.Item
+                  className={`router-admin-sidebar-group ${groupActive ? 'active' : ''}`}
+                  onClick={() =>
+                    setCompactPopupGroup((previous) =>
+                      previous === group.key ? '' : group.key,
+                    )
+                  }
+                  title={t(group.name)}
+                >
+                  <span className='router-admin-sidebar-group-title'>
+                    <Icon name={group.icon} />
+                    <span className='router-admin-sidebar-group-label'>
+                      {t(group.name)}
+                    </span>
+                  </span>
+                </Menu.Item>
+              }
+            >
+              <Menu vertical secondary className='router-admin-compact-popup-menu'>
+                {group.items.map((item) => {
+                  const active = isAdminRouteActive(location, item.to);
+                  return (
+                    <Menu.Item
+                      key={item.to}
+                      active={active}
+                      className='router-admin-compact-popup-item'
+                      onClick={() => {
+                        setCompactPopupGroup('');
+                        navigate(item.to);
+                      }}
+                    >
+                      <Icon name={item.icon} />
+                      <span className='router-admin-compact-popup-item-label'>
+                        {t(item.name)}
+                      </span>
+                    </Menu.Item>
+                  );
+                })}
+              </Menu>
+            </Popup>
+          );
+        }
         const collapsed = isGroupCollapsed(group);
         return (
           <Menu.Item
@@ -111,11 +155,11 @@ const AdminSidebar = ({ compact = false, onToggleCompact }) => {
               className='router-admin-sidebar-group-header'
               role='button'
               tabIndex={0}
-              onClick={() => toggleGroup(group.key)}
+              onClick={() => toggleGroup(group)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
-                  toggleGroup(group.key);
+                  toggleGroup(group);
                 }
               }}
             >
