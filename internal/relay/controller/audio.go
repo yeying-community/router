@@ -73,6 +73,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	pricing = adminmodel.ResolveAudioRequestPricing(pricing, relayMode == relaymode.AudioSpeech)
 	var quota int64
 	var preConsumedQuota int64
+	billingSnapshot := billing.BillingSnapshot{}
 	switch relayMode {
 	case relaymode.AudioSpeech:
 		preConsumedQuota, err = billing.ComputeAudioSpeechQuota(len(ttsRequest.Input), pricing, groupRatio)
@@ -80,13 +81,17 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
 		quota = preConsumedQuota
+		billingSnapshot, err = billing.ComputeAudioSpeechBillingSnapshot(len(ttsRequest.Input), pricing, groupRatio)
+		if err != nil {
+			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
+		}
 	default:
 		preConsumedQuota, err = billing.ComputeAudioTextQuota(int(config.PreConsumedQuota), pricing, groupRatio)
 		if err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
 	}
-	groupReservation, groupQuotaErr := reserveGroupDailyQuota(group, userId, preConsumedQuota)
+	groupReservation, groupQuotaErr := reserveGroupDailyQuota(ctx, group, userId, preConsumedQuota)
 	if groupQuotaErr != nil {
 		return groupQuotaErr
 	}
@@ -261,6 +266,10 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
+		billingSnapshot, err = billing.ComputeAudioTextBillingSnapshot(openai.CountTokenText(text, audioModel), pricing, groupRatio)
+		if err != nil {
+			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
+		}
 		resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -268,8 +277,9 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 	succeed = true
 	quotaDelta := quota - preConsumedQuota
+	billingSnapshot.YYCAmount = quota
 	defer func(ctx context.Context) {
-		go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, userId, group, channelId, pricing, groupRatio, audioModel, tokenName, groupReservation, userReservation)
+		go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, userId, group, channelId, pricing, groupRatio, audioModel, tokenName, groupReservation, userReservation, billingSnapshot)
 	}(c.Request.Context())
 	groupQuotaSettled = true
 	userQuotaSettled = true

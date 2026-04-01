@@ -123,6 +123,12 @@ const EditToken = () => {
       ...originInputs,
       ...data,
     };
+    normalizedData.remain_quota = Number(
+      data?.yyc_remain ?? normalizedData.remain_quota ?? 0
+    ) || 0;
+    normalizedData.used_quota = Number(
+      data?.yyc_used ?? normalizedData.used_quota ?? 0
+    ) || 0;
     if (normalizedData.expired_time !== -1) {
       normalizedData.expired_time = timestamp2string(normalizedData.expired_time);
     } else {

@@ -122,6 +122,21 @@ const endOfDay = (date) => {
   return next;
 };
 
+const normalizeDashboardRow = (item) => ({
+  ...item,
+  Quota: Number(item?.yyc_amount ?? item?.Quota ?? 0),
+});
+
+const normalizeOverviewSummary = (data) => ({
+  ...(data || {}),
+  today_cost: Number(data?.today_yyc_cost ?? data?.today_cost ?? 0),
+  today_revenue: Number(data?.today_yyc_revenue ?? data?.today_revenue ?? 0),
+  yesterday_cost: Number(data?.yesterday_yyc_cost ?? data?.yesterday_cost ?? 0),
+  yesterday_revenue: Number(data?.yesterday_yyc_revenue ?? data?.yesterday_revenue ?? 0),
+  period_cost: Number(data?.period_yyc_cost ?? data?.period_cost ?? 0),
+  period_revenue: Number(data?.period_yyc_revenue ?? data?.period_revenue ?? 0),
+});
+
 const startOfWeek = (date) => {
   const next = startOfDay(date);
   const day = next.getDay() || 7;
@@ -437,7 +452,9 @@ const Dashboard = () => {
       }
       const response = await API.get('/api/v1/public/user/dashboard', { params });
       if (response.data.success) {
-        const dashboardData = response.data.data || [];
+        const dashboardData = Array.isArray(response.data.data)
+          ? response.data.data.map(normalizeDashboardRow)
+          : [];
         const meta = response.data.meta || {};
         setData(dashboardData);
         if (meta.providers) {
@@ -466,7 +483,7 @@ const Dashboard = () => {
         params: { period: overviewPeriod },
       });
       if (response.data.success) {
-        setOverviewSummary(response.data.data || null);
+        setOverviewSummary(normalizeOverviewSummary(response.data.data || null));
         return;
       }
       setOverviewSummary(null);
@@ -497,7 +514,11 @@ const Dashboard = () => {
       }
       const response = await API.get('/api/v1/public/user/dashboard', { params });
       if (response.data.success) {
-        setOverviewTrendData(response.data.data || []);
+        setOverviewTrendData(
+          Array.isArray(response.data.data)
+            ? response.data.data.map(normalizeDashboardRow)
+            : []
+        );
         return;
       }
       setOverviewTrendData([]);
@@ -528,7 +549,11 @@ const Dashboard = () => {
         },
       });
       if (response.data.success) {
-        setCalendarData(response.data.data || []);
+        setCalendarData(
+          Array.isArray(response.data.data)
+            ? response.data.data.map(normalizeDashboardRow)
+            : []
+        );
         return;
       }
       setCalendarData([]);
@@ -543,7 +568,18 @@ const Dashboard = () => {
     try {
       const response = await API.get('/api/v1/public/user/quota/daily');
       if (response.data?.success) {
-        setDailyPackageQuota(response.data.data || null);
+        const data = response.data.data || null;
+        if (!data) {
+          setDailyPackageQuota(null);
+          return;
+        }
+        setDailyPackageQuota({
+          ...data,
+          limit: Number(data?.yyc_limit ?? data?.limit ?? 0),
+          consumed_quota: Number(data?.yyc_consumed ?? data?.consumed_quota ?? 0),
+          reserved_quota: Number(data?.yyc_reserved ?? data?.reserved_quota ?? 0),
+          remaining_quota: Number(data?.yyc_remaining ?? data?.remaining_quota ?? 0),
+        });
         return;
       }
       setDailyPackageQuota(null);

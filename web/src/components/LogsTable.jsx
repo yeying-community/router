@@ -129,6 +129,15 @@ function getLogChannelLabel(log) {
   return log.channel_name || log.channel || '';
 }
 
+function normalizeLogEntry(log) {
+  return {
+    ...(log || {}),
+    quota: Number(log?.yyc_amount ?? log?.quota ?? 0),
+    user_daily_quota: Number(log?.yyc_user_daily ?? log?.user_daily_quota ?? 0),
+    user_emergency_quota: Number(log?.yyc_user_emergency ?? log?.user_emergency_quota ?? 0),
+  };
+}
+
 function toDatetimeLocalValue(value) {
   const raw = (value || '').toString().trim();
   if (raw === '') {
@@ -526,13 +535,14 @@ const LogsTable = () => {
       const res = await API.get(url);
       const { success, message, data, meta } = res.data;
       if (success) {
+        const normalizedRows = Array.isArray(data) ? data.map(normalizeLogEntry) : [];
         setTotalCount(Number(meta?.total || data?.length || 0));
         if (normalizedPage === 1) {
-          setLogs(data);
+          setLogs(normalizedRows);
         } else {
           setLogs((prev) => {
             let next = [...prev];
-            next.splice((normalizedPage - 1) * ITEMS_PER_PAGE, data.length, ...data);
+            next.splice((normalizedPage - 1) * ITEMS_PER_PAGE, normalizedRows.length, ...normalizedRows);
             return next;
           });
         }

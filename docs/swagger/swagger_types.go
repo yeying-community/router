@@ -185,9 +185,82 @@ type UserAffCodeResponse struct {
 }
 
 type UserTopUpResponse struct {
-	Success bool   `json:"success" example:"true"`
-	Message string `json:"message" example:""`
-	Data    int64  `json:"data" example:"100000"`
+	Success bool            `json:"success" example:"true"`
+	Message string          `json:"message" example:""`
+	Data    UserTopUpResult `json:"data"`
+}
+
+type UserCreateTopUpOrderResponse struct {
+	Success bool                     `json:"success" example:"true"`
+	Message string                   `json:"message" example:""`
+	Data    UserCreateTopUpOrderData `json:"data"`
+}
+
+type UserCreateTopUpOrderData struct {
+	ID            string `json:"id" example:"474c9b7b534047ce9205220990f53087"`
+	TransactionID string `json:"transaction_id" example:"019cf473b1837d0088eff3078d4f9373"`
+	Status        string `json:"status" example:"created"`
+	RedirectURL   string `json:"redirect_url" example:"https://example.com/topup?user_id=1&transaction_id=tx_123"`
+	CreatedAt     int64  `json:"created_at" example:"1774000000"`
+}
+
+type UserTopUpOrder struct {
+	ID              string `json:"id" example:"474c9b7b534047ce9205220990f53087"`
+	UserID          string `json:"user_id" example:"8ce3558f019248e0876e7173e36e9d18"`
+	Username        string `json:"username" example:"alice"`
+	Status          string `json:"status" example:"created"`
+	Source          string `json:"source" example:"top_up_link"`
+	ProviderName    string `json:"provider_name" example:"faka"`
+	ProviderOrderID string `json:"provider_order_id" example:"provider_order_123"`
+	RedemptionID    string `json:"redemption_id" example:"474c9b7b534047ce9205220990f53087"`
+	TransactionID   string `json:"transaction_id" example:"019cf473b1837d0088eff3078d4f9373"`
+	StatusMessage   string `json:"status_message" example:"payment received"`
+	RedirectURL     string `json:"redirect_url" example:"https://example.com/topup?user_id=1&transaction_id=tx_123"`
+	PaidAt          int64  `json:"paid_at" example:"1774000100"`
+	RedeemedAt      int64  `json:"redeemed_at" example:"1774000200"`
+	CreatedAt       int64  `json:"created_at" example:"1774000000"`
+	UpdatedAt       int64  `json:"updated_at" example:"1774000000"`
+}
+
+type TopupOrderCallbackRequest struct {
+	OrderID         string `json:"order_id" example:"474c9b7b534047ce9205220990f53087"`
+	TransactionID   string `json:"transaction_id" example:"019cf473b1837d0088eff3078d4f9373"`
+	ProviderOrderID string `json:"provider_order_id" example:"provider_order_123"`
+	Status          string `json:"status" example:"paid"`
+	ProviderName    string `json:"provider_name" example:"faka"`
+	RedemptionID    string `json:"redemption_id" example:"848f6666d94346519ae2f4c3c98a408c"`
+	RedemptionCode  string `json:"redemption_code" example:"redeem-xxxx-xxxx"`
+	StatusMessage   string `json:"status_message" example:"payment received"`
+	PaidAt          int64  `json:"paid_at" example:"1774000100"`
+	RedeemedAt      int64  `json:"redeemed_at" example:"1774000200"`
+}
+
+type UserTopUpOrderListData struct {
+	Items    []UserTopUpOrder `json:"items"`
+	Total    int64            `json:"total" example:"1"`
+	Page     int              `json:"page" example:"1"`
+	PageSize int              `json:"page_size" example:"20"`
+}
+
+type UserTopUpOrderListResponse struct {
+	Success bool                   `json:"success" example:"true"`
+	Message string                 `json:"message" example:""`
+	Data    UserTopUpOrderListData `json:"data"`
+}
+
+type UserTopUpOrderDetailResponse struct {
+	Success bool           `json:"success" example:"true"`
+	Message string         `json:"message" example:""`
+	Data    UserTopUpOrder `json:"data"`
+}
+
+type UserTopUpResult struct {
+	RedeemedYYC      int64  `json:"redeemed_yyc" example:"100000"`
+	BeforeYYCBalance int64  `json:"before_yyc_balance" example:"500000"`
+	AfterYYCBalance  int64  `json:"after_yyc_balance" example:"600000"`
+	RedemptionID     string `json:"redemption_id" example:"474c9b7b534047ce9205220990f53087"`
+	RedemptionName   string `json:"redemption_name" example:"新用户补偿"`
+	RedeemedAt       int64  `json:"redeemed_at" example:"1774000000"`
 }
 
 // --- Token responses ---

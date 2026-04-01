@@ -367,7 +367,11 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	if err != nil {
 		return openai.ErrorWrapper(err, "calculate_video_quota_failed", http.StatusInternalServerError)
 	}
-	groupReservation, groupQuotaErr := reserveGroupDailyQuota(meta.Group, meta.UserId, quota)
+	billingSnapshot, snapshotErr := billing.ComputeVideoBillingSnapshot(quantity, pricing, groupRatio)
+	if snapshotErr != nil {
+		logger.Error(ctx, "calculate video billing snapshot failed: "+snapshotErr.Error())
+	}
+	groupReservation, groupQuotaErr := reserveGroupDailyQuota(ctx, meta.Group, meta.UserId, quota)
 	if groupQuotaErr != nil {
 		return groupQuotaErr
 	}
@@ -451,7 +455,8 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 		userQuotaUsage := settleUserQuotaReservation(ctx, userReservation, quota)
 		tokenName := c.GetString(ctxkey.TokenName)
-		model.RecordConsumeLog(ctx, &model.Log{
+		billingSnapshot.YYCAmount = quota
+		entry := &model.Log{
 			UserId:             meta.UserId,
 			GroupId:            meta.Group,
 			ChannelId:          meta.ChannelId,
@@ -463,7 +468,9 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			UserDailyQuota:     int(userQuotaUsage.DailyQuotaUsed),
 			UserEmergencyQuota: int(userQuotaUsage.EmergencyQuotaUsed),
 			Content:            appendVideoSummaryToLogContent(billing.FormatPricingLog(pricing, groupRatio), responseSummary),
-		})
+		}
+		billingSnapshot.ApplyToLog(entry)
+		model.RecordConsumeLog(ctx, entry)
 		model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 		model.UpdateChannelUsedQuota(meta.ChannelId, quota)
 		settleGroupDailyQuotaReservation(ctx, groupReservation, quota)

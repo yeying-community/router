@@ -10,31 +10,24 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-const UserQuotaDailyCountersTableName = "user_daily_quota_counters"
-const UserQuotaMonthlyEmergencyCountersTableName = "user_monthly_emergency_quota_counters"
+const UserQuotaCountersTableName = "user_quota_counters"
 
-type UserQuotaDailyCounter struct {
+const (
+	UserQuotaCounterTypeDaily            = "daily"
+	UserQuotaCounterTypeMonthlyEmergency = "monthly_emergency"
+)
+
+type UserQuotaCounter struct {
 	UserID        string `json:"user_id" gorm:"primaryKey;type:char(36)"`
-	BizDate       string `json:"biz_date" gorm:"primaryKey;type:varchar(10)"`
+	CounterType   string `json:"counter_type" gorm:"primaryKey;type:varchar(32)"`
+	PeriodKey     string `json:"period_key" gorm:"primaryKey;type:varchar(32)"`
 	ReservedQuota int64  `json:"reserved_quota" gorm:"type:bigint;not null;default:0"`
 	ConsumedQuota int64  `json:"consumed_quota" gorm:"type:bigint;not null;default:0"`
 	UpdatedAt     int64  `json:"updated_at" gorm:"bigint;index"`
 }
 
-func (UserQuotaDailyCounter) TableName() string {
-	return UserQuotaDailyCountersTableName
-}
-
-type UserQuotaMonthlyEmergencyCounter struct {
-	UserID        string `json:"user_id" gorm:"primaryKey;type:char(36)"`
-	BizMonth      string `json:"biz_month" gorm:"primaryKey;type:varchar(7)"`
-	ReservedQuota int64  `json:"reserved_quota" gorm:"type:bigint;not null;default:0"`
-	ConsumedQuota int64  `json:"consumed_quota" gorm:"type:bigint;not null;default:0"`
-	UpdatedAt     int64  `json:"updated_at" gorm:"bigint;index"`
-}
-
-func (UserQuotaMonthlyEmergencyCounter) TableName() string {
-	return UserQuotaMonthlyEmergencyCountersTableName
+func (UserQuotaCounter) TableName() string {
+	return UserQuotaCountersTableName
 }
 
 type UserQuotaReservation struct {
@@ -85,38 +78,21 @@ type UserQuotaSummary struct {
 	MonthlyEmergency UserMonthlyEmergencyQuotaSnapshot `json:"monthly_emergency"`
 }
 
-func ensureUserQuotaDailyCounterWithDB(tx *gorm.DB, userID string, bizDate string) error {
-	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&UserQuotaDailyCounter{
-		UserID:  userID,
-		BizDate: bizDate,
+func ensureUserQuotaCounterWithDB(tx *gorm.DB, userID string, counterType string, periodKey string) error {
+	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&UserQuotaCounter{
+		UserID:      userID,
+		CounterType: counterType,
+		PeriodKey:   periodKey,
 	}).Error
 }
 
-func ensureUserQuotaMonthlyEmergencyCounterWithDB(tx *gorm.DB, userID string, bizMonth string) error {
-	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&UserQuotaMonthlyEmergencyCounter{
-		UserID:   userID,
-		BizMonth: bizMonth,
-	}).Error
-}
-
-func loadUserQuotaDailyCounterForUpdateWithDB(tx *gorm.DB, userID string, bizDate string) (UserQuotaDailyCounter, error) {
-	if err := ensureUserQuotaDailyCounterWithDB(tx, userID, bizDate); err != nil {
-		return UserQuotaDailyCounter{}, err
+func loadUserQuotaCounterForUpdateWithDB(tx *gorm.DB, userID string, counterType string, periodKey string) (UserQuotaCounter, error) {
+	if err := ensureUserQuotaCounterWithDB(tx, userID, counterType, periodKey); err != nil {
+		return UserQuotaCounter{}, err
 	}
-	counter := UserQuotaDailyCounter{}
+	counter := UserQuotaCounter{}
 	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where("user_id = ? AND biz_date = ?", userID, bizDate).
-		Take(&counter).Error
-	return counter, err
-}
-
-func loadUserQuotaMonthlyEmergencyCounterForUpdateWithDB(tx *gorm.DB, userID string, bizMonth string) (UserQuotaMonthlyEmergencyCounter, error) {
-	if err := ensureUserQuotaMonthlyEmergencyCounterWithDB(tx, userID, bizMonth); err != nil {
-		return UserQuotaMonthlyEmergencyCounter{}, err
-	}
-	counter := UserQuotaMonthlyEmergencyCounter{}
-	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where("user_id = ? AND biz_month = ?", userID, bizMonth).
+		Where("user_id = ? AND counter_type = ? AND period_key = ?", userID, counterType, periodKey).
 		Take(&counter).Error
 	return counter, err
 }
@@ -187,7 +163,7 @@ func ReserveUserQuotaWithDB(db *gorm.DB, userID string, quota int64) (UserQuotaR
 	allowed := true
 	denyMessage := ""
 	err = db.Transaction(func(tx *gorm.DB) error {
-		dailyCounter, err := loadUserQuotaDailyCounterForUpdateWithDB(tx, normalizedUserID, reservation.DailyBizDate)
+		dailyCounter, err := loadUserQuotaCounterForUpdateWithDB(tx, normalizedUserID, UserQuotaCounterTypeDaily, reservation.DailyBizDate)
 		if err != nil {
 			return err
 		}
@@ -203,7 +179,7 @@ func ReserveUserQuotaWithDB(db *gorm.DB, userID string, quota int64) (UserQuotaR
 				denyMessage = "当前用户今日额度已达上限，请明日再试"
 				return nil
 			}
-			emergencyCounter, err := loadUserQuotaMonthlyEmergencyCounterForUpdateWithDB(tx, normalizedUserID, reservation.EmergencyBizMonth)
+			emergencyCounter, err := loadUserQuotaCounterForUpdateWithDB(tx, normalizedUserID, UserQuotaCounterTypeMonthlyEmergency, reservation.EmergencyBizMonth)
 			if err != nil {
 				return err
 			}
@@ -220,8 +196,8 @@ func ReserveUserQuotaWithDB(db *gorm.DB, userID string, quota int64) (UserQuotaR
 		}
 		updatedAt := helper.GetTimestamp()
 		if reservation.DailyReservedQuota > 0 {
-			if err := tx.Model(&UserQuotaDailyCounter{}).
-				Where("user_id = ? AND biz_date = ?", normalizedUserID, reservation.DailyBizDate).
+			if err := tx.Model(&UserQuotaCounter{}).
+				Where("user_id = ? AND counter_type = ? AND period_key = ?", normalizedUserID, UserQuotaCounterTypeDaily, reservation.DailyBizDate).
 				Updates(map[string]any{
 					"reserved_quota": gorm.Expr("reserved_quota + ?", reservation.DailyReservedQuota),
 					"updated_at":     updatedAt,
@@ -230,8 +206,8 @@ func ReserveUserQuotaWithDB(db *gorm.DB, userID string, quota int64) (UserQuotaR
 			}
 		}
 		if reservation.EmergencyReservedQuota > 0 {
-			if err := tx.Model(&UserQuotaMonthlyEmergencyCounter{}).
-				Where("user_id = ? AND biz_month = ?", normalizedUserID, reservation.EmergencyBizMonth).
+			if err := tx.Model(&UserQuotaCounter{}).
+				Where("user_id = ? AND counter_type = ? AND period_key = ?", normalizedUserID, UserQuotaCounterTypeMonthlyEmergency, reservation.EmergencyBizMonth).
 				Updates(map[string]any{
 					"reserved_quota": gorm.Expr("reserved_quota + ?", reservation.EmergencyReservedQuota),
 					"updated_at":     updatedAt,
@@ -264,8 +240,8 @@ func ReleaseUserQuotaReservationWithDB(db *gorm.DB, reservation UserQuotaReserva
 	return db.Transaction(func(tx *gorm.DB) error {
 		updatedAt := helper.GetTimestamp()
 		if reservation.DailyReservedQuota > 0 {
-			if err := tx.Model(&UserQuotaDailyCounter{}).
-				Where("user_id = ? AND biz_date = ?", reservation.UserID, reservation.DailyBizDate).
+			if err := tx.Model(&UserQuotaCounter{}).
+				Where("user_id = ? AND counter_type = ? AND period_key = ?", reservation.UserID, UserQuotaCounterTypeDaily, reservation.DailyBizDate).
 				Updates(map[string]any{
 					"reserved_quota": gorm.Expr("GREATEST(reserved_quota - ?, 0)", reservation.DailyReservedQuota),
 					"updated_at":     updatedAt,
@@ -274,8 +250,8 @@ func ReleaseUserQuotaReservationWithDB(db *gorm.DB, reservation UserQuotaReserva
 			}
 		}
 		if reservation.EmergencyReservedQuota > 0 {
-			if err := tx.Model(&UserQuotaMonthlyEmergencyCounter{}).
-				Where("user_id = ? AND biz_month = ?", reservation.UserID, reservation.EmergencyBizMonth).
+			if err := tx.Model(&UserQuotaCounter{}).
+				Where("user_id = ? AND counter_type = ? AND period_key = ?", reservation.UserID, UserQuotaCounterTypeMonthlyEmergency, reservation.EmergencyBizMonth).
 				Updates(map[string]any{
 					"reserved_quota": gorm.Expr("GREATEST(reserved_quota - ?, 0)", reservation.EmergencyReservedQuota),
 					"updated_at":     updatedAt,
@@ -315,7 +291,7 @@ func SettleUserQuotaReservationWithDB(db *gorm.DB, reservation UserQuotaReservat
 		if dailyBizDate == "" {
 			dailyBizDate = businessDateByTimezone(time.Now(), policy.Timezone)
 		}
-		dailyCounter, err := loadUserQuotaDailyCounterForUpdateWithDB(tx, reservation.UserID, dailyBizDate)
+		dailyCounter, err := loadUserQuotaCounterForUpdateWithDB(tx, reservation.UserID, UserQuotaCounterTypeDaily, dailyBizDate)
 		if err != nil {
 			return err
 		}
@@ -334,7 +310,7 @@ func SettleUserQuotaReservationWithDB(db *gorm.DB, reservation UserQuotaReservat
 			emergencyMonth = businessMonthByTimezone(time.Now(), policy.Timezone)
 		}
 		if policy.MonthlyEmergencyLimit > 0 {
-			emergencyCounter, err := loadUserQuotaMonthlyEmergencyCounterForUpdateWithDB(tx, reservation.UserID, emergencyMonth)
+			emergencyCounter, err := loadUserQuotaCounterForUpdateWithDB(tx, reservation.UserID, UserQuotaCounterTypeMonthlyEmergency, emergencyMonth)
 			if err != nil {
 				return err
 			}
@@ -350,8 +326,8 @@ func SettleUserQuotaReservationWithDB(db *gorm.DB, reservation UserQuotaReservat
 
 		usage = splitUserQuotaConsumption(consumed, dailyCapacity, emergencyCapacity, false, policy.MonthlyEmergencyLimit > 0)
 		updatedAt := helper.GetTimestamp()
-		if err := tx.Model(&UserQuotaDailyCounter{}).
-			Where("user_id = ? AND biz_date = ?", reservation.UserID, dailyBizDate).
+		if err := tx.Model(&UserQuotaCounter{}).
+			Where("user_id = ? AND counter_type = ? AND period_key = ?", reservation.UserID, UserQuotaCounterTypeDaily, dailyBizDate).
 			Updates(map[string]any{
 				"reserved_quota": gorm.Expr("GREATEST(reserved_quota - ?, 0)", reservation.DailyReservedQuota),
 				"consumed_quota": gorm.Expr("consumed_quota + ?", usage.DailyQuotaUsed),
@@ -360,8 +336,8 @@ func SettleUserQuotaReservationWithDB(db *gorm.DB, reservation UserQuotaReservat
 			return err
 		}
 		if policy.MonthlyEmergencyLimit > 0 {
-			if err := tx.Model(&UserQuotaMonthlyEmergencyCounter{}).
-				Where("user_id = ? AND biz_month = ?", reservation.UserID, emergencyMonth).
+			if err := tx.Model(&UserQuotaCounter{}).
+				Where("user_id = ? AND counter_type = ? AND period_key = ?", reservation.UserID, UserQuotaCounterTypeMonthlyEmergency, emergencyMonth).
 				Updates(map[string]any{
 					"reserved_quota": gorm.Expr("GREATEST(reserved_quota - ?, 0)", reservation.EmergencyReservedQuota),
 					"consumed_quota": gorm.Expr("consumed_quota + ?", usage.EmergencyQuotaUsed),
@@ -398,13 +374,13 @@ func GetUserDailyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizDate string)
 	if err != nil {
 		return UserDailyQuotaSnapshot{}, err
 	}
-	counter := UserQuotaDailyCounter{}
-	err = db.Where("user_id = ? AND biz_date = ?", normalizedUserID, normalizedBizDate).First(&counter).Error
+	counter := UserQuotaCounter{}
+	err = db.Where("user_id = ? AND counter_type = ? AND period_key = ?", normalizedUserID, UserQuotaCounterTypeDaily, normalizedBizDate).First(&counter).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return UserDailyQuotaSnapshot{}, err
 	}
 	if err == gorm.ErrRecordNotFound {
-		counter = UserQuotaDailyCounter{UserID: normalizedUserID, BizDate: normalizedBizDate}
+		counter = UserQuotaCounter{UserID: normalizedUserID, CounterType: UserQuotaCounterTypeDaily, PeriodKey: normalizedBizDate}
 	}
 	consumed := counter.ConsumedQuota
 	if consumed < 0 {
@@ -455,13 +431,13 @@ func GetUserMonthlyEmergencyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizM
 	if err != nil {
 		return UserMonthlyEmergencyQuotaSnapshot{}, err
 	}
-	counter := UserQuotaMonthlyEmergencyCounter{}
-	err = db.Where("user_id = ? AND biz_month = ?", normalizedUserID, normalizedBizMonth).First(&counter).Error
+	counter := UserQuotaCounter{}
+	err = db.Where("user_id = ? AND counter_type = ? AND period_key = ?", normalizedUserID, UserQuotaCounterTypeMonthlyEmergency, normalizedBizMonth).First(&counter).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return UserMonthlyEmergencyQuotaSnapshot{}, err
 	}
 	if err == gorm.ErrRecordNotFound {
-		counter = UserQuotaMonthlyEmergencyCounter{UserID: normalizedUserID, BizMonth: normalizedBizMonth}
+		counter = UserQuotaCounter{UserID: normalizedUserID, CounterType: UserQuotaCounterTypeMonthlyEmergency, PeriodKey: normalizedBizMonth}
 	}
 	consumed := counter.ConsumedQuota
 	if consumed < 0 {

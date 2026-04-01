@@ -1,4 +1,4 @@
-import { Label, Message } from 'semantic-ui-react';
+import { Label, Message, Popup } from 'semantic-ui-react';
 import { getChannelProtocolOption } from './helper';
 import React from 'react';
 
@@ -94,15 +94,94 @@ export function renderQuota(quota, t, precision = 2) {
   return renderNumber(quota);
 }
 
+export function isQuotaDisplayedInCurrency() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return localStorage.getItem('display_in_currency') === 'true';
+}
+
+export function getQuotaPerUnitValue() {
+  if (typeof window === 'undefined') {
+    return 1;
+  }
+  const value = parseFloat(localStorage.getItem('quota_per_unit') || '1');
+  if (!Number.isFinite(value) || value <= 0) {
+    return 1;
+  }
+  return value;
+}
+
+export function formatQuotaEquivalentAmount(quota, precision = 6) {
+  const normalized = Number(quota || 0);
+  if (!Number.isFinite(normalized)) {
+    return '';
+  }
+  return (normalized / getQuotaPerUnitValue())
+    .toFixed(precision)
+    .replace(/\.?0+$/, '');
+}
+
+export function formatYYCValue(quota, compact = false) {
+  const normalized = Number(quota || 0);
+  if (!Number.isFinite(normalized)) {
+    return '0 YYC';
+  }
+  const display = compact
+    ? formatCompactNumber(normalized)
+    : normalized.toLocaleString();
+  return `${display} YYC`;
+}
+
+export function renderYYC(quota, t, compact = true, amountPrecision = 6) {
+  const normalized = Number(quota || 0);
+  const triggerText = formatYYCValue(normalized, compact);
+  const amount = formatQuotaEquivalentAmount(normalized, amountPrecision);
+  if (!amount || typeof t !== 'function') {
+    return <span>{triggerText}</span>;
+  }
+  return (
+    <Popup
+      content={`${formatYYCValue(normalized, false)} (${t('common.quota.display', { amount })})`}
+      trigger={<span>{triggerText}</span>}
+    />
+  );
+}
+
+export function quotaToInputValue(quota, precision = 6) {
+  const normalized = Number(quota || 0);
+  if (!Number.isFinite(normalized) || normalized === 0) {
+    return '0';
+  }
+  if (!isQuotaDisplayedInCurrency()) {
+    return `${Math.trunc(normalized)}`;
+  }
+  return (normalized / getQuotaPerUnitValue())
+    .toFixed(precision)
+    .replace(/\.?0+$/, '');
+}
+
+export function quotaInputToStoredValue(value) {
+  const normalized = Number(value ?? 0);
+  if (!Number.isFinite(normalized) || normalized < 0) {
+    return NaN;
+  }
+  if (!isQuotaDisplayedInCurrency()) {
+    return Math.trunc(normalized);
+  }
+  return Math.round(normalized * getQuotaPerUnitValue());
+}
+
+export function quotaInputStep() {
+  return isQuotaDisplayedInCurrency() ? '0.01' : '1';
+}
+
 export function renderQuotaWithPrompt(quota, t) {
   const displayInCurrency =
     localStorage.getItem('display_in_currency') === 'true';
-  const quotaPerUnit = parseFloat(
-    localStorage.getItem('quota_per_unit') || '1'
-  );
 
   if (displayInCurrency) {
-    const amount = (quota / quotaPerUnit).toFixed(2);
+    const amount = formatQuotaEquivalentAmount(quota, 2);
     return ` (${t('common.quota.display', { amount })})`;
   }
 

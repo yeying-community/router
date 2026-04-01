@@ -93,6 +93,33 @@ const formatCount = (value) => {
   return num.toLocaleString('zh-CN');
 };
 
+const normalizeAdminDashboardPayload = (payload) => {
+  const summary = payload?.summary || {};
+  const trend = Array.isArray(payload?.trend) ? payload.trend : [];
+  const topChannels = Array.isArray(payload?.top_channels) ? payload.top_channels : [];
+  return {
+    ...EMPTY_DASHBOARD,
+    ...(payload || {}),
+    summary: {
+      ...EMPTY_SUMMARY,
+      ...summary,
+      consume_quota: Number(summary?.consume_yyc ?? summary?.consume_quota ?? 0),
+      topup_quota: Number(summary?.topup_yyc ?? summary?.topup_quota ?? 0),
+      net_quota: Number(summary?.net_yyc ?? summary?.net_quota ?? 0),
+    },
+    trend: trend.map((item) => ({
+      ...item,
+      consume_quota: Number(item?.consume_yyc ?? item?.consume_quota ?? 0),
+      topup_quota: Number(item?.topup_yyc ?? item?.topup_quota ?? 0),
+    })),
+    top_channels: topChannels.map((item) => ({
+      ...item,
+      used_quota: Number(item?.yyc_used ?? item?.used_quota ?? 0),
+    })),
+    recent_tasks: Array.isArray(payload?.recent_tasks) ? payload.recent_tasks : [],
+  };
+};
+
 const toPercent = (raw) => {
   const value = Number(raw || 0);
   if (!Number.isFinite(value)) return 0;
@@ -143,18 +170,7 @@ const AdminDashboard = () => {
         params: { period },
       });
       if (res.data?.success) {
-        const payload = res.data.data || {};
-        setDashboard({
-          ...EMPTY_DASHBOARD,
-          ...payload,
-          summary: {
-            ...EMPTY_SUMMARY,
-            ...(payload.summary || {}),
-          },
-          trend: Array.isArray(payload.trend) ? payload.trend : [],
-          top_channels: Array.isArray(payload.top_channels) ? payload.top_channels : [],
-          recent_tasks: Array.isArray(payload.recent_tasks) ? payload.recent_tasks : [],
-        });
+        setDashboard(normalizeAdminDashboardPayload(res.data.data || {}));
       } else {
         setDashboard(EMPTY_DASHBOARD);
       }

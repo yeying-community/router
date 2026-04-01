@@ -15,6 +15,109 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/admin/billing/currencies": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List billing currencies (admin)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Create billing currency (root)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/billing/currencies/{code}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Update billing currency (root)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Currency code",
+                        "name": "code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/channel": {
             "put": {
                 "security": [
@@ -776,6 +879,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get admin dashboard aggregate data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "today|last_7_days|last_30_days|this_month|last_month|this_year|last_year|last_12_months|all_time",
+                        "name": "period",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/group": {
             "put": {
                 "security": [
@@ -841,6 +982,43 @@ const docTemplate = `{
             }
         },
         "/api/v1/admin/group/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get group detail by ID (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "security": [
                     {
@@ -1076,6 +1254,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/group/{id}/quota/daily": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get group daily quota snapshot by date (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Biz date in YYYY-MM-DD, defaults to today in group timezone",
+                        "name": "date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/groups": {
             "get": {
                 "security": [
@@ -1184,6 +1414,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "group_id",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Channel ID",
                         "name": "channel",
@@ -1227,6 +1463,36 @@ const docTemplate = `{
                         "required": true
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/log/options": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List log filter options (admin)",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1942,6 +2208,23 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/api/v1/admin/tasks/options": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List async task filter options (admin)",
+                "responses": {}
+            }
+        },
         "/api/v1/admin/tasks/{id}": {
             "get": {
                 "security": [
@@ -2220,6 +2503,23 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/api/v1/admin/user/tasks/options": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List user task filter options (admin)",
+                "responses": {}
+            }
+        },
         "/api/v1/admin/user/tasks/{id}": {
             "get": {
                 "security": [
@@ -2295,6 +2595,57 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/user/{id}/quota/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get user quota summary (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Biz date in YYYY-MM-DD",
+                        "name": "date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Biz month in YYYY-MM",
+                        "name": "month",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -3715,6 +4066,36 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/public/log/options": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "List current user log filter options",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/public/log/search": {
             "get": {
                 "security": [
@@ -4964,6 +5345,45 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/public/topup/callback": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "Process external top up callback",
+                "parameters": [
+                    {
+                        "description": "Top up callback payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/docs.TopupOrderCallbackRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.UserTopUpOrderDetailResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/public/user/aff": {
             "get": {
                 "security": [
@@ -5151,6 +5571,94 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/user/quota/daily": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "Get current user's daily package quota snapshot",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID (optional, defaults to user's first bound group)",
+                        "name": "group_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Biz date in YYYY-MM-DD, defaults to today in group timezone",
+                        "name": "date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/user/quota/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "Get current user's quota summary",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Biz date in YYYY-MM-DD",
+                        "name": "date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Biz month in YYYY-MM",
+                        "name": "month",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/docs.ErrorResponse"
                         }
@@ -5386,8 +5894,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "last_week|last_month|this_year|last_year|last_12_months|all_time",
+                        "description": "today|last_7_days|last_30_days|this_month|last_month|this_year|last_year|last_12_months|all_time",
                         "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated model list",
+                        "name": "models",
                         "in": "query"
                     }
                 ],
@@ -5421,6 +5935,23 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "List current user tasks",
+                "responses": {}
+            }
+        },
+        "/api/v1/public/user/tasks/options": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "List current user task filter options",
                 "responses": {}
             }
         },
@@ -5504,6 +6035,117 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/docs.UserTopUpResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/user/topup/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "List current user top up orders",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.UserTopUpOrderListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "Create user top up order",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.UserCreateTopUpOrderResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/user/topup/orders/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "Get current user top up order detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.UserTopUpOrderDetailResponse"
                         }
                     },
                     "401": {
@@ -7291,6 +7933,51 @@ const docTemplate = `{
                 }
             }
         },
+        "docs.TopupOrderCallbackRequest": {
+            "type": "object",
+            "properties": {
+                "order_id": {
+                    "type": "string",
+                    "example": "474c9b7b534047ce9205220990f53087"
+                },
+                "paid_at": {
+                    "type": "integer",
+                    "example": 1774000100
+                },
+                "provider_name": {
+                    "type": "string",
+                    "example": "faka"
+                },
+                "provider_order_id": {
+                    "type": "string",
+                    "example": "provider_order_123"
+                },
+                "redeemed_at": {
+                    "type": "integer",
+                    "example": 1774000200
+                },
+                "redemption_code": {
+                    "type": "string",
+                    "example": "redeem-xxxx-xxxx"
+                },
+                "redemption_id": {
+                    "type": "string",
+                    "example": "848f6666d94346519ae2f4c3c98a408c"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "paid"
+                },
+                "status_message": {
+                    "type": "string",
+                    "example": "payment received"
+                },
+                "transaction_id": {
+                    "type": "string",
+                    "example": "019cf473b1837d0088eff3078d4f9373"
+                }
+            }
+        },
         "docs.UserAccessTokenResponse": {
             "type": "object",
             "properties": {
@@ -7341,6 +8028,47 @@ const docTemplate = `{
                 "provider": {
                     "type": "string",
                     "example": "openai"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "docs.UserCreateTopUpOrderData": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "integer",
+                    "example": 1774000000
+                },
+                "id": {
+                    "type": "string",
+                    "example": "474c9b7b534047ce9205220990f53087"
+                },
+                "redirect_url": {
+                    "type": "string",
+                    "example": "https://example.com/topup?user_id=1\u0026transaction_id=tx_123"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "created"
+                },
+                "transaction_id": {
+                    "type": "string",
+                    "example": "019cf473b1837d0088eff3078d4f9373"
+                }
+            }
+        },
+        "docs.UserCreateTopUpOrderResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/docs.UserCreateTopUpOrderData"
+                },
+                "message": {
+                    "type": "string",
+                    "example": ""
                 },
                 "success": {
                     "type": "boolean",
@@ -7738,6 +8466,126 @@ const docTemplate = `{
                 }
             }
         },
+        "docs.UserTopUpOrder": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "integer",
+                    "example": 1774000000
+                },
+                "id": {
+                    "type": "string",
+                    "example": "474c9b7b534047ce9205220990f53087"
+                },
+                "paid_at": {
+                    "type": "integer",
+                    "example": 1774000100
+                },
+                "provider_name": {
+                    "type": "string",
+                    "example": "faka"
+                },
+                "provider_order_id": {
+                    "type": "string",
+                    "example": "provider_order_123"
+                },
+                "redeemed_at": {
+                    "type": "integer",
+                    "example": 1774000200
+                },
+                "redemption_id": {
+                    "type": "string",
+                    "example": "474c9b7b534047ce9205220990f53087"
+                },
+                "redirect_url": {
+                    "type": "string",
+                    "example": "https://example.com/topup?user_id=1\u0026transaction_id=tx_123"
+                },
+                "source": {
+                    "type": "string",
+                    "example": "top_up_link"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "created"
+                },
+                "status_message": {
+                    "type": "string",
+                    "example": "payment received"
+                },
+                "transaction_id": {
+                    "type": "string",
+                    "example": "019cf473b1837d0088eff3078d4f9373"
+                },
+                "updated_at": {
+                    "type": "integer",
+                    "example": 1774000000
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "8ce3558f019248e0876e7173e36e9d18"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "alice"
+                }
+            }
+        },
+        "docs.UserTopUpOrderDetailResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/docs.UserTopUpOrder"
+                },
+                "message": {
+                    "type": "string",
+                    "example": ""
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "docs.UserTopUpOrderListData": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/docs.UserTopUpOrder"
+                    }
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "page_size": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "docs.UserTopUpOrderListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/docs.UserTopUpOrderListData"
+                },
+                "message": {
+                    "type": "string",
+                    "example": ""
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
         "docs.UserTopUpRequest": {
             "type": "object",
             "properties": {
@@ -7751,8 +8599,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {
-                    "type": "integer",
-                    "example": 100000
+                    "$ref": "#/definitions/docs.UserTopUpResult"
                 },
                 "message": {
                     "type": "string",
@@ -7761,6 +8608,35 @@ const docTemplate = `{
                 "success": {
                     "type": "boolean",
                     "example": true
+                }
+            }
+        },
+        "docs.UserTopUpResult": {
+            "type": "object",
+            "properties": {
+                "after_yyc_balance": {
+                    "type": "integer",
+                    "example": 600000
+                },
+                "before_yyc_balance": {
+                    "type": "integer",
+                    "example": 500000
+                },
+                "redeemed_at": {
+                    "type": "integer",
+                    "example": 1774000000
+                },
+                "redeemed_yyc": {
+                    "type": "integer",
+                    "example": 100000
+                },
+                "redemption_id": {
+                    "type": "string",
+                    "example": "474c9b7b534047ce9205220990f53087"
+                },
+                "redemption_name": {
+                    "type": "string",
+                    "example": "新用户补偿"
                 }
             }
         },

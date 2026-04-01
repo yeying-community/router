@@ -11,6 +11,7 @@ import (
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/admin/presenter"
 	channelsvc "github.com/yeying-community/router/internal/admin/service/channel"
 )
 
@@ -43,6 +44,7 @@ type channelListItem struct {
 	Balance            float64  `json:"balance"`
 	BalanceUpdatedTime int64    `json:"balance_updated_time"`
 	UsedQuota          int64    `json:"used_quota"`
+	YYCUsed            int64    `json:"yyc_used"`
 	Priority           int64    `json:"priority"`
 }
 
@@ -110,6 +112,7 @@ func buildChannelListItem(channel *model.Channel) channelListItem {
 		Balance:            channel.Balance,
 		BalanceUpdatedTime: channel.BalanceUpdatedTime,
 		UsedQuota:          channel.UsedQuota,
+		YYCUsed:            channel.UsedQuota,
 		Priority:           channel.GetPriority(),
 	}
 }
@@ -278,7 +281,7 @@ func GetChannel(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    channel,
+		"data":    presenter.NewChannel(channel),
 	})
 	return
 }
@@ -510,7 +513,7 @@ func UpdateChannel(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    channel,
+		"data":    presenter.NewChannel(&channel),
 	})
 	return
 }
@@ -576,6 +579,6 @@ func UpdateChannelTestModel(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    channel,
+		"data":    presenter.NewChannel(channel),
 	})
 }

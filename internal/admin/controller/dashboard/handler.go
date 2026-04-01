@@ -36,8 +36,11 @@ const (
 
 type summaryData struct {
 	ConsumeQuota    int64 `json:"consume_quota"`
+	ConsumeYYC      int64 `json:"consume_yyc"`
 	TopupQuota      int64 `json:"topup_quota"`
+	TopupYYC        int64 `json:"topup_yyc"`
 	NetQuota        int64 `json:"net_quota"`
+	NetYYC          int64 `json:"net_yyc"`
 	RequestCount    int64 `json:"request_count"`
 	ActiveUserCount int64 `json:"active_user_count"`
 
@@ -55,7 +58,9 @@ type summaryData struct {
 type trendPoint struct {
 	Bucket          string `json:"bucket"`
 	ConsumeQuota    int64  `json:"consume_quota"`
+	ConsumeYYC      int64  `json:"consume_yyc"`
 	TopupQuota      int64  `json:"topup_quota"`
+	TopupYYC        int64  `json:"topup_yyc"`
 	RequestCount    int64  `json:"request_count"`
 	ActiveUserCount int64  `json:"active_user_count"`
 }
@@ -68,6 +73,7 @@ type channelHealthItem struct {
 	Capabilities       []string `json:"capabilities"`
 	Balance            float64  `json:"balance"`
 	UsedQuota          int64    `json:"used_quota"`
+	YYCUsed            int64    `json:"yyc_used"`
 	Priority           int64    `json:"priority"`
 	SelectedModelCount int      `json:"selected_model_count"`
 	TestedModelCount   int      `json:"tested_model_count"`
@@ -415,6 +421,7 @@ func listTopChannels() ([]channelHealthItem, int64, int64, int64, error) {
 			Capabilities:       collectCapabilities(row),
 			Balance:            row.Balance,
 			UsedQuota:          row.UsedQuota,
+			YYCUsed:            row.UsedQuota,
 			Priority:           row.GetPriority(),
 			SelectedModelCount: health.SelectedModelCount,
 			TestedModelCount:   health.TestedModelCount,
@@ -543,8 +550,10 @@ func buildTrend(startAt int64, endAt int64, granularity string) ([]trendPoint, e
 		}
 		if row.Type == model.LogTypeConsume {
 			points[bucket].ConsumeQuota += row.Quota
+			points[bucket].ConsumeYYC += row.Quota
 		} else if row.Type == model.LogTypeTopup {
 			points[bucket].TopupQuota += row.Quota
+			points[bucket].TopupYYC += row.Quota
 		}
 	}
 	for _, row := range requestRows {
@@ -690,8 +699,11 @@ func GetDashboard(c *gin.Context) {
 			EndAt:       endAt,
 			Summary: summaryData{
 				ConsumeQuota:    consumeQuota,
+				ConsumeYYC:      consumeQuota,
 				TopupQuota:      topupQuota,
+				TopupYYC:        topupQuota,
 				NetQuota:        topupQuota - consumeQuota,
+				NetYYC:          topupQuota - consumeQuota,
 				RequestCount:    requestCount,
 				ActiveUserCount: activeUserCount,
 				ChannelTotal:    channelTotal,

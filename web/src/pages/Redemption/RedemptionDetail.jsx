@@ -8,7 +8,10 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
-import { renderQuota, renderQuotaWithPrompt } from '../../helpers/render';
+import {
+  formatYYCValue,
+  renderQuotaWithPrompt,
+} from '../../helpers/render';
 
 function renderStatus(status, t) {
   switch (status) {
@@ -65,7 +68,7 @@ const RedemptionDetail = () => {
   const syncInputs = useCallback((data) => {
     setInputs({
       name: (data?.name || '').toString(),
-      quota: Number(data?.quota || 0) || 0,
+      quota: Number(data?.yyc_value ?? data?.quota ?? 0) || 0,
     });
   }, []);
 
@@ -244,7 +247,7 @@ const RedemptionDetail = () => {
                 <Form.Input
                   className='router-section-input'
                   label={t('redemption.table.quota')}
-                  value={redemption ? renderQuota(redemption.quota, t) : ''}
+                  value={redemption ? formatYYCValue(redemption.yyc_value ?? redemption.quota) : ''}
                   readOnly
                 />
               )}

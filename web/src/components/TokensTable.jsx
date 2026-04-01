@@ -21,7 +21,7 @@ import {
 } from '../helpers';
 
 import { ITEMS_PER_PAGE } from '../constants';
-import { renderQuota } from '../helpers/render';
+import { renderYYC } from '../helpers/render';
 
 function renderTimestamp(timestamp) {
   return <>{timestamp2string(timestamp)}</>;
@@ -524,11 +524,11 @@ const TokensTable = () => {
                       />
                     </span>
                   </Table.Cell>
-                  <Table.Cell>{renderQuota(token.used_quota, t)}</Table.Cell>
+                  <Table.Cell>{renderYYC(token.yyc_used ?? token.used_quota, t)}</Table.Cell>
                   <Table.Cell>
                     {token.unlimited_quota
                       ? t('token.table.unlimited')
-                      : renderQuota(token.remain_quota, t, 2)}
+                      : renderYYC(token.yyc_remain ?? token.remain_quota, t)}
                   </Table.Cell>
                   <Table.Cell>{renderTimestamp(token.created_time)}</Table.Cell>
                   <Table.Cell>

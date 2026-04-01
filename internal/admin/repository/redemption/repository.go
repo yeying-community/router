@@ -59,14 +59,16 @@ func GetByID(id string) (*model.Redemption, error) {
 	return &redemption, err
 }
 
-func Redeem(ctx context.Context, code string, userId string) (int64, error) {
+func Redeem(ctx context.Context, code string, userId string) (model.RedemptionResult, error) {
 	if code == "" {
-		return 0, errors.New("未提供兑换码")
+		return model.RedemptionResult{}, errors.New("未提供兑换码")
 	}
 	if strings.TrimSpace(userId) == "" {
-		return 0, errors.New("无效的 user id")
+		return model.RedemptionResult{}, errors.New("无效的 user id")
 	}
 	redemption := &model.Redemption{}
+	user := &model.User{}
+	result := model.RedemptionResult{}
 	codeCol := `"code"`
 
 	err := model.DB.Transaction(func(tx *gorm.DB) error {
@@ -77,20 +79,69 @@ func Redeem(ctx context.Context, code string, userId string) (int64, error) {
 		if redemption.Status != model.RedemptionCodeStatusEnabled {
 			return errors.New("该兑换码已被使用")
 		}
-		err = tx.Model(&model.User{}).Where("id = ?", userId).Update("quota", gorm.Expr("quota + ?", redemption.Quota)).Error
+		if strings.TrimSpace(redemption.TopupOrderID) != "" {
+			order := model.TopupOrder{}
+			if err := tx.Set("gorm:query_option", "FOR UPDATE").
+				Where("id = ?", strings.TrimSpace(redemption.TopupOrderID)).
+				First(&order).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return errors.New("关联订单不存在")
+				}
+				return err
+			}
+			if strings.TrimSpace(order.UserID) != strings.TrimSpace(userId) {
+				return errors.New("该兑换码不属于当前用户")
+			}
+			switch model.NormalizeTopupOrderStatus(order.Status) {
+			case model.TopupOrderStatusPaid, model.TopupOrderStatusFulfilled:
+				// allowed
+			case model.TopupOrderStatusCreated, model.TopupOrderStatusPending:
+				return errors.New("当前订单尚未支付")
+			case model.TopupOrderStatusFailed, model.TopupOrderStatusCanceled:
+				return errors.New("当前订单状态不允许兑换")
+			default:
+				return errors.New("当前订单状态不允许兑换")
+			}
+		}
+		err = tx.Set("gorm:query_option", "FOR UPDATE").Where("id = ?", userId).First(user).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("用户不存在")
+			}
+			return err
+		}
+		beforeYYCBalance := user.Quota
+		afterYYCBalance := beforeYYCBalance + redemption.Quota
+		err = tx.Model(&model.User{}).Where("id = ?", userId).Update("quota", afterYYCBalance).Error
 		if err != nil {
 			return err
 		}
 		redemption.RedeemedTime = helper.GetTimestamp()
 		redemption.Status = model.RedemptionCodeStatusUsed
 		redemption.RedeemedByUserId = strings.TrimSpace(userId)
-		return tx.Save(redemption).Error
+		if err := tx.Save(redemption).Error; err != nil {
+			return err
+		}
+		result = model.RedemptionResult{
+			RedeemedYYC:      redemption.Quota,
+			BeforeYYCBalance: beforeYYCBalance,
+			AfterYYCBalance:  afterYYCBalance,
+			RedemptionID:     strings.TrimSpace(redemption.Id),
+			RedemptionName:   strings.TrimSpace(redemption.Name),
+			RedeemedAt:       redemption.RedeemedTime,
+		}
+		if strings.TrimSpace(redemption.TopupOrderID) != "" {
+			if err := model.MarkTopupOrderRedeemedWithDB(tx, redemption.TopupOrderID, redemption.Id, redemption.RedeemedTime); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
-		return 0, errors.New("兑换失败，" + err.Error())
+		return model.RedemptionResult{}, errors.New("兑换失败，" + err.Error())
 	}
 	model.RecordLog(ctx, userId, model.LogTypeTopup, fmt.Sprintf("通过兑换码充值 %s", common.LogQuota(redemption.Quota)))
-	return redemption.Quota, nil
+	return result, nil
 }
 
 func Create(redemption *model.Redemption) error {

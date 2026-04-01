@@ -575,7 +575,7 @@ func AccessTokenExists(token string) (bool, error) {
 	return false, err
 }
 
-func Redeem(ctx context.Context, code string, userId string) (int64, error) {
+func Redeem(ctx context.Context, code string, userId string) (model.RedemptionResult, error) {
 	return model.Redeem(ctx, code, userId)
 }
 

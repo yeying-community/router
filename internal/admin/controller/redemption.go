@@ -10,6 +10,7 @@ import (
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/random"
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/admin/presenter"
 )
 
 // GetAllRedemptions godoc
@@ -45,7 +46,7 @@ func GetAllRedemptions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    redemptions,
+		"data":    presenter.NewRedemptions(redemptions),
 		"meta": gin.H{
 			"total":     total,
 			"page":      page,
@@ -77,7 +78,7 @@ func SearchRedemptions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    redemptions,
+		"data":    presenter.NewRedemptions(redemptions),
 	})
 	return
 }
@@ -112,7 +113,7 @@ func GetRedemption(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    redemption,
+		"data":    presenter.NewRedemption(redemption),
 	})
 	return
 }
@@ -261,7 +262,7 @@ func UpdateRedemption(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    cleanRedemption,
+		"data":    presenter.NewRedemption(cleanRedemption),
 	})
 	return
 }

@@ -11,6 +11,7 @@ const (
 type Redemption struct {
 	Id                 string `json:"id" gorm:"type:char(36);primaryKey"`
 	UserId             string `json:"user_id" gorm:"type:char(36);index"`
+	TopupOrderID       string `json:"topup_order_id" gorm:"type:char(36);index"`
 	RedeemedByUserId   string `json:"redeemed_by_user_id" gorm:"type:char(36);index"`
 	RedeemedByUsername string `json:"redeemed_by_username,omitempty" gorm:"-"`
 	Code               string `json:"code" gorm:"column:code;type:char(32);uniqueIndex"`
@@ -20,6 +21,15 @@ type Redemption struct {
 	CreatedTime        int64  `json:"created_time" gorm:"bigint"`
 	RedeemedTime       int64  `json:"redeemed_time" gorm:"bigint"`
 	Count              int    `json:"count" gorm:"-:all"`
+}
+
+type RedemptionResult struct {
+	RedeemedYYC      int64  `json:"redeemed_yyc"`
+	BeforeYYCBalance int64  `json:"before_yyc_balance"`
+	AfterYYCBalance  int64  `json:"after_yyc_balance"`
+	RedemptionID     string `json:"redemption_id"`
+	RedemptionName   string `json:"redemption_name"`
+	RedeemedAt       int64  `json:"redeemed_at"`
 }
 
 func GetAllRedemptions(startIdx int, num int) ([]*Redemption, error) {
@@ -34,7 +44,7 @@ func GetRedemptionById(id string) (*Redemption, error) {
 	return mustRedemptionRepo().GetRedemptionById(id)
 }
 
-func Redeem(ctx context.Context, code string, userId string) (int64, error) {
+func Redeem(ctx context.Context, code string, userId string) (RedemptionResult, error) {
 	return mustRedemptionRepo().Redeem(ctx, code, userId)
 }
 

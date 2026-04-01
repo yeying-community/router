@@ -15,9 +15,10 @@ import { useTranslation } from 'react-i18next';
 
 import { ITEMS_PER_PAGE } from '../constants';
 import {
-  renderGroup,
   formatCompactNumber,
+  renderGroup,
   renderText,
+  renderYYC,
 } from '../helpers/render';
 
 function renderRole(role, t) {
@@ -48,6 +49,14 @@ const maskWalletAddress = (walletAddress) => {
   const trimmedWallet = walletAddress.trim();
   if (trimmedWallet.length < 7) return trimmedWallet;
   return `${trimmedWallet.slice(0, 3)}...${trimmedWallet.slice(-3)}`;
+};
+
+const formatFullNumber = (value) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return '0';
+  }
+  return numericValue.toLocaleString();
 };
 
 const UsersTable = () => {
@@ -300,36 +309,11 @@ const UsersTable = () => {
     setActivePage(1);
   };
 
-  const quotaPerUnit = parseFloat(
-    localStorage.getItem('quota_per_unit') || '1',
-  );
-
-  const formatFullNumber = (value) => {
-    const num = Number(value);
-    if (!Number.isFinite(num)) return '0';
-    return num.toLocaleString();
-  };
-
-  const formatFullAmount = (value) => {
-    const num = Number(value);
-    if (!Number.isFinite(num)) return '0';
-    return num.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 6,
-    });
-  };
-
   const renderQuotaValue = (value) =>
     (() => {
       const numericValue = Number(value);
       const base = Number.isFinite(numericValue) ? numericValue : 0;
-      const amount = quotaPerUnit > 0 ? base / quotaPerUnit : base;
-      return (
-        <Popup
-          content={`$${formatFullAmount(amount)}`}
-          trigger={<span>{formatCompactNumber(amount)}</span>}
-        />
-      );
+      return renderYYC(base, t);
     })();
 
   const renderCountValue = (value) => (
@@ -519,8 +503,8 @@ const UsersTable = () => {
                   {/*<Table.Cell>*/}
                   {/*  {user.email ? <Popup hoverable content={user.email} trigger={<span>{renderText(user.email, 24)}</span>} /> : '无'}*/}
                   {/*</Table.Cell>*/}
-                  <Table.Cell>{renderQuotaValue(user.quota)}</Table.Cell>
-                  <Table.Cell>{renderQuotaValue(user.used_quota)}</Table.Cell>
+                  <Table.Cell>{renderQuotaValue(user.yyc_balance ?? user.quota)}</Table.Cell>
+                  <Table.Cell>{renderQuotaValue(user.yyc_used ?? user.used_quota)}</Table.Cell>
                   <Table.Cell>
                     {renderCountValue(user.request_count)}
                   </Table.Cell>

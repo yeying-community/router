@@ -3,6 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Button, Card, Dropdown, Form, Label } from 'semantic-ui-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API, isRoot, showError, showSuccess } from '../../helpers';
+import {
+  formatYYCValue,
+  isQuotaDisplayedInCurrency,
+  quotaInputStep,
+  quotaInputToStoredValue,
+  quotaToInputValue,
+} from '../../helpers/render';
 
 const ROLE_OPTIONS = (t) => [
   { key: 1, value: 1, text: t('user.table.role_types.normal') },
@@ -96,6 +103,34 @@ const createEmptyUserQuotaSummary = () => ({
   },
 });
 
+const normalizeQuotaSnapshot = (raw, fallback = {}) => ({
+  ...fallback,
+  ...(raw || {}),
+  limit: Number(raw?.yyc_limit ?? raw?.limit ?? fallback?.limit ?? 0),
+  consumed_quota: Number(raw?.yyc_consumed ?? raw?.consumed_quota ?? fallback?.consumed_quota ?? 0),
+  reserved_quota: Number(raw?.yyc_reserved ?? raw?.reserved_quota ?? fallback?.reserved_quota ?? 0),
+  remaining_quota: Number(raw?.yyc_remaining ?? raw?.remaining_quota ?? fallback?.remaining_quota ?? 0),
+});
+
+const normalizeGroupDailyQuota = (raw, fallbackGroupName = '') => {
+  const next = normalizeQuotaSnapshot(raw, createEmptyDailyQuota());
+  return {
+    ...next,
+    group_id: (raw?.group_id || next.group_id || '').toString().trim(),
+    group_name: (raw?.group_name || fallbackGroupName || '').toString().trim(),
+  };
+};
+
+const normalizeUserQuotaSummary = (raw) => {
+  const empty = createEmptyUserQuotaSummary();
+  return {
+    ...empty,
+    ...(raw || {}),
+    daily: normalizeQuotaSnapshot(raw?.daily, empty.daily),
+    monthly_emergency: normalizeQuotaSnapshot(raw?.monthly_emergency, empty.monthly_emergency),
+  };
+};
+
 const parseFirstGroupRef = (raw) => {
   const normalized = (raw || '').toString().trim();
   if (normalized === '') {
@@ -115,6 +150,9 @@ const UserDetail = () => {
   const { t } = useTranslation();
   const { id: userId } = useParams();
   const navigate = useNavigate();
+  const quotaDisplayInCurrency = isQuotaDisplayedInCurrency();
+  const quotaFieldStep = quotaInputStep();
+  const quotaFieldSuffix = quotaDisplayInCurrency ? ' (USD)' : '';
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [actionLoading, setActionLoading] = useState('');
@@ -211,15 +249,17 @@ const UserDetail = () => {
       const nextInputs = {
         username: data?.username || '',
         email: data?.email || '',
-        quota: data?.quota ?? 0,
+        quota: Number(data?.yyc_balance ?? data?.quota ?? 0),
         group: data?.group || '',
-        daily_quota_limit: Number(data?.daily_quota_limit || 0),
-        monthly_emergency_quota_limit: Number(data?.monthly_emergency_quota_limit || 0),
+        daily_quota_limit: Number(data?.yyc_daily_limit ?? data?.daily_quota_limit ?? 0),
+        monthly_emergency_quota_limit: Number(
+          data?.yyc_monthly_emergency_limit ?? data?.monthly_emergency_quota_limit ?? 0,
+        ),
         quota_reset_timezone: data?.quota_reset_timezone || 'Asia/Shanghai',
         role: Number(data?.role || 1),
         status: Number(data?.status || 1),
         wallet_address: walletAddress,
-        used_quota: data?.used_quota ?? 0,
+        used_quota: Number(data?.yyc_used ?? data?.used_quota ?? 0),
         request_count: data?.request_count ?? 0,
         can_manage_users: data?.can_manage_users === true,
       };
@@ -227,10 +267,10 @@ const UserDetail = () => {
       setEditInputs({
         username: nextInputs.username,
         email: nextInputs.email,
-        quota: nextInputs.quota,
+        quota: quotaToInputValue(nextInputs.quota),
         group: nextInputs.group,
-        daily_quota_limit: nextInputs.daily_quota_limit,
-        monthly_emergency_quota_limit: nextInputs.monthly_emergency_quota_limit,
+        daily_quota_limit: quotaToInputValue(nextInputs.daily_quota_limit),
+        monthly_emergency_quota_limit: quotaToInputValue(nextInputs.monthly_emergency_quota_limit),
         quota_reset_timezone: nextInputs.quota_reset_timezone,
       });
       setPersistedUsername((data?.username || '').toString().trim());
@@ -256,18 +296,7 @@ const UserDetail = () => {
         showError(message || t('user.messages.user_quota_load_failed'));
         return;
       }
-      setUserQuotaSummary({
-        ...createEmptyUserQuotaSummary(),
-        ...(data || {}),
-        daily: {
-          ...createEmptyUserQuotaSummary().daily,
-          ...(data?.daily || {}),
-        },
-        monthly_emergency: {
-          ...createEmptyUserQuotaSummary().monthly_emergency,
-          ...(data?.monthly_emergency || {}),
-        },
-      });
+      setUserQuotaSummary(normalizeUserQuotaSummary(data));
     } catch (error) {
       showError(error?.message || error);
     } finally {
@@ -344,12 +373,9 @@ const UserDetail = () => {
         showError(message || t('user.messages.daily_quota_load_failed'));
         return;
       }
-      setDailyQuota({
-        ...createEmptyDailyQuota(),
-        ...(data || {}),
-        group_id: normalizedGroupId,
-        group_name: groupMap[normalizedGroupId] || normalizedGroupId,
-      });
+      setDailyQuota(
+        normalizeGroupDailyQuota(data, groupMap[normalizedGroupId] || normalizedGroupId),
+      );
     } catch (error) {
       showError(error?.message || error);
     } finally {
@@ -431,10 +457,10 @@ const UserDetail = () => {
     setEditInputs({
       username: inputs.username || '',
       email: inputs.email || '',
-      quota: inputs.quota ?? 0,
+      quota: quotaToInputValue(inputs.quota ?? 0),
       group: inputs.group || '',
-      daily_quota_limit: inputs.daily_quota_limit ?? 0,
-      monthly_emergency_quota_limit: inputs.monthly_emergency_quota_limit ?? 0,
+      daily_quota_limit: quotaToInputValue(inputs.daily_quota_limit ?? 0),
+      monthly_emergency_quota_limit: quotaToInputValue(inputs.monthly_emergency_quota_limit ?? 0),
       quota_reset_timezone: inputs.quota_reset_timezone || 'Asia/Shanghai',
     });
   }, [
@@ -461,9 +487,9 @@ const UserDetail = () => {
     const username = (editInputs.username || '').toString().trim();
     const email = (editInputs.email || '').toString().trim();
     const group = (editInputs.group || '').toString().trim();
-    const quota = Number(editInputs.quota);
-    const dailyQuotaLimit = Number(editInputs.daily_quota_limit);
-    const monthlyEmergencyQuotaLimit = Number(editInputs.monthly_emergency_quota_limit);
+    const quota = quotaInputToStoredValue(editInputs.quota);
+    const dailyQuotaLimit = quotaInputToStoredValue(editInputs.daily_quota_limit);
+    const monthlyEmergencyQuotaLimit = quotaInputToStoredValue(editInputs.monthly_emergency_quota_limit);
     const quotaResetTimezone = (editInputs.quota_reset_timezone || '').toString().trim();
     if (username === '') {
       showError(t('user.edit.username_placeholder'));
@@ -634,8 +660,8 @@ const UserDetail = () => {
                   className='router-section-input'
                   type='number'
                   min='0'
-                  step='1'
-                  label={t('user.edit.daily_quota_limit')}
+                  step={quotaFieldStep}
+                  label={`${t('user.edit.daily_quota_limit')}${quotaFieldSuffix}`}
                   name='daily_quota_limit'
                   value={editInputs.daily_quota_limit}
                   placeholder={t('user.edit.daily_quota_limit_placeholder')}
@@ -645,7 +671,11 @@ const UserDetail = () => {
                 <Form.Input
                   className='router-section-input'
                   label={t('user.edit.daily_quota_limit')}
-                  value={Number(inputs.daily_quota_limit || 0)}
+                  value={
+                    Number(inputs.daily_quota_limit || 0) > 0
+                      ? formatYYCValue(inputs.daily_quota_limit)
+                      : t('common.unlimited')
+                  }
                   readOnly
                 />
               )}
@@ -657,8 +687,8 @@ const UserDetail = () => {
                   className='router-section-input'
                   type='number'
                   min='0'
-                  step='1'
-                  label={t('user.edit.quota')}
+                  step={quotaFieldStep}
+                  label={`${t('user.edit.quota')}${quotaFieldSuffix}`}
                   name='quota'
                   value={editInputs.quota}
                   placeholder={t('user.edit.quota_placeholder')}
@@ -668,7 +698,7 @@ const UserDetail = () => {
                 <Form.Input
                   className='router-section-input'
                   label={t('user.edit.quota')}
-                  value={inputs.quota}
+                  value={formatYYCValue(inputs.quota)}
                   readOnly
                 />
               )}
@@ -677,8 +707,8 @@ const UserDetail = () => {
                   className='router-section-input'
                   type='number'
                   min='0'
-                  step='1'
-                  label={t('user.edit.monthly_emergency_quota_limit')}
+                  step={quotaFieldStep}
+                  label={`${t('user.edit.monthly_emergency_quota_limit')}${quotaFieldSuffix}`}
                   name='monthly_emergency_quota_limit'
                   value={editInputs.monthly_emergency_quota_limit}
                   placeholder={t('user.edit.monthly_emergency_quota_limit_placeholder')}
@@ -688,7 +718,7 @@ const UserDetail = () => {
                 <Form.Input
                   className='router-section-input'
                   label={t('user.edit.monthly_emergency_quota_limit')}
-                  value={Number(inputs.monthly_emergency_quota_limit || 0)}
+                  value={formatYYCValue(inputs.monthly_emergency_quota_limit || 0)}
                   readOnly
                 />
               )}
@@ -721,7 +751,7 @@ const UserDetail = () => {
               <Form.Input
                 className='router-section-input'
                 label={t('user.table.used_quota')}
-                value={inputs.used_quota}
+                value={formatYYCValue(inputs.used_quota)}
                 readOnly
               />
               <Form.Input
@@ -754,20 +784,20 @@ const UserDetail = () => {
                   value={
                     userQuotaSummary.daily.unlimited
                       ? t('common.unlimited')
-                      : Number(userQuotaSummary.daily.limit || 0)
+                      : formatYYCValue(userQuotaSummary.daily.limit || 0)
                   }
                   readOnly
                 />
                 <Form.Input
                   className='router-section-input'
                   label={t('user.detail.user_quota_daily_consumed')}
-                  value={Number(userQuotaSummary.daily.consumed_quota || 0)}
+                  value={formatYYCValue(userQuotaSummary.daily.consumed_quota || 0)}
                   readOnly
                 />
                 <Form.Input
                   className='router-section-input'
                   label={t('user.detail.user_quota_daily_reserved')}
-                  value={Number(userQuotaSummary.daily.reserved_quota || 0)}
+                  value={formatYYCValue(userQuotaSummary.daily.reserved_quota || 0)}
                   readOnly
                 />
                 <Form.Input
@@ -776,7 +806,7 @@ const UserDetail = () => {
                   value={
                     userQuotaSummary.daily.unlimited
                       ? t('common.unlimited')
-                      : Number(userQuotaSummary.daily.remaining_quota || 0)
+                      : formatYYCValue(userQuotaSummary.daily.remaining_quota || 0)
                   }
                   readOnly
                 />
@@ -793,7 +823,7 @@ const UserDetail = () => {
                   label={t('user.detail.user_quota_monthly_emergency_limit')}
                   value={
                     userQuotaSummary.monthly_emergency.enabled
-                      ? Number(userQuotaSummary.monthly_emergency.limit || 0)
+                      ? formatYYCValue(userQuotaSummary.monthly_emergency.limit || 0)
                       : '-'
                   }
                   readOnly
@@ -801,7 +831,7 @@ const UserDetail = () => {
                 <Form.Input
                   className='router-section-input'
                   label={t('user.detail.user_quota_monthly_emergency_consumed')}
-                  value={Number(userQuotaSummary.monthly_emergency.consumed_quota || 0)}
+                  value={formatYYCValue(userQuotaSummary.monthly_emergency.consumed_quota || 0)}
                   readOnly
                 />
                 <Form.Input
@@ -809,7 +839,7 @@ const UserDetail = () => {
                   label={t('user.detail.user_quota_monthly_emergency_remaining')}
                   value={
                     userQuotaSummary.monthly_emergency.enabled
-                      ? Number(userQuotaSummary.monthly_emergency.remaining_quota || 0)
+                      ? formatYYCValue(userQuotaSummary.monthly_emergency.remaining_quota || 0)
                       : '-'
                   }
                   readOnly
@@ -819,7 +849,7 @@ const UserDetail = () => {
                 <Form.Input
                   className='router-section-input'
                   label={t('user.detail.user_quota_monthly_emergency_reserved')}
-                  value={Number(userQuotaSummary.monthly_emergency.reserved_quota || 0)}
+                  value={formatYYCValue(userQuotaSummary.monthly_emergency.reserved_quota || 0)}
                   readOnly
                 />
                 <Form.Input
@@ -874,20 +904,26 @@ const UserDetail = () => {
                 <Form.Input
                   className='router-section-input'
                   label={t('user.detail.daily_quota_limit')}
-                  value={dailyQuota.unlimited ? t('common.unlimited') : Number(dailyQuota.limit || 0)}
+                  value={
+                    dailyQuota.unlimited
+                      ? t('common.unlimited')
+                      : formatYYCValue(dailyQuota.limit || 0)
+                  }
                   readOnly
                 />
                 <Form.Input
                   className='router-section-input'
                   label={t('user.detail.daily_quota_consumed')}
-                  value={Number(dailyQuota.consumed_quota || 0)}
+                  value={formatYYCValue(dailyQuota.consumed_quota || 0)}
                   readOnly
                 />
                 <Form.Input
                   className='router-section-input'
                   label={t('user.detail.daily_quota_remaining')}
                   value={
-                    dailyQuota.unlimited ? t('common.unlimited') : Number(dailyQuota.remaining_quota || 0)
+                    dailyQuota.unlimited
+                      ? t('common.unlimited')
+                      : formatYYCValue(dailyQuota.remaining_quota || 0)
                   }
                   readOnly
                 />
@@ -896,7 +932,7 @@ const UserDetail = () => {
                 <Form.Input
                   className='router-section-input'
                   label={t('user.detail.daily_quota_reserved')}
-                  value={Number(dailyQuota.reserved_quota || 0)}
+                  value={formatYYCValue(dailyQuota.reserved_quota || 0)}
                   readOnly
                 />
                 <Form.Input

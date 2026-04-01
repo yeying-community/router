@@ -72,7 +72,10 @@ func getPreConsumedQuota(textRequest *relaymodel.GeneralOpenAIRequest, promptTok
 }
 
 func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, pricing model.ResolvedModelPricing, groupRatio float64, meta *meta.Meta) (int64, *relaymodel.ErrorWithStatusCode) {
-	preConsumedQuota := billing.ComputeTextPreConsumedQuota(promptTokens, textRequest.MaxTokens, pricing, groupRatio)
+	preConsumedQuota, err := billing.ComputeTextPreConsumedQuota(promptTokens, textRequest.MaxTokens, pricing, groupRatio)
+	if err != nil {
+		return 0, openai.ErrorWrapper(err, "calculate_text_quota_failed", http.StatusInternalServerError)
+	}
 
 	userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
 	if err != nil {
@@ -116,7 +119,15 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	}
 	promptTokens := usage.PromptTokens
 	completionTokens := usage.CompletionTokens
-	quota := billing.ComputeTextQuota(promptTokens, completionTokens, pricing, groupRatio)
+	quota, err := billing.ComputeTextQuota(promptTokens, completionTokens, pricing, groupRatio)
+	billingSnapshot, snapshotErr := billing.ComputeTextBillingSnapshot(promptTokens, completionTokens, pricing, groupRatio)
+	if snapshotErr != nil {
+		logger.Error(ctx, "calculate text billing snapshot failed: "+snapshotErr.Error())
+	}
+	if err != nil {
+		logger.Error(ctx, "calculate text quota failed: "+err.Error())
+		quota = preConsumedQuota
+	}
 	totalTokens := promptTokens + completionTokens
 	if totalTokens == 0 {
 		// in this case, must be some error happened
@@ -124,7 +135,6 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		quota = 0
 	}
 	quotaDelta := quota - preConsumedQuota
-	var err error
 	if strings.TrimSpace(meta.TokenId) != "" {
 		err = model.PostConsumeTokenQuota(meta.TokenId, quotaDelta)
 		if err != nil {
@@ -145,7 +155,8 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		logger.Error(ctx, "error update user quota cache: "+err.Error())
 	}
 	userQuotaUsage := settleUserQuotaReservation(ctx, userReservation, quota)
-	model.RecordConsumeLog(ctx, &model.Log{
+	billingSnapshot.YYCAmount = quota
+	entry := &model.Log{
 		UserId:             meta.UserId,
 		GroupId:            meta.Group,
 		ChannelId:          meta.ChannelId,
@@ -160,7 +171,9 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		IsStream:           meta.IsStream,
 		ElapsedTime:        helper.CalcElapsedTime(meta.StartTime),
 		SystemPromptReset:  systemPromptReset,
-	})
+	}
+	billingSnapshot.ApplyToLog(entry)
+	model.RecordConsumeLog(ctx, entry)
 	model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 	model.UpdateChannelUsedQuota(meta.ChannelId, quota)
 	settleGroupDailyQuotaReservation(ctx, groupReservation, quota)

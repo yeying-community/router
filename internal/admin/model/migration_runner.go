@@ -126,27 +126,72 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				if err := tx.AutoMigrate(&GroupCatalog{}); err != nil {
 					return err
 				}
-				return tx.AutoMigrate(&GroupQuotaDailyCounter{})
+				return tx.AutoMigrate(&GroupQuotaCounter{})
 			},
 		},
 		{
 			Version:     "202603202030_user_group_daily_quota_counters",
 			Description: "switch group daily quota counters to user+group scoped counters",
 			Up: func(tx *gorm.DB) error {
-				return tx.AutoMigrate(&GroupQuotaDailyCounter{})
+				return tx.AutoMigrate(&GroupQuotaCounter{})
 			},
 		},
 		{
 			Version:     "202603311200_user_daily_emergency_quota",
 			Description: "add user daily quota and monthly emergency quota models, counters, and log fields",
 			Up: func(tx *gorm.DB) error {
-				if err := tx.AutoMigrate(&User{}, &UserQuotaDailyCounter{}, &UserQuotaMonthlyEmergencyCounter{}, &Log{}); err != nil {
+				if err := tx.AutoMigrate(&User{}, &UserQuotaCounter{}, &Log{}); err != nil {
 					return err
 				}
 				return tx.Exec(
 					"UPDATE users SET quota_reset_timezone = ? WHERE COALESCE(quota_reset_timezone, '') = ''",
 					DefaultGroupQuotaResetTimezone,
 				).Error
+			},
+		},
+		{
+			Version:     "202603311700_billing_currency_catalog",
+			Description: "add billing currencies catalog and seed default USD/CNY yyc rates",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&BillingCurrency{}); err != nil {
+					return err
+				}
+				return syncDefaultBillingCurrenciesWithDB(tx)
+			},
+		},
+		{
+			Version:     "202603311900_log_billing_snapshots",
+			Description: "add billing snapshot fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202603312040_generic_quota_counters",
+			Description: "migrate legacy daily quota tables to generic quota counter tables",
+			Up: func(tx *gorm.DB) error {
+				return migrateLegacyQuotaCountersToGenericWithDB(tx)
+			},
+		},
+		{
+			Version:     "202603312230_topup_orders",
+			Description: "add persisted topup order table for external recharge redirects",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&TopupOrder{})
+			},
+		},
+		{
+			Version:     "202603312355_topup_order_callback_flow",
+			Description: "add topup order callback fields and redemption linkage",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&TopupOrder{}, &Redemption{})
+			},
+		},
+		{
+			Version:     "202604011030_billing_currency_cny_decouple",
+			Description: "decouple CNY yyc rate from system default linkage and switch legacy default source to manual",
+			Up: func(tx *gorm.DB) error {
+				return decoupleCNYYYCFromSystemDefaultWithDB(tx)
 			},
 		},
 	}
@@ -172,6 +217,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 		{
 			Version:     "202603311200_log_user_quota_usage_fields",
 			Description: "add user quota usage fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202603311900_log_billing_snapshots",
+			Description: "add billing snapshot fields to consume logs",
 			Up: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
 			},

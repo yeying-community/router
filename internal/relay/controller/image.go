@@ -200,7 +200,11 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	if err != nil {
 		return openai.ErrorWrapper(err, "calculate_image_quota_failed", http.StatusInternalServerError)
 	}
-	groupReservation, groupQuotaErr := reserveGroupDailyQuota(meta.Group, meta.UserId, quota)
+	billingSnapshot, snapshotErr := billing.ComputeImageBillingSnapshot(imageCount, imageCostRatio, pricing, groupRatio)
+	if snapshotErr != nil {
+		logger.Error(ctx, "calculate image billing snapshot failed: "+snapshotErr.Error())
+	}
+	groupReservation, groupQuotaErr := reserveGroupDailyQuota(ctx, meta.Group, meta.UserId, quota)
 	if groupQuotaErr != nil {
 		return groupQuotaErr
 	}
@@ -258,7 +262,8 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		userQuotaUsage := settleUserQuotaReservation(ctx, userReservation, quota)
 		if quota != 0 {
 			tokenName := c.GetString(ctxkey.TokenName)
-			model.RecordConsumeLog(ctx, &model.Log{
+			billingSnapshot.YYCAmount = quota
+			entry := &model.Log{
 				UserId:             meta.UserId,
 				GroupId:            meta.Group,
 				ChannelId:          meta.ChannelId,
@@ -270,7 +275,9 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 				UserDailyQuota:     int(userQuotaUsage.DailyQuotaUsed),
 				UserEmergencyQuota: int(userQuotaUsage.EmergencyQuotaUsed),
 				Content:            billing.FormatPricingLog(pricing, groupRatio),
-			})
+			}
+			billingSnapshot.ApplyToLog(entry)
+			model.RecordConsumeLog(ctx, entry)
 			model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 			channelId := c.GetString(ctxkey.ChannelId)
 			model.UpdateChannelUsedQuota(channelId, quota)

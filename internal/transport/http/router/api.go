@@ -6,6 +6,7 @@ import (
 
 	admin "github.com/yeying-community/router/internal/admin/controller"
 	auth "github.com/yeying-community/router/internal/admin/controller/auth"
+	adminbilling "github.com/yeying-community/router/internal/admin/controller/billing"
 	channel "github.com/yeying-community/router/internal/admin/controller/channel"
 	dashboard "github.com/yeying-community/router/internal/admin/controller/dashboard"
 	group "github.com/yeying-community/router/internal/admin/controller/group"
@@ -47,6 +48,7 @@ func SetApiRouter(engine *gin.Engine) {
 		publicRouter.GET("/notice", admin.GetNotice)
 		publicRouter.GET("/about", admin.GetAbout)
 		publicRouter.GET("/home_page_content", admin.GetHomePageContent)
+		publicRouter.POST("/topup/callback", admin.ProcessTopupCallback)
 
 		// 仅保留密码找回，无额外人机验证
 		publicRouter.GET("/reset_password", middleware.CriticalRateLimit(), admin.SendPasswordResetEmail)
@@ -82,6 +84,9 @@ func SetApiRouter(engine *gin.Engine) {
 				publicSelfRoute.DELETE("/self", user.DeleteSelf)
 				publicSelfRoute.GET("/token", user.GenerateAccessToken)
 				publicSelfRoute.GET("/aff", user.GetAffCode)
+				publicSelfRoute.GET("/topup/orders", user.GetTopUpOrders)
+				publicSelfRoute.GET("/topup/orders/:id", user.GetTopUpOrder)
+				publicSelfRoute.POST("/topup/orders", user.CreateTopUpOrder)
 				publicSelfRoute.POST("/topup", user.TopUp)
 			}
 		}
@@ -203,6 +208,14 @@ func SetApiRouter(engine *gin.Engine) {
 		{
 			adminOptionRoute.GET("/", option.GetOptions)
 			adminOptionRoute.PUT("/", option.UpdateOption)
+		}
+
+		adminBillingRoute := adminRouter.Group("/billing")
+		adminBillingRoute.Use(middleware.AdminAuth())
+		{
+			adminBillingRoute.GET("/currencies", adminbilling.GetBillingCurrencies)
+			adminBillingRoute.POST("/currencies", middleware.RootAuth(), adminbilling.CreateBillingCurrency)
+			adminBillingRoute.PUT("/currencies/:code", middleware.RootAuth(), adminbilling.UpdateBillingCurrency)
 		}
 
 		adminChannelRoute := adminRouter.Group("/channel")

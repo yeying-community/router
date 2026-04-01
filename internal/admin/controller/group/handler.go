@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/admin/presenter"
 	groupsvc "github.com/yeying-community/router/internal/admin/service/group"
 )
 
@@ -32,10 +33,10 @@ type updateGroupChannelsRequest struct {
 const maxGroupListPageSize = 100
 
 type groupListPageData struct {
-	Items    []model.GroupCatalog `json:"items"`
-	Total    int64                `json:"total"`
-	Page     int                  `json:"page"`
-	PageSize int                  `json:"page_size"`
+	Items    any   `json:"items"`
+	Total    int64 `json:"total"`
+	Page     int   `json:"page"`
+	PageSize int   `json:"page_size"`
 }
 
 func parseGroupListPageParams(c *gin.Context) (page int, pageSize int, keyword string) {
@@ -92,10 +93,16 @@ func GetGroups(c *gin.Context) {
 		})
 		return
 	}
+	rows, _ := data.Items.([]model.GroupCatalog)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    data,
+		"data": groupListPageData{
+			Items:    presenter.NewGroups(rows),
+			Total:    data.Total,
+			Page:     data.Page,
+			PageSize: data.PageSize,
+		},
 	})
 }
 
@@ -128,7 +135,7 @@ func GetGroup(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    row,
+		"data":    presenter.NewGroup(&row),
 	})
 }
 
@@ -172,7 +179,7 @@ func GetGroupDailyQuota(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    data,
+		"data":    presenter.NewGroupDailyQuotaSnapshot(data, ""),
 	})
 }
 

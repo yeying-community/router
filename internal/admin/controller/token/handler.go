@@ -12,6 +12,7 @@ import (
 	"github.com/yeying-community/router/common/network"
 	"github.com/yeying-community/router/common/random"
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/admin/presenter"
 	tokensvc "github.com/yeying-community/router/internal/admin/service/token"
 )
 
@@ -53,7 +54,7 @@ func GetAllTokens(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    tokens,
+		"data":    presenter.NewTokens(tokens),
 		"meta": gin.H{
 			"total":     total,
 			"page":      page,
@@ -86,7 +87,7 @@ func SearchTokens(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    tokens,
+		"data":    presenter.NewTokens(tokens),
 	})
 	return
 }
@@ -121,7 +122,7 @@ func GetToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    token,
+		"data":    presenter.NewToken(token),
 	})
 	return
 }
@@ -215,7 +216,7 @@ func AddToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    cleanToken,
+		"data":    presenter.NewToken(&cleanToken),
 	})
 	return
 }
@@ -324,7 +325,7 @@ func UpdateToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    cleanToken,
+		"data":    presenter.NewToken(cleanToken),
 	})
 	return
 }

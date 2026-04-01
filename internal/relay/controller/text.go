@@ -66,8 +66,12 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	// pre-consume quota
 	promptTokens := getPromptTokens(textRequest, meta.Mode)
 	meta.PromptTokens = promptTokens
-	groupReservedQuota := billing.ComputeTextPreConsumedQuota(promptTokens, textRequest.MaxTokens, pricing, groupRatio)
-	groupReservation, groupQuotaErr := reserveGroupDailyQuota(meta.Group, meta.UserId, groupReservedQuota)
+	groupReservedQuota, err := billing.ComputeTextPreConsumedQuota(promptTokens, textRequest.MaxTokens, pricing, groupRatio)
+	if err != nil {
+		logger.Errorf(ctx, "ComputeTextPreConsumedQuota failed: %s", err.Error())
+		return openai.ErrorWrapper(err, "calculate_text_quota_failed", http.StatusInternalServerError)
+	}
+	groupReservation, groupQuotaErr := reserveGroupDailyQuota(ctx, meta.Group, meta.UserId, groupReservedQuota)
 	if groupQuotaErr != nil {
 		return groupQuotaErr
 	}

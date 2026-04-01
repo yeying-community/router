@@ -19,7 +19,7 @@ import {
 } from '../helpers';
 
 import { ITEMS_PER_PAGE } from '../constants';
-import { renderQuota } from '../helpers/render';
+import { renderYYC } from '../helpers/render';
 
 function renderTimestamp(timestamp) {
   return <>{timestamp2string(timestamp)}</>;
@@ -311,7 +311,7 @@ const RedemptionsTable = () => {
                     {redemption.name ? redemption.name : t('redemption.table.no_name')}
                   </Table.Cell>
                   <Table.Cell>{renderStatus(redemption.status, t)}</Table.Cell>
-                  <Table.Cell>{renderQuota(redemption.quota, t)}</Table.Cell>
+                  <Table.Cell>{renderYYC(redemption.yyc_value ?? redemption.quota, t)}</Table.Cell>
                   <Table.Cell>
                     {renderTimestamp(redemption.created_time)}
                   </Table.Cell>

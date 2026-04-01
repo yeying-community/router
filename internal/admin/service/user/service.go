@@ -63,7 +63,7 @@ func AccessTokenExists(token string) (bool, error) {
 	return userrepo.AccessTokenExists(token)
 }
 
-func Redeem(ctx context.Context, code string, userId string) (int64, error) {
+func Redeem(ctx context.Context, code string, userId string) (model.RedemptionResult, error) {
 	return userrepo.Redeem(ctx, code, userId)
 }
 

@@ -15,6 +15,36 @@ import (
 
 const userQuotaExceededCode = "user_quota_limit_exceeded"
 
+func formatUserQuotaExceededMessage(requested int64, summary model.UserQuotaSummary, fallback string) string {
+	requestedYYC := requested
+	if requestedYYC < 0 {
+		requestedYYC = 0
+	}
+	dailyRemaining := summary.Daily.RemainingQuota
+	emergencyRemaining := summary.MonthlyEmergency.RemainingQuota
+	if summary.MonthlyEmergency.Enabled {
+		return fmt.Sprintf(
+			"当前用户额度不足：本次预估消耗 %d YYC，今日剩余 %d YYC，本月应急剩余 %d YYC",
+			requestedYYC,
+			dailyRemaining,
+			emergencyRemaining,
+		)
+	}
+	if strings.TrimSpace(fallback) != "" {
+		return fmt.Sprintf(
+			"%s（本次预估消耗 %d YYC，今日剩余 %d YYC）",
+			strings.TrimSpace(fallback),
+			requestedYYC,
+			dailyRemaining,
+		)
+	}
+	return fmt.Sprintf(
+		"当前用户今日额度不足：本次预估消耗 %d YYC，今日剩余 %d YYC",
+		requestedYYC,
+		dailyRemaining,
+	)
+}
+
 func reserveUserQuota(userID string, quota int64) (model.UserQuotaReservation, *relaymodel.ErrorWithStatusCode) {
 	reservation, allowed, denyMessage, err := model.ReserveUserQuota(userID, quota)
 	if err != nil {
@@ -24,6 +54,12 @@ func reserveUserQuota(userID string, quota int64) (model.UserQuotaReservation, *
 		message := strings.TrimSpace(denyMessage)
 		if message == "" {
 			message = "当前用户今日额度及本月应急额度已达上限"
+		}
+		summary, summaryErr := model.GetUserQuotaSummary(userID, "", "")
+		if summaryErr != nil {
+			logger.Warnf(context.Background(), "user quota denied user=%s requested=%d summary_err=%v", strings.TrimSpace(userID), quota, summaryErr)
+		} else {
+			message = formatUserQuotaExceededMessage(quota, summary, message)
 		}
 		return model.UserQuotaReservation{}, openai.ErrorWrapper(errors.New(message), userQuotaExceededCode, http.StatusForbidden)
 	}

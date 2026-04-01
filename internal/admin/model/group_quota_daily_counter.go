@@ -10,19 +10,21 @@ import (
 	"gorm.io/gorm"
 )
 
-const GroupQuotaDailyCountersTableName = "user_group_daily_quota_counters"
+const GroupQuotaCountersTableName = "group_quota_counters"
+const GroupQuotaCounterTypeDaily = "daily"
 
-type GroupQuotaDailyCounter struct {
+type GroupQuotaCounter struct {
 	GroupID       string `json:"group_id" gorm:"primaryKey;type:char(36)"`
 	UserID        string `json:"user_id" gorm:"primaryKey;type:char(36)"`
-	BizDate       string `json:"biz_date" gorm:"primaryKey;type:varchar(10)"`
+	CounterType   string `json:"counter_type" gorm:"primaryKey;type:varchar(32)"`
+	PeriodKey     string `json:"period_key" gorm:"primaryKey;type:varchar(32)"`
 	ReservedQuota int64  `json:"reserved_quota" gorm:"type:bigint;not null;default:0"`
 	ConsumedQuota int64  `json:"consumed_quota" gorm:"type:bigint;not null;default:0"`
 	UpdatedAt     int64  `json:"updated_at" gorm:"bigint;index"`
 }
 
-func (GroupQuotaDailyCounter) TableName() string {
-	return GroupQuotaDailyCountersTableName
+func (GroupQuotaCounter) TableName() string {
+	return GroupQuotaCountersTableName
 }
 
 type GroupDailyQuotaReservation struct {
@@ -69,15 +71,16 @@ func ReserveGroupDailyQuotaWithDB(db *gorm.DB, groupID string, userID string, qu
 	bizDate := businessDateByTimezone(now, policy.Timezone)
 	updatedAt := helper.GetTimestamp()
 	result := db.Exec(
-		`INSERT INTO user_group_daily_quota_counters (group_id, user_id, biz_date, reserved_quota, consumed_quota, updated_at)
-		 VALUES (?, ?, ?, ?, 0, ?)
-		 ON CONFLICT (group_id, user_id, biz_date)
+		`INSERT INTO group_quota_counters (group_id, user_id, counter_type, period_key, reserved_quota, consumed_quota, updated_at)
+		 VALUES (?, ?, ?, ?, ?, 0, ?)
+		 ON CONFLICT (group_id, user_id, counter_type, period_key)
 		 DO UPDATE
-		 SET reserved_quota = user_group_daily_quota_counters.reserved_quota + EXCLUDED.reserved_quota,
+		 SET reserved_quota = group_quota_counters.reserved_quota + EXCLUDED.reserved_quota,
 		     updated_at = EXCLUDED.updated_at
-		 WHERE (user_group_daily_quota_counters.consumed_quota + user_group_daily_quota_counters.reserved_quota + EXCLUDED.reserved_quota) <= ?`,
+		 WHERE (group_quota_counters.consumed_quota + group_quota_counters.reserved_quota + EXCLUDED.reserved_quota) <= ?`,
 		normalizedGroupID,
 		normalizedUserID,
+		GroupQuotaCounterTypeDaily,
 		bizDate,
 		normalizedQuota,
 		updatedAt,
@@ -109,14 +112,15 @@ func ReleaseGroupDailyQuotaReservationWithDB(db *gorm.DB, reservation GroupDaily
 		return nil
 	}
 	result := db.Exec(
-		`UPDATE user_group_daily_quota_counters
+		`UPDATE group_quota_counters
 		 SET reserved_quota = GREATEST(reserved_quota - ?, 0),
 		     updated_at = ?
-		 WHERE group_id = ? AND user_id = ? AND biz_date = ?`,
+		 WHERE group_id = ? AND user_id = ? AND counter_type = ? AND period_key = ?`,
 		reservation.ReservedQuota,
 		helper.GetTimestamp(),
 		reservation.GroupID,
 		reservation.UserID,
+		GroupQuotaCounterTypeDaily,
 		reservation.BizDate,
 	)
 	return result.Error
@@ -139,15 +143,16 @@ func SettleGroupDailyQuotaReservationWithDB(db *gorm.DB, reservation GroupDailyQ
 	}
 	now := helper.GetTimestamp()
 	result := db.Exec(
-		`INSERT INTO user_group_daily_quota_counters (group_id, user_id, biz_date, reserved_quota, consumed_quota, updated_at)
-		 VALUES (?, ?, ?, 0, ?, ?)
-		 ON CONFLICT (group_id, user_id, biz_date)
+		`INSERT INTO group_quota_counters (group_id, user_id, counter_type, period_key, reserved_quota, consumed_quota, updated_at)
+		 VALUES (?, ?, ?, ?, 0, ?, ?)
+		 ON CONFLICT (group_id, user_id, counter_type, period_key)
 		 DO UPDATE
-		 SET reserved_quota = GREATEST(user_group_daily_quota_counters.reserved_quota - ?, 0),
-		     consumed_quota = user_group_daily_quota_counters.consumed_quota + EXCLUDED.consumed_quota,
+		 SET reserved_quota = GREATEST(group_quota_counters.reserved_quota - ?, 0),
+		     consumed_quota = group_quota_counters.consumed_quota + EXCLUDED.consumed_quota,
 		     updated_at = EXCLUDED.updated_at`,
 		reservation.GroupID,
 		reservation.UserID,
+		GroupQuotaCounterTypeDaily,
 		reservation.BizDate,
 		consumed,
 		now,
@@ -212,16 +217,17 @@ func GetGroupDailyQuotaSnapshotWithDB(db *gorm.DB, groupID string, userID string
 		return GroupDailyQuotaSnapshot{}, err
 	}
 
-	counter := GroupQuotaDailyCounter{}
-	err = db.Where("group_id = ? AND user_id = ? AND biz_date = ?", normalizedGroupID, normalizedUserID, normalizedBizDate).First(&counter).Error
+	counter := GroupQuotaCounter{}
+	err = db.Where("group_id = ? AND user_id = ? AND counter_type = ? AND period_key = ?", normalizedGroupID, normalizedUserID, GroupQuotaCounterTypeDaily, normalizedBizDate).First(&counter).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return GroupDailyQuotaSnapshot{}, err
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		counter = GroupQuotaDailyCounter{
-			GroupID: normalizedGroupID,
-			UserID:  normalizedUserID,
-			BizDate: normalizedBizDate,
+		counter = GroupQuotaCounter{
+			GroupID:     normalizedGroupID,
+			UserID:      normalizedUserID,
+			CounterType: GroupQuotaCounterTypeDaily,
+			PeriodKey:   normalizedBizDate,
 		}
 	}
 

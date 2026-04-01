@@ -56,6 +56,7 @@ func InitOptionMap() {
 	config.OptionMap["QuotaRemindThreshold"] = strconv.FormatInt(config.QuotaRemindThreshold, 10)
 	config.OptionMap["PreConsumedQuota"] = strconv.FormatInt(config.PreConsumedQuota, 10)
 	config.OptionMap["TopUpLink"] = config.TopUpLink
+	config.OptionMap["TopUpCallbackToken"] = config.TopUpCallbackToken
 	config.OptionMap["ChatLink"] = config.ChatLink
 	config.OptionMap["QuotaPerUnit"] = strconv.FormatFloat(config.QuotaPerUnit, 'f', -1, 64)
 	config.OptionMap["RetryTimes"] = strconv.Itoa(config.RetryTimes)
@@ -63,6 +64,9 @@ func InitOptionMap() {
 	loadOptionsFromDatabase()
 	if err := syncGroupRuntimeCachesWithDB(DB); err != nil {
 		logger.SysError("failed to sync group runtime caches from groups table: " + err.Error())
+	}
+	if err := SyncBillingCurrencyCatalogWithDB(DB); err != nil {
+		logger.SysError("failed to sync billing currencies from database: " + err.Error())
 	}
 }
 
@@ -83,6 +87,9 @@ func SyncOptions(frequency int) {
 		loadOptionsFromDatabase()
 		if err := syncGroupRuntimeCachesWithDB(DB); err != nil {
 			logger.SysError("failed to sync group runtime caches from groups table: " + err.Error())
+		}
+		if err := SyncBillingCurrencyCatalogWithDB(DB); err != nil {
+			logger.SysError("failed to sync billing currencies from database: " + err.Error())
 		}
 	}
 }
@@ -159,12 +166,19 @@ func UpdateOptionMap(key string, value string) (err error) {
 		config.RetryTimes, _ = strconv.Atoi(value)
 	case "TopUpLink":
 		config.TopUpLink = value
+	case "TopUpCallbackToken":
+		config.TopUpCallbackToken = value
 	case "ChatLink":
 		config.ChatLink = value
 	case "ChannelDisableThreshold":
 		config.ChannelDisableThreshold, _ = strconv.ParseFloat(value, 64)
 	case "QuotaPerUnit":
 		config.QuotaPerUnit, _ = strconv.ParseFloat(value, 64)
+	}
+	if key == "QuotaPerUnit" && DB != nil {
+		if err := SyncBillingCurrencyCatalogWithDB(DB); err != nil {
+			logger.SysError("failed to sync billing currencies after QuotaPerUnit update: " + err.Error())
+		}
 	}
 	return err
 }

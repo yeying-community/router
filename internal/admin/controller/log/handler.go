@@ -9,6 +9,7 @@ import (
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/ctxkey"
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/admin/presenter"
 	logsvc "github.com/yeying-community/router/internal/admin/service/log"
 )
 
@@ -336,7 +337,7 @@ func GetAllLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    logs,
+		"data":    presenter.NewLogs(logs),
 		"meta": gin.H{
 			"total":     total,
 			"page":      page,
@@ -390,7 +391,7 @@ func GetUserLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    logs,
+		"data":    presenter.NewLogs(logs),
 		"meta": gin.H{
 			"total":     total,
 			"page":      page,
@@ -419,7 +420,7 @@ func GetLog(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    logRow,
+		"data":    presenter.NewLog(logRow),
 	})
 	return
 }
@@ -444,7 +445,7 @@ func GetCurrentUserLog(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    logRow,
+		"data":    presenter.NewLog(logRow),
 	})
 	return
 }
@@ -471,7 +472,7 @@ func SearchAllLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    logs,
+		"data":    presenter.NewLogs(logs),
 	})
 	return
 }
@@ -499,7 +500,7 @@ func SearchUserLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    logs,
+		"data":    presenter.NewLogs(logs),
 	})
 	return
 }
@@ -533,7 +534,8 @@ func GetLogsStat(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"quota": quotaNum,
+			"quota":      quotaNum,
+			"yyc_amount": quotaNum,
 			//"token": tokenNum,
 		},
 	})
@@ -568,7 +570,8 @@ func GetLogsSelfStat(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"quota": quotaNum,
+			"quota":      quotaNum,
+			"yyc_amount": quotaNum,
 			//"token": tokenNum,
 		},
 	})

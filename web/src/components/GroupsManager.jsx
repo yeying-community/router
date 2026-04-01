@@ -3,6 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Button, Form, Label, Modal, Table } from 'semantic-ui-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API, showError, showInfo, showSuccess, timestamp2string } from '../helpers';
+import {
+  isQuotaDisplayedInCurrency,
+  quotaInputStep,
+  quotaInputToStoredValue,
+  quotaToInputValue,
+  renderQuota,
+} from '../helpers/render';
 
 const MODE_LIST = 'list';
 const MODE_CREATE = 'create';
@@ -14,7 +21,7 @@ const createEmptyForm = () => ({
   name: '',
   description: '',
   billing_ratio: 1,
-  daily_quota_limit: 0,
+  daily_quota_limit: quotaToInputValue(0),
   quota_reset_timezone: 'Asia/Shanghai',
   sort_order: 0,
 });
@@ -40,7 +47,7 @@ const buildFormFromRow = (row) => ({
   name: row?.name || '',
   description: row?.description || '',
   billing_ratio: Number(row?.billing_ratio ?? 1),
-  daily_quota_limit: Number(row?.daily_quota_limit || 0),
+  daily_quota_limit: quotaToInputValue(Number(row?.yyc_daily_limit ?? row?.daily_quota_limit ?? 0)),
   quota_reset_timezone: row?.quota_reset_timezone || 'Asia/Shanghai',
   sort_order: Number(row?.sort_order || 0),
 });
@@ -140,6 +147,9 @@ const GroupsManager = ({ detailGroupId = '' }) => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const quotaDisplayInCurrency = isQuotaDisplayedInCurrency();
+  const quotaFieldStep = quotaInputStep();
+  const quotaFieldSuffix = quotaDisplayInCurrency ? ' (USD)' : '';
   const [mode, setMode] = useState(MODE_LIST);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -498,7 +508,8 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       return;
     }
     const dailyQuotaLimit = Number(form.daily_quota_limit ?? 0);
-    if (!Number.isFinite(dailyQuotaLimit) || dailyQuotaLimit < 0) {
+    const storedDailyQuotaLimit = quotaInputToStoredValue(form.daily_quota_limit ?? 0);
+    if (!Number.isFinite(dailyQuotaLimit) || dailyQuotaLimit < 0 || !Number.isFinite(storedDailyQuotaLimit) || storedDailyQuotaLimit < 0) {
       showInfo(t('group_manage.messages.daily_quota_limit_invalid'));
       return;
     }
@@ -508,7 +519,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
         name,
         description: (form.description || '').trim(),
         billing_ratio: billingRatio,
-        daily_quota_limit: Math.floor(dailyQuotaLimit),
+        daily_quota_limit: storedDailyQuotaLimit,
         channel_ids: formChannelIDs,
       });
       const { success, message, data } = res.data || {};
@@ -539,7 +550,8 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       return;
     }
     const dailyQuotaLimit = Number(form.daily_quota_limit ?? 0);
-    if (!Number.isFinite(dailyQuotaLimit) || dailyQuotaLimit < 0) {
+    const storedDailyQuotaLimit = quotaInputToStoredValue(form.daily_quota_limit ?? 0);
+    if (!Number.isFinite(dailyQuotaLimit) || dailyQuotaLimit < 0 || !Number.isFinite(storedDailyQuotaLimit) || storedDailyQuotaLimit < 0) {
       showInfo(t('group_manage.messages.daily_quota_limit_invalid'));
       return;
     }
@@ -579,7 +591,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
         name,
         description: (form.description || '').trim(),
         billing_ratio: billingRatio,
-        daily_quota_limit: Math.floor(dailyQuotaLimit),
+        daily_quota_limit: storedDailyQuotaLimit,
         sort_order: Number(form.sort_order || 0),
         channel_ids: formChannelIDs,
         model_configs: normalizedModelConfigs,
@@ -758,7 +770,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                 <Table.Cell>{Number(row.billing_ratio ?? 1).toFixed(2)}</Table.Cell>
                 <Table.Cell>
                   {Number(row.daily_quota_limit || 0) > 0
-                    ? Number(row.daily_quota_limit || 0)
+                    ? renderQuota(row.daily_quota_limit || 0, t, 6)
                     : t('common.unlimited')}
                 </Table.Cell>
                 <Table.Cell>{renderGroupStatus(row.enabled)}</Table.Cell>
@@ -1185,7 +1197,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
               label={t('group_manage.form.daily_quota_limit')}
               value={
                 Number(activeGroup.daily_quota_limit || 0) > 0
-                  ? Number(activeGroup.daily_quota_limit || 0)
+                  ? renderQuota(activeGroup.daily_quota_limit || 0, t, 6)
                   : t('common.unlimited')
               }
               readOnly
@@ -1274,8 +1286,8 @@ const GroupsManager = ({ detailGroupId = '' }) => {
             className='router-section-input'
             type='number'
             min='0'
-            step='1'
-            label={t('group_manage.form.daily_quota_limit')}
+            step={quotaFieldStep}
+            label={`${t('group_manage.form.daily_quota_limit')}${quotaFieldSuffix}`}
             placeholder={t('group_manage.form.daily_quota_limit_placeholder')}
             value={form.daily_quota_limit}
             onChange={(e) =>
@@ -1395,8 +1407,8 @@ const GroupsManager = ({ detailGroupId = '' }) => {
             className='router-section-input'
             type='number'
             min='0'
-            step='1'
-            label={t('group_manage.form.daily_quota_limit')}
+            step={quotaFieldStep}
+            label={`${t('group_manage.form.daily_quota_limit')}${quotaFieldSuffix}`}
             placeholder={t('group_manage.form.daily_quota_limit_placeholder')}
             value={form.daily_quota_limit}
             onChange={(e) =>
