@@ -215,6 +215,7 @@ func SetApiRouter(engine *gin.Engine) {
 		{
 			adminBillingRoute.GET("/currencies", adminbilling.GetBillingCurrencies)
 			adminBillingRoute.GET("/fx/status", adminbilling.GetFXSyncStatus)
+			adminBillingRoute.GET("/fx/rates", adminbilling.GetFXMarketRates)
 			adminBillingRoute.POST("/currencies", middleware.RootAuth(), adminbilling.CreateBillingCurrency)
 			adminBillingRoute.PUT("/currencies/:code", middleware.RootAuth(), adminbilling.UpdateBillingCurrency)
 			adminBillingRoute.POST("/fx/sync", middleware.RootAuth(), adminbilling.SyncBillingCurrenciesFromFX)

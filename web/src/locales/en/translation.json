@@ -1624,13 +1624,27 @@
       },
       "buttons": {
         "save": "Save FX settings",
-        "sync_now": "Sync now"
+        "sync_now": "Sync now",
+        "refresh_rates": "Refresh rates"
       },
       "messages": {
         "interval_invalid": "Sync interval must be greater than or equal to {{min}} seconds",
         "save_success": "FX settings saved",
         "sync_failed": "Failed to sync FX rates",
-        "sync_success": "FX sync finished, updated {{count}} currencies"
+        "sync_success": "FX sync finished, updated {{count}} currencies",
+        "rates_load_failed": "Failed to load FX rates"
+      },
+      "rates": {
+        "title": "Fiat FX Rates",
+        "subtitle": "Shows real-time fiat-to-fiat rates. Currency scope comes from enabled billing currencies.",
+        "currencies": "Currency scope: {{value}}",
+        "empty": "No FX rates",
+        "columns": {
+          "pair": "Pair",
+          "rate": "Rate",
+          "date": "Date",
+          "provider": "Provider"
+        }
       }
     }
   },

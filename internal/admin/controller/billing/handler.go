@@ -207,6 +207,36 @@ func GetFXSyncStatus(c *gin.Context) {
 	})
 }
 
+// GetFXMarketRates godoc
+// @Summary Get FX market rates (admin)
+// @Tags admin
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/admin/billing/fx/rates [get]
+func GetFXMarketRates(c *gin.Context) {
+	currenciesParam := strings.TrimSpace(c.Query("currencies"))
+	currencies := make([]string, 0)
+	if currenciesParam != "" {
+		currencies = append(currencies, strings.Split(currenciesParam, ",")...)
+	}
+
+	result, err := billingsvc.GetFXMarketRates(c.Request.Context(), currencies)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "加载汇率列表失败: " + err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    result,
+	})
+}
+
 func GetSubscription(c *gin.Context) {
 	var remainQuota int64
 	var usedQuota int64

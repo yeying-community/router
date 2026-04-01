@@ -1620,13 +1620,27 @@
       },
       "buttons": {
         "save": "保存汇率设置",
-        "sync_now": "立即同步汇率"
+        "sync_now": "立即同步汇率",
+        "refresh_rates": "刷新汇率列表"
       },
       "messages": {
         "interval_invalid": "同步间隔必须大于或等于 {{min}} 秒",
         "save_success": "汇率设置已保存",
         "sync_failed": "同步汇率失败",
-        "sync_success": "汇率同步完成，已更新 {{count}} 个币种"
+        "sync_success": "汇率同步完成，已更新 {{count}} 个币种",
+        "rates_load_failed": "加载汇率列表失败"
+      },
+      "rates": {
+        "title": "法币汇率列表",
+        "subtitle": "展示法币之间的实时汇率，币种范围来自计费币种列表中的启用项。",
+        "currencies": "货币范围：{{value}}",
+        "empty": "暂无汇率数据",
+        "columns": {
+          "pair": "货币对",
+          "rate": "汇率",
+          "date": "日期",
+          "provider": "来源"
+        }
       }
     }
   },

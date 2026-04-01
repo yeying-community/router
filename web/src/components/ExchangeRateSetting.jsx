@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Form, Grid, Header } from 'semantic-ui-react';
+import { Button, Form, Grid, Header, Table } from 'semantic-ui-react';
 import {
   API,
   showError,
@@ -25,6 +25,13 @@ const ExchangeRateSetting = ({ section = '' }) => {
     last_success_at: 0,
     last_error: '',
     min_interval: 60,
+  });
+  const [ratesLoading, setRatesLoading] = useState(false);
+  const [rateRows, setRateRows] = useState([]);
+  const [rateMeta, setRateMeta] = useState({
+    date: '',
+    provider: 'frankfurter',
+    currencies: [],
   });
 
   const normalizedSection = (section || '').trim().toLowerCase();
@@ -81,7 +88,30 @@ const ExchangeRateSetting = ({ section = '' }) => {
   useEffect(() => {
     getOptions().then();
     loadStatus().then();
+    loadRates().then();
   }, []);
+
+  const loadRates = async () => {
+    setRatesLoading(true);
+    try {
+      const res = await API.get('/api/v1/admin/billing/fx/rates');
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('setting.exchange.messages.rates_load_failed'));
+        return;
+      }
+      setRateRows(Array.isArray(data?.items) ? data.items : []);
+      setRateMeta({
+        date: (data?.date || '').toString(),
+        provider: (data?.provider || 'frankfurter').toString(),
+        currencies: Array.isArray(data?.currencies) ? data.currencies : [],
+      });
+    } catch (error) {
+      showError(error?.message || t('setting.exchange.messages.rates_load_failed'));
+    } finally {
+      setRatesLoading(false);
+    }
+  };
 
   const updateOption = async (key, value) => {
     setLoading(true);
@@ -167,6 +197,7 @@ const ExchangeRateSetting = ({ section = '' }) => {
       );
       await loadStatus();
       await getOptions();
+      await loadRates();
     } catch (error) {
       showError(error?.message || t('setting.exchange.messages.sync_failed'));
     } finally {
@@ -180,6 +211,20 @@ const ExchangeRateSetting = ({ section = '' }) => {
       return '-';
     }
     return timestamp2string(num);
+  };
+
+  const renderRateValue = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num <= 0) {
+      return '-';
+    }
+    if (num >= 100) {
+      return num.toFixed(4);
+    }
+    if (num >= 1) {
+      return num.toFixed(6);
+    }
+    return num.toFixed(8);
   };
 
   if (!sectionVisible) {
@@ -264,7 +309,76 @@ const ExchangeRateSetting = ({ section = '' }) => {
               >
                 {t('setting.exchange.buttons.sync_now')}
               </Button>
+              <Button
+                className='router-page-button'
+                type='button'
+                onClick={() => {
+                  loadRates().then();
+                }}
+                loading={ratesLoading}
+                disabled={ratesLoading || syncing}
+              >
+                {t('setting.exchange.buttons.refresh_rates')}
+              </Button>
             </div>
+          </div>
+          <Header as='h3' className='router-section-title'>
+            {t('setting.exchange.rates.title')}
+          </Header>
+          <div className='router-settings-note'>
+            {t('setting.exchange.rates.subtitle')}
+          </div>
+          <div className='router-settings-note'>
+            {t('setting.exchange.rates.currencies', {
+              value:
+                Array.isArray(rateMeta.currencies) && rateMeta.currencies.length > 0
+                  ? rateMeta.currencies.join(', ')
+                  : '-',
+            })}
+          </div>
+          <div className='router-table-scroll-x'>
+            <Table compact celled className='router-detail-table'>
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell>
+                    {t('setting.exchange.rates.columns.pair')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    {t('setting.exchange.rates.columns.rate')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    {t('setting.exchange.rates.columns.date')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    {t('setting.exchange.rates.columns.provider')}
+                  </Table.HeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {ratesLoading ? (
+                  <Table.Row>
+                    <Table.Cell colSpan={4} textAlign='center' className='router-empty-cell'>
+                      {t('common.loading')}
+                    </Table.Cell>
+                  </Table.Row>
+                ) : rateRows.length === 0 ? (
+                  <Table.Row>
+                    <Table.Cell colSpan={4} textAlign='center' className='router-empty-cell'>
+                      {t('setting.exchange.rates.empty')}
+                    </Table.Cell>
+                  </Table.Row>
+                ) : (
+                  rateRows.map((item, index) => (
+                    <Table.Row key={`${item.pair || ''}-${index}`}>
+                      <Table.Cell>{item.pair || '-'}</Table.Cell>
+                      <Table.Cell>{renderRateValue(item.rate)}</Table.Cell>
+                      <Table.Cell>{rateMeta.date || '-'}</Table.Cell>
+                      <Table.Cell>{rateMeta.provider || '-'}</Table.Cell>
+                    </Table.Row>
+                  ))
+                )}
+              </Table.Body>
+            </Table>
           </div>
         </Form>
       </Grid.Column>
