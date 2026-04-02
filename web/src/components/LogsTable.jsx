@@ -19,7 +19,11 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { ITEMS_PER_PAGE } from '../constants';
-import { renderColorLabel, renderQuota } from '../helpers/render';
+import {
+  renderColorLabel,
+  renderQuota,
+  YYC_SYMBOL,
+} from '../helpers/render';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 function renderTimestamp(timestamp, trace_id) {
@@ -136,6 +140,51 @@ function normalizeLogEntry(log) {
     user_daily_quota: Number(log?.yyc_user_daily ?? log?.user_daily_quota ?? 0),
     user_emergency_quota: Number(log?.yyc_user_emergency ?? log?.user_emergency_quota ?? 0),
   };
+}
+
+function buildDisplayCurrencyIndex(rows) {
+  const next = {
+    YYC: {
+      code: 'YYC',
+      symbol: YYC_SYMBOL,
+      minor_unit: 0,
+      yyc_per_unit: 1,
+    },
+  };
+  (Array.isArray(rows) ? rows : [])
+    .filter((item) => Number(item?.status || 0) === 1)
+    .forEach((item) => {
+      const code = (item?.code || '').toString().trim().toUpperCase();
+      if (!code) {
+        return;
+      }
+      next[code] = {
+        ...item,
+        code,
+      };
+    });
+  return next;
+}
+
+function formatLogQuotaAmount(amount, fractionDigits = 6) {
+  const normalizedAmount = Number(amount || 0);
+  if (!Number.isFinite(normalizedAmount)) {
+    return '-';
+  }
+  return normalizedAmount.toFixed(fractionDigits);
+}
+
+function renderLogQuotaValue(quota, displayUnit, currencyIndex) {
+  const yycValue = Number(quota || 0);
+  if (!Number.isFinite(yycValue)) {
+    return '-';
+  }
+  const targetCurrency = currencyIndex?.[displayUnit] || currencyIndex?.YYC;
+  const rate = Number(targetCurrency?.yyc_per_unit || 0);
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return '-';
+  }
+  return formatLogQuotaAmount(yycValue / rate, 6);
 }
 
 function toDatetimeLocalValue(value) {
@@ -267,6 +316,8 @@ const LogsTable = () => {
     start_timestamp: '',
     end_timestamp: '',
   });
+  const [displayUnit, setDisplayUnit] = useState('USD');
+  const [currencyIndex, setCurrencyIndex] = useState(buildDisplayCurrencyIndex([]));
 
   const LOG_OPTIONS = [
     { key: '0', text: t('log.type.all'), value: 0 },
@@ -378,6 +429,26 @@ const LogsTable = () => {
       ),
     [activeFilterKeys, conditionalFilterOptions]
   );
+
+  const displayUnitOptions = useMemo(() => {
+    const items = [
+      {
+        value: 'YYC',
+        label: YYC_SYMBOL,
+      },
+    ];
+    Object.values(currencyIndex)
+      .filter((item) => item && item.code && item.code !== 'YYC')
+      .sort((a, b) => `${a.code}`.localeCompare(`${b.code}`))
+      .forEach((item) => {
+        const symbol = (item?.symbol || '').toString().trim();
+        items.push({
+          value: item.code,
+          label: symbol || item.code,
+        });
+      });
+    return items;
+  }, [currencyIndex]);
 
   const openFilterDraft = useCallback(
     (filterKey) => {
@@ -505,6 +576,37 @@ const LogsTable = () => {
     });
   }, [isAdminScope, t]);
 
+  const loadDisplayUnits = useCallback(async () => {
+    if (!isAdminScope) {
+      return;
+    }
+    try {
+      const res = await API.get('/api/v1/admin/billing/currencies');
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('log.messages.load_failed'));
+        return;
+      }
+      const next = buildDisplayCurrencyIndex(Array.isArray(data) ? data : []);
+      setCurrencyIndex(next);
+      setDisplayUnit((current) => {
+        const normalizedCurrent = (current || '').toString().trim().toUpperCase();
+        if (normalizedCurrent && next[normalizedCurrent]) {
+          return normalizedCurrent;
+        }
+        if (next.USD) {
+          return 'USD';
+        }
+        const fallbackUnit = Object.keys(next)
+          .filter((code) => code)
+          .sort((a, b) => a.localeCompare(b))[0];
+        return fallbackUnit || 'YYC';
+      });
+    } catch (error) {
+      showError(error?.message || error);
+    }
+  }, [isAdminScope, t]);
+
   const showUserTokenQuota = () => {
     const effectiveLogType = activeFilterKeys.includes('log_type') ? logType : 0;
     return effectiveLogType !== 5;
@@ -591,6 +693,13 @@ const LogsTable = () => {
   useEffect(() => {
     loadFilterOptions().then();
   }, [loadFilterOptions]);
+
+  useEffect(() => {
+    if (!isAdminScope) {
+      return;
+    }
+    loadDisplayUnits().then();
+  }, [isAdminScope, loadDisplayUnits]);
 
   useEffect(() => {
     setActivePage(1);
@@ -950,13 +1059,45 @@ const LogsTable = () => {
                   {t('log.table.completion_tokens')}
                 </Table.HeaderCell>
                 <Table.HeaderCell
-                  className='router-sortable-header'
-                  onClick={() => {
-                    sortLog('quota');
-                  }}
+                  className={isAdminScope ? 'router-redemption-face-value-header' : 'router-sortable-header'}
                   width={1}
                 >
-                  {t('log.table.quota')}
+                  {isAdminScope ? (
+                    <div className='router-table-header-with-control'>
+                      <span
+                        className='router-sortable-header'
+                        onClick={() => {
+                          sortLog('quota');
+                        }}
+                      >
+                        {t('log.table.quota')}
+                      </span>
+                      <select
+                        className='router-table-header-select'
+                        value={displayUnit}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onChange={(e) => {
+                          setDisplayUnit(e.target.value);
+                        }}
+                      >
+                        {displayUnitOptions.map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <span
+                      onClick={() => {
+                        sortLog('quota');
+                      }}
+                    >
+                      {t('log.table.quota')}
+                    </span>
+                  )}
                 </Table.HeaderCell>
               </>
             )}
@@ -1056,7 +1197,11 @@ const LogsTable = () => {
                         {log.completion_tokens ? log.completion_tokens : ''}
                       </Table.Cell>
                       <Table.Cell>
-                        {log.quota ? renderQuota(log.quota, t, 6) : ''}
+                        {isAdminScope
+                          ? renderLogQuotaValue(log.quota, displayUnit, currencyIndex)
+                          : log.quota
+                            ? renderQuota(log.quota, t, 6)
+                            : ''}
                       </Table.Cell>
                     </>
                   )}

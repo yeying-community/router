@@ -28,6 +28,7 @@ type ServicePackage struct {
 	Enabled                    bool   `json:"enabled" gorm:"default:true;index"`
 	SortOrder                  int    `json:"sort_order" gorm:"default:0;index"`
 	Source                     string `json:"source" gorm:"type:varchar(32);default:'manual'"`
+	CreatedAt                  int64  `json:"created_at" gorm:"bigint;index"`
 	UpdatedAt                  int64  `json:"updated_at" gorm:"bigint;index"`
 	GroupName                  string `json:"group_name,omitempty" gorm:"-"`
 }
@@ -243,6 +244,7 @@ func createServicePackageWithDB(db *gorm.DB, item ServicePackage) (ServicePackag
 		Enabled:                    item.Enabled,
 		SortOrder:                  item.SortOrder,
 		Source:                     normalizeServicePackageSource(item.Source),
+		CreatedAt:                  now,
 		UpdatedAt:                  now,
 	}
 	row.EnsureID()

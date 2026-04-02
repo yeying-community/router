@@ -10,7 +10,7 @@ import {
   Dropdown,
 } from 'semantic-ui-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { API, copy, isRoot, showError, showSuccess } from '../helpers';
+import { API, copy, isRoot, showError, showSuccess, timestamp2string } from '../helpers';
 import { useTranslation } from 'react-i18next';
 
 import { ITEMS_PER_PAGE } from '../constants';
@@ -436,6 +436,22 @@ const UsersTable = () => {
             <Table.HeaderCell
               className='router-sortable-header'
               onClick={() => {
+                sortUser('created_at');
+              }}
+            >
+              {t('user.table.created_at')}
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              className='router-sortable-header'
+              onClick={() => {
+                sortUser('updated_at');
+              }}
+            >
+              {t('user.table.updated_at')}
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              className='router-sortable-header'
+              onClick={() => {
                 sortUser('role');
               }}
             >
@@ -508,6 +524,8 @@ const UsersTable = () => {
                   <Table.Cell>
                     {renderCountValue(user.request_count)}
                   </Table.Cell>
+                  <Table.Cell>{user.created_at ? timestamp2string(user.created_at) : '-'}</Table.Cell>
+                  <Table.Cell>{user.updated_at ? timestamp2string(user.updated_at) : '-'}</Table.Cell>
                   <Table.Cell>
                     {renderRole(user.role, t)}
                   </Table.Cell>
@@ -563,7 +581,7 @@ const UsersTable = () => {
 
         <Table.Footer>
           <Table.Row>
-            <Table.HeaderCell colSpan='9'>
+            <Table.HeaderCell colSpan='11'>
               <Pagination
                 className='router-page-pagination'
                 floated='right'

@@ -859,6 +859,7 @@ const PackagesManager = () => {
             </Table.HeaderCell>
             <Table.HeaderCell>{t('package_manage.table.duration_days')}</Table.HeaderCell>
             <Table.HeaderCell>{t('package_manage.table.status')}</Table.HeaderCell>
+            <Table.HeaderCell>{t('package_manage.table.created_at')}</Table.HeaderCell>
             <Table.HeaderCell>{t('package_manage.table.updated_at')}</Table.HeaderCell>
             <Table.HeaderCell className='router-table-action-cell'>
               {t('package_manage.table.actions')}
@@ -869,7 +870,7 @@ const PackagesManager = () => {
         <Table.Body>
           {rows.length === 0 ? (
             <Table.Row>
-              <Table.Cell colSpan={8} textAlign='center' className='router-empty-cell'>
+              <Table.Cell colSpan={9} textAlign='center' className='router-empty-cell'>
                 {loading
                   ? t('package_manage.messages.loading')
                   : t('package_manage.table.empty')}
@@ -902,6 +903,7 @@ const PackagesManager = () => {
                 </Table.Cell>
                 <Table.Cell>{Number(row.duration_days || 0) || '-'}</Table.Cell>
                 <Table.Cell>{statusLabel(Boolean(row.enabled), t)}</Table.Cell>
+                <Table.Cell>{row.created_at ? timestamp2string(row.created_at) : '-'}</Table.Cell>
                 <Table.Cell>{row.updated_at ? timestamp2string(row.updated_at) : '-'}</Table.Cell>
                 <Table.Cell className='router-nowrap'>
                   <div className='router-action-group-tight'>

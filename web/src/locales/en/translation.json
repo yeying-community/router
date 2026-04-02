@@ -606,6 +606,7 @@
       "monthly_emergency_quota_limit": "Monthly Emergency Quota",
       "duration_days": "Duration (Days)",
       "status": "Status",
+      "created_at": "Created At",
       "updated_at": "Updated At",
       "actions": "Actions",
       "empty": "No packages"
@@ -1136,6 +1137,8 @@
       "remaining_quota": "Remaining YYC",
       "used_quota": "Used YYC",
       "request_count": "Request Count",
+      "created_at": "Created At",
+      "updated_at": "Updated At",
       "role_types": {
         "normal": "Normal User",
         "admin": "Admin",

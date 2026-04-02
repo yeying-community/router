@@ -606,6 +606,7 @@
       "monthly_emergency_quota_limit": "应急额度",
       "duration_days": "使用天数",
       "status": "状态",
+      "created_at": "创建时间",
       "updated_at": "更新时间",
       "actions": "操作",
       "empty": "暂无套餐"
@@ -1136,6 +1137,8 @@
       "remaining_quota": "剩余 YYC",
       "used_quota": "已用 YYC",
       "request_count": "请求次数",
+      "created_at": "创建时间",
+      "updated_at": "更新时间",
       "role_types": {
         "normal": "普通用户",
         "admin": "管理员",

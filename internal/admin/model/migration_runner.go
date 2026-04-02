@@ -279,6 +279,39 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return backfillRedemptionGroupWithDefaultGroupWithDB(tx)
 			},
 		},
+		{
+			Version:     "202604031030_service_package_created_at",
+			Description: "add created_at column to service packages and backfill from updated_at",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&ServicePackage{}); err != nil {
+					return err
+				}
+				return tx.Exec(
+					"UPDATE service_packages SET created_at = COALESCE(NULLIF(updated_at, 0), ?) WHERE COALESCE(created_at, 0) = 0",
+					helper.GetTimestamp(),
+				).Error
+			},
+		},
+		{
+			Version:     "202604031130_user_created_updated_at",
+			Description: "add created_at and updated_at columns to users and backfill existing rows",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&User{}); err != nil {
+					return err
+				}
+				now := helper.GetTimestamp()
+				if err := tx.Exec(
+					"UPDATE users SET created_at = ? WHERE COALESCE(created_at, 0) = 0",
+					now,
+				).Error; err != nil {
+					return err
+				}
+				return tx.Exec(
+					"UPDATE users SET updated_at = COALESCE(NULLIF(created_at, 0), ?) WHERE COALESCE(updated_at, 0) = 0",
+					now,
+				).Error
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
