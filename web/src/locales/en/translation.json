@@ -541,6 +541,7 @@
     "detail": {
       "title": "Group Detail",
       "model": "Model",
+      "enabled": "Enabled",
       "channel_count": "Channel Count",
       "model_channels": "Channels",
       "model_search_placeholder": "Search model or channel",

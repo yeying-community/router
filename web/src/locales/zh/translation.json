@@ -541,6 +541,7 @@
     "detail": {
       "title": "分组详情",
       "model": "模型",
+      "enabled": "是否启用",
       "channel_count": "渠道数",
       "model_channels": "渠道",
       "model_search_placeholder": "搜索模型或渠道",

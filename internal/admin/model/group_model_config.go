@@ -12,6 +12,7 @@ type GroupModelConfigItem struct {
 	Model           string `json:"model"`
 	ChannelId       string `json:"channel_id"`
 	UpstreamModel   string `json:"upstream_model"`
+	Enabled         *bool  `json:"enabled,omitempty"`
 	ChannelName     string `json:"channel_name,omitempty"`
 	ChannelProtocol string `json:"channel_protocol,omitempty"`
 	ChannelStatus   int    `json:"channel_status,omitempty"`
@@ -82,7 +83,6 @@ func listGroupModelConfigItemsWithDB(db *gorm.DB, groupID string) ([]GroupModelC
 	groupCol := `"group"`
 	if err := db.
 		Where(groupCol+" = ?", groupCatalog.Id).
-		Where("enabled = ?", true).
 		Order("model asc, channel_id asc").
 		Find(&abilities).Error; err != nil {
 		return nil, err
@@ -141,6 +141,7 @@ func listGroupModelConfigItemsWithDB(db *gorm.DB, groupID string) ([]GroupModelC
 			Model:           modelName,
 			ChannelId:       channelID,
 			UpstreamModel:   NormalizeAbilityUpstreamModel(modelName, ability.UpstreamModel),
+			Enabled:         helperBoolPointer(ability.Enabled),
 			ChannelName:     channel.DisplayName(),
 			ChannelProtocol: channel.GetProtocol(),
 			ChannelStatus:   channel.Status,
@@ -275,7 +276,7 @@ func replaceGroupModelConfigsWithDB(db *gorm.DB, groupID string, channelIDs []st
 			Model:         item.Model,
 			ChannelId:     item.ChannelId,
 			UpstreamModel: upstreamModel,
-			Enabled:       channel.Status == ChannelStatusEnabled,
+			Enabled:       resolveGroupModelConfigEnabled(item) && channel.Status == ChannelStatusEnabled,
 			Priority:      channel.Priority,
 		})
 	}
@@ -310,7 +311,6 @@ func listGroupBoundChannelIDsWithDB(db *gorm.DB, groupID string) ([]string, erro
 	if err := db.Model(&Ability{}).
 		Distinct("channel_id").
 		Where(groupCol+" = ?", groupCatalog.Id).
-		Where("enabled = ?", true).
 		Pluck("channel_id", &boundIDs).Error; err != nil {
 		return nil, err
 	}
@@ -327,6 +327,7 @@ func normalizeGroupModelConfigItems(items []GroupModelConfigItem) ([]GroupModelC
 			Model:         strings.TrimSpace(item.Model),
 			ChannelId:     strings.TrimSpace(item.ChannelId),
 			UpstreamModel: strings.TrimSpace(item.UpstreamModel),
+			Enabled:       item.Enabled,
 		}
 		if normalized.Model == "" && normalized.ChannelId == "" && normalized.UpstreamModel == "" {
 			continue
@@ -407,6 +408,18 @@ func buildDefaultAbilitiesForGroupChannel(groupID string, channel *Channel) []Ab
 		})
 	}
 	return abilities
+}
+
+func resolveGroupModelConfigEnabled(item GroupModelConfigItem) bool {
+	if item.Enabled == nil {
+		return true
+	}
+	return *item.Enabled
+}
+
+func helperBoolPointer(value bool) *bool {
+	result := value
+	return &result
 }
 
 func channelSelectedModelConfigs(channel *Channel) []ChannelModel {

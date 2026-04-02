@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Breadcrumb, Button, Form, Header, Label, Modal, Table } from 'semantic-ui-react';
+import { Breadcrumb, Button, Checkbox, Form, Header, Label, Modal, Table } from 'semantic-ui-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API, showError, showInfo, showSuccess, timestamp2string } from '../helpers';
 const MODE_LIST = 'list';
@@ -20,6 +20,7 @@ const createEmptyModelConfig = () => ({
   model: '',
   channel_id: '',
   upstream_model: '',
+  enabled: true,
 });
 
 const sortGroupModelConfigRows = (items) =>
@@ -539,6 +540,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
         model,
         channel_id: channelID,
         upstream_model: upstreamModel,
+        enabled: item?.enabled !== false,
       });
     }
     return normalizedModelConfigs;
@@ -818,6 +820,10 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     }
   }, [activeGroup, buildNormalizedModelConfigs, formChannelIDs, refreshGroupDetailState, t]);
 
+  const startDetailModelsEdit = useCallback(async () => {
+    await ensureDetailModelsEditable();
+  }, [ensureDetailModelsEditable]);
+
   const openDeleteModal = (row) => {
     if (!row || submitting) return;
     setDeleteTarget(row);
@@ -1050,14 +1056,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                   type='button'
                   className='router-page-button'
                   disabled={submitting}
-                  onClick={openDetailModelCreate}
-                >
-                  {t('group_manage.buttons.add_model')}
-                </Button>
-                <Button
-                  type='button'
-                  className='router-page-button'
-                  disabled={submitting}
                   onClick={cancelDetailSectionEdit}
                 >
                   {t('group_manage.buttons.cancel')}
@@ -1074,15 +1072,15 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                 </Button>
               </>
             ) : (
-              <Button
-                type='button'
-                className='router-page-button'
-                color='blue'
-                disabled={submitting || detailModelsEditLocked}
-                onClick={openDetailModelCreate}
-              >
-                {t('group_manage.buttons.edit')}
-              </Button>
+                <Button
+                  type='button'
+                  className='router-page-button'
+                  color='blue'
+                  disabled={submitting || detailModelsEditLocked}
+                  onClick={startDetailModelsEdit}
+                >
+                  {t('group_manage.buttons.edit')}
+                </Button>
             )}
           </div>
         </div>
@@ -1092,7 +1090,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
               <Table.HeaderCell>{t('group_manage.edit.model')}</Table.HeaderCell>
               <Table.HeaderCell>{t('group_manage.edit.channel')}</Table.HeaderCell>
               <Table.HeaderCell>{t('group_manage.edit.upstream_model')}</Table.HeaderCell>
-              <Table.HeaderCell collapsing>{t('group_manage.table.actions')}</Table.HeaderCell>
+              <Table.HeaderCell collapsing>{t('group_manage.detail.enabled')}</Table.HeaderCell>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -1135,27 +1133,20 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                   </Table.Cell>
                   <Table.Cell>{item?.upstream_model || '-'}</Table.Cell>
                   <Table.Cell collapsing>
-                    <div className='router-inline-actions'>
-                      <Button
-                        type='button'
-                        className='router-inline-button'
-                        disabled={submitting || detailModelsEditLocked}
-                        onClick={() => openDetailModelEdit(item)}
-                      >
-                        {t('group_manage.buttons.edit')}
-                      </Button>
-                      {detailModelsEditing ? (
-                        <Button
-                          type='button'
-                          className='router-inline-button'
-                          negative
-                          disabled={submitting}
-                          onClick={() => removeDetailModelRow(item)}
-                        >
-                          {t('group_manage.buttons.delete')}
-                        </Button>
-                      ) : null}
-                    </div>
+                    <Checkbox
+                      toggle
+                      checked={item?.enabled !== false}
+                      disabled={!detailModelsEditing || submitting}
+                      onChange={(event, { checked }) => {
+                        if (!detailModelsEditing) {
+                          return;
+                        }
+                        updateModelConfigRow(index, (current) => ({
+                          ...current,
+                          enabled: !!checked,
+                        }));
+                      }}
+                    />
                   </Table.Cell>
                 </Table.Row>
               ))
@@ -1254,6 +1245,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
           return {
             item: {
               ...item,
+              enabled: item?.enabled !== false,
               channel_name: item?.channel_name || channel?.name || item?.channel_id || '',
               channel_protocol: item?.channel_protocol || channel?.protocol || '',
               channel_status: Number(item?.channel_status ?? channel?.status ?? 0),
@@ -1262,7 +1254,10 @@ const GroupsManager = ({ detailGroupId = '' }) => {
           };
         })
       : (Array.isArray(detailModelRows) ? detailModelRows : []).map((item, index) => ({
-          item,
+          item: {
+            ...item,
+            enabled: item?.enabled !== false,
+          },
           index,
         }));
     if (keyword === '') {
