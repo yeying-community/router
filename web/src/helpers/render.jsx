@@ -133,6 +133,27 @@ export function formatYYCValue(quota, compact = false) {
   return `${display} YYC`;
 }
 
+export function formatDecimalNumber(value, maximumFractionDigits = 8) {
+  const normalized = Number(value);
+  if (!Number.isFinite(normalized)) {
+    return '0';
+  }
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  }).format(normalized);
+}
+
+export function formatAmountWithUnit(amount, unit, maximumFractionDigits = 8) {
+  const normalizedUnit = (unit || '').toString().trim().toUpperCase();
+  const normalizedAmount = Number(amount);
+  if (normalizedUnit === 'YYC') {
+    return formatYYCValue(normalizedAmount, false);
+  }
+  const display = formatDecimalNumber(normalizedAmount, maximumFractionDigits);
+  return normalizedUnit ? `${display} ${normalizedUnit}` : display;
+}
+
 export function renderYYC(quota, t, compact = true, amountPrecision = 6) {
   const normalized = Number(quota || 0);
   const triggerText = formatYYCValue(normalized, compact);

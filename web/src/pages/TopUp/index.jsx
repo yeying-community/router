@@ -16,7 +16,7 @@ import {
   showSuccess,
   timestamp2string,
 } from '../../helpers';
-import { renderYYC } from '../../helpers/render';
+import { formatAmountWithUnit, renderYYC } from '../../helpers/render';
 import { useTranslation } from 'react-i18next';
 
 const normalizeTopUpResult = (raw) => {
@@ -32,6 +32,10 @@ const normalizeTopUpResult = (raw) => {
     after_yyc_balance: afterYYCBalance,
     redemption_id: raw?.redemption_id || '',
     redemption_name: raw?.redemption_name || '',
+    group_id: raw?.group_id || '',
+    group_name: raw?.group_name || '',
+    face_value_amount: Number(raw?.face_value_amount ?? 0) || 0,
+    face_value_unit: raw?.face_value_unit || '',
     redeemed_at: Number(raw?.redeemed_at ?? 0) || 0,
   };
 };
@@ -68,6 +72,10 @@ const TopUp = () => {
             after_yyc_balance: userQuota + (Number(data ?? 0) || 0),
             redemption_id: '',
             redemption_name: '',
+            group_id: '',
+            group_name: '',
+            face_value_amount: 0,
+            face_value_unit: '',
             redeemed_at: 0,
           };
         showSuccess(t('topup.redeem_code.success'));
@@ -391,6 +399,21 @@ const TopUp = () => {
                       <Table.Cell>{recentTopUpResult.redemption_name || '-'}</Table.Cell>
                       <Table.Cell>{t('topup.result.fields.redemption_id')}</Table.Cell>
                       <Table.Cell>{recentTopUpResult.redemption_id || '-'}</Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell>{t('topup.result.fields.group')}</Table.Cell>
+                      <Table.Cell>
+                        {recentTopUpResult.group_name || recentTopUpResult.group_id || '-'}
+                      </Table.Cell>
+                      <Table.Cell>{t('topup.result.fields.face_value')}</Table.Cell>
+                      <Table.Cell>
+                        {recentTopUpResult.face_value_amount > 0
+                          ? formatAmountWithUnit(
+                              recentTopUpResult.face_value_amount,
+                              recentTopUpResult.face_value_unit || 'YYC'
+                            )
+                          : '-'}
+                      </Table.Cell>
                     </Table.Row>
                   </Table.Body>
                 </Table>

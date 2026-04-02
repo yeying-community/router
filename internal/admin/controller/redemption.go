@@ -159,15 +159,35 @@ func AddRedemption(c *gin.Context) {
 		})
 		return
 	}
+	resolvedGroup, err := model.ResolveRedemptionGroupWithDB(model.DB, redemption.GroupID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	redemption.GroupID = resolvedGroup.Id
+	redemption.GroupName = resolvedGroup.Name
+	if err := model.NormalizeRedemptionFaceValueFieldsWithDB(model.DB, &redemption); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
 	var codes []string
 	for i := 0; i < redemption.Count; i++ {
 		code := random.GetUUID()
 		cleanRedemption := model.Redemption{
-			UserId:      c.GetString(ctxkey.Id),
-			Name:        redemption.Name,
-			Code:        code,
-			CreatedTime: helper.GetTimestamp(),
-			Quota:       redemption.Quota,
+			UserId:          c.GetString(ctxkey.Id),
+			Name:            redemption.Name,
+			GroupID:         redemption.GroupID,
+			Code:            code,
+			CreatedTime:     helper.GetTimestamp(),
+			FaceValueAmount: redemption.FaceValueAmount,
+			FaceValueUnit:   redemption.FaceValueUnit,
+			Quota:           redemption.Quota,
 		}
 		err = cleanRedemption.Insert()
 		if err != nil {
@@ -247,9 +267,26 @@ func UpdateRedemption(c *gin.Context) {
 	if statusOnly != "" {
 		cleanRedemption.Status = redemption.Status
 	} else {
-		// If you add more fields, please also update redemption.Update()
+		resolvedGroup, err := model.ResolveRedemptionGroupWithDB(model.DB, redemption.GroupID)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
 		cleanRedemption.Name = redemption.Name
-		cleanRedemption.Quota = redemption.Quota
+		cleanRedemption.GroupID = resolvedGroup.Id
+		cleanRedemption.GroupName = resolvedGroup.Name
+		cleanRedemption.FaceValueAmount = redemption.FaceValueAmount
+		cleanRedemption.FaceValueUnit = redemption.FaceValueUnit
+		if err := model.NormalizeRedemptionFaceValueFieldsWithDB(model.DB, cleanRedemption); err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
 	}
 	err = cleanRedemption.Update()
 	if err != nil {

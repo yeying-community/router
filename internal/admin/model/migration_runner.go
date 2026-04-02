@@ -254,6 +254,31 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				).Error
 			},
 		},
+		{
+			Version:     "202604022330_redemption_group_face_value",
+			Description: "add redemption group binding and multi-unit face value fields",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&Redemption{}); err != nil {
+					return err
+				}
+				if err := tx.Exec(
+					"UPDATE redemptions SET face_value_unit = ? WHERE COALESCE(face_value_unit, '') = ''",
+					RedemptionFaceValueUnitYYC,
+				).Error; err != nil {
+					return err
+				}
+				return tx.Exec(
+					"UPDATE redemptions SET face_value_amount = quota WHERE COALESCE(face_value_amount, 0) = 0 AND COALESCE(quota, 0) > 0",
+				).Error
+			},
+		},
+		{
+			Version:     "202604030010_redemption_default_group_backfill",
+			Description: "backfill historical redemptions with the configured default user group",
+			Up: func(tx *gorm.DB) error {
+				return backfillRedemptionGroupWithDefaultGroupWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

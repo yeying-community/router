@@ -255,12 +255,16 @@ type UserTopUpOrderDetailResponse struct {
 }
 
 type UserTopUpResult struct {
-	RedeemedYYC      int64  `json:"redeemed_yyc" example:"100000"`
-	BeforeYYCBalance int64  `json:"before_yyc_balance" example:"500000"`
-	AfterYYCBalance  int64  `json:"after_yyc_balance" example:"600000"`
-	RedemptionID     string `json:"redemption_id" example:"474c9b7b534047ce9205220990f53087"`
-	RedemptionName   string `json:"redemption_name" example:"新用户补偿"`
-	RedeemedAt       int64  `json:"redeemed_at" example:"1774000000"`
+	RedeemedYYC      int64   `json:"redeemed_yyc" example:"100000"`
+	BeforeYYCBalance int64   `json:"before_yyc_balance" example:"500000"`
+	AfterYYCBalance  int64   `json:"after_yyc_balance" example:"600000"`
+	RedemptionID     string  `json:"redemption_id" example:"474c9b7b534047ce9205220990f53087"`
+	RedemptionName   string  `json:"redemption_name" example:"新用户补偿"`
+	GroupID          string  `json:"group_id" example:"474c9b7b534047ce9205220990f53087"`
+	GroupName        string  `json:"group_name" example:"enterprise"`
+	FaceValueAmount  float64 `json:"face_value_amount" example:"10"`
+	FaceValueUnit    string  `json:"face_value_unit" example:"USD"`
+	RedeemedAt       int64   `json:"redeemed_at" example:"1774000000"`
 }
 
 // --- Token responses ---
@@ -468,16 +472,20 @@ type ModelProviderCatalogResponse struct {
 }
 
 type RedemptionCreateRequest struct {
-	Name  string `json:"name" example:"InviteBonus"`
-	Count int    `json:"count" example:"5"`
-	Quota int64  `json:"quota" example:"100000"`
+	Name            string  `json:"name" example:"InviteBonus"`
+	GroupID         string  `json:"group_id" example:"474c9b7b534047ce9205220990f53087"`
+	Count           int     `json:"count" example:"5"`
+	FaceValueAmount float64 `json:"face_value_amount" example:"10"`
+	FaceValueUnit   string  `json:"face_value_unit" example:"USD"`
 }
 
 type RedemptionUpdateRequest struct {
-	ID     string `json:"id" example:"2d66a0b2d8c44efda9c7f5f21a4e2c4d"`
-	Name   string `json:"name,omitempty" example:"InviteBonus"`
-	Quota  int64  `json:"quota,omitempty" example:"100000"`
-	Status int    `json:"status,omitempty" example:"1"`
+	ID              string  `json:"id" example:"2d66a0b2d8c44efda9c7f5f21a4e2c4d"`
+	Name            string  `json:"name,omitempty" example:"InviteBonus"`
+	GroupID         string  `json:"group_id,omitempty" example:"474c9b7b534047ce9205220990f53087"`
+	FaceValueAmount float64 `json:"face_value_amount,omitempty" example:"10"`
+	FaceValueUnit   string  `json:"face_value_unit,omitempty" example:"USD"`
+	Status          int     `json:"status,omitempty" example:"1"`
 }
 
 // --- OpenAI-compatible models ---

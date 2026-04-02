@@ -5,7 +5,7 @@
     "providers": "供应商",
     "group": "分组",
     "token": "令牌",
-    "redemption": "兑换",
+    "redemption": "兑换码",
     "topup": "充值",
     "user": "用户",
     "dashboard": "总览",
@@ -75,6 +75,8 @@
         "after_balance": "充值后余额",
         "redemption_name": "兑换码名称",
         "redemption_id": "兑换码记录",
+        "group": "分组",
+        "face_value": "面值",
         "redeemed_at": "兑换时间"
       }
     },
@@ -787,12 +789,14 @@
     "delete": "删除"
   },
   "redemption": {
-    "title": "兑换管理",
+    "title": "兑换码管理",
     "search": "搜索兑换码和名称 ...",
     "table": {
       "id": "ID",
       "name": "名称",
+      "group": "分组",
       "status": "状态",
+      "face_value": "面值",
       "quota": "YYC 面额",
       "created_time": "创建时间",
       "redeemed_time": "兑换时间",
@@ -818,11 +822,16 @@
     },
     "edit": {
       "title_edit": "更新兑换码信息",
-      "title_create": "创建新的兑换码",
+      "title_create": "新增兑换码",
       "name": "名称",
       "name_placeholder": "请输入名称",
-      "quota": "YYC 面额",
-      "quota_placeholder": "请输入单个兑换码包含的 YYC",
+      "group": "分组",
+      "group_placeholder": "请选择分组",
+      "face_value_amount": "面值",
+      "face_value_amount_placeholder": "请输入兑换码面值",
+      "face_value_unit": "单位",
+      "face_value_unit_placeholder": "请选择面值单位",
+      "credit_yyc": "到账 YYC",
       "count": "生成数量",
       "count_placeholder": "请输入生成数量",
       "buttons": {
@@ -840,7 +849,13 @@
     },
     "messages": {
       "update_success": "兑换码更新成功！",
-      "create_success": "兑换码创建成功！"
+      "create_success": "兑换码创建成功！",
+      "load_groups_failed": "加载分组失败",
+      "load_units_failed": "加载面值单位失败",
+      "name_required": "请输入兑换码名称",
+      "group_required": "请选择分组",
+      "count_invalid": "生成数量必须大于 0",
+      "face_value_invalid": "面值必须大于 0"
     }
   },
   "log": {

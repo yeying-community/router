@@ -5,7 +5,7 @@
     "providers": "Providers",
     "group": "Group",
     "token": "Token",
-    "redemption": "Redemption",
+    "redemption": "Redemption Codes",
     "topup": "Top Up",
     "user": "User",
     "dashboard": "Dashboard",
@@ -75,6 +75,8 @@
         "after_balance": "Balance After",
         "redemption_name": "Redemption Name",
         "redemption_id": "Redemption Record",
+        "group": "Group",
+        "face_value": "Face Value",
         "redeemed_at": "Redeemed At"
       }
     },
@@ -787,12 +789,14 @@
     "delete": "Delete"
   },
   "redemption": {
-    "title": "Redemption Management",
+    "title": "Redemption Code Management",
     "search": "Search redemption codes and names ...",
     "table": {
       "id": "ID",
       "name": "Name",
+      "group": "Group",
       "status": "Status",
+      "face_value": "Face Value",
       "quota": "YYC Value",
       "created_time": "Created Time",
       "redeemed_time": "Redeemed Time",
@@ -818,11 +822,16 @@
     },
     "edit": {
       "title_edit": "Update Redemption Code",
-      "title_create": "Create New Redemption Code",
+      "title_create": "Add Redemption Code",
       "name": "Name",
       "name_placeholder": "Please enter name",
-      "quota": "YYC Value",
-      "quota_placeholder": "Please enter YYC per redemption code",
+      "group": "Group",
+      "group_placeholder": "Please select group",
+      "face_value_amount": "Face Value",
+      "face_value_amount_placeholder": "Please enter redemption face value",
+      "face_value_unit": "Unit",
+      "face_value_unit_placeholder": "Please select unit",
+      "credit_yyc": "Credited YYC",
       "count": "Generate Count",
       "count_placeholder": "Please enter number of codes to generate",
       "buttons": {
@@ -840,7 +849,13 @@
     },
     "messages": {
       "update_success": "Redemption code updated successfully!",
-      "create_success": "Redemption code created successfully!"
+      "create_success": "Redemption code created successfully!",
+      "load_groups_failed": "Failed to load groups",
+      "load_units_failed": "Failed to load face value units",
+      "name_required": "Please enter the redemption code name",
+      "group_required": "Please select a group",
+      "count_invalid": "Generate count must be greater than 0",
+      "face_value_invalid": "Face value must be greater than 0"
     }
   },
   "log": {
