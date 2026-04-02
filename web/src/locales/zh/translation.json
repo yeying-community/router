@@ -208,7 +208,9 @@
         "add_price_component": "新增规则",
         "actions": "操作",
         "empty": "暂无模型明细",
-        "delete_confirm": "确认删除该模型吗？"
+        "delete_confirm": "确认删除该模型吗？",
+        "edit_title": "编辑模型",
+        "create_title": "新增模型"
       },
       "price_component_table": {
         "component": "计费项",

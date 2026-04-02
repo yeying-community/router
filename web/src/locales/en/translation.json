@@ -208,7 +208,9 @@
         "add_price_component": "Add Rule",
         "actions": "Actions",
         "empty": "No model details",
-        "delete_confirm": "Delete this model?"
+        "delete_confirm": "Delete this model?",
+        "edit_title": "Edit Model",
+        "create_title": "Add Model"
       },
       "price_component_table": {
         "component": "Component",

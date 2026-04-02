@@ -501,6 +501,7 @@ const ProvidersManager = () => {
   const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [activePage, setActivePage] = useState(1);
@@ -516,7 +517,8 @@ const ProvidersManager = () => {
   const [detailBasicDraft, setDetailBasicDraft] = useState(createEmptyRow());
   const [detailModelsDraft, setDetailModelsDraft] = useState(createEmptyRow());
   const [detailEditingModelIndex, setDetailEditingModelIndex] = useState(-1);
-  const [detailModelSearchKeyword, setDetailModelSearchKeyword] = useState('');
+  const [modelDetailEditorOpen, setModelDetailEditorOpen] = useState(false);
+  const [modelDetailEditorMode, setModelDetailEditorMode] = useState('edit');
   const [pricingDetailOpen, setPricingDetailOpen] = useState(false);
   const [pricingDetailModel, setPricingDetailModel] = useState(null);
 
@@ -531,8 +533,12 @@ const ProvidersManager = () => {
   }, [totalCount]);
 
   const loadCatalog = useCallback(
-    async (page, keyword) => {
+    async (page, keyword, options = {}) => {
+      const withRefreshIndicator = options.withRefreshIndicator === true;
       setLoading(true);
+      if (withRefreshIndicator) {
+        setRefreshing(true);
+      }
       try {
         const res = await API.get('/api/v1/admin/providers', {
           params: {
@@ -553,6 +559,9 @@ const ProvidersManager = () => {
         showError(error);
       } finally {
         setLoading(false);
+        if (withRefreshIndicator) {
+          setRefreshing(false);
+        }
       }
     },
     [t],
@@ -581,7 +590,8 @@ const ProvidersManager = () => {
     setDetailBasicDraft(createEmptyRow());
     setDetailModelsDraft(createEmptyRow());
     setDetailEditingModelIndex(-1);
-    setDetailModelSearchKeyword('');
+    setModelDetailEditorOpen(false);
+    setModelDetailEditorMode('edit');
   }, []);
 
   const openCreatePanel = () => {
@@ -626,10 +636,6 @@ const ProvidersManager = () => {
       setDetailEditingSection(section);
       if (section === 'basic') {
         setDetailBasicDraft(sourceRow);
-      }
-      if (section === 'models') {
-        setDetailModelsDraft(sourceRow);
-        setDetailModelSearchKeyword('');
       }
     },
     [creating, saving, viewRow],
@@ -935,7 +941,9 @@ const ProvidersManager = () => {
   };
 
   const reloadCurrentPage = async () => {
-    await loadCatalog(activePage, normalizedSearchKeyword);
+    await loadCatalog(activePage, normalizedSearchKeyword, {
+      withRefreshIndicator: true,
+    });
   };
 
   const persistViewerModelDetails = useCallback(
@@ -965,6 +973,13 @@ const ProvidersManager = () => {
     [resetDetailEditingState, saveProvider, t, viewRow],
   );
 
+  const closeModelDetailEditor = useCallback(() => {
+    if (saving) {
+      return;
+    }
+    resetDetailEditingState();
+  }, [resetDetailEditingState, saving]);
+
   const startDetailModelEdit = useCallback(
     (index) => {
       const sourceRow = cloneEditableRow(viewRow);
@@ -983,6 +998,8 @@ const ProvidersManager = () => {
       setDetailEditingSection('models');
       setDetailModelsDraft(sourceRow);
       setDetailEditingModelIndex(index);
+      setModelDetailEditorMode('edit');
+      setModelDetailEditorOpen(true);
     },
     [creating, saving, viewRow],
   );
@@ -1002,6 +1019,8 @@ const ProvidersManager = () => {
       model_details: nextDetails,
     });
     setDetailEditingModelIndex(0);
+    setModelDetailEditorMode('create');
+    setModelDetailEditorOpen(true);
     setViewModelSearchKeyword('');
     setViewModelPage(1);
   }, [creating, saving, viewRow]);
@@ -1248,14 +1267,6 @@ const ProvidersManager = () => {
               .toLowerCase();
             return haystack.includes(normalizedModelSearchKeyword);
           });
-    if (
-      inlineEditingEnabled &&
-      editingRowIndex >= 0 &&
-      editingRowIndex < detailRows.length &&
-      !visibleDetailRows.some(({ index }) => index === editingRowIndex)
-    ) {
-      visibleDetailRows = [detailRows[editingRowIndex], ...visibleDetailRows];
-    }
     return (
       <div>
         {showToolbar ? (
@@ -1823,19 +1834,12 @@ const ProvidersManager = () => {
   };
 
   const renderModelDetailsReadonly = (row, options = {}) => {
+    const details = Array.isArray(row?.model_details) ? row.model_details : [];
     const searchable = options.searchable === true;
     const hideTitle = options.hideTitle === true;
     const showToolbar = options.showToolbar !== false;
-    const inlineEditing = options.inlineEditing || {};
-    const inlineEditingEnabled = inlineEditing.enabled === true;
-    const editingRowIndex = Number.isInteger(inlineEditing.index)
-      ? inlineEditing.index
-      : -1;
-    const sourceRow =
-      inlineEditingEnabled && inlineEditing.row ? inlineEditing.row : row;
-    const details = Array.isArray(sourceRow?.model_details)
-      ? sourceRow.model_details
-      : [];
+    const actions = options.actions || {};
+    const actionsDisabled = Boolean(options.actionsDisabled) || saving;
     const pageSize =
       Number(options.pageSize || 0) > 0
         ? Number(options.pageSize)
@@ -1873,7 +1877,6 @@ const ProvidersManager = () => {
       (safeCurrentPage - 1) * pageSize,
       safeCurrentPage * pageSize,
     );
-    const actionsDisabled = saving || (inlineEditingEnabled && editingRowIndex >= 0);
     return (
       <div className='router-block-top-sm'>
         {showToolbar ? (
@@ -1950,491 +1953,9 @@ const ProvidersManager = () => {
               </Table.Row>
             ) : (
               pageRows.map(({ detail, index: detailIndex }) => {
-                const isEditingRow =
-                  inlineEditingEnabled && editingRowIndex === detailIndex;
                 const showInputDetail = hasComplexInputPricing(detail);
                 const showOutputDetail = hasComplexOutputPricing(detail);
-                return isEditingRow ? (
-                  <React.Fragment
-                    key={`${detail.model || 'model'}-${detailIndex}`}
-                  >
-                    <Table.Row>
-                      <Table.Cell className='router-cell-min-260'>
-                        <Form.Input
-                          className='router-inline-input'
-                          fluid
-                          value={detail.model || ''}
-                          disabled={saving}
-                          onChange={(e, { value }) =>
-                            setModelDetailField(
-                              setDetailModelsValue,
-                              detailModelsDraft,
-                              detailIndex,
-                              'model',
-                              value || '',
-                            )
-                          }
-                        />
-                      </Table.Cell>
-                      <Table.Cell className='router-cell-min-80'>
-                        <Form.Select
-                          className='router-inline-dropdown'
-                          fluid
-                          options={MODEL_TYPE_OPTIONS}
-                          value={detail.type || 'text'}
-                          disabled={saving}
-                          onChange={(e, { value }) =>
-                            setModelDetailField(
-                              setDetailModelsValue,
-                              detailModelsDraft,
-                              detailIndex,
-                              'type',
-                              value || 'text',
-                            )
-                          }
-                        />
-                      </Table.Cell>
-                      <Table.Cell className='router-cell-min-90'>
-                        <Form.Input
-                          className='router-inline-input'
-                          fluid
-                          placeholder='text,image,audio'
-                          value={
-                            Array.isArray(detail.capabilities)
-                              ? detail.capabilities.join(', ')
-                              : ''
-                          }
-                          disabled={saving}
-                          onChange={(e, { value }) =>
-                            setModelDetailField(
-                              setDetailModelsValue,
-                              detailModelsDraft,
-                              detailIndex,
-                              'capabilities',
-                              value || '',
-                            )
-                          }
-                        />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Form.Input
-                          className='router-inline-input'
-                          fluid
-                          type='number'
-                          step='0.000001'
-                          value={detail.input_price ?? ''}
-                          disabled={saving}
-                          onChange={(e, { value }) =>
-                            setModelDetailField(
-                              setDetailModelsValue,
-                              detailModelsDraft,
-                              detailIndex,
-                              'input_price',
-                              value ?? '',
-                            )
-                          }
-                        />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Form.Input
-                          className='router-inline-input'
-                          fluid
-                          type='number'
-                          step='0.000001'
-                          value={detail.output_price ?? ''}
-                          disabled={saving}
-                          onChange={(e, { value }) =>
-                            setModelDetailField(
-                              setDetailModelsValue,
-                              detailModelsDraft,
-                              detailIndex,
-                              'output_price',
-                              value ?? '',
-                            )
-                          }
-                        />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Form.Input
-                          className='router-inline-input'
-                          fluid
-                          value={detail.price_unit ?? ''}
-                          disabled={saving}
-                          onChange={(e, { value }) =>
-                            setModelDetailField(
-                              setDetailModelsValue,
-                              detailModelsDraft,
-                              detailIndex,
-                              'price_unit',
-                              value || '',
-                            )
-                          }
-                        />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Form.Input
-                          className='router-inline-input'
-                          fluid
-                          value={detail.currency ?? ''}
-                          disabled={saving}
-                          onChange={(e, { value }) =>
-                            setModelDetailField(
-                              setDetailModelsValue,
-                              detailModelsDraft,
-                              detailIndex,
-                              'currency',
-                              value ?? '',
-                            )
-                          }
-                        />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Form.Select
-                          className='router-inline-dropdown'
-                          fluid
-                          options={SOURCE_OPTIONS}
-                          value={detail.source || 'manual'}
-                          disabled={saving}
-                          onChange={(e, { value }) =>
-                            setModelDetailField(
-                              setDetailModelsValue,
-                              detailModelsDraft,
-                              detailIndex,
-                              'source',
-                              value || 'manual',
-                            )
-                          }
-                        />
-                      </Table.Cell>
-                      <Table.Cell className='router-nowrap'>
-                        <Button
-                          type='button'
-                          className='router-inline-button'
-                          disabled={saving}
-                          onClick={cancelDetailSectionEdit}
-                        >
-                          {t('common.cancel')}
-                        </Button>
-                        <Button
-                          type='button'
-                          className='router-inline-button'
-                          color='blue'
-                          loading={saving}
-                          disabled={saving}
-                          onClick={saveDetailModelEdit}
-                        >
-                          {t('common.confirm')}
-                        </Button>
-                      </Table.Cell>
-                    </Table.Row>
-                    <Table.Row>
-                      <Table.Cell colSpan={9}>
-                        <div className='router-block-top-sm'>
-                          <div className='router-toolbar router-toolbar-compact'>
-                            <div className='router-toolbar-title'>
-                              {t(
-                                'channel.providers.model_detail_table.price_components',
-                              )}
-                            </div>
-                            <div className='router-toolbar-end'>
-                              <Button
-                                type='button'
-                                className='router-inline-button'
-                                disabled={saving}
-                                onClick={() =>
-                                  addPriceComponentRow(
-                                    setDetailModelsValue,
-                                    detailModelsDraft,
-                                    detailIndex,
-                                  )
-                                }
-                              >
-                                {t(
-                                  'channel.providers.model_detail_table.add_price_component',
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                          <Table
-                            compact
-                            celled
-                            className='router-detail-subtable'
-                          >
-                            <Table.Header>
-                              <Table.Row>
-                                <Table.HeaderCell>
-                                  {t(
-                                    'channel.providers.price_component_table.component',
-                                  )}
-                                </Table.HeaderCell>
-                                <Table.HeaderCell>
-                                  {t(
-                                    'channel.providers.price_component_table.condition',
-                                  )}
-                                </Table.HeaderCell>
-                                <Table.HeaderCell>
-                                  {t(
-                                    'channel.providers.price_component_table.input_price',
-                                  )}
-                                </Table.HeaderCell>
-                                <Table.HeaderCell>
-                                  {t(
-                                    'channel.providers.price_component_table.output_price',
-                                  )}
-                                </Table.HeaderCell>
-                                <Table.HeaderCell>
-                                  {t(
-                                    'channel.providers.price_component_table.price_unit',
-                                  )}
-                                </Table.HeaderCell>
-                                <Table.HeaderCell>
-                                  {t(
-                                    'channel.providers.price_component_table.currency',
-                                  )}
-                                </Table.HeaderCell>
-                                <Table.HeaderCell>
-                                  {t(
-                                    'channel.providers.price_component_table.source',
-                                  )}
-                                </Table.HeaderCell>
-                                <Table.HeaderCell>
-                                  {t(
-                                    'channel.providers.price_component_table.source_url',
-                                  )}
-                                </Table.HeaderCell>
-                                <Table.HeaderCell>
-                                  {t(
-                                    'channel.providers.price_component_table.actions',
-                                  )}
-                                </Table.HeaderCell>
-                              </Table.Row>
-                            </Table.Header>
-                            <Table.Body>
-                              {(detail.price_components || []).length === 0 ? (
-                                <Table.Row>
-                                  <Table.Cell
-                                    className='router-empty-cell'
-                                    colSpan={9}
-                                    textAlign='center'
-                                  >
-                                    {t(
-                                      'channel.providers.price_component_table.empty',
-                                    )}
-                                  </Table.Cell>
-                                </Table.Row>
-                              ) : (
-                                (detail.price_components || []).map(
-                                  (component, componentIndex) => (
-                                    <Table.Row
-                                      key={`${detail.model || 'model'}-${component.component || 'component'}-${component.condition || 'condition'}-${componentIndex}`}
-                                    >
-                                      <Table.Cell>
-                                        <Form.Select
-                                          className='router-inline-dropdown'
-                                          fluid
-                                          options={PRICE_COMPONENT_OPTIONS}
-                                          value={component.component || 'text'}
-                                          disabled={saving}
-                                          onChange={(e, { value }) =>
-                                            setPriceComponentField(
-                                              setDetailModelsValue,
-                                              detailModelsDraft,
-                                              detailIndex,
-                                              componentIndex,
-                                              'component',
-                                              value || '',
-                                            )
-                                          }
-                                        />
-                                      </Table.Cell>
-                                      <Table.Cell>
-                                        <Form.Input
-                                          className='router-inline-input'
-                                          fluid
-                                          placeholder='quality=hd;size=1024x1024'
-                                          value={component.condition || ''}
-                                          disabled={saving}
-                                          onChange={(e, { value }) =>
-                                            setPriceComponentField(
-                                              setDetailModelsValue,
-                                              detailModelsDraft,
-                                              detailIndex,
-                                              componentIndex,
-                                              'condition',
-                                              value || '',
-                                            )
-                                          }
-                                          action={{
-                                            icon: 'erase',
-                                            type: 'button',
-                                            disabled: saving,
-                                            onClick: () =>
-                                              setPriceComponentField(
-                                                setDetailModelsValue,
-                                                detailModelsDraft,
-                                                detailIndex,
-                                                componentIndex,
-                                                'condition',
-                                                '',
-                                              ),
-                                          }}
-                                        />
-                                        {renderPriceComponentConditionTemplate(
-                                          setDetailModelsValue,
-                                          detailModelsDraft,
-                                          detailIndex,
-                                          componentIndex,
-                                          component,
-                                          saving,
-                                        )}
-                                      </Table.Cell>
-                                      <Table.Cell>
-                                        <Form.Input
-                                          className='router-inline-input'
-                                          fluid
-                                          type='number'
-                                          step='0.000001'
-                                          value={component.input_price ?? ''}
-                                          disabled={saving}
-                                          onChange={(e, { value }) =>
-                                            setPriceComponentField(
-                                              setDetailModelsValue,
-                                              detailModelsDraft,
-                                              detailIndex,
-                                              componentIndex,
-                                              'input_price',
-                                              value ?? '',
-                                            )
-                                          }
-                                        />
-                                      </Table.Cell>
-                                      <Table.Cell>
-                                        <Form.Input
-                                          className='router-inline-input'
-                                          fluid
-                                          type='number'
-                                          step='0.000001'
-                                          value={component.output_price ?? ''}
-                                          disabled={saving}
-                                          onChange={(e, { value }) =>
-                                            setPriceComponentField(
-                                              setDetailModelsValue,
-                                              detailModelsDraft,
-                                              detailIndex,
-                                              componentIndex,
-                                              'output_price',
-                                              value ?? '',
-                                            )
-                                          }
-                                        />
-                                      </Table.Cell>
-                                      <Table.Cell>
-                                        <Form.Select
-                                          className='router-inline-dropdown'
-                                          fluid
-                                          options={PRICE_UNIT_OPTIONS}
-                                          value={
-                                            component.price_unit ??
-                                            defaultPriceUnitByComponent(
-                                              component.component,
-                                            )
-                                          }
-                                          disabled={saving}
-                                          onChange={(e, { value }) =>
-                                            setPriceComponentField(
-                                              setDetailModelsValue,
-                                              detailModelsDraft,
-                                              detailIndex,
-                                              componentIndex,
-                                              'price_unit',
-                                              value || '',
-                                            )
-                                          }
-                                        />
-                                      </Table.Cell>
-                                      <Table.Cell>
-                                        <Form.Input
-                                          className='router-inline-input'
-                                          fluid
-                                          value={component.currency ?? ''}
-                                          disabled={saving}
-                                          onChange={(e, { value }) =>
-                                            setPriceComponentField(
-                                              setDetailModelsValue,
-                                              detailModelsDraft,
-                                              detailIndex,
-                                              componentIndex,
-                                              'currency',
-                                              value ?? '',
-                                            )
-                                          }
-                                        />
-                                      </Table.Cell>
-                                      <Table.Cell>
-                                        <Form.Select
-                                          className='router-inline-dropdown'
-                                          fluid
-                                          options={SOURCE_OPTIONS}
-                                          value={component.source || 'manual'}
-                                          disabled={saving}
-                                          onChange={(e, { value }) =>
-                                            setPriceComponentField(
-                                              setDetailModelsValue,
-                                              detailModelsDraft,
-                                              detailIndex,
-                                              componentIndex,
-                                              'source',
-                                              value || 'manual',
-                                            )
-                                          }
-                                        />
-                                      </Table.Cell>
-                                      <Table.Cell>
-                                        <Form.Input
-                                          className='router-inline-input'
-                                          fluid
-                                          value={component.source_url || ''}
-                                          disabled={saving}
-                                          onChange={(e, { value }) =>
-                                            setPriceComponentField(
-                                              setDetailModelsValue,
-                                              detailModelsDraft,
-                                              detailIndex,
-                                              componentIndex,
-                                              'source_url',
-                                              value || '',
-                                            )
-                                          }
-                                        />
-                                      </Table.Cell>
-                                      <Table.Cell textAlign='center'>
-                                        <Button
-                                          type='button'
-                                          className='router-inline-button'
-                                          disabled={saving}
-                                          onClick={() =>
-                                            removePriceComponentRow(
-                                              setDetailModelsValue,
-                                              detailModelsDraft,
-                                              detailIndex,
-                                              componentIndex,
-                                            )
-                                          }
-                                        >
-                                          {t('common.delete')}
-                                        </Button>
-                                      </Table.Cell>
-                                    </Table.Row>
-                                  ),
-                                )
-                              )}
-                            </Table.Body>
-                          </Table>
-                        </div>
-                      </Table.Cell>
-                    </Table.Row>
-                  </React.Fragment>
-                ) : (
+                return (
                   <Table.Row key={`${detail.model || 'model'}-${detailIndex}`}>
                     <Table.Cell className='router-cell-min-260'>
                       {detail.model || '-'}
@@ -2492,8 +2013,8 @@ const ProvidersManager = () => {
                         className='router-inline-button'
                         disabled={actionsDisabled}
                         onClick={() =>
-                          typeof inlineEditing.onStartEdit === 'function'
-                            ? inlineEditing.onStartEdit(detailIndex)
+                          typeof actions.onStartEdit === 'function'
+                            ? actions.onStartEdit(detailIndex)
                             : null
                         }
                       >
@@ -2504,8 +2025,8 @@ const ProvidersManager = () => {
                         className='router-inline-button'
                         disabled={actionsDisabled}
                         onClick={() =>
-                          typeof inlineEditing.onDelete === 'function'
-                            ? inlineEditing.onDelete(detailIndex)
+                          typeof actions.onDelete === 'function'
+                            ? actions.onDelete(detailIndex)
                             : null
                         }
                       >
@@ -2536,6 +2057,464 @@ const ProvidersManager = () => {
     );
   };
 
+  const renderModelDetailEditorModal = () => {
+    const details = Array.isArray(detailModelsDraft.model_details)
+      ? detailModelsDraft.model_details
+      : [];
+    if (
+      !modelDetailEditorOpen ||
+      detailEditingModelIndex < 0 ||
+      detailEditingModelIndex >= details.length
+    ) {
+      return null;
+    }
+    const detail = details[detailEditingModelIndex];
+    return (
+      <Modal
+        size='large'
+        open={modelDetailEditorOpen}
+        onClose={closeModelDetailEditor}
+        closeOnDimmerClick={!saving}
+        closeOnEscape={!saving}
+      >
+        <Modal.Header>
+          {modelDetailEditorMode === 'create'
+            ? t('channel.providers.model_detail_table.create_title')
+            : t('channel.providers.model_detail_table.edit_title')}
+        </Modal.Header>
+        <Modal.Content scrolling>
+          <Form>
+            <Form.Group widths='equal'>
+              <Form.Input
+                className='router-section-input'
+                label={t('channel.providers.model_detail_table.model')}
+                value={detail.model || ''}
+                onChange={(e, { value }) =>
+                  setModelDetailField(
+                    setDetailModelsValue,
+                    detailModelsDraft,
+                    detailEditingModelIndex,
+                    'model',
+                    value || '',
+                  )
+                }
+              />
+              <Form.Select
+                className='router-section-dropdown'
+                label={t('channel.providers.model_detail_table.type')}
+                options={MODEL_TYPE_OPTIONS}
+                value={detail.type || 'text'}
+                onChange={(e, { value }) =>
+                  setModelDetailField(
+                    setDetailModelsValue,
+                    detailModelsDraft,
+                    detailEditingModelIndex,
+                    'type',
+                    value || 'text',
+                  )
+                }
+              />
+            </Form.Group>
+            <Form.Group widths='equal'>
+              <Form.Input
+                className='router-section-input'
+                label={t('channel.providers.model_detail_table.capabilities')}
+                placeholder='text,image,audio'
+                value={
+                  Array.isArray(detail.capabilities)
+                    ? detail.capabilities.join(', ')
+                    : ''
+                }
+                onChange={(e, { value }) =>
+                  setModelDetailField(
+                    setDetailModelsValue,
+                    detailModelsDraft,
+                    detailEditingModelIndex,
+                    'capabilities',
+                    value || '',
+                  )
+                }
+              />
+              <Form.Select
+                className='router-section-dropdown'
+                label={t('channel.providers.model_detail_table.source')}
+                options={SOURCE_OPTIONS}
+                value={detail.source || 'manual'}
+                onChange={(e, { value }) =>
+                  setModelDetailField(
+                    setDetailModelsValue,
+                    detailModelsDraft,
+                    detailEditingModelIndex,
+                    'source',
+                    value || 'manual',
+                  )
+                }
+              />
+            </Form.Group>
+            <Form.Group widths='equal'>
+              <Form.Input
+                className='router-section-input'
+                type='number'
+                step='0.000001'
+                label={t('channel.providers.model_detail_table.input_price')}
+                value={detail.input_price ?? ''}
+                onChange={(e, { value }) =>
+                  setModelDetailField(
+                    setDetailModelsValue,
+                    detailModelsDraft,
+                    detailEditingModelIndex,
+                    'input_price',
+                    value ?? '',
+                  )
+                }
+              />
+              <Form.Input
+                className='router-section-input'
+                type='number'
+                step='0.000001'
+                label={t('channel.providers.model_detail_table.output_price')}
+                value={detail.output_price ?? ''}
+                onChange={(e, { value }) =>
+                  setModelDetailField(
+                    setDetailModelsValue,
+                    detailModelsDraft,
+                    detailEditingModelIndex,
+                    'output_price',
+                    value ?? '',
+                  )
+                }
+              />
+            </Form.Group>
+            <Form.Group widths='equal'>
+              <Form.Input
+                className='router-section-input'
+                label={t('channel.providers.model_detail_table.price_unit')}
+                value={detail.price_unit ?? ''}
+                onChange={(e, { value }) =>
+                  setModelDetailField(
+                    setDetailModelsValue,
+                    detailModelsDraft,
+                    detailEditingModelIndex,
+                    'price_unit',
+                    value || '',
+                  )
+                }
+              />
+              <Form.Input
+                className='router-section-input'
+                label={t('channel.providers.model_detail_table.currency')}
+                value={detail.currency ?? ''}
+                onChange={(e, { value }) =>
+                  setModelDetailField(
+                    setDetailModelsValue,
+                    detailModelsDraft,
+                    detailEditingModelIndex,
+                    'currency',
+                    value ?? '',
+                  )
+                }
+              />
+            </Form.Group>
+          </Form>
+          <div className='router-block-top-md'>
+            <div className='router-toolbar router-toolbar-compact'>
+              <div className='router-toolbar-title'>
+                {t('channel.providers.model_detail_table.price_components')}
+              </div>
+              <div className='router-toolbar-end'>
+                <Button
+                  type='button'
+                  className='router-inline-button'
+                  disabled={saving}
+                  onClick={() =>
+                    addPriceComponentRow(
+                      setDetailModelsValue,
+                      detailModelsDraft,
+                      detailEditingModelIndex,
+                    )
+                  }
+                >
+                  {t(
+                    'channel.providers.model_detail_table.add_price_component',
+                  )}
+                </Button>
+              </div>
+            </div>
+            <Table compact celled className='router-detail-subtable'>
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell>
+                    {t('channel.providers.price_component_table.component')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    {t('channel.providers.price_component_table.condition')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    {t('channel.providers.price_component_table.input_price')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    {t('channel.providers.price_component_table.output_price')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    {t('channel.providers.price_component_table.price_unit')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    {t('channel.providers.price_component_table.currency')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    {t('channel.providers.price_component_table.source')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    {t('channel.providers.price_component_table.source_url')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>
+                    {t('channel.providers.price_component_table.actions')}
+                  </Table.HeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {(detail.price_components || []).length === 0 ? (
+                  <Table.Row>
+                    <Table.Cell
+                      className='router-empty-cell'
+                      colSpan={9}
+                      textAlign='center'
+                    >
+                      {t('channel.providers.price_component_table.empty')}
+                    </Table.Cell>
+                  </Table.Row>
+                ) : (
+                  (detail.price_components || []).map(
+                    (component, componentIndex) => (
+                      <Table.Row
+                        key={`${detail.model || 'model'}-${component.component || 'component'}-${component.condition || 'condition'}-${componentIndex}`}
+                      >
+                        <Table.Cell>
+                          <Form.Select
+                            className='router-inline-dropdown'
+                            fluid
+                            options={PRICE_COMPONENT_OPTIONS}
+                            value={component.component || 'text'}
+                            disabled={saving}
+                            onChange={(e, { value }) =>
+                              setPriceComponentField(
+                                setDetailModelsValue,
+                                detailModelsDraft,
+                                detailEditingModelIndex,
+                                componentIndex,
+                                'component',
+                                value || '',
+                              )
+                            }
+                          />
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Form.Input
+                            className='router-inline-input'
+                            fluid
+                            placeholder='quality=hd;size=1024x1024'
+                            value={component.condition || ''}
+                            disabled={saving}
+                            onChange={(e, { value }) =>
+                              setPriceComponentField(
+                                setDetailModelsValue,
+                                detailModelsDraft,
+                                detailEditingModelIndex,
+                                componentIndex,
+                                'condition',
+                                value || '',
+                              )
+                            }
+                            action={{
+                              icon: 'erase',
+                              type: 'button',
+                              disabled: saving,
+                              onClick: () =>
+                                setPriceComponentField(
+                                  setDetailModelsValue,
+                                  detailModelsDraft,
+                                  detailEditingModelIndex,
+                                  componentIndex,
+                                  'condition',
+                                  '',
+                                ),
+                            }}
+                          />
+                          {renderPriceComponentConditionTemplate(
+                            setDetailModelsValue,
+                            detailModelsDraft,
+                            detailEditingModelIndex,
+                            componentIndex,
+                            component,
+                            saving,
+                          )}
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Form.Input
+                            className='router-inline-input'
+                            fluid
+                            type='number'
+                            step='0.000001'
+                            value={component.input_price ?? ''}
+                            disabled={saving}
+                            onChange={(e, { value }) =>
+                              setPriceComponentField(
+                                setDetailModelsValue,
+                                detailModelsDraft,
+                                detailEditingModelIndex,
+                                componentIndex,
+                                'input_price',
+                                value ?? '',
+                              )
+                            }
+                          />
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Form.Input
+                            className='router-inline-input'
+                            fluid
+                            type='number'
+                            step='0.000001'
+                            value={component.output_price ?? ''}
+                            disabled={saving}
+                            onChange={(e, { value }) =>
+                              setPriceComponentField(
+                                setDetailModelsValue,
+                                detailModelsDraft,
+                                detailEditingModelIndex,
+                                componentIndex,
+                                'output_price',
+                                value ?? '',
+                              )
+                            }
+                          />
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Form.Select
+                            className='router-inline-dropdown'
+                            fluid
+                            options={PRICE_UNIT_OPTIONS}
+                            value={
+                              component.price_unit ??
+                              defaultPriceUnitByComponent(component.component)
+                            }
+                            disabled={saving}
+                            onChange={(e, { value }) =>
+                              setPriceComponentField(
+                                setDetailModelsValue,
+                                detailModelsDraft,
+                                detailEditingModelIndex,
+                                componentIndex,
+                                'price_unit',
+                                value || '',
+                              )
+                            }
+                          />
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Form.Input
+                            className='router-inline-input'
+                            fluid
+                            value={component.currency ?? ''}
+                            disabled={saving}
+                            onChange={(e, { value }) =>
+                              setPriceComponentField(
+                                setDetailModelsValue,
+                                detailModelsDraft,
+                                detailEditingModelIndex,
+                                componentIndex,
+                                'currency',
+                                value ?? '',
+                              )
+                            }
+                          />
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Form.Select
+                            className='router-inline-dropdown'
+                            fluid
+                            options={SOURCE_OPTIONS}
+                            value={component.source || 'manual'}
+                            disabled={saving}
+                            onChange={(e, { value }) =>
+                              setPriceComponentField(
+                                setDetailModelsValue,
+                                detailModelsDraft,
+                                detailEditingModelIndex,
+                                componentIndex,
+                                'source',
+                                value || 'manual',
+                              )
+                            }
+                          />
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Form.Input
+                            className='router-inline-input'
+                            fluid
+                            value={component.source_url || ''}
+                            disabled={saving}
+                            onChange={(e, { value }) =>
+                              setPriceComponentField(
+                                setDetailModelsValue,
+                                detailModelsDraft,
+                                detailEditingModelIndex,
+                                componentIndex,
+                                'source_url',
+                                value || '',
+                              )
+                            }
+                          />
+                        </Table.Cell>
+                        <Table.Cell textAlign='center'>
+                          <Button
+                            type='button'
+                            className='router-inline-button'
+                            disabled={saving}
+                            onClick={() =>
+                              removePriceComponentRow(
+                                setDetailModelsValue,
+                                detailModelsDraft,
+                                detailEditingModelIndex,
+                                componentIndex,
+                              )
+                            }
+                          >
+                            {t('common.delete')}
+                          </Button>
+                        </Table.Cell>
+                      </Table.Row>
+                    ),
+                  )
+                )}
+              </Table.Body>
+            </Table>
+          </div>
+        </Modal.Content>
+        <Modal.Actions>
+          <Button
+            type='button'
+            className='router-page-button'
+            onClick={closeModelDetailEditor}
+            disabled={saving}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type='button'
+            className='router-page-button'
+            color='blue'
+            loading={saving}
+            disabled={saving}
+            onClick={saveDetailModelEdit}
+          >
+            {t('common.confirm')}
+          </Button>
+        </Modal.Actions>
+      </Modal>
+    );
+  };
+
   const renderRows = () => (
     <div>
       <div className='router-toolbar router-block-gap-sm'>
@@ -2551,8 +2530,8 @@ const ProvidersManager = () => {
           <Button
             type='button'
             className='router-page-button'
-            disabled={saving || loading}
-            loading={loading}
+            disabled={saving || refreshing}
+            loading={refreshing}
             onClick={reloadCurrentPage}
           >
             {t('channel.providers.buttons.refresh')}
@@ -2751,7 +2730,7 @@ const ProvidersManager = () => {
                   <Button
                     type='button'
                     className='router-page-button'
-                    disabled={saving}
+                    disabled={saving || modelsEditing}
                     onClick={() => startDetailSectionEdit('basic')}
                   >
                     {t('common.edit')}
@@ -2871,7 +2850,7 @@ const ProvidersManager = () => {
                 <Button
                   type='button'
                   className='router-page-button'
-                  disabled={saving || modelsEditing}
+                  disabled={saving || basicEditing || modelsEditing}
                   onClick={startDetailModelCreate}
                 >
                   {t('channel.providers.model_detail_table.add')}
@@ -2886,13 +2865,11 @@ const ProvidersManager = () => {
               currentPage: viewModelPage,
               pageSize: PROVIDER_DETAIL_MODEL_PAGE_SIZE,
               onPageChange: setViewModelPage,
-              inlineEditing: {
-                enabled: modelsEditing && detailEditingModelIndex >= 0,
-                row: detailModelsDraft,
-                index: detailEditingModelIndex,
+              actions: {
                 onStartEdit: startDetailModelEdit,
                 onDelete: deleteDetailModel,
               },
+              actionsDisabled: basicEditing || modelsEditing,
             })}
           </section>
         </div>
@@ -3134,6 +3111,7 @@ const ProvidersManager = () => {
   return (
     <div>
       {renderDeleteModal()}
+      {renderModelDetailEditorModal()}
       {renderPricingDetailModal()}
       {creating
         ? renderCreatePanel()
