@@ -3,7 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Button, Form, Card } from 'semantic-ui-react';
 import { useNavigate } from 'react-router-dom';
 import { API, downloadTextAsFile, showError, showSuccess } from '../../helpers';
+import {
+  buildBillingCurrencyIndex,
+  buildFaceValueUnitOptions,
+} from '../../helpers/billing';
 import { formatYYCValue } from '../../helpers/render';
+import UnitDropdown from '../../components/UnitDropdown';
 
 const YYC_UNIT = 'YYC';
 
@@ -21,48 +26,6 @@ const toGroupOptions = (rows) =>
     value: item.id,
     text: item.name || item.id,
   }));
-
-const toFaceValueUnitOptions = (rows) => {
-  const options = [
-    {
-      key: YYC_UNIT,
-      value: YYC_UNIT,
-      text: YYC_UNIT,
-    },
-  ];
-  (Array.isArray(rows) ? rows : [])
-    .filter((item) => Number(item?.status || 0) === 1)
-    .forEach((item) => {
-      const code = (item?.code || '').toString().trim().toUpperCase();
-      if (!code || code === YYC_UNIT) {
-        return;
-      }
-      options.push({
-        key: code,
-        value: code,
-        text: `${code}${item?.name ? ` (${item.name})` : ''}`,
-      });
-    });
-  return options;
-};
-
-const buildCurrencyIndex = (rows) => {
-  const next = {
-    [YYC_UNIT]: {
-      code: YYC_UNIT,
-      yyc_per_unit: 1,
-      minor_unit: 0,
-    },
-  };
-  (Array.isArray(rows) ? rows : []).forEach((item) => {
-    const code = (item?.code || '').toString().trim().toUpperCase();
-    if (!code) {
-      return;
-    }
-    next[code] = item;
-  });
-  return next;
-};
 
 const computeYYCPreview = (amountValue, unitValue, currencyIndex) => {
   const amount = Number.parseFloat(`${amountValue ?? ''}`);
@@ -86,14 +49,8 @@ const EditRedemption = () => {
   const navigate = useNavigate();
   const [inputs, setInputs] = useState(originInputs);
   const [groupOptions, setGroupOptions] = useState([]);
-  const [unitOptions, setUnitOptions] = useState([
-    {
-      key: YYC_UNIT,
-      value: YYC_UNIT,
-      text: YYC_UNIT,
-    },
-  ]);
-  const [currencyIndex, setCurrencyIndex] = useState(buildCurrencyIndex([]));
+  const [unitOptions, setUnitOptions] = useState(buildFaceValueUnitOptions([]));
+  const [currencyIndex, setCurrencyIndex] = useState(buildBillingCurrencyIndex([]));
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -132,8 +89,8 @@ const EditRedemption = () => {
           ? currenciesPayload.data
           : [];
         setGroupOptions(toGroupOptions(nextGroups));
-        setUnitOptions(toFaceValueUnitOptions(nextCurrencies));
-        setCurrencyIndex(buildCurrencyIndex(nextCurrencies));
+        setUnitOptions(buildFaceValueUnitOptions(nextCurrencies));
+        setCurrencyIndex(buildBillingCurrencyIndex(nextCurrencies));
       } catch (error) {
         showError(error?.message || error);
       } finally {
@@ -269,16 +226,18 @@ const EditRedemption = () => {
                 step={face_value_unit === YYC_UNIT ? '1' : '0.01'}
                 min='0'
               />
-              <Form.Select
-                className='router-section-input'
-                label={t('redemption.edit.face_value_unit')}
-                name='face_value_unit'
-                placeholder={t('redemption.edit.face_value_unit_placeholder')}
-                options={unitOptions}
-                value={face_value_unit}
-                onChange={handleInputChange}
-                selection
-              />
+              <Form.Field className='router-section-input'>
+                <label>{t('redemption.edit.face_value_unit')}</label>
+                <UnitDropdown
+                  variant='section'
+                  fluid
+                  name='face_value_unit'
+                  placeholder={t('redemption.edit.face_value_unit_placeholder')}
+                  options={unitOptions}
+                  value={face_value_unit}
+                  onChange={handleInputChange}
+                />
+              </Form.Field>
             </Form.Group>
             <Form.Field>
               <Form.Input

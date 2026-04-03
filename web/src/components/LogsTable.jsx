@@ -17,10 +17,23 @@ import {
   timestamp2string,
 } from '../helpers';
 import { useTranslation } from 'react-i18next';
+import UnitDropdown from './UnitDropdown';
 
 import { ITEMS_PER_PAGE } from '../constants';
-import { renderColorLabel, renderQuota } from '../helpers/render';
+import {
+  renderColorLabel,
+  isYYCDisplayedInCurrency,
+  YYC_SYMBOL,
+} from '../helpers/render';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  buildPublicDisplayCurrencyIndex,
+  buildDisplayUnitOptions,
+  formatDisplayAmountFromYYC,
+  loadPublicDisplayCurrencyCatalog,
+  resolvePreferredDisplayCurrency,
+  YYC_DISPLAY_CODE,
+} from '../helpers/billing';
 
 function renderTimestamp(timestamp, trace_id) {
   return (
@@ -132,9 +145,10 @@ function getLogChannelLabel(log) {
 function normalizeLogEntry(log) {
   return {
     ...(log || {}),
-    quota: Number(log?.yyc_amount ?? log?.quota ?? 0),
-    user_daily_quota: Number(log?.yyc_user_daily ?? log?.user_daily_quota ?? 0),
-    user_emergency_quota: Number(log?.yyc_user_emergency ?? log?.user_emergency_quota ?? 0),
+    // Prefer YYC-native settlement fields, fall back to legacy quota-based logs.
+    yycAmount: Number(log?.yyc_amount ?? log?.quota ?? 0),
+    userDailyYYC: Number(log?.yyc_user_daily ?? log?.user_daily_quota ?? 0),
+    userEmergencyYYC: Number(log?.yyc_user_emergency ?? log?.user_emergency_quota ?? 0),
   };
 }
 
@@ -267,6 +281,10 @@ const LogsTable = () => {
     start_timestamp: '',
     end_timestamp: '',
   });
+  const [displayUnit, setDisplayUnit] = useState('USD');
+  const [currencyIndex, setCurrencyIndex] = useState(() =>
+    buildPublicDisplayCurrencyIndex([])
+  );
 
   const LOG_OPTIONS = [
     { key: '0', text: t('log.type.all'), value: 0 },
@@ -377,6 +395,11 @@ const LogsTable = () => {
         (item) => !activeFilterKeys.includes(item.value)
       ),
     [activeFilterKeys, conditionalFilterOptions]
+  );
+
+  const displayUnitOptions = useMemo(
+    () => buildDisplayUnitOptions(currencyIndex),
+    [currencyIndex]
   );
 
   const openFilterDraft = useCallback(
@@ -505,7 +528,37 @@ const LogsTable = () => {
     });
   }, [isAdminScope, t]);
 
-  const showUserTokenQuota = () => {
+  const loadDisplayUnits = useCallback(async () => {
+    try {
+      if (!isAdminScope) {
+        const { currencyIndex: nextIndex } = await loadPublicDisplayCurrencyCatalog();
+        const preferredUnit = isYYCDisplayedInCurrency() ? 'USD' : YYC_DISPLAY_CODE;
+        setCurrencyIndex(nextIndex);
+        setDisplayUnit((current) =>
+          resolvePreferredDisplayCurrency(
+            nextIndex,
+            preferredUnit || current || YYC_DISPLAY_CODE
+          )
+        );
+        return;
+      }
+      const res = await API.get('/api/v1/admin/billing/currencies');
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('log.messages.load_failed'));
+        return;
+      }
+      const next = buildPublicDisplayCurrencyIndex(Array.isArray(data) ? data : []);
+      setCurrencyIndex(next);
+      setDisplayUnit((current) => {
+        return resolvePreferredDisplayCurrency(next, current || 'USD');
+      });
+    } catch (error) {
+      showError(error?.message || error);
+    }
+  }, [isAdminScope, t]);
+
+  const showAmountColumns = () => {
     const effectiveLogType = activeFilterKeys.includes('log_type') ? logType : 0;
     return effectiveLogType !== 5;
   };
@@ -593,6 +646,10 @@ const LogsTable = () => {
   }, [loadFilterOptions]);
 
   useEffect(() => {
+    loadDisplayUnits().then();
+  }, [loadDisplayUnits]);
+
+  useEffect(() => {
     setActivePage(1);
   }, [searchKeyword, activeFilterKeys, username, token_name, model_name, channel, group_id, start_timestamp, end_timestamp]);
 
@@ -675,10 +732,10 @@ const LogsTable = () => {
 
   const detailBasePath = isAdminScope ? '/admin/log' : '/workspace/log';
   const tableColSpan = isAdminScope
-    ? showUserTokenQuota()
+    ? showAmountColumns()
       ? 10
       : 5
-    : showUserTokenQuota()
+    : showAmountColumns()
       ? 7
       : 3;
 
@@ -909,7 +966,7 @@ const LogsTable = () => {
             >
               {t('log.table.model')}
             </Table.HeaderCell>
-            {showUserTokenQuota() && (
+            {showAmountColumns() && (
               <>
                 {isAdminScope && (
                   <Table.HeaderCell
@@ -950,13 +1007,41 @@ const LogsTable = () => {
                   {t('log.table.completion_tokens')}
                 </Table.HeaderCell>
                 <Table.HeaderCell
-                  className='router-sortable-header'
-                  onClick={() => {
-                    sortLog('quota');
-                  }}
+                  className={isAdminScope ? 'router-redemption-face-value-header' : 'router-sortable-header'}
                   width={1}
                 >
-                  {t('log.table.quota')}
+                  {isAdminScope ? (
+                    <div className='router-table-header-with-control'>
+                          <span
+                        className='router-sortable-header'
+                        onClick={() => {
+                          sortLog('yycAmount');
+                        }}
+                      >
+                        {t('log.table.quota')}
+                      </span>
+                      <UnitDropdown
+                        variant='header'
+                        compact
+                        options={displayUnitOptions}
+                        value={displayUnit}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onChange={(_, { value }) => {
+                          setDisplayUnit((value || '').toString());
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <span
+                      onClick={() => {
+                        sortLog('yycAmount');
+                      }}
+                    >
+                      {t('log.table.quota')}
+                    </span>
+                  )}
                 </Table.HeaderCell>
               </>
             )}
@@ -1026,7 +1111,7 @@ const LogsTable = () => {
                   <Table.Cell>
                     {log.model_name ? renderColorLabel(log.model_name) : ''}
                   </Table.Cell>
-                  {showUserTokenQuota() && (
+                  {showAmountColumns() && (
                     <>
                       {isAdminScope && (
                         <Table.Cell>
@@ -1056,7 +1141,14 @@ const LogsTable = () => {
                         {log.completion_tokens ? log.completion_tokens : ''}
                       </Table.Cell>
                       <Table.Cell>
-                        {log.quota ? renderQuota(log.quota, t, 6) : ''}
+                        {isAdminScope
+                          ? formatDisplayAmountFromYYC(log.yycAmount, displayUnit, currencyIndex)
+                          : log.yycAmount
+                            ? formatDisplayAmountFromYYC(log.yycAmount, displayUnit, currencyIndex, {
+                                includeSymbol: true,
+                                yycMode: 'compact',
+                              })
+                            : ''}
                       </Table.Cell>
                     </>
                   )}

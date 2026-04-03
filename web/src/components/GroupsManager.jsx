@@ -222,11 +222,10 @@ const GroupsManager = ({ detailGroupId = '' }) => {
   );
   const detailBasicEditing = detailEditingSection === 'basic';
   const detailChannelsEditing = detailEditingSection === 'channels';
-  const detailModelsEditing = detailEditingSection === 'models';
   const detailSectionLocked = detailEditingSection !== '';
   const detailBasicEditLocked = detailSectionLocked && !detailBasicEditing;
   const detailChannelsEditLocked = detailSectionLocked && !detailChannelsEditing;
-  const detailModelsEditLocked = detailSectionLocked && !detailModelsEditing;
+  const detailModelsEditLocked = detailSectionLocked;
 
   const fetchAllGroups = useCallback(async () => {
     const items = [];
@@ -422,6 +421,20 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     }
   }, [fetchGroupModelConfigPayload]);
 
+  const applySavedDetailModelState = useCallback((items, channels, selectedChannelIDs) => {
+    const nextItems = sortGroupModelConfigRows(Array.isArray(items) ? items : []);
+    const nextChannels = Array.isArray(channels) ? channels : [];
+    const normalizedSelectedChannelIDs = Array.isArray(selectedChannelIDs)
+      ? selectedChannelIDs
+      : toBoundChannelIDs(nextChannels);
+    setDetailModelRows(nextItems);
+    setDetailChannelRows(toBoundChannelRows(nextChannels));
+    setFormModelChannels(nextChannels);
+    setFormChannelOptions(toChannelOptions(nextChannels));
+    setFormChannelIDs(normalizedSelectedChannelIDs);
+    setFormModelConfigs(nextItems);
+  }, []);
+
   const loadGroupDetail = useCallback(
     async (groupID) => {
       const normalizedGroupID = (groupID || '').toString().trim();
@@ -529,11 +542,13 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     [currentPagePath, navigate]
   );
 
-  const buildNormalizedModelConfigs = useCallback(() => {
-    const selectedChannelIDSet = new Set(formChannelIDs);
+  const normalizeModelConfigsPayload = useCallback((items, selectedChannelIDs) => {
+    const selectedChannelIDSet = new Set(
+      Array.isArray(selectedChannelIDs) ? selectedChannelIDs : []
+    );
     const normalizedModelConfigs = [];
     const seenModelConfigKeys = new Set();
-    for (const item of Array.isArray(formModelConfigs) ? formModelConfigs : []) {
+    for (const item of Array.isArray(items) ? items : []) {
       const model = (item?.model || '').trim();
       const channelID = (item?.channel_id || '').trim();
       const upstreamModel = (item?.upstream_model || '').trim();
@@ -566,7 +581,11 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       normalizedModelConfigs.push(normalizedItem);
     }
     return normalizedModelConfigs;
-  }, [formChannelIDs, formModelConfigs, t]);
+  }, [t]);
+
+  const buildNormalizedModelConfigs = useCallback(() => {
+    return normalizeModelConfigsPayload(formModelConfigs, formChannelIDs);
+  }, [formChannelIDs, formModelConfigs, normalizeModelConfigsPayload]);
 
   const submitCreate = async () => {
     const name = (form.name || '').trim();
@@ -696,32 +715,68 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     setDetailEditingSection('channels');
   }, [activeGroup, detailChannelsEditLocked, loadEditModelConfigs, submitting]);
 
-  const ensureDetailModelsEditable = useCallback(async () => {
+  const loadDetailModelEditorState = useCallback(async () => {
     if (!activeGroup || submitting || detailModelsEditLocked) {
       return null;
     }
-    if (detailModelsEditing) {
-      return {
-        channels: formModelChannels,
-        items: Array.isArray(formModelConfigs) ? formModelConfigs : [],
-      };
-    }
-    setForm(buildFormFromRow(activeGroup));
     const payload = await loadEditModelConfigs(activeGroup.id || '');
     if (!payload) {
       return null;
     }
-    setDetailEditingSection('models');
-    return payload;
+    return {
+      channels: Array.isArray(payload?.channels) ? payload.channels : [],
+      items: Array.isArray(payload?.items) ? payload.items : [],
+      selectedChannelIDs: toBoundChannelIDs(payload?.channels),
+    };
   }, [
     activeGroup,
-    detailModelsEditing,
     detailModelsEditLocked,
-    formModelChannels,
-    formModelConfigs,
     loadEditModelConfigs,
     submitting,
   ]);
+
+  const refreshGroupDetailState = useCallback(async (groupID) => {
+    const normalizedGroupID = (groupID || '').toString().trim();
+    if (normalizedGroupID === '') {
+      return;
+    }
+    await loadCatalog();
+    await loadGroupDetail(normalizedGroupID);
+  }, [loadCatalog, loadGroupDetail]);
+
+  const saveDetailModelConfigs = useCallback(async (items, selectedChannelIDs, channels = []) => {
+    const id = (activeGroup?.id || '').toString().trim();
+    if (id === '') {
+      return false;
+    }
+    const normalizedModelConfigs = normalizeModelConfigsPayload(items, selectedChannelIDs);
+    if (normalizedModelConfigs === null) {
+      return false;
+    }
+    setSubmitting(true);
+    try {
+      const res = await API.put(
+        `/api/v1/admin/group/${encodeURIComponent(id)}/model-configs`,
+        {
+          channel_ids: selectedChannelIDs,
+          model_configs: normalizedModelConfigs,
+        }
+      );
+      const { success, message } = res.data || {};
+      if (!success) {
+        showError(message || t('group_manage.messages.update_failed'));
+        return false;
+      }
+      applySavedDetailModelState(items, channels, selectedChannelIDs);
+      showSuccess(t('group_manage.messages.update_success'));
+      return true;
+    } catch (error) {
+      showError(error);
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  }, [activeGroup, applySavedDetailModelState, normalizeModelConfigsPayload, t]);
 
   const closeDetailModelModal = useCallback(() => {
     if (submitting) {
@@ -740,15 +795,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     closeDetailModelModal();
     resetFormState();
   }, [closeDetailModelModal, submitting]);
-
-  const refreshGroupDetailState = useCallback(async (groupID) => {
-    const normalizedGroupID = (groupID || '').toString().trim();
-    if (normalizedGroupID === '') {
-      return;
-    }
-    await loadCatalog();
-    await loadGroupDetail(normalizedGroupID);
-  }, [loadCatalog, loadGroupDetail]);
 
   const submitDetailBasic = useCallback(async () => {
     const id = (activeGroup?.id || '').toString().trim();
@@ -809,38 +855,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       setSubmitting(false);
     }
   }, [activeGroup, formChannelIDs, refreshGroupDetailState, t]);
-
-  const submitDetailModels = useCallback(async () => {
-    const id = (activeGroup?.id || '').toString().trim();
-    if (id === '') {
-      return;
-    }
-    const normalizedModelConfigs = buildNormalizedModelConfigs();
-    if (normalizedModelConfigs === null) {
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await API.put(
-        `/api/v1/admin/group/${encodeURIComponent(id)}/model-configs`,
-        {
-          channel_ids: formChannelIDs,
-          model_configs: normalizedModelConfigs,
-        }
-      );
-      const { success, message } = res.data || {};
-      if (!success) {
-        showError(message || t('group_manage.messages.update_failed'));
-        return;
-      }
-      showSuccess(t('group_manage.messages.update_success'));
-      await refreshGroupDetailState(id);
-    } catch (error) {
-      showError(error);
-    } finally {
-      setSubmitting(false);
-    }
-  }, [activeGroup, buildNormalizedModelConfigs, formChannelIDs, refreshGroupDetailState, t]);
 
   const openDeleteModal = (row) => {
     if (!row || submitting) return;
@@ -1070,28 +1084,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
               value={detailModelSearchKeyword}
               onChange={(e, { value }) => setDetailModelSearchKeyword(value || '')}
             />
-            {detailModelsEditing ? (
-              <>
-                <Button
-                  type='button'
-                  className='router-page-button'
-                  disabled={submitting}
-                  onClick={cancelDetailSectionEdit}
-                >
-                  {t('group_manage.buttons.cancel')}
-                </Button>
-                <Button
-                  type='button'
-                  className='router-page-button'
-                  color='blue'
-                  loading={submitting}
-                  disabled={submitting}
-                  onClick={submitDetailModels}
-                >
-                  {t('group_manage.buttons.confirm')}
-                </Button>
-              </>
-            ) : null}
           </div>
         </div>
         <Table compact celled className='router-detail-table'>
@@ -1149,10 +1141,11 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                       toggle
                       checked={entry.allEnabled}
                       indeterminate={entry.partiallyEnabled}
-                      disabled={!detailModelsEditing || submitting}
-                      onChange={(event, { checked }) =>
-                        toggleDetailModelEnabled(entry.model, !!checked)
-                      }
+                      disabled={submitting || detailModelsEditLocked}
+                      onChange={(event, { checked }) => {
+                        event.stopPropagation();
+                        toggleDetailModelEnabled(entry.model, !!checked);
+                      }}
                     />
                   </Table.Cell>
                   <Table.Cell collapsing>
@@ -1255,26 +1248,12 @@ const GroupsManager = ({ detailGroupId = '' }) => {
   };
 
   const detailModelSourceRows = useMemo(() => {
-    if (detailModelsEditing) {
-      return (Array.isArray(formModelConfigs) ? formModelConfigs : []).map((item) => {
-        const channel = formModelChannelLookup[item?.channel_id || ''];
-        return {
-          ...item,
-          enabled: item?.enabled !== false,
-          priority:
-            item?.priority ?? channel?.priority ?? 0,
-          channel_name: item?.channel_name || channel?.name || item?.channel_id || '',
-          channel_protocol: item?.channel_protocol || channel?.protocol || '',
-          channel_status: Number(item?.channel_status ?? channel?.status ?? 0),
-        };
-      });
-    }
     return (Array.isArray(detailModelRows) ? detailModelRows : []).map((item) => ({
       ...item,
       enabled: item?.enabled !== false,
       priority: item?.priority ?? 0,
     }));
-  }, [detailModelRows, detailModelsEditing, formModelChannelLookup, formModelConfigs]);
+  }, [detailModelRows]);
 
   const detailModelEntries = useMemo(() => {
     const grouped = new Map();
@@ -1336,7 +1315,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
   }, [detailModelSearchKeyword, detailModelSourceRows]);
 
   const openDetailModelEdit = useCallback(async (entry) => {
-    const editorState = await ensureDetailModelsEditable();
+    const editorState = await loadDetailModelEditorState();
     if (!editorState) {
       return;
     }
@@ -1344,9 +1323,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     if (targetModel === '') {
       return;
     }
-    const selectedChannelIDSet = new Set(
-      Array.isArray(formChannelIDs) ? formChannelIDs : []
-    );
+    const selectedChannelIDSet = new Set(editorState.selectedChannelIDs);
     const sourceItems = Array.isArray(editorState?.items) ? editorState.items : [];
     const existingRows = sourceItems.filter(
       (item) => (item?.model || '').toString().trim() === targetModel
@@ -1408,7 +1385,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     setDetailModelEditTarget(targetModel);
     setDetailModelChannelDrafts(drafts);
     setDetailModelModalOpen(true);
-  }, [ensureDetailModelsEditable, formChannelIDs, t]);
+  }, [loadDetailModelEditorState, t]);
 
   const updateDetailModelChannelDraft = useCallback((channelID, updater) => {
     setDetailModelChannelDrafts((prev) =>
@@ -1422,7 +1399,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
   }, []);
 
   const toggleDetailModelEnabled = useCallback(async (modelName, nextEnabled) => {
-    const editorState = await ensureDetailModelsEditable();
+    const editorState = await loadDetailModelEditorState();
     if (!editorState) {
       return;
     }
@@ -1430,18 +1407,21 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     if (normalizedModel === '') {
       return;
     }
-    setFormModelConfigs((prev) =>
-      sortGroupModelConfigRows(
-        (Array.isArray(prev) ? prev : []).map((item) =>
-          (item?.model || '').toString().trim() === normalizedModel
-            ? { ...item, enabled: !!nextEnabled }
-            : item
-        )
+    const nextItems = sortGroupModelConfigRows(
+      (Array.isArray(editorState.items) ? editorState.items : []).map((item) =>
+        (item?.model || '').toString().trim() === normalizedModel
+          ? { ...item, enabled: !!nextEnabled }
+          : item
       )
     );
-  }, [ensureDetailModelsEditable]);
+    await saveDetailModelConfigs(
+      nextItems,
+      editorState.selectedChannelIDs,
+      editorState.channels,
+    );
+  }, [loadDetailModelEditorState, saveDetailModelConfigs]);
 
-  const submitDetailModelDraft = useCallback(() => {
+  const submitDetailModelDraft = useCallback(async () => {
     const model = detailModelEditTarget.trim();
     if (model === '') {
       showInfo(t('group_manage.messages.model_config_incomplete'));
@@ -1454,24 +1434,41 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       showInfo(t('group_manage.messages.model_channel_required'));
       return;
     }
-    setFormModelConfigs((prev) => {
-      const baseRows = (Array.isArray(prev) ? prev : []).filter(
-        (item) => (item?.model || '').toString().trim() !== model
-      );
-      const nextRows = selectedDrafts.map((item) => ({
-        model,
-        channel_id: item.channel_id,
-        upstream_model: item.upstream_model,
-        enabled: item.enabled !== false,
-        priority: toSafePriorityNumber(item.priority, 0),
-        channel_name: item.channel_name,
-        channel_protocol: item.channel_protocol,
-        channel_status: item.channel_status,
-      }));
-      return sortGroupModelConfigRows([...baseRows, ...nextRows]);
-    });
-    closeDetailModelModal();
-  }, [closeDetailModelModal, detailModelChannelDrafts, detailModelEditTarget, t]);
+    const selectedChannelIDs =
+      Array.isArray(formChannelIDs) && formChannelIDs.length > 0
+        ? formChannelIDs
+        : toBoundChannelIDs(formModelChannels);
+    const baseRows = (Array.isArray(formModelConfigs) ? formModelConfigs : []).filter(
+      (item) => (item?.model || '').toString().trim() !== model
+    );
+    const nextRows = selectedDrafts.map((item) => ({
+      model,
+      channel_id: item.channel_id,
+      upstream_model: item.upstream_model,
+      enabled: item.enabled !== false,
+      priority: toSafePriorityNumber(item.priority, 0),
+      channel_name: item.channel_name,
+      channel_protocol: item.channel_protocol,
+      channel_status: item.channel_status,
+    }));
+    const saved = await saveDetailModelConfigs(
+      sortGroupModelConfigRows([...baseRows, ...nextRows]),
+      selectedChannelIDs,
+      formModelChannels,
+    );
+    if (saved) {
+      closeDetailModelModal();
+    }
+  }, [
+    closeDetailModelModal,
+    detailModelChannelDrafts,
+    detailModelEditTarget,
+    formChannelIDs,
+    formModelChannels,
+    formModelConfigs,
+    saveDetailModelConfigs,
+    t,
+  ]);
 
   const renderEditModelConfigTable = () => (
     <div className='router-block-top-md'>

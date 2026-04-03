@@ -66,7 +66,7 @@ func runFXAutoSyncOnce() {
 	runAt := helper.GetTimestamp()
 	_ = model.UpdateOption("FXAutoSyncLastRunAt", strconv.FormatInt(runAt, 10))
 
-	result, err := SyncBillingCurrenciesFromFX(context.Background())
+	result, err := SyncFXMarketRates(context.Background())
 	if err != nil {
 		message := strings.TrimSpace(err.Error())
 		if len(message) > 1024 {

@@ -194,6 +194,10 @@ func GetRedemptionById(id string) (*Redemption, error) {
 	return mustRedemptionRepo().GetRedemptionById(id)
 }
 
+func ListRedemptionsByRedeemedUserID(userID string, limit int) ([]*Redemption, error) {
+	return mustRedemptionRepo().ListRedemptionsByRedeemedUserID(userID, limit)
+}
+
 func Redeem(ctx context.Context, code string, userId string) (RedemptionResult, error) {
 	return mustRedemptionRepo().Redeem(ctx, code, userId)
 }

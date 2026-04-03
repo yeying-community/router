@@ -4,8 +4,8 @@ import {
   Card,
   Dropdown,
   Form,
+  Header,
   Label,
-  Menu,
   Pagination,
   Popup,
   Table,
@@ -15,6 +15,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
 
 const PAGE_SIZE = 20;
+const TASK_PAGE_KIND_WORKSPACE_USER = 'workspace_user';
+const TASK_PAGE_KIND_ADMIN_USER = 'admin_user';
+const TASK_PAGE_KIND_ADMIN_SYSTEM = 'admin_system';
 
 const normalizeTaskStatus = (value) => {
   const normalized = (value || '').toString().trim().toLowerCase();
@@ -56,22 +59,37 @@ const taskStatusColor = (status) => {
   }
 };
 
-const getTaskEndpoint = (isAdminPage, scope) => {
-  if (isAdminPage) {
-    return scope === 'user'
-      ? '/api/v1/admin/user/tasks'
-      : '/api/v1/admin/tasks';
+const resolveTaskPageKind = (pathname = '') => {
+  const normalizedPath = (pathname || '').toString().trim().toLowerCase();
+  if (normalizedPath.startsWith('/admin/channel/tasks')) {
+    return TASK_PAGE_KIND_ADMIN_SYSTEM;
   }
-  return '/api/v1/public/user/tasks';
+  if (normalizedPath.startsWith('/admin/task')) {
+    return TASK_PAGE_KIND_ADMIN_USER;
+  }
+  return TASK_PAGE_KIND_WORKSPACE_USER;
 };
 
-const getTaskOptionsEndpoint = (isAdminPage, scope) => {
-  if (isAdminPage) {
-    return scope === 'user'
-      ? '/api/v1/admin/user/tasks/options'
-      : '/api/v1/admin/tasks/options';
+const getTaskEndpoint = (pageKind) => {
+  switch (pageKind) {
+    case TASK_PAGE_KIND_ADMIN_SYSTEM:
+      return '/api/v1/admin/tasks';
+    case TASK_PAGE_KIND_ADMIN_USER:
+      return '/api/v1/admin/user/tasks';
+    default:
+      return '/api/v1/public/user/tasks';
   }
-  return '/api/v1/public/user/tasks/options';
+};
+
+const getTaskOptionsEndpoint = (pageKind) => {
+  switch (pageKind) {
+    case TASK_PAGE_KIND_ADMIN_SYSTEM:
+      return '/api/v1/admin/tasks/options';
+    case TASK_PAGE_KIND_ADMIN_USER:
+      return '/api/v1/admin/user/tasks/options';
+    default:
+      return '/api/v1/public/user/tasks/options';
+  }
 };
 
 const getTaskId = (item) => item?.id || item?.task_id || '';
@@ -130,17 +148,18 @@ const Task = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const isAdminPage = location.pathname.startsWith('/admin/');
+  const pageKind = useMemo(
+    () => resolveTaskPageKind(location.pathname),
+    [location.pathname],
+  );
+  const isAdminPage = pageKind !== TASK_PAGE_KIND_WORKSPACE_USER;
+  const isSystemTaskPage = pageKind === TASK_PAGE_KIND_ADMIN_SYSTEM;
+  const isAdminUserTaskPage = pageKind === TASK_PAGE_KIND_ADMIN_USER;
+  const isUserTaskPage = !isSystemTaskPage;
   const initialQuery = useMemo(
     () => new URLSearchParams(location.search),
     [location.search],
   );
-  const [scope, setScope] = useState(() => {
-    if (!isAdminPage) {
-      return 'user';
-    }
-    return initialQuery.get('scope') === 'user' ? 'user' : 'admin';
-  });
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(() => {
@@ -183,30 +202,23 @@ const Task = () => {
     users: [],
   });
 
-  useEffect(() => {
-    if (!isAdminPage) {
-      setScope('user');
-    }
-  }, [isAdminPage]);
-
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
     [total],
   );
 
   const taskTypeOptions = useMemo(
-    () => getTaskTypeOptions(t, scope),
-    [scope, t],
+    () => getTaskTypeOptions(t, isUserTaskPage ? 'user' : 'admin'),
+    [isUserTaskPage, t],
   );
   const taskStatusOptions = useMemo(() => getTaskStatusOptions(t), [t]);
-  const isUserScope = scope === 'user';
   const endpoint = useMemo(
-    () => getTaskEndpoint(isAdminPage, scope),
-    [isAdminPage, scope],
+    () => getTaskEndpoint(pageKind),
+    [pageKind],
   );
   const optionsEndpoint = useMemo(
-    () => getTaskOptionsEndpoint(isAdminPage, scope),
-    [isAdminPage, scope],
+    () => getTaskOptionsEndpoint(pageKind),
+    [pageKind],
   );
   const conditionalFilterConfig = useMemo(() => {
     const items = [
@@ -234,7 +246,7 @@ const Task = () => {
         placeholder: t('task.filters.model'),
       },
     ];
-    if (isAdminPage) {
+    if (isSystemTaskPage) {
       items.push({
         key: 'channel_id',
         label: t('task.table.channel'),
@@ -247,7 +259,7 @@ const Task = () => {
         placeholder: t('task.filters.channel_id'),
       });
     }
-    if (isAdminPage && isUserScope) {
+    if (isAdminUserTaskPage) {
       items.push({
         key: 'user_keyword',
         label: t('task.table.user'),
@@ -265,8 +277,8 @@ const Task = () => {
     filterOptions.channels,
     filterOptions.models,
     filterOptions.users,
-    isAdminPage,
-    isUserScope,
+    isAdminUserTaskPage,
+    isSystemTaskPage,
     t,
     taskStatusOptions,
     taskTypeOptions,
@@ -405,7 +417,7 @@ const Task = () => {
               : '',
             model: enabledFilters.has('model') ? filters.model.trim() : '',
             user_keyword:
-              isAdminPage && isUserScope && enabledFilters.has('user_keyword')
+              isAdminUserTaskPage && enabledFilters.has('user_keyword')
                 ? filters.user_keyword.trim()
                 : '',
           },
@@ -432,6 +444,7 @@ const Task = () => {
       filters.status,
       filters.type,
       filters.user_keyword,
+      isAdminUserTaskPage,
       t,
     ],
   );
@@ -446,9 +459,6 @@ const Task = () => {
 
   useEffect(() => {
     const query = new URLSearchParams();
-    if (isAdminPage && scope !== 'admin') {
-      query.set('scope', scope);
-    }
     if (page > 1) {
       query.set('page', String(page));
     }
@@ -462,15 +472,14 @@ const Task = () => {
       query.set('model', filters.model.trim());
     }
     if (
-      isAdminPage &&
-      isUserScope &&
+      isAdminUserTaskPage &&
       activeFilterKeys.includes('user_keyword') &&
       filters.user_keyword.trim()
     ) {
       query.set('user_keyword', filters.user_keyword.trim());
     }
     if (
-      isAdminPage &&
+      isSystemTaskPage &&
       activeFilterKeys.includes('channel_id') &&
       filters.channel_id.trim()
     ) {
@@ -491,12 +500,11 @@ const Task = () => {
     filters.status,
     filters.type,
     filters.user_keyword,
-    isAdminPage,
-    isUserScope,
+    isAdminUserTaskPage,
+    isSystemTaskPage,
     location.pathname,
     navigate,
     page,
-    scope,
   ]);
 
   useEffect(() => {
@@ -597,7 +605,16 @@ const Task = () => {
     }
   };
 
-  const detailBasePath = isAdminPage ? '/admin/task' : '/workspace/task';
+  const detailBasePath = isSystemTaskPage
+    ? '/admin/channel/tasks'
+    : isAdminPage
+      ? '/admin/task'
+      : '/workspace/task';
+  const pageTitle = isSystemTaskPage
+    ? t('task.scopes.admin')
+    : isAdminUserTaskPage
+      ? t('task.scopes.user')
+      : t('task.title');
   const resolveFilterOptionLabel = useCallback(
     (filterKey, value) => {
       const normalizedValue = (value || '').toString().trim();
@@ -631,29 +648,9 @@ const Task = () => {
     <div className='dashboard-container'>
       <Card fluid className='chart-card'>
         <Card.Content>
-          {isAdminPage ? (
-            <Menu secondary pointing className='router-subnav-menu'>
-              <Menu.Item
-                name={t('task.scopes.admin')}
-                active={scope === 'admin'}
-                onClick={() => {
-                  setScope('admin');
-                  setFilters((prev) => ({ ...prev, type: '' }));
-                  setPage(1);
-                }}
-              />
-              <Menu.Item
-                name={t('task.scopes.user')}
-                active={scope === 'user'}
-                onClick={() => {
-                  setScope('user');
-                  setFilters((prev) => ({ ...prev, type: '' }));
-                  setPage(1);
-                }}
-              />
-            </Menu>
-          ) : null}
-
+          <Header as='h3' className='router-section-title'>
+            {pageTitle}
+          </Header>
           <Form className='router-toolbar router-log-toolbar router-block-gap-sm'>
             <div className='router-toolbar-start router-log-toolbar-start'>
               <Popup
@@ -812,7 +809,7 @@ const Task = () => {
             <Table.Header>
               <Table.Row>
                 <Table.HeaderCell>{t('task.table.type')}</Table.HeaderCell>
-                {isAdminPage && isUserScope ? (
+                {isAdminUserTaskPage ? (
                   <Table.HeaderCell>{t('task.table.user')}</Table.HeaderCell>
                 ) : null}
                 <Table.HeaderCell>{t('task.table.channel')}</Table.HeaderCell>
@@ -822,7 +819,7 @@ const Task = () => {
                   {t('task.table.created_at')}
                 </Table.HeaderCell>
                 <Table.HeaderCell>
-                  {isUserScope
+                  {isUserTaskPage
                     ? t('task.table.updated_at')
                     : t('task.table.finished_at')}
                 </Table.HeaderCell>
@@ -833,7 +830,7 @@ const Task = () => {
               {items.length === 0 ? (
                 <Table.Row>
                   <Table.Cell
-                    colSpan={isAdminPage && isUserScope ? '8' : '7'}
+                    colSpan={isAdminUserTaskPage ? '8' : '7'}
                     className='router-empty-cell'
                   >
                     {loading ? t('common.loading') : t('task.empty')}
@@ -848,25 +845,21 @@ const Task = () => {
                     .toLowerCase();
                   const status = normalizeTaskStatus(rawStatus);
                   const canCancel =
-                    !isUserScope &&
+                    isSystemTaskPage &&
                     (status === 'pending' || status === 'running');
                   const canRetry =
-                    !isUserScope &&
+                    isSystemTaskPage &&
                     (status === 'failed' || status === 'canceled');
-                  const detailSearch =
-                    isAdminPage && isUserScope ? '?scope=user' : '';
                   return (
                     <Table.Row
                       key={taskId}
                       className='router-row-clickable'
-                      onClick={() =>
-                        navigate(`${detailBasePath}/${taskId}${detailSearch}`)
-                      }
+                      onClick={() => navigate(`${detailBasePath}/${taskId}`)}
                     >
                       <Table.Cell>
                         {t(`task.types.${item.type || 'video'}`)}
                       </Table.Cell>
-                      {isAdminPage && isUserScope ? (
+                      {isAdminUserTaskPage ? (
                         <Table.Cell>
                           {item.user_name || item.user_id || '-'}
                         </Table.Cell>
@@ -890,7 +883,7 @@ const Task = () => {
                           : '-'}
                       </Table.Cell>
                       <Table.Cell>
-                        {isUserScope
+                        {isUserTaskPage
                           ? item.updated_at
                             ? timestamp2string(item.updated_at)
                             : '-'
@@ -899,16 +892,14 @@ const Task = () => {
                             : '-'}
                       </Table.Cell>
                       <Table.Cell collapsing>
-                        {isUserScope ? (
+                        {isUserTaskPage ? (
                           <Button
                             type='button'
                             className='router-inline-button'
                             basic
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(
-                                `${detailBasePath}/${taskId}${detailSearch}`,
-                              );
+                              navigate(`${detailBasePath}/${taskId}`);
                             }}
                           >
                             {t('task.buttons.view')}
@@ -950,7 +941,7 @@ const Task = () => {
             <Table.Footer>
               <Table.Row>
                 <Table.HeaderCell
-                  colSpan={isAdminPage && isUserScope ? '8' : '7'}
+                  colSpan={isAdminUserTaskPage ? '8' : '7'}
                 >
                   <div className='router-toolbar router-task-footer-toolbar'>
                     <div className='router-toolbar-start'>

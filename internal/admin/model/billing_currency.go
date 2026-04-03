@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -18,6 +19,7 @@ const (
 	BillingCurrencyStatusEnabled  = 1
 	BillingCurrencyStatusDisabled = 2
 
+	BillingCurrencyCodeYYC = "YYC"
 	BillingCurrencyCodeUSD = "USD"
 	BillingCurrencyCodeCNY = "CNY"
 
@@ -28,16 +30,20 @@ const (
 	defaultUSDCNYExchangeRate = 7.0
 	defaultUSDYYCPerUnit      = 500 * 1000.0
 	defaultCNYYYCPerUnit      = defaultUSDYYCPerUnit / defaultUSDCNYExchangeRate
+	defaultYYCYYCPerUnit      = 1.0
+	defaultYYCMinorUnit       = 0
+	defaultFiatMinorUnit      = 6
 )
 
 type BillingCurrency struct {
 	Code       string  `json:"code" gorm:"primaryKey;type:varchar(16)"`
 	Name       string  `json:"name" gorm:"type:varchar(64);not null;default:''"`
 	Symbol     string  `json:"symbol" gorm:"type:varchar(16);not null;default:''"`
-	MinorUnit  int     `json:"minor_unit" gorm:"not null;default:2"`
+	MinorUnit  int     `json:"minor_unit" gorm:"not null;default:6"`
 	YYCPerUnit float64 `json:"yyc_per_unit" gorm:"column:yyc_per_unit;type:double precision;not null;default:0"`
 	Status     int     `json:"status" gorm:"not null;default:1"`
 	Source     string  `json:"source" gorm:"type:varchar(64);not null;default:'system_default'"`
+	CreatedAt  int64   `json:"created_at" gorm:"bigint;not null;default:0"`
 	UpdatedAt  int64   `json:"updated_at" gorm:"bigint;not null;default:0"`
 }
 
@@ -78,23 +84,36 @@ func defaultBillingCurrencies() []BillingCurrency {
 	now := helper.GetTimestamp()
 	return []BillingCurrency{
 		{
+			Code:       BillingCurrencyCodeYYC,
+			Name:       "Yeying Coin",
+			Symbol:     "Ɏ",
+				MinorUnit:  defaultYYCMinorUnit,
+			YYCPerUnit: defaultYYCYYCPerUnit,
+			Status:     BillingCurrencyStatusEnabled,
+			Source:     BillingCurrencySourceSystemDefault,
+			CreatedAt:  now,
+			UpdatedAt:  now,
+		},
+		{
 			Code:       BillingCurrencyCodeUSD,
 			Name:       "US Dollar",
 			Symbol:     "$",
-			MinorUnit:  2,
+				MinorUnit:  defaultFiatMinorUnit,
 			YYCPerUnit: usdYYCPerUnit,
 			Status:     BillingCurrencyStatusEnabled,
 			Source:     BillingCurrencySourceSystemDefault,
+			CreatedAt:  now,
 			UpdatedAt:  now,
 		},
 		{
 			Code:       BillingCurrencyCodeCNY,
 			Name:       "Chinese Yuan",
 			Symbol:     "¥",
-			MinorUnit:  2,
+				MinorUnit:  defaultFiatMinorUnit,
 			YYCPerUnit: defaultCNYYYCPerUnit,
 			Status:     BillingCurrencyStatusEnabled,
 			Source:     BillingCurrencySourceSystemDefault,
+			CreatedAt:  now,
 			UpdatedAt:  now,
 		},
 	}
@@ -127,6 +146,9 @@ func syncDefaultBillingCurrenciesWithDB(db *gorm.DB) error {
 			"status":     item.Status,
 			"source":     item.Source,
 			"updated_at": item.UpdatedAt,
+		}
+		if row.CreatedAt <= 0 {
+			updates["created_at"] = item.CreatedAt
 		}
 		// Keep non-USD currencies decoupled from QuotaPerUnit-driven default linkage.
 		// For USD, preserve QuotaPerUnit compatibility as a system default.
@@ -163,10 +185,11 @@ func decoupleCNYYYCFromSystemDefaultWithDB(db *gorm.DB) error {
 			Code:       BillingCurrencyCodeCNY,
 			Name:       "Chinese Yuan",
 			Symbol:     "¥",
-			MinorUnit:  2,
+			MinorUnit:  defaultFiatMinorUnit,
 			YYCPerUnit: defaultCNYYYCPerUnit,
 			Status:     BillingCurrencyStatusEnabled,
 			Source:     "manual",
+			CreatedAt:  helper.GetTimestamp(),
 			UpdatedAt:  helper.GetTimestamp(),
 		}).Error
 	}
@@ -193,10 +216,6 @@ func SyncBillingCurrencyCatalogWithDB(db *gorm.DB) error {
 	if db == nil {
 		return nil
 	}
-	if err := syncDefaultBillingCurrenciesWithDB(db); err != nil {
-		return err
-	}
-
 	rows := make([]BillingCurrency, 0)
 	if err := db.Order("code asc").Find(&rows).Error; err != nil {
 		return err
@@ -255,6 +274,11 @@ func GetBillingCurrency(code string) (BillingCurrency, error) {
 		billingCurrencyIndexLock.RUnlock()
 	}
 	if !ok {
+		for _, item := range defaultBillingCurrencies() {
+			if item.Code == normalizedCode {
+				return item, nil
+			}
+		}
 		return BillingCurrency{}, fmt.Errorf("billing currency not configured: %s", normalizedCode)
 	}
 	return row, nil
@@ -317,11 +341,18 @@ func validateBillingCurrencyForWrite(row BillingCurrency, isCreate bool) (Billin
 	row.MinorUnit = normalizeBillingCurrencyMinorUnit(row.MinorUnit)
 	row.Status = normalizeBillingCurrencyStatus(row.Status)
 	row.Source = normalizeBillingCurrencySource(row.Source)
-	if row.YYCPerUnit <= 0 {
-		return BillingCurrency{}, fmt.Errorf("YYC 兑换比率必须大于 0")
+	if row.YYCPerUnit < 0 {
+		return BillingCurrency{}, fmt.Errorf("YYC 兑换比率不能小于 0")
+	}
+	if row.Status == BillingCurrencyStatusEnabled && row.YYCPerUnit <= 0 {
+		return BillingCurrency{}, fmt.Errorf("启用状态的币种必须配置大于 0 的 YYC 兑换比率")
 	}
 	if isCreate && row.UpdatedAt == 0 {
-		row.UpdatedAt = helper.GetTimestamp()
+		now := helper.GetTimestamp()
+		row.UpdatedAt = now
+		if row.CreatedAt == 0 {
+			row.CreatedAt = now
+		}
 	}
 	if !isCreate {
 		row.UpdatedAt = helper.GetTimestamp()
@@ -344,6 +375,32 @@ func CreateBillingCurrencyWithDB(db *gorm.DB, row BillingCurrency) (BillingCurre
 		return BillingCurrency{}, err
 	}
 	return normalized, nil
+}
+
+func DeleteBillingCurrencyWithDB(db *gorm.DB, code string) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	normalizedCode := normalizeBillingCurrencyCode(code)
+	if normalizedCode == "" {
+		return fmt.Errorf("币种代码不能为空")
+	}
+	if err := db.Where("code = ?", normalizedCode).Delete(&BillingCurrency{}).Error; err != nil {
+		return err
+	}
+	return SyncBillingCurrencyCatalogWithDB(db)
+}
+
+func normalizeBillingCurrencyAutoSourcesWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	return db.Model(&BillingCurrency{}).
+		Where("lower(trim(source)) = ?", BillingCurrencySourceFXAuto).
+		Updates(map[string]any{
+			"source":     BillingCurrencySourceManual,
+			"updated_at": helper.GetTimestamp(),
+		}).Error
 }
 
 func UpdateBillingCurrencyWithDB(db *gorm.DB, code string, apply func(current BillingCurrency) (BillingCurrency, error)) (BillingCurrency, error) {
@@ -394,6 +451,11 @@ func UpdateBillingCurrencyWithDB(db *gorm.DB, code string, apply func(current Bi
 	}
 	if err := SyncBillingCurrencyCatalogWithDB(db); err != nil {
 		return BillingCurrency{}, err
+	}
+	if normalizedCode == BillingCurrencyCodeUSD && updated.YYCPerUnit > 0 {
+		if err := UpdateOption("QuotaPerUnit", strconv.FormatFloat(updated.YYCPerUnit, 'f', -1, 64)); err != nil {
+			return BillingCurrency{}, err
+		}
 	}
 	return updated, nil
 }

@@ -281,7 +281,7 @@ const ChannelsTable = () => {
         }
       });
       const search = query.toString();
-      navigate(`/admin/task${search ? `?${search}` : ''}`);
+      navigate(`/admin/channel/tasks${search ? `?${search}` : ''}`);
     },
     [navigate]
   );
@@ -916,6 +916,14 @@ const ChannelsTable = () => {
               </Button>
             </>
           )}
+          <Button
+            className='router-page-button'
+            type='button'
+            onClick={() => openChannelTasksPage('')}
+            disabled={batchDeleting || batchDisabling}
+          >
+            {t('channel.buttons.tasks')}
+          </Button>
           <Button
             className='router-page-button'
             onClick={refresh}

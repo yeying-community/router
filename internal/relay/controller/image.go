@@ -190,8 +190,6 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		requestBody = bytes.NewBuffer(jsonStr)
 	}
 
-	userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
-
 	imageCount := imageRequest.N
 	if meta.ChannelProtocol == relaychannel.Replicate {
 		imageCount = 1
@@ -204,15 +202,12 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	if snapshotErr != nil {
 		logger.Error(ctx, "calculate image billing snapshot failed: "+snapshotErr.Error())
 	}
-	groupReservation, groupQuotaErr := reserveGroupDailyQuota(ctx, meta.Group, meta.UserId, quota)
-	if groupQuotaErr != nil {
-		return groupQuotaErr
+	billingPlan, quotaErr := reserveRelayQuota(ctx, meta.Group, meta.UserId, quota)
+	if quotaErr != nil {
+		return quotaErr
 	}
-	userReservation, userQuotaErr := reserveUserQuota(meta.UserId, quota)
-	if userQuotaErr != nil {
-		releaseGroupDailyQuotaReservation(ctx, groupReservation)
-		return userQuotaErr
-	}
+	groupReservation := billingPlan.GroupReservation
+	userReservation := billingPlan.UserReservation
 	groupQuotaSettled := false
 	userQuotaSettled := false
 	defer func() {
@@ -224,8 +219,14 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 	}()
 
-	if userQuota-quota < 0 {
-		return openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+	if billingPlan.ChargeUserBalance() {
+		userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
+		if err != nil {
+			return openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
+		}
+		if userQuota-quota < 0 {
+			return openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+		}
 	}
 
 	// do request
@@ -245,19 +246,26 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 
 		if strings.TrimSpace(meta.TokenId) != "" {
-			err := model.PostConsumeTokenQuota(meta.TokenId, quota)
-			if err != nil {
-				logger.SysError("error consuming token remain quota: " + err.Error())
-			}
-		} else {
-			if quota != 0 {
-				if err := model.DecreaseUserQuota(meta.UserId, quota); err != nil {
-					logger.SysError("error consuming user quota: " + err.Error())
+			if billingPlan.ChargeUserBalance() {
+				err := model.PostConsumeTokenQuota(meta.TokenId, quota)
+				if err != nil {
+					logger.SysError("error consuming token remain quota: " + err.Error())
+				}
+			} else {
+				err := model.PostConsumeTokenRemainQuota(meta.TokenId, quota)
+				if err != nil {
+					logger.SysError("error consuming token remain quota: " + err.Error())
 				}
 			}
+		} else if billingPlan.ChargeUserBalance() && quota != 0 {
+			if err := model.DecreaseUserQuota(meta.UserId, quota); err != nil {
+				logger.SysError("error consuming user quota: " + err.Error())
+			}
 		}
-		if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
-			logger.SysError("error update user quota cache: " + err.Error())
+		if billingPlan.ChargeUserBalance() {
+			if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
+				logger.SysError("error update user quota cache: " + err.Error())
+			}
 		}
 		userQuotaUsage := settleUserQuotaReservation(ctx, userReservation, quota)
 		if quota != 0 {
@@ -272,6 +280,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 				ModelName:          imageRequest.Model,
 				TokenName:          tokenName,
 				Quota:              int(quota),
+				BillingSource:      model.ResolveConsumeLogBillingSource(billingPlan.ChargeUserBalance()),
 				UserDailyQuota:     int(userQuotaUsage.DailyQuotaUsed),
 				UserEmergencyQuota: int(userQuotaUsage.EmergencyQuotaUsed),
 				Content:            billing.FormatPricingLog(pricing, groupRatio),

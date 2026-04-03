@@ -28,7 +28,7 @@ type upsertServicePackageRequest struct {
 	Description                *string `json:"description"`
 	GroupID                    *string `json:"group_id"`
 	DailyQuotaLimit            *int64  `json:"daily_quota_limit"`
-	MonthlyEmergencyQuotaLimit *int64  `json:"monthly_emergency_quota_limit"`
+	PackageEmergencyQuotaLimit *int64  `json:"package_emergency_quota_limit"`
 	DurationDays               *int    `json:"duration_days"`
 	QuotaResetTimezone         *string `json:"quota_reset_timezone"`
 	Enabled                    *bool   `json:"enabled"`
@@ -183,7 +183,7 @@ func CreatePackage(c *gin.Context) {
 		Description:                optionalStringValue(req.Description, ""),
 		GroupID:                    optionalStringValue(req.GroupID, ""),
 		DailyQuotaLimit:            optionalInt64Value(req.DailyQuotaLimit, 0),
-		MonthlyEmergencyQuotaLimit: optionalInt64Value(req.MonthlyEmergencyQuotaLimit, 0),
+		PackageEmergencyQuotaLimit: optionalInt64Value(req.PackageEmergencyQuotaLimit, 0),
 		DurationDays:               optionalIntValue(req.DurationDays, model.DefaultServicePackageDurationDays),
 		QuotaResetTimezone:         optionalStringValue(req.QuotaResetTimezone, model.DefaultGroupQuotaResetTimezone),
 		Enabled:                    optionalBoolValue(req.Enabled, true),
@@ -249,7 +249,7 @@ func UpdatePackage(c *gin.Context) {
 		Description:                optionalStringValue(req.Description, current.Description),
 		GroupID:                    optionalStringValue(req.GroupID, current.GroupID),
 		DailyQuotaLimit:            optionalInt64Value(req.DailyQuotaLimit, current.DailyQuotaLimit),
-		MonthlyEmergencyQuotaLimit: optionalInt64Value(req.MonthlyEmergencyQuotaLimit, current.MonthlyEmergencyQuotaLimit),
+		PackageEmergencyQuotaLimit: optionalInt64Value(req.PackageEmergencyQuotaLimit, current.PackageEmergencyQuotaLimit),
 		DurationDays:               optionalIntValue(req.DurationDays, current.DurationDays),
 		QuotaResetTimezone:         optionalStringValue(req.QuotaResetTimezone, current.QuotaResetTimezone),
 		Enabled:                    optionalBoolValue(req.Enabled, current.Enabled),

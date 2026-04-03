@@ -10,7 +10,7 @@ import (
 
 type UserQuotaPolicy struct {
 	DailyLimit            int64
-	MonthlyEmergencyLimit int64
+	PackageEmergencyLimit int64
 	Timezone              string
 }
 
@@ -25,15 +25,15 @@ func NormalizeUserDailyQuotaLimitForWrite(value int64) int64 {
 	return normalizeUserDailyQuotaLimit(value)
 }
 
-func normalizeUserMonthlyEmergencyQuotaLimit(value int64) int64 {
+func normalizeUserPackageEmergencyQuotaLimit(value int64) int64 {
 	if value < 0 {
 		return 0
 	}
 	return value
 }
 
-func NormalizeUserMonthlyEmergencyQuotaLimitForWrite(value int64) int64 {
-	return normalizeUserMonthlyEmergencyQuotaLimit(value)
+func NormalizeUserPackageEmergencyQuotaLimitForWrite(value int64) int64 {
+	return normalizeUserPackageEmergencyQuotaLimit(value)
 }
 
 func normalizeUserQuotaResetTimezone(value string) string {
@@ -57,14 +57,14 @@ func GetUserQuotaPolicyWithDB(db *gorm.DB, userID string) (UserQuotaPolicy, erro
 		return UserQuotaPolicy{}, fmt.Errorf("用户 ID 不能为空")
 	}
 	var row User
-	err := db.Select("id", "daily_quota_limit", "monthly_emergency_quota_limit", "quota_reset_timezone").
+	err := db.Select("id", "daily_quota_limit", "package_emergency_quota_limit", "quota_reset_timezone").
 		First(&row, "id = ?", normalizedUserID).Error
 	if err != nil {
 		return UserQuotaPolicy{}, err
 	}
 	return UserQuotaPolicy{
 		DailyLimit:            normalizeUserDailyQuotaLimit(row.DailyQuotaLimit),
-		MonthlyEmergencyLimit: normalizeUserMonthlyEmergencyQuotaLimit(row.MonthlyEmergencyQuotaLimit),
+		PackageEmergencyLimit: normalizeUserPackageEmergencyQuotaLimit(row.PackageEmergencyQuotaLimit),
 		Timezone:              normalizeUserQuotaResetTimezone(row.QuotaResetTimezone),
 	}, nil
 }

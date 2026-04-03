@@ -2,7 +2,6 @@ package billing
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -10,10 +9,13 @@ import (
 )
 
 type FXMarketRateItem struct {
-	Pair  string  `json:"pair"`
-	Base  string  `json:"base"`
-	Quote string  `json:"quote"`
-	Rate  float64 `json:"rate"`
+	Pair      string  `json:"pair"`
+	Base      string  `json:"base"`
+	Quote     string  `json:"quote"`
+	Rate      float64 `json:"rate"`
+	Provider  string  `json:"provider"`
+	RateDate  string  `json:"rate_date"`
+	UpdatedAt int64   `json:"updated_at"`
 }
 
 type FXMarketRatesResult struct {
@@ -32,7 +34,7 @@ func GetFXMarketRates(ctx context.Context, currencies []string) (FXMarketRatesRe
 		Items:      make([]FXMarketRateItem, 0),
 	}
 
-	supportedCurrencies, err := listSupportedBillingCurrencies()
+	supportedCurrencies, err := listConfiguredFXCurrencies()
 	if err != nil {
 		return result, err
 	}
@@ -41,77 +43,47 @@ func GetFXMarketRates(ctx context.Context, currencies []string) (FXMarketRatesRe
 	if len(filterCurrencies) > 0 {
 		selectedCurrencies = intersectCurrencies(supportedCurrencies, filterCurrencies)
 	}
-	if len(selectedCurrencies) == 0 {
-		result.Currencies = selectedCurrencies
+	result.Currencies = append(result.Currencies, selectedCurrencies...)
+	if len(selectedCurrencies) < 2 {
 		return result, nil
 	}
-	result.Currencies = append(result.Currencies, selectedCurrencies...)
 
-	targetCodes := make([]string, 0, len(selectedCurrencies))
-	for _, code := range selectedCurrencies {
-		if code == model.BillingCurrencyCodeUSD {
-			continue
+	rows, err := model.ListFXMarketRatesWithDB(model.DB, selectedCurrencies)
+	if err != nil {
+		return result, err
+	}
+	if len(rows) == 0 {
+		if _, err := SyncFXMarketRates(ctx); err != nil {
+			return result, err
 		}
-		targetCodes = append(targetCodes, code)
-	}
-
-	payload := frankfurterLatestResponse{
-		Base:  model.BillingCurrencyCodeUSD,
-		Rates: make(map[string]float64),
-	}
-	if len(targetCodes) > 0 {
-		payload, err = fetchFrankfurterLatestRates(ctx, model.BillingCurrencyCodeUSD, targetCodes)
+		rows, err = model.ListFXMarketRatesWithDB(model.DB, selectedCurrencies)
 		if err != nil {
 			return result, err
 		}
 	}
-	result.Date = payload.Date
 
-	usdRates := map[string]float64{
-		model.BillingCurrencyCodeUSD: 1,
-	}
-	for code, rate := range payload.Rates {
-		if rate > 0 {
-			usdRates[code] = rate
-		}
-	}
-
-	availableCurrencies := make([]string, 0, len(selectedCurrencies))
-	for _, code := range selectedCurrencies {
-		if _, ok := usdRates[code]; ok {
-			availableCurrencies = append(availableCurrencies, code)
-		}
-	}
-	result.Currencies = availableCurrencies
-	if len(availableCurrencies) < 2 {
-		return result, nil
-	}
-
-	items := make([]FXMarketRateItem, 0, len(availableCurrencies)*(len(availableCurrencies)-1))
-	for _, base := range availableCurrencies {
-		baseUSDRate := usdRates[base]
-		if baseUSDRate <= 0 {
+	items := make([]FXMarketRateItem, 0, len(rows))
+	for _, row := range rows {
+		base := strings.ToUpper(strings.TrimSpace(row.Base))
+		quote := strings.ToUpper(strings.TrimSpace(row.Quote))
+		if base == "" || quote == "" || base == quote || row.Rate <= 0 {
 			continue
 		}
-		for _, quote := range availableCurrencies {
-			if base == quote {
-				continue
-			}
-			quoteUSDRate := usdRates[quote]
-			if quoteUSDRate <= 0 {
-				continue
-			}
-			rate := quoteUSDRate / baseUSDRate
-			if rate <= 0 {
-				continue
-			}
-			items = append(items, FXMarketRateItem{
-				Pair:  fmt.Sprintf("%s/%s", base, quote),
-				Base:  base,
-				Quote: quote,
-				Rate:  rate,
-			})
+		if result.Date == "" && strings.TrimSpace(row.RateDate) != "" {
+			result.Date = strings.TrimSpace(row.RateDate)
 		}
+		if strings.TrimSpace(row.Provider) != "" {
+			result.Provider = strings.TrimSpace(row.Provider)
+		}
+		items = append(items, FXMarketRateItem{
+			Pair:      base + "/" + quote,
+			Base:      base,
+			Quote:     quote,
+			Rate:      row.Rate,
+			Provider:  strings.TrimSpace(row.Provider),
+			RateDate:  strings.TrimSpace(row.RateDate),
+			UpdatedAt: row.UpdatedAt,
+		})
 	}
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].Base != items[j].Base {
@@ -155,7 +127,7 @@ func containsCurrency(currencies []string, target string) bool {
 	return false
 }
 
-func listSupportedBillingCurrencies() ([]string, error) {
+func listConfiguredFXCurrencies() ([]string, error) {
 	rows, err := model.ListBillingCurrencies()
 	if err != nil {
 		return nil, err
@@ -163,9 +135,6 @@ func listSupportedBillingCurrencies() ([]string, error) {
 	seen := make(map[string]struct{}, len(rows))
 	codes := make([]string, 0, len(rows))
 	for _, row := range rows {
-		if row.Status != model.BillingCurrencyStatusEnabled {
-			continue
-		}
 		code := strings.ToUpper(strings.TrimSpace(row.Code))
 		if code == "" {
 			continue

@@ -71,10 +71,20 @@ func getPreConsumedQuota(textRequest *relaymodel.GeneralOpenAIRequest, promptTok
 	return int64(float64(preConsumedTokens) * ratio)
 }
 
-func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, pricing model.ResolvedModelPricing, groupRatio float64, meta *meta.Meta) (int64, *relaymodel.ErrorWithStatusCode) {
+func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, pricing model.ResolvedModelPricing, groupRatio float64, meta *meta.Meta, chargeUserBalance bool) (int64, *relaymodel.ErrorWithStatusCode) {
 	preConsumedQuota, err := billing.ComputeTextPreConsumedQuota(promptTokens, textRequest.MaxTokens, pricing, groupRatio)
 	if err != nil {
 		return 0, openai.ErrorWrapper(err, "calculate_text_quota_failed", http.StatusInternalServerError)
+	}
+	if !chargeUserBalance {
+		if strings.TrimSpace(meta.TokenId) == "" {
+			return 0, nil
+		}
+		err = model.PreConsumeTokenRemainQuota(meta.TokenId, preConsumedQuota)
+		if err != nil {
+			return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
+		}
+		return preConsumedQuota, nil
 	}
 
 	userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
@@ -110,7 +120,7 @@ func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIR
 	return preConsumedQuota, nil
 }
 
-func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, groupRatio float64, systemPromptReset bool, groupReservation model.GroupDailyQuotaReservation, userReservation model.UserQuotaReservation) {
+func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, groupRatio float64, systemPromptReset bool, chargeUserBalance bool, groupReservation model.GroupDailyQuotaReservation, userReservation model.UserQuotaReservation) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		releaseGroupDailyQuotaReservation(ctx, groupReservation)
@@ -136,11 +146,15 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	}
 	quotaDelta := quota - preConsumedQuota
 	if strings.TrimSpace(meta.TokenId) != "" {
-		err = model.PostConsumeTokenQuota(meta.TokenId, quotaDelta)
+		if chargeUserBalance {
+			err = model.PostConsumeTokenQuota(meta.TokenId, quotaDelta)
+		} else {
+			err = model.PostConsumeTokenRemainQuota(meta.TokenId, quotaDelta)
+		}
 		if err != nil {
 			logger.Error(ctx, "error consuming token remain quota: "+err.Error())
 		}
-	} else {
+	} else if chargeUserBalance {
 		if quotaDelta > 0 {
 			err = model.DecreaseUserQuota(meta.UserId, quotaDelta)
 		} else if quotaDelta < 0 {
@@ -150,9 +164,11 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 			logger.Error(ctx, "error consuming user quota: "+err.Error())
 		}
 	}
-	err = model.CacheUpdateUserQuota(ctx, meta.UserId)
-	if err != nil {
-		logger.Error(ctx, "error update user quota cache: "+err.Error())
+	if chargeUserBalance {
+		err = model.CacheUpdateUserQuota(ctx, meta.UserId)
+		if err != nil {
+			logger.Error(ctx, "error update user quota cache: "+err.Error())
+		}
 	}
 	userQuotaUsage := settleUserQuotaReservation(ctx, userReservation, quota)
 	billingSnapshot.YYCAmount = quota
@@ -165,6 +181,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		ModelName:          textRequest.Model,
 		TokenName:          meta.TokenName,
 		Quota:              int(quota),
+		BillingSource:      model.ResolveConsumeLogBillingSource(chargeUserBalance),
 		UserDailyQuota:     int(userQuotaUsage.DailyQuotaUsed),
 		UserEmergencyQuota: int(userQuotaUsage.EmergencyQuotaUsed),
 		Content:            billing.FormatPricingLog(pricing, groupRatio),

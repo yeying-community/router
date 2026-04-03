@@ -22,12 +22,13 @@ type ServicePackage struct {
 	Description                string `json:"description" gorm:"type:varchar(255);default:''"`
 	GroupID                    string `json:"group_id" gorm:"type:char(36);not null;index"`
 	DailyQuotaLimit            int64  `json:"daily_quota_limit" gorm:"type:bigint;not null;default:0"`
-	MonthlyEmergencyQuotaLimit int64  `json:"monthly_emergency_quota_limit" gorm:"type:bigint;not null;default:0"`
+	PackageEmergencyQuotaLimit int64  `json:"package_emergency_quota_limit" gorm:"column:package_emergency_quota_limit;type:bigint;not null;default:0"`
 	DurationDays               int    `json:"duration_days" gorm:"type:int;not null;default:30"`
 	QuotaResetTimezone         string `json:"quota_reset_timezone" gorm:"type:varchar(64);not null;default:'Asia/Shanghai'"`
 	Enabled                    bool   `json:"enabled" gorm:"default:true;index"`
 	SortOrder                  int    `json:"sort_order" gorm:"default:0;index"`
 	Source                     string `json:"source" gorm:"type:varchar(32);default:'manual'"`
+	CreatedAt                  int64  `json:"created_at" gorm:"bigint;index"`
 	UpdatedAt                  int64  `json:"updated_at" gorm:"bigint;index"`
 	GroupName                  string `json:"group_name,omitempty" gorm:"-"`
 }
@@ -60,7 +61,7 @@ func normalizeServicePackageDailyQuotaLimit(value int64) int64 {
 	return value
 }
 
-func normalizeServicePackageMonthlyEmergencyQuotaLimit(value int64) int64 {
+func normalizeServicePackagePackageEmergencyQuotaLimit(value int64) int64 {
 	if value < 0 {
 		return 0
 	}
@@ -237,12 +238,13 @@ func createServicePackageWithDB(db *gorm.DB, item ServicePackage) (ServicePackag
 		Description:                normalizeServicePackageDescription(item.Description),
 		GroupID:                    groupID,
 		DailyQuotaLimit:            normalizeServicePackageDailyQuotaLimit(item.DailyQuotaLimit),
-		MonthlyEmergencyQuotaLimit: normalizeServicePackageMonthlyEmergencyQuotaLimit(item.MonthlyEmergencyQuotaLimit),
+		PackageEmergencyQuotaLimit: normalizeServicePackagePackageEmergencyQuotaLimit(item.PackageEmergencyQuotaLimit),
 		DurationDays:               normalizeServicePackageDurationDays(item.DurationDays),
 		QuotaResetTimezone:         normalizeServicePackageTimezone(item.QuotaResetTimezone),
 		Enabled:                    item.Enabled,
 		SortOrder:                  item.SortOrder,
 		Source:                     normalizeServicePackageSource(item.Source),
+		CreatedAt:                  now,
 		UpdatedAt:                  now,
 	}
 	row.EnsureID()
@@ -299,7 +301,7 @@ func updateServicePackageWithDB(db *gorm.DB, item ServicePackage) (ServicePackag
 	row.Description = normalizeServicePackageDescription(item.Description)
 	row.GroupID = groupID
 	row.DailyQuotaLimit = normalizeServicePackageDailyQuotaLimit(item.DailyQuotaLimit)
-	row.MonthlyEmergencyQuotaLimit = normalizeServicePackageMonthlyEmergencyQuotaLimit(item.MonthlyEmergencyQuotaLimit)
+	row.PackageEmergencyQuotaLimit = normalizeServicePackagePackageEmergencyQuotaLimit(item.PackageEmergencyQuotaLimit)
 	row.DurationDays = normalizeServicePackageDurationDays(item.DurationDays)
 	row.QuotaResetTimezone = normalizeServicePackageTimezone(item.QuotaResetTimezone)
 	row.Enabled = item.Enabled

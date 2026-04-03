@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Dropdown, Input } from 'semantic-ui-react';
 import {
@@ -14,6 +14,13 @@ import {
   YAxis,
 } from 'recharts';
 import { API } from '../../helpers/api';
+import {
+  buildPublicDisplayCurrencyIndex,
+  convertYYCToDisplayAmount,
+  formatCompactDisplayAmount,
+  loadPublicDisplayCurrencyCatalog,
+} from '../../helpers/billing';
+import { formatAmountWithUnit } from '../../helpers/render';
 import './Dashboard.css';
 
 // 在 Dashboard 组件内添加自定义配置
@@ -36,7 +43,7 @@ const chartConfig = {
   },
   colors: {
     requests: '#4318FF',
-    quota: '#00B5D8',
+    cost: '#00B5D8',
     tokens: '#6C63FF',
   },
   barColors: [
@@ -124,7 +131,7 @@ const endOfDay = (date) => {
 
 const normalizeDashboardRow = (item) => ({
   ...item,
-  Quota: Number(item?.yyc_amount ?? item?.Quota ?? 0),
+  yycAmount: Number(item?.yyc_amount ?? item?.Quota ?? 0),
 });
 
 const normalizeOverviewSummary = (data) => ({
@@ -354,8 +361,16 @@ const Dashboard = () => {
   const [calendarUnit, setCalendarUnit] = useState('usd');
   const [calendarData, setCalendarData] = useState([]);
   const [activeFilters, setActiveFilters] = useState(['time']);
-  const [dailyPackageQuota, setDailyPackageQuota] = useState(null);
-  const [dailyPackageQuotaLoading, setDailyPackageQuotaLoading] = useState(false);
+  const [dailyPackageBalanceSummary, setDailyPackageBalanceSummary] = useState(null);
+  const [dailyPackageBalanceLoading, setDailyPackageBalanceLoading] = useState(false);
+  const [displayCurrencyIndex, setDisplayCurrencyIndex] = useState(() =>
+    buildPublicDisplayCurrencyIndex([])
+  );
+
+  const loadDisplayCurrencies = useCallback(async () => {
+    const { currencyIndex } = await loadPublicDisplayCurrencyCatalog();
+    setDisplayCurrencyIndex(currencyIndex);
+  }, []);
 
   const allModels = useMemo(
     () => Array.from(new Set(Object.values(providers).flat())),
@@ -420,8 +435,12 @@ const Dashboard = () => {
   }, [calendarGranularity, selectedModelsKey, selectionReady]);
 
   useEffect(() => {
-    fetchDailyPackageQuota();
+    fetchDailyPackageBalanceSummary();
   }, []);
+
+  useEffect(() => {
+    loadDisplayCurrencies().then();
+  }, [loadDisplayCurrencies]);
 
   const toStartTimestamp = (dateStr) => {
     const date = parseDateInput(dateStr);
@@ -563,67 +582,72 @@ const Dashboard = () => {
     }
   };
 
-  const fetchDailyPackageQuota = async () => {
-    setDailyPackageQuotaLoading(true);
+  const fetchDailyPackageBalanceSummary = async () => {
+    setDailyPackageBalanceLoading(true);
     try {
       const response = await API.get('/api/v1/public/user/quota/daily');
       if (response.data?.success) {
         const data = response.data.data || null;
         if (!data) {
-          setDailyPackageQuota(null);
+          setDailyPackageBalanceSummary(null);
           return;
         }
-        setDailyPackageQuota({
+        setDailyPackageBalanceSummary({
           ...data,
-          limit: Number(data?.yyc_limit ?? data?.limit ?? 0),
-          consumed_quota: Number(data?.yyc_consumed ?? data?.consumed_quota ?? 0),
-          reserved_quota: Number(data?.yyc_reserved ?? data?.reserved_quota ?? 0),
-          remaining_quota: Number(data?.yyc_remaining ?? data?.remaining_quota ?? 0),
+          yycLimit: Number(data?.yyc_limit ?? data?.limit ?? 0),
+          yycUsed: Number(data?.yyc_consumed ?? data?.consumed_quota ?? 0),
+          yycReserved: Number(data?.yyc_reserved ?? data?.reserved_quota ?? 0),
+          yycRemaining: Number(data?.yyc_remaining ?? data?.remaining_quota ?? 0),
         });
         return;
       }
-      setDailyPackageQuota(null);
+      setDailyPackageBalanceSummary(null);
     } catch (error) {
-      console.error('Failed to fetch daily package quota:', error);
-      setDailyPackageQuota(null);
+      console.error('Failed to fetch daily package usage:', error);
+      setDailyPackageBalanceSummary(null);
     } finally {
-      setDailyPackageQuotaLoading(false);
+      setDailyPackageBalanceLoading(false);
     }
   };
 
-  const getQuotaPerUnit = () => {
-    const raw = parseFloat(localStorage.getItem('quota_per_unit') || '1');
-    if (!Number.isFinite(raw) || raw <= 0) return 1;
-    return raw;
-  };
+  const toUsd = useCallback(
+    (yycAmount) => {
+      const amount = convertYYCToDisplayAmount(
+        yycAmount,
+        'USD',
+        displayCurrencyIndex
+      );
+      if (!Number.isFinite(amount)) {
+        return 0;
+      }
+      return amount;
+    },
+    [displayCurrencyIndex]
+  );
 
-  const toUsd = (quota) => {
-    const unit = getQuotaPerUnit();
-    const value = Number(quota);
-    if (!Number.isFinite(value)) return 0;
-    return value / unit;
-  };
+  const formatUsdAmount = useCallback(
+    (amount) =>
+      formatCompactDisplayAmount(amount, {
+        compactLabel: t('dashboard.spending.labels.ten_thousand'),
+      }),
+    [t]
+  );
 
-  const formatCurrencyValue = (quota) => {
-    const amount = toUsd(quota);
-    if (!Number.isFinite(amount)) return '0.0000';
-    const abs = Math.abs(amount);
-    if (abs >= 10000) {
-      const display = (amount / 10000).toFixed(2);
-      return `${display}${t('dashboard.spending.labels.ten_thousand')}`;
-    }
-    return amount.toFixed(4);
-  };
+  const formatYycAsUsd = useCallback(
+    (yycAmount) => formatUsdAmount(toUsd(yycAmount)),
+    [formatUsdAmount, toUsd]
+  );
 
-  const formatUsdAmount = (amount) => {
-    if (!Number.isFinite(amount)) return '0.0000';
-    const abs = Math.abs(amount);
-    if (abs >= 10000) {
-      const display = (amount / 10000).toFixed(2);
-      return `${display}${t('dashboard.spending.labels.ten_thousand')}`;
-    }
-    return amount.toFixed(4);
-  };
+  const formatYycAsUsdWithUnit = useCallback(
+    (yycAmount) => {
+      const usdAmount = toUsd(yycAmount);
+      if (!Number.isFinite(usdAmount)) {
+        return '-';
+      }
+      return formatAmountWithUnit(usdAmount, 'USD', 6);
+    },
+    [toUsd]
+  );
 
   const formatCountValue = (value) => {
     const num = Number(value);
@@ -637,11 +661,11 @@ const Dashboard = () => {
       const key = item.Day;
       if (!key) return;
       if (!map.has(key)) {
-        map.set(key, { requests: 0, tokens: 0, quota: 0 });
+        map.set(key, { requests: 0, tokens: 0, yycAmount: 0 });
       }
       const target = map.get(key);
       target.requests += item.RequestCount || 0;
-      target.quota += item.Quota || 0;
+      target.yycAmount += item.yycAmount || 0;
       target.tokens += (item.PromptTokens || 0) + (item.CompletionTokens || 0);
     });
     return map;
@@ -838,15 +862,15 @@ const Dashboard = () => {
     );
     const ordered = labels.length ? labels : Array.from(bucketMap.keys()).sort();
     return ordered.map((label) => {
-      const bucket = bucketMap.get(label) || { requests: 0, tokens: 0, quota: 0 };
+      const bucket = bucketMap.get(label) || { requests: 0, tokens: 0, yycAmount: 0 };
       return {
         date: label,
         requests: bucket.requests,
         tokens: bucket.tokens,
-        cost: toUsd(bucket.quota),
+        cost: toUsd(bucket.yycAmount),
       };
     });
-  }, [overviewTrendData, overviewSummary, overviewGranularity]);
+  }, [overviewTrendData, overviewSummary, overviewGranularity, toUsd]);
 
   const calendarBuckets = useMemo(() => {
     const bucketMap = aggregateBucketData(calendarData);
@@ -854,15 +878,15 @@ const Dashboard = () => {
     const labels = buildBucketLabels(range.start, range.end, calendarGranularity);
     const ordered = labels.length ? labels : Array.from(bucketMap.keys()).sort();
     return ordered.map((label) => {
-      const bucket = bucketMap.get(label) || { requests: 0, tokens: 0, quota: 0 };
-      const value = calendarUnit === 'usd' ? toUsd(bucket.quota) : bucket.tokens;
+      const bucket = bucketMap.get(label) || { requests: 0, tokens: 0, yycAmount: 0 };
+      const value = calendarUnit === 'usd' ? toUsd(bucket.yycAmount) : bucket.tokens;
       return {
         label,
         value,
         requests: bucket.requests,
       };
     });
-  }, [calendarData, calendarGranularity, calendarUnit]);
+  }, [calendarData, calendarGranularity, calendarUnit, toUsd]);
 
   const overviewMetricConfig = {
     requests: {
@@ -879,7 +903,7 @@ const Dashboard = () => {
     },
     cost: {
       key: 'cost',
-      color: chartConfig.colors.quota,
+      color: chartConfig.colors.cost,
       formatter: (value) => formatUsdAmount(value),
       label: t('dashboard.spending.metrics.cost'),
     },
@@ -951,16 +975,21 @@ const Dashboard = () => {
   };
 
   const packageLimitDisplay = useMemo(() => {
-    if (!dailyPackageQuota) return '-';
-    if (dailyPackageQuota.unlimited) return t('common.unlimited');
-    return formatCountValue(dailyPackageQuota.limit || 0);
-  }, [dailyPackageQuota, t]);
+    if (!dailyPackageBalanceSummary) return '-';
+    if (dailyPackageBalanceSummary.unlimited) return t('common.unlimited');
+    return formatYycAsUsdWithUnit(dailyPackageBalanceSummary.yycLimit || 0);
+  }, [dailyPackageBalanceSummary, formatYycAsUsdWithUnit, t]);
 
   const packageRemainingDisplay = useMemo(() => {
-    if (!dailyPackageQuota) return '-';
-    if (dailyPackageQuota.unlimited) return t('common.unlimited');
-    return formatCountValue(dailyPackageQuota.remaining_quota || 0);
-  }, [dailyPackageQuota, t]);
+    if (!dailyPackageBalanceSummary) return '-';
+    if (dailyPackageBalanceSummary.unlimited) return t('common.unlimited');
+    return formatYycAsUsdWithUnit(dailyPackageBalanceSummary.yycRemaining || 0);
+  }, [dailyPackageBalanceSummary, formatYycAsUsdWithUnit, t]);
+
+  const packageUsedDisplay = useMemo(() => {
+    if (!dailyPackageBalanceSummary) return '-';
+    return formatYycAsUsdWithUnit(dailyPackageBalanceSummary.yycUsed || 0);
+  }, [dailyPackageBalanceSummary, formatYycAsUsdWithUnit]);
 
   return (
     <div className='dashboard-container'>
@@ -971,15 +1000,15 @@ const Dashboard = () => {
           </Card.Header>
           <div className='dashboard-spend-summary'>
             <div className='dashboard-spend-period-row'>
-              <div className='dashboard-spend-label'>
-                {t('dashboard.spending.package_daily.group')}
-                : {dailyPackageQuota?.group_name || '-'}
+                <div className='dashboard-spend-label'>
+                  {t('dashboard.spending.package_daily.group')}
+                : {dailyPackageBalanceSummary?.group_name || '-'}
               </div>
               <Button
                 type='button'
                 className='router-inline-button'
-                loading={dailyPackageQuotaLoading}
-                onClick={() => fetchDailyPackageQuota()}
+                loading={dailyPackageBalanceLoading}
+                onClick={() => fetchDailyPackageBalanceSummary()}
               >
                 {t('dashboard.admin.buttons.refresh')}
               </Button>
@@ -995,9 +1024,7 @@ const Dashboard = () => {
                 <div className='dashboard-spend-label'>
                   {t('dashboard.spending.package_daily.consumed')}
                 </div>
-                <div className='dashboard-spend-value'>
-                  {dailyPackageQuota ? formatCountValue(dailyPackageQuota.consumed_quota || 0) : '-'}
-                </div>
+                <div className='dashboard-spend-value'>{packageUsedDisplay}</div>
               </div>
             </div>
             <div className='dashboard-spend-summary-row'>
@@ -1012,7 +1039,7 @@ const Dashboard = () => {
                   {t('dashboard.spending.package_daily.biz_date')}
                 </div>
                 <div className='dashboard-spend-value'>
-                  {dailyPackageQuota?.biz_date || '-'}
+                  {dailyPackageBalanceSummary?.biz_date || '-'}
                 </div>
               </div>
             </div>
@@ -1043,7 +1070,7 @@ const Dashboard = () => {
                       })}
                     </div>
                     <div className='dashboard-spend-value'>
-                      {formatCurrencyValue(overviewSummary?.period_cost || 0)}
+                      {formatYycAsUsd(overviewSummary?.period_cost || 0)}
                     </div>
                   </div>
                   <div className='dashboard-spend-metric'>
@@ -1051,7 +1078,7 @@ const Dashboard = () => {
                       {t('dashboard.spending.overview.today_cost')}
                     </div>
                     <div className='dashboard-spend-value'>
-                      {formatCurrencyValue(
+                      {formatYycAsUsd(
                         overviewSummary?.today_cost ?? overviewSummary?.yesterday_cost ?? 0
                       )}
                     </div>
@@ -1063,7 +1090,7 @@ const Dashboard = () => {
                       {t('dashboard.spending.overview.period_avg_cost')}
                     </div>
                     <div className='dashboard-spend-value'>
-                      {formatCurrencyValue(
+                      {formatYycAsUsd(
                         (overviewSummary?.period_cost || 0) /
                           Math.max(1, overviewSummary?.period_days || 0)
                       )}
@@ -1224,7 +1251,7 @@ const Dashboard = () => {
                         dataKey='value'
                         fill={
                           calendarUnit === 'usd'
-                            ? chartConfig.colors.quota
+                            ? chartConfig.colors.cost
                             : chartConfig.colors.tokens
                         }
                         radius={[4, 4, 0, 0]}

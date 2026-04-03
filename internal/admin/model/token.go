@@ -176,6 +176,23 @@ func PreConsumeTokenQuota(tokenId string, quota int64) (err error) {
 	return err
 }
 
+func PreConsumeTokenRemainQuota(tokenId string, quota int64) error {
+	if quota < 0 {
+		return errors.New("quota 不能为负数！")
+	}
+	token, err := GetTokenById(tokenId)
+	if err != nil {
+		return err
+	}
+	if token.UnlimitedQuota || quota == 0 {
+		return nil
+	}
+	if token.RemainQuota < quota {
+		return errors.New("令牌额度不足")
+	}
+	return DecreaseTokenQuota(tokenId, quota)
+}
+
 func PostConsumeTokenQuota(tokenId string, quota int64) (err error) {
 	token, err := GetTokenById(tokenId)
 	if err != nil {
@@ -197,4 +214,18 @@ func PostConsumeTokenQuota(tokenId string, quota int64) (err error) {
 		}
 	}
 	return nil
+}
+
+func PostConsumeTokenRemainQuota(tokenId string, quota int64) error {
+	token, err := GetTokenById(tokenId)
+	if err != nil {
+		return err
+	}
+	if token.UnlimitedQuota || quota == 0 {
+		return nil
+	}
+	if quota > 0 {
+		return DecreaseTokenQuota(tokenId, quota)
+	}
+	return IncreaseTokenQuota(tokenId, -quota)
 }

@@ -16,6 +16,7 @@ type Log struct {
 	GroupId               string  `json:"group_id" gorm:"type:varchar(64);index"`
 	GroupName             string  `json:"group_name,omitempty" gorm:"-"`
 	Quota                 int     `json:"quota" gorm:"default:0"`
+	BillingSource         string  `json:"billing_source" gorm:"type:varchar(32);index;default:''"`
 	UserDailyQuota        int     `json:"user_daily_quota" gorm:"column:user_daily_quota;default:0"`
 	UserEmergencyQuota    int     `json:"user_emergency_quota" gorm:"column:user_emergency_quota;default:0"`
 	BillingPriceUnit      string  `json:"billing_price_unit" gorm:"type:varchar(64);default:''"`
@@ -50,6 +51,18 @@ const (
 	LogTypeSystem
 	LogTypeTest
 )
+
+const (
+	LogBillingSourceBalance = "balance"
+	LogBillingSourcePackage = "package"
+)
+
+func ResolveConsumeLogBillingSource(chargeUserBalance bool) string {
+	if chargeUserBalance {
+		return LogBillingSourceBalance
+	}
+	return LogBillingSourcePackage
+}
 
 func RecordLog(ctx context.Context, userId string, logType int, content string) {
 	mustLogRepo().RecordLog(ctx, userId, logType, content)

@@ -23,6 +23,20 @@ import {
 import { ITEMS_PER_PAGE } from '../constants';
 import { renderYYC } from '../helpers/render';
 
+const normalizeTokenRow = (raw) => {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+  return {
+    ...raw,
+    yycUsed: Number(raw?.yyc_used ?? raw?.used_quota ?? 0) || 0,
+    yycRemaining: Number(raw?.yyc_remain ?? raw?.remain_quota ?? 0) || 0,
+    hasUnlimitedYYCLimit: raw?.unlimited_quota === true,
+    createdTime: Number(raw?.created_time ?? 0) || 0,
+    expiredTime: Number(raw?.expired_time ?? 0) || 0,
+  };
+};
+
 function renderTimestamp(timestamp) {
   return <>{timestamp2string(timestamp)}</>;
 }
@@ -74,6 +88,25 @@ function renderShortToken(key) {
   return `${withPrefix.slice(0, 8)}...${withPrefix.slice(-6)}`;
 }
 
+function resolveTokenSortValue(token, key) {
+  switch (key) {
+    case 'name':
+      return (token?.name || '').toString();
+    case 'status':
+      return Number(token?.status || 0);
+    case 'usedAmount':
+      return Number(token?.yycUsed || 0);
+    case 'remainingAmount':
+      return Number(token?.yycRemaining || 0);
+    case 'createdTime':
+      return Number(token?.createdTime || 0);
+    case 'expiredTime':
+      return Number(token?.expiredTime || 0);
+    default:
+      return '';
+  }
+}
+
 const TokensTable = () => {
   const { t } = useTranslation();
   const location = useLocation();
@@ -104,17 +137,20 @@ const TokensTable = () => {
       );
       const { success, message, data, meta } = res.data;
       if (success) {
+        const normalizedRows = Array.isArray(data)
+          ? data.map(normalizeTokenRow).filter(Boolean)
+          : [];
         setIsSearchMode(false);
-        setTotalCount(Number(meta?.total || data?.length || 0));
+        setTotalCount(Number(meta?.total || normalizedRows?.length || 0));
         if (normalizedPage === 1) {
-          setTokens(data);
+          setTokens(normalizedRows);
         } else {
           setTokens((prev) => {
             let next = [...prev];
             next.splice(
               (normalizedPage - 1) * ITEMS_PER_PAGE,
-              data.length,
-              ...data,
+              normalizedRows.length,
+              ...normalizedRows,
             );
             return next;
           });
@@ -294,9 +330,12 @@ const TokensTable = () => {
     );
     const { success, message, data } = res.data;
     if (success) {
+      const normalizedRows = Array.isArray(data)
+        ? data.map(normalizeTokenRow).filter(Boolean)
+        : [];
       setIsSearchMode(true);
-      setTotalCount(Array.isArray(data) ? data.length : 0);
-      setTokens(data);
+      setTotalCount(normalizedRows.length);
+      setTokens(normalizedRows);
       setActivePage(1);
     } else {
       showError(message);
@@ -317,12 +356,17 @@ const TokensTable = () => {
     setLoading(true);
     let sortedTokens = [...tokens];
     sortedTokens.sort((a, b) => {
-      if (!isNaN(a[key])) {
-        // If the value is numeric, subtract to sort
-        return a[key] - b[key];
+      const leftValue = resolveTokenSortValue(a, key);
+      const rightValue = resolveTokenSortValue(b, key);
+      if (
+        typeof leftValue === 'number' &&
+        typeof rightValue === 'number' &&
+        !Number.isNaN(leftValue) &&
+        !Number.isNaN(rightValue)
+      ) {
+        return leftValue - rightValue;
       } else {
-        // If the value is not numeric, sort as strings
-        return ('' + a[key]).localeCompare(b[key]);
+        return String(leftValue).localeCompare(String(rightValue));
       }
     });
     if (sortedTokens[0].id === tokens[0].id) {
@@ -370,12 +414,12 @@ const TokensTable = () => {
             options={[
               { key: '', text: t('token.sort.default'), value: '' },
               {
-                key: 'remain_quota',
+                key: 'remaining_amount',
                 text: t('token.sort.by_remain'),
                 value: 'remain_quota',
               },
               {
-                key: 'used_quota',
+                key: 'used_amount',
                 text: t('token.sort.by_used'),
                 value: 'used_quota',
               },
@@ -421,7 +465,7 @@ const TokensTable = () => {
             <Table.HeaderCell
               className='router-sortable-header'
               onClick={() => {
-                sortToken('used_quota');
+                sortToken('usedAmount');
               }}
             >
               {t('token.table.used_quota')}
@@ -429,7 +473,7 @@ const TokensTable = () => {
             <Table.HeaderCell
               className='router-sortable-header'
               onClick={() => {
-                sortToken('remain_quota');
+                sortToken('remainingAmount');
               }}
             >
               {t('token.table.remain_quota')}
@@ -437,7 +481,7 @@ const TokensTable = () => {
             <Table.HeaderCell
               className='router-sortable-header'
               onClick={() => {
-                sortToken('created_time');
+                sortToken('createdTime');
               }}
             >
               {t('token.table.created_time')}
@@ -445,7 +489,7 @@ const TokensTable = () => {
             <Table.HeaderCell
               className='router-sortable-header'
               onClick={() => {
-                sortToken('expired_time');
+                sortToken('expiredTime');
               }}
             >
               {t('token.table.expired_time')}
@@ -524,17 +568,17 @@ const TokensTable = () => {
                       />
                     </span>
                   </Table.Cell>
-                  <Table.Cell>{renderYYC(token.yyc_used ?? token.used_quota, t)}</Table.Cell>
+                  <Table.Cell>{renderYYC(token.yycUsed, t)}</Table.Cell>
                   <Table.Cell>
-                    {token.unlimited_quota
+                    {token.hasUnlimitedYYCLimit
                       ? t('token.table.unlimited')
-                      : renderYYC(token.yyc_remain ?? token.remain_quota, t)}
+                      : renderYYC(token.yycRemaining, t)}
                   </Table.Cell>
-                  <Table.Cell>{renderTimestamp(token.created_time)}</Table.Cell>
+                  <Table.Cell>{renderTimestamp(token.createdTime)}</Table.Cell>
                   <Table.Cell>
-                    {token.expired_time === -1
+                    {token.expiredTime === -1
                       ? t('token.table.never_expire')
-                      : renderTimestamp(token.expired_time)}
+                      : renderTimestamp(token.expiredTime)}
                   </Table.Cell>
                   <Table.Cell onClick={stopRowClick}>
                     <div className='router-action-group'>

@@ -279,6 +279,106 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return backfillRedemptionGroupWithDefaultGroupWithDB(tx)
 			},
 		},
+		{
+			Version:     "202604031030_service_package_created_at",
+			Description: "add created_at column to service packages and backfill from updated_at",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&ServicePackage{}); err != nil {
+					return err
+				}
+				return tx.Exec(
+					"UPDATE service_packages SET created_at = COALESCE(NULLIF(updated_at, 0), ?) WHERE COALESCE(created_at, 0) = 0",
+					helper.GetTimestamp(),
+				).Error
+			},
+		},
+		{
+			Version:     "202604031130_user_created_updated_at",
+			Description: "add created_at and updated_at columns to users and backfill existing rows",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&User{}); err != nil {
+					return err
+				}
+				now := helper.GetTimestamp()
+				if err := tx.Exec(
+					"UPDATE users SET created_at = ? WHERE COALESCE(created_at, 0) = 0",
+					now,
+				).Error; err != nil {
+					return err
+				}
+				return tx.Exec(
+					"UPDATE users SET updated_at = COALESCE(NULLIF(created_at, 0), ?) WHERE COALESCE(updated_at, 0) = 0",
+					now,
+				).Error
+			},
+		},
+		{
+			Version:     "202604031500_log_billing_source",
+			Description: "add billing source field to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202604031730_billing_currency_created_at",
+			Description: "add created_at column to billing currencies and backfill existing rows from updated_at",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&BillingCurrency{}); err != nil {
+					return err
+				}
+				return tx.Exec(
+					"UPDATE billing_currencies SET created_at = COALESCE(NULLIF(updated_at, 0), ?) WHERE COALESCE(created_at, 0) = 0",
+					helper.GetTimestamp(),
+				).Error
+			},
+		},
+		{
+			Version:     "202604031930_fx_market_rates",
+			Description: "add persisted fiat market rates and normalize legacy auto-managed yyc currency sources to manual",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&FXMarketRate{}); err != nil {
+					return err
+				}
+				return normalizeBillingCurrencyAutoSourcesWithDB(tx)
+			},
+		},
+		{
+			Version:     "202604032130_billing_currency_yyc_default",
+			Description: "seed default yyc currency row into billing currency catalog",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&BillingCurrency{}); err != nil {
+					return err
+				}
+				return syncDefaultBillingCurrenciesWithDB(tx)
+			},
+		},
+		{
+			Version:     "202604032230_billing_currency_minor_unit_six",
+			Description: "standardize billing currency minor_unit: yyc=0, fiat=6",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&BillingCurrency{}); err != nil {
+					return err
+				}
+				return tx.Exec(
+					`UPDATE billing_currencies
+					 SET minor_unit = CASE
+					   WHEN UPPER(TRIM(code)) = 'YYC' THEN 0
+					   ELSE 6
+					 END
+					 WHERE COALESCE(minor_unit, -1) <> CASE
+					   WHEN UPPER(TRIM(code)) = 'YYC' THEN 0
+					   ELSE 6
+					 END`,
+				).Error
+			},
+		},
+		{
+			Version:     "202604041200_package_emergency_quota_columns",
+			Description: "migrate monthly_emergency_quota_limit columns to package_emergency_quota_limit and drop legacy columns",
+			Up: func(tx *gorm.DB) error {
+				return migratePackageEmergencyQuotaColumnsWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -309,6 +409,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 		{
 			Version:     "202603311900_log_billing_snapshots",
 			Description: "add billing snapshot fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202604031500_log_billing_source",
+			Description: "add billing source field to consume logs",
 			Up: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
 			},

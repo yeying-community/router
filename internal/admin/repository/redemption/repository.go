@@ -63,6 +63,7 @@ func init() {
 		GetAllRedemptions:    GetAll,
 		SearchRedemptions:    Search,
 		GetRedemptionById:    GetByID,
+		ListRedemptionsByRedeemedUserID: ListByRedeemedUserID,
 		Redeem:               Redeem,
 		Insert:               Create,
 		SelectUpdate:         SelectUpdate,
@@ -116,6 +117,38 @@ func GetByID(id string) (*model.Redemption, error) {
 		_ = hydrateRedemptionGroupNamesWithDB(model.DB, []*model.Redemption{&redemption})
 	}
 	return &redemption, err
+}
+
+func ListByRedeemedUserID(userID string, limit int) ([]*model.Redemption, error) {
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return []*model.Redemption{}, nil
+	}
+	if limit <= 0 {
+		limit = 5
+	}
+	if limit > 20 {
+		limit = 20
+	}
+	rows := make([]*model.Redemption, 0, limit)
+	err := model.DB.
+		Where("redeemed_by_user_id = ? AND redeemed_time > 0", normalizedUserID).
+		Order("redeemed_time desc, id desc").
+		Limit(limit).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	if err := hydrateRedemptionGroupNamesWithDB(model.DB, rows); err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		row.RedeemedByUsername = model.GetUsernameById(normalizedUserID)
+	}
+	return rows, nil
 }
 
 func Redeem(ctx context.Context, code string, userId string) (model.RedemptionResult, error) {

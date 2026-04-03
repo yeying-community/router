@@ -9,9 +9,14 @@ import {
 } from 'react-router-dom';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
 import {
+  buildBillingCurrencyIndex,
+  buildFaceValueUnitOptions,
+} from '../../helpers/billing';
+import {
   formatAmountWithUnit,
   formatYYCValue,
 } from '../../helpers/render';
+import UnitDropdown from '../../components/UnitDropdown';
 
 const YYC_UNIT = 'YYC';
 
@@ -51,58 +56,6 @@ const toGroupOptions = (rows) =>
     text: item.name || item.id,
   }));
 
-const toFaceValueUnitOptions = (rows, currentUnit = '') => {
-  const options = [
-    {
-      key: YYC_UNIT,
-      value: YYC_UNIT,
-      text: YYC_UNIT,
-    },
-  ];
-  const seen = new Set([YYC_UNIT]);
-  (Array.isArray(rows) ? rows : [])
-    .filter((item) => Number(item?.status || 0) === 1)
-    .forEach((item) => {
-      const code = (item?.code || '').toString().trim().toUpperCase();
-      if (!code || seen.has(code)) {
-        return;
-      }
-      seen.add(code);
-      options.push({
-        key: code,
-        value: code,
-        text: `${code}${item?.name ? ` (${item.name})` : ''}`,
-      });
-    });
-  const normalizedCurrentUnit = (currentUnit || '').toString().trim().toUpperCase();
-  if (normalizedCurrentUnit && !seen.has(normalizedCurrentUnit)) {
-    options.push({
-      key: normalizedCurrentUnit,
-      value: normalizedCurrentUnit,
-      text: normalizedCurrentUnit,
-    });
-  }
-  return options;
-};
-
-const buildCurrencyIndex = (rows) => {
-  const next = {
-    [YYC_UNIT]: {
-      code: YYC_UNIT,
-      yyc_per_unit: 1,
-      minor_unit: 0,
-    },
-  };
-  (Array.isArray(rows) ? rows : []).forEach((item) => {
-    const code = (item?.code || '').toString().trim().toUpperCase();
-    if (!code) {
-      return;
-    }
-    next[code] = item;
-  });
-  return next;
-};
-
 const computeYYCPreview = (amountValue, unitValue, currencyIndex) => {
   const amount = Number.parseFloat(`${amountValue ?? ''}`);
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -125,9 +78,10 @@ const normalizeFaceValueAmount = (data) => {
   if (Number.isFinite(rawAmount) && rawAmount > 0) {
     return `${rawAmount}`;
   }
-  const yycValue = Number(data?.yyc_value ?? data?.quota ?? 0);
-  if (Number.isFinite(yycValue) && yycValue > 0) {
-    return `${yycValue}`;
+  // Older payloads only returned quota/yyc_value instead of face_value_amount.
+  const creditedYYC = Number(data?.yyc_value ?? data?.quota ?? 0);
+  if (Number.isFinite(creditedYYC) && creditedYYC > 0) {
+    return `${creditedYYC}`;
   }
   return '0';
 };
@@ -146,6 +100,9 @@ const formatGroupLabel = (data) => {
   return id || '-';
 };
 
+// Keep legacy quota fallback for historical redemption payloads.
+const resolveCreditedYYC = (data) => Number(data?.yyc_value ?? data?.quota ?? 0);
+
 const RedemptionDetail = () => {
   const { t } = useTranslation();
   const location = useLocation();
@@ -157,14 +114,8 @@ const RedemptionDetail = () => {
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [redemption, setRedemption] = useState(null);
   const [groupOptions, setGroupOptions] = useState([]);
-  const [unitOptions, setUnitOptions] = useState([
-    {
-      key: YYC_UNIT,
-      value: YYC_UNIT,
-      text: YYC_UNIT,
-    },
-  ]);
-  const [currencyIndex, setCurrencyIndex] = useState(buildCurrencyIndex([]));
+  const [unitOptions, setUnitOptions] = useState(buildFaceValueUnitOptions([]));
+  const [currencyIndex, setCurrencyIndex] = useState(buildBillingCurrencyIndex([]));
   const [inputs, setInputs] = useState({
     name: '',
     group_id: '',
@@ -242,8 +193,8 @@ const RedemptionDetail = () => {
         ? currenciesPayload.data
         : [];
       setGroupOptions(toGroupOptions(nextGroups));
-      setUnitOptions(toFaceValueUnitOptions(nextCurrencies, currentUnit));
-      setCurrencyIndex(buildCurrencyIndex(nextCurrencies));
+      setUnitOptions(buildFaceValueUnitOptions(nextCurrencies, { currentUnit }));
+      setCurrencyIndex(buildBillingCurrencyIndex(nextCurrencies));
     } catch (error) {
       showError(error?.message || error);
     } finally {
@@ -310,9 +261,9 @@ const RedemptionDetail = () => {
       }
       setRedemption(data);
       syncInputs(data);
-      setUnitOptions(toFaceValueUnitOptions(
+      setUnitOptions(buildFaceValueUnitOptions(
         Object.values(currencyIndex).filter(Boolean),
-        normalizeFaceValueUnit(data)
+        { currentUnit: normalizeFaceValueUnit(data) }
       ));
       setEditMode(false);
       showSuccess(t('redemption.messages.update_success'));
@@ -465,28 +416,30 @@ const RedemptionDetail = () => {
                       className='router-section-input'
                       label={t('redemption.table.face_value')}
                       value={formatAmountWithUnit(
-                        redemption?.face_value_amount ?? redemption?.yyc_value ?? redemption?.quota ?? 0,
+                        redemption?.face_value_amount ?? resolveCreditedYYC(redemption),
                         normalizeFaceValueUnit(redemption)
                       )}
                       readOnly
                     />
                   )}
                   {isEditing ? (
-                    <Form.Select
-                      className='router-section-input'
-                      label={t('redemption.edit.face_value_unit')}
-                      name='face_value_unit'
-                      placeholder={t('redemption.edit.face_value_unit_placeholder')}
-                      options={unitOptions}
-                      value={inputs.face_value_unit}
-                      onChange={handleInputChange}
-                      selection
-                    />
+                    <Form.Field className='router-section-input'>
+                      <label>{t('redemption.edit.face_value_unit')}</label>
+                      <UnitDropdown
+                        variant='section'
+                        fluid
+                        name='face_value_unit'
+                        placeholder={t('redemption.edit.face_value_unit_placeholder')}
+                        options={unitOptions}
+                        value={inputs.face_value_unit}
+                        onChange={handleInputChange}
+                      />
+                    </Form.Field>
                   ) : (
                     <Form.Input
                       className='router-section-input'
-                      label={t('redemption.table.quota')}
-                      value={redemption ? formatYYCValue(redemption.yyc_value ?? redemption.quota) : ''}
+                      label={t('redemption.table.credited_yyc')}
+                      value={redemption ? formatYYCValue(resolveCreditedYYC(redemption)) : ''}
                       readOnly
                     />
                   )}

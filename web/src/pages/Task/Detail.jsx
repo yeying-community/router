@@ -9,6 +9,10 @@ import {
 } from 'react-router-dom';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
 
+const TASK_DETAIL_KIND_WORKSPACE_USER = 'workspace_user';
+const TASK_DETAIL_KIND_ADMIN_USER = 'admin_user';
+const TASK_DETAIL_KIND_ADMIN_SYSTEM = 'admin_system';
+
 const normalizeTaskStatus = (value) => {
   const normalized = (value || '').toString().trim().toLowerCase();
   switch (normalized) {
@@ -125,20 +129,31 @@ const renderStructuredContent = (title, value, fields) => {
   );
 };
 
+const resolveTaskDetailKind = (pathname = '') => {
+  const normalizedPath = (pathname || '').toString().trim().toLowerCase();
+  if (normalizedPath.startsWith('/admin/channel/tasks/')) {
+    return TASK_DETAIL_KIND_ADMIN_SYSTEM;
+  }
+  if (normalizedPath.startsWith('/admin/task/')) {
+    return TASK_DETAIL_KIND_ADMIN_USER;
+  }
+  return TASK_DETAIL_KIND_WORKSPACE_USER;
+};
+
 const TaskDetail = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { id } = useParams();
-  const isAdminPage = location.pathname.startsWith('/admin/');
-  const scope =
-    isAdminPage && searchParams.get('scope') === 'user'
-      ? 'user'
-      : isAdminPage
-        ? 'admin'
-        : 'user';
-  const isUserScope = scope === 'user';
+  const detailKind = useMemo(
+    () => resolveTaskDetailKind(location.pathname),
+    [location.pathname],
+  );
+  const isAdminPage = detailKind !== TASK_DETAIL_KIND_WORKSPACE_USER;
+  const isSystemTaskPage = detailKind === TASK_DETAIL_KIND_ADMIN_SYSTEM;
+  const isAdminUserTaskPage = detailKind === TASK_DETAIL_KIND_ADMIN_USER;
+  const isUserTaskPage = !isSystemTaskPage;
   const currentPagePath = `${location.pathname}${location.search}${location.hash}`;
   const [loading, setLoading] = useState(true);
   const [task, setTask] = useState(null);
@@ -154,18 +169,15 @@ const TaskDetail = () => {
         }
         nextSearchParams.set(key, normalizedValue);
       });
-      if (!isAdminPage) {
-        nextSearchParams.delete('scope');
-      } else if (scope !== 'user') {
-        nextSearchParams.delete('scope');
-      } else {
-        nextSearchParams.set('scope', 'user');
-      }
       const search = nextSearchParams.toString();
-      const basePath = isAdminPage ? '/admin/task' : '/workspace/task';
+      const basePath = isSystemTaskPage
+        ? '/admin/channel/tasks'
+        : isAdminPage
+          ? '/admin/task'
+          : '/workspace/task';
       return `${basePath}${search ? `?${search}` : ''}`;
     },
-    [isAdminPage, scope, searchParams],
+    [isAdminPage, isSystemTaskPage, searchParams],
   );
 
   const payloadFields = useMemo(
@@ -209,11 +221,11 @@ const TaskDetail = () => {
   const loadTask = useCallback(async () => {
     setLoading(true);
     try {
-      const endpoint = isAdminPage
-        ? isUserScope
+      const endpoint = isSystemTaskPage
+        ? `/api/v1/admin/tasks/${id}`
+        : isAdminPage
           ? `/api/v1/admin/user/tasks/${id}`
-          : `/api/v1/admin/tasks/${id}`
-        : `/api/v1/public/user/tasks/${id}`;
+          : `/api/v1/public/user/tasks/${id}`;
       const res = await API.get(endpoint);
       const { success, message, data } = res.data || {};
       if (!success) {
@@ -226,7 +238,7 @@ const TaskDetail = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, isAdminPage, isUserScope, t]);
+  }, [id, isAdminPage, isSystemTaskPage, t]);
 
   useEffect(() => {
     loadTask().then();
@@ -263,10 +275,10 @@ const TaskDetail = () => {
   }, [buildTaskListPath, id, navigate, t]);
 
   const canRetry =
-    !isUserScope &&
+    isSystemTaskPage &&
     ['failed', 'canceled'].includes(normalizeTaskStatus(task?.status));
   const canCancel =
-    !isUserScope &&
+    isSystemTaskPage &&
     ['pending', 'running'].includes(normalizeTaskStatus(task?.status));
   const channelDetailPath =
     isAdminPage && task?.channel_id
@@ -303,7 +315,7 @@ const TaskDetail = () => {
                   >
                     {t('task.buttons.refresh')}
                   </Button>
-                  {!isUserScope ? (
+                  {isSystemTaskPage ? (
                     <>
                       <Button
                         className='router-page-button'
@@ -353,7 +365,7 @@ const TaskDetail = () => {
                 </Form.Group>
 
                 <Form.Group widths='equal'>
-                  {isAdminPage && isUserScope ? (
+                  {isAdminUserTaskPage ? (
                     <Form.Input
                       className='router-section-input'
                       label={t('task.table.user')}
@@ -387,12 +399,12 @@ const TaskDetail = () => {
                   <Form.Input
                     className='router-section-input'
                     label={
-                      isUserScope
+                      isUserTaskPage
                         ? t('task.table.updated_at')
                         : t('task.table.finished_at')
                     }
                     value={
-                      isUserScope
+                      isUserTaskPage
                         ? task?.updated_at
                           ? timestamp2string(task.updated_at)
                           : '-'
@@ -404,7 +416,7 @@ const TaskDetail = () => {
                   />
                 </Form.Group>
 
-                {isUserScope ? (
+                {isUserTaskPage ? (
                   <>
                     <Form.Group widths='equal'>
                       <Form.Input
@@ -444,7 +456,7 @@ const TaskDetail = () => {
               </Form>
             </div>
 
-            {!isUserScope
+            {isSystemTaskPage
               ? (
                 <>
                   {renderStructuredContent(

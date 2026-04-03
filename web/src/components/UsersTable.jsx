@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Icon,
@@ -10,16 +10,22 @@ import {
   Dropdown,
 } from 'semantic-ui-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { API, copy, isRoot, showError, showSuccess } from '../helpers';
+import { API, copy, isRoot, showError, showSuccess, timestamp2string } from '../helpers';
 import { useTranslation } from 'react-i18next';
+import UnitDropdown from './UnitDropdown';
 
 import { ITEMS_PER_PAGE } from '../constants';
 import {
   formatCompactNumber,
-  renderGroup,
   renderText,
-  renderYYC,
 } from '../helpers/render';
+import {
+  buildDisplayUnitOptions,
+  buildPublicDisplayCurrencyIndex,
+  loadPublicDisplayCurrencyCatalog,
+  resolvePreferredDisplayCurrency,
+  yycToBillingInputValue,
+} from '../helpers/billing';
 
 function renderRole(role, t) {
   switch (role) {
@@ -63,7 +69,6 @@ const UsersTable = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
-  const [groupMap, setGroupMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -71,6 +76,12 @@ const UsersTable = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searching, setSearching] = useState(false);
   const [orderBy, setOrderBy] = useState('');
+  const [currencyIndex, setCurrencyIndex] = useState(() =>
+    buildPublicDisplayCurrencyIndex([]),
+  );
+  const [balanceUnit, setBalanceUnit] = useState(() =>
+    resolvePreferredDisplayCurrency(buildPublicDisplayCurrencyIndex([]), 'USD'),
+  );
 
   const loadUsers = useCallback(
     async (page) => {
@@ -108,48 +119,6 @@ const UsersTable = () => {
     await loadUsers(activePage);
   };
 
-  const loadGroups = useCallback(async () => {
-    try {
-      const rows = [];
-      let page = 1;
-      while (page <= 50) {
-        const res = await API.get('/api/v1/admin/groups', {
-          params: {
-            page,
-            page_size: 100,
-          },
-        });
-        const { success, message, data } = res.data || {};
-        if (!success) {
-          showError(message || t('user.messages.operation_failed'));
-          return;
-        }
-        const pageItems = Array.isArray(data?.items) ? data.items : [];
-        rows.push(...pageItems);
-        const total = Number(data?.total || pageItems.length || 0);
-        if (
-          pageItems.length === 0 ||
-          rows.length >= total ||
-          pageItems.length < 100
-        ) {
-          break;
-        }
-        page += 1;
-      }
-      const nextMap = {};
-      rows.forEach((group) => {
-        const id = (group?.id || '').toString().trim();
-        if (id === '') {
-          return;
-        }
-        nextMap[id] = (group?.name || '').toString().trim() || id;
-      });
-      setGroupMap(nextMap);
-    } catch (error) {
-      showError(error?.message || error);
-    }
-  }, [t]);
-
   const onPaginationChange = (e, { activePage }) => {
     (async () => {
       const nextPage = Number(activePage) > 0 ? Number(activePage) : 1;
@@ -169,25 +138,26 @@ const UsersTable = () => {
       .catch((reason) => {
         showError(reason);
       });
-    loadGroups().then();
-  }, [loadGroups, loadUsers]);
+  }, [loadUsers]);
 
-  const renderUserGroup = useCallback(
-    (value) => {
-      const raw = (value || '').toString().trim();
-      if (raw === '') {
-        return renderGroup(raw);
+  useEffect(() => {
+    let disposed = false;
+    loadPublicDisplayCurrencyCatalog().then(({ currencyIndex: nextIndex, defaultCurrency }) => {
+      if (disposed) {
+        return;
       }
-      const mapped = raw
-        .split(',')
-        .map((item) => item.trim())
-        .filter((item) => item !== '')
-        .map((item) => groupMap[item] || item)
-        .join(',');
-      return renderGroup(mapped);
-    },
-    [groupMap],
-  );
+      setCurrencyIndex(nextIndex);
+      setBalanceUnit((current) =>
+        resolvePreferredDisplayCurrency(
+          nextIndex,
+          current || defaultCurrency || 'USD',
+        ),
+      );
+    });
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   const manageUser = async (username, action, idx) => {
     const res = await API.post('/api/v1/admin/user/manage', {
@@ -309,18 +279,16 @@ const UsersTable = () => {
     setActivePage(1);
   };
 
-  const renderQuotaValue = (value) =>
-    (() => {
-      const numericValue = Number(value);
-      const base = Number.isFinite(numericValue) ? numericValue : 0;
-      return renderYYC(base, t);
-    })();
-
   const renderCountValue = (value) => (
     <Popup
       content={formatFullNumber(value)}
       trigger={<span>{formatCompactNumber(value)}</span>}
     />
+  );
+
+  const balanceUnitOptions = useMemo(
+    () => buildDisplayUnitOptions(currencyIndex),
+    [currencyIndex],
   );
 
   return (
@@ -350,16 +318,6 @@ const UsersTable = () => {
             selection
             options={[
               { key: '', text: t('user.table.sort.default'), value: '' },
-              {
-                key: 'quota',
-                text: t('user.table.sort.by_quota'),
-                value: 'quota',
-              },
-              {
-                key: 'used_quota',
-                text: t('user.table.sort.by_used_quota'),
-                value: 'used_quota',
-              },
               {
                 key: 'request_count',
                 text: t('user.table.sort.by_request_count'),
@@ -402,28 +360,27 @@ const UsersTable = () => {
             <Table.HeaderCell
               className='router-sortable-header'
               onClick={() => {
-                sortUser('group');
+                sortUser('active_package_name');
               }}
             >
-              {t('user.table.group')}
+              {t('user.table.package')}
             </Table.HeaderCell>
-            <Table.HeaderCell
-              className='router-sortable-header'
-              onClick={() => {
-                sortUser('quota');
-              }}
-            >
-              {t('user.table.remaining_quota')}
-              <span className='router-inline-unit'>$</span>
-            </Table.HeaderCell>
-            <Table.HeaderCell
-              className='router-sortable-header'
-              onClick={() => {
-                sortUser('used_quota');
-              }}
-            >
-              {t('user.table.used_quota')}
-              <span className='router-inline-unit'>$</span>
+            <Table.HeaderCell className='router-redemption-face-value-header'>
+              <div className='router-table-header-with-control'>
+                <span>{t('user.table.balance')}</span>
+                <UnitDropdown
+                  variant='header'
+                  compact
+                  options={balanceUnitOptions}
+                  value={balanceUnit}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onChange={(_, { value }) => {
+                    setBalanceUnit((value || '').toString());
+                  }}
+                />
+              </div>
             </Table.HeaderCell>
             <Table.HeaderCell
               className='router-sortable-header'
@@ -432,6 +389,22 @@ const UsersTable = () => {
               }}
             >
               {t('user.table.request_count')}
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              className='router-sortable-header'
+              onClick={() => {
+                sortUser('created_at');
+              }}
+            >
+              {t('user.table.created_at')}
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              className='router-sortable-header'
+              onClick={() => {
+                sortUser('updated_at');
+              }}
+            >
+              {t('user.table.updated_at')}
             </Table.HeaderCell>
             <Table.HeaderCell
               className='router-sortable-header'
@@ -499,15 +472,23 @@ const UsersTable = () => {
                       '-'
                     )}
                   </Table.Cell>
-                  <Table.Cell>{renderUserGroup(user.group)}</Table.Cell>
-                  {/*<Table.Cell>*/}
-                  {/*  {user.email ? <Popup hoverable content={user.email} trigger={<span>{renderText(user.email, 24)}</span>} /> : '无'}*/}
-                  {/*</Table.Cell>*/}
-                  <Table.Cell>{renderQuotaValue(user.yyc_balance ?? user.quota)}</Table.Cell>
-                  <Table.Cell>{renderQuotaValue(user.yyc_used ?? user.used_quota)}</Table.Cell>
+                  <Table.Cell>
+                    {user.active_package_name
+                      ? renderText(user.active_package_name, 18)
+                      : '-'}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {yycToBillingInputValue(
+                      user.yyc_balance ?? user.quota,
+                      balanceUnit,
+                      currencyIndex,
+                    )}
+                  </Table.Cell>
                   <Table.Cell>
                     {renderCountValue(user.request_count)}
                   </Table.Cell>
+                  <Table.Cell>{user.created_at ? timestamp2string(user.created_at) : '-'}</Table.Cell>
+                  <Table.Cell>{user.updated_at ? timestamp2string(user.updated_at) : '-'}</Table.Cell>
                   <Table.Cell>
                     {renderRole(user.role, t)}
                   </Table.Cell>
@@ -563,7 +544,7 @@ const UsersTable = () => {
 
         <Table.Footer>
           <Table.Row>
-            <Table.HeaderCell colSpan='9'>
+            <Table.HeaderCell colSpan='10'>
               <Pagination
                 className='router-page-pagination'
                 floated='right'

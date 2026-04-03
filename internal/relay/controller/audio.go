@@ -16,7 +16,6 @@ import (
 	"github.com/yeying-community/router/common/client"
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/ctxkey"
-	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/admin/model"
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/relay/adaptor/openai"
@@ -91,15 +90,12 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
 	}
-	groupReservation, groupQuotaErr := reserveGroupDailyQuota(ctx, group, userId, preConsumedQuota)
-	if groupQuotaErr != nil {
-		return groupQuotaErr
+	billingPlan, quotaErr := reserveRelayQuota(ctx, group, userId, preConsumedQuota)
+	if quotaErr != nil {
+		return quotaErr
 	}
-	userReservation, userQuotaErr := reserveUserQuota(userId, preConsumedQuota)
-	if userQuotaErr != nil {
-		releaseGroupDailyQuotaReservation(ctx, groupReservation)
-		return userQuotaErr
-	}
+	groupReservation := billingPlan.GroupReservation
+	userReservation := billingPlan.UserReservation
 	groupQuotaSettled := false
 	userQuotaSettled := false
 	defer func() {
@@ -110,35 +106,41 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			releaseUserQuotaReservation(ctx, userReservation)
 		}
 	}()
-	userQuota, err := model.CacheGetUserQuota(ctx, userId)
-	if err != nil {
-		return openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
-	}
+	if billingPlan.ChargeUserBalance() {
+		userQuota, err := model.CacheGetUserQuota(ctx, userId)
+		if err != nil {
+			return openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
+		}
 
-	// Check if user quota is enough
-	if userQuota-preConsumedQuota < 0 {
-		return openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
-	}
-	err = model.CacheDecreaseUserQuota(userId, preConsumedQuota)
-	if err != nil {
-		return openai.ErrorWrapper(err, "decrease_user_quota_failed", http.StatusInternalServerError)
-	}
-	if userQuota > 100*preConsumedQuota {
-		// in this case, we do not pre-consume quota
-		// because the user has enough quota
-		preConsumedQuota = 0
-	}
-	if preConsumedQuota > 0 {
-		if strings.TrimSpace(tokenId) != "" {
-			err := model.PreConsumeTokenQuota(tokenId, preConsumedQuota)
-			if err != nil {
-				return openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
+		// Check if user quota is enough
+		if userQuota-preConsumedQuota < 0 {
+			return openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+		}
+		err = model.CacheDecreaseUserQuota(userId, preConsumedQuota)
+		if err != nil {
+			return openai.ErrorWrapper(err, "decrease_user_quota_failed", http.StatusInternalServerError)
+		}
+		if userQuota > 100*preConsumedQuota {
+			// in this case, we do not pre-consume quota
+			// because the user has enough quota
+			preConsumedQuota = 0
+		}
+		if preConsumedQuota > 0 {
+			if strings.TrimSpace(tokenId) != "" {
+				err := model.PreConsumeTokenQuota(tokenId, preConsumedQuota)
+				if err != nil {
+					return openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
+				}
+			} else {
+				err := model.DecreaseUserQuota(userId, preConsumedQuota)
+				if err != nil {
+					return openai.ErrorWrapper(err, "pre_consume_user_quota_failed", http.StatusForbidden)
+				}
 			}
-		} else {
-			err := model.DecreaseUserQuota(userId, preConsumedQuota)
-			if err != nil {
-				return openai.ErrorWrapper(err, "pre_consume_user_quota_failed", http.StatusForbidden)
-			}
+		}
+	} else if preConsumedQuota > 0 && strings.TrimSpace(tokenId) != "" {
+		if err := model.PreConsumeTokenRemainQuota(tokenId, preConsumedQuota); err != nil {
+			return openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
 		}
 	}
 	succeed := false
@@ -147,20 +149,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return
 		}
 		if preConsumedQuota > 0 {
-			// we need to roll back the pre-consumed quota
-			defer func(ctx context.Context) {
-				go func() {
-					var err error
-					if strings.TrimSpace(tokenId) != "" {
-						err = model.PostConsumeTokenQuota(tokenId, -preConsumedQuota)
-					} else {
-						err = model.IncreaseUserQuota(userId, preConsumedQuota)
-					}
-					if err != nil {
-						logger.Error(ctx, fmt.Sprintf("error rollback pre-consumed quota: %s", err.Error()))
-					}
-				}()
-			}(c.Request.Context())
+			billing.ReturnPreConsumedQuota(c.Request.Context(), preConsumedQuota, tokenId, userId, billingPlan.ChargeUserBalance())
 		}
 	}()
 
@@ -279,7 +268,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	quotaDelta := quota - preConsumedQuota
 	billingSnapshot.YYCAmount = quota
 	defer func(ctx context.Context) {
-		go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, userId, group, channelId, pricing, groupRatio, audioModel, tokenName, groupReservation, userReservation, billingSnapshot)
+		go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, userId, group, channelId, pricing, groupRatio, audioModel, tokenName, billingPlan.ChargeUserBalance(), groupReservation, userReservation, billingSnapshot)
 	}(c.Request.Context())
 	groupQuotaSettled = true
 	userQuotaSettled = true

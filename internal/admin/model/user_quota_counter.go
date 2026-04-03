@@ -174,7 +174,7 @@ func ReserveUserQuotaWithDB(db *gorm.DB, userID string, quota int64) (UserQuotaR
 		reservation.DailyReservedQuota = minInt64(normalizedQuota, dailyRemaining)
 		remainingNeed := normalizedQuota - reservation.DailyReservedQuota
 		if remainingNeed > 0 {
-			if policy.MonthlyEmergencyLimit <= 0 {
+			if policy.PackageEmergencyLimit <= 0 {
 				allowed = false
 				denyMessage = "当前用户今日额度已达上限，请明日再试"
 				return nil
@@ -183,13 +183,13 @@ func ReserveUserQuotaWithDB(db *gorm.DB, userID string, quota int64) (UserQuotaR
 			if err != nil {
 				return err
 			}
-			emergencyRemaining := policy.MonthlyEmergencyLimit - emergencyCounter.ConsumedQuota - emergencyCounter.ReservedQuota
+			emergencyRemaining := policy.PackageEmergencyLimit - emergencyCounter.ConsumedQuota - emergencyCounter.ReservedQuota
 			if emergencyRemaining < 0 {
 				emergencyRemaining = 0
 			}
 			if emergencyRemaining < remainingNeed {
 				allowed = false
-				denyMessage = "当前用户今日额度已达上限，且本月应急额度已用尽"
+				denyMessage = "当前用户今日额度已达上限，且套餐应急额度已用尽"
 				return nil
 			}
 			reservation.EmergencyReservedQuota = remainingNeed
@@ -309,7 +309,7 @@ func SettleUserQuotaReservationWithDB(db *gorm.DB, reservation UserQuotaReservat
 		if emergencyMonth == "" {
 			emergencyMonth = businessMonthByTimezone(time.Now(), policy.Timezone)
 		}
-		if policy.MonthlyEmergencyLimit > 0 {
+		if policy.PackageEmergencyLimit > 0 {
 			emergencyCounter, err := loadUserQuotaCounterForUpdateWithDB(tx, reservation.UserID, UserQuotaCounterTypeMonthlyEmergency, emergencyMonth)
 			if err != nil {
 				return err
@@ -318,13 +318,13 @@ func SettleUserQuotaReservationWithDB(db *gorm.DB, reservation UserQuotaReservat
 			if emergencyReservedAfterRelease < 0 {
 				emergencyReservedAfterRelease = 0
 			}
-			emergencyCapacity = policy.MonthlyEmergencyLimit - emergencyCounter.ConsumedQuota - emergencyReservedAfterRelease
+			emergencyCapacity = policy.PackageEmergencyLimit - emergencyCounter.ConsumedQuota - emergencyReservedAfterRelease
 			if emergencyCapacity < 0 {
 				emergencyCapacity = 0
 			}
 		}
 
-		usage = splitUserQuotaConsumption(consumed, dailyCapacity, emergencyCapacity, false, policy.MonthlyEmergencyLimit > 0)
+		usage = splitUserQuotaConsumption(consumed, dailyCapacity, emergencyCapacity, false, policy.PackageEmergencyLimit > 0)
 		updatedAt := helper.GetTimestamp()
 		if err := tx.Model(&UserQuotaCounter{}).
 			Where("user_id = ? AND counter_type = ? AND period_key = ?", reservation.UserID, UserQuotaCounterTypeDaily, dailyBizDate).
@@ -335,7 +335,7 @@ func SettleUserQuotaReservationWithDB(db *gorm.DB, reservation UserQuotaReservat
 			}).Error; err != nil {
 			return err
 		}
-		if policy.MonthlyEmergencyLimit > 0 {
+		if policy.PackageEmergencyLimit > 0 {
 			if err := tx.Model(&UserQuotaCounter{}).
 				Where("user_id = ? AND counter_type = ? AND period_key = ?", reservation.UserID, UserQuotaCounterTypeMonthlyEmergency, emergencyMonth).
 				Updates(map[string]any{
@@ -447,10 +447,10 @@ func GetUserMonthlyEmergencyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizM
 	if reserved < 0 {
 		reserved = 0
 	}
-	enabled := policy.MonthlyEmergencyLimit > 0
+	enabled := policy.PackageEmergencyLimit > 0
 	remaining := int64(0)
 	if enabled {
-		remaining = policy.MonthlyEmergencyLimit - consumed - reserved
+		remaining = policy.PackageEmergencyLimit - consumed - reserved
 		if remaining < 0 {
 			remaining = 0
 		}
@@ -458,7 +458,7 @@ func GetUserMonthlyEmergencyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizM
 	return UserMonthlyEmergencyQuotaSnapshot{
 		UserID:         normalizedUserID,
 		BizMonth:       normalizedBizMonth,
-		Limit:          policy.MonthlyEmergencyLimit,
+		Limit:          policy.PackageEmergencyLimit,
 		ConsumedQuota:  consumed,
 		ReservedQuota:  reserved,
 		RemainingQuota: remaining,

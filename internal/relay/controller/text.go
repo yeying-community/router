@@ -71,15 +71,12 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		logger.Errorf(ctx, "ComputeTextPreConsumedQuota failed: %s", err.Error())
 		return openai.ErrorWrapper(err, "calculate_text_quota_failed", http.StatusInternalServerError)
 	}
-	groupReservation, groupQuotaErr := reserveGroupDailyQuota(ctx, meta.Group, meta.UserId, groupReservedQuota)
-	if groupQuotaErr != nil {
-		return groupQuotaErr
+	billingPlan, quotaErr := reserveRelayQuota(ctx, meta.Group, meta.UserId, groupReservedQuota)
+	if quotaErr != nil {
+		return quotaErr
 	}
-	userReservation, userQuotaErr := reserveUserQuota(meta.UserId, groupReservedQuota)
-	if userQuotaErr != nil {
-		releaseGroupDailyQuotaReservation(ctx, groupReservation)
-		return userQuotaErr
-	}
+	groupReservation := billingPlan.GroupReservation
+	userReservation := billingPlan.UserReservation
 	groupQuotaSettled := false
 	userQuotaSettled := false
 	defer func() {
@@ -90,7 +87,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 			releaseUserQuotaReservation(ctx, userReservation)
 		}
 	}()
-	preConsumedQuota, bizErr := preConsumeQuota(ctx, textRequest, promptTokens, pricing, groupRatio, meta)
+	preConsumedQuota, bizErr := preConsumeQuota(ctx, textRequest, promptTokens, pricing, groupRatio, meta, billingPlan.ChargeUserBalance())
 	if bizErr != nil {
 		logger.Warnf(ctx, "preConsumeQuota failed: %+v", *bizErr)
 		return bizErr
@@ -122,7 +119,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return openai.ErrorWrapper(err, "do_request_failed", http.StatusInternalServerError)
 	}
 	if isErrorHappened(meta, resp) {
-		billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId, meta.UserId)
+		billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId, meta.UserId, billingPlan.ChargeUserBalance())
 		return RelayErrorHandler(meta, resp)
 	}
 
@@ -130,11 +127,11 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	usage, respErr := adaptor.DoResponse(c, resp, meta)
 	if respErr != nil {
 		logger.Errorf(ctx, "respErr is not nil: %+v", respErr)
-		billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId, meta.UserId)
+		billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId, meta.UserId, billingPlan.ChargeUserBalance())
 		return respErr
 	}
 	// post-consume quota
-	go postConsumeQuota(ctx, usage, meta, upstreamRequest, pricing, preConsumedQuota, groupRatio, systemPromptReset, groupReservation, userReservation)
+	go postConsumeQuota(ctx, usage, meta, upstreamRequest, pricing, preConsumedQuota, groupRatio, systemPromptReset, billingPlan.ChargeUserBalance(), groupReservation, userReservation)
 	groupQuotaSettled = true
 	userQuotaSettled = true
 	return nil

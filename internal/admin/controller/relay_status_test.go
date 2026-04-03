@@ -111,7 +111,7 @@ func TestNormalizeFinalRelayErrorKeepsUserQuotaExceeded(t *testing.T) {
 	err := &relaymodel.ErrorWithStatusCode{
 		StatusCode: http.StatusForbidden,
 		Error: relaymodel.Error{
-			Message: "当前用户今日额度及本月应急额度已达上限",
+			Message: "当前用户今日额度及套餐应急额度已达上限",
 			Type:    "one_api_error",
 			Code:    "user_quota_limit_exceeded",
 		},
@@ -122,7 +122,7 @@ func TestNormalizeFinalRelayErrorKeepsUserQuotaExceeded(t *testing.T) {
 	if err.StatusCode != http.StatusForbidden {
 		t.Fatalf("unexpected status code: got %d want %d", err.StatusCode, http.StatusForbidden)
 	}
-	if err.Message != "当前用户今日额度及本月应急额度已达上限" {
+	if err.Message != "当前用户今日额度及套餐应急额度已达上限" {
 		t.Fatalf("unexpected message: got %q", err.Message)
 	}
 }

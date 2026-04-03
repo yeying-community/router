@@ -20,9 +20,13 @@ import {
 
 import { ITEMS_PER_PAGE } from '../constants';
 import {
+  buildBillingCurrencyIndex,
+  buildDisplayUnitOptions,
+} from '../helpers/billing';
+import {
   formatDecimalNumber,
-  YYC_SYMBOL,
 } from '../helpers/render';
+import UnitDropdown from './UnitDropdown';
 
 function renderTimestamp(timestamp) {
   return <>{timestamp2string(timestamp)}</>;
@@ -52,17 +56,29 @@ function formatByCurrencyMinorUnit(amount, currency) {
   return formatDecimalNumber(normalizedAmount, maximumFractionDigits);
 }
 
+function normalizeRedemptionRow(row) {
+  return {
+    ...(row || {}),
+    // Prefer YYC-native fields, fall back to historical quota payloads.
+    creditedYYC: Number(row?.yyc_value ?? row?.quota ?? 0),
+    groupLabel: renderGroupLabel(row),
+    createdTime: Number(row?.created_time ?? 0),
+    redeemedTime: Number(row?.redeemed_time ?? 0),
+  };
+}
+
 function buildDisplayValue(redemption, displayUnit, currencyIndex) {
-  const yycValue = Number(redemption?.yyc_value ?? redemption?.quota ?? 0);
+  // Keep legacy quota fallback for older redemption records.
+  const creditedYYC = Number(redemption?.creditedYYC ?? redemption?.yyc_value ?? redemption?.quota ?? 0);
   const targetCurrency = currencyIndex[displayUnit] || currencyIndex.YYC;
   const rate = Number(targetCurrency?.yyc_per_unit || 0);
   if (!Number.isFinite(rate) || rate <= 0) {
     return '-';
   }
-  return formatByCurrencyMinorUnit(yycValue / rate, targetCurrency);
+  return formatByCurrencyMinorUnit(creditedYYC / rate, targetCurrency);
 }
 
-function renderFaceValue(redemption, displayUnit, currencyIndex) {
+function renderDisplayFaceValue(redemption, displayUnit, currencyIndex) {
   return buildDisplayValue(redemption, displayUnit, currencyIndex);
 }
 
@@ -108,46 +124,14 @@ const RedemptionsTable = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searching, setSearching] = useState(false);
   const [displayUnit, setDisplayUnit] = useState('USD');
-  const [currencyIndex, setCurrencyIndex] = useState({
-    USD: {
-      code: 'USD',
-      symbol: '$',
-      minor_unit: 2,
-      yyc_per_unit: 0,
-    },
-    CNY: {
-      code: 'CNY',
-      symbol: '¥',
-      minor_unit: 2,
-      yyc_per_unit: 0,
-    },
-    YYC: {
-      code: 'YYC',
-      symbol: YYC_SYMBOL,
-      minor_unit: 0,
-      yyc_per_unit: 1,
-    },
-  });
+  const [currencyIndex, setCurrencyIndex] = useState(
+    buildBillingCurrencyIndex([], { placeholderCodes: ['USD', 'CNY'] })
+  );
 
-  const displayUnitOptions = useMemo(() => {
-    const items = [
-      {
-        value: 'YYC',
-        label: YYC_SYMBOL,
-      },
-    ];
-    Object.values(currencyIndex)
-      .filter((item) => item && item.code && item.code !== 'YYC')
-      .sort((a, b) => `${a.code}`.localeCompare(`${b.code}`))
-      .forEach((item) => {
-        const symbol = (item?.symbol || '').toString().trim();
-        items.push({
-          value: item.code,
-          label: symbol || item.code,
-        });
-      });
-    return items;
-  }, [currencyIndex]);
+  const displayUnitOptions = useMemo(
+    () => buildDisplayUnitOptions(currencyIndex, { order: 'yyc-first' }),
+    [currencyIndex]
+  );
 
   const loadDisplayUnits = useCallback(async () => {
     try {
@@ -157,26 +141,9 @@ const RedemptionsTable = () => {
         showError(message);
         return;
       }
-      const next = {
-        YYC: {
-          code: 'YYC',
-          symbol: YYC_SYMBOL,
-          minor_unit: 0,
-          yyc_per_unit: 1,
-        },
-      };
-      (Array.isArray(data) ? data : [])
-        .filter((item) => Number(item?.status || 0) === 1)
-        .forEach((item) => {
-          const code = (item?.code || '').toString().trim().toUpperCase();
-          if (!code) {
-            return;
-          }
-          next[code] = {
-            ...item,
-            code,
-          };
-        });
+      const next = buildBillingCurrencyIndex(Array.isArray(data) ? data : [], {
+        activeOnly: true,
+      });
       setCurrencyIndex(next);
       setDisplayUnit((current) => {
         const normalizedCurrent = (current || '').toString().trim().toUpperCase();
@@ -203,15 +170,16 @@ const RedemptionsTable = () => {
     if (success) {
       setIsSearchMode(false);
       setTotalCount(Number(meta?.total || data?.length || 0));
+      const nextRows = (Array.isArray(data) ? data : []).map(normalizeRedemptionRow);
       if (normalizedPage === 1) {
-        setRedemptions(data);
+        setRedemptions(nextRows);
       } else {
         setRedemptions((prev) => {
           const next = [...prev];
           next.splice(
             (normalizedPage - 1) * ITEMS_PER_PAGE,
-            data.length,
-            ...data,
+            nextRows.length,
+            ...nextRows,
           );
           return next;
         });
@@ -298,7 +266,7 @@ const RedemptionsTable = () => {
     if (success) {
       setIsSearchMode(true);
       setTotalCount(Array.isArray(data) ? data.length : 0);
-      setRedemptions(data);
+      setRedemptions((Array.isArray(data) ? data : []).map(normalizeRedemptionRow));
       setActivePage(1);
     } else {
       showError(message);
@@ -405,27 +373,23 @@ const RedemptionsTable = () => {
                 <span
                   className='router-sortable-header'
                   onClick={() => {
-                    sortRedemption('quota');
+                    sortRedemption('creditedYYC');
                   }}
                 >
                   {t('redemption.table.face_value')}
                 </span>
-                <select
-                  className='router-table-header-select'
+                <UnitDropdown
+                  variant='header'
+                  compact
+                  options={displayUnitOptions}
                   value={displayUnit}
                   onClick={(e) => {
                     e.stopPropagation();
                   }}
-                  onChange={(e) => {
-                    setDisplayUnit(e.target.value);
+                  onChange={(_, { value }) => {
+                    setDisplayUnit((value || '').toString());
                   }}
-                >
-                  {displayUnitOptions.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             </Table.HeaderCell>
             <Table.HeaderCell
@@ -473,15 +437,15 @@ const RedemptionsTable = () => {
                   <Table.Cell>
                     {redemption.name ? redemption.name : t('redemption.table.no_name')}
                   </Table.Cell>
-                  <Table.Cell>{renderGroupLabel(redemption)}</Table.Cell>
+                  <Table.Cell>{redemption.groupLabel || '-'}</Table.Cell>
                   <Table.Cell>{renderStatus(redemption.status, t)}</Table.Cell>
-                  <Table.Cell>{renderFaceValue(redemption, displayUnit, currencyIndex)}</Table.Cell>
+                  <Table.Cell>{renderDisplayFaceValue(redemption, displayUnit, currencyIndex)}</Table.Cell>
                   <Table.Cell>
-                    {renderTimestamp(redemption.created_time)}
+                    {renderTimestamp(redemption.createdTime || redemption.created_time)}
                   </Table.Cell>
                   <Table.Cell>
-                    {redemption.redeemed_time
-                      ? renderTimestamp(redemption.redeemed_time)
+                    {redemption.redeemedTime
+                      ? renderTimestamp(redemption.redeemedTime)
                       : t('redemption.table.not_redeemed')}{' '}
                   </Table.Cell>
                   <Table.Cell

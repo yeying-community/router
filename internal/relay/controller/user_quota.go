@@ -24,7 +24,7 @@ func formatUserQuotaExceededMessage(requested int64, summary model.UserQuotaSumm
 	emergencyRemaining := summary.MonthlyEmergency.RemainingQuota
 	if summary.MonthlyEmergency.Enabled {
 		return fmt.Sprintf(
-			"当前用户额度不足：本次预估消耗 %d YYC，今日剩余 %d YYC，本月应急剩余 %d YYC",
+			"当前用户额度不足：本次预估消耗 %d YYC，今日剩余 %d YYC，套餐应急剩余 %d YYC",
 			requestedYYC,
 			dailyRemaining,
 			emergencyRemaining,
@@ -53,7 +53,7 @@ func reserveUserQuota(userID string, quota int64) (model.UserQuotaReservation, *
 	if !allowed {
 		message := strings.TrimSpace(denyMessage)
 		if message == "" {
-			message = "当前用户今日额度及本月应急额度已达上限"
+			message = "当前用户今日额度及套餐应急额度已达上限"
 		}
 		summary, summaryErr := model.GetUserQuotaSummary(userID, "", "")
 		if summaryErr != nil {

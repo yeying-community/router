@@ -22,7 +22,13 @@ import {
   Table,
 } from 'semantic-ui-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { API, showError, showInfo, showSuccess } from '../../helpers';
+import {
+  API,
+  showError,
+  showInfo,
+  showSuccess,
+  timestamp2string,
+} from '../../helpers';
 import {
   getChannelProtocolOptions,
   loadChannelProtocolOptions,
@@ -1115,7 +1121,7 @@ const EditChannel = () => {
         }
       });
       const search = query.toString();
-      navigate(`/admin/task${search ? `?${search}` : ''}`);
+      navigate(`/admin/channel/tasks${search ? `?${search}` : ''}`);
     },
     [channelId, creatingChannelId, navigate],
   );

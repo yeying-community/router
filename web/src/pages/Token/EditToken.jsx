@@ -24,7 +24,7 @@ import {
   showWarning,
   timestamp2string,
 } from '../../helpers';
-import { renderQuotaWithPrompt } from '../../helpers/render';
+import { renderAmountEquivalentPrompt } from '../../helpers/render';
 
 const EditToken = () => {
   const { t } = useTranslation();
@@ -60,7 +60,12 @@ const EditToken = () => {
   };
   const [inputs, setInputs] = useState(originInputs);
   const [persistedInputs, setPersistedInputs] = useState(originInputs);
-  const { name, remain_quota, expired_time, unlimited_quota } = inputs;
+  const {
+    name,
+    remain_quota: remainingYYC,
+    expired_time,
+    unlimited_quota: hasUnlimitedYYCLimit,
+  } = inputs;
   const navigate = useNavigate();
   const allModelValues = modelOptions.map((option) => option.value);
   const filteredModelOptions = modelOptions.filter((option) =>
@@ -225,8 +230,11 @@ const EditToken = () => {
     }
   };
 
-  const setUnlimitedQuota = () => {
-    setInputs({ ...inputs, unlimited_quota: !unlimited_quota });
+  const toggleUnlimitedYYCLimit = () => {
+    setInputs((prev) => ({
+      ...prev,
+      unlimited_quota: !prev.unlimited_quota,
+    }));
   };
 
   const loadToken = useCallback(async () => {
@@ -532,27 +540,27 @@ const EditToken = () => {
                 <Form.Field>
                   <Form.Input
                     className='router-section-input'
-                    label={`${t('token.edit.quota')}${renderQuotaWithPrompt(
-                      remain_quota,
+                    label={`${t('token.edit.quota')}${renderAmountEquivalentPrompt(
+                      remainingYYC,
                       t
                     )}`}
                     name='remain_quota'
                     placeholder={t('token.edit.quota_placeholder')}
                     onChange={handleInputChange}
-                    value={remain_quota}
+                    value={remainingYYC}
                     autoComplete='new-password'
                     type='number'
-                    disabled={unlimited_quota}
+                    disabled={hasUnlimitedYYCLimit}
                   />
                 </Form.Field>
                 <Button
                   className='router-inline-button'
                   type='button'
                   onClick={() => {
-                    setUnlimitedQuota();
+                    toggleUnlimitedYYCLimit();
                   }}
                 >
-                  {unlimited_quota
+                  {hasUnlimitedYYCLimit
                     ? t('token.edit.buttons.cancel_unlimited')
                     : t('token.edit.buttons.unlimited_quota')}
                 </Button>
@@ -834,17 +842,17 @@ const EditToken = () => {
                   <Form.Field>
                     <Form.Input
                       className='router-section-input'
-                      label={`${t('token.edit.quota')}${renderQuotaWithPrompt(
-                        remain_quota,
+                      label={`${t('token.edit.quota')}${renderAmountEquivalentPrompt(
+                        remainingYYC,
                         t
                       )}`}
                       name='remain_quota'
                       placeholder={t('token.edit.quota_placeholder')}
                       onChange={handleInputChange}
-                      value={remain_quota}
+                      value={remainingYYC}
                       autoComplete='new-password'
                       type='number'
-                      disabled={unlimited_quota || limitsReadonly}
+                      disabled={hasUnlimitedYYCLimit || limitsReadonly}
                     />
                   </Form.Field>
                   {detailEditingSection === 'limits' ? (
@@ -852,10 +860,10 @@ const EditToken = () => {
                       className='router-inline-button'
                       type='button'
                       onClick={() => {
-                        setUnlimitedQuota();
+                        toggleUnlimitedYYCLimit();
                       }}
                     >
-                      {unlimited_quota
+                      {hasUnlimitedYYCLimit
                         ? t('token.edit.buttons.cancel_unlimited')
                         : t('token.edit.buttons.unlimited_quota')}
                     </Button>

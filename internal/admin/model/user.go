@@ -42,11 +42,13 @@ type User struct {
 	RequestCount               int     `json:"request_count" gorm:"type:int;default:0;"`
 	Group                      string  `json:"group" gorm:"type:varchar(32);default:''"`
 	DailyQuotaLimit            int64   `json:"daily_quota_limit" gorm:"type:bigint;not null;default:0"`
-	MonthlyEmergencyQuotaLimit int64   `json:"monthly_emergency_quota_limit" gorm:"type:bigint;not null;default:0"`
+	PackageEmergencyQuotaLimit int64   `json:"package_emergency_quota_limit" gorm:"column:package_emergency_quota_limit;type:bigint;not null;default:0"`
 	QuotaResetTimezone         string  `json:"quota_reset_timezone" gorm:"type:varchar(64);not null;default:'Asia/Shanghai'"`
 	AffCode                    string  `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
 	InviterId                  string  `json:"inviter_id" gorm:"type:char(36);column:inviter_id;index"`
 	HasPassword                bool    `json:"has_password" gorm:"column:has_password;default:false"`
+	CreatedAt                  int64   `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt                  int64   `json:"updated_at" gorm:"bigint;index"`
 	CanManageUsers             bool    `json:"can_manage_users" gorm:"-"`
 }
 

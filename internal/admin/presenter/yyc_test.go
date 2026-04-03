@@ -12,7 +12,7 @@ func TestNewUserAddsYYCAliases(t *testing.T) {
 		Quota:                      1200,
 		UsedQuota:                  3400,
 		DailyQuotaLimit:            5600,
-		MonthlyEmergencyQuotaLimit: 7800,
+		PackageEmergencyQuotaLimit: 7800,
 	}
 	view := NewUser(row)
 	if view == nil {
@@ -27,8 +27,8 @@ func TestNewUserAddsYYCAliases(t *testing.T) {
 	if view.YYCDailyLimit != row.DailyQuotaLimit {
 		t.Fatalf("yyc_daily_limit=%d, want %d", view.YYCDailyLimit, row.DailyQuotaLimit)
 	}
-	if view.YYCMonthlyEmergencyLimit != row.MonthlyEmergencyQuotaLimit {
-		t.Fatalf("yyc_monthly_emergency_limit=%d, want %d", view.YYCMonthlyEmergencyLimit, row.MonthlyEmergencyQuotaLimit)
+	if view.YYCPackageEmergencyLimit != row.PackageEmergencyQuotaLimit {
+		t.Fatalf("yyc_package_emergency_limit=%d, want %d", view.YYCPackageEmergencyLimit, row.PackageEmergencyQuotaLimit)
 	}
 }
 

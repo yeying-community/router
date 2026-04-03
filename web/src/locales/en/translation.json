@@ -9,14 +9,18 @@
     "topup": "Top Up",
     "user": "User",
     "dashboard": "Dashboard",
-    "resource": "Resources",
+    "system_overview": "System Overview",
+    "resource": "Resource Management",
     "operation": "Operations",
+    "business_operation": "Business Operations",
+    "business_flow": "Business Flow",
+    "platform_operation": "Platform Operations",
     "config": "Config",
     "package": "Package",
     "log": "Log",
     "task": "Tasks",
     "setting": "Settings",
-    "setting_center": "Settings",
+    "setting_center": "System Settings",
     "sidebar_expand": "Expand Sidebar",
     "sidebar_compact": "Collapse Sidebar",
     "chat": "Chat",
@@ -28,16 +32,18 @@
   },
   "topup": {
     "title": "Top Up Center",
-    "get_code": {
+    "display_currency": "Display",
+    "external_topup": {
       "title": "External Top-up",
-      "current_quota": "Current YYC Balance",
+      "current_balance": "Current Balance",
       "button": "Open External Top-up",
       "creating": "Creating order...",
       "description": "Router creates a top-up order first, then redirects to the external payment page.",
       "request_failed": "Failed to create top-up order",
-      "popup_blocked": "The browser blocked the new window. Please allow pop-ups and try again."
+      "popup_blocked": "The browser blocked the new window. Please allow pop-ups and try again.",
+      "no_link": "Admin has not set up the top-up link!"
     },
-    "orders": {
+    "external_topup_orders": {
       "title": "External Top-up Orders",
       "refresh": "Refresh",
       "empty": "No external top-up orders yet",
@@ -56,21 +62,21 @@
         "canceled": "Canceled"
       }
     },
-    "redemptions": {
+    "redemption_records": {
       "title": "Redemption Records",
       "refresh": "Refresh",
       "empty": "No redemption records yet",
       "columns": {
         "time": "Time",
-        "quota": "Top-up YYC",
+        "amount": "Credited Amount",
         "detail": "Detail"
       }
     },
-    "result": {
+    "redemption_result": {
       "title": "Latest Redemption Result",
       "close": "Close",
       "fields": {
-        "redeemed_yyc": "Redeemed YYC",
+        "redeemed_amount": "Credited Amount",
         "before_balance": "Balance Before",
         "after_balance": "Balance After",
         "redemption_name": "Redemption Name",
@@ -80,7 +86,7 @@
         "redeemed_at": "Redeemed At"
       }
     },
-    "redeem_code": {
+    "redeem": {
       "title": "Redeem Code",
       "description": "If you already have a redemption code, you can credit it here directly.",
       "placeholder": "Please enter redemption code",
@@ -90,8 +96,32 @@
       "submitting": "Redeeming...",
       "empty_code": "Please enter the redemption code!",
       "success": "Top up successful!",
-      "request_failed": "Request failed",
-      "no_link": "Admin has not set up the top-up link!"
+      "request_failed": "Request failed"
+    }
+  },
+  "flow": {
+    "messages": {
+      "load_failed": "Failed to load business records"
+    },
+    "topup": {
+      "title": "Top-up Records",
+      "search_placeholder": "Search user, order ID, transaction ID, redemption name...",
+      "empty": "No top-up records",
+      "columns": {
+        "source": "Source",
+        "redemption": "Redemption",
+        "order": "Order"
+      }
+    },
+    "package": {
+      "title": "Package Records",
+      "search_placeholder": "Search user, package, group, record ID...",
+      "empty": "No package records"
+    },
+    "redemption": {
+      "title": "Redemption Records",
+      "search_placeholder": "Search user, redemption name, group, record ID...",
+      "empty": "No redemption records"
     }
   },
   "channel": {
@@ -498,7 +528,7 @@
       "description": "Description",
       "channels": "Channels",
       "billing_ratio": "Billing Ratio",
-      "daily_quota_limit": "Daily Quota Limit",
+      "daily_quota_limit": "Daily Limit",
       "source": "Source",
     "status": "Status",
     "sort_order": "Sort Order",
@@ -519,8 +549,8 @@
       "description_placeholder": "Optional description for this group",
       "billing_ratio": "Billing Ratio",
       "billing_ratio_placeholder": "Defaults to 1, use 0 or greater",
-      "daily_quota_limit": "Daily Quota Limit",
-      "daily_quota_limit_placeholder": "0 means unlimited, unit is quota",
+      "daily_quota_limit": "Daily Limit",
+      "daily_quota_limit_placeholder": "0 means unlimited",
       "sort_order": "Sort Value",
       "channels": "Bound Channels",
       "channels_placeholder": "Select channels available for this group"
@@ -577,7 +607,7 @@
       "empty": "No groups",
       "id_required": "Group ID is required",
       "billing_ratio_invalid": "Billing ratio must be greater than or equal to 0",
-      "daily_quota_limit_invalid": "Daily quota limit must be greater than or equal to 0",
+      "daily_quota_limit_invalid": "Daily limit must be greater than or equal to 0",
       "load_failed": "Failed to load groups",
       "bind_load_failed": "Failed to load group channels",
     "model_load_failed": "Failed to load group models",
@@ -602,10 +632,11 @@
     "table": {
       "name": "Package Name",
       "group": "Group",
-      "daily_quota_limit": "Daily Quota Limit",
-      "monthly_emergency_quota_limit": "Monthly Emergency Quota",
+      "daily_quota_limit": "Daily Amount",
+      "package_emergency_quota_limit": "Emergency Amount",
       "duration_days": "Duration (Days)",
       "status": "Status",
+      "created_at": "Created At",
       "updated_at": "Updated At",
       "actions": "Actions",
       "empty": "No packages"
@@ -627,8 +658,8 @@
       "description": "Description",
       "group": "Group",
       "group_placeholder": "Select group",
-      "daily_quota_limit": "Daily Quota Limit",
-      "monthly_emergency_quota_limit": "Monthly Emergency Quota",
+      "daily_quota_limit": "Daily Amount",
+      "package_emergency_quota_limit": "Emergency Amount",
       "duration_days": "Duration (Days)",
       "quota_reset_timezone": "Reset Timezone",
       "enabled": "Status",
@@ -658,7 +689,7 @@
       "id_required": "Package ID is required",
       "name_required": "Package name is required",
       "group_required": "Group is required",
-      "quota_invalid": "Quota values must be greater than or equal to 0",
+      "quota_invalid": "Amount values must be greater than or equal to 0",
       "duration_invalid": "Duration must be greater than 0",
       "user_required": "Please select a user",
       "start_at_invalid": "Invalid start time format",
@@ -685,8 +716,8 @@
       "expired_time": "Expiry Time",
       "actions": "Actions",
       "no_name": "None",
-      "never_expire": "never",
-      "unlimited": "Unlimited",
+      "never_expire": "Never Expires",
+      "unlimited": "No Limit",
       "status_enabled": "Enabled",
       "status_disabled": "Disabled",
       "status_expired": "Expired",
@@ -701,7 +732,7 @@
       "enable": "Enable",
       "disable": "Disable",
       "edit": "Edit",
-      "add": "Add New Token",
+      "add": "Add Token",
       "refresh": "Refresh"
     },
     "detail": {
@@ -716,7 +747,7 @@
     },
     "edit": {
       "title_edit": "Update Token Information",
-      "title_create": "Create New Token",
+      "title_create": "Add Token",
       "name": "Name",
       "name_placeholder": "Please enter name",
       "models": "Model Scope",
@@ -731,17 +762,17 @@
       "ip_limit_placeholder": "Please enter allowed subnets, e.g.: 192.168.0.0/24, use commas to separate multiple subnets",
       "expire_time": "Expiry Time",
       "expire_time_placeholder": "Please enter expiry time in yyyy-MM-dd HH:mm:ss format, -1 for no limit",
-      "quota_notice": "Note: token YYC only limits the maximum usage of the token itself. Actual usage is still limited by the account's remaining YYC.",
-      "quota": "Available YYC",
-      "quota_placeholder": "Please enter YYC",
+      "quota_notice": "Note: the token's remaining YYC only limits this token's own balance. Actual requests are still constrained by the account's remaining YYC.",
+      "quota": "Remaining YYC",
+      "quota_placeholder": "Please enter remaining YYC",
       "buttons": {
         "never_expire": "Never Expire",
         "expire_1_month": "Expire in 1 Month",
         "expire_1_day": "Expire in 1 Day",
         "expire_1_hour": "Expire in 1 Hour",
         "expire_1_minute": "Expire in 1 Minute",
-        "unlimited_quota": "Set Unlimited Quota",
-        "cancel_unlimited": "Cancel Unlimited Quota",
+        "unlimited_quota": "Set No Limit",
+        "cancel_unlimited": "Cancel No Limit",
         "submit": "Confirm",
         "cancel": "Cancel"
       },
@@ -797,7 +828,8 @@
       "group": "Group",
       "status": "Status",
       "face_value": "Face Value",
-      "quota": "YYC Value",
+      "quota": "Credited YYC",
+      "credited_yyc": "Credited YYC",
       "created_time": "Created Time",
       "redeemed_time": "Redeemed Time",
       "actions": "Actions",
@@ -861,9 +893,6 @@
   "log": {
     "title": "Operation Log",
     "search": "Search logs...",
-    "usage_details": "Usage Details",
-    "total_quota": "Total Quota Used",
-    "click_to_view": "Click to View",
     "filters": {
       "add": "Add Filter",
       "none": "No additional filters selected",
@@ -900,7 +929,7 @@
       "username_placeholder": "Optional",
       "prompt_tokens": "Prompt Tokens",
       "completion_tokens": "Completion Tokens",
-      "quota": "Quota",
+      "quota": "Amount",
       "detail": "Detail"
     },
     "buttons": {
@@ -933,22 +962,27 @@
         "trace_id": "Trace ID",
         "prompt_tokens": "Prompt Tokens",
         "completion_tokens": "Completion Tokens",
-        "quota": "Quota",
-        "user_daily_quota": "User Base Quota",
-        "user_emergency_quota": "User Emergency Quota",
+        "quota": "Settled Amount",
+        "billing_source": "Billing Source",
+        "user_daily_quota": "User Base Amount",
+        "user_emergency_quota": "Package Emergency Amount",
         "billing_price_unit": "Price Unit",
         "billing_currency": "Billing Currency",
         "billing_group_ratio": "Business Ratio",
-        "billing_yyc_rate": "YYC Rate",
+        "billing_yyc_rate": "Conversion Rate",
         "billing_input_quantity": "Input Quantity",
         "billing_output_quantity": "Output Quantity",
         "billing_input_amount": "Input Amount",
         "billing_output_amount": "Output Amount",
         "billing_amount": "Billing Amount",
-        "billing_yyc_amount": "YYC Amount",
+        "billing_yyc_amount": "Converted Amount",
         "elapsed_time": "Elapsed Time",
         "is_stream": "Stream Output",
         "system_prompt_reset": "System Prompt Reset"
+      },
+      "billing_sources": {
+        "package": "Package",
+        "balance": "Balance"
       }
     }
   },
@@ -1034,14 +1068,21 @@
     "title": "User Management",
     "detail": {
       "title": "User Detail",
+      "package_mode_title": "Package Mode",
+      "balance_mode_title": "Redemption Mode",
+      "remaining_amount": "Remaining",
+      "used_amount": "Used",
+      "request_count_hint": "Total requests",
+      "recent_redemptions_title": "Recent Redemptions",
+      "recent_redemptions_empty": "No redemption records",
       "package_title": "Active Package",
       "package_name": "Package Name",
       "package_group": "Package Group",
       "package_status": "Package Status",
       "package_source": "Source",
-      "package_daily_limit": "Daily YYC Limit",
-      "package_monthly_emergency_limit": "Monthly Emergency YYC",
-      "package_timezone": "YYC Timezone",
+      "package_daily_limit": "Daily Amount",
+      "package_monthly_emergency_limit": "Emergency Amount",
+      "package_timezone": "Reset Timezone",
       "package_started_at": "Started At",
       "package_expires_at": "Expires At",
       "package_none": "No active package",
@@ -1052,28 +1093,6 @@
         "canceled": "Canceled",
         "unknown": "Unknown"
       },
-      "user_quota_title": "User YYC Overview",
-      "user_quota_daily_limit": "Daily YYC Limit",
-      "user_quota_daily_consumed": "Today's Base Consumed",
-      "user_quota_daily_reserved": "Today's Base Reserved",
-      "user_quota_daily_remaining": "Today's Base Remaining",
-      "user_quota_biz_date": "YYC Biz Date",
-      "user_quota_monthly_emergency_limit": "Monthly Emergency YYC",
-      "user_quota_monthly_emergency_consumed": "Monthly Emergency Consumed",
-      "user_quota_monthly_emergency_reserved": "Monthly Emergency Reserved",
-      "user_quota_monthly_emergency_remaining": "Monthly Emergency Remaining",
-      "user_quota_biz_month": "YYC Biz Month",
-      "user_quota_timezone": "YYC Timezone",
-      "user_quota_updated_at": "YYC Updated At",
-      "daily_quota_title": "Today's Package YYC",
-      "daily_quota_group": "Package Group",
-      "daily_quota_limit": "Today's Limit",
-      "daily_quota_consumed": "Today's Consumed",
-      "daily_quota_reserved": "Today's Reserved",
-      "daily_quota_remaining": "Today's Remaining",
-      "daily_quota_biz_date": "Business Date",
-      "daily_quota_timezone": "Timezone",
-      "daily_quota_updated_at": "Updated At",
       "buttons": {
         "back": "Back",
         "edit": "Edit"
@@ -1090,13 +1109,13 @@
       "group": "Group",
       "group_placeholder": "Please select group",
       "group_addition": "You can add a group in Group Management:",
-      "quota": "Remaining YYC",
-      "quota_placeholder": "Please enter new remaining YYC",
-      "daily_quota_limit": "Daily YYC Limit",
+      "quota": "Remaining Amount",
+      "quota_placeholder": "Please enter new remaining amount",
+      "daily_quota_limit": "Daily Amount",
       "daily_quota_limit_placeholder": "0 means unlimited",
-      "monthly_emergency_quota_limit": "Monthly Emergency YYC",
-      "monthly_emergency_quota_limit_placeholder": "0 means disabled",
-      "quota_reset_timezone": "YYC Reset Timezone",
+      "package_emergency_quota_limit": "Emergency Amount",
+      "package_emergency_quota_limit_placeholder": "0 means disabled",
+      "quota_reset_timezone": "Reset Timezone",
       "quota_reset_timezone_placeholder": "For example Asia/Shanghai",
       "github_id": "Linked GitHub Account",
       "github_id_placeholder": "Read-only, user must link through personal settings page, cannot be modified directly",
@@ -1118,8 +1137,6 @@
       "operation_success": "Operation completed successfully!",
       "operation_failed": "Operation failed",
       "active_package_load_failed": "Failed to load active package",
-      "user_quota_load_failed": "Failed to load user quota snapshot",
-      "daily_quota_load_failed": "Failed to load user's daily package quota",
       "wallet_copy_success": "Wallet address copied",
       "wallet_copy_failed": "Copy failed, please copy manually"
     },
@@ -1129,6 +1146,8 @@
       "username": "Username",
       "wallet": "Wallet",
       "group": "Group",
+      "package": "Package",
+      "balance": "Balance",
       "quota": "YYC",
       "role_text": "Role",
       "status_text": "Status",
@@ -1136,6 +1155,8 @@
       "remaining_quota": "Remaining YYC",
       "used_quota": "Used YYC",
       "request_count": "Request Count",
+      "created_at": "Created At",
+      "updated_at": "Updated At",
       "role_types": {
         "normal": "Normal User",
         "admin": "Admin",
@@ -1169,20 +1190,6 @@
     }
   },
   "dashboard": {
-    "charts": {
-      "requests": {
-        "title": "Model Request Trend",
-        "tooltip": "Request Count"
-      },
-      "quota": {
-        "title": "Quota Usage Trend",
-        "tooltip": "Quota Used"
-      },
-      "tokens": {
-        "title": "Token Usage Trend",
-        "tooltip": "Token Count"
-      }
-    },
     "statistics": {
       "title": "Statistics",
       "tooltip": {
@@ -1289,7 +1296,7 @@
         "title": "Spending Analysis"
       },
       "package_daily": {
-        "title": "Today's Package Quota",
+        "title": "Today's Package",
         "group": "Package Group",
         "limit": "Today's Limit",
         "consumed": "Today's Consumed",
@@ -1299,6 +1306,9 @@
     },
     "admin": {
       "title": "Admin Overview",
+      "nav": {
+        "overview": "Business Overview"
+      },
       "period": {
         "label": "Period"
       },
@@ -1326,8 +1336,8 @@
       },
       "trend": {
         "metrics": {
-          "consume_quota": "Spend (USD)",
-          "topup_quota": "Top-up (USD)",
+          "spend_amount": "Spend (USD)",
+          "topup_amount": "Top-up (USD)",
           "request_count": "Requests",
           "active_user_count": "Active Users"
         }
@@ -1410,9 +1420,10 @@
     "tabs": {
       "personal": "Personal Settings",
       "operation": "Operation Settings",
+      "currency": "Currency",
       "system": "System Settings",
       "other": "Other Settings",
-      "exchange": "Exchange Rate Settings"
+      "exchange": "Exchange"
     },
     "personal": {
       "tokens": {
@@ -1480,15 +1491,13 @@
           "update": "Update Server Address"
         }
       },
-      "top_up_link": "Top-up Link",
-      "chat_link": "Chat Link",
       "notice": "Site Announcement",
       "notice_placeholder": "Supports Markdown",
       "buttons": {
         "save": "Save"
       },
       "login": {
-        "title": "Login & Registration Settings",
+        "title": "Login Settings",
         "password_login": "Allow Password Login",
         "password_register": "Allow Password Registration",
         "email_verification": "Require Email Verification for Password Registration",
@@ -1510,7 +1519,7 @@
         }
       },
       "smtp": {
-        "title": "SMTP Configuration",
+        "title": "Email Settings",
         "subtitle": "Used to support system email sending",
         "server": "SMTP Server Address",
         "server_placeholder": "e.g.: smtp.gmail.com",
@@ -1596,27 +1605,27 @@
     },
     "operation": {
       "quota": {
-        "title": "Quota Settings",
-        "new_user": "Initial Quota for New Users",
+        "title": "Balance Settings",
+        "new_user": "New User Starting Amount",
         "new_user_placeholder": "e.g.: 100",
         "default_group": "Default User Group",
         "default_group_placeholder": "No automatic assignment when unset",
-        "pre_consume": "Pre-consumed Quota per Request",
+        "pre_consume": "Pre-consumed Amount per Request",
         "pre_consume_placeholder": "Refund or charge difference after request",
-        "inviter_reward": "Reward Quota for Inviter",
+        "inviter_reward": "Inviter Reward Amount",
         "inviter_reward_placeholder": "e.g.: 2000",
-        "invitee_reward": "Reward Quota for Using Invite Code",
+        "invitee_reward": "Invitee Reward Amount",
         "invitee_reward_placeholder": "e.g.: 1000",
         "messages": {
-          "amount_invalid": "Quota must be greater than or equal to 0"
+          "amount_invalid": "Amount must be greater than or equal to 0"
         },
         "buttons": {
-          "save": "Save Quota Settings"
+          "save": "Save Balance Settings"
         }
       },
       "log": {
         "title": "Log Settings",
-        "enable_consume": "Enable Quota Consumption Logging",
+        "enable_consume": "Enable Consumption Logging",
         "target_time": "Target Time",
         "buttons": {
           "clean": "Clean Historical Logs"
@@ -1626,8 +1635,8 @@
         "title": "Monitor Settings",
         "max_response_time": "Maximum Response Time",
         "max_response_time_placeholder": "In seconds, channels exceeding this time during testing will be automatically disabled",
-        "quota_reminder": "Quota Reminder Threshold",
-        "quota_reminder_placeholder": "Users will receive email reminders when quota falls below this value",
+        "quota_reminder": "Balance Reminder Threshold",
+        "quota_reminder_placeholder": "Users will receive email reminders when balance falls below this value",
         "auto_disable": "Automatically Disable Channel on Failure",
         "auto_enable": "Automatically Enable Channel on Success",
         "buttons": {
@@ -1640,12 +1649,12 @@
         "topup_link_placeholder": "e.g.: Card selling website purchase link",
         "chat_link": "Chat Page Link",
         "chat_link_placeholder": "e.g.: ChatGPT Next Web deployment address",
-        "quota_per_unit": "USD -> YYC Rate",
-        "quota_per_unit_placeholder": "How many YYC per 1 USD",
+        "quota_per_unit": "USD -> YYC Conversion Rate",
+        "quota_per_unit_placeholder": "How many YYC 1 USD converts to",
         "retry_times": "Retry Times on Failure",
         "retry_times_placeholder": "Number of retry attempts on failure",
         "display_in_currency": "Display YYC as Fiat Amount",
-        "display_token_stat": "Show Token Quota Instead of User Quota in Billing APIs",
+        "display_token_stat": "Show token balance instead of user balance in billing APIs",
         "approximate_token": "Use Approximate Method to Estimate Token Count",
         "buttons": {
           "save": "Save General Settings"
@@ -1703,6 +1712,47 @@
         }
       }
     },
+    "currency": {
+      "catalog": {
+        "title": "Currency Catalog",
+        "subtitle": "Manage currency metadata. Rates are maintained in exchange management.",
+        "empty": "No currencies",
+        "columns": {
+          "code": "Code",
+          "name": "Name",
+          "symbol": "Symbol",
+          "minor_unit": "Minor Unit",
+          "status": "Status",
+          "created_at": "Created At",
+          "updated_at": "Updated At",
+          "action": "Action"
+        },
+        "status": {
+          "enabled": "Enabled",
+          "disabled": "Disabled"
+        },
+        "placeholders": {
+          "name": "e.g. US Dollar"
+        },
+        "buttons": {
+          "add": "Add Currency",
+          "save": "Save",
+          "cancel": "Cancel",
+          "delete": "Delete"
+        },
+        "messages": {
+          "load_failed": "Failed to load currencies",
+          "save_failed": "Failed to save currency",
+          "save_success": "Currency saved",
+          "delete_failed": "Failed to delete currency",
+          "delete_success": "Currency deleted",
+          "code_required": "Currency code is required",
+          "name_required": "Currency name is required",
+          "minor_unit_invalid": "Minor unit must be greater than or equal to 0",
+          "enabled_rate_required": "Configure a positive YYC rate in exchange settings before enabling this currency"
+        }
+      }
+    },
     "other": {
       "notice": {
         "title": "Notice Settings",
@@ -1756,42 +1806,38 @@
       }
     },
     "exchange": {
-      "title": "Exchange Rate Settings",
-      "subtitle": "Manage FX sync strategy and status. This page controls rate synchronization only, not billing currency catalog maintenance.",
-      "sync": {
-        "title": "Auto Sync"
+      "title": "Exchange Management",
+      "subtitle": "Show both manually maintained */YYC rates and synced fiat currency-pair rates.",
+      "empty": "No rates",
+      "columns": {
+        "pair": "Pair",
+      "rate": "Rate",
+      "provider": "Provider",
+      "rate_date": "Rate Date",
+      "created_at": "Created At",
+      "updated_at": "Updated At",
+      "action": "Action"
+    },
+      "rate_display": "1 {{base}} = {{value}} {{quote}}",
+      "providers": {
+        "manual": "Manual"
       },
-      "auto_sync": {
-        "enabled": "Enable auto FX sync",
-        "interval_seconds": "Sync interval (seconds)",
-        "provider": "Rate provider",
-        "last_run": "Last run: {{value}}",
-        "last_success": "Last success: {{value}}",
-        "last_error": "Last error: {{value}}"
-      },
-      "buttons": {
-        "save": "Save FX settings",
-        "sync_now": "Sync now",
-        "refresh_rates": "Refresh rates"
-      },
-      "messages": {
-        "interval_invalid": "Sync interval must be greater than or equal to {{min}} seconds",
-        "save_success": "FX settings saved",
-        "sync_failed": "Failed to sync FX rates",
-        "sync_success": "FX sync finished, updated {{count}} currencies",
-        "rates_load_failed": "Failed to load FX rates"
-      },
-      "rates": {
-        "title": "Fiat FX Rates",
-        "subtitle": "Shows real-time fiat-to-fiat rates. Currency scope comes from enabled billing currencies.",
-        "currencies": "Currency scope: {{value}}",
-        "empty": "No FX rates",
-        "columns": {
-          "pair": "Pair",
-          "rate": "Rate",
-          "date": "Date",
-          "provider": "Provider"
-        }
+  "buttons": {
+    "sync": "Sync",
+    "save": "Save",
+    "edit": "Edit"
+  },
+  "dialogs": {
+    "edit_title": "Edit Rate",
+    "rate_label": "Rate"
+  },
+  "messages": {
+        "load_failed": "Failed to load rates",
+        "sync_failed": "Failed to sync rates",
+        "sync_success": "Rates synced, updated {{count}} items",
+        "rate_invalid": "Rate must be greater than 0",
+        "save_failed": "Failed to save rate",
+        "save_success": "Rate saved"
       }
     }
   },

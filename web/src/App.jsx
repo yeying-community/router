@@ -39,6 +39,7 @@ import Group from './pages/Group';
 import Package from './pages/Package';
 import Task from './pages/Task';
 import TaskDetail from './pages/Task/Detail';
+import FlowPage from './pages/Flow';
 import AdminLayout from './layouts/AdminLayout';
 import UserLayout from './layouts/UserLayout';
 import UserWorkspaceLayout from './layouts/UserWorkspaceLayout';
@@ -75,7 +76,7 @@ function SettingRedirect() {
     <Navigate
       to={
         isAdmin()
-          ? '/admin/setting?tab=system&section=general'
+          ? '/admin/setting?tab=general&section=general'
           : '/workspace/setting'
       }
       replace
@@ -362,6 +363,15 @@ function App() {
         }
       >
         <Route path='/admin/channel' element={<Channel />} />
+        <Route path='/admin/channel/tasks' element={<Task />} />
+        <Route
+          path='/admin/channel/tasks/:id'
+          element={
+            <Suspense fallback={<Loading />}>
+              <TaskDetail />
+            </Suspense>
+          }
+        />
         <Route
           path='/admin/channel/edit/:id'
           element={
@@ -390,6 +400,30 @@ function App() {
         <Route path='/admin/group' element={<Group />} />
         <Route path='/admin/group/detail/:id' element={<Group />} />
         <Route path='/admin/package' element={<Package />} />
+        <Route
+          path='/admin/flow/topup'
+          element={
+            <Suspense fallback={<Loading />}>
+              <FlowPage kind='topup' />
+            </Suspense>
+          }
+        />
+        <Route
+          path='/admin/flow/package'
+          element={
+            <Suspense fallback={<Loading />}>
+              <FlowPage kind='package' />
+            </Suspense>
+          }
+        />
+        <Route
+          path='/admin/flow/redemption'
+          element={
+            <Suspense fallback={<Loading />}>
+              <FlowPage kind='redemption' />
+            </Suspense>
+          }
+        />
         <Route path='/admin/redemption' element={<Redemption />} />
         <Route
           path='/admin/redemption/edit/:id'

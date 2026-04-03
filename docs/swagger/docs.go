@@ -116,6 +116,133 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Delete billing currency (root)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Currency code",
+                        "name": "code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/billing/fx/rates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get FX market rates (admin)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/billing/fx/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get FX auto-sync status (admin)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/billing/fx/sync": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Sync fiat market rates from FX provider (root)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/admin/channel": {
@@ -898,6 +1025,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "today|last_7_days|last_30_days|this_month|last_month|this_year|last_year|last_12_months|all_time",
                         "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "all|overview|trend|health",
+                        "name": "section",
                         "in": "query"
                     }
                 ],
@@ -1692,6 +1825,238 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/docs.OptionUpdateRequest"
                         }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/package": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Update package (admin)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Create package (admin)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/package/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get package detail by ID (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Package ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Delete package by ID (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Package ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/package/{id}/assign": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Assign package to user (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Package ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/packages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List packages with pagination (admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page (1-based)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Keyword",
+                        "name": "keyword",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2613,6 +2978,45 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/user/{id}/package/subscription": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get current active package subscription for user (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/user/{id}/quota/summary": {
             "get": {
                 "security": [
@@ -2645,6 +3049,51 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Biz month in YYYY-MM",
                         "name": "month",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/user/{id}/redemptions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get recent redemptions for user (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max items",
+                        "name": "limit",
                         "in": "query"
                     }
                 ],
@@ -3228,6 +3677,25 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/billing/currencies": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "List billing currencies (public)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
                         }
                     }
                 }
@@ -6203,6 +6671,10 @@ const docTemplate = `{
         "docs.AdminUserUpdateRequest": {
             "type": "object",
             "properties": {
+                "daily_quota_limit": {
+                    "type": "integer",
+                    "example": 1000
+                },
                 "display_name": {
                     "type": "string",
                     "example": "Alice"
@@ -6219,6 +6691,10 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 123
                 },
+                "package_emergency_quota_limit": {
+                    "type": "integer",
+                    "example": 2000
+                },
                 "password": {
                     "type": "string",
                     "example": "NewPass123"
@@ -6226,6 +6702,10 @@ const docTemplate = `{
                 "quota": {
                     "type": "integer",
                     "example": 100000
+                },
+                "quota_reset_timezone": {
+                    "type": "string",
+                    "example": "Asia/Shanghai"
                 },
                 "role": {
                     "type": "integer",
@@ -7713,19 +8193,39 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 5
                 },
+                "face_value_amount": {
+                    "type": "number",
+                    "example": 10
+                },
+                "face_value_unit": {
+                    "type": "string",
+                    "example": "USD"
+                },
+                "group_id": {
+                    "type": "string",
+                    "example": "474c9b7b534047ce9205220990f53087"
+                },
                 "name": {
                     "type": "string",
                     "example": "InviteBonus"
-                },
-                "quota": {
-                    "type": "integer",
-                    "example": 100000
                 }
             }
         },
         "docs.RedemptionUpdateRequest": {
             "type": "object",
             "properties": {
+                "face_value_amount": {
+                    "type": "number",
+                    "example": 10
+                },
+                "face_value_unit": {
+                    "type": "string",
+                    "example": "USD"
+                },
+                "group_id": {
+                    "type": "string",
+                    "example": "474c9b7b534047ce9205220990f53087"
+                },
                 "id": {
                     "type": "string",
                     "example": "2d66a0b2d8c44efda9c7f5f21a4e2c4d"
@@ -7733,10 +8233,6 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "InviteBonus"
-                },
-                "quota": {
-                    "type": "integer",
-                    "example": 100000
                 },
                 "status": {
                     "type": "integer",
@@ -8277,6 +8773,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "ABCD"
                 },
+                "daily_quota_limit": {
+                    "type": "integer",
+                    "example": 0
+                },
                 "display_name": {
                     "type": "string",
                     "example": "Alice"
@@ -8309,6 +8809,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": ""
                 },
+                "package_emergency_quota_limit": {
+                    "type": "integer",
+                    "example": 0
+                },
                 "password": {
                     "type": "string",
                     "example": ""
@@ -8316,6 +8820,10 @@ const docTemplate = `{
                 "quota": {
                     "type": "integer",
                     "example": 0
+                },
+                "quota_reset_timezone": {
+                    "type": "string",
+                    "example": "Asia/Shanghai"
                 },
                 "request_count": {
                     "type": "integer",
@@ -8348,6 +8856,22 @@ const docTemplate = `{
                 "wechat_id": {
                     "type": "string",
                     "example": ""
+                },
+                "yyc_balance": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "yyc_daily_limit": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "yyc_package_emergency_limit": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "yyc_used": {
+                    "type": "integer",
+                    "example": 0
                 }
             }
         },
@@ -8621,6 +9145,22 @@ const docTemplate = `{
                 "before_yyc_balance": {
                     "type": "integer",
                     "example": 500000
+                },
+                "face_value_amount": {
+                    "type": "number",
+                    "example": 10
+                },
+                "face_value_unit": {
+                    "type": "string",
+                    "example": "USD"
+                },
+                "group_id": {
+                    "type": "string",
+                    "example": "474c9b7b534047ce9205220990f53087"
+                },
+                "group_name": {
+                    "type": "string",
+                    "example": "enterprise"
                 },
                 "redeemed_at": {
                     "type": "integer",

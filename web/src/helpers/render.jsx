@@ -81,29 +81,35 @@ export function formatCompactNumber(value) {
   return `${text}${unit}`;
 }
 
-export function renderQuota(quota, t, precision = 2) {
+export function renderDisplayAmount(yycAmount, t, precision = 2) {
   const displayInCurrency =
     localStorage.getItem('display_in_currency') === 'true';
-  const quotaPerUnit = parseFloat(
+  const yycPerUnit = parseFloat(
     localStorage.getItem('quota_per_unit') || '1'
   );
 
   if (displayInCurrency) {
-    const amount = (quota / quotaPerUnit).toFixed(precision);
+    const amount = (yycAmount / yycPerUnit).toFixed(precision);
     return t('common.quota.display_short', { amount });
   }
 
-  return renderNumber(quota);
+  return renderNumber(yycAmount);
 }
 
-export function isQuotaDisplayedInCurrency() {
+// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
+export const renderQuota = renderDisplayAmount;
+
+export function isYYCDisplayedInCurrency() {
   if (typeof window === 'undefined') {
     return false;
   }
   return localStorage.getItem('display_in_currency') === 'true';
 }
 
-export function getQuotaPerUnitValue() {
+// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
+export const isQuotaDisplayedInCurrency = isYYCDisplayedInCurrency;
+
+export function getYYCPerUnitValue() {
   if (typeof window === 'undefined') {
     return 1;
   }
@@ -114,18 +120,24 @@ export function getQuotaPerUnitValue() {
   return value;
 }
 
-export function formatQuotaEquivalentAmount(quota, precision = 6) {
-  const normalized = Number(quota || 0);
+// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
+export const getQuotaPerUnitValue = getYYCPerUnitValue;
+
+export function formatYYCEquivalentAmount(yycAmount, precision = 6) {
+  const normalized = Number(yycAmount || 0);
   if (!Number.isFinite(normalized)) {
     return '';
   }
-  return (normalized / getQuotaPerUnitValue())
+  return (normalized / getYYCPerUnitValue())
     .toFixed(precision)
     .replace(/\.?0+$/, '');
 }
 
-export function formatYYCValue(quota, compact = false) {
-  const normalized = Number(quota || 0);
+// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
+export const formatQuotaEquivalentAmount = formatYYCEquivalentAmount;
+
+export function formatYYCValue(yycAmount, compact = false) {
+  const normalized = Number(yycAmount || 0);
   if (!Number.isFinite(normalized)) {
     return `${YYC_SYMBOL} 0`;
   }
@@ -156,10 +168,10 @@ export function formatAmountWithUnit(amount, unit, maximumFractionDigits = 8) {
   return normalizedUnit ? `${display} ${normalizedUnit}` : display;
 }
 
-export function renderYYC(quota, t, compact = true, amountPrecision = 6) {
-  const normalized = Number(quota || 0);
+export function renderYYC(yycAmount, t, compact = true, amountPrecision = 6) {
+  const normalized = Number(yycAmount || 0);
   const triggerText = formatYYCValue(normalized, compact);
-  const amount = formatQuotaEquivalentAmount(normalized, amountPrecision);
+  const amount = formatYYCEquivalentAmount(normalized, amountPrecision);
   if (!amount || typeof t !== 'function') {
     return <span>{triggerText}</span>;
   }
@@ -171,45 +183,57 @@ export function renderYYC(quota, t, compact = true, amountPrecision = 6) {
   );
 }
 
-export function quotaToInputValue(quota, precision = 6) {
-  const normalized = Number(quota || 0);
+export function yycToDisplayInputValue(yycAmount, precision = 6) {
+  const normalized = Number(yycAmount || 0);
   if (!Number.isFinite(normalized) || normalized === 0) {
     return '0';
   }
-  if (!isQuotaDisplayedInCurrency()) {
+  if (!isYYCDisplayedInCurrency()) {
     return `${Math.trunc(normalized)}`;
   }
-  return (normalized / getQuotaPerUnitValue())
+  return (normalized / getYYCPerUnitValue())
     .toFixed(precision)
     .replace(/\.?0+$/, '');
 }
 
-export function quotaInputToStoredValue(value) {
+// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
+export const quotaToInputValue = yycToDisplayInputValue;
+
+export function displayInputToYYCStoredValue(value) {
   const normalized = Number(value ?? 0);
   if (!Number.isFinite(normalized) || normalized < 0) {
     return NaN;
   }
-  if (!isQuotaDisplayedInCurrency()) {
+  if (!isYYCDisplayedInCurrency()) {
     return Math.trunc(normalized);
   }
-  return Math.round(normalized * getQuotaPerUnitValue());
+  return Math.round(normalized * getYYCPerUnitValue());
 }
 
-export function quotaInputStep() {
-  return isQuotaDisplayedInCurrency() ? '0.01' : '1';
+// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
+export const quotaInputToStoredValue = displayInputToYYCStoredValue;
+
+export function displayAmountInputStep() {
+  return isYYCDisplayedInCurrency() ? '0.01' : '1';
 }
 
-export function renderQuotaWithPrompt(quota, t) {
+// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
+export const quotaInputStep = displayAmountInputStep;
+
+export function renderAmountEquivalentPrompt(yycAmount, t) {
   const displayInCurrency =
     localStorage.getItem('display_in_currency') === 'true';
 
   if (displayInCurrency) {
-    const amount = formatQuotaEquivalentAmount(quota, 2);
+    const amount = formatYYCEquivalentAmount(yycAmount, 2);
     return ` (${t('common.quota.display', { amount })})`;
   }
 
   return '';
 }
+
+// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
+export const renderYYCEquivalentPrompt = renderAmountEquivalentPrompt;
 
 const colors = [
   'red',

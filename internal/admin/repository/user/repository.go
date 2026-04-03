@@ -174,8 +174,13 @@ func Create(ctx context.Context, user *model.User, inviterId string) error {
 	if strings.TrimSpace(user.Id) == "" {
 		user.Id = random.GetUUID()
 	}
+	now := helper.GetTimestamp()
+	if user.CreatedAt <= 0 {
+		user.CreatedAt = now
+	}
+	user.UpdatedAt = now
 	user.DailyQuotaLimit = model.NormalizeUserDailyQuotaLimitForWrite(user.DailyQuotaLimit)
-	user.MonthlyEmergencyQuotaLimit = model.NormalizeUserMonthlyEmergencyQuotaLimitForWrite(user.MonthlyEmergencyQuotaLimit)
+	user.PackageEmergencyQuotaLimit = model.NormalizeUserPackageEmergencyQuotaLimitForWrite(user.PackageEmergencyQuotaLimit)
 	user.QuotaResetTimezone = model.NormalizeUserQuotaResetTimezoneForWrite(user.QuotaResetTimezone)
 	resolvedGroup, err := model.ResolveUserCreateGroupAssignment(user.Group)
 	if err != nil {
@@ -248,7 +253,7 @@ func Update(user *model.User, updatePassword bool) error {
 		user.Group = resolvedGroup.Id
 	}
 	user.DailyQuotaLimit = model.NormalizeUserDailyQuotaLimitForWrite(user.DailyQuotaLimit)
-	user.MonthlyEmergencyQuotaLimit = model.NormalizeUserMonthlyEmergencyQuotaLimitForWrite(user.MonthlyEmergencyQuotaLimit)
+	user.PackageEmergencyQuotaLimit = model.NormalizeUserPackageEmergencyQuotaLimitForWrite(user.PackageEmergencyQuotaLimit)
 	user.QuotaResetTimezone = model.NormalizeUserQuotaResetTimezoneForWrite(user.QuotaResetTimezone)
 	if user.Status == model.UserStatusDisabled {
 		blacklist.BanUser(user.Id)
@@ -264,8 +269,9 @@ func Update(user *model.User, updatePassword bool) error {
 		"quota":                         user.Quota,
 		"group":                         user.Group,
 		"daily_quota_limit":             user.DailyQuotaLimit,
-		"monthly_emergency_quota_limit": user.MonthlyEmergencyQuotaLimit,
+		"package_emergency_quota_limit": user.PackageEmergencyQuotaLimit,
 		"quota_reset_timezone":          user.QuotaResetTimezone,
+		"updated_at":                    helper.GetTimestamp(),
 	}
 	if updatePassword {
 		updates["password"] = user.Password
@@ -289,6 +295,7 @@ func Delete(user *model.User) error {
 		"username":       user.Username,
 		"status":         user.Status,
 		"wallet_address": nil,
+		"updated_at":     helper.GetTimestamp(),
 	}).Error
 	model.DB.Where("user_id = ?", user.Id).Delete(&model.Token{})
 	return err
@@ -416,7 +423,10 @@ func ResetUserPasswordByEmail(email string, password string) error {
 	if err != nil {
 		return err
 	}
-	err = model.DB.Model(&model.User{}).Where("email = ?", email).Update("password", hashedPassword).Error
+	err = model.DB.Model(&model.User{}).Where("email = ?", email).Updates(map[string]any{
+		"password":   hashedPassword,
+		"updated_at": helper.GetTimestamp(),
+	}).Error
 	return err
 }
 

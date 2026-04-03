@@ -26,7 +26,7 @@ type UserPackageSubscription struct {
 	PackageName                string `json:"package_name" gorm:"type:varchar(64);not null;default:''"`
 	GroupID                    string `json:"group_id" gorm:"type:char(36);not null;index"`
 	DailyQuotaLimit            int64  `json:"daily_quota_limit" gorm:"type:bigint;not null;default:0"`
-	MonthlyEmergencyQuotaLimit int64  `json:"monthly_emergency_quota_limit" gorm:"type:bigint;not null;default:0"`
+	PackageEmergencyQuotaLimit int64  `json:"package_emergency_quota_limit" gorm:"column:package_emergency_quota_limit;type:bigint;not null;default:0"`
 	QuotaResetTimezone         string `json:"quota_reset_timezone" gorm:"type:varchar(64);not null;default:'Asia/Shanghai'"`
 	StartedAt                  int64  `json:"started_at" gorm:"bigint;not null;index"`
 	ExpiresAt                  int64  `json:"expires_at" gorm:"bigint;not null;default:0;index"`
@@ -155,7 +155,7 @@ func AssignServicePackageToUserWithDB(db *gorm.DB, packageID string, userID stri
 		PackageName:                strings.TrimSpace(servicePackage.Name),
 		GroupID:                    strings.TrimSpace(servicePackage.GroupID),
 		DailyQuotaLimit:            normalizeServicePackageDailyQuotaLimit(servicePackage.DailyQuotaLimit),
-		MonthlyEmergencyQuotaLimit: normalizeServicePackageMonthlyEmergencyQuotaLimit(servicePackage.MonthlyEmergencyQuotaLimit),
+		PackageEmergencyQuotaLimit: normalizeServicePackagePackageEmergencyQuotaLimit(servicePackage.PackageEmergencyQuotaLimit),
 		QuotaResetTimezone:         normalizeServicePackageTimezone(servicePackage.QuotaResetTimezone),
 		StartedAt:                  effectiveStartAt,
 		ExpiresAt:                  expiresAt,
@@ -182,7 +182,7 @@ func AssignServicePackageToUserWithDB(db *gorm.DB, packageID string, userID stri
 		return tx.Model(&User{}).Where("id = ?", normalizedUserID).Updates(map[string]any{
 			"group":                         strings.TrimSpace(servicePackage.GroupID),
 			"daily_quota_limit":             normalizeUserDailyQuotaLimit(subscription.DailyQuotaLimit),
-			"monthly_emergency_quota_limit": normalizeUserMonthlyEmergencyQuotaLimit(subscription.MonthlyEmergencyQuotaLimit),
+			"package_emergency_quota_limit": normalizeUserPackageEmergencyQuotaLimit(subscription.PackageEmergencyQuotaLimit),
 			"quota_reset_timezone":          normalizeUserQuotaResetTimezone(subscription.QuotaResetTimezone),
 		}).Error
 	})
@@ -198,6 +198,52 @@ func GetActiveUserPackageSubscription(userID string) (UserPackageSubscription, e
 
 func GetActiveUserPackageSubscriptionForGroup(userID string, groupID string) (UserPackageSubscription, error) {
 	return getActiveUserPackageSubscriptionForGroupWithDB(DB, userID, groupID)
+}
+
+func ListActiveUserPackageSubscriptionsByUserIDs(userIDs []string) ([]UserPackageSubscription, error) {
+	normalizedIDs := make([]string, 0, len(userIDs))
+	seen := make(map[string]struct{}, len(userIDs))
+	for _, userID := range userIDs {
+		normalized := strings.TrimSpace(userID)
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		normalizedIDs = append(normalizedIDs, normalized)
+	}
+	if len(normalizedIDs) == 0 {
+		return []UserPackageSubscription{}, nil
+	}
+	now := helper.GetTimestamp()
+	rows := make([]UserPackageSubscription, 0, len(normalizedIDs))
+	if err := DB.
+		Where("user_id IN ? AND status = ? AND started_at <= ? AND (expires_at = 0 OR expires_at >= ?)",
+			normalizedIDs,
+			UserPackageSubscriptionStatusActive,
+			now,
+			now,
+		).
+		Order("user_id asc, updated_at desc, id desc").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	items := make([]UserPackageSubscription, 0, len(rows))
+	resolved := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		userID := strings.TrimSpace(row.UserID)
+		if userID == "" {
+			continue
+		}
+		if _, ok := resolved[userID]; ok {
+			continue
+		}
+		resolved[userID] = struct{}{}
+		items = append(items, row)
+	}
+	return items, nil
 }
 
 func AssignServicePackageToUser(packageID string, userID string, startAt int64) (UserPackageSubscription, error) {

@@ -371,15 +371,12 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	if snapshotErr != nil {
 		logger.Error(ctx, "calculate video billing snapshot failed: "+snapshotErr.Error())
 	}
-	groupReservation, groupQuotaErr := reserveGroupDailyQuota(ctx, meta.Group, meta.UserId, quota)
-	if groupQuotaErr != nil {
-		return groupQuotaErr
+	billingPlan, quotaErr := reserveRelayQuota(ctx, meta.Group, meta.UserId, quota)
+	if quotaErr != nil {
+		return quotaErr
 	}
-	userReservation, userQuotaErr := reserveUserQuota(meta.UserId, quota)
-	if userQuotaErr != nil {
-		releaseGroupDailyQuotaReservation(ctx, groupReservation)
-		return userQuotaErr
-	}
+	groupReservation := billingPlan.GroupReservation
+	userReservation := billingPlan.UserReservation
 	groupQuotaSettled := false
 	userQuotaSettled := false
 	defer func() {
@@ -390,13 +387,14 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			releaseUserQuotaReservation(ctx, userReservation)
 		}
 	}()
-
-	userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
-	if err != nil {
-		return openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
-	}
-	if userQuota-quota < 0 {
-		return openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+	if billingPlan.ChargeUserBalance() {
+		userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
+		if err != nil {
+			return openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
+		}
+		if userQuota-quota < 0 {
+			return openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+		}
 	}
 
 	if err := resetMultipartRequestBody(c); err != nil {
@@ -442,16 +440,24 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return
 		}
 		if strings.TrimSpace(meta.TokenId) != "" {
-			if err := model.PostConsumeTokenQuota(meta.TokenId, quota); err != nil {
+			var err error
+			if billingPlan.ChargeUserBalance() {
+				err = model.PostConsumeTokenQuota(meta.TokenId, quota)
+			} else {
+				err = model.PostConsumeTokenRemainQuota(meta.TokenId, quota)
+			}
+			if err != nil {
 				logger.SysError("error consuming token remain quota: " + err.Error())
 			}
-		} else {
+		} else if billingPlan.ChargeUserBalance() {
 			if err := model.DecreaseUserQuota(meta.UserId, quota); err != nil {
 				logger.SysError("error consuming user quota: " + err.Error())
 			}
 		}
-		if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
-			logger.SysError("error update user quota cache: " + err.Error())
+		if billingPlan.ChargeUserBalance() {
+			if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
+				logger.SysError("error update user quota cache: " + err.Error())
+			}
 		}
 		userQuotaUsage := settleUserQuotaReservation(ctx, userReservation, quota)
 		tokenName := c.GetString(ctxkey.TokenName)
@@ -465,6 +471,7 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			ModelName:          videoRequest.Model,
 			TokenName:          tokenName,
 			Quota:              int(quota),
+			BillingSource:      adminmodel.ResolveConsumeLogBillingSource(billingPlan.ChargeUserBalance()),
 			UserDailyQuota:     int(userQuotaUsage.DailyQuotaUsed),
 			UserEmergencyQuota: int(userQuotaUsage.EmergencyQuotaUsed),
 			Content:            appendVideoSummaryToLogContent(billing.FormatPricingLog(pricing, groupRatio), responseSummary),

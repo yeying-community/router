@@ -45,7 +45,7 @@ type activeUserPackageSubscriptionView struct {
 	GroupID                    string `json:"group_id"`
 	GroupName                  string `json:"group_name,omitempty"`
 	DailyQuotaLimit            int64  `json:"daily_quota_limit"`
-	MonthlyEmergencyQuotaLimit int64  `json:"monthly_emergency_quota_limit"`
+	PackageEmergencyQuotaLimit int64  `json:"package_emergency_quota_limit"`
 	QuotaResetTimezone         string `json:"quota_reset_timezone"`
 	StartedAt                  int64  `json:"started_at"`
 	ExpiresAt                  int64  `json:"expires_at"`
@@ -56,6 +56,10 @@ type activeUserPackageSubscriptionView struct {
 type activeUserPackageSubscriptionPayload struct {
 	HasActiveSubscription bool                               `json:"has_active_subscription"`
 	Subscription          *activeUserPackageSubscriptionView `json:"subscription,omitempty"`
+}
+
+type userRecentRedemptionsPayload struct {
+	Items []*presenter.Redemption `json:"items"`
 }
 
 func exposedUser(user *model.User) *presenter.User {
@@ -74,6 +78,42 @@ func exposedUsers(users []*model.User) []*presenter.User {
 		items = append(items, exposedUser(user))
 	}
 	return items
+}
+
+func attachActivePackageNames(items []*presenter.User) error {
+	if len(items) == 0 {
+		return nil
+	}
+	userIDs := make([]string, 0, len(items))
+	for _, item := range items {
+		if item == nil || item.User == nil {
+			continue
+		}
+		userIDs = append(userIDs, strings.TrimSpace(item.Id))
+	}
+	subscriptions, err := model.ListActiveUserPackageSubscriptionsByUserIDs(userIDs)
+	if err != nil {
+		return err
+	}
+	nameByUserID := make(map[string]string, len(subscriptions))
+	for _, subscription := range subscriptions {
+		userID := strings.TrimSpace(subscription.UserID)
+		if userID == "" {
+			continue
+		}
+		packageName := strings.TrimSpace(subscription.PackageName)
+		if packageName == "" {
+			packageName = strings.TrimSpace(subscription.PackageID)
+		}
+		nameByUserID[userID] = packageName
+	}
+	for _, item := range items {
+		if item == nil || item.User == nil {
+			continue
+		}
+		item.ActivePackageName = nameByUserID[strings.TrimSpace(item.Id)]
+	}
+	return nil
 }
 
 func requesterIsRootUser(c *gin.Context) bool {
@@ -116,7 +156,7 @@ func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscr
 		GroupID:                    groupID,
 		GroupName:                  groupName,
 		DailyQuotaLimit:            subscription.DailyQuotaLimit,
-		MonthlyEmergencyQuotaLimit: subscription.MonthlyEmergencyQuotaLimit,
+		PackageEmergencyQuotaLimit: subscription.PackageEmergencyQuotaLimit,
 		QuotaResetTimezone:         strings.TrimSpace(subscription.QuotaResetTimezone),
 		StartedAt:                  subscription.StartedAt,
 		ExpiresAt:                  subscription.ExpiresAt,
@@ -348,10 +388,19 @@ func GetAllUsers(c *gin.Context) {
 		return
 	}
 
+	items := exposedUsers(users)
+	if err := attachActivePackageNames(items); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    exposedUsers(users),
+		"data":    items,
 		"meta": gin.H{
 			"total":     total,
 			"page":      page,
@@ -379,10 +428,19 @@ func SearchUsers(c *gin.Context) {
 		})
 		return
 	}
+	items := exposedUsers(users)
+	if err := attachActivePackageNames(items); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    exposedUsers(users),
+		"data":    items,
 	})
 	return
 }
@@ -486,6 +544,58 @@ func GetUserActivePackageSubscription(c *gin.Context) {
 		"data": activeUserPackageSubscriptionPayload{
 			HasActiveSubscription: true,
 			Subscription:          buildActiveUserPackageSubscriptionView(subscription),
+		},
+	})
+}
+
+// GetUserRecentRedemptions godoc
+// @Summary Get recent redemptions for user (admin)
+// @Tags admin
+// @Security BearerAuth
+// @Produce json
+// @Param id path string true "User ID"
+// @Param limit query int false "Max items"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/admin/user/{id}/redemptions [get]
+func GetUserRecentRedemptions(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "id 为空",
+		})
+		return
+	}
+	targetUser, err := usersvc.GetByID(id, false)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	if !requesterCanReadUser(c, targetUser) {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无权获取同级或更高等级用户的信息",
+		})
+		return
+	}
+	limit, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("limit", "5")))
+	rows, err := model.ListRedemptionsByRedeemedUserID(id, limit)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": userRecentRedemptionsPayload{
+			Items: presenter.NewRedemptions(rows),
 		},
 	})
 }
@@ -1161,7 +1271,7 @@ func UpdateUser(c *gin.Context) {
 		})
 		return
 	}
-	if updatedUser.DailyQuotaLimit < 0 || updatedUser.MonthlyEmergencyQuotaLimit < 0 {
+	if updatedUser.DailyQuotaLimit < 0 || updatedUser.PackageEmergencyQuotaLimit < 0 {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": i18n.Translate(c, "invalid_input"),
