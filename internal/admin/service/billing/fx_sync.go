@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/internal/admin/model"
 )
 
@@ -22,26 +20,29 @@ const (
 	fxSyncTimeout               = 15 * time.Second
 )
 
-type FXSyncUpdatedCurrency struct {
-	Code          string  `json:"code"`
-	USDRate       float64 `json:"usd_rate"`
-	OldYYCPerUnit float64 `json:"old_yyc_per_unit"`
-	NewYYCPerUnit float64 `json:"new_yyc_per_unit"`
+type FXSyncUpdatedRate struct {
+	Pair  string  `json:"pair"`
+	Base  string  `json:"base"`
+	Quote string  `json:"quote"`
+	Rate  float64 `json:"rate"`
 }
 
-type FXSyncSkippedCurrency struct {
-	Code   string `json:"code"`
+type FXSyncSkippedRate struct {
+	Pair   string `json:"pair"`
+	Base   string `json:"base"`
+	Quote  string `json:"quote"`
 	Reason string `json:"reason"`
 }
 
 type FXSyncResult struct {
-	Provider     string                  `json:"provider"`
-	Base         string                  `json:"base"`
-	Date         string                  `json:"date"`
-	UpdatedCount int                     `json:"updated_count"`
-	SkippedCount int                     `json:"skipped_count"`
-	Updated      []FXSyncUpdatedCurrency `json:"updated"`
-	Skipped      []FXSyncSkippedCurrency `json:"skipped"`
+	Provider      string              `json:"provider"`
+	Base          string              `json:"base"`
+	Date          string              `json:"date"`
+	CurrencyCount int                 `json:"currency_count"`
+	UpdatedCount  int                 `json:"updated_count"`
+	SkippedCount  int                 `json:"skipped_count"`
+	Updated       []FXSyncUpdatedRate `json:"updated"`
+	Skipped       []FXSyncSkippedRate `json:"skipped"`
 }
 
 type frankfurterLatestResponse struct {
@@ -51,124 +52,110 @@ type frankfurterLatestResponse struct {
 	Rates  map[string]float64 `json:"rates"`
 }
 
-func SyncBillingCurrenciesFromFX(ctx context.Context) (FXSyncResult, error) {
+func SyncFXMarketRates(ctx context.Context) (FXSyncResult, error) {
 	result := FXSyncResult{
 		Provider: fxProviderFrankfurter,
 		Base:     model.BillingCurrencyCodeUSD,
-		Updated:  make([]FXSyncUpdatedCurrency, 0),
-		Skipped:  make([]FXSyncSkippedCurrency, 0),
+		Updated:  make([]FXSyncUpdatedRate, 0),
+		Skipped:  make([]FXSyncSkippedRate, 0),
 	}
 	if model.DB == nil {
 		return result, fmt.Errorf("database handle is nil")
 	}
 
-	usdYYCPerUnit, err := model.GetBillingCurrencyYYCPerUnit(model.BillingCurrencyCodeUSD)
-	if err != nil {
-		return result, fmt.Errorf("failed to load USD yyc rate: %w", err)
-	}
-
-	rows, err := model.ListBillingCurrencies()
+	codes, err := listConfiguredFXCurrencies()
 	if err != nil {
 		return result, err
 	}
-	rowByCode := make(map[string]model.BillingCurrency, len(rows))
-	candidateSet := make(map[string]struct{})
-	appendSkipped := func(code string, reason string) {
-		result.Skipped = append(result.Skipped, FXSyncSkippedCurrency{
-			Code:   code,
+	result.CurrencyCount = len(codes)
+	if len(codes) < 2 {
+		return result, nil
+	}
+
+	targetCodes := make([]string, 0, len(codes))
+	for _, code := range codes {
+		if code == model.BillingCurrencyCodeUSD {
+			continue
+		}
+		targetCodes = append(targetCodes, code)
+	}
+
+	payload := frankfurterLatestResponse{
+		Base:  model.BillingCurrencyCodeUSD,
+		Rates: make(map[string]float64),
+	}
+	if len(targetCodes) > 0 {
+		payload, err = fetchFrankfurterLatestRates(ctx, model.BillingCurrencyCodeUSD, targetCodes)
+		if err != nil {
+			return result, err
+		}
+	}
+	result.Date = payload.Date
+
+	usdRates := map[string]float64{
+		model.BillingCurrencyCodeUSD: 1,
+	}
+	for code, rate := range payload.Rates {
+		if rate > 0 {
+			usdRates[code] = rate
+		}
+	}
+
+	items := make([]model.FXMarketRate, 0, len(codes)*(len(codes)-1))
+	appendSkipped := func(base string, quote string, reason string) {
+		result.Skipped = append(result.Skipped, FXSyncSkippedRate{
+			Pair:   fmt.Sprintf("%s/%s", base, quote),
+			Base:   base,
+			Quote:  quote,
 			Reason: reason,
 		})
 	}
 
-	for _, row := range rows {
-		code := strings.ToUpper(strings.TrimSpace(row.Code))
-		if code == "" {
+	for _, base := range codes {
+		baseUSDRate, ok := usdRates[base]
+		if !ok || baseUSDRate <= 0 {
+			for _, quote := range codes {
+				if base == quote {
+					continue
+				}
+				appendSkipped(base, quote, "base_rate_not_found")
+			}
 			continue
 		}
-		rowByCode[code] = row
-		if code == model.BillingCurrencyCodeUSD {
-			appendSkipped(code, "base_currency")
-			continue
-		}
-		source := strings.ToLower(strings.TrimSpace(row.Source))
-		if source == model.BillingCurrencySourceManual {
-			appendSkipped(code, "manual_locked")
-			continue
-		}
-		if source != model.BillingCurrencySourceSystemDefault && source != model.BillingCurrencySourceFXAuto {
-			appendSkipped(code, "source_not_auto_managed")
-			continue
-		}
-		candidateSet[code] = struct{}{}
-	}
-
-	if len(candidateSet) == 0 {
-		result.UpdatedCount = 0
-		result.SkippedCount = len(result.Skipped)
-		return result, nil
-	}
-
-	candidateCodes := make([]string, 0, len(candidateSet))
-	for code := range candidateSet {
-		candidateCodes = append(candidateCodes, code)
-	}
-	sort.Strings(candidateCodes)
-
-	ratePayload, err := fetchFrankfurterLatestRates(ctx, result.Base, candidateCodes)
-	if err != nil {
-		return result, err
-	}
-	if strings.TrimSpace(ratePayload.Date) != "" {
-		result.Date = ratePayload.Date
-	}
-	now := helper.GetTimestamp()
-	for _, code := range candidateCodes {
-		rate, ok := ratePayload.Rates[code]
-		if !ok || rate <= 0 {
-			appendSkipped(code, "rate_not_found")
-			continue
-		}
-		nextYYCPerUnit := usdYYCPerUnit / rate
-		if math.IsNaN(nextYYCPerUnit) || math.IsInf(nextYYCPerUnit, 0) || nextYYCPerUnit <= 0 {
-			appendSkipped(code, "invalid_rate_value")
-			continue
-		}
-		tx := model.DB.Model(&model.BillingCurrency{}).
-			Where("code = ? AND lower(trim(source)) IN ?", code, []string{
-				model.BillingCurrencySourceSystemDefault,
-				model.BillingCurrencySourceFXAuto,
-			}).
-			Updates(map[string]any{
-				"yyc_per_unit": nextYYCPerUnit,
-				"source":       model.BillingCurrencySourceFXAuto,
-				"updated_at":   now,
+		for _, quote := range codes {
+			if base == quote {
+				continue
+			}
+			quoteUSDRate, ok := usdRates[quote]
+			if !ok || quoteUSDRate <= 0 {
+				appendSkipped(base, quote, "quote_rate_not_found")
+				continue
+			}
+			rate := quoteUSDRate / baseUSDRate
+			if rate <= 0 {
+				appendSkipped(base, quote, "invalid_rate_value")
+				continue
+			}
+			items = append(items, model.FXMarketRate{
+				Base:  base,
+				Quote: quote,
+				Rate:  rate,
 			})
-		if tx.Error != nil {
-			appendSkipped(code, "update_failed")
-			continue
+			result.Updated = append(result.Updated, FXSyncUpdatedRate{
+				Pair:  fmt.Sprintf("%s/%s", base, quote),
+				Base:  base,
+				Quote: quote,
+				Rate:  rate,
+			})
 		}
-		if tx.RowsAffected == 0 {
-			appendSkipped(code, "source_changed_or_missing")
-			continue
-		}
+	}
 
-		oldYYCPerUnit := 0.0
-		if oldRow, ok := rowByCode[code]; ok {
-			oldYYCPerUnit = oldRow.YYCPerUnit
-		}
-		result.Updated = append(result.Updated, FXSyncUpdatedCurrency{
-			Code:          code,
-			USDRate:       rate,
-			OldYYCPerUnit: oldYYCPerUnit,
-			NewYYCPerUnit: nextYYCPerUnit,
-		})
+	if err := model.UpsertFXMarketRatesWithDB(model.DB, result.Provider, result.Date, items); err != nil {
+		return result, err
 	}
 
 	result.UpdatedCount = len(result.Updated)
 	result.SkippedCount = len(result.Skipped)
-	if err := model.SyncBillingCurrencyCatalogWithDB(model.DB); err != nil {
-		return result, err
-	}
 	return result, nil
 }
 

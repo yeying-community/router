@@ -83,7 +83,7 @@ func GetPublicBillingCurrencies(c *gin.Context) {
 			Code:       model.BillingCurrencyCodeUSD,
 			Name:       "US Dollar",
 			Symbol:     "$",
-			MinorUnit:  2,
+			MinorUnit:  6,
 			YYCPerUnit: usdYYCPerUnit(),
 		})
 	}
@@ -218,8 +218,39 @@ func UpdateBillingCurrency(c *gin.Context) {
 	})
 }
 
+// DeleteBillingCurrency godoc
+// @Summary Delete billing currency (root)
+// @Tags admin
+// @Security BearerAuth
+// @Produce json
+// @Param code path string true "Currency code"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/admin/billing/currencies/{code} [delete]
+func DeleteBillingCurrency(c *gin.Context) {
+	code := strings.TrimSpace(c.Param("code"))
+	if code == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "币种代码不能为空",
+		})
+		return
+	}
+	if err := model.DeleteBillingCurrencyWithDB(model.DB, code); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+	})
+}
+
 // SyncBillingCurrenciesFromFX godoc
-// @Summary Sync billing currencies from FX provider (root)
+// @Summary Sync fiat market rates from FX provider (root)
 // @Tags admin
 // @Security BearerAuth
 // @Produce json
@@ -230,7 +261,7 @@ func SyncBillingCurrenciesFromFX(c *gin.Context) {
 	runAt := helper.GetTimestamp()
 	_ = model.UpdateOption("FXAutoSyncLastRunAt", strconv.FormatInt(runAt, 10))
 
-	result, err := billingsvc.SyncBillingCurrenciesFromFX(c.Request.Context())
+	result, err := billingsvc.SyncFXMarketRates(c.Request.Context())
 	if err != nil {
 		_ = model.UpdateOption("FXAutoSyncLastError", strings.TrimSpace(err.Error()))
 		c.JSON(http.StatusOK, gin.H{

@@ -23,14 +23,14 @@ const PLACEHOLDER_CURRENCY_MAP = {
     code: DEFAULT_FIAT_DISPLAY_CODE,
     name: 'US Dollar',
     symbol: '$',
-    minor_unit: 2,
+    minor_unit: 6,
     yyc_per_unit: 0,
   },
   CNY: {
     code: 'CNY',
     name: 'Chinese Yuan',
     symbol: '¥',
-    minor_unit: 2,
+    minor_unit: 6,
     yyc_per_unit: 0,
   },
 };
@@ -90,7 +90,7 @@ export const buildBillingCurrencyIndex = (
       ...current,
       ...item,
       code,
-      minor_unit: Number(item?.minor_unit ?? current.minor_unit ?? 2),
+      minor_unit: Number(item?.minor_unit ?? current.minor_unit ?? 6),
       yyc_per_unit: Number.isFinite(rawRate)
         ? rawRate
         : Number(current?.yyc_per_unit ?? 0),

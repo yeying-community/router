@@ -1,188 +1,180 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Form, Grid, Header, Table } from 'semantic-ui-react';
+import { Button, Form, Grid, Header, Modal, Table } from 'semantic-ui-react';
 import {
   API,
   showError,
   showSuccess,
   timestamp2string,
 } from '../helpers';
+import { formatDecimalNumber } from '../helpers/render';
 
-const defaultInputs = {
-  FXAutoSyncEnabled: 'false',
-  FXAutoSyncIntervalSeconds: '21600',
-  FXAutoSyncProvider: 'frankfurter',
-};
+const YYC_CODE = 'YYC';
+const MANUAL_RATE_ROW_PREFIX = 'manual:';
+const MARKET_RATE_ROW_PREFIX = 'market:';
+const rateColumnStyle = { width: '180px', minWidth: '180px' };
+const rateDateColumnStyle = { width: '160px', minWidth: '160px' };
+const createdAtColumnStyle = { width: '160px', minWidth: '160px' };
+const updatedAtColumnStyle = { width: '168px', minWidth: '168px' };
 
 const ExchangeRateSetting = ({ section = '' }) => {
   const { t } = useTranslation();
-  const [inputs, setInputs] = useState(defaultInputs);
-  const [originInputs, setOriginInputs] = useState(defaultInputs);
   const [loading, setLoading] = useState(false);
+  const [savingKey, setSavingKey] = useState('');
   const [syncing, setSyncing] = useState(false);
-  const [status, setStatus] = useState({
-    last_run_at: 0,
-    last_success_at: 0,
-    last_error: '',
-    min_interval: 60,
-  });
-  const [ratesLoading, setRatesLoading] = useState(false);
-  const [rateRows, setRateRows] = useState([]);
-  const [rateMeta, setRateMeta] = useState({
-    date: '',
-    provider: 'frankfurter',
-    currencies: [],
-  });
+  const [rates, setRates] = useState([]);
+  const [editingRow, setEditingRow] = useState(null);
+  const [editingRate, setEditingRate] = useState('');
 
   const normalizedSection = (section || '').trim().toLowerCase();
   const sectionVisible =
     normalizedSection === '' ||
     normalizedSection === 'all' ||
-    normalizedSection === 'sync';
+    normalizedSection === 'rates';
 
-  const getOptions = async () => {
-    const res = await API.get('/api/v1/admin/option/');
-    const { success, message, data } = res.data || {};
-    if (!success) {
-      showError(message);
-      return;
-    }
-    const optionMap = {};
-    (Array.isArray(data) ? data : []).forEach((item) => {
-      optionMap[item.key] = item.value;
-    });
-    const next = {
-      FXAutoSyncEnabled:
-        `${optionMap.FXAutoSyncEnabled ?? defaultInputs.FXAutoSyncEnabled}`,
-      FXAutoSyncIntervalSeconds: `${
-        optionMap.FXAutoSyncIntervalSeconds ??
-        defaultInputs.FXAutoSyncIntervalSeconds
-      }`,
-      FXAutoSyncProvider:
-        (optionMap.FXAutoSyncProvider || defaultInputs.FXAutoSyncProvider)
-          .toString()
-          .trim() || defaultInputs.FXAutoSyncProvider,
-    };
-    setInputs(next);
-    setOriginInputs(next);
-  };
-
-  const loadStatus = async () => {
+  const loadRates = async () => {
+    setLoading(true);
     try {
-      const res = await API.get('/api/v1/admin/billing/fx/status');
-      const { success, data } = res.data || {};
-      if (!success || !data) {
+      const [currencyRes, fxRes] = await Promise.all([
+        API.get('/api/v1/admin/billing/currencies'),
+        API.get('/api/v1/admin/billing/fx/rates'),
+      ]);
+      const currencyPayload = currencyRes.data || {};
+      const fxPayload = fxRes.data || {};
+      if (!currencyPayload.success) {
+        showError(
+          currencyPayload.message || t('setting.exchange.messages.load_failed'),
+        );
         return;
       }
-      setStatus({
-        last_run_at: Number(data.last_run_at || 0),
-        last_success_at: Number(data.last_success_at || 0),
-        last_error: (data.last_error || '').toString(),
-        min_interval: Number(data.min_interval || 60),
-      });
+      if (!fxPayload.success) {
+        showError(fxPayload.message || t('setting.exchange.messages.load_failed'));
+        return;
+      }
+
+      const currencies = Array.isArray(currencyPayload.data)
+        ? currencyPayload.data
+        : [];
+      const marketData = fxPayload.data || {};
+      const marketItems = Array.isArray(marketData.items) ? marketData.items : [];
+
+      const manualRows = currencies
+        .map((item) => ({
+          ...item,
+          code: (item?.code || '').toString().trim().toUpperCase(),
+        }))
+        .filter((item) => item.code && item.code !== YYC_CODE)
+        .map((item) => ({
+          id: `${MANUAL_RATE_ROW_PREFIX}${item.code}`,
+          pair: `${item.code}/${YYC_CODE}`,
+          base: item.code,
+          quote: YYC_CODE,
+          rate:
+            item?.yyc_per_unit === 0 || item?.yyc_per_unit
+              ? `${item.yyc_per_unit}`
+              : '0',
+          provider: t('setting.exchange.providers.manual'),
+          rate_date: '',
+          created_at: Number(item?.created_at || 0),
+          updated_at: Number(item?.updated_at || 0),
+          row_type: 'manual',
+          currency: {
+            ...item,
+            minor_unit: Number(item?.minor_unit ?? 6),
+            status: Number(item?.status || 1),
+          },
+        }))
+        .sort((a, b) => a.pair.localeCompare(b.pair));
+
+      const marketRows = marketItems
+        .map((item) => ({
+          id: `${MARKET_RATE_ROW_PREFIX}${item?.pair || `${item?.base || ''}/${item?.quote || ''}`}`,
+          pair: (item?.pair || '').toString().trim(),
+          base: (item?.base || '').toString().trim().toUpperCase(),
+          quote: (item?.quote || '').toString().trim().toUpperCase(),
+          rate: Number(item?.rate || 0),
+          provider:
+            (item?.provider || marketData.provider || '').toString().trim(),
+          rate_date:
+            (item?.rate_date || marketData.date || '').toString().trim(),
+          created_at: Number(item?.created_at || 0),
+          updated_at: Number(item?.updated_at || 0),
+          row_type: 'market',
+        }))
+        .sort((a, b) => a.pair.localeCompare(b.pair));
+
+      setRates([...manualRows, ...marketRows]);
     } catch (error) {
-      // keep page usable even when status fetch fails
+      showError(error?.message || t('setting.exchange.messages.load_failed'));
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    getOptions().then();
-    loadStatus().then();
+    if (!sectionVisible) {
+      return;
+    }
     loadRates().then();
-  }, []);
+  }, [sectionVisible]);
 
-  const loadRates = async () => {
-    setRatesLoading(true);
+  const closeEditModal = () => {
+    if (savingKey) {
+      return;
+    }
+    setEditingRow(null);
+    setEditingRate('');
+  };
+
+  const openEditModal = (row) => {
+    setEditingRow(row);
+    setEditingRate(`${row?.rate ?? ''}`);
+  };
+
+  const saveManualRate = async () => {
+    const row = editingRow;
+    const rate = Number.parseFloat(editingRate ?? '');
+    if (!Number.isFinite(rate) || rate <= 0) {
+      showError(t('setting.exchange.messages.rate_invalid'));
+      return;
+    }
+    const currency = row?.currency || {};
+    const code = (currency?.code || row?.base || '').toString().trim().toUpperCase();
+    if (!code) {
+      showError(t('setting.exchange.messages.save_failed'));
+      return;
+    }
+
+    setSavingKey(row.id || code);
     try {
-      const res = await API.get('/api/v1/admin/billing/fx/rates');
-      const { success, message, data } = res.data || {};
+      const res = await API.put(
+        `/api/v1/admin/billing/currencies/${encodeURIComponent(code)}`,
+        {
+          code,
+          name: currency?.name,
+          symbol: currency?.symbol,
+          minor_unit: Number(currency?.minor_unit ?? 6),
+          yyc_per_unit: rate,
+          status: Number(currency?.status || 1),
+          source: (currency?.source || 'manual').toString().trim() || 'manual',
+        },
+      );
+      const { success, message } = res.data || {};
       if (!success) {
-        showError(message || t('setting.exchange.messages.rates_load_failed'));
+        showError(message || t('setting.exchange.messages.save_failed'));
         return;
       }
-      setRateRows(Array.isArray(data?.items) ? data.items : []);
-      setRateMeta({
-        date: (data?.date || '').toString(),
-        provider: (data?.provider || 'frankfurter').toString(),
-        currencies: Array.isArray(data?.currencies) ? data.currencies : [],
-      });
+      showSuccess(t('setting.exchange.messages.save_success'));
+      closeEditModal();
+      await loadRates();
     } catch (error) {
-      showError(error?.message || t('setting.exchange.messages.rates_load_failed'));
+      showError(error?.message || t('setting.exchange.messages.save_failed'));
     } finally {
-      setRatesLoading(false);
+      setSavingKey('');
     }
   };
 
-  const updateOption = async (key, value) => {
-    setLoading(true);
-    let nextValue = value;
-    if (key.endsWith('Enabled')) {
-      nextValue = inputs[key] === 'true' ? 'false' : 'true';
-    }
-    const res = await API.put('/api/v1/admin/option/', {
-      key,
-      value: nextValue,
-    });
-    const { success, message } = res.data || {};
-    if (!success) {
-      showError(message);
-      setLoading(false);
-      return false;
-    }
-    setInputs((previous) => ({ ...previous, [key]: nextValue }));
-    setOriginInputs((previous) => ({ ...previous, [key]: nextValue }));
-    setLoading(false);
-    return true;
-  };
-
-  const handleInputChange = async (e, { name, value }) => {
-    const normalizedValue = value ?? '';
-    if (name.endsWith('Enabled')) {
-      await updateOption(name, normalizedValue);
-      await loadStatus();
-      return;
-    }
-    setInputs((previous) => ({ ...previous, [name]: normalizedValue }));
-  };
-
-  const submitConfig = async () => {
-    const minInterval = status.min_interval || 60;
-    const intervalSeconds = Number.parseInt(
-      inputs.FXAutoSyncIntervalSeconds ?? '',
-      10,
-    );
-    if (!Number.isFinite(intervalSeconds) || intervalSeconds < minInterval) {
-      showError(
-        t('setting.exchange.messages.interval_invalid', {
-          min: minInterval,
-        }),
-      );
-      return;
-    }
-
-    if (
-      `${originInputs.FXAutoSyncIntervalSeconds || ''}` !== `${intervalSeconds}`
-    ) {
-      const ok = await updateOption(
-        'FXAutoSyncIntervalSeconds',
-        `${intervalSeconds}`,
-      );
-      if (!ok) {
-        return;
-      }
-    }
-    if (`${originInputs.FXAutoSyncProvider || ''}` !== 'frankfurter') {
-      const ok = await updateOption('FXAutoSyncProvider', 'frankfurter');
-      if (!ok) {
-        return;
-      }
-    }
-    showSuccess(t('setting.exchange.messages.save_success'));
-    await getOptions();
-    await loadStatus();
-  };
-
-  const syncNow = async () => {
+  const syncRates = async () => {
     setSyncing(true);
     try {
       const res = await API.post('/api/v1/admin/billing/fx/sync');
@@ -193,38 +185,16 @@ const ExchangeRateSetting = ({ section = '' }) => {
       }
       const updatedCount = Number(data?.updated_count || 0);
       showSuccess(
-        t('setting.exchange.messages.sync_success', { count: updatedCount }),
+        t('setting.exchange.messages.sync_success', {
+          count: Number.isFinite(updatedCount) ? updatedCount : 0,
+        }),
       );
-      await loadStatus();
-      await getOptions();
       await loadRates();
     } catch (error) {
       showError(error?.message || t('setting.exchange.messages.sync_failed'));
     } finally {
       setSyncing(false);
     }
-  };
-
-  const renderTimestamp = (value) => {
-    const num = Number(value || 0);
-    if (!Number.isFinite(num) || num <= 0) {
-      return '-';
-    }
-    return timestamp2string(num);
-  };
-
-  const renderRateValue = (value) => {
-    const num = Number(value);
-    if (!Number.isFinite(num) || num <= 0) {
-      return '-';
-    }
-    if (num >= 100) {
-      return num.toFixed(4);
-    }
-    if (num >= 1) {
-      return num.toFixed(6);
-    }
-    return num.toFixed(8);
   };
 
   if (!sectionVisible) {
@@ -238,150 +208,152 @@ const ExchangeRateSetting = ({ section = '' }) => {
   return (
     <Grid columns={1}>
       <Grid.Column>
-        <Form loading={loading}>
+        <Form>
           <Header as='h3' className='router-section-title'>
             {t('setting.exchange.title')}
           </Header>
           <div className='router-settings-note'>
             {t('setting.exchange.subtitle')}
           </div>
-          <Form.Group widths='equal'>
-            <Form.Checkbox
-              className='router-section-checkbox'
-              checked={inputs.FXAutoSyncEnabled === 'true'}
-              label={t('setting.exchange.auto_sync.enabled')}
-              name='FXAutoSyncEnabled'
-              onChange={handleInputChange}
-            />
-            <Form.Input
-              className='router-section-input'
-              label={t('setting.exchange.auto_sync.interval_seconds')}
-              name='FXAutoSyncIntervalSeconds'
-              onChange={handleInputChange}
-              autoComplete='new-password'
-              value={inputs.FXAutoSyncIntervalSeconds}
-              type='number'
-              min={status.min_interval || 60}
-              step='1'
-              placeholder='21600'
-            />
-            <Form.Input
-              className='router-section-input'
-              label={t('setting.exchange.auto_sync.provider')}
-              name='FXAutoSyncProvider'
-              value='frankfurter'
-              readOnly
-            />
-          </Form.Group>
-          <Form.Button
-            className='router-section-button'
-            onClick={() => {
-              submitConfig().then();
-            }}
-          >
-            {t('setting.exchange.buttons.save')}
-          </Form.Button>
-          <div className='router-settings-note'>
-            {t('setting.exchange.auto_sync.last_run', {
-              value: renderTimestamp(status.last_run_at),
-            })}
-          </div>
-          <div className='router-settings-note'>
-            {t('setting.exchange.auto_sync.last_success', {
-              value: renderTimestamp(status.last_success_at),
-            })}
-          </div>
-          {status.last_error ? (
-            <div className='router-settings-note'>
-              {t('setting.exchange.auto_sync.last_error', {
-                value: status.last_error,
-              })}
-            </div>
-          ) : null}
-          <div className='router-toolbar router-block-gap-sm'>
-            <div className='router-toolbar-start'>
-              <Button
-                className='router-page-button'
-                type='button'
-                onClick={syncNow}
-                loading={syncing}
-                disabled={syncing}
-              >
-                {t('setting.exchange.buttons.sync_now')}
-              </Button>
-              <Button
-                className='router-page-button'
-                type='button'
-                onClick={() => {
-                  loadRates().then();
-                }}
-                loading={ratesLoading}
-                disabled={ratesLoading || syncing}
-              >
-                {t('setting.exchange.buttons.refresh_rates')}
-              </Button>
-            </div>
-          </div>
-          <Header as='h3' className='router-section-title'>
-            {t('setting.exchange.rates.title')}
-          </Header>
-          <div className='router-settings-note'>
-            {t('setting.exchange.rates.subtitle')}
-          </div>
-          <div className='router-settings-note'>
-            {t('setting.exchange.rates.currencies', {
-              value:
-                Array.isArray(rateMeta.currencies) && rateMeta.currencies.length > 0
-                  ? rateMeta.currencies.join(', ')
-                  : '-',
-            })}
-          </div>
           <div className='router-table-scroll-x'>
             <Table compact celled className='router-detail-table'>
               <Table.Header>
                 <Table.Row>
-                  <Table.HeaderCell>
-                    {t('setting.exchange.rates.columns.pair')}
+                  <Table.HeaderCell collapsing>
+                    {t('setting.exchange.columns.pair')}
                   </Table.HeaderCell>
                   <Table.HeaderCell>
-                    {t('setting.exchange.rates.columns.rate')}
+                    {t('setting.exchange.columns.rate')}
                   </Table.HeaderCell>
-                  <Table.HeaderCell>
-                    {t('setting.exchange.rates.columns.date')}
+                  <Table.HeaderCell collapsing>
+                    {t('setting.exchange.columns.provider')}
                   </Table.HeaderCell>
-                  <Table.HeaderCell>
-                    {t('setting.exchange.rates.columns.provider')}
+                  <Table.HeaderCell style={rateDateColumnStyle}>
+                    {t('setting.exchange.columns.rate_date')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell style={createdAtColumnStyle}>
+                    {t('setting.exchange.columns.created_at')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell style={updatedAtColumnStyle}>
+                    {t('setting.exchange.columns.updated_at')}
+                  </Table.HeaderCell>
+                  <Table.HeaderCell collapsing>
+                    {t('setting.exchange.columns.action')}
                   </Table.HeaderCell>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {ratesLoading ? (
+                {loading ? (
                   <Table.Row>
-                    <Table.Cell colSpan={4} textAlign='center' className='router-empty-cell'>
+                    <Table.Cell colSpan={7} textAlign='center' className='router-empty-cell'>
                       {t('common.loading')}
                     </Table.Cell>
                   </Table.Row>
-                ) : rateRows.length === 0 ? (
+                ) : rates.length === 0 ? (
                   <Table.Row>
-                    <Table.Cell colSpan={4} textAlign='center' className='router-empty-cell'>
-                      {t('setting.exchange.rates.empty')}
+                    <Table.Cell colSpan={7} textAlign='center' className='router-empty-cell'>
+                      {t('setting.exchange.empty')}
                     </Table.Cell>
                   </Table.Row>
                 ) : (
-                  rateRows.map((item, index) => (
-                    <Table.Row key={`${item.pair || ''}-${index}`}>
-                      <Table.Cell>{item.pair || '-'}</Table.Cell>
-                      <Table.Cell>{renderRateValue(item.rate)}</Table.Cell>
-                      <Table.Cell>{rateMeta.date || '-'}</Table.Cell>
-                      <Table.Cell>{rateMeta.provider || '-'}</Table.Cell>
-                    </Table.Row>
-                  ))
+                  rates.map((row) => (
+                      <Table.Row key={row.id || row.pair || `${row.base}-${row.quote}`}>
+                        <Table.Cell>{row.pair || '-'}</Table.Cell>
+                        <Table.Cell style={rateColumnStyle}>
+                          {t('setting.exchange.rate_display', {
+                            base: row.base || '-',
+                            value: formatDecimalNumber(row.rate || 0, 6),
+                            quote: row.quote || '-',
+                          })}
+                        </Table.Cell>
+                        <Table.Cell>{row.provider || '-'}</Table.Cell>
+                        <Table.Cell style={rateDateColumnStyle}>
+                          {row.rate_date || '-'}
+                        </Table.Cell>
+                        <Table.Cell style={createdAtColumnStyle}>
+                          {row.created_at ? timestamp2string(row.created_at) : '-'}
+                        </Table.Cell>
+                        <Table.Cell style={updatedAtColumnStyle}>
+                          {row.updated_at ? timestamp2string(row.updated_at) : '-'}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {row.row_type === 'manual' ? (
+                            <Button
+                              className='router-table-action-button'
+                              type='button'
+                              primary
+                              loading={savingKey === row.id}
+                              disabled={syncing || savingKey === row.id}
+                              onClick={() => openEditModal(row)}
+                            >
+                              {t('setting.exchange.buttons.edit')}
+                            </Button>
+                          ) : (
+                            <Button
+                              className='router-table-action-button'
+                              type='button'
+                              loading={syncing}
+                              disabled={syncing || savingKey !== ''}
+                              onClick={syncRates}
+                            >
+                              {t('setting.exchange.buttons.sync')}
+                            </Button>
+                          )}
+                        </Table.Cell>
+                      </Table.Row>
+                    ))
                 )}
               </Table.Body>
             </Table>
           </div>
         </Form>
       </Grid.Column>
+      <Modal
+        size='tiny'
+        open={!!editingRow}
+        onClose={closeEditModal}
+        closeOnDimmerClick={!savingKey}
+        closeOnEscape={!savingKey}
+      >
+        <Modal.Header>
+          {t('setting.exchange.dialogs.edit_title')}
+        </Modal.Header>
+        <Modal.Content>
+          <Form>
+            <Form.Field>
+              <label>{t('setting.exchange.columns.pair')}</label>
+              <div className='router-readonly-value'>
+                {editingRow?.pair || '-'}
+              </div>
+            </Form.Field>
+            <Form.Input
+              className='router-section-input'
+              label={t('setting.exchange.dialogs.rate_label')}
+              type='number'
+              min='0'
+              step='0.000001'
+              value={editingRate}
+              onChange={(e, { value }) => setEditingRate(value)}
+              placeholder='0.000000'
+              autoFocus
+            />
+          </Form>
+        </Modal.Content>
+        <Modal.Actions>
+          <Button type='button' onClick={closeEditModal} disabled={!!savingKey}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            primary
+            type='button'
+            loading={!!savingKey}
+            disabled={!!savingKey}
+            onClick={saveManualRate}
+          >
+            {t('common.confirm')}
+          </Button>
+        </Modal.Actions>
+      </Modal>
     </Grid>
   );
 };

@@ -76,7 +76,7 @@ function SettingRedirect() {
     <Navigate
       to={
         isAdmin()
-          ? '/admin/setting?tab=system&section=general'
+          ? '/admin/setting?tab=general&section=general'
           : '/workspace/setting'
       }
       replace

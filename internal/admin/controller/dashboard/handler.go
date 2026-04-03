@@ -15,6 +15,10 @@ import (
 const (
 	channelTopLimit    = 8
 	taskRecentLimit    = 8
+	sectionAll         = "all"
+	sectionOverview    = "overview"
+	sectionTrend       = "trend"
+	sectionHealth      = "health"
 	periodToday        = "today"
 	periodLast7Days    = "last_7_days"
 	periodLast30Days   = "last_30_days"
@@ -90,6 +94,7 @@ type channelHealthItem struct {
 }
 
 type dashboardPayload struct {
+	Section     string              `json:"section"`
 	Period      string              `json:"period"`
 	Granularity string              `json:"granularity"`
 	StartAt     int64               `json:"start_timestamp"`
@@ -99,6 +104,15 @@ type dashboardPayload struct {
 	TopChannels []channelHealthItem `json:"top_channels"`
 	RecentTasks []model.AsyncTask   `json:"recent_tasks"`
 	GeneratedAt int64               `json:"generated_at"`
+}
+
+func normalizeSection(raw string) string {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case sectionOverview, sectionTrend, sectionHealth:
+		return strings.TrimSpace(strings.ToLower(raw))
+	default:
+		return sectionAll
+	}
 }
 
 func normalizePeriod(raw string) string {
@@ -376,17 +390,7 @@ func collectCapabilities(channel *model.Channel) []string {
 }
 
 func listTopChannels() ([]channelHealthItem, int64, int64, int64, error) {
-	total, err := countByModel(&model.Channel{})
-	if err != nil {
-		return nil, 0, 0, 0, err
-	}
-	enabled := int64(0)
-	err = model.DB.Model(&model.Channel{}).Where("status = ?", model.ChannelStatusEnabled).Count(&enabled).Error
-	if err != nil {
-		return nil, 0, 0, 0, err
-	}
-	disabled := int64(0)
-	err = model.DB.Model(&model.Channel{}).Where("status IN ?", []int{model.ChannelStatusManuallyDisabled, model.ChannelStatusAutoDisabled}).Count(&disabled).Error
+	total, enabled, disabled, err := countChannelSummary()
 	if err != nil {
 		return nil, 0, 0, 0, err
 	}
@@ -438,6 +442,24 @@ func listTopChannels() ([]channelHealthItem, int64, int64, int64, error) {
 		})
 	}
 	return items, total, enabled, disabled, nil
+}
+
+func countChannelSummary() (int64, int64, int64, error) {
+	total, err := countByModel(&model.Channel{})
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	enabled := int64(0)
+	err = model.DB.Model(&model.Channel{}).Where("status = ?", model.ChannelStatusEnabled).Count(&enabled).Error
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	disabled := int64(0)
+	err = model.DB.Model(&model.Channel{}).Where("status IN ?", []int{model.ChannelStatusManuallyDisabled, model.ChannelStatusAutoDisabled}).Count(&disabled).Error
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	return total, enabled, disabled, nil
 }
 
 type dayQuotaRow struct {
@@ -613,11 +635,13 @@ func resolveAllTimeRange(now time.Time) (time.Time, time.Time, error) {
 // @Security BearerAuth
 // @Produce json
 // @Param period query string false "today|last_7_days|last_30_days|this_month|last_month|this_year|last_year|last_12_months|all_time"
+// @Param section query string false "all|overview|trend|health"
 // @Success 200 {object} docs.StandardResponse
 // @Failure 401 {object} docs.ErrorResponse
 // @Router /api/v1/admin/dashboard [get]
 func GetDashboard(c *gin.Context) {
 	period := normalizePeriod(c.DefaultQuery("period", periodLast7Days))
+	section := normalizeSection(c.Query("section"))
 	now := time.Now()
 	start, end := periodRange(period, now)
 	if period == periodAllTime {
@@ -632,92 +656,109 @@ func GetDashboard(c *gin.Context) {
 	startAt := start.Unix()
 	endAt := end.Unix()
 	granularity := periodGranularity(period)
+	payload := dashboardPayload{
+		Section:     section,
+		Period:      period,
+		Granularity: granularity,
+		StartAt:     startAt,
+		EndAt:       endAt,
+		GeneratedAt: helper.GetTimestamp(),
+	}
 
-	consumeQuota, err := sumQuotaByType(model.LogTypeConsume, startAt, endAt)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
+	if section == sectionAll || section == sectionOverview {
+		consumeQuota, err := sumQuotaByType(model.LogTypeConsume, startAt, endAt)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		topupQuota, err := sumQuotaByType(model.LogTypeTopup, startAt, endAt)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		requestCount, err := countRequests(startAt, endAt)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		activeUserCount, err := countActiveUsers(startAt, endAt)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		channelTotal, channelEnabled, channelDisabled, err := countChannelSummary()
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		groupTotal, err := countByModel(&model.GroupCatalog{})
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		providerTotal, err := countByModel(&model.Provider{})
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		taskActiveTotal, err := countTasksByStatuses([]string{model.AsyncTaskStatusPending, model.AsyncTaskStatusRunning})
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		taskFailedTotal, err := countTasksByStatuses([]string{model.AsyncTaskStatusFailed})
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		if section == sectionAll {
+			recentTasks, _, err := model.ListAsyncTasksPageWithDB(model.DB, model.AsyncTaskFilter{}, 1, taskRecentLimit)
+			if err != nil {
+				c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+				return
+			}
+			payload.RecentTasks = recentTasks
+		}
+		payload.Summary = summaryData{
+			ConsumeQuota:    consumeQuota,
+			ConsumeYYC:      consumeQuota,
+			TopupQuota:      topupQuota,
+			TopupYYC:        topupQuota,
+			NetQuota:        topupQuota - consumeQuota,
+			NetYYC:          topupQuota - consumeQuota,
+			RequestCount:    requestCount,
+			ActiveUserCount: activeUserCount,
+			ChannelTotal:    channelTotal,
+			ChannelEnabled:  channelEnabled,
+			ChannelDisabled: channelDisabled,
+			GroupTotal:      groupTotal,
+			ProviderTotal:   providerTotal,
+			TaskActiveTotal: taskActiveTotal,
+			TaskFailedTotal: taskFailedTotal,
+		}
 	}
-	topupQuota, err := sumQuotaByType(model.LogTypeTopup, startAt, endAt)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
+
+	if section == sectionAll || section == sectionTrend {
+		trend, err := buildTrend(startAt, endAt, granularity)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		payload.Trend = trend
 	}
-	requestCount, err := countRequests(startAt, endAt)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	activeUserCount, err := countActiveUsers(startAt, endAt)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	topChannels, channelTotal, channelEnabled, channelDisabled, err := listTopChannels()
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	groupTotal, err := countByModel(&model.GroupCatalog{})
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	providerTotal, err := countByModel(&model.Provider{})
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	taskActiveTotal, err := countTasksByStatuses([]string{model.AsyncTaskStatusPending, model.AsyncTaskStatusRunning})
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	taskFailedTotal, err := countTasksByStatuses([]string{model.AsyncTaskStatusFailed})
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	recentTasks, _, err := model.ListAsyncTasksPageWithDB(model.DB, model.AsyncTaskFilter{}, 1, taskRecentLimit)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	trend, err := buildTrend(startAt, endAt, granularity)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
+
+	if section == sectionAll || section == sectionHealth {
+		topChannels, _, _, _, err := listTopChannels()
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		payload.TopChannels = topChannels
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data": dashboardPayload{
-			Period:      period,
-			Granularity: granularity,
-			StartAt:     startAt,
-			EndAt:       endAt,
-			Summary: summaryData{
-				ConsumeQuota:    consumeQuota,
-				ConsumeYYC:      consumeQuota,
-				TopupQuota:      topupQuota,
-				TopupYYC:        topupQuota,
-				NetQuota:        topupQuota - consumeQuota,
-				NetYYC:          topupQuota - consumeQuota,
-				RequestCount:    requestCount,
-				ActiveUserCount: activeUserCount,
-				ChannelTotal:    channelTotal,
-				ChannelEnabled:  channelEnabled,
-				ChannelDisabled: channelDisabled,
-				GroupTotal:      groupTotal,
-				ProviderTotal:   providerTotal,
-				TaskActiveTotal: taskActiveTotal,
-				TaskFailedTotal: taskFailedTotal,
-			},
-			Trend:       trend,
-			TopChannels: topChannels,
-			RecentTasks: recentTasks,
-			GeneratedAt: helper.GetTimestamp(),
-		},
+		"data":    payload,
 	})
 }

@@ -20,7 +20,7 @@
     "log": "Log",
     "task": "Tasks",
     "setting": "Settings",
-    "setting_center": "Settings",
+    "setting_center": "System Settings",
     "sidebar_expand": "Expand Sidebar",
     "sidebar_compact": "Collapse Sidebar",
     "chat": "Chat",
@@ -1491,15 +1491,13 @@
           "update": "Update Server Address"
         }
       },
-      "top_up_link": "Top-up Link",
-      "chat_link": "Chat Link",
       "notice": "Site Announcement",
       "notice_placeholder": "Supports Markdown",
       "buttons": {
         "save": "Save"
       },
       "login": {
-        "title": "Login & Registration Settings",
+        "title": "Login Settings",
         "password_login": "Allow Password Login",
         "password_register": "Allow Password Registration",
         "email_verification": "Require Email Verification for Password Registration",
@@ -1521,7 +1519,7 @@
         }
       },
       "smtp": {
-        "title": "SMTP Configuration",
+        "title": "Email Settings",
         "subtitle": "Used to support system email sending",
         "server": "SMTP Server Address",
         "server_placeholder": "e.g.: smtp.gmail.com",

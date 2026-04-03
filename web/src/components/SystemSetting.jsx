@@ -18,8 +18,6 @@ const SystemSetting = ({ section = '' }) => {
     Footer: '',
     SystemName: '',
     Logo: '',
-    TopUpLink: '',
-    ChatLink: '',
   });
   const [loading, setLoading] = useState(false);
   const normalizedSection = (section || '').trim().toLowerCase();
@@ -99,8 +97,6 @@ const SystemSetting = ({ section = '' }) => {
     await updateOption('Logo', inputs.Logo);
     await updateOption('Footer', inputs.Footer);
     await updateOption('ServerAddress', removeTrailingSlash(inputs.ServerAddress));
-    await updateOption('TopUpLink', inputs.TopUpLink);
-    await updateOption('ChatLink', inputs.ChatLink);
     setLoading(false);
     showSuccess(t('setting.system.saved', '已保存'));
   };
@@ -142,20 +138,6 @@ const SystemSetting = ({ section = '' }) => {
               label='Footer HTML'
               name='Footer'
               value={inputs.Footer}
-              onChange={handleChange}
-            />
-            <Form.Input
-              className='router-section-input'
-              label={t('setting.system.top_up_link', '充值链接')}
-              name='TopUpLink'
-              value={inputs.TopUpLink}
-              onChange={handleChange}
-            />
-            <Form.Input
-              className='router-section-input'
-              label={t('setting.system.chat_link', '聊天链接')}
-              name='ChatLink'
-              value={inputs.ChatLink}
               onChange={handleChange}
             />
             <Button className='router-section-button' primary onClick={submitGeneral}>

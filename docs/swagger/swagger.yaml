@@ -30,6 +30,9 @@ definitions:
     type: object
   docs.AdminUserUpdateRequest:
     properties:
+      daily_quota_limit:
+        example: 1000
+        type: integer
       display_name:
         example: Alice
         type: string
@@ -42,12 +45,18 @@ definitions:
       id:
         example: 123
         type: integer
+      package_emergency_quota_limit:
+        example: 2000
+        type: integer
       password:
         example: NewPass123
         type: string
       quota:
         example: 100000
         type: integer
+      quota_reset_timezone:
+        example: Asia/Shanghai
+        type: string
       role:
         example: 1
         type: integer
@@ -1094,24 +1103,36 @@ definitions:
       count:
         example: 5
         type: integer
+      face_value_amount:
+        example: 10
+        type: number
+      face_value_unit:
+        example: USD
+        type: string
+      group_id:
+        example: 474c9b7b534047ce9205220990f53087
+        type: string
       name:
         example: InviteBonus
         type: string
-      quota:
-        example: 100000
-        type: integer
     type: object
   docs.RedemptionUpdateRequest:
     properties:
+      face_value_amount:
+        example: 10
+        type: number
+      face_value_unit:
+        example: USD
+        type: string
+      group_id:
+        example: 474c9b7b534047ce9205220990f53087
+        type: string
       id:
         example: 2d66a0b2d8c44efda9c7f5f21a4e2c4d
         type: string
       name:
         example: InviteBonus
         type: string
-      quota:
-        example: 100000
-        type: integer
       status:
         example: 1
         type: integer
@@ -1496,6 +1517,9 @@ definitions:
       aff_code:
         example: ABCD
         type: string
+      daily_quota_limit:
+        example: 0
+        type: integer
       display_name:
         example: Alice
         type: string
@@ -1520,12 +1544,18 @@ definitions:
       oidc_id:
         example: ""
         type: string
+      package_emergency_quota_limit:
+        example: 0
+        type: integer
       password:
         example: ""
         type: string
       quota:
         example: 0
         type: integer
+      quota_reset_timezone:
+        example: Asia/Shanghai
+        type: string
       request_count:
         example: 0
         type: integer
@@ -1550,6 +1580,18 @@ definitions:
       wechat_id:
         example: ""
         type: string
+      yyc_balance:
+        example: 0
+        type: integer
+      yyc_daily_limit:
+        example: 0
+        type: integer
+      yyc_package_emergency_limit:
+        example: 0
+        type: integer
+      yyc_used:
+        example: 0
+        type: integer
     type: object
   docs.UserRegisterRequest:
     properties:
@@ -1744,6 +1786,18 @@ definitions:
       before_yyc_balance:
         example: 500000
         type: integer
+      face_value_amount:
+        example: 10
+        type: number
+      face_value_unit:
+        example: USD
+        type: string
+      group_id:
+        example: 474c9b7b534047ce9205220990f53087
+        type: string
+      group_name:
+        example: enterprise
+        type: string
       redeemed_at:
         example: 1774000000
         type: integer
@@ -1836,6 +1890,29 @@ paths:
       tags:
       - admin
   /api/v1/admin/billing/currencies/{code}:
+    delete:
+      parameters:
+      - description: Currency code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete billing currency (root)
+      tags:
+      - admin
     put:
       consumes:
       - application/json
@@ -1859,6 +1936,60 @@ paths:
       security:
       - BearerAuth: []
       summary: Update billing currency (root)
+      tags:
+      - admin
+  /api/v1/admin/billing/fx/rates:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get FX market rates (admin)
+      tags:
+      - admin
+  /api/v1/admin/billing/fx/status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get FX auto-sync status (admin)
+      tags:
+      - admin
+  /api/v1/admin/billing/fx/sync:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Sync fiat market rates from FX provider (root)
       tags:
       - admin
   /api/v1/admin/channel:
@@ -2338,6 +2469,10 @@ paths:
       - description: today|last_7_days|last_30_days|this_month|last_month|this_year|last_year|last_12_months|all_time
         in: query
         name: period
+        type: string
+      - description: all|overview|trend|health
+        in: query
+        name: section
         type: string
       produces:
       - application/json
@@ -2847,6 +2982,149 @@ paths:
       summary: Update option (root)
       tags:
       - admin
+  /api/v1/admin/package:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create package (admin)
+      tags:
+      - admin
+    put:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update package (admin)
+      tags:
+      - admin
+  /api/v1/admin/package/{id}:
+    delete:
+      parameters:
+      - description: Package ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete package by ID (admin)
+      tags:
+      - admin
+    get:
+      parameters:
+      - description: Package ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get package detail by ID (admin)
+      tags:
+      - admin
+  /api/v1/admin/package/{id}/assign:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Package ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Assign package to user (admin)
+      tags:
+      - admin
+  /api/v1/admin/packages:
+    get:
+      parameters:
+      - description: Page (1-based)
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Keyword
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List packages with pagination (admin)
+      tags:
+      - admin
   /api/v1/admin/providers:
     get:
       parameters:
@@ -3320,6 +3598,30 @@ paths:
       summary: Get user detail (admin)
       tags:
       - admin
+  /api/v1/admin/user/{id}/package/subscription:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current active package subscription for user (admin)
+      tags:
+      - admin
   /api/v1/admin/user/{id}/quota/summary:
     get:
       parameters:
@@ -3350,6 +3652,34 @@ paths:
       security:
       - BearerAuth: []
       summary: Get user quota summary (admin)
+      tags:
+      - admin
+  /api/v1/admin/user/{id}/redemptions:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Max items
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/docs.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get recent redemptions for user (admin)
       tags:
       - admin
   /api/v1/admin/user/manage:
@@ -3782,6 +4112,18 @@ paths:
           schema:
             $ref: '#/definitions/docs.ErrorResponse'
       summary: Wallet verify (web3)
+      tags:
+      - public
+  /api/v1/public/billing/currencies:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/docs.StandardResponse'
+      summary: List billing currencies (public)
       tags:
       - public
   /api/v1/public/channel/models:

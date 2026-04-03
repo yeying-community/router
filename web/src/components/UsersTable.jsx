@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Icon,
@@ -12,13 +12,20 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { API, copy, isRoot, showError, showSuccess, timestamp2string } from '../helpers';
 import { useTranslation } from 'react-i18next';
+import UnitDropdown from './UnitDropdown';
 
 import { ITEMS_PER_PAGE } from '../constants';
 import {
   formatCompactNumber,
   renderText,
-  renderYYC,
 } from '../helpers/render';
+import {
+  buildDisplayUnitOptions,
+  buildPublicDisplayCurrencyIndex,
+  loadPublicDisplayCurrencyCatalog,
+  resolvePreferredDisplayCurrency,
+  yycToBillingInputValue,
+} from '../helpers/billing';
 
 function renderRole(role, t) {
   switch (role) {
@@ -69,6 +76,12 @@ const UsersTable = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searching, setSearching] = useState(false);
   const [orderBy, setOrderBy] = useState('');
+  const [currencyIndex, setCurrencyIndex] = useState(() =>
+    buildPublicDisplayCurrencyIndex([]),
+  );
+  const [balanceUnit, setBalanceUnit] = useState(() =>
+    resolvePreferredDisplayCurrency(buildPublicDisplayCurrencyIndex([]), 'USD'),
+  );
 
   const loadUsers = useCallback(
     async (page) => {
@@ -126,6 +139,25 @@ const UsersTable = () => {
         showError(reason);
       });
   }, [loadUsers]);
+
+  useEffect(() => {
+    let disposed = false;
+    loadPublicDisplayCurrencyCatalog().then(({ currencyIndex: nextIndex, defaultCurrency }) => {
+      if (disposed) {
+        return;
+      }
+      setCurrencyIndex(nextIndex);
+      setBalanceUnit((current) =>
+        resolvePreferredDisplayCurrency(
+          nextIndex,
+          current || defaultCurrency || 'USD',
+        ),
+      );
+    });
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   const manageUser = async (username, action, idx) => {
     const res = await API.post('/api/v1/admin/user/manage', {
@@ -254,6 +286,11 @@ const UsersTable = () => {
     />
   );
 
+  const balanceUnitOptions = useMemo(
+    () => buildDisplayUnitOptions(currencyIndex),
+    [currencyIndex],
+  );
+
   return (
     <>
       <div className='router-toolbar router-block-gap-sm'>
@@ -328,7 +365,23 @@ const UsersTable = () => {
             >
               {t('user.table.package')}
             </Table.HeaderCell>
-            <Table.HeaderCell>{t('user.table.balance')}</Table.HeaderCell>
+            <Table.HeaderCell className='router-redemption-face-value-header'>
+              <div className='router-table-header-with-control'>
+                <span>{t('user.table.balance')}</span>
+                <UnitDropdown
+                  variant='header'
+                  compact
+                  options={balanceUnitOptions}
+                  value={balanceUnit}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onChange={(_, { value }) => {
+                    setBalanceUnit((value || '').toString());
+                  }}
+                />
+              </div>
+            </Table.HeaderCell>
             <Table.HeaderCell
               className='router-sortable-header'
               onClick={() => {
@@ -425,7 +478,11 @@ const UsersTable = () => {
                       : '-'}
                   </Table.Cell>
                   <Table.Cell>
-                    {renderYYC(user.yyc_balance ?? user.quota, t)}
+                    {yycToBillingInputValue(
+                      user.yyc_balance ?? user.quota,
+                      balanceUnit,
+                      currencyIndex,
+                    )}
                   </Table.Cell>
                   <Table.Cell>
                     {renderCountValue(user.request_count)}

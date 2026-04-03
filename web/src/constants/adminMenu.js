@@ -68,7 +68,7 @@ export const ADMIN_MENU_GROUPS = [
   {
     key: 'flow',
     name: 'header.business_flow',
-    icon: 'receipt',
+    icon: 'clipboard list',
     items: [
       {
         name: 'flow.topup.title',
@@ -93,8 +93,18 @@ export const ADMIN_MENU_GROUPS = [
     icon: 'tasks',
     items: [
       {
+        name: 'setting.tabs.currency',
+        to: '/admin/setting?tab=currency&section=catalog',
+        icon: 'money bill alternate outline',
+      },
+      {
+        name: 'setting.tabs.exchange',
+        to: '/admin/setting?tab=exchange&section=rates',
+        icon: 'exchange',
+      },
+      {
         name: 'header.config',
-        to: '/admin/setting?tab=operation&section=balance',
+        to: '/admin/setting?tab=operation&section=config',
         icon: 'sliders horizontal',
       },
       {
@@ -115,24 +125,39 @@ export const ADMIN_MENU_GROUPS = [
     icon: 'setting',
     items: [
       {
-        name: 'setting.tabs.currency',
-        to: '/admin/setting?tab=currency&section=catalog',
-        icon: 'money bill alternate outline',
+        name: 'setting.system.general.title',
+        to: '/admin/setting?tab=general&section=general',
+        icon: 'sliders horizontal',
       },
       {
-        name: 'setting.tabs.exchange',
-        to: '/admin/setting?tab=exchange&section=rates',
-        icon: 'exchange',
+        name: 'setting.system.smtp.title',
+        to: '/admin/setting?tab=smtp&section=smtp',
+        icon: 'mail',
       },
       {
-        name: 'setting.tabs.system',
-        to: '/admin/setting?tab=system&section=general',
+        name: 'setting.system.login.title',
+        to: '/admin/setting?tab=login&section=login',
         icon: 'server',
       },
       {
-        name: 'setting.tabs.other',
-        to: '/admin/setting?tab=other&section=notice',
+        name: 'setting.operation.monitor.title',
+        to: '/admin/setting?tab=monitor&section=monitor',
+        icon: 'heartbeat',
+      },
+      {
+        name: 'setting.operation.log.title',
+        to: '/admin/setting?tab=log_setting&section=log',
+        icon: 'book',
+      },
+      {
+        name: 'setting.system.notice',
+        to: '/admin/setting?tab=notice&section=notice',
         icon: 'options',
+      },
+      {
+        name: 'setting.other.content.title',
+        to: '/admin/setting?tab=content&section=content',
+        icon: 'file alternate outline',
       },
     ],
   },
@@ -156,9 +181,34 @@ export const isAdminRouteActive = (location, to) => {
   const currentParams = new URLSearchParams(location.search || '');
   const targetTab = (targetParams.get('tab') || '').trim().toLowerCase();
   if (path === '/admin/setting' && targetTab !== '') {
-    const currentTab = (currentParams.get('tab') || 'system')
+    const rawCurrentTab = (currentParams.get('tab') || 'general')
       .trim()
       .toLowerCase();
+    const currentSection = (currentParams.get('section') || '')
+      .trim()
+      .toLowerCase();
+    const currentTab =
+      rawCurrentTab === 'system'
+        ? currentSection === 'smtp'
+          ? 'smtp'
+          : currentSection === 'login'
+            ? 'login'
+            : currentSection === 'monitor'
+              ? 'monitor'
+              : currentSection === 'log'
+                ? 'log_setting'
+                : 'general'
+        : rawCurrentTab === 'operation'
+          ? currentSection === 'monitor'
+            ? 'monitor'
+            : currentSection === 'log'
+              ? 'log_setting'
+              : 'operation'
+          : rawCurrentTab === 'other'
+            ? currentSection === 'content'
+              ? 'content'
+              : 'notice'
+            : rawCurrentTab;
     if (currentTab !== targetTab) {
       return false;
     }

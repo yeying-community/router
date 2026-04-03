@@ -4,6 +4,7 @@ import {
   Card,
   Dropdown,
   Form,
+  Header,
   Label,
   Pagination,
   Popup,
@@ -609,6 +610,11 @@ const Task = () => {
     : isAdminPage
       ? '/admin/task'
       : '/workspace/task';
+  const pageTitle = isSystemTaskPage
+    ? t('task.scopes.admin')
+    : isAdminUserTaskPage
+      ? t('task.scopes.user')
+      : t('task.title');
   const resolveFilterOptionLabel = useCallback(
     (filterKey, value) => {
       const normalizedValue = (value || '').toString().trim();
@@ -642,6 +648,9 @@ const Task = () => {
     <div className='dashboard-container'>
       <Card fluid className='chart-card'>
         <Card.Content>
+          <Header as='h3' className='router-section-title'>
+            {pageTitle}
+          </Header>
           <Form className='router-toolbar router-log-toolbar router-block-gap-sm'>
             <div className='router-toolbar-start router-log-toolbar-start'>
               <Popup

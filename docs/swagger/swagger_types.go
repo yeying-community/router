@@ -66,17 +66,20 @@ type UserSelfUpdateRequest struct {
 }
 
 type AdminUserUpdateRequest struct {
-	ID            int    `json:"id" example:"123"`
-	Username      string `json:"username,omitempty" example:"alice"`
-	DisplayName   string `json:"display_name,omitempty" example:"Alice"`
-	Role          int    `json:"role,omitempty" example:"1"`
-	Status        int    `json:"status,omitempty" example:"1"`
-	Quota         int64  `json:"quota,omitempty" example:"100000"`
-	UsedQuota     int64  `json:"used_quota,omitempty" example:"20000"`
-	Email         string `json:"email,omitempty" example:"alice@example.com"`
-	Group         string `json:"group,omitempty" example:"default"`
-	Password      string `json:"password,omitempty" example:"NewPass123"`
-	WalletAddress string `json:"wallet_address,omitempty" example:"0x1111111111111111111111111111111111111111"`
+	ID                         int    `json:"id" example:"123"`
+	Username                   string `json:"username,omitempty" example:"alice"`
+	DisplayName                string `json:"display_name,omitempty" example:"Alice"`
+	Role                       int    `json:"role,omitempty" example:"1"`
+	Status                     int    `json:"status,omitempty" example:"1"`
+	Quota                      int64  `json:"quota,omitempty" example:"100000"`
+	UsedQuota                  int64  `json:"used_quota,omitempty" example:"20000"`
+	Email                      string `json:"email,omitempty" example:"alice@example.com"`
+	Group                      string `json:"group,omitempty" example:"default"`
+	Password                   string `json:"password,omitempty" example:"NewPass123"`
+	WalletAddress              string `json:"wallet_address,omitempty" example:"0x1111111111111111111111111111111111111111"`
+	DailyQuotaLimit            int64  `json:"daily_quota_limit,omitempty" example:"1000"`
+	PackageEmergencyQuotaLimit int64  `json:"package_emergency_quota_limit,omitempty" example:"2000"`
+	QuotaResetTimezone         string `json:"quota_reset_timezone,omitempty" example:"Asia/Shanghai"`
 }
 
 type AdminCreateUserRequest struct {
@@ -97,26 +100,33 @@ type UserTopUpRequest struct {
 // --- User/public responses ---
 
 type UserPublic struct {
-	ID               int     `json:"id" example:"1"`
-	Username         string  `json:"username" example:"alice"`
-	Password         string  `json:"password" example:""`
-	DisplayName      string  `json:"display_name" example:"Alice"`
-	Role             int     `json:"role" example:"1"`
-	Status           int     `json:"status" example:"1"`
-	Email            string  `json:"email" example:""`
-	GitHubID         string  `json:"github_id" example:""`
-	WeChatID         string  `json:"wechat_id" example:""`
-	LarkID           string  `json:"lark_id" example:""`
-	OIDCID           string  `json:"oidc_id" example:""`
-	WalletAddress    *string `json:"wallet_address" example:"0x1111111111111111111111111111111111111111"`
-	VerificationCode string  `json:"verification_code" example:""`
-	AccessToken      string  `json:"access_token" example:""`
-	Quota            int64   `json:"quota" example:"0"`
-	UsedQuota        int64   `json:"used_quota" example:"0"`
-	RequestCount     int     `json:"request_count" example:"0"`
-	Group            string  `json:"group" example:"default"`
-	AffCode          string  `json:"aff_code" example:"ABCD"`
-	InviterID        int     `json:"inviter_id" example:"0"`
+	ID                         int     `json:"id" example:"1"`
+	Username                   string  `json:"username" example:"alice"`
+	Password                   string  `json:"password" example:""`
+	DisplayName                string  `json:"display_name" example:"Alice"`
+	Role                       int     `json:"role" example:"1"`
+	Status                     int     `json:"status" example:"1"`
+	Email                      string  `json:"email" example:""`
+	GitHubID                   string  `json:"github_id" example:""`
+	WeChatID                   string  `json:"wechat_id" example:""`
+	LarkID                     string  `json:"lark_id" example:""`
+	OIDCID                     string  `json:"oidc_id" example:""`
+	WalletAddress              *string `json:"wallet_address" example:"0x1111111111111111111111111111111111111111"`
+	VerificationCode           string  `json:"verification_code" example:""`
+	AccessToken                string  `json:"access_token" example:""`
+	Quota                      int64   `json:"quota" example:"0"`
+	UsedQuota                  int64   `json:"used_quota" example:"0"`
+	RequestCount               int     `json:"request_count" example:"0"`
+	Group                      string  `json:"group" example:"default"`
+	AffCode                    string  `json:"aff_code" example:"ABCD"`
+	InviterID                  int     `json:"inviter_id" example:"0"`
+	DailyQuotaLimit            int64   `json:"daily_quota_limit" example:"0"`
+	PackageEmergencyQuotaLimit int64   `json:"package_emergency_quota_limit" example:"0"`
+	QuotaResetTimezone         string  `json:"quota_reset_timezone" example:"Asia/Shanghai"`
+	YYCBalance                 int64   `json:"yyc_balance" example:"0"`
+	YYCUsed                    int64   `json:"yyc_used" example:"0"`
+	YYCDailyLimit              int64   `json:"yyc_daily_limit" example:"0"`
+	YYCPackageEmergencyLimit   int64   `json:"yyc_package_emergency_limit" example:"0"`
 }
 
 type UserSelfResponse struct {

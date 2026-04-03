@@ -20,7 +20,7 @@
     "log": "日志",
     "task": "任务",
     "setting": "设置",
-    "setting_center": "设置中心",
+    "setting_center": "系统设置",
     "sidebar_expand": "展开侧栏",
     "sidebar_compact": "收起侧栏",
     "chat": "聊天",
@@ -1491,15 +1491,13 @@
           "update": "更新服务器地址"
         }
       },
-      "top_up_link": "充值链接",
-      "chat_link": "聊天链接",
       "notice": "站点公告",
       "notice_placeholder": "支持 Markdown",
       "buttons": {
         "save": "保存"
       },
       "login": {
-        "title": "配置登录注册",
+        "title": "登录设置",
         "password_login": "允许通过密码进行登录",
         "password_register": "允许通过密码进行注册",
         "email_verification": "通过密码注册时需要进行邮箱验证",
@@ -1521,7 +1519,7 @@
         }
       },
       "smtp": {
-        "title": "配置 SMTP",
+        "title": "邮箱设置",
         "subtitle": "用以支持系统的邮件发送",
         "server": "SMTP 服务器地址",
         "server_placeholder": "例如：smtp.qq.com",
