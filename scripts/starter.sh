@@ -11,6 +11,7 @@ port="${ROUTER_PORT:-3011}"
 
 ensure_dirs() {
   mkdir -p "$log_dir" "$pid_dir"
+  touch "$log_dir/error.log"
 }
 
 is_running() {
