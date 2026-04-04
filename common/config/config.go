@@ -12,6 +12,7 @@ var ServerAddress = "http://localhost:3011"
 var Footer = ""
 var Logo = ""
 var TopUpLink = ""
+var TopUpSignSecret = ""
 var TopUpCallbackToken = ""
 var ChatLink = ""
 var QuotaPerUnit = 500 * 1000.0 // $0.002 / 1K tokens

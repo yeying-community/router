@@ -21,6 +21,8 @@ type ServicePackage struct {
 	Name                       string `json:"name" gorm:"type:varchar(64);not null;uniqueIndex"`
 	Description                string `json:"description" gorm:"type:varchar(255);default:''"`
 	GroupID                    string `json:"group_id" gorm:"type:char(36);not null;index"`
+	SalePrice                  float64 `json:"sale_price" gorm:"type:decimal(10,2);not null;default:0"`
+	SaleCurrency               string `json:"sale_currency" gorm:"type:varchar(16);not null;default:'CNY'"`
 	DailyQuotaLimit            int64  `json:"daily_quota_limit" gorm:"type:bigint;not null;default:0"`
 	PackageEmergencyQuotaLimit int64  `json:"package_emergency_quota_limit" gorm:"column:package_emergency_quota_limit;type:bigint;not null;default:0"`
 	DurationDays               int    `json:"duration_days" gorm:"type:int;not null;default:30"`
@@ -59,6 +61,21 @@ func normalizeServicePackageDailyQuotaLimit(value int64) int64 {
 		return 0
 	}
 	return value
+}
+
+func normalizeServicePackageSalePrice(value float64) float64 {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func normalizeServicePackageSaleCurrency(value string) string {
+	normalized := strings.TrimSpace(strings.ToUpper(value))
+	if normalized == "" {
+		return BillingCurrencyCodeCNY
+	}
+	return normalized
 }
 
 func normalizeServicePackagePackageEmergencyQuotaLimit(value int64) int64 {
@@ -237,6 +254,8 @@ func createServicePackageWithDB(db *gorm.DB, item ServicePackage) (ServicePackag
 		Name:                       name,
 		Description:                normalizeServicePackageDescription(item.Description),
 		GroupID:                    groupID,
+		SalePrice:                  normalizeServicePackageSalePrice(item.SalePrice),
+		SaleCurrency:               normalizeServicePackageSaleCurrency(item.SaleCurrency),
 		DailyQuotaLimit:            normalizeServicePackageDailyQuotaLimit(item.DailyQuotaLimit),
 		PackageEmergencyQuotaLimit: normalizeServicePackagePackageEmergencyQuotaLimit(item.PackageEmergencyQuotaLimit),
 		DurationDays:               normalizeServicePackageDurationDays(item.DurationDays),
@@ -300,6 +319,8 @@ func updateServicePackageWithDB(db *gorm.DB, item ServicePackage) (ServicePackag
 	row.Name = nextName
 	row.Description = normalizeServicePackageDescription(item.Description)
 	row.GroupID = groupID
+	row.SalePrice = normalizeServicePackageSalePrice(item.SalePrice)
+	row.SaleCurrency = normalizeServicePackageSaleCurrency(item.SaleCurrency)
 	row.DailyQuotaLimit = normalizeServicePackageDailyQuotaLimit(item.DailyQuotaLimit)
 	row.PackageEmergencyQuotaLimit = normalizeServicePackagePackageEmergencyQuotaLimit(item.PackageEmergencyQuotaLimit)
 	row.DurationDays = normalizeServicePackageDurationDays(item.DurationDays)
@@ -354,6 +375,23 @@ func deleteServicePackageWithDB(db *gorm.DB, id string) error {
 
 func ListServicePackagesPage(page int, pageSize int, keyword string) ([]ServicePackage, int64, error) {
 	return listServicePackagesPageWithDB(DB, page, pageSize, keyword)
+}
+
+func ListEnabledServicePackages() ([]ServicePackage, error) {
+	if DB == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	rows := make([]ServicePackage, 0)
+	if err := DB.
+		Where("enabled = ?", true).
+		Order("sort_order asc, name asc").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	if err := hydrateServicePackageGroupNamesWithDB(DB, rows); err != nil {
+		return nil, err
+	}
+	return rows, nil
 }
 
 func GetServicePackageByID(id string) (ServicePackage, error) {

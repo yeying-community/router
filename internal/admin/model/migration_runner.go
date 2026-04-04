@@ -202,6 +202,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			},
 		},
 		{
+			Version:     "202604041030_service_package_sale_fields",
+			Description: "add sale price and sale currency fields for service packages",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ServicePackage{})
+			},
+		},
+		{
 			Version:     "202604011630_drop_group_quota_columns",
 			Description: "drop legacy group daily quota and timezone columns from groups table",
 			Up: func(tx *gorm.DB) error {

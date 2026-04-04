@@ -27,6 +27,8 @@ type upsertServicePackageRequest struct {
 	Name                       *string `json:"name"`
 	Description                *string `json:"description"`
 	GroupID                    *string `json:"group_id"`
+	SalePrice                  *float64 `json:"sale_price"`
+	SaleCurrency               *string `json:"sale_currency"`
 	DailyQuotaLimit            *int64  `json:"daily_quota_limit"`
 	PackageEmergencyQuotaLimit *int64  `json:"package_emergency_quota_limit"`
 	DurationDays               *int    `json:"duration_days"`
@@ -89,6 +91,13 @@ func optionalBoolValue(ptr *bool, fallback bool) bool {
 	return *ptr
 }
 
+func optionalFloat64Value(ptr *float64, fallback float64) float64 {
+	if ptr == nil {
+		return fallback
+	}
+	return *ptr
+}
+
 // GetPackages godoc
 // @Summary List packages with pagination (admin)
 // @Tags admin
@@ -119,6 +128,30 @@ func GetPackages(c *gin.Context) {
 			Page:     page,
 			PageSize: pageSize,
 		},
+	})
+}
+
+// GetPublicPackages godoc
+// @Summary List enabled packages (public)
+// @Tags public
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/public/user/packages [get]
+func GetPublicPackages(c *gin.Context) {
+	rows, err := model.ListEnabledServicePackages()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": rows,
 	})
 }
 
@@ -182,6 +215,8 @@ func CreatePackage(c *gin.Context) {
 		Name:                       optionalStringValue(req.Name, ""),
 		Description:                optionalStringValue(req.Description, ""),
 		GroupID:                    optionalStringValue(req.GroupID, ""),
+		SalePrice:                  optionalFloat64Value(req.SalePrice, 0),
+		SaleCurrency:               optionalStringValue(req.SaleCurrency, model.BillingCurrencyCodeCNY),
 		DailyQuotaLimit:            optionalInt64Value(req.DailyQuotaLimit, 0),
 		PackageEmergencyQuotaLimit: optionalInt64Value(req.PackageEmergencyQuotaLimit, 0),
 		DurationDays:               optionalIntValue(req.DurationDays, model.DefaultServicePackageDurationDays),
@@ -248,6 +283,8 @@ func UpdatePackage(c *gin.Context) {
 		Name:                       optionalStringValue(req.Name, current.Name),
 		Description:                optionalStringValue(req.Description, current.Description),
 		GroupID:                    optionalStringValue(req.GroupID, current.GroupID),
+		SalePrice:                  optionalFloat64Value(req.SalePrice, current.SalePrice),
+		SaleCurrency:               optionalStringValue(req.SaleCurrency, current.SaleCurrency),
 		DailyQuotaLimit:            optionalInt64Value(req.DailyQuotaLimit, current.DailyQuotaLimit),
 		PackageEmergencyQuotaLimit: optionalInt64Value(req.PackageEmergencyQuotaLimit, current.PackageEmergencyQuotaLimit),
 		DurationDays:               optionalIntValue(req.DurationDays, current.DurationDays),

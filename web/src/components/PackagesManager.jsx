@@ -31,6 +31,8 @@ const createEmptyForm = (defaultBillingUnit = 'USD') => ({
   name: '',
   description: '',
   group_id: '',
+  sale_price: '0',
+  sale_currency: 'CNY',
   daily_amount: '0',
   daily_amount_unit: defaultBillingUnit,
   emergency_amount: '0',
@@ -447,6 +449,8 @@ const PackagesManager = () => {
         name: detail.name || '',
         description: detail.description || '',
         group_id: resolvedGroupID,
+        sale_price: detail?.sale_price ?? '0',
+        sale_currency: detail?.sale_currency || 'CNY',
         daily_amount: yycToBillingInputValue(
           Number(detail?.yyc_daily_limit ?? detail?.daily_quota_limit ?? 0),
           defaultBillingUnit,
@@ -510,6 +514,8 @@ const PackagesManager = () => {
       currencyIndex
     );
     if (
+      !Number.isFinite(Number(form.sale_price || 0)) ||
+      Number(form.sale_price || 0) < 0 ||
       !Number.isFinite(dailyStored) ||
       dailyStored < 0 ||
       !Number.isFinite(emergencyStored) ||
@@ -528,6 +534,8 @@ const PackagesManager = () => {
       name,
       description: (form.description || '').trim(),
       group_id: groupID,
+      sale_price: Number(form.sale_price || 0),
+      sale_currency: (form.sale_currency || 'CNY').trim().toUpperCase() || 'CNY',
       daily_quota_limit: Math.trunc(dailyStored),
       package_emergency_quota_limit: Math.trunc(emergencyStored),
       duration_days: Math.trunc(durationDays),
@@ -694,6 +702,7 @@ const PackagesManager = () => {
           <Table.Row>
             <Table.HeaderCell>{t('package_manage.table.name')}</Table.HeaderCell>
             <Table.HeaderCell>{t('package_manage.table.group')}</Table.HeaderCell>
+            <Table.HeaderCell>{t('package_manage.table.sale_price')}</Table.HeaderCell>
             <Table.HeaderCell className='router-redemption-face-value-header'>
               <div className='router-table-header-with-control'>
                 <span>{t('package_manage.table.daily_quota_limit')}</span>
@@ -741,7 +750,7 @@ const PackagesManager = () => {
         <Table.Body>
           {rows.length === 0 ? (
             <Table.Row>
-              <Table.Cell colSpan={9} textAlign='center' className='router-empty-cell'>
+              <Table.Cell colSpan={10} textAlign='center' className='router-empty-cell'>
                 {loading
                   ? t('package_manage.messages.loading')
                   : t('package_manage.table.empty')}
@@ -756,6 +765,7 @@ const PackagesManager = () => {
               >
                 <Table.Cell>{row.name || '-'}</Table.Cell>
                 <Table.Cell>{row.group_name || row.group_id || '-'}</Table.Cell>
+                <Table.Cell>{`${row.sale_currency || 'CNY'} ${row.sale_price ?? 0}`}</Table.Cell>
                 <Table.Cell>
                   {renderPackageAmountFieldValue(row, 'daily', displayUnit, currencyIndex)}
                 </Table.Cell>
@@ -855,6 +865,28 @@ const PackagesManager = () => {
           setForm((prev) => ({ ...prev, description: (value || '').toString() }))
         }
       />
+
+      <Form.Group widths='equal'>
+        <Form.Input
+          className='router-section-input'
+          label={t('package_manage.form.sale_price')}
+          type='number'
+          min={0}
+          step='0.01'
+          value={form.sale_price}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, sale_price: e.target.value || '0' }))
+          }
+        />
+        <Form.Input
+          className='router-section-input'
+          label={t('package_manage.form.sale_currency')}
+          value={form.sale_currency}
+          onChange={(e, { value }) =>
+            setForm((prev) => ({ ...prev, sale_currency: (value || 'CNY').toUpperCase() }))
+          }
+        />
+      </Form.Group>
 
       <Form.Group widths='equal'>
         <Form.Field>
@@ -1021,6 +1053,21 @@ const PackagesManager = () => {
             value={activeRow?.description || '-'}
             readOnly
           />
+
+          <Form.Group widths='equal'>
+            <Form.Input
+              className='router-section-input'
+              label={t('package_manage.form.sale_price')}
+              value={`${activeRow?.sale_currency || 'CNY'} ${activeRow?.sale_price ?? 0}`}
+              readOnly
+            />
+            <Form.Input
+              className='router-section-input'
+              label={t('package_manage.form.sale_currency')}
+              value={activeRow?.sale_currency || 'CNY'}
+              readOnly
+            />
+          </Form.Group>
 
           <Form.Group widths='equal'>
             <Form.Input

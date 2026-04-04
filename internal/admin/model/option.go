@@ -62,6 +62,7 @@ func InitOptionMap() {
 	config.OptionMap["QuotaRemindThreshold"] = strconv.FormatInt(config.QuotaRemindThreshold, 10)
 	config.OptionMap["PreConsumedQuota"] = strconv.FormatInt(config.PreConsumedQuota, 10)
 	config.OptionMap["TopUpLink"] = config.TopUpLink
+	config.OptionMap["TopUpSignSecret"] = config.TopUpSignSecret
 	config.OptionMap["TopUpCallbackToken"] = config.TopUpCallbackToken
 	config.OptionMap["ChatLink"] = config.ChatLink
 	config.OptionMap["QuotaPerUnit"] = strconv.FormatFloat(config.QuotaPerUnit, 'f', -1, 64)
@@ -194,6 +195,8 @@ func UpdateOptionMap(key string, value string) (err error) {
 		config.FXAutoSyncLastError = strings.TrimSpace(value)
 	case "TopUpLink":
 		config.TopUpLink = value
+	case "TopUpSignSecret":
+		config.TopUpSignSecret = value
 	case "TopUpCallbackToken":
 		config.TopUpCallbackToken = value
 	case "ChatLink":

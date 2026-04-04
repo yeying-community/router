@@ -90,6 +90,22 @@ const resolveDisplayCurrency = (currencyIndex, current = '') => {
   );
 };
 
+const getStoredStatusConfig = () => {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+  try {
+    const raw = window.localStorage.getItem('status');
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+};
+
 const TopUp = () => {
   const { t } = useTranslation();
   const initialCurrencyIndex = buildPublicDisplayCurrencyIndex([]);
@@ -98,6 +114,9 @@ const TopUp = () => {
   const [userBalanceYYC, setUserBalanceYYC] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatingTopUpOrder, setIsCreatingTopUpOrder] = useState(false);
+  const [topupAmount, setTopupAmount] = useState('0');
+  const [packages, setPackages] = useState([]);
+  const [selectedPackageId, setSelectedPackageId] = useState('');
   const [externalTopupOrders, setExternalTopupOrders] = useState([]);
   const [loadingExternalTopupOrders, setLoadingExternalTopupOrders] = useState(false);
   const [redemptionRecords, setRedemptionRecords] = useState([]);
@@ -195,7 +214,7 @@ const TopUp = () => {
     }
   };
 
-  const openExternalTopup = async () => {
+  const openExternalOrder = async (payload) => {
     if (!externalTopupLink) {
       showError(t('topup.external_topup.no_link'));
       return;
@@ -207,7 +226,7 @@ const TopUp = () => {
     }
     setIsCreatingTopUpOrder(true);
     try {
-      const res = await API.post('/api/v1/public/user/topup/orders');
+      const res = await API.post('/api/v1/public/user/topup/orders', payload);
       const { success, message, data } = res.data;
       if (!success) {
         popup.close();
@@ -231,13 +250,40 @@ const TopUp = () => {
     }
   };
 
+  const openExternalTopup = async () => {
+    const amount = Number(topupAmount || 0);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showInfo(t('topup.external_topup.amount_invalid'));
+      return;
+    }
+    await openExternalOrder({
+      business_type: 'balance_topup',
+      amount,
+      currency: 'CNY',
+      return_url: window.location.href,
+    });
+  };
+
+  const openPackagePurchase = async () => {
+    const packageID = (selectedPackageId || '').trim();
+    if (!packageID) {
+      showInfo(t('topup.external_topup.package_select_required'));
+      return;
+    }
+    await openExternalOrder({
+      business_type: 'package_purchase',
+      package_id: packageID,
+      return_url: window.location.href,
+    });
+  };
+
   const loadUserBalance = async () => {
-    let res = await API.get(`/api/v1/public/user/self`);
-    const { success, message, data } = res.data;
+    const res = await API.get(`/api/v1/public/user/self`);
+    const { success, message, data } = res?.data || {};
     if (success) {
       setUserBalanceYYC(Number(data?.yyc_balance ?? data?.quota ?? 0) || 0);
     } else {
-      showError(message);
+      showError(message || t('topup.external_topup.request_failed'));
     }
   };
 
@@ -245,14 +291,37 @@ const TopUp = () => {
     setLoadingExternalTopupOrders(true);
     try {
       const res = await API.get('/api/v1/public/user/topup/orders?page=1&page_size=10');
-      const { success, message, data } = res.data;
+      const { success, message, data } = res?.data || {};
       if (success) {
         setExternalTopupOrders(Array.isArray(data?.items) ? data.items : []);
       } else {
-        showError(message);
+        showError(message || t('topup.external_topup.request_failed'));
       }
+    } catch (err) {
+      showError(err?.message || t('topup.external_topup.request_failed'));
     } finally {
       setLoadingExternalTopupOrders(false);
+    }
+  };
+
+  const loadPackages = async () => {
+    try {
+      const res = await API.get('/api/v1/public/user/packages');
+      const { success, message, data } = res?.data || {};
+      if (!success) {
+        showError(message || t('topup.external_topup.request_failed'));
+        return;
+      }
+      const rows = Array.isArray(data) ? data : [];
+      setPackages(rows);
+      setSelectedPackageId((current) => {
+        if (current && rows.some((item) => item?.id === current)) {
+          return current;
+        }
+        return rows[0]?.id || '';
+      });
+    } catch (err) {
+      showError(err?.message || t('topup.external_topup.request_failed'));
     }
   };
 
@@ -260,7 +329,7 @@ const TopUp = () => {
     setLoadingRedemptionRecords(true);
     try {
       const res = await API.get('/api/v1/public/log?page=1&type=1');
-      const { success, message, data } = res.data;
+      const { success, message, data } = res?.data || {};
       if (success) {
         setRedemptionRecords(
           Array.isArray(data)
@@ -268,26 +337,39 @@ const TopUp = () => {
             : []
         );
       } else {
-        showError(message);
+        showError(message || t('topup.redeem.request_failed'));
       }
+    } catch (err) {
+      showError(err?.message || t('topup.redeem.request_failed'));
     } finally {
       setLoadingRedemptionRecords(false);
     }
   };
 
   useEffect(() => {
-    let status = localStorage.getItem('status');
-    if (status) {
-      status = JSON.parse(status);
-      if (status.top_up_link) {
-        setExternalTopupLink(status.top_up_link);
-      }
+    const status = getStoredStatusConfig();
+    if (status.top_up_link) {
+      setExternalTopupLink(status.top_up_link);
     }
     loadUserBalance().then();
     loadExternalTopupOrders().then();
     loadRedemptionRecords().then();
     loadDisplayCurrencies().then();
+    loadPackages().then();
   }, [loadDisplayCurrencies]);
+
+  const estimatedTopupYYC = useMemo(() => {
+    const amount = Number(topupAmount || 0);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return 0;
+    }
+    const cnyCurrency = displayCurrencyIndex?.CNY;
+    const yycPerUnit = Number(cnyCurrency?.yyc_per_unit || 0);
+    if (!Number.isFinite(yycPerUnit) || yycPerUnit <= 0) {
+      return 0;
+    }
+    return Math.round(amount * yycPerUnit);
+  }, [displayCurrencyIndex, topupAmount]);
 
   const renderExternalTopupOrderStatus = (status) => {
     switch (status) {
@@ -379,10 +461,7 @@ const TopUp = () => {
 
           <Grid columns={2} stackable>
             <Grid.Column>
-              <Card
-                fluid
-                className='router-soft-card router-soft-card-fill'
-              >
+              <Card fluid className='router-soft-card router-soft-card-fill'>
                 <Card.Content className='router-card-fill'>
                   <Card.Header className='router-card-header'>
                     <Header as='h3' className='router-section-title router-title-accent-primary'>
@@ -394,15 +473,26 @@ const TopUp = () => {
                     <div className='router-card-body-spread'>
                       <div className='router-center-panel'>
                         <Statistic className='router-accent-statistic'>
-                          <Statistic.Value>
-                            {renderDisplayAmount(userBalanceYYC)}
-                          </Statistic.Value>
-                          <Statistic.Label>
-                            {t('topup.external_topup.current_balance')}
-                          </Statistic.Label>
+                          <Statistic.Value>{renderDisplayAmount(userBalanceYYC)}</Statistic.Value>
+                          <Statistic.Label>{t('topup.external_topup.current_balance')}</Statistic.Label>
                         </Statistic>
                         <div className='router-text-muted' style={{ marginTop: '0.75rem' }}>
                           {t('topup.external_topup.description')}
+                        </div>
+                        <Form.Input
+                          className='router-section-input'
+                          fluid
+                          style={{ marginTop: '1rem', textAlign: 'left' }}
+                          label={t('topup.external_topup.amount')}
+                          type='number'
+                          min={0}
+                          step='0.01'
+                          placeholder={t('topup.external_topup.amount_placeholder')}
+                          value={topupAmount}
+                          onChange={(e) => setTopupAmount(e.target.value || '0')}
+                        />
+                        <div className='router-text-muted' style={{ marginTop: '0.5rem' }}>
+                          {t('topup.external_topup.credited_yyc')}：{renderDisplayAmount(estimatedTopupYYC)}
                         </div>
                       </div>
 
@@ -426,68 +516,62 @@ const TopUp = () => {
             </Grid.Column>
 
             <Grid.Column>
-              <Card
-                fluid
-                className='router-soft-card router-soft-card-fill'
-              >
+              <Card fluid className='router-soft-card router-soft-card-fill'>
                 <Card.Content className='router-card-fill'>
                   <Card.Header className='router-card-header'>
                     <Header as='h3' className='router-section-title router-title-accent-positive'>
-                      <i className='ticket alternate icon'></i>
-                      {t('topup.redeem.title')}
+                      <i className='boxes icon'></i>
+                      {t('topup.external_topup.package_title')}
                     </Header>
                   </Card.Header>
                   <Card.Description className='router-card-fill'>
                     <div className='router-card-body-spread'>
-                      <div className='router-text-muted'>
-                        {t('topup.redeem.description')}
+                      <div style={{ display: 'grid', gap: '0.75rem' }}>
+                        {packages.length === 0 ? (
+                          <div className='router-text-muted'>
+                            {t('topup.external_topup.package_empty')}
+                          </div>
+                        ) : (
+                          packages.map((item) => {
+                            const selected = item?.id === selectedPackageId;
+                            return (
+                              <div
+                                key={item?.id || '-'}
+                                onClick={() => setSelectedPackageId(item?.id || '')}
+                                style={{
+                                  border: selected ? '1px solid #2563eb' : '1px solid #e5e7eb',
+                                  borderRadius: '12px',
+                                  padding: '12px 14px',
+                                  cursor: 'pointer',
+                                  background: selected ? '#eff6ff' : '#fff',
+                                  textAlign: 'left',
+                                }}
+                              >
+                                <div style={{ fontWeight: 600 }}>{item?.name || '-'}</div>
+                                <div className='router-text-muted' style={{ marginTop: '0.35rem' }}>
+                                  {item?.description || '-'}
+                                </div>
+                                <div style={{ marginTop: '0.5rem' }}>
+                                  {`${item?.sale_currency || 'CNY'} ${Number(item?.sale_price ?? 0).toFixed(2)}`}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
-
-                      <Form.Input
-                        className='router-section-input'
-                        fluid
-                        icon='key'
-                        iconPosition='left'
-                        placeholder={t('topup.redeem.placeholder')}
-                        value={redemptionCode}
-                        onChange={(e) => {
-                          setRedemptionCode(e.target.value);
-                        }}
-                        onPaste={(e) => {
-                          e.preventDefault();
-                          const pastedText = e.clipboardData.getData('text');
-                          setRedemptionCode(pastedText.trim());
-                        }}
-                        action={
-                          <Button
-                            className='router-section-button'
-                            onClick={async () => {
-                              try {
-                                const text =
-                                  await navigator.clipboard.readText();
-                                setRedemptionCode(text.trim());
-                              } catch (err) {
-                                showError(t('topup.redeem.paste_error'));
-                              }
-                            }}
-                          >
-                            {t('topup.redeem.paste')}
-                          </Button>
-                        }
-                      />
 
                       <div className='router-action-footer'>
                         <Button
                           className='router-section-button'
                           color='green'
                           fluid
-                          onClick={submitRedemption}
-                          loading={isSubmitting}
-                          disabled={isSubmitting}
+                          onClick={openPackagePurchase}
+                          loading={isCreatingTopUpOrder}
+                          disabled={isCreatingTopUpOrder || !externalTopupLink || packages.length === 0}
                         >
-                          {isSubmitting
-                            ? t('topup.redeem.submitting')
-                            : t('topup.redeem.submit')}
+                          {isCreatingTopUpOrder
+                            ? t('topup.external_topup.creating')
+                            : t('topup.external_topup.package_button')}
                         </Button>
                       </div>
                     </div>
@@ -496,6 +580,71 @@ const TopUp = () => {
               </Card>
             </Grid.Column>
           </Grid>
+
+          <Card fluid className='router-soft-card router-soft-card-fill' style={{ marginTop: '1rem' }}>
+            <Card.Content className='router-card-fill'>
+              <Card.Header className='router-card-header'>
+                <Header as='h3' className='router-section-title router-title-accent-positive'>
+                  <i className='ticket alternate icon'></i>
+                  {t('topup.redeem.title')}
+                </Header>
+              </Card.Header>
+              <Card.Description className='router-card-fill'>
+                <div className='router-card-body-spread'>
+                  <div className='router-text-muted'>
+                    {t('topup.redeem.description')}
+                  </div>
+
+                  <Form.Input
+                    className='router-section-input'
+                    fluid
+                    icon='key'
+                    iconPosition='left'
+                    placeholder={t('topup.redeem.placeholder')}
+                    value={redemptionCode}
+                    onChange={(e) => {
+                      setRedemptionCode(e.target.value);
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pastedText = e.clipboardData.getData('text');
+                      setRedemptionCode(pastedText.trim());
+                    }}
+                    action={
+                      <Button
+                        className='router-section-button'
+                        onClick={async () => {
+                          try {
+                            const text = await navigator.clipboard.readText();
+                            setRedemptionCode(text.trim());
+                          } catch (err) {
+                            showError(t('topup.redeem.paste_error'));
+                          }
+                        }}
+                      >
+                        {t('topup.redeem.paste')}
+                      </Button>
+                    }
+                  />
+
+                  <div className='router-action-footer'>
+                    <Button
+                      className='router-section-button'
+                      color='green'
+                      fluid
+                      onClick={submitRedemption}
+                      loading={isSubmitting}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting
+                        ? t('topup.redeem.submitting')
+                        : t('topup.redeem.submit')}
+                    </Button>
+                  </div>
+                </div>
+              </Card.Description>
+            </Card.Content>
+          </Card>
 
           {recentRedemptionResult ? (
             <Card fluid className='router-soft-card' style={{ marginTop: '1rem' }}>

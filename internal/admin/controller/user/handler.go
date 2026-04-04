@@ -1888,6 +1888,16 @@ type topUpOrderListData struct {
 	PageSize int                `json:"page_size"`
 }
 
+type createTopUpOrderRequest struct {
+	BusinessType string  `json:"business_type"`
+	Title        string  `json:"title"`
+	Amount       float64 `json:"amount"`
+	Currency     string  `json:"currency"`
+	Quota        int64   `json:"quota"`
+	PackageID    string  `json:"package_id"`
+	ReturnURL    string  `json:"return_url"`
+}
+
 func parseTopupOrderPageParams(c *gin.Context) (int, int) {
 	page, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("page", "1")))
 	if page < 1 {
@@ -1965,7 +1975,25 @@ func CreateTopUpOrder(c *gin.Context) {
 		}
 		username = strings.TrimSpace(user.Username)
 	}
-	order, err := model.CreateTopupOrderWithDB(model.DB, userID, username)
+	req := createTopUpOrderRequest{}
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+	}
+	order, err := model.CreateTopupOrderWithDB(model.DB, userID, username, model.CreateTopupOrderInput{
+		BusinessType: req.BusinessType,
+		Title:        req.Title,
+		Amount:       req.Amount,
+		Currency:     req.Currency,
+		Quota:        req.Quota,
+		PackageID:    req.PackageID,
+		ReturnURL:    req.ReturnURL,
+	})
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

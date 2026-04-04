@@ -67,12 +67,12 @@ func SetApiRouter(engine *gin.Engine) {
 		publicUserRoute := publicRouter.Group("/user")
 		{
 			publicUserRoute.POST("/register", middleware.CriticalRateLimit(), user.Register)
-			publicUserRoute.POST("/login", middleware.CriticalRateLimit(), user.Login)
-			publicUserRoute.GET("/logout", user.Logout)
+		publicUserRoute.POST("/login", middleware.CriticalRateLimit(), user.Login)
+		publicUserRoute.GET("/logout", user.Logout)
 
-			publicSelfRoute := publicUserRoute.Group("/")
-			publicSelfRoute.Use(middleware.UserAuth())
-			{
+		publicSelfRoute := publicUserRoute.Group("/")
+		publicSelfRoute.Use(middleware.UserAuth())
+		{
 				publicSelfRoute.GET("/self", user.GetSelf)
 				publicSelfRoute.GET("/dashboard", user.GetUserDashboard)
 				publicSelfRoute.GET("/spend/overview", user.GetUserSpendOverview)
@@ -85,9 +85,10 @@ func SetApiRouter(engine *gin.Engine) {
 				publicSelfRoute.PUT("/self", user.UpdateSelf)
 				publicSelfRoute.POST("/self/password", user.UpdateSelfPassword)
 				publicSelfRoute.DELETE("/self", user.DeleteSelf)
-				publicSelfRoute.GET("/token", user.GenerateAccessToken)
-				publicSelfRoute.GET("/aff", user.GetAffCode)
-				publicSelfRoute.GET("/topup/orders", user.GetTopUpOrders)
+			publicSelfRoute.GET("/token", user.GenerateAccessToken)
+			publicSelfRoute.GET("/aff", user.GetAffCode)
+			publicSelfRoute.GET("/packages", plan.GetPublicPackages)
+			publicSelfRoute.GET("/topup/orders", user.GetTopUpOrders)
 				publicSelfRoute.GET("/topup/orders/:id", user.GetTopUpOrder)
 				publicSelfRoute.POST("/topup/orders", user.CreateTopUpOrder)
 				publicSelfRoute.POST("/topup", user.TopUp)
