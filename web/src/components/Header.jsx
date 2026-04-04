@@ -33,7 +33,7 @@ const USER_HEADER_BUTTONS = [
   },
   {
     name: 'header.topup',
-    to: '/workspace/topup',
+    to: '/workspace/topup?tab=balance',
     icon: 'cart',
   },
   {

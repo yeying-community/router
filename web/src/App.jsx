@@ -162,6 +162,26 @@ function TokenEditRedirect() {
   );
 }
 
+function TopUpTabRedirect() {
+  const location = useLocation();
+  const suffix = location.pathname.startsWith('/workspace/topup/')
+    ? location.pathname.slice('/workspace/topup/'.length)
+    : '';
+  const tab = suffix.split('/')[0];
+  const nextSearchParams = new URLSearchParams(location.search);
+  if (tab) {
+    nextSearchParams.set('tab', tab);
+  }
+  const search = nextSearchParams.toString();
+  return (
+    <Navigate
+      to={`/workspace/topup${search ? `?${search}` : ''}${location.hash}`}
+      state={location.state}
+      replace
+    />
+  );
+}
+
 function App() {
   const [, userDispatch] = useContext(UserContext);
   const [, statusDispatch] = useContext(StatusContext);
@@ -321,6 +341,14 @@ function App() {
           element={
             <Suspense fallback={<Loading />}>
               <TopUp />
+            </Suspense>
+          }
+        />
+        <Route
+          path='/workspace/topup/:tab'
+          element={
+            <Suspense fallback={<Loading />}>
+              <TopUpTabRedirect />
             </Suspense>
           }
         />

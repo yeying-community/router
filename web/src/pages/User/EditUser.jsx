@@ -799,6 +799,13 @@ const UserDetail = () => {
                   </div>
                 </div>
 
+                <Form.Input
+                  className='router-section-input'
+                  label={t('user.detail.user_id')}
+                  value={readOnlyValue(userId)}
+                  readOnly
+                />
+
                 <Form.Group widths='equal'>
                   {editSection === 'basic' ? (
                     <Form.Input

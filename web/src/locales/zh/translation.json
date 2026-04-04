@@ -33,6 +33,25 @@
   "topup": {
     "title": "充值中心",
     "display_currency": "展示币种",
+    "nav": {
+      "balance": "余额充值",
+      "package": "购买套餐",
+      "redeem": "兑换码",
+      "records": "充值记录"
+    },
+    "records": {
+      "refresh": "刷新",
+      "order_title": "订单记录",
+      "order_empty": "暂无订单记录",
+      "tabs": {
+        "orders": "订单记录",
+        "redemptions": "兑换记录"
+      }
+    },
+    "business_type": {
+      "balance_topup": "余额充值",
+      "package_purchase": "套餐购买"
+    },
     "external_topup": {
       "title": "外部充值",
       "current_balance": "当前余额",
@@ -57,7 +76,10 @@
       "empty": "暂无外部充值订单",
       "columns": {
         "time": "创建时间",
+        "business_type": "类型",
         "status": "状态",
+        "amount": "金额",
+        "detail": "明细",
         "order_id": "订单号",
         "transaction_id": "交易号"
       },

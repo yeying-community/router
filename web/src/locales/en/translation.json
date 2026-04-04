@@ -33,6 +33,25 @@
   "topup": {
     "title": "Top Up Center",
     "display_currency": "Display",
+    "nav": {
+      "balance": "Balance Top-up",
+      "package": "Buy Package",
+      "redeem": "Redeem Code",
+      "records": "Top-up Records"
+    },
+    "records": {
+      "refresh": "Refresh",
+      "order_title": "Order Records",
+      "order_empty": "No order records yet",
+      "tabs": {
+        "orders": "Order Records",
+        "redemptions": "Redemption Records"
+      }
+    },
+    "business_type": {
+      "balance_topup": "Balance Top-up",
+      "package_purchase": "Package Purchase"
+    },
     "external_topup": {
       "title": "External Top-up",
       "current_balance": "Current Balance",
@@ -57,7 +76,10 @@
       "empty": "No external top-up orders yet",
       "columns": {
         "time": "Created At",
+        "business_type": "Type",
         "status": "Status",
+        "amount": "Amount",
+        "detail": "Detail",
         "order_id": "Order ID",
         "transaction_id": "Transaction ID"
       },
