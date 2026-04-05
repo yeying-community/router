@@ -1,7 +1,6 @@
 package config
 
 import (
-	"strings"
 	"sync"
 	"time"
 
@@ -12,7 +11,13 @@ var SystemName = "Router"
 var ServerAddress = "http://localhost:3011"
 var Footer = ""
 var Logo = ""
+var TopUpMode = ""
 var TopUpLink = ""
+var TopUpAPICreateURL = ""
+var TopUpAPIQueryURL = ""
+var TopUpAPIUniacid = 1
+var TopUpMerchantApp = "router"
+var TopUpAPITimeoutSeconds = 15
 var TopUpSignSecret = ""
 var TopUpCallbackToken = ""
 var ChatLink = ""
@@ -204,21 +209,3 @@ var UserContentRequestTimeout = 30
 
 var EnforceIncludeUsage = false
 var TestPrompt = "Output only your specific model name with no additional text."
-
-func TopUpConfigIssues() []string {
-	issues := make([]string, 0, 3)
-	if strings.TrimSpace(TopUpLink) == "" {
-		issues = append(issues, "operation.top_up_link is empty")
-	}
-	if strings.TrimSpace(ServerAddress) == "" {
-		issues = append(issues, "server.address is empty")
-	}
-	if strings.TrimSpace(TopUpSignSecret) == "" {
-		issues = append(issues, "operation.top_up_sign_secret is empty")
-	}
-	return issues
-}
-
-func TopUpFeatureEnabled() bool {
-	return len(TopUpConfigIssues()) == 0
-}

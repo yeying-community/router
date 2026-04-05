@@ -1925,6 +1925,7 @@ type topUpOrderListData struct {
 
 type createTopUpOrderRequest struct {
 	BusinessType string  `json:"business_type"`
+	ClientType   string  `json:"client_type"`
 	Title        string  `json:"title"`
 	Amount       float64 `json:"amount"`
 	Currency     string  `json:"currency"`
@@ -2040,6 +2041,7 @@ func CreateTopUpOrder(c *gin.Context) {
 	}
 	order, err := model.CreateTopupOrderWithDB(model.DB, userID, username, model.CreateTopupOrderInput{
 		BusinessType: req.BusinessType,
+		ClientType:   resolveTopUpClientType(req.ClientType, c.Request.UserAgent()),
 		Title:        req.Title,
 		Amount:       req.Amount,
 		Currency:     req.Currency,
@@ -2065,6 +2067,22 @@ func CreateTopUpOrder(c *gin.Context) {
 			CreatedAt:     order.CreatedAt,
 		},
 	})
+}
+
+func resolveTopUpClientType(rawClientType string, userAgent string) string {
+	clientType := strings.TrimSpace(strings.ToLower(rawClientType))
+	switch clientType {
+	case "pc", "mobile":
+		return clientType
+	}
+	ua := strings.ToLower(strings.TrimSpace(userAgent))
+	if strings.Contains(ua, "mobile") ||
+		strings.Contains(ua, "android") ||
+		strings.Contains(ua, "iphone") ||
+		strings.Contains(ua, "ipad") {
+		return "mobile"
+	}
+	return "pc"
 }
 
 // GetTopUpOrder godoc

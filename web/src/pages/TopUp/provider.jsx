@@ -100,22 +100,63 @@ const TopUpWorkspaceProvider = ({ children }) => {
         showError(t('topup.external_topup.no_link'));
         return false;
       }
-      const popup = window.open('', '_blank', 'noopener,noreferrer');
+      const popup = window.open('', '_blank');
       if (!popup) {
         showError(t('topup.external_topup.popup_blocked'));
         return false;
       }
       try {
+        popup.opener = null;
+        popup.document.write(`
+          <!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8" />
+              <title>${t('common.loading')}</title>
+              <style>
+                body {
+                  margin: 0;
+                  min-height: 100vh;
+                  display: grid;
+                  place-items: center;
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                  color: #111827;
+                  background: #f8fafc;
+                }
+                .router-topup-loading {
+                  padding: 1.25rem 1.5rem;
+                  border-radius: 14px;
+                  background: #ffffff;
+                  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+                  font-size: 14px;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="router-topup-loading">${t('common.loading')}</div>
+            </body>
+          </html>
+        `);
+        popup.document.close();
+        popup.focus();
+      } catch (error) {
+        // Ignore same-origin popup bootstrap failures and continue with redirect.
+      }
+      try {
         const res = await API.post('/api/v1/public/user/topup/orders', payload);
         const { success, message, data } = res.data || {};
         if (!success) {
-          popup.close();
+          if (!popup.closed) {
+            popup.close();
+          }
           showError(message || t('topup.external_topup.request_failed'));
           return false;
         }
         const redirectURL = data?.redirect_url;
         if (!redirectURL) {
-          popup.close();
+          if (!popup.closed) {
+            popup.close();
+          }
           showError(t('topup.external_topup.request_failed'));
           return false;
         }
@@ -123,7 +164,9 @@ const TopUpWorkspaceProvider = ({ children }) => {
         popup.focus();
         return true;
       } catch (error) {
-        popup.close();
+        if (!popup.closed) {
+          popup.close();
+        }
         showError(error?.message || t('topup.external_topup.request_failed'));
         return false;
       }

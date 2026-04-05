@@ -25,6 +25,7 @@ const (
 	TopupOrderStatusFailed    = "failed"
 	TopupOrderStatusCanceled  = "canceled"
 	TopupOrderSourceTopUp     = "top_up_link"
+	TopupOrderSourceTopUpAPI  = "top_up_api"
 	TopupOrderBusinessBalance = "balance_topup"
 	TopupOrderBusinessPackage = "package_purchase"
 	TopupOrderCurrencyCNY     = "CNY"
@@ -59,6 +60,7 @@ type TopupOrder struct {
 
 type CreateTopupOrderInput struct {
 	BusinessType string
+	ClientType   string
 	Title        string
 	Amount       float64
 	Currency     string
@@ -187,21 +189,33 @@ func topupOrderCallbackURL() string {
 	return strings.TrimRight(baseURL, "/") + "/api/v1/public/topup/callback"
 }
 
-func signTopupOrderPayload(payload map[string]string, secret string) string {
+func topupOrderSigningParts(payload map[string]string) []string {
 	keys := make([]string, 0, len(payload))
 	for key, value := range payload {
-		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" {
+		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" || strings.EqualFold(strings.TrimSpace(key), "sign") {
 			continue
 		}
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	parts := make([]string, 0, len(keys)+1)
+	parts := make([]string, 0, len(keys))
 	for _, key := range keys {
 		parts = append(parts, fmt.Sprintf("%s=%s", key, strings.TrimSpace(payload[key])))
 	}
-	parts = append(parts, "secret="+strings.TrimSpace(secret))
-	sum := sha256.Sum256([]byte(strings.Join(parts, "&")))
+	return parts
+}
+
+func topupOrderSigningBaseString(payload map[string]string) string {
+	return strings.Join(topupOrderSigningParts(payload), "&")
+}
+
+func topupOrderSigningString(payload map[string]string, secret string) string {
+	parts := append(topupOrderSigningParts(payload), "secret="+strings.TrimSpace(secret))
+	return strings.Join(parts, "&")
+}
+
+func signTopupOrderPayload(payload map[string]string, secret string) string {
+	sum := sha256.Sum256([]byte(topupOrderSigningString(payload, secret)))
 	return hex.EncodeToString(sum[:])
 }
 
@@ -378,15 +392,58 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 		if order.CallbackURL == "" {
 			return TopupOrder{}, fmt.Errorf("回调地址未配置")
 		}
-		redirectURL, err = buildTopupOrderRedirectURL(config.TopUpLink, order)
-		if err != nil {
-			return TopupOrder{}, err
+		if config.EffectiveTopUpMode() == config.TopUpModeAPI {
+			order.Source = TopupOrderSourceTopUpAPI
+		} else {
+			redirectURL, err = buildTopupOrderRedirectURL(config.TopUpLink, order)
+			if err != nil {
+				return TopupOrder{}, err
+			}
 		}
 	}
-	order.RedirectURL = redirectURL
 	now := helper.GetTimestamp()
 	order.CreatedAt = now
 	order.UpdatedAt = now
+	normalizeTopupOrderRow(&order)
+
+	if order.Source == TopupOrderSourceTopUpAPI {
+		if err := db.Create(&order).Error; err != nil {
+			return TopupOrder{}, err
+		}
+		createResult, err := createTopupOrderByExternalPayAPI(order, input.ClientType)
+		if err != nil {
+			updateTime := helper.GetTimestamp()
+			updateErr := db.Model(&TopupOrder{}).
+				Where("id = ?", order.Id).
+				Updates(map[string]any{
+					"status":         TopupOrderStatusFailed,
+					"status_message": err.Error(),
+					"updated_at":     updateTime,
+				}).Error
+			if updateErr != nil {
+				return TopupOrder{}, fmt.Errorf("%s; update local top-up order failed: %w", err.Error(), updateErr)
+			}
+			return TopupOrder{}, err
+		}
+		order.ProviderName = createResult.ProviderName
+		order.ProviderOrderID = createResult.ProviderOrderID
+		order.RedirectURL = createResult.RedirectURL
+		order.UpdatedAt = helper.GetTimestamp()
+		normalizeTopupOrderRow(&order)
+		if err := db.Model(&TopupOrder{}).
+			Where("id = ?", order.Id).
+			Updates(map[string]any{
+				"provider_name":     order.ProviderName,
+				"provider_order_id": order.ProviderOrderID,
+				"redirect_url":      order.RedirectURL,
+				"updated_at":        order.UpdatedAt,
+			}).Error; err != nil {
+			return TopupOrder{}, err
+		}
+		return order, nil
+	}
+
+	order.RedirectURL = redirectURL
 	normalizeTopupOrderRow(&order)
 	if err := db.Create(&order).Error; err != nil {
 		return TopupOrder{}, err

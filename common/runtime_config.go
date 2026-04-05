@@ -114,10 +114,16 @@ type FeatureRuntimeConfig struct {
 }
 
 type OperationRuntimeConfig struct {
-	TopUpLink          string `yaml:"top_up_link"`
-	TopUpSignSecret    string `yaml:"top_up_sign_secret"`
-	TopUpCallbackToken string `yaml:"top_up_callback_token"`
-	ChatLink           string `yaml:"chat_link"`
+	TopUpMode              string `yaml:"top_up_mode"`
+	TopUpLink              string `yaml:"top_up_link"`
+	TopUpAPICreateURL      string `yaml:"top_up_api_create_url"`
+	TopUpAPIQueryURL       string `yaml:"top_up_api_query_url"`
+	TopUpAPIUniacid        int    `yaml:"top_up_api_uniacid"`
+	TopUpMerchantApp       string `yaml:"top_up_merchant_app"`
+	TopUpAPITimeoutSeconds int    `yaml:"top_up_api_timeout_seconds"`
+	TopUpSignSecret        string `yaml:"top_up_sign_secret"`
+	TopUpCallbackToken     string `yaml:"top_up_callback_token"`
+	ChatLink               string `yaml:"chat_link"`
 }
 
 type RelayRuntimeConfig struct {
@@ -218,10 +224,16 @@ func defaultRuntimeConfig() RuntimeConfig {
 			FrontendBaseURL:     "",
 		},
 		Operation: OperationRuntimeConfig{
-			TopUpLink:          "",
-			TopUpSignSecret:    "",
-			TopUpCallbackToken: "",
-			ChatLink:           "",
+			TopUpMode:              "",
+			TopUpLink:              "",
+			TopUpAPICreateURL:      "",
+			TopUpAPIQueryURL:       "",
+			TopUpAPIUniacid:        1,
+			TopUpMerchantApp:       "router",
+			TopUpAPITimeoutSeconds: 15,
+			TopUpSignSecret:        "",
+			TopUpCallbackToken:     "",
+			ChatLink:               "",
 		},
 		Relay: RelayRuntimeConfig{
 			TimeoutSeconds:                0,
@@ -310,7 +322,13 @@ func ApplyRuntimeConfig(cfg *RuntimeConfig, portFlagSet bool, logDirFlagSet bool
 
 	DisableOpenAICompat = cfg.Feature.DisableOpenAICompat
 	FrontendBaseURL = strings.TrimSpace(cfg.Feature.FrontendBaseURL)
+	config.TopUpMode = strings.TrimSpace(cfg.Operation.TopUpMode)
 	config.TopUpLink = strings.TrimSpace(cfg.Operation.TopUpLink)
+	config.TopUpAPICreateURL = strings.TrimSpace(cfg.Operation.TopUpAPICreateURL)
+	config.TopUpAPIQueryURL = strings.TrimSpace(cfg.Operation.TopUpAPIQueryURL)
+	config.TopUpAPIUniacid = cfg.Operation.TopUpAPIUniacid
+	config.TopUpMerchantApp = strings.TrimSpace(cfg.Operation.TopUpMerchantApp)
+	config.TopUpAPITimeoutSeconds = cfg.Operation.TopUpAPITimeoutSeconds
 	config.TopUpSignSecret = strings.TrimSpace(cfg.Operation.TopUpSignSecret)
 	config.TopUpCallbackToken = strings.TrimSpace(cfg.Operation.TopUpCallbackToken)
 	config.ChatLink = strings.TrimSpace(cfg.Operation.ChatLink)
@@ -499,10 +517,15 @@ func ApplyRuntimeConfig(cfg *RuntimeConfig, portFlagSet bool, logDirFlagSet bool
 	}
 	config.LogRotateCompress = cfg.Logging.RotateCompress
 
-	if issues := config.TopUpConfigIssues(); len(issues) == 0 {
-		logger.SysLog("top-up capability enabled from config file")
+	if issues := config.TopUpCreateIssues(); len(issues) == 0 {
+		logger.SysLog("top-up capability enabled from config file, mode=" + config.EffectiveTopUpMode())
 	} else {
 		logger.SysLog("top-up capability disabled: " + strings.Join(issues, "; "))
+	}
+	if issues := config.TopUpCallbackIssues(); len(issues) == 0 {
+		logger.SysLog("top-up callback enabled from config file")
+	} else {
+		logger.SysLog("top-up callback disabled: " + strings.Join(issues, "; "))
 	}
 	if strings.TrimSpace(config.ChatLink) == "" {
 		logger.SysLog("chat entry disabled: operation.chat_link is empty")

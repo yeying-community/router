@@ -3,7 +3,6 @@ package controller
 import (
 	"crypto/subtle"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -28,10 +27,7 @@ type topupCallbackRequest struct {
 }
 
 func configuredTopupCallbackToken() string {
-	if token := strings.TrimSpace(config.TopUpCallbackToken); token != "" {
-		return token
-	}
-	return strings.TrimSpace(os.Getenv("TOPUP_CALLBACK_TOKEN"))
+	return config.ConfiguredTopUpCallbackToken()
 }
 
 func extractTopupCallbackToken(c *gin.Context) string {

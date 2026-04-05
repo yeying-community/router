@@ -104,3 +104,18 @@ func TestResolveTopupOrderBusinessType(t *testing.T) {
 		})
 	}
 }
+
+func TestTopupOrderSigningStringHelpers(t *testing.T) {
+	payload := map[string]string{
+		"b":    "2",
+		"a":    "1",
+		"skip": "",
+		"sign": "ignored",
+	}
+	if got, want := topupOrderSigningBaseString(payload), "a=1&b=2"; got != want {
+		t.Fatalf("unexpected signing base string: got %q want %q", got, want)
+	}
+	if got, want := topupOrderSigningString(payload, "secret-value"), "a=1&b=2&secret=secret-value"; got != want {
+		t.Fatalf("unexpected signing string: got %q want %q", got, want)
+	}
+}

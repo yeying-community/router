@@ -79,11 +79,28 @@ feature:
   frontend_base_url: ""
 
 operation:
-  # 外部充值/购买套餐页地址；为空时，前端充值和购买套餐按钮会被禁用
+  # 支付接入模式：
+  # - redirect: 旧模式，router 直接拼接收银台 URL 参数并跳转
+  # - api: 新模式，router 服务端直连 yeying-room 的 create API，再跳转返回的 cashier_url
+  # 留空时：若配置了 top_up_api_create_url 则按 api，否则按 redirect
+  top_up_mode: ""
+  # redirect 模式的收银台地址；api 模式下可留空。
+  # 如果配置的是 .../api.external_pay/cashier，且 top_up_mode=api 时，系统也可据此自动推导 create API 地址。
   top_up_link: ""
-  # 外部支付签名密钥；按钮可点后，真正创建订单还需要这个值
+  # api 模式的下单接口地址，例如：
+  # https://www.tidukongjian.com/addons/ymq_zixishi/public/index.php/addons/ymqzixishi/api.external_pay/create
+  top_up_api_create_url: ""
+  # api 模式的查单接口地址；留空时会优先从 create URL 自动推导为 .../query
+  top_up_api_query_url: ""
+  # api 模式请求参数中的 uniacid
+  top_up_api_uniacid: 1
+  # api 模式的外部商户标识，需与 yeying-room 的 external_pay_merchants 配置一致
+  top_up_merchant_app: router
+  # api 模式请求超时秒数
+  top_up_api_timeout_seconds: 15
+  # 外部支付签名密钥；创建充值/购卡订单时使用
   top_up_sign_secret: ""
-  # 外部支付回调鉴权令牌；支付平台回调 /api/v1/public/topup/callback 时使用
+  # 外部支付回调鉴权令牌；仅影响支付成功后的回调发货，不再用于前端按钮可用性判定
   top_up_callback_token: ""
   # 用户工作区聊天入口；为空则不展示聊天菜单
   chat_link: ""

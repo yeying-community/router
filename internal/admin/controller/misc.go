@@ -24,8 +24,13 @@ import (
 // @Router /api/v1/public/status [get]
 func GetStatus(c *gin.Context) {
 	topUpLink := ""
+	topUpQueryURL := ""
+	topUpMode := config.EffectiveTopUpMode()
+	topUpCreateIssues := config.TopUpCreateIssues()
+	topUpCallbackIssues := config.TopUpCallbackIssues()
 	if config.TopUpFeatureEnabled() {
-		topUpLink = config.TopUpLink
+		topUpLink = config.TopUpAvailabilityEndpoint()
+		topUpQueryURL = config.ResolvedTopUpAPIQueryURL()
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -38,6 +43,10 @@ func GetStatus(c *gin.Context) {
 			"footer_html":             config.Footer,
 			"server_address":          config.ServerAddress,
 			"top_up_link":             topUpLink,
+			"top_up_query_url":        topUpQueryURL,
+			"top_up_mode":             topUpMode,
+			"top_up_create_issues":    topUpCreateIssues,
+			"top_up_callback_issues":  topUpCallbackIssues,
 			"chat_link":               config.ChatLink,
 			"quota_per_unit":          config.QuotaPerUnit,
 			"display_in_currency":     config.DisplayInCurrencyEnabled,
