@@ -29,7 +29,7 @@ type Redemption struct {
 	Code               string  `json:"code" gorm:"column:code;type:char(32);uniqueIndex"`
 	Status             int     `json:"status" gorm:"default:1"`
 	Name               string  `json:"name" gorm:"index"`
-	FaceValueAmount    float64 `json:"face_value_amount" gorm:"type:numeric(20,8);not null;default:0"`
+	FaceValueAmount    float64 `json:"face_value_amount" gorm:"type:numeric(30,8);not null;default:0"`
 	FaceValueUnit      string  `json:"face_value_unit" gorm:"type:varchar(16);not null;default:'YYC'"`
 	Quota              int64   `json:"quota" gorm:"bigint;default:100"`
 	CreatedTime        int64   `json:"created_time" gorm:"bigint"`
