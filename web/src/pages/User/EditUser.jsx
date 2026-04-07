@@ -123,6 +123,65 @@ const createEmptyActivePackage = () => ({
   subscription: null,
 });
 
+const createEmptyDailySnapshot = () => ({
+  biz_date: '',
+  timezone: '',
+  limit: 0,
+  consumed_quota: 0,
+  reserved_quota: 0,
+  remaining_quota: 0,
+  unlimited: false,
+});
+
+const createEmptyQuotaSummary = () => ({
+  package_emergency: {
+    biz_month: '',
+    timezone: '',
+    limit: 0,
+    consumed_quota: 0,
+    reserved_quota: 0,
+    remaining_quota: 0,
+    enabled: false,
+  },
+});
+
+const normalizeDailySnapshot = (raw) => ({
+  biz_date: (raw?.biz_date || '').toString().trim(),
+  timezone: (raw?.timezone || '').toString().trim(),
+  limit: Number(raw?.yyc_limit ?? raw?.limit ?? 0) || 0,
+  consumed_quota: Number(raw?.yyc_consumed ?? raw?.consumed_quota ?? 0) || 0,
+  reserved_quota: Number(raw?.yyc_reserved ?? raw?.reserved_quota ?? 0) || 0,
+  remaining_quota: Number(raw?.yyc_remaining ?? raw?.remaining_quota ?? 0) || 0,
+  unlimited: raw?.unlimited === true,
+});
+
+const normalizeQuotaSummary = (raw) => ({
+  package_emergency: {
+    biz_month: (raw?.package_emergency?.biz_month || '').toString().trim(),
+    timezone: (raw?.package_emergency?.timezone || '').toString().trim(),
+    limit: Number(raw?.package_emergency?.yyc_limit ?? raw?.package_emergency?.limit ?? 0) || 0,
+    consumed_quota:
+      Number(
+        raw?.package_emergency?.yyc_consumed ??
+          raw?.package_emergency?.consumed_quota ??
+          0,
+      ) || 0,
+    reserved_quota:
+      Number(
+        raw?.package_emergency?.yyc_reserved ??
+          raw?.package_emergency?.reserved_quota ??
+          0,
+      ) || 0,
+    remaining_quota:
+      Number(
+        raw?.package_emergency?.yyc_remaining ??
+          raw?.package_emergency?.remaining_quota ??
+          0,
+      ) || 0,
+    enabled: raw?.package_emergency?.enabled === true,
+  },
+});
+
 const normalizeActivePackage = (raw) => {
   if (!raw || typeof raw !== 'object') {
     return createEmptyActivePackage();
@@ -192,6 +251,8 @@ const UserDetail = () => {
   const [balanceUnit, setBalanceUnit] = useState('USD');
   const [activePackage, setActivePackage] = useState(createEmptyActivePackage());
   const [activePackageLoading, setActivePackageLoading] = useState(false);
+  const [packageDailySnapshot, setPackageDailySnapshot] = useState(createEmptyDailySnapshot());
+  const [packageQuotaSummary, setPackageQuotaSummary] = useState(createEmptyQuotaSummary());
   const [packageOptions, setPackageOptions] = useState([]);
   const [packageOptionsLoading, setPackageOptionsLoading] = useState(false);
   const [assignPackageOpen, setAssignPackageOpen] = useState(false);
@@ -293,7 +354,37 @@ const UserDetail = () => {
         showError(message || t('user.messages.active_package_load_failed'));
         return;
       }
-      setActivePackage(normalizeActivePackage(data));
+      const normalizedPackage = normalizeActivePackage(data);
+      setActivePackage(normalizedPackage);
+      if (!normalizedPackage.has_active_subscription) {
+        setPackageDailySnapshot(createEmptyDailySnapshot());
+        setPackageQuotaSummary(createEmptyQuotaSummary());
+        return;
+      }
+      const normalizedUserId = (userId || '').toString().trim();
+      const normalizedGroupId = (
+        normalizedPackage.subscription?.group_id || ''
+      ).toString().trim();
+      const [dailyRes, summaryRes] = await Promise.all([
+        API.get(`/api/v1/admin/group/${encodeURIComponent(normalizedGroupId)}/quota/daily`, {
+          params: {
+            user_id: normalizedUserId,
+          },
+        }),
+        API.get(`/api/v1/admin/user/${encodeURIComponent(normalizedUserId)}/quota/summary`),
+      ]);
+      const dailyPayload = dailyRes?.data || {};
+      if (dailyPayload.success) {
+        setPackageDailySnapshot(normalizeDailySnapshot(dailyPayload.data));
+      } else {
+        setPackageDailySnapshot(createEmptyDailySnapshot());
+      }
+      const summaryPayload = summaryRes?.data || {};
+      if (summaryPayload.success) {
+        setPackageQuotaSummary(normalizeQuotaSummary(summaryPayload.data));
+      } else {
+        setPackageQuotaSummary(createEmptyQuotaSummary());
+      }
     } catch (error) {
       showError(error?.message || error);
     } finally {
@@ -393,6 +484,7 @@ const UserDetail = () => {
   const canManageRole = isRoot() && !isProtectedUser;
   const hasActivePackage = activePackage.has_active_subscription === true && activePackage.subscription;
   const activePackageSubscription = hasActivePackage ? activePackage.subscription : null;
+  const packageEmergencySnapshot = packageQuotaSummary.package_emergency;
 
   useEffect(() => {
     loadActivePackage().then();
@@ -960,6 +1052,42 @@ const UserDetail = () => {
                       ? formatAmountBySelectedUnit(
                           activePackageSubscription?.emergency_amount || 0,
                         )
+                      : '-'
+                })}
+              </Form.Group>
+              <Form.Group widths='equal'>
+                {renderReadonlyAmountField({
+                  label: t('user.detail.package_daily_used'),
+                  value:
+                    hasActivePackage
+                      ? formatAmountBySelectedUnit(packageDailySnapshot.consumed_quota || 0)
+                      : '-'
+                })}
+                {renderReadonlyAmountField({
+                  label: t('user.detail.package_daily_remaining'),
+                  value:
+                    hasActivePackage
+                      ? packageDailySnapshot.unlimited
+                        ? t('common.unlimited')
+                        : formatAmountBySelectedUnit(packageDailySnapshot.remaining_quota || 0)
+                      : '-'
+                })}
+                {renderReadonlyAmountField({
+                  label: t('user.detail.package_emergency_used'),
+                  value:
+                    hasActivePackage
+                      ? packageEmergencySnapshot.enabled
+                        ? formatAmountBySelectedUnit(packageEmergencySnapshot.consumed_quota || 0)
+                        : '-'
+                      : '-'
+                })}
+                {renderReadonlyAmountField({
+                  label: t('user.detail.package_emergency_remaining'),
+                  value:
+                    hasActivePackage
+                      ? packageEmergencySnapshot.enabled
+                        ? formatAmountBySelectedUnit(packageEmergencySnapshot.remaining_quota || 0)
+                        : '-'
                       : '-'
                 })}
               </Form.Group>
