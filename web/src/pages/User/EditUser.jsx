@@ -1125,7 +1125,7 @@ const UserDetail = () => {
                       : '-'
                 })}
                 {renderReadonlyAmountField({
-                  label: t('user.detail.package_monthly_emergency_limit'),
+                  label: t('user.detail.package_emergency_limit'),
                   value:
                     hasActivePackage
                       ? formatAmountBySelectedUnit(

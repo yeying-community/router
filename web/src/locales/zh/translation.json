@@ -1148,7 +1148,7 @@
       "package_status": "套餐状态",
       "package_source": "来源",
       "package_daily_limit": "每日额度",
-      "package_monthly_emergency_limit": "应急额度",
+      "package_emergency_limit": "应急额度",
       "package_timezone": "重置时区",
       "package_started_at": "生效时间",
       "package_expires_at": "到期时间",

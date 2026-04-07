@@ -61,7 +61,7 @@ func migrateLegacyQuotaCountersToGenericWithDB(tx *gorm.DB) error {
 			   reserved_quota = EXCLUDED.reserved_quota,
 			   consumed_quota = EXCLUDED.consumed_quota,
 			   updated_at = EXCLUDED.updated_at`,
-			UserQuotaCounterTypeMonthlyEmergency,
+			UserQuotaCounterTypePackageEmergency,
 		).Error; err != nil {
 			return err
 		}

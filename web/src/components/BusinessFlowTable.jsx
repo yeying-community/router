@@ -229,7 +229,7 @@ const BusinessFlowTable = ({ kind }) => {
           },
           {
             key: 'package_emergency_quota_limit',
-            label: t('user.detail.package_monthly_emergency_limit'),
+            label: t('user.detail.package_emergency_limit'),
             render: (row) => formatYYCValue(row.package_emergency_quota_limit || 0),
           },
           {

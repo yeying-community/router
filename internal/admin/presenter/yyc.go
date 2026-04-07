@@ -157,17 +157,17 @@ func NewUserDailyQuotaSnapshot(snapshot model.UserDailyQuotaSnapshot) UserDailyQ
 	}
 }
 
-type UserMonthlyEmergencyQuotaSnapshot struct {
-	model.UserMonthlyEmergencyQuotaSnapshot
+type UserPackageEmergencyQuotaSnapshot struct {
+	model.UserPackageEmergencyQuotaSnapshot
 	YYCLimit     int64 `json:"yyc_limit"`
 	YYCConsumed  int64 `json:"yyc_consumed"`
 	YYCReserved  int64 `json:"yyc_reserved"`
 	YYCRemaining int64 `json:"yyc_remaining"`
 }
 
-func NewUserMonthlyEmergencyQuotaSnapshot(snapshot model.UserMonthlyEmergencyQuotaSnapshot) UserMonthlyEmergencyQuotaSnapshot {
-	return UserMonthlyEmergencyQuotaSnapshot{
-		UserMonthlyEmergencyQuotaSnapshot: snapshot,
+func NewUserPackageEmergencyQuotaSnapshot(snapshot model.UserPackageEmergencyQuotaSnapshot) UserPackageEmergencyQuotaSnapshot {
+	return UserPackageEmergencyQuotaSnapshot{
+		UserPackageEmergencyQuotaSnapshot: snapshot,
 		YYCLimit:                          snapshot.Limit,
 		YYCConsumed:                       snapshot.ConsumedQuota,
 		YYCReserved:                       snapshot.ReservedQuota,
@@ -178,14 +178,14 @@ func NewUserMonthlyEmergencyQuotaSnapshot(snapshot model.UserMonthlyEmergencyQuo
 type UserQuotaSummary struct {
 	UserID           string                            `json:"user_id"`
 	Daily            UserDailyQuotaSnapshot            `json:"daily"`
-	MonthlyEmergency UserMonthlyEmergencyQuotaSnapshot `json:"monthly_emergency"`
+	PackageEmergency UserPackageEmergencyQuotaSnapshot `json:"package_emergency"`
 }
 
 func NewUserQuotaSummary(summary model.UserQuotaSummary) UserQuotaSummary {
 	return UserQuotaSummary{
 		UserID:           strings.TrimSpace(summary.UserID),
 		Daily:            NewUserDailyQuotaSnapshot(summary.Daily),
-		MonthlyEmergency: NewUserMonthlyEmergencyQuotaSnapshot(summary.MonthlyEmergency),
+		PackageEmergency: NewUserPackageEmergencyQuotaSnapshot(summary.PackageEmergency),
 	}
 }
 

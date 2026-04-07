@@ -12,7 +12,7 @@ const UserQuotaCountersTableName = "user_quota_counters"
 
 const (
 	UserQuotaCounterTypeDaily            = "daily"
-	UserQuotaCounterTypeMonthlyEmergency = "monthly_emergency"
+	UserQuotaCounterTypePackageEmergency = "monthly_emergency"
 )
 
 type UserQuotaCounter struct {
@@ -40,7 +40,7 @@ type UserDailyQuotaSnapshot struct {
 	UpdatedAt      int64  `json:"updated_at"`
 }
 
-type UserMonthlyEmergencyQuotaSnapshot struct {
+type UserPackageEmergencyQuotaSnapshot struct {
 	UserID         string `json:"user_id"`
 	BizMonth       string `json:"biz_month"`
 	Limit          int64  `json:"limit"`
@@ -55,7 +55,7 @@ type UserMonthlyEmergencyQuotaSnapshot struct {
 type UserQuotaSummary struct {
 	UserID           string                            `json:"user_id"`
 	Daily            UserDailyQuotaSnapshot            `json:"daily"`
-	MonthlyEmergency UserMonthlyEmergencyQuotaSnapshot `json:"monthly_emergency"`
+	PackageEmergency UserPackageEmergencyQuotaSnapshot `json:"package_emergency"`
 }
 
 func ensureUserQuotaCounterWithDB(tx *gorm.DB, userID string, counterType string, periodKey string) error {
@@ -134,29 +134,29 @@ func GetUserDailyQuotaSnapshot(userID string, bizDate string) (UserDailyQuotaSna
 	return GetUserDailyQuotaSnapshotWithDB(DB, userID, bizDate)
 }
 
-func GetUserMonthlyEmergencyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizMonth string) (UserMonthlyEmergencyQuotaSnapshot, error) {
+func GetUserPackageEmergencyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizMonth string) (UserPackageEmergencyQuotaSnapshot, error) {
 	if db == nil {
-		return UserMonthlyEmergencyQuotaSnapshot{}, fmt.Errorf("database handle is nil")
+		return UserPackageEmergencyQuotaSnapshot{}, fmt.Errorf("database handle is nil")
 	}
 	normalizedUserID := strings.TrimSpace(userID)
 	if normalizedUserID == "" {
-		return UserMonthlyEmergencyQuotaSnapshot{}, fmt.Errorf("用户 ID 不能为空")
+		return UserPackageEmergencyQuotaSnapshot{}, fmt.Errorf("用户 ID 不能为空")
 	}
 	policy, err := GetUserQuotaPolicyWithDB(db, normalizedUserID)
 	if err != nil {
-		return UserMonthlyEmergencyQuotaSnapshot{}, err
+		return UserPackageEmergencyQuotaSnapshot{}, err
 	}
 	normalizedBizMonth, err := normalizeUserQuotaMonth(bizMonth, policy.Timezone)
 	if err != nil {
-		return UserMonthlyEmergencyQuotaSnapshot{}, err
+		return UserPackageEmergencyQuotaSnapshot{}, err
 	}
 	counter := UserQuotaCounter{}
-	err = db.Where("user_id = ? AND counter_type = ? AND period_key = ?", normalizedUserID, UserQuotaCounterTypeMonthlyEmergency, normalizedBizMonth).First(&counter).Error
+	err = db.Where("user_id = ? AND counter_type = ? AND period_key = ?", normalizedUserID, UserQuotaCounterTypePackageEmergency, normalizedBizMonth).First(&counter).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		return UserMonthlyEmergencyQuotaSnapshot{}, err
+		return UserPackageEmergencyQuotaSnapshot{}, err
 	}
 	if err == gorm.ErrRecordNotFound {
-		counter = UserQuotaCounter{UserID: normalizedUserID, CounterType: UserQuotaCounterTypeMonthlyEmergency, PeriodKey: normalizedBizMonth}
+		counter = UserQuotaCounter{UserID: normalizedUserID, CounterType: UserQuotaCounterTypePackageEmergency, PeriodKey: normalizedBizMonth}
 	}
 	consumed := counter.ConsumedQuota
 	if consumed < 0 {
@@ -174,7 +174,7 @@ func GetUserMonthlyEmergencyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizM
 			remaining = 0
 		}
 	}
-	return UserMonthlyEmergencyQuotaSnapshot{
+	return UserPackageEmergencyQuotaSnapshot{
 		UserID:         normalizedUserID,
 		BizMonth:       normalizedBizMonth,
 		Limit:          policy.PackageEmergencyLimit,
@@ -187,8 +187,8 @@ func GetUserMonthlyEmergencyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizM
 	}, nil
 }
 
-func GetUserMonthlyEmergencyQuotaSnapshot(userID string, bizMonth string) (UserMonthlyEmergencyQuotaSnapshot, error) {
-	return GetUserMonthlyEmergencyQuotaSnapshotWithDB(DB, userID, bizMonth)
+func GetUserPackageEmergencyQuotaSnapshot(userID string, bizMonth string) (UserPackageEmergencyQuotaSnapshot, error) {
+	return GetUserPackageEmergencyQuotaSnapshotWithDB(DB, userID, bizMonth)
 }
 
 func GetUserQuotaSummaryWithDB(db *gorm.DB, userID string, bizDate string, bizMonth string) (UserQuotaSummary, error) {
@@ -196,14 +196,14 @@ func GetUserQuotaSummaryWithDB(db *gorm.DB, userID string, bizDate string, bizMo
 	if err != nil {
 		return UserQuotaSummary{}, err
 	}
-	monthly, err := GetUserMonthlyEmergencyQuotaSnapshotWithDB(db, userID, bizMonth)
+	packageEmergency, err := GetUserPackageEmergencyQuotaSnapshotWithDB(db, userID, bizMonth)
 	if err != nil {
 		return UserQuotaSummary{}, err
 	}
 	return UserQuotaSummary{
 		UserID:           strings.TrimSpace(userID),
 		Daily:            daily,
-		MonthlyEmergency: monthly,
+		PackageEmergency: packageEmergency,
 	}, nil
 }
 

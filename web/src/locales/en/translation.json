@@ -1148,7 +1148,7 @@
       "package_status": "Package Status",
       "package_source": "Source",
       "package_daily_limit": "Daily Amount",
-      "package_monthly_emergency_limit": "Emergency Amount",
+      "package_emergency_limit": "Emergency Amount",
       "package_timezone": "Reset Timezone",
       "package_started_at": "Started At",
       "package_expires_at": "Expires At",
