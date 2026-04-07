@@ -10,7 +10,7 @@ import {
   Menu,
   Segment,
 } from 'semantic-ui-react';
-import { API, getLogo, isAdmin, isMobile, showSuccess } from '../helpers';
+import { API, getLogo, isAdmin, isMobile } from '../helpers';
 import { WEB3_TOKEN_STORAGE_KEY } from '../helpers/web3';
 import { logoutWallet } from '../services/web3Auth';
 import {
@@ -139,7 +139,6 @@ const Header = ({ workspace = 'user', hideNavButtons = false }) => {
     } catch (e) {
       // ignore web3 logout errors
     }
-    showSuccess('注销成功!');
     userDispatch({ type: 'logout' });
     localStorage.removeItem('user');
     localStorage.removeItem(WEB3_TOKEN_STORAGE_KEY);

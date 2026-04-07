@@ -361,7 +361,6 @@ const UserDetail = () => {
         setPackageQuotaSummary(createEmptyQuotaSummary());
         return;
       }
-      const normalizedUserId = (userId || '').toString().trim();
       const normalizedGroupId = (
         normalizedPackage.subscription?.group_id || ''
       ).toString().trim();

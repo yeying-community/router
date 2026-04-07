@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserContext } from '../context/User';
 import { StatusContext } from '../context/Status';
-import { API, getLogo, showError, showSuccess } from '../helpers';
+import { API, getLogo, showError } from '../helpers';
 import { loginWithWallet } from '../services/web3Auth';
 import './LoginForm.css';
 
@@ -83,7 +83,6 @@ const LoginForm = () => {
       userDispatch({ type: 'login', payload: userData });
       localStorage.setItem('user', JSON.stringify(userData));
       navigate(resolveLandingPath(userData.role));
-      showSuccess(t('messages.success.login'));
     } catch (error) {
       if (error?.code === 4001) {
         showError('用户拒绝了请求');
@@ -109,7 +108,6 @@ const LoginForm = () => {
         userDispatch({ type: 'login', payload: data });
         localStorage.setItem('user', JSON.stringify(data));
         navigate(resolveLandingPath(data.role));
-        showSuccess(t('messages.success.login'));
       } else {
         showError(message);
       }
