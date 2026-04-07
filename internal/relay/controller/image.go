@@ -207,15 +207,10 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return quotaErr
 	}
 	groupReservation := billingPlan.GroupReservation
-	userReservation := billingPlan.UserReservation
 	groupQuotaSettled := false
-	userQuotaSettled := false
 	defer func() {
 		if !groupQuotaSettled {
 			releaseGroupDailyQuotaReservation(ctx, groupReservation)
-		}
-		if !userQuotaSettled {
-			releaseUserQuotaReservation(ctx, userReservation)
 		}
 	}()
 
@@ -241,7 +236,6 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			resp.StatusCode != http.StatusCreated && // replicate returns 201
 			resp.StatusCode != http.StatusOK {
 			releaseGroupDailyQuotaReservation(ctx, groupReservation)
-			releaseUserQuotaReservation(ctx, userReservation)
 			return
 		}
 
@@ -267,23 +261,20 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 				logger.SysError("error update user quota cache: " + err.Error())
 			}
 		}
-		userQuotaUsage := settleUserQuotaReservation(ctx, userReservation, quota)
 		if quota != 0 {
 			tokenName := c.GetString(ctxkey.TokenName)
 			billingSnapshot.YYCAmount = quota
 			entry := &model.Log{
-				UserId:             meta.UserId,
-				GroupId:            meta.Group,
-				ChannelId:          meta.ChannelId,
-				PromptTokens:       0,
-				CompletionTokens:   0,
-				ModelName:          imageRequest.Model,
-				TokenName:          tokenName,
-				Quota:              int(quota),
-				BillingSource:      model.ResolveConsumeLogBillingSource(billingPlan.ChargeUserBalance()),
-				UserDailyQuota:     int(userQuotaUsage.DailyQuotaUsed),
-				UserEmergencyQuota: int(userQuotaUsage.EmergencyQuotaUsed),
-				Content:            billing.FormatPricingLog(pricing, groupRatio),
+				UserId:           meta.UserId,
+				GroupId:          meta.Group,
+				ChannelId:        meta.ChannelId,
+				PromptTokens:     0,
+				CompletionTokens: 0,
+				ModelName:        imageRequest.Model,
+				TokenName:        tokenName,
+				Quota:            int(quota),
+				BillingSource:    model.ResolveConsumeLogBillingSource(billingPlan.ChargeUserBalance()),
+				Content:          billing.FormatPricingLog(pricing, groupRatio),
 			}
 			billingSnapshot.ApplyToLog(entry)
 			model.RecordConsumeLog(ctx, entry)
@@ -294,7 +285,6 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		settleGroupDailyQuotaReservation(ctx, groupReservation, quota)
 	}(c.Request.Context())
 	groupQuotaSettled = true
-	userQuotaSettled = true
 
 	// do response
 	_, respErr := adaptor.DoResponse(c, resp, meta)

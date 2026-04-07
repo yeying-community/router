@@ -136,6 +136,7 @@ func SetApiRouter(engine *gin.Engine) {
 	{
 		publicRelayRouter.POST("/completions", admin.Relay)
 		publicRelayRouter.POST("/chat/completions", admin.Relay)
+		publicRelayRouter.POST("/messages", admin.Relay)
 		publicRelayRouter.POST("/responses", admin.Relay)
 		publicRelayRouter.POST("/edits", admin.Relay)
 		publicRelayRouter.POST("/images/generations", admin.Relay)

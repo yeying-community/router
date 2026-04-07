@@ -176,9 +176,14 @@ const normalizeChannelModelEndpoint = (type, value) => {
     }
   }
   if (normalizedType === 'text') {
-    return normalized === '/v1/chat/completions'
-      ? '/v1/chat/completions'
-      : '/v1/responses';
+    switch (normalized) {
+      case '/v1/chat/completions':
+        return '/v1/chat/completions';
+      case '/v1/messages':
+        return '/v1/messages';
+      default:
+        return '/v1/responses';
+    }
   }
   return defaultChannelModelEndpoint(normalizedType);
 };
@@ -193,6 +198,7 @@ const CHANNEL_MODEL_TYPE_OPTIONS = [
 const TEXT_MODEL_ENDPOINT_OPTIONS = [
   { key: 'responses', value: '/v1/responses', text: '/v1/responses' },
   { key: 'chat', value: '/v1/chat/completions', text: '/v1/chat/completions' },
+  { key: 'messages', value: '/v1/messages', text: '/v1/messages' },
 ];
 
 const IMAGE_MODEL_ENDPOINT_OPTIONS = [

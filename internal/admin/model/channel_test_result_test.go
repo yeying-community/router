@@ -10,6 +10,9 @@ func TestNormalizeChannelModelEndpoint(t *testing.T) {
 		if got := NormalizeChannelModelEndpoint(ProviderModelTypeText, "/V1/CHAT/COMPLETIONS"); got != ChannelModelEndpointChat {
 			t.Fatalf("NormalizeChannelModelEndpoint(text, chat) = %q, want %q", got, ChannelModelEndpointChat)
 		}
+		if got := NormalizeChannelModelEndpoint(ProviderModelTypeText, "/V1/MESSAGES"); got != ChannelModelEndpointMessages {
+			t.Fatalf("NormalizeChannelModelEndpoint(text, messages) = %q, want %q", got, ChannelModelEndpointMessages)
+		}
 	})
 
 	t.Run("image supports multiple endpoints", func(t *testing.T) {

@@ -31,6 +31,8 @@ func NormalizeRequestedChannelModelEndpoint(path string) string {
 	switch {
 	case strings.HasPrefix(normalizedPath, ChannelModelEndpointChat):
 		return ChannelModelEndpointChat
+	case strings.HasPrefix(normalizedPath, "/v1/messages"):
+		return ChannelModelEndpointChat
 	case strings.HasPrefix(normalizedPath, ChannelModelEndpointResponses):
 		return ChannelModelEndpointResponses
 	case strings.HasPrefix(normalizedPath, ChannelModelEndpointBatches):

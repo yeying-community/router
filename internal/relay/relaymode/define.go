@@ -15,4 +15,5 @@ const (
 	Proxy
 	Responses
 	Videos
+	Messages
 )

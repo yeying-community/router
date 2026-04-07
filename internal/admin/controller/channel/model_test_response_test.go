@@ -27,6 +27,17 @@ func TestParseTextModelTestResponse_ResponsesJSON(t *testing.T) {
 	}
 }
 
+func TestParseTextModelTestResponse_MessagesJSON(t *testing.T) {
+	resp := `{"id":"msg_1","type":"message","role":"assistant","content":[{"type":"text","text":"我是claude模型，由Anthropic开发。"}]}`
+	got, err := parseTextModelTestResponse(resp)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got != "我是claude模型，由Anthropic开发。" {
+		t.Fatalf("unexpected parsed text: %q", got)
+	}
+}
+
 func TestParseTextModelTestResponse_ResponsesSSE(t *testing.T) {
 	resp := strings.Join([]string{
 		"event: response.output_text.delta",

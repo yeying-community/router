@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -120,6 +121,12 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 	if meta.UpstreamMode != 0 {
 		upstreamMode = meta.UpstreamMode
 	}
+	if meta.Mode == relaymode.Messages && upstreamMode == relaymode.Messages {
+		if meta.IsStream {
+			return relayMessagesStreamResponse(c, resp, meta.PromptTokens, meta.ActualModelName)
+		}
+		return relayMessagesResponse(c, resp, meta.PromptTokens, meta.ActualModelName)
+	}
 	if meta.Mode == relaymode.ChatCompletions && upstreamMode == relaymode.Responses {
 		if meta.IsStream {
 			respErr, usage := StreamResponsesAsChatHandler(c, resp, meta.ActualModelName, meta.PromptTokens)
@@ -200,8 +207,202 @@ type responsesUsage struct {
 	TotalTokens  int `json:"total_tokens"`
 }
 
+type messagesUsage struct {
+	InputTokens  int `json:"input_tokens"`
+	OutputTokens int `json:"output_tokens"`
+	TotalTokens  int `json:"total_tokens"`
+}
+
+type messagesEnvelope struct {
+	Usage   *messagesUsage `json:"usage"`
+	Message struct {
+		Usage *messagesUsage `json:"usage"`
+	} `json:"message"`
+	Content []struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	} `json:"content"`
+}
+
 type responsesEnvelope struct {
 	Usage *responsesUsage `json:"usage"`
+}
+
+func relayMessagesResponse(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.Usage, *model.ErrorWithStatusCode) {
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return nil, ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
+	}
+	for k, v := range resp.Header {
+		if len(v) == 0 {
+			continue
+		}
+		c.Writer.Header().Set(k, v[0])
+	}
+	c.Writer.WriteHeader(resp.StatusCode)
+	if _, err := c.Writer.Write(responseBody); err != nil {
+		return nil, ErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError)
+	}
+
+	usage := &model.Usage{
+		PromptTokens: promptTokens,
+	}
+	var envelope messagesEnvelope
+	if err := json.Unmarshal(responseBody, &envelope); err == nil {
+		applyMessagesUsage(usage, envelope.Usage)
+		applyMessagesUsage(usage, envelope.Message.Usage)
+		if usage.CompletionTokens == 0 && usage.TotalTokens == 0 && len(envelope.Content) > 0 {
+			var textBuilder strings.Builder
+			for _, item := range envelope.Content {
+				if item.Type != "text" {
+					continue
+				}
+				if strings.TrimSpace(item.Text) == "" {
+					continue
+				}
+				textBuilder.WriteString(item.Text)
+			}
+			if textBuilder.Len() > 0 {
+				usage.CompletionTokens = CountTokenText(textBuilder.String(), modelName)
+			}
+		}
+	}
+	if usage.PromptTokens == 0 {
+		usage.PromptTokens = promptTokens
+	}
+	if usage.TotalTokens == 0 {
+		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	}
+	return usage, nil
+}
+
+func relayMessagesStreamResponse(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.Usage, *model.ErrorWithStatusCode) {
+	if resp == nil {
+		return nil, ErrorWrapper(errors.New("resp is nil"), "nil_response", http.StatusInternalServerError)
+	}
+	for k, v := range resp.Header {
+		if len(v) == 0 {
+			continue
+		}
+		c.Writer.Header().Set(k, v[0])
+	}
+	c.Writer.WriteHeader(resp.StatusCode)
+
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Split(bufio.ScanLines)
+
+	usage := &model.Usage{
+		PromptTokens: promptTokens,
+	}
+	var completionText strings.Builder
+	for scanner.Scan() {
+		rawLine := scanner.Text()
+		line := strings.TrimSuffix(rawLine, "\r")
+		_, _ = c.Writer.Write([]byte(rawLine + "\n"))
+		c.Writer.Flush()
+
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "" || data == "[DONE]" {
+			continue
+		}
+
+		payload := map[string]any{}
+		if err := json.Unmarshal([]byte(data), &payload); err != nil {
+			continue
+		}
+		if currentUsage, ok := payload["usage"].(map[string]any); ok {
+			applyMessagesUsageMap(usage, currentUsage)
+		}
+		if messagePayload, ok := payload["message"].(map[string]any); ok {
+			if messageUsage, ok := messagePayload["usage"].(map[string]any); ok {
+				applyMessagesUsageMap(usage, messageUsage)
+			}
+		}
+		if deltaPayload, ok := payload["delta"].(map[string]any); ok {
+			if textDelta, ok := deltaPayload["text"].(string); ok && strings.TrimSpace(textDelta) != "" {
+				completionText.WriteString(textDelta)
+			}
+		}
+		if contentBlockPayload, ok := payload["content_block"].(map[string]any); ok {
+			if strings.TrimSpace(fmt.Sprint(contentBlockPayload["type"])) == "text" {
+				if textPart, ok := contentBlockPayload["text"].(string); ok && strings.TrimSpace(textPart) != "" {
+					completionText.WriteString(textPart)
+				}
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return nil, ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
+	}
+
+	if usage.CompletionTokens == 0 && completionText.Len() > 0 {
+		usage.CompletionTokens = CountTokenText(completionText.String(), modelName)
+	}
+	if usage.PromptTokens == 0 {
+		usage.PromptTokens = promptTokens
+	}
+	if usage.TotalTokens == 0 {
+		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	}
+	return usage, nil
+}
+
+func applyMessagesUsage(target *model.Usage, usage *messagesUsage) {
+	if target == nil || usage == nil {
+		return
+	}
+	if usage.InputTokens > 0 {
+		target.PromptTokens = usage.InputTokens
+	}
+	if usage.OutputTokens > 0 {
+		target.CompletionTokens = usage.OutputTokens
+	}
+	if usage.TotalTokens > 0 {
+		target.TotalTokens = usage.TotalTokens
+	}
+}
+
+func applyMessagesUsageMap(target *model.Usage, payload map[string]any) {
+	if target == nil || payload == nil {
+		return
+	}
+	if inputTokens, ok := parseIntFromAny(payload["input_tokens"]); ok && inputTokens > 0 {
+		target.PromptTokens = inputTokens
+	}
+	if outputTokens, ok := parseIntFromAny(payload["output_tokens"]); ok && outputTokens > 0 {
+		target.CompletionTokens = outputTokens
+	}
+	if totalTokens, ok := parseIntFromAny(payload["total_tokens"]); ok && totalTokens > 0 {
+		target.TotalTokens = totalTokens
+	}
+}
+
+func parseIntFromAny(value any) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, true
+	case int64:
+		return int(typed), true
+	case float64:
+		return int(typed), true
+	case json.Number:
+		parsed, err := typed.Int64()
+		if err != nil {
+			return 0, false
+		}
+		return int(parsed), true
+	default:
+		return 0, false
+	}
 }
 
 func relayResponsesResponse(c *gin.Context, resp *http.Response) (*model.Usage, *model.ErrorWithStatusCode) {

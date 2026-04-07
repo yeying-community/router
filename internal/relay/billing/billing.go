@@ -38,7 +38,7 @@ func ReturnPreConsumedQuota(ctx context.Context, preConsumedQuota int64, tokenId
 	}(ctx)
 }
 
-func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, totalQuota int64, userId string, groupID string, channelId string, pricing model.ResolvedModelPricing, groupRatio float64, modelName string, tokenName string, chargeUserBalance bool, groupReservation model.GroupDailyQuotaReservation, userReservation model.UserQuotaReservation, snapshot BillingSnapshot) {
+func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, totalQuota int64, userId string, groupID string, channelId string, pricing model.ResolvedModelPricing, groupRatio float64, modelName string, tokenName string, chargeUserBalance bool, groupReservation model.GroupDailyQuotaReservation, snapshot BillingSnapshot) {
 	// quotaDelta is remaining quota to be consumed
 	var err error
 	if strings.TrimSpace(tokenId) != "" {
@@ -66,26 +66,20 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 			logger.SysError("error update user quota cache: " + err.Error())
 		}
 	}
-	userQuotaUsage, err := model.SettleUserQuotaReservation(userReservation, totalQuota)
-	if err != nil {
-		logger.Error(ctx, "settle user quota reservation failed: "+err.Error())
-	}
 	// totalQuota is total quota consumed
 	if totalQuota != 0 {
 		snapshot.YYCAmount = totalQuota
 		entry := &model.Log{
-			UserId:             userId,
-			GroupId:            groupID,
-			ChannelId:          channelId,
-			PromptTokens:       int(totalQuota),
-			CompletionTokens:   0,
-			ModelName:          modelName,
-			TokenName:          tokenName,
-			Quota:              int(totalQuota),
-			BillingSource:      model.ResolveConsumeLogBillingSource(chargeUserBalance),
-			UserDailyQuota:     int(userQuotaUsage.DailyQuotaUsed),
-			UserEmergencyQuota: int(userQuotaUsage.EmergencyQuotaUsed),
-			Content:            FormatPricingLog(pricing, groupRatio),
+			UserId:           userId,
+			GroupId:          groupID,
+			ChannelId:        channelId,
+			PromptTokens:     int(totalQuota),
+			CompletionTokens: 0,
+			ModelName:        modelName,
+			TokenName:        tokenName,
+			Quota:            int(totalQuota),
+			BillingSource:    model.ResolveConsumeLogBillingSource(chargeUserBalance),
+			Content:          FormatPricingLog(pricing, groupRatio),
 		}
 		snapshot.ApplyToLog(entry)
 		model.RecordConsumeLog(ctx, entry)

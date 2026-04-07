@@ -539,7 +539,7 @@ func runSingleChannelModelTestWithContext(ctx context.Context, channel *model.Ch
 			Endpoint:      model.ChannelModelEndpointVideos,
 		}, execution), execution
 	default:
-		if endpoint == model.ChannelModelEndpointChat {
+		if endpoint == model.ChannelModelEndpointChat || endpoint == model.ChannelModelEndpointMessages {
 			execution := executeChannelTextModelTest(ctx, channel, endpoint, &relaymodel.GeneralOpenAIRequest{
 				Model: row.Model,
 				Messages: []relaymodel.Message{{

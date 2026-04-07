@@ -41,17 +41,33 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *Request {
 	claudeTools := make([]Tool, 0, len(textRequest.Tools))
 
 	for _, tool := range textRequest.Tools {
-		if params, ok := tool.Function.Parameters.(map[string]any); ok {
-			claudeTools = append(claudeTools, Tool{
-				Name:        tool.Function.Name,
-				Description: tool.Function.Description,
-				InputSchema: InputSchema{
-					Type:       params["type"].(string),
-					Properties: params["properties"],
-					Required:   params["required"],
-				},
-			})
+		name := strings.TrimSpace(tool.Function.Name)
+		if name == "" {
+			continue
 		}
+		schemaType := "object"
+		var schemaProperties any
+		var schemaRequired any
+		if params, ok := tool.Function.Parameters.(map[string]any); ok {
+			if value, ok := params["type"].(string); ok && strings.TrimSpace(value) != "" {
+				schemaType = strings.TrimSpace(value)
+			}
+			if value, ok := params["properties"]; ok {
+				schemaProperties = value
+			}
+			if value, ok := params["required"]; ok {
+				schemaRequired = value
+			}
+		}
+		claudeTools = append(claudeTools, Tool{
+			Name:        name,
+			Description: strings.TrimSpace(tool.Function.Description),
+			InputSchema: InputSchema{
+				Type:       schemaType,
+				Properties: schemaProperties,
+				Required:   schemaRequired,
+			},
+		})
 	}
 
 	claudeRequest := Request{
@@ -70,15 +86,31 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *Request {
 		}{Type: "auto"} // default value https://docs.anthropic.com/en/docs/build-with-claude/tool-use#controlling-claudes-output
 		if choice, ok := textRequest.ToolChoice.(map[string]any); ok {
 			if function, ok := choice["function"].(map[string]any); ok {
-				claudeToolChoice.Type = "tool"
-				claudeToolChoice.Name = function["name"].(string)
+				functionName := strings.TrimSpace(fmt.Sprint(function["name"]))
+				if functionName != "" {
+					claudeToolChoice.Type = "tool"
+					claudeToolChoice.Name = functionName
+				}
+			} else if choiceType := strings.TrimSpace(fmt.Sprint(choice["type"])); choiceType == "any" || choiceType == "auto" || choiceType == "required" {
+				if choiceType == "required" {
+					claudeToolChoice.Type = "any"
+				} else {
+					claudeToolChoice.Type = choiceType
+				}
 			}
 		} else if toolChoiceType, ok := textRequest.ToolChoice.(string); ok {
-			if toolChoiceType == "any" {
-				claudeToolChoice.Type = toolChoiceType
+			if toolChoiceType == "any" || toolChoiceType == "auto" || toolChoiceType == "required" {
+				if toolChoiceType == "required" {
+					claudeToolChoice.Type = "any"
+				} else {
+					claudeToolChoice.Type = toolChoiceType
+				}
 			}
 		}
 		claudeRequest.ToolChoice = claudeToolChoice
+	}
+	if stopSequences := parseStopSequences(textRequest.Stop); len(stopSequences) > 0 {
+		claudeRequest.StopSequences = stopSequences
 	}
 	if claudeRequest.MaxTokens == 0 {
 		claudeRequest.MaxTokens = 4096
@@ -138,6 +170,39 @@ func ConvertRequest(textRequest model.GeneralOpenAIRequest) *Request {
 		claudeRequest.Messages = append(claudeRequest.Messages, claudeMessage)
 	}
 	return &claudeRequest
+}
+
+func parseStopSequences(stop any) []string {
+	switch value := stop.(type) {
+	case string:
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			return nil
+		}
+		return []string{trimmed}
+	case []string:
+		result := make([]string, 0, len(value))
+		for _, item := range value {
+			trimmed := strings.TrimSpace(item)
+			if trimmed == "" {
+				continue
+			}
+			result = append(result, trimmed)
+		}
+		return result
+	case []any:
+		result := make([]string, 0, len(value))
+		for _, item := range value {
+			trimmed := strings.TrimSpace(fmt.Sprint(item))
+			if trimmed == "" {
+				continue
+			}
+			result = append(result, trimmed)
+		}
+		return result
+	default:
+		return nil
+	}
 }
 
 // https://docs.anthropic.com/claude/reference/messages-streaming

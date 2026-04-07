@@ -21,6 +21,13 @@ type responsesEnvelope struct {
 	} `json:"output"`
 }
 
+type messagesEnvelope struct {
+	Content []struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	} `json:"content"`
+}
+
 func parseChatModelTestResponse(resp string) (*openaiadaptor.TextResponse, string, error) {
 	var response openaiadaptor.TextResponse
 	err := json.Unmarshal([]byte(resp), &response)
@@ -90,10 +97,40 @@ func parseResponsesImageTestResponse(resp string) (string, error) {
 	return "", errors.New("response has no image output, content types: " + strings.Join(contentTypes, ","))
 }
 
+func parseMessagesModelTestResponse(resp string) (string, error) {
+	var env messagesEnvelope
+	if err := json.Unmarshal([]byte(resp), &env); err != nil {
+		return "", err
+	}
+	if len(env.Content) == 0 {
+		return "", errors.New("response has no messages content")
+	}
+	textParts := make([]string, 0, len(env.Content))
+	contentTypes := make([]string, 0, len(env.Content))
+	for _, content := range env.Content {
+		contentType := strings.TrimSpace(content.Type)
+		if contentType == "" {
+			contentType = "<empty>"
+		}
+		contentTypes = append(contentTypes, contentType)
+		if strings.EqualFold(contentType, "text") && strings.TrimSpace(content.Text) != "" {
+			textParts = append(textParts, strings.TrimSpace(content.Text))
+		}
+	}
+	if len(textParts) > 0 {
+		return strings.Join(textParts, "\n"), nil
+	}
+	return "", errors.New("response has no messages text, content types: " + strings.Join(contentTypes, ","))
+}
+
 func parseTextModelTestResponse(resp string) (string, error) {
 	_, chatText, chatErr := parseChatModelTestResponse(resp)
 	if chatErr == nil {
 		return chatText, nil
+	}
+	messagesText, messagesErr := parseMessagesModelTestResponse(resp)
+	if messagesErr == nil {
+		return messagesText, nil
 	}
 	responsesText, responsesErr := parseResponsesModelTestResponse(resp)
 	if responsesErr == nil {
@@ -104,9 +141,9 @@ func parseTextModelTestResponse(resp string) (string, error) {
 		if streamErr == nil {
 			return streamText, nil
 		}
-		return "", fmt.Errorf("parse as chat failed: %v; parse as responses failed: %v; parse as stream failed: %v", chatErr, responsesErr, streamErr)
+		return "", fmt.Errorf("parse as chat failed: %v; parse as messages failed: %v; parse as responses failed: %v; parse as stream failed: %v", chatErr, messagesErr, responsesErr, streamErr)
 	}
-	return "", fmt.Errorf("parse as chat failed: %v; parse as responses failed: %v", chatErr, responsesErr)
+	return "", fmt.Errorf("parse as chat failed: %v; parse as messages failed: %v; parse as responses failed: %v", chatErr, messagesErr, responsesErr)
 }
 
 type streamEnvelope struct {

@@ -73,7 +73,7 @@ func TestNewUserQuotaSummaryAddsYYCAliases(t *testing.T) {
 			ReservedQuota:  10,
 			RemainingQuota: 70,
 		},
-		MonthlyEmergency: model.UserMonthlyEmergencyQuotaSnapshot{
+		PackageEmergency: model.UserPackageEmergencyQuotaSnapshot{
 			Limit:          200,
 			ConsumedQuota:  30,
 			ReservedQuota:  20,
@@ -84,8 +84,8 @@ func TestNewUserQuotaSummaryAddsYYCAliases(t *testing.T) {
 	if view.Daily.YYCLimit != summary.Daily.Limit || view.Daily.YYCConsumed != summary.Daily.ConsumedQuota || view.Daily.YYCReserved != summary.Daily.ReservedQuota || view.Daily.YYCRemaining != summary.Daily.RemainingQuota {
 		t.Fatalf("daily yyc aliases mismatch: %+v", view.Daily)
 	}
-	if view.MonthlyEmergency.YYCLimit != summary.MonthlyEmergency.Limit || view.MonthlyEmergency.YYCConsumed != summary.MonthlyEmergency.ConsumedQuota || view.MonthlyEmergency.YYCReserved != summary.MonthlyEmergency.ReservedQuota || view.MonthlyEmergency.YYCRemaining != summary.MonthlyEmergency.RemainingQuota {
-		t.Fatalf("monthly emergency yyc aliases mismatch: %+v", view.MonthlyEmergency)
+	if view.PackageEmergency.YYCLimit != summary.PackageEmergency.Limit || view.PackageEmergency.YYCConsumed != summary.PackageEmergency.ConsumedQuota || view.PackageEmergency.YYCReserved != summary.PackageEmergency.ReservedQuota || view.PackageEmergency.YYCRemaining != summary.PackageEmergency.RemainingQuota {
+		t.Fatalf("package emergency yyc aliases mismatch: %+v", view.PackageEmergency)
 	}
 }
 

@@ -76,15 +76,10 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return quotaErr
 	}
 	groupReservation := billingPlan.GroupReservation
-	userReservation := billingPlan.UserReservation
 	groupQuotaSettled := false
-	userQuotaSettled := false
 	defer func() {
 		if !groupQuotaSettled {
 			releaseGroupDailyQuotaReservation(ctx, groupReservation)
-		}
-		if !userQuotaSettled {
-			releaseUserQuotaReservation(ctx, userReservation)
 		}
 	}()
 	preConsumedQuota, bizErr := preConsumeQuota(ctx, textRequest, promptTokens, pricing, groupRatio, meta, billingPlan.ChargeUserBalance())
@@ -131,9 +126,8 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return respErr
 	}
 	// post-consume quota
-	go postConsumeQuota(ctx, usage, meta, upstreamRequest, pricing, preConsumedQuota, groupRatio, systemPromptReset, billingPlan.ChargeUserBalance(), groupReservation, userReservation)
+	go postConsumeQuota(ctx, usage, meta, upstreamRequest, pricing, preConsumedQuota, groupRatio, systemPromptReset, billingPlan.ChargeUserBalance(), groupReservation)
 	groupQuotaSettled = true
-	userQuotaSettled = true
 	return nil
 }
 
@@ -141,6 +135,24 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 	upstreamMode := meta.Mode
 	if meta.UpstreamMode != 0 {
 		upstreamMode = meta.UpstreamMode
+	}
+	if meta.Mode == relaymode.Messages && upstreamMode == relaymode.Messages {
+		rawBody, err := common.GetRequestBody(c)
+		if err != nil {
+			return nil, err
+		}
+		jsonData, err := normalizeMessagesRequestBody(rawBody, meta.ActualModelName)
+		if err != nil {
+			return nil, err
+		}
+		logger.Debugf(
+			c.Request.Context(),
+			"[messages_body] len=%d model=%s stream=%t",
+			len(jsonData),
+			strings.TrimSpace(meta.ActualModelName),
+			meta.IsStream,
+		)
+		return bytes.NewBuffer(jsonData), nil
 	}
 	if meta.Mode == relaymode.Responses && upstreamMode == relaymode.Responses {
 		rawBody, err := common.GetRequestBody(c)
@@ -183,7 +195,9 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 		meta.APIType == apitype.OpenAI &&
 		meta.OriginModelName == meta.ActualModelName &&
 		meta.ChannelProtocol != relaychannel.Baichuan &&
-		meta.ForcedSystemPrompt == "" {
+		meta.ForcedSystemPrompt == "" &&
+		meta.Mode == upstreamMode &&
+		meta.Mode != relaymode.Messages {
 		// no need to convert request for openai
 		return c.Request.Body, nil
 	}

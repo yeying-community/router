@@ -118,6 +118,58 @@ func TestBuildDefaultProviderCatalogSeeds_OpenAIIncludesGPT51Pricing(t *testing.
 	t.Fatalf("expected openai provider to exist")
 }
 
+func TestBuildDefaultProviderCatalogSeeds_AnthropicIncludesClaude46AndLegacyPricing(t *testing.T) {
+	seeds := BuildDefaultProviderCatalogSeeds(1700000000)
+	expected := map[string]struct {
+		input  float64
+		output float64
+	}{
+		"claude-opus-4-6-thinking":   {input: 0.005, output: 0.025},
+		"claude-sonnet-4-5-20250929": {input: 0.003, output: 0.015},
+		"claude-sonnet-4-6":          {input: 0.003, output: 0.015},
+		"claude-opus-4-6":            {input: 0.005, output: 0.025},
+		"claude-haiku-4-5-20251001":  {input: 0.001, output: 0.005},
+		"claude-opus-4-5-20251101":   {input: 0.005, output: 0.025},
+		"claude-3-5-haiku-20241022":  {input: 0.0008, output: 0.004},
+	}
+
+	for _, seed := range seeds {
+		if seed.Provider != "anthropic" {
+			continue
+		}
+		found := make(map[string]bool, len(expected))
+		for _, detail := range seed.ModelDetails {
+			want, ok := expected[detail.Model]
+			if !ok {
+				continue
+			}
+			if detail.Type != ProviderModelTypeText {
+				t.Fatalf("%s type=%q, want %q", detail.Model, detail.Type, ProviderModelTypeText)
+			}
+			if detail.InputPrice != want.input {
+				t.Fatalf("%s input_price=%v, want %v", detail.Model, detail.InputPrice, want.input)
+			}
+			if detail.OutputPrice != want.output {
+				t.Fatalf("%s output_price=%v, want %v", detail.Model, detail.OutputPrice, want.output)
+			}
+			if detail.PriceUnit != ProviderPriceUnitPer1KTokens {
+				t.Fatalf("%s price_unit=%q, want %q", detail.Model, detail.PriceUnit, ProviderPriceUnitPer1KTokens)
+			}
+			if detail.Currency != ProviderPriceCurrencyUSD {
+				t.Fatalf("%s currency=%q, want %q", detail.Model, detail.Currency, ProviderPriceCurrencyUSD)
+			}
+			found[detail.Model] = true
+		}
+		for modelName := range expected {
+			if !found[modelName] {
+				t.Fatalf("expected anthropic seed to include %s", modelName)
+			}
+		}
+		return
+	}
+	t.Fatalf("expected anthropic provider to exist")
+}
+
 func TestBuildDefaultProviderCatalogSeeds_ModelDetailsMeta(t *testing.T) {
 	seeds := BuildDefaultProviderCatalogSeeds(1700000000)
 	if len(seeds) == 0 {

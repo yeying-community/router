@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/relay/apitype"
 	"github.com/yeying-community/router/internal/relay/meta"
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
 	"github.com/yeying-community/router/internal/relay/relaymode"
@@ -28,6 +29,27 @@ func TestResolveChannelTextUpstreamPrefersSelectedModelEndpoint(t *testing.T) {
 	}
 	if mode != relaymode.Responses || path != adminmodel.ChannelModelEndpointResponses {
 		t.Fatalf("resolveChannelTextUpstream selected responses = (%d, %q), want (%d, %q)", mode, path, relaymode.Responses, adminmodel.ChannelModelEndpointResponses)
+	}
+}
+
+func TestResolveChannelTextUpstreamPrefersSelectedMessagesEndpoint(t *testing.T) {
+	meta := &meta.Meta{
+		Mode: relaymode.Messages,
+		ChannelModelConfigs: []adminmodel.ChannelModel{{
+			Model:     "claude-sonnet-4-6",
+			Type:      adminmodel.ProviderModelTypeText,
+			Selected:  true,
+			Endpoint:  adminmodel.ChannelModelEndpointMessages,
+			SortOrder: 1,
+		}},
+	}
+
+	mode, path, err := resolveChannelTextUpstream(meta, "claude-sonnet-4-6", "claude-sonnet-4-6")
+	if err != nil {
+		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
+	}
+	if mode != relaymode.Messages || path != adminmodel.ChannelModelEndpointMessages {
+		t.Fatalf("resolveChannelTextUpstream selected messages = (%d, %q), want (%d, %q)", mode, path, relaymode.Messages, adminmodel.ChannelModelEndpointMessages)
 	}
 }
 
@@ -65,6 +87,39 @@ func TestResolveChannelTextUpstreamRejectsResponsesWhenChannelOnlySupportsChat(t
 	_, _, err := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
 	if err == nil {
 		t.Fatalf("resolveChannelTextUpstream returned nil error, want unsupported responses endpoint")
+	}
+}
+
+func TestResolveChannelTextUpstreamAnthropicForcesMessagesUpstream(t *testing.T) {
+	meta := &meta.Meta{
+		Mode:    relaymode.Messages,
+		APIType: apitype.Anthropic,
+		ChannelModelConfigs: []adminmodel.ChannelModel{{
+			Model:    "claude-sonnet-4-6",
+			Type:     adminmodel.ProviderModelTypeText,
+			Selected: true,
+			Endpoint: adminmodel.ChannelModelEndpointResponses,
+		}},
+	}
+
+	mode, path, err := resolveChannelTextUpstream(meta, "claude-sonnet-4-6", "claude-sonnet-4-6")
+	if err != nil {
+		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
+	}
+	if mode != relaymode.Messages || path != adminmodel.ChannelModelEndpointMessages {
+		t.Fatalf("resolveChannelTextUpstream anthropic selected = (%d, %q), want (%d, %q)", mode, path, relaymode.Messages, adminmodel.ChannelModelEndpointMessages)
+	}
+}
+
+func TestResolveChannelTextUpstreamAnthropicRejectsResponsesMode(t *testing.T) {
+	meta := &meta.Meta{
+		Mode:    relaymode.Responses,
+		APIType: apitype.AwsClaude,
+	}
+
+	_, _, err := resolveChannelTextUpstream(meta, "claude-sonnet-4-6", "claude-sonnet-4-6")
+	if err == nil {
+		t.Fatalf("resolveChannelTextUpstream returned nil error for anthropic responses mode")
 	}
 }
 
@@ -139,5 +194,24 @@ func TestNormalizeResponsesRequestBodyPreservesUnknownFields(t *testing.T) {
 	}
 	if first["role"] != "user" || first["content"] != "hello" {
 		t.Fatalf("payload.input[0] = %#v, want user message", first)
+	}
+}
+
+func TestNormalizeMessagesRequestBodyUpdatesModel(t *testing.T) {
+	raw := []byte(`{"model":"claude-old","messages":[{"role":"user","content":"hello"}],"stream":true}`)
+	normalized, err := normalizeMessagesRequestBody(raw, "claude-sonnet-4-6")
+	if err != nil {
+		t.Fatalf("normalizeMessagesRequestBody returned error: %v", err)
+	}
+
+	payload := map[string]any{}
+	if err := json.Unmarshal(normalized, &payload); err != nil {
+		t.Fatalf("json.Unmarshal normalized body returned error: %v", err)
+	}
+	if payload["model"] != "claude-sonnet-4-6" {
+		t.Fatalf("payload.model = %#v, want %q", payload["model"], "claude-sonnet-4-6")
+	}
+	if payload["stream"] != true {
+		t.Fatalf("payload.stream = %#v, want true", payload["stream"])
 	}
 }

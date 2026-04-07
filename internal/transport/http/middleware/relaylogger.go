@@ -61,6 +61,8 @@ func relayModeName(path string) string {
 	switch relaymode.GetByPath(path) {
 	case relaymode.ChatCompletions:
 		return "chat_completions"
+	case relaymode.Messages:
+		return "messages"
 	case relaymode.Completions:
 		return "completions"
 	case relaymode.Embeddings:

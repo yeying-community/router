@@ -49,7 +49,7 @@ const createEmptyDailySnapshot = () => ({
 });
 
 const createEmptyQuotaSummary = () => ({
-  monthly_emergency: {
+  package_emergency: {
     biz_month: '',
     timezone: '',
     limit: 0,
@@ -71,31 +71,33 @@ const normalizeDailySnapshot = (raw) => ({
 });
 
 const normalizeQuotaSummary = (raw) => ({
-  monthly_emergency: {
-    biz_month: (raw?.monthly_emergency?.biz_month || '').toString().trim(),
-    timezone: (raw?.monthly_emergency?.timezone || '').toString().trim(),
+  package_emergency: {
+    biz_month: (raw?.package_emergency?.biz_month || '').toString().trim(),
+    timezone: (raw?.package_emergency?.timezone || '').toString().trim(),
     limit: Number(
-      raw?.monthly_emergency?.yyc_limit ?? raw?.monthly_emergency?.limit ?? 0,
+      raw?.package_emergency?.yyc_limit ??
+        raw?.package_emergency?.limit ??
+        0,
     ) || 0,
     consumed_quota:
       Number(
-        raw?.monthly_emergency?.yyc_consumed ??
-          raw?.monthly_emergency?.consumed_quota ??
+        raw?.package_emergency?.yyc_consumed ??
+          raw?.package_emergency?.consumed_quota ??
           0,
       ) || 0,
     reserved_quota:
       Number(
-        raw?.monthly_emergency?.yyc_reserved ??
-          raw?.monthly_emergency?.reserved_quota ??
+        raw?.package_emergency?.yyc_reserved ??
+          raw?.package_emergency?.reserved_quota ??
           0,
       ) || 0,
     remaining_quota:
       Number(
-        raw?.monthly_emergency?.yyc_remaining ??
-          raw?.monthly_emergency?.remaining_quota ??
+        raw?.package_emergency?.yyc_remaining ??
+          raw?.package_emergency?.remaining_quota ??
           0,
       ) || 0,
-    enabled: raw?.monthly_emergency?.enabled === true,
+    enabled: raw?.package_emergency?.enabled === true,
   },
 });
 
@@ -277,7 +279,7 @@ const CurrentPackagePage = () => {
       },
       {
         key: 'emergency_limit',
-        label: t('user.detail.package_monthly_emergency_limit'),
+        label: t('user.detail.package_emergency_limit'),
         value: renderDisplayAmount(
           activeSubscription.package_emergency_quota_limit || 0,
         ),
@@ -336,7 +338,7 @@ const CurrentPackagePage = () => {
     ];
   }, [activeSubscription, dailySnapshot, renderDisplayAmount, t]);
 
-  const emergencySnapshot = quotaSummary.monthly_emergency;
+  const emergencySnapshot = quotaSummary.package_emergency;
   const emergencyItems = useMemo(() => {
     if (!activeSubscription) {
       return [];
@@ -344,7 +346,7 @@ const CurrentPackagePage = () => {
     return [
       {
         key: 'emergency_limit',
-        label: t('user.detail.package_monthly_emergency_limit'),
+        label: t('user.detail.package_emergency_limit'),
         value: emergencySnapshot.enabled
           ? renderDisplayAmount(emergencySnapshot.limit)
           : '-',

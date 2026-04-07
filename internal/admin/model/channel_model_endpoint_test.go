@@ -112,3 +112,12 @@ func TestBuildDisabledChannelModelEndpointRowsMarksOnlyTargetEndpoint(t *testing
 		t.Fatalf("responses endpoint enabled = true, want false")
 	}
 }
+
+func TestNormalizeRequestedChannelModelEndpointMessagesMapsToChat(t *testing.T) {
+	if got := NormalizeRequestedChannelModelEndpoint("/v1/messages"); got != ChannelModelEndpointChat {
+		t.Fatalf("NormalizeRequestedChannelModelEndpoint(/v1/messages)=%q, want %q", got, ChannelModelEndpointChat)
+	}
+	if got := NormalizeRequestedChannelModelEndpoint("/api/v1/public/messages"); got != ChannelModelEndpointChat {
+		t.Fatalf("NormalizeRequestedChannelModelEndpoint(/api/v1/public/messages)=%q, want %q", got, ChannelModelEndpointChat)
+	}
+}

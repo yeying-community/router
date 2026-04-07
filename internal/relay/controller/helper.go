@@ -15,6 +15,7 @@ import (
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/relay/adaptor/anthropic"
 	"github.com/yeying-community/router/internal/relay/adaptor/openai"
 	"github.com/yeying-community/router/internal/relay/billing"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
@@ -25,10 +26,25 @@ import (
 )
 
 func getAndValidateTextRequest(c *gin.Context, relayMode int) (*relaymodel.GeneralOpenAIRequest, error) {
-	textRequest := &relaymodel.GeneralOpenAIRequest{}
-	err := common.UnmarshalBodyReusable(c, textRequest)
-	if err != nil {
-		return nil, err
+	var (
+		textRequest *relaymodel.GeneralOpenAIRequest
+		err         error
+	)
+	if relayMode == relaymode.Messages {
+		requestBody, getErr := common.GetRequestBody(c)
+		if getErr != nil {
+			return nil, getErr
+		}
+		textRequest, err = anthropic.ParseMessagesRequestToGeneralOpenAIRequest(requestBody)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		textRequest = &relaymodel.GeneralOpenAIRequest{}
+		err = common.UnmarshalBodyReusable(c, textRequest)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if relayMode == relaymode.Moderations && textRequest.Model == "" {
 		textRequest.Model = "text-moderation-latest"
@@ -46,6 +62,8 @@ func getAndValidateTextRequest(c *gin.Context, relayMode int) (*relaymodel.Gener
 func getPromptTokens(textRequest *relaymodel.GeneralOpenAIRequest, relayMode int) int {
 	switch relayMode {
 	case relaymode.ChatCompletions:
+		return openai.CountTokenMessages(textRequest.Messages, textRequest.Model)
+	case relaymode.Messages:
 		return openai.CountTokenMessages(textRequest.Messages, textRequest.Model)
 	case relaymode.Responses:
 		if len(textRequest.Messages) > 0 {
@@ -120,11 +138,10 @@ func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIR
 	return preConsumedQuota, nil
 }
 
-func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, groupRatio float64, systemPromptReset bool, chargeUserBalance bool, groupReservation model.GroupDailyQuotaReservation, userReservation model.UserQuotaReservation) {
+func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, groupRatio float64, systemPromptReset bool, chargeUserBalance bool, groupReservation model.GroupDailyQuotaReservation) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		releaseGroupDailyQuotaReservation(ctx, groupReservation)
-		releaseUserQuotaReservation(ctx, userReservation)
 		return
 	}
 	promptTokens := usage.PromptTokens
@@ -170,24 +187,21 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 			logger.Error(ctx, "error update user quota cache: "+err.Error())
 		}
 	}
-	userQuotaUsage := settleUserQuotaReservation(ctx, userReservation, quota)
 	billingSnapshot.YYCAmount = quota
 	entry := &model.Log{
-		UserId:             meta.UserId,
-		GroupId:            meta.Group,
-		ChannelId:          meta.ChannelId,
-		PromptTokens:       promptTokens,
-		CompletionTokens:   completionTokens,
-		ModelName:          textRequest.Model,
-		TokenName:          meta.TokenName,
-		Quota:              int(quota),
-		BillingSource:      model.ResolveConsumeLogBillingSource(chargeUserBalance),
-		UserDailyQuota:     int(userQuotaUsage.DailyQuotaUsed),
-		UserEmergencyQuota: int(userQuotaUsage.EmergencyQuotaUsed),
-		Content:            billing.FormatPricingLog(pricing, groupRatio),
-		IsStream:           meta.IsStream,
-		ElapsedTime:        helper.CalcElapsedTime(meta.StartTime),
-		SystemPromptReset:  systemPromptReset,
+		UserId:            meta.UserId,
+		GroupId:           meta.Group,
+		ChannelId:         meta.ChannelId,
+		PromptTokens:      promptTokens,
+		CompletionTokens:  completionTokens,
+		ModelName:         textRequest.Model,
+		TokenName:         meta.TokenName,
+		Quota:             int(quota),
+		BillingSource:     model.ResolveConsumeLogBillingSource(chargeUserBalance),
+		Content:           billing.FormatPricingLog(pricing, groupRatio),
+		IsStream:          meta.IsStream,
+		ElapsedTime:       helper.CalcElapsedTime(meta.StartTime),
+		SystemPromptReset: systemPromptReset,
 	}
 	billingSnapshot.ApplyToLog(entry)
 	model.RecordConsumeLog(ctx, entry)

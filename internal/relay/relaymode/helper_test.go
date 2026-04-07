@@ -13,3 +13,12 @@ func TestGetByPath_Videos(t *testing.T) {
 		t.Fatalf("GetByPath(/api/v1/public/videos)=%d, want %d", got, Videos)
 	}
 }
+
+func TestGetByPath_Messages(t *testing.T) {
+	if got := GetByPath("/v1/messages"); got != Messages {
+		t.Fatalf("GetByPath(/v1/messages)=%d, want %d", got, Messages)
+	}
+	if got := GetByPath("/api/v1/public/messages"); got != Messages {
+		t.Fatalf("GetByPath(/api/v1/public/messages)=%d, want %d", got, Messages)
+	}
+}

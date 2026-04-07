@@ -497,7 +497,7 @@
       },
       "model_tester": {
         "title": "Model Test",
-        "hint": "Shows the models selected in step 2 and lets you choose the real upstream endpoint for each model. Text models default to /v1/responses and can be switched to /v1/chat/completions. Other model types use fixed endpoints. Supports both single-row and bulk testing.",
+        "hint": "Shows the models selected in step 2 and lets you choose the real upstream endpoint for each model. Text models default to /v1/responses and can be switched to /v1/chat/completions or /v1/messages. Other model types use fixed endpoints. Supports both single-row and bulk testing.",
         "button": "Test Selected Models",
         "single": "Test",
         "task_created": "{{count}} test tasks submitted, {{reused}} active tasks reused.",
@@ -1148,7 +1148,7 @@
       "package_status": "Package Status",
       "package_source": "Source",
       "package_daily_limit": "Daily Amount",
-      "package_monthly_emergency_limit": "Emergency Amount",
+      "package_emergency_limit": "Emergency Amount",
       "package_timezone": "Reset Timezone",
       "package_started_at": "Started At",
       "package_expires_at": "Expires At",

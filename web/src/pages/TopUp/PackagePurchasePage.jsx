@@ -220,7 +220,7 @@ const PackagePurchasePage = () => {
                                 marginBottom: '0.3rem',
                               }}
                             >
-                              {t('user.detail.package_monthly_emergency_limit')}
+                              {t('user.detail.package_emergency_limit')}
                             </div>
                             <div style={{ color: '#111827', fontWeight: 600 }}>
                               {renderDisplayAmount(

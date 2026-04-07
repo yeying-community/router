@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/relay/apitype"
 	"github.com/yeying-community/router/internal/relay/meta"
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
 	"github.com/yeying-community/router/internal/relay/relaymode"
@@ -113,6 +114,20 @@ func normalizeResponsesRequestBody(raw []byte) ([]byte, error) {
 	return json.Marshal(payload)
 }
 
+func normalizeMessagesRequestBody(raw []byte, modelName string) ([]byte, error) {
+	if len(raw) == 0 {
+		return raw, nil
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(modelName) != "" {
+		payload["model"] = strings.TrimSpace(modelName)
+	}
+	return json.Marshal(payload)
+}
+
 func cloneGeneralOpenAIRequest(req *relaymodel.GeneralOpenAIRequest) (*relaymodel.GeneralOpenAIRequest, error) {
 	if req == nil {
 		return nil, fmt.Errorf("request is nil")
@@ -195,10 +210,19 @@ func resolveChannelTextUpstream(meta *meta.Meta, originModelName string, actualM
 	if meta == nil {
 		return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
 	}
+	if meta.APIType == apitype.Anthropic || meta.APIType == apitype.AwsClaude {
+		if meta.Mode == relaymode.Responses {
+			return 0, "", fmt.Errorf("channel does not support %s", adminmodel.ChannelModelEndpointResponses)
+		}
+		return relaymode.Messages, adminmodel.ChannelModelEndpointMessages, nil
+	}
 	if row, ok := adminmodel.FindSelectedChannelModelConfig(meta.ChannelModelConfigs, originModelName, actualModelName); ok {
 		endpoint := adminmodel.NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
 		if endpoint == adminmodel.ChannelModelEndpointResponses {
 			return relaymode.Responses, endpoint, nil
+		}
+		if endpoint == adminmodel.ChannelModelEndpointMessages {
+			return relaymode.Messages, endpoint, nil
 		}
 		if meta.Mode == relaymode.Responses {
 			return 0, "", fmt.Errorf("channel model %q does not support %s", strings.TrimSpace(row.Model), adminmodel.ChannelModelEndpointResponses)
@@ -224,6 +248,9 @@ func resolveChannelTextUpstream(meta *meta.Meta, originModelName string, actualM
 		if fallbackEndpoint == "" {
 			fallbackEndpoint = endpoint
 		}
+	}
+	if fallbackEndpoint == adminmodel.ChannelModelEndpointMessages {
+		return relaymode.Messages, fallbackEndpoint, nil
 	}
 	if fallbackEndpoint == adminmodel.ChannelModelEndpointChat {
 		if meta.Mode == relaymode.Responses {

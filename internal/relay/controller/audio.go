@@ -95,15 +95,10 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return quotaErr
 	}
 	groupReservation := billingPlan.GroupReservation
-	userReservation := billingPlan.UserReservation
 	groupQuotaSettled := false
-	userQuotaSettled := false
 	defer func() {
 		if !groupQuotaSettled {
 			releaseGroupDailyQuotaReservation(ctx, groupReservation)
-		}
-		if !userQuotaSettled {
-			releaseUserQuotaReservation(ctx, userReservation)
 		}
 	}()
 	if billingPlan.ChargeUserBalance() {
@@ -268,10 +263,9 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	quotaDelta := quota - preConsumedQuota
 	billingSnapshot.YYCAmount = quota
 	defer func(ctx context.Context) {
-		go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, userId, group, channelId, pricing, groupRatio, audioModel, tokenName, billingPlan.ChargeUserBalance(), groupReservation, userReservation, billingSnapshot)
+		go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, userId, group, channelId, pricing, groupRatio, audioModel, tokenName, billingPlan.ChargeUserBalance(), groupReservation, billingSnapshot)
 	}(c.Request.Context())
 	groupQuotaSettled = true
-	userQuotaSettled = true
 
 	for k, v := range resp.Header {
 		c.Writer.Header().Set(k, v[0])

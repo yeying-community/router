@@ -827,6 +827,7 @@ func cloneNormalizedChannelModelPrice(value *float64) *float64 {
 
 const (
 	ChannelModelEndpointChat      = "/v1/chat/completions"
+	ChannelModelEndpointMessages  = "/v1/messages"
 	ChannelModelEndpointResponses = "/v1/responses"
 	ChannelModelEndpointBatches   = "/v1/batches"
 	ChannelModelEndpointImages    = "/v1/images/generations"
@@ -879,6 +880,8 @@ func NormalizeChannelModelEndpoint(modelType string, endpoint string) string {
 		switch normalizedEndpoint {
 		case ChannelModelEndpointChat:
 			return ChannelModelEndpointChat
+		case ChannelModelEndpointMessages:
+			return ChannelModelEndpointMessages
 		case ChannelModelEndpointResponses:
 			return ChannelModelEndpointResponses
 		default:
