@@ -4,6 +4,8 @@ import { Button, Dropdown, Form, Label, Pagination, Table } from 'semantic-ui-re
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API, showError, timestamp2string } from '../helpers';
 import { ITEMS_PER_PAGE } from '../constants';
+import UnitDropdown from './UnitDropdown';
+import { buildBillingCurrencyIndex, buildDisplayUnitOptions, formatDisplayAmountFromYYC } from '../helpers/billing';
 import { formatAmountWithUnit, formatYYCValue, renderText } from '../helpers/render';
 
 const readOnlyText = (value) => {
@@ -66,10 +68,19 @@ const BusinessFlowTable = ({ kind }) => {
   const [totalCount, setTotalCount] = useState(0);
   const [keyword, setKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [displayUnit, setDisplayUnit] = useState('USD');
+  const [currencyIndex, setCurrencyIndex] = useState(
+    buildBillingCurrencyIndex([], { activeOnly: true })
+  );
 
   const currentPagePath = useMemo(
     () => `${location.pathname}${location.search}${location.hash}`,
     [location.hash, location.pathname, location.search],
+  );
+
+  const displayUnitOptions = useMemo(
+    () => buildDisplayUnitOptions(currencyIndex, { order: 'yyc-first' }),
+    [currencyIndex],
   );
 
   const config = useMemo(() => {
@@ -237,17 +248,59 @@ const BusinessFlowTable = ({ kind }) => {
           },
           {
             key: 'daily_quota_limit',
-            label: t('user.detail.package_daily_limit'),
+            label: (
+              <div className='router-table-header-with-control'>
+                <span>{t('user.detail.package_daily_limit')}</span>
+                <UnitDropdown
+                  variant='header'
+                  compact
+                  options={displayUnitOptions}
+                  value={displayUnit}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onChange={(_, { value }) => {
+                    setDisplayUnit((value || '').toString());
+                  }}
+                />
+              </div>
+            ),
             render: (row) => (
               Number(row.daily_quota_limit || 0) > 0
-                ? formatYYCValue(row.daily_quota_limit)
+                ? formatDisplayAmountFromYYC(
+                    row.daily_quota_limit,
+                    displayUnit,
+                    currencyIndex,
+                    { fractionDigits: 6, includeSymbol: false, yycMode: 'fixed' },
+                  )
                 : t('common.unlimited')
             ),
           },
           {
             key: 'package_emergency_quota_limit',
-            label: t('user.detail.package_emergency_limit'),
-            render: (row) => formatYYCValue(row.package_emergency_quota_limit || 0),
+            label: (
+              <div className='router-table-header-with-control'>
+                <span>{t('user.detail.package_emergency_limit')}</span>
+                <UnitDropdown
+                  variant='header'
+                  compact
+                  options={displayUnitOptions}
+                  value={displayUnit}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onChange={(_, { value }) => {
+                    setDisplayUnit((value || '').toString());
+                  }}
+                />
+              </div>
+            ),
+            render: (row) => formatDisplayAmountFromYYC(
+              row.package_emergency_quota_limit || 0,
+              displayUnit,
+              currencyIndex,
+              { fractionDigits: 6, includeSymbol: false, yycMode: 'fixed' },
+            ),
           },
           {
             key: 'status',
@@ -332,7 +385,27 @@ const BusinessFlowTable = ({ kind }) => {
         },
       ],
     };
-  }, [currentPagePath, kind, navigate, t]);
+  }, [currencyIndex, currentPagePath, displayUnit, displayUnitOptions, kind, navigate, t]);
+
+  const loadCurrencyCatalog = useCallback(async () => {
+    try {
+      const res = await API.get('/api/v1/admin/billing/currencies');
+      const { success, data } = res.data || {};
+      if (!success) {
+        return;
+      }
+      const next = buildBillingCurrencyIndex(Array.isArray(data) ? data : [], {
+        activeOnly: true,
+        placeholderCodes: ['USD', 'CNY'],
+      });
+      setCurrencyIndex(next);
+      if (!next[displayUnit]) {
+        setDisplayUnit(next.USD ? 'USD' : Object.keys(next)[0] || 'USD');
+      }
+    } catch {
+      // Keep the placeholder index when the catalog cannot be loaded.
+    }
+  }, [displayUnit]);
 
   const totalPages = useMemo(
     () => Math.max(Math.ceil(totalCount / ITEMS_PER_PAGE), 1),
@@ -367,6 +440,10 @@ const BusinessFlowTable = ({ kind }) => {
     },
     [config.endpoint, t],
   );
+
+  useEffect(() => {
+    loadCurrencyCatalog().then();
+  }, [loadCurrencyCatalog]);
 
   useEffect(() => {
     setKeyword('');
