@@ -12,7 +12,7 @@ const UserQuotaCountersTableName = "user_quota_counters"
 
 const (
 	UserQuotaCounterTypeDaily            = "daily"
-	UserQuotaCounterTypePackageEmergency = "monthly_emergency"
+	UserQuotaCounterTypePackageEmergency = "package_emergency"
 )
 
 type UserQuotaCounter struct {
