@@ -197,7 +197,7 @@ const Setting = () => {
                   <Menu fluid vertical className='router-settings-menu'>
                     {visibleMenuGroups.map((group) => (
                       <Menu.Item key={group.key} className='router-settings-menu-group'>
-                        <Menu.Header>{group.label}</Menu.Header>
+                        {!singleGroupMode ? <Menu.Header>{group.label}</Menu.Header> : null}
                         <Menu.Menu>
                           {group.sections.map((section) => (
                             <Menu.Item
