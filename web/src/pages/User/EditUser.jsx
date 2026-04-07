@@ -6,8 +6,6 @@ import { API, copy, isRoot, showError, showSuccess } from '../../helpers';
 import {
   buildBillingCurrencyIndex,
   buildBillingUnitOptions,
-  convertBillingInputValueUnit,
-  billingInputValueToYYC,
   yycToBillingInputValue,
   resolveDefaultBillingUnit,
   resolveBillingInputStep,
@@ -188,7 +186,6 @@ const UserDetail = () => {
   const [editSection, setEditSection] = useState('');
   const [actionLoading, setActionLoading] = useState('');
   const [persistedUsername, setPersistedUsername] = useState('');
-  const [groupMap, setGroupMap] = useState({});
   const [billingCurrencyIndex, setBillingCurrencyIndex] = useState(
     buildBillingCurrencyIndex([], { activeOnly: true })
   );
@@ -222,10 +219,6 @@ const UserDetail = () => {
   const [basicEditInputs, setBasicEditInputs] = useState({
     username: '',
     email: '',
-    group: '',
-  });
-  const [balanceEditInputs, setBalanceEditInputs] = useState({
-    amount: 0,
   });
   const returnPath = useMemo(() => {
     const from = location.state?.from;
@@ -235,48 +228,6 @@ const UserDetail = () => {
     const normalized = from.trim();
     return normalized.startsWith('/') ? normalized : '';
   }, [location.state]);
-
-  const loadGroups = useCallback(async () => {
-    try {
-      const rows = [];
-      let page = 1;
-      while (page <= 50) {
-        const res = await API.get('/api/v1/admin/groups', {
-          params: {
-            page,
-            page_size: 100,
-          },
-        });
-        const { success, message, data } = res.data || {};
-        if (!success) {
-          showError(message || t('user.messages.operation_failed'));
-          return;
-        }
-        const pageItems = Array.isArray(data?.items) ? data.items : [];
-        rows.push(...pageItems);
-        const total = Number(data?.total || pageItems.length || 0);
-        if (
-          pageItems.length === 0 ||
-          rows.length >= total ||
-          pageItems.length < 100
-        ) {
-          break;
-        }
-        page += 1;
-      }
-      const nextMap = {};
-      rows.forEach((group) => {
-        const id = (group?.id || '').toString().trim();
-        if (id === '') {
-          return;
-        }
-        nextMap[id] = (group?.name || '').toString().trim() || id;
-      });
-      setGroupMap(nextMap);
-    } catch (error) {
-      showError(error?.message || error);
-    }
-  }, [t]);
 
   const loadUser = useCallback(async () => {
     if (!userId) {
@@ -316,7 +267,6 @@ const UserDetail = () => {
       setBasicEditInputs({
         username: nextInputs.username,
         email: nextInputs.email,
-        group: nextInputs.group,
       });
       setPersistedUsername((data?.username || '').toString().trim());
       setEditSection('');
@@ -417,35 +367,11 @@ const UserDetail = () => {
 
   useEffect(() => {
     const init = async () => {
-      await loadGroups();
       await loadBillingCurrencies();
       await loadUser();
     };
     init().then();
-  }, [loadBillingCurrencies, loadGroups, loadUser]);
-
-  const groupDisplayValue = useMemo(() => {
-    const raw = (inputs.group || '').toString().trim();
-    if (raw === '') {
-      return '-';
-    }
-    return raw
-      .split(',')
-      .map((item) => item.trim())
-      .filter((item) => item !== '')
-      .map((item) => groupMap[item] || item)
-      .join(', ') || '-';
-  }, [groupMap, inputs.group]);
-
-  const groupOptions = useMemo(
-    () =>
-      Object.entries(groupMap).map(([value, text]) => ({
-        key: value,
-        value,
-        text,
-      })),
-    [groupMap],
-  );
+  }, [loadBillingCurrencies, loadUser]);
   const billingUnitOptions = useMemo(
     () => buildBillingUnitOptions(billingCurrencyIndex),
     [billingCurrencyIndex],
@@ -472,27 +398,14 @@ const UserDetail = () => {
     loadActivePackage().then();
   }, [loadActivePackage]);
 
-  useEffect(() => {
-    if (editSection === 'balance') {
-      return;
-    }
-    setBalanceEditInputs({
-      amount: yycToBillingInputValue(inputs.yyc_balance, balanceUnit, billingCurrencyIndex),
-    });
-  }, [balanceUnit, billingCurrencyIndex, editSection, inputs.yyc_balance]);
-
   const roleControl = useMemo(() => {
-    if (!canManageRole) {
-      return renderRoleLabel(inputs.role, t);
-    }
     return (
       <Dropdown
-        className='router-inline-dropdown router-role-dropdown'
+        className='router-section-input'
         selection
-        compact
         options={ROLE_OPTIONS(t)}
         value={Number(inputs.role || 1)}
-        disabled={loading || actionLoading !== '' || editSection !== ''}
+        disabled={!canManageRole || loading || actionLoading !== '' || editSection !== ''}
         onChange={(e, { value }) => {
           const nextRole = Number(value);
           if (!Number.isFinite(nextRole) || nextRole === Number(inputs.role)) {
@@ -543,72 +456,36 @@ const UserDetail = () => {
     }));
   }, []);
 
-  const handleBalanceEditInputChange = useCallback((e, { name, value }) => {
-    setBalanceEditInputs((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  }, []);
-
   const handleBalanceUnitChange = useCallback(
     (nextUnit) => {
       const normalizedNextUnit = (nextUnit || '').toString().trim().toUpperCase();
       if (!normalizedNextUnit || normalizedNextUnit === balanceUnit) {
         return;
       }
-      if (editSection === 'balance') {
-        setBalanceEditInputs((prev) => ({
-          ...prev,
-          amount: convertBillingInputValueUnit(
-            prev.amount,
-            balanceUnit,
-            normalizedNextUnit,
-            billingCurrencyIndex,
-          ),
-        }));
-      }
       setBalanceUnit(normalizedNextUnit);
     },
-    [balanceUnit, billingCurrencyIndex, editSection],
+    [balanceUnit],
   );
 
   const resetBasicEditInputs = useCallback(() => {
     setBasicEditInputs({
       username: inputs.username || '',
       email: inputs.email || '',
-      group: inputs.group || '',
     });
   }, [
     inputs.email,
-    inputs.group,
     inputs.username,
   ]);
-
-  const resetBalanceEditInputs = useCallback(() => {
-    setBalanceEditInputs({
-      amount: yycToBillingInputValue(inputs.yyc_balance ?? 0, balanceUnit, billingCurrencyIndex),
-    });
-  }, [balanceUnit, billingCurrencyIndex, inputs.yyc_balance]);
 
   const startBasicEditing = useCallback(() => {
     resetBasicEditInputs();
     setEditSection('basic');
   }, [resetBasicEditInputs]);
 
-  const startBalanceEditing = useCallback(() => {
-    resetBalanceEditInputs();
-    setEditSection('balance');
-  }, [resetBalanceEditInputs]);
-
   const cancelBasicEditing = useCallback(() => {
     resetBasicEditInputs();
     setEditSection('');
   }, [resetBasicEditInputs]);
-
-  const cancelBalanceEditing = useCallback(() => {
-    resetBalanceEditInputs();
-    setEditSection('');
-  }, [resetBalanceEditInputs]);
 
   const updateUser = useCallback(async ({ username, email, group, yycBalance, actionKey }) => {
     if (username === '') {
@@ -666,38 +543,14 @@ const UserDetail = () => {
   const submitBasic = useCallback(async () => {
     const username = (basicEditInputs.username || '').toString().trim();
     const email = (basicEditInputs.email || '').toString().trim();
-    const group = (basicEditInputs.group || '').toString().trim();
     await updateUser({
       username,
       email,
-      group,
+      group: (inputs.group || '').toString().trim(),
       yycBalance: Number(inputs.yyc_balance || 0),
       actionKey: 'save-basic',
     });
-  }, [basicEditInputs.email, basicEditInputs.group, basicEditInputs.username, inputs.yyc_balance, updateUser]);
-
-  const submitBalance = useCallback(async () => {
-    const yycBalance = billingInputValueToYYC(
-      balanceEditInputs.amount,
-      balanceUnit,
-      billingCurrencyIndex,
-    );
-    await updateUser({
-      username: (inputs.username || '').toString().trim(),
-      email: (inputs.email || '').toString().trim(),
-      group: (inputs.group || '').toString().trim(),
-      yycBalance,
-      actionKey: 'save-balance',
-    });
-  }, [
-    balanceEditInputs.amount,
-    balanceUnit,
-    billingCurrencyIndex,
-    inputs.email,
-    inputs.group,
-    inputs.username,
-    updateUser,
-  ]);
+  }, [basicEditInputs.email, basicEditInputs.username, inputs.group, inputs.yyc_balance, updateUser]);
 
   const backToList = useCallback(() => {
     if (returnPath !== '') {
@@ -819,7 +672,7 @@ const UserDetail = () => {
   );
 
   const renderBalanceAmountField = useCallback(
-    ({ label, name, value, placeholder = '', editable = false }) => (
+    ({ label, name, value }) => (
       <Form.Field className='router-section-input'>
         <label>{label}</label>
         <div className='router-section-input-with-unit'>
@@ -830,9 +683,7 @@ const UserDetail = () => {
             step={balanceInputStep}
             name={name}
             value={value}
-            placeholder={placeholder}
-            onChange={editable ? handleBalanceEditInputChange : undefined}
-            readOnly={!editable}
+            readOnly
           />
           <UnitDropdown
             variant='inputUnit'
@@ -848,7 +699,6 @@ const UserDetail = () => {
       actionLoading,
       balanceInputStep,
       balanceUnit,
-      handleBalanceEditInputChange,
       handleBalanceUnitChange,
       loading,
       billingUnitOptions,
@@ -873,7 +723,7 @@ const UserDetail = () => {
       <Form.Field className='router-section-input'>
         <label>{label}</label>
         <div className='router-inline-amount-card'>
-          <div className='router-inline-amount-value'>{value}</div>
+          <div className='router-inline-meta-value'>{value}</div>
         </div>
       </Form.Field>
     ),
@@ -897,7 +747,7 @@ const UserDetail = () => {
               </Breadcrumb>
             </div>
             <Form
-              loading={loading || actionLoading === 'save-basic' || actionLoading === 'save-balance'}
+              loading={loading || actionLoading === 'save-basic'}
               autoComplete='new-password'
             >
               <section className='router-entity-detail-section'>
@@ -971,27 +821,6 @@ const UserDetail = () => {
                     <label>{t('user.table.role_text')}</label>
                     <div>{roleControl}</div>
                   </Form.Field>
-                  {editSection === 'basic' ? (
-                    <Form.Dropdown
-                      className='router-section-input'
-                      label={t('user.edit.group')}
-                      name='group'
-                      selection
-                      clearable
-                      search
-                      options={groupOptions}
-                      value={basicEditInputs.group || ''}
-                      placeholder={t('user.edit.group_placeholder')}
-                      onChange={handleBasicEditInputChange}
-                    />
-                  ) : (
-                    <Form.Input
-                      className='router-section-input'
-                      label={t('user.edit.group')}
-                      value={groupDisplayValue}
-                      readOnly
-                    />
-                  )}
                 </Form.Group>
 
                 <Form.Group widths='equal'>
@@ -1174,66 +1003,23 @@ const UserDetail = () => {
                     {t('user.detail.balance_mode_title')}
                   </Header>
                   <div className='router-toolbar-start'>
-                    {editSection === 'balance' ? (
-                      <>
-                        <Button
-                          type='button'
-                          className='router-page-button'
-                          onClick={cancelBalanceEditing}
-                          disabled={actionLoading !== ''}
-                        >
-                          {t('user.edit.buttons.cancel')}
-                        </Button>
-                        <Button
-                          type='button'
-                          positive
-                          className='router-page-button'
-                          onClick={submitBalance}
-                          loading={actionLoading === 'save-balance'}
-                          disabled={actionLoading !== ''}
-                        >
-                          {t('user.edit.buttons.submit')}
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          type='button'
-                          className='router-inline-button'
-                          loading={loading}
-                          disabled={loading || actionLoading !== '' || editSection !== ''}
-                          onClick={refreshBalanceSection}
-                        >
-                          {t('user.buttons.refresh')}
-                        </Button>
-                        <Button
-                          type='button'
-                          className='router-page-button'
-                          onClick={startBalanceEditing}
-                          disabled={loading || actionLoading !== '' || editSection !== ''}
-                        >
-                          {t('user.detail.buttons.edit')}
-                        </Button>
-                      </>
-                    )}
+                    <Button
+                      type='button'
+                      className='router-inline-button'
+                      loading={loading}
+                      disabled={loading || actionLoading !== '' || editSection !== ''}
+                      onClick={refreshBalanceSection}
+                    >
+                      {t('user.buttons.refresh')}
+                    </Button>
                   </div>
                 </div>
                 <Form.Group widths='equal'>
-                  {editSection === 'balance' ? (
-                    renderBalanceAmountField({
-                      label: t('user.detail.remaining_amount'),
-                      name: 'amount',
-                      value: balanceEditInputs.amount,
-                      placeholder: t('user.edit.quota_placeholder'),
-                      editable: true,
-                    })
-                  ) : (
-                    renderBalanceAmountField({
-                      label: t('user.detail.remaining_amount'),
-                      name: 'amount',
-                      value: balanceDisplayValue,
-                    })
-                  )}
+                  {renderBalanceAmountField({
+                    label: t('user.detail.remaining_amount'),
+                    name: 'amount',
+                    value: balanceDisplayValue,
+                  })}
                   {renderBalanceAmountField({
                     label: t('user.detail.used_amount'),
                     name: 'yyc_used',
@@ -1242,11 +1028,8 @@ const UserDetail = () => {
                   <Form.Field className='router-section-input'>
                     <label>{t('user.table.request_count')}</label>
                     <div className='router-inline-stat-card'>
-                      <div className='router-inline-stat-value'>
+                      <div className='router-inline-meta-value'>
                         {formatCountValue(inputs.request_count)}
-                      </div>
-                      <div className='router-inline-stat-hint'>
-                        {t('user.detail.request_count_hint')}
                       </div>
                     </div>
                   </Form.Field>
