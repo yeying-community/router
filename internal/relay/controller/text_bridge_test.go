@@ -34,7 +34,8 @@ func TestResolveChannelTextUpstreamPrefersSelectedModelEndpoint(t *testing.T) {
 
 func TestResolveChannelTextUpstreamPrefersSelectedMessagesEndpoint(t *testing.T) {
 	meta := &meta.Meta{
-		Mode: relaymode.Messages,
+		Mode:    relaymode.Messages,
+		APIType: apitype.Anthropic,
 		ChannelModelConfigs: []adminmodel.ChannelModel{{
 			Model:     "claude-sonnet-4-6",
 			Type:      adminmodel.ProviderModelTypeText,
@@ -50,6 +51,25 @@ func TestResolveChannelTextUpstreamPrefersSelectedMessagesEndpoint(t *testing.T)
 	}
 	if mode != relaymode.Messages || path != adminmodel.ChannelModelEndpointMessages {
 		t.Fatalf("resolveChannelTextUpstream selected messages = (%d, %q), want (%d, %q)", mode, path, relaymode.Messages, adminmodel.ChannelModelEndpointMessages)
+	}
+}
+
+func TestResolveChannelTextUpstreamRejectsMessagesEndpointForOpenAIProtocol(t *testing.T) {
+	meta := &meta.Meta{
+		Mode:    relaymode.ChatCompletions,
+		APIType: apitype.OpenAI,
+		ChannelModelConfigs: []adminmodel.ChannelModel{{
+			Model:     "claude-sonnet-4-6",
+			Type:      adminmodel.ProviderModelTypeText,
+			Selected:  true,
+			Endpoint:  adminmodel.ChannelModelEndpointMessages,
+			SortOrder: 1,
+		}},
+	}
+
+	_, _, err := resolveChannelTextUpstream(meta, "claude-sonnet-4-6", "claude-sonnet-4-6")
+	if err == nil {
+		t.Fatalf("resolveChannelTextUpstream returned nil error, want messages endpoint rejection for openai protocol")
 	}
 }
 

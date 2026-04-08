@@ -206,6 +206,13 @@ func parseInputAsMessages(input any) []relaymodel.Message {
 	return nil
 }
 
+func supportsMessagesUpstream(meta *meta.Meta) bool {
+	if meta == nil {
+		return false
+	}
+	return meta.APIType == apitype.Anthropic || meta.APIType == apitype.AwsClaude
+}
+
 func resolveChannelTextUpstream(meta *meta.Meta, originModelName string, actualModelName string) (int, string, error) {
 	if meta == nil {
 		return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
@@ -222,7 +229,10 @@ func resolveChannelTextUpstream(meta *meta.Meta, originModelName string, actualM
 			return relaymode.Responses, endpoint, nil
 		}
 		if endpoint == adminmodel.ChannelModelEndpointMessages {
-			return relaymode.Messages, endpoint, nil
+			if supportsMessagesUpstream(meta) {
+				return relaymode.Messages, endpoint, nil
+			}
+			return 0, "", fmt.Errorf("channel protocol does not support %s endpoint; please use anthropic/awsclaude protocol", adminmodel.ChannelModelEndpointMessages)
 		}
 		if meta.Mode == relaymode.Responses {
 			return 0, "", fmt.Errorf("channel model %q does not support %s", strings.TrimSpace(row.Model), adminmodel.ChannelModelEndpointResponses)
@@ -250,7 +260,10 @@ func resolveChannelTextUpstream(meta *meta.Meta, originModelName string, actualM
 		}
 	}
 	if fallbackEndpoint == adminmodel.ChannelModelEndpointMessages {
-		return relaymode.Messages, fallbackEndpoint, nil
+		if supportsMessagesUpstream(meta) {
+			return relaymode.Messages, fallbackEndpoint, nil
+		}
+		return 0, "", fmt.Errorf("selected channel models require %s endpoint, but channel protocol is not anthropic/awsclaude", adminmodel.ChannelModelEndpointMessages)
 	}
 	if fallbackEndpoint == adminmodel.ChannelModelEndpointChat {
 		if meta.Mode == relaymode.Responses {
