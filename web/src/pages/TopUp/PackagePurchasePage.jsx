@@ -6,7 +6,7 @@ import { useTopUpWorkspace } from './shared.jsx';
 
 const PackagePurchasePage = () => {
   const { t } = useTranslation();
-  const { externalTopupLink, renderDisplayAmount, createTopupOrder } = useTopUpWorkspace();
+  const { renderDisplayAmount, createTopupOrder } = useTopUpWorkspace();
   const [packages, setPackages] = useState([]);
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -239,10 +239,7 @@ const PackagePurchasePage = () => {
                             handlePurchase(item?.id || '');
                           }}
                           loading={creatingPackageId === (item?.id || '')}
-                          disabled={
-                            !externalTopupLink ||
-                            creatingPackageId !== ''
-                          }
+                          disabled={creatingPackageId !== ''}
                         >
                           {creatingPackageId === (item?.id || '')
                             ? t('topup.external_topup.creating')

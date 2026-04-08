@@ -16,6 +16,7 @@ import (
 	plan "github.com/yeying-community/router/internal/admin/controller/plan"
 	task "github.com/yeying-community/router/internal/admin/controller/task"
 	token "github.com/yeying-community/router/internal/admin/controller/token"
+	topup "github.com/yeying-community/router/internal/admin/controller/topup"
 	user "github.com/yeying-community/router/internal/admin/controller/user"
 	"github.com/yeying-community/router/internal/transport/http/middleware"
 )
@@ -48,6 +49,7 @@ func SetApiRouter(engine *gin.Engine) {
 
 		publicRouter.GET("/status", admin.GetStatus)
 		publicRouter.GET("/billing/currencies", adminbilling.GetPublicBillingCurrencies)
+		publicRouter.GET("/topup/plans", topup.GetPublicTopupPlans)
 		publicRouter.GET("/notice", admin.GetNotice)
 		publicRouter.GET("/about", admin.GetAbout)
 		publicRouter.GET("/home_page_content", admin.GetHomePageContent)
@@ -332,6 +334,14 @@ func SetApiRouter(engine *gin.Engine) {
 			adminPackageRoute.PUT("/", plan.UpdatePackage)
 			adminPackageRoute.DELETE("/:id", plan.DeletePackage)
 			adminPackageRoute.POST("/:id/assign", plan.AssignPackageToUser)
+		}
+		adminTopupRoute := adminRouter.Group("/topup")
+		adminTopupRoute.Use(middleware.AdminAuth())
+		{
+			adminTopupRoute.GET("/plans", topup.GetAdminTopupPlans)
+			adminTopupRoute.POST("/plan", topup.CreateAdminTopupPlan)
+			adminTopupRoute.PUT("/plan", topup.UpdateAdminTopupPlan)
+			adminTopupRoute.DELETE("/plan/:id", topup.DeleteAdminTopupPlan)
 		}
 
 		adminProviderRoute := adminRouter.Group("/providers")

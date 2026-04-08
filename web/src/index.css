@@ -2101,6 +2101,51 @@ code {
     min-width: 140px;
 }
 
+.ui.table.router-topup-plan-table {
+    width: 100% !important;
+    table-layout: fixed;
+}
+
+.ui.table.router-topup-plan-table thead th,
+.ui.table.router-topup-plan-table tbody td {
+    padding-left: 0.65rem !important;
+    padding-right: 0.65rem !important;
+}
+
+.ui.table.router-topup-plan-table th.router-topup-plan-name-cell,
+.ui.table.router-topup-plan-table td.router-topup-plan-name-cell {
+    width: 96px !important;
+    min-width: 96px;
+}
+
+.ui.table.router-topup-plan-table th.router-topup-plan-amount-cell,
+.ui.table.router-topup-plan-table td.router-topup-plan-amount-cell,
+.ui.table.router-topup-plan-table th.router-topup-plan-quota-cell,
+.ui.table.router-topup-plan-table td.router-topup-plan-quota-cell,
+.ui.table.router-topup-plan-table th.router-topup-plan-status-cell,
+.ui.table.router-topup-plan-table td.router-topup-plan-status-cell {
+    width: 100px !important;
+    min-width: 100px;
+}
+
+.ui.table.router-topup-plan-table th.router-topup-plan-action-cell,
+.ui.table.router-topup-plan-table td.router-topup-plan-action-cell {
+    width: 120px !important;
+    min-width: 120px;
+}
+
+.router-topup-plan-action-cell .router-action-group-tight {
+    gap: 3px;
+    row-gap: 3px;
+}
+
+.router-topup-plan-action-cell .ui.button.router-inline-button,
+.router-topup-plan-action-cell .ui.buttons .button.router-inline-button {
+    min-height: 26px !important;
+    padding: 0.42em 0.62em !important;
+    font-size: 11px !important;
+}
+
 .ui.table.router-package-list-table {
     width: 100% !important;
     table-layout: fixed;

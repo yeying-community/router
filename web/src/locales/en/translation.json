@@ -81,7 +81,32 @@
       "amount_invalid": "Please enter an amount greater than 0",
       "request_failed": "Failed to create top-up order",
       "popup_blocked": "The browser blocked the new window. Please allow pop-ups and try again.",
-      "no_link": "Admin has not set up the top-up link!"
+      "no_link": "Admin has not set up the top-up link!",
+      "plan_hint": "Choose a preset top-up plan to place the order.",
+      "pay_label": "Pay {{amount}}",
+      "credited_label": "Credited Amount"
+    },
+    "manage": {
+      "title": "Top-up Plans",
+      "create_title": "Create Top-up Plan",
+      "edit_title": "Edit Top-up Plan",
+      "delete_title": "Delete Top-up Plan",
+      "delete_confirm": "Delete top-up plan \"{{name}}\"?",
+      "group_placeholder": "Select group",
+      "load_failed": "Failed to load top-up plans",
+      "create_failed": "Failed to create top-up plan",
+      "create_success": "Top-up plan created",
+      "save_failed": "Failed to save top-up plans",
+      "save_success": "Top-up plans saved",
+      "delete_failed": "Failed to delete top-up plan",
+      "delete_success": "Top-up plan deleted",
+      "columns": {
+        "name": "Name",
+        "group": "Group",
+        "pay_amount": "Pay Amount",
+        "credited_amount": "Credited Amount",
+        "enabled": "Status"
+      }
     },
     "pricing": {
       "title": "Pricing",
@@ -873,11 +898,16 @@
   "common": {
     "loading": "Loading...",
     "no_data": "No data",
+    "add": "Add",
     "download": "Download",
     "basic_info": "Basic Information",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "edit": "Edit",
+    "refresh": "Refresh",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "operation": "Operation",
     "save": "Save",
     "unlimited": "Unlimited",
     "quota": {

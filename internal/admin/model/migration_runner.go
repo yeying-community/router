@@ -188,6 +188,16 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			},
 		},
 		{
+			Version:     "202604081630_topup_plan_catalog",
+			Description: "add persisted topup plan catalog and seed default plans",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&TopupPlan{}); err != nil {
+					return err
+				}
+				return seedDefaultTopupPlansWithDB(tx)
+			},
+		},
+		{
 			Version:     "202604011030_billing_currency_cny_decouple",
 			Description: "decouple CNY yyc rate from system default linkage and switch legacy default source to manual",
 			Up: func(tx *gorm.DB) error {

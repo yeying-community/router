@@ -1,50 +1,34 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Form, Header, Statistic } from 'semantic-ui-react';
-import { showInfo } from '../../helpers';
+import { Button, Card, Header, Statistic } from 'semantic-ui-react';
 import { useTopUpWorkspace } from './shared.jsx';
+
+const renderPlanAmount = (amount, currency) =>
+  `${Number(amount || 0)} ${String(currency || 'CNY').toUpperCase()}`;
+
+const renderPlanQuota = (amount, currency) =>
+  `${Number(amount || 0)} ${String(currency || 'USD').toUpperCase()}`;
 
 const BalanceTopUpPage = () => {
   const { t } = useTranslation();
   const {
-    externalTopupLink,
     userBalanceYYC,
-    displayCurrencyIndex,
+    topupPlans,
     renderDisplayAmount,
     createTopupOrder,
   } = useTopUpWorkspace();
-  const [topupAmount, setTopupAmount] = useState('0');
-  const [creating, setCreating] = useState(false);
+  const [creatingPlanID, setCreatingPlanID] = useState('');
 
-  const estimatedTopupYYC = useMemo(() => {
-    const amount = Number(topupAmount || 0);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return 0;
-    }
-    const cnyCurrency = displayCurrencyIndex?.CNY;
-    const yycPerUnit = Number(cnyCurrency?.yyc_per_unit || 0);
-    if (!Number.isFinite(yycPerUnit) || yycPerUnit <= 0) {
-      return 0;
-    }
-    return Math.round(amount * yycPerUnit);
-  }, [displayCurrencyIndex, topupAmount]);
-
-  const handleSubmit = async () => {
-    const amount = Number(topupAmount || 0);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      showInfo(t('topup.external_topup.amount_invalid'));
-      return;
-    }
-    setCreating(true);
+  const handleSubmit = async (planID) => {
+    setCreatingPlanID(planID);
     try {
       await createTopupOrder({
         business_type: 'balance_topup',
-        amount,
-        currency: 'CNY',
+        plan_id: planID,
         return_url: window.location.href,
       });
     } finally {
-      setCreating(false);
+      setCreatingPlanID('');
     }
   };
 
@@ -53,7 +37,6 @@ const BalanceTopUpPage = () => {
       <Card.Content className='router-card-fill'>
         <Card.Header className='router-card-header'>
           <Header as='h3' className='router-section-title router-title-accent-primary'>
-            <i className='credit card icon' />
             {t('topup.external_topup.title')}
           </Header>
         </Card.Header>
@@ -67,35 +50,48 @@ const BalanceTopUpPage = () => {
               <div className='router-text-muted' style={{ marginTop: '0.75rem' }}>
                 {t('topup.external_topup.description')}
               </div>
-              <Form.Input
-                className='router-section-input'
-                fluid
-                style={{ marginTop: '1rem', textAlign: 'left' }}
-                label={t('topup.external_topup.amount')}
-                type='number'
-                min={0}
-                step='0.01'
-                placeholder={t('topup.external_topup.amount_placeholder')}
-                value={topupAmount}
-                onChange={(event) => setTopupAmount(event.target.value || '0')}
-              />
               <div className='router-text-muted' style={{ marginTop: '0.5rem' }}>
-                {t('topup.external_topup.credited_yyc')}：{renderDisplayAmount(estimatedTopupYYC)}
+                {t('topup.external_topup.plan_hint')}
               </div>
             </div>
 
-            <div className='router-action-footer'>
-              <Button
-                className='router-section-button router-action-button-wide'
-                primary
-                onClick={handleSubmit}
-                loading={creating}
-                disabled={creating || !externalTopupLink}
-              >
-                {creating
-                  ? t('topup.external_topup.creating')
-                  : t('topup.external_topup.button')}
-              </Button>
+            <div className='router-grid-top-md' style={{ width: '100%' }}>
+              <Card.Group itemsPerRow={5} stackable>
+                {(Array.isArray(topupPlans) ? topupPlans : []).map((plan) => (
+                  <Card key={plan.id} className='router-soft-card'>
+                    <Card.Content>
+                      <Card.Header>{plan.name || renderPlanAmount(plan.amount, plan.amount_currency)}</Card.Header>
+                      <Card.Meta style={{ marginTop: '0.5rem' }}>
+                        {t('topup.external_topup.pay_label', {
+                          amount: renderPlanAmount(plan.amount, plan.amount_currency),
+                        })}
+                      </Card.Meta>
+                      <Card.Description style={{ marginTop: '0.75rem' }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>
+                          {renderPlanQuota(plan.quota_amount, plan.quota_currency)}
+                        </div>
+                        <div className='router-text-muted' style={{ marginTop: '0.35rem' }}>
+                          {t('topup.external_topup.credited_label')}
+                        </div>
+                      </Card.Description>
+                    </Card.Content>
+                    <Card.Content extra>
+                      <Button
+                        fluid
+                        primary
+                        className='router-section-button'
+                        disabled={creatingPlanID !== ''}
+                        loading={creatingPlanID === plan.id}
+                        onClick={() => handleSubmit(plan.id)}
+                      >
+                        {creatingPlanID === plan.id
+                          ? t('topup.external_topup.creating')
+                          : t('topup.external_topup.button')}
+                      </Button>
+                    </Card.Content>
+                  </Card>
+                ))}
+              </Card.Group>
             </div>
           </div>
         </Card.Description>

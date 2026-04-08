@@ -37,6 +37,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import Providers from './pages/Providers';
 import Group from './pages/Group';
 import Package from './pages/Package';
+import AdminTopup from './pages/AdminTopup';
 import Task from './pages/Task';
 import TaskDetail from './pages/Task/Detail';
 import FlowPage from './pages/Flow';
@@ -436,6 +437,7 @@ function App() {
         <Route path='/admin/group' element={<Group />} />
         <Route path='/admin/group/detail/:id' element={<Group />} />
         <Route path='/admin/package' element={<Package />} />
+        <Route path='/admin/topup' element={<AdminTopup />} />
         <Route
           path='/admin/flow/topup'
           element={
