@@ -84,3 +84,34 @@ func TestRelayMessagesStreamResponsePreservesAnthropicSSE(t *testing.T) {
 		t.Fatalf("unexpected OpenAI stream payload leaked into anthropic passthrough: %s", body)
 	}
 }
+
+func TestRelayMessagesStreamResponseSupportsLargeAnthropicDataLine(t *testing.T) {
+	ctx, recorder := newAnthropicPassthroughTestContext()
+	largeText := strings.Repeat("a", 70*1024)
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Content-Type": []string{"text/event-stream"},
+		},
+		Body: io.NopCloser(strings.NewReader(
+			"event: message_start\n" +
+				"data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"usage\":{\"input_tokens\":11,\"output_tokens\":0}}}\n\n" +
+				"event: content_block_delta\n" +
+				"data: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"" + largeText + "\"}}\n\n" +
+				"event: message_delta\n" +
+				"data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":7}}\n\n",
+		)),
+	}
+
+	usage, relayErr := relayMessagesStreamResponse(ctx, resp)
+	if relayErr != nil {
+		t.Fatalf("relayMessagesStreamResponse returned error: %+v", relayErr)
+	}
+	if usage == nil || usage.PromptTokens != 11 || usage.CompletionTokens != 7 || usage.TotalTokens != 18 {
+		t.Fatalf("unexpected usage: %#v", usage)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, largeText) {
+		t.Fatalf("expected large anthropic stream payload to be relayed intact")
+	}
+}

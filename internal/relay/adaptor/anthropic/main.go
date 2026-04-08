@@ -19,6 +19,14 @@ import (
 	"github.com/yeying-community/router/internal/relay/model"
 )
 
+const anthropicScannerMaxTokenSize = 8 * 1024 * 1024
+
+func newAnthropicStreamScanner(body io.Reader) *bufio.Scanner {
+	scanner := bufio.NewScanner(body)
+	scanner.Buffer(make([]byte, 0, 64*1024), anthropicScannerMaxTokenSize)
+	return scanner
+}
+
 func stopReasonClaude2OpenAI(reason *string) string {
 	if reason == nil {
 		return ""
@@ -351,7 +359,7 @@ func relayMessagesStreamResponse(c *gin.Context, resp *http.Response) (*model.Us
 	copyResponseHeaders(c, resp.Header)
 	c.Writer.WriteHeader(resp.StatusCode)
 
-	scanner := bufio.NewScanner(resp.Body)
+	scanner := newAnthropicStreamScanner(resp.Body)
 	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		if atEOF && len(data) == 0 {
 			return 0, nil, nil
@@ -406,7 +414,7 @@ func relayMessagesStreamResponse(c *gin.Context, resp *http.Response) (*model.Us
 
 func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
 	createdTime := helper.GetTimestamp()
-	scanner := bufio.NewScanner(resp.Body)
+	scanner := newAnthropicStreamScanner(resp.Body)
 	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		if atEOF && len(data) == 0 {
 			return 0, nil, nil
