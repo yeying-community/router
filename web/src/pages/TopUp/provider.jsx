@@ -9,7 +9,6 @@ import {
 import {
   TopUpWorkspaceContext,
   buildInitialDisplayCurrencyIndex,
-  getStoredStatusConfig,
   normalizeTopUpResult,
   resolveDisplayCurrency,
   storeDisplayCurrency,
@@ -19,8 +18,8 @@ import {
 const TopUpWorkspaceProvider = ({ children }) => {
   const { t } = useTranslation();
   const initialCurrencyIndex = buildInitialDisplayCurrencyIndex();
-  const [externalTopupLink, setExternalTopupLink] = useState('');
   const [userBalanceYYC, setUserBalanceYYC] = useState(0);
+  const [topupPlans, setTopupPlans] = useState([]);
   const [displayCurrencyIndex, setDisplayCurrencyIndex] = useState(
     initialCurrencyIndex,
   );
@@ -85,21 +84,28 @@ const TopUpWorkspaceProvider = ({ children }) => {
     }
   }, [t]);
 
-  useEffect(() => {
-    const status = getStoredStatusConfig();
-    if (status.top_up_link) {
-      setExternalTopupLink(status.top_up_link);
+  const loadTopupPlans = useCallback(async () => {
+    try {
+      const res = await API.get('/api/v1/public/topup/plans');
+      const { success, message, data } = res?.data || {};
+      if (!success) {
+        showError(message || t('topup.external_topup.request_failed'));
+        return;
+      }
+      setTopupPlans(Array.isArray(data) ? data : []);
+    } catch (error) {
+      showError(error?.message || t('topup.external_topup.request_failed'));
     }
+  }, [t]);
+
+  useEffect(() => {
     loadUserBalance().then();
+    loadTopupPlans().then();
     loadDisplayCurrencies().then();
-  }, [loadDisplayCurrencies, loadUserBalance]);
+  }, [loadDisplayCurrencies, loadTopupPlans, loadUserBalance]);
 
   const createTopupOrder = useCallback(
     async (payload) => {
-      if (!externalTopupLink) {
-        showError(t('topup.external_topup.no_link'));
-        return false;
-      }
       const popup = window.open('', '_blank');
       if (!popup) {
         showError(t('topup.external_topup.popup_blocked'));
@@ -171,7 +177,7 @@ const TopUpWorkspaceProvider = ({ children }) => {
         return false;
       }
     },
-    [externalTopupLink, t],
+    [t],
   );
 
   const submitRedemption = useCallback(
@@ -206,8 +212,8 @@ const TopUpWorkspaceProvider = ({ children }) => {
 
   const contextValue = useMemo(
     () => ({
-      externalTopupLink,
       userBalanceYYC,
+      topupPlans,
       displayCurrency,
       displayCurrencyIndex,
       loadingDisplayCurrencies,
@@ -220,12 +226,13 @@ const TopUpWorkspaceProvider = ({ children }) => {
       createTopupOrder,
       displayCurrency,
       displayCurrencyIndex,
-      externalTopupLink,
       loadDisplayCurrencies,
+      loadTopupPlans,
       loadUserBalance,
       loadingDisplayCurrencies,
       renderDisplayAmount,
       submitRedemption,
+      topupPlans,
       userBalanceYYC,
     ],
   );

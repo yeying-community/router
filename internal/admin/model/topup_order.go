@@ -66,6 +66,7 @@ type CreateTopupOrderInput struct {
 	Amount       float64
 	Currency     string
 	Quota        int64
+	PlanID       string
 	PackageID    string
 	ReturnURL    string
 }
@@ -346,24 +347,43 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 	} else {
 		switch order.BusinessType {
 		case TopupOrderBusinessBalance:
-			order.Currency = BillingCurrencyCodeCNY
-			if order.Amount <= 0 {
-				return TopupOrder{}, fmt.Errorf("充值金额必须大于 0")
-			}
-			if order.Quota <= 0 {
-				yycPerUnit, err := GetBillingCurrencyYYCPerUnit(order.Currency)
+			planID := strings.TrimSpace(input.PlanID)
+			if planID != "" {
+				resolvedPlan, err := ResolveTopupPlan(planID)
 				if err != nil {
 					return TopupOrder{}, err
 				}
-				order.Quota = normalizeTopupOrderQuota(int64(math.Round(order.Amount * yycPerUnit)))
+				order.Amount = normalizeTopupOrderAmount(resolvedPlan.Amount)
+				order.Currency = normalizeTopupOrderCurrency(resolvedPlan.AmountCurrency)
+				order.Quota = normalizeTopupOrderQuota(resolvedPlan.QuotaYYC)
+				if strings.TrimSpace(input.Title) != "" {
+					order.Title = strings.TrimSpace(input.Title)
+				} else {
+					order.Title = resolvedPlan.Name + " / " + formatTopupPlanNumber(resolvedPlan.QuotaAmount) + " " + resolvedPlan.QuotaCurrency
+					if strings.TrimSpace(resolvedPlan.GroupName) != "" {
+						order.Title += " / " + strings.TrimSpace(resolvedPlan.GroupName)
+					}
+				}
+			} else {
+				order.Currency = BillingCurrencyCodeCNY
+				if order.Amount <= 0 {
+					return TopupOrder{}, fmt.Errorf("充值金额必须大于 0")
+				}
+				if order.Quota <= 0 {
+					yycPerUnit, err := GetBillingCurrencyYYCPerUnit(order.Currency)
+					if err != nil {
+						return TopupOrder{}, err
+					}
+					order.Quota = normalizeTopupOrderQuota(int64(math.Round(order.Amount * yycPerUnit)))
+				}
+				if strings.TrimSpace(input.Title) != "" {
+					order.Title = strings.TrimSpace(input.Title)
+				} else {
+					order.Title = "账户充值"
+				}
 			}
 			if order.Quota <= 0 {
 				return TopupOrder{}, fmt.Errorf("充值额度不能为空")
-			}
-			if strings.TrimSpace(input.Title) != "" {
-				order.Title = strings.TrimSpace(input.Title)
-			} else {
-				order.Title = "账户充值"
 			}
 		case TopupOrderBusinessPackage:
 			if strings.TrimSpace(order.PackageID) == "" {

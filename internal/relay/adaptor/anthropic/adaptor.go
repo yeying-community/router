@@ -8,9 +8,11 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/relay/adaptor"
 	"github.com/yeying-community/router/internal/relay/meta"
 	"github.com/yeying-community/router/internal/relay/model"
+	"github.com/yeying-community/router/internal/relay/relaymode"
 )
 
 type Adaptor struct {
@@ -62,6 +64,23 @@ func (a *Adaptor) DoRequest(c *gin.Context, meta *meta.Meta, requestBody io.Read
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Meta) (usage *model.Usage, err *model.ErrorWithStatusCode) {
+	upstreamMode := meta.Mode
+	if meta.UpstreamMode != 0 {
+		upstreamMode = meta.UpstreamMode
+	}
+	if meta.Mode == relaymode.Messages && upstreamMode == relaymode.Messages {
+		logger.Debugf(
+			c.Request.Context(),
+			"[anthropic_messages_passthrough] channel_id=%s model=%s stream=%t",
+			strings.TrimSpace(meta.ChannelId),
+			strings.TrimSpace(meta.ActualModelName),
+			meta.IsStream,
+		)
+		if meta.IsStream {
+			return relayMessagesStreamResponse(c, resp)
+		}
+		return relayMessagesResponse(c, resp)
+	}
 	if meta.IsStream {
 		err, usage = StreamHandler(c, resp)
 	} else {

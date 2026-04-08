@@ -147,7 +147,10 @@ const normalizeChannelModelType = (value) => {
   }
 };
 
-const defaultChannelModelEndpoint = (type) => {
+const normalizeChannelProtocol = (value) =>
+  (value || '').toString().trim().toLowerCase();
+
+const defaultChannelModelEndpoint = (type, protocol) => {
   switch (normalizeChannelModelType(type)) {
     case 'image':
       return '/v1/images/generations';
@@ -156,11 +159,13 @@ const defaultChannelModelEndpoint = (type) => {
     case 'video':
       return '/v1/videos';
     default:
-      return '/v1/responses';
+      return normalizeChannelProtocol(protocol) === 'anthropic'
+        ? '/v1/messages'
+        : '/v1/responses';
   }
 };
 
-const normalizeChannelModelEndpoint = (type, value) => {
+const normalizeChannelModelEndpoint = (type, value, protocol) => {
   const normalizedType = normalizeChannelModelType(type);
   const normalized = (value || '').toString().trim().toLowerCase();
   if (normalizedType === 'image') {
@@ -181,11 +186,15 @@ const normalizeChannelModelEndpoint = (type, value) => {
         return '/v1/chat/completions';
       case '/v1/messages':
         return '/v1/messages';
+      case '/v1/responses':
+        return normalizeChannelProtocol(protocol) === 'anthropic'
+          ? '/v1/messages'
+          : '/v1/responses';
       default:
-        return '/v1/responses';
+        return defaultChannelModelEndpoint(normalizedType, protocol);
     }
   }
-  return defaultChannelModelEndpoint(normalizedType);
+  return defaultChannelModelEndpoint(normalizedType, protocol);
 };
 
 const CHANNEL_MODEL_TYPE_OPTIONS = [
@@ -543,7 +552,7 @@ const resolveProviderIdentifierFromModelName = (modelName) => {
   return '';
 };
 
-const normalizeChannelModelConfigRow = (row) => {
+const normalizeChannelModelConfigRow = (row, protocol) => {
   if (!row || typeof row !== 'object') {
     return null;
   }
@@ -568,7 +577,7 @@ const normalizeChannelModelConfigRow = (row) => {
     upstream_model: upstreamModel || model,
     provider: normalizeChannelModelProviderValue(row.provider),
     type: normalizeChannelModelType(row.type),
-    endpoint: normalizeChannelModelEndpoint(row.type, row.endpoint),
+    endpoint: normalizeChannelModelEndpoint(row.type, row.endpoint, protocol),
     inactive: row.inactive === true,
     selected: row.selected === true,
     input_price: normalizePriceOverrideValue(row.input_price),
@@ -578,14 +587,14 @@ const normalizeChannelModelConfigRow = (row) => {
   };
 };
 
-const normalizeChannelModelConfigs = (rows) => {
+const normalizeChannelModelConfigs = (rows, protocol) => {
   if (!Array.isArray(rows)) {
     return [];
   }
   const seen = new Set();
   const result = [];
   rows.forEach((row) => {
-    const normalized = normalizeChannelModelConfigRow(row);
+    const normalized = normalizeChannelModelConfigRow(row, protocol);
     if (!normalized) {
       return;
     }
@@ -607,8 +616,9 @@ const buildModelConfigsFromLegacyFields = ({
   outputPrice,
   priceUnit,
   currency,
+  protocol,
 }) => {
-  const normalizedConfigs = normalizeChannelModelConfigs(modelConfigs);
+  const normalizedConfigs = normalizeChannelModelConfigs(modelConfigs, protocol);
   if (normalizedConfigs.length > 0) {
     return normalizedConfigs;
   }
@@ -647,8 +657,8 @@ const buildModelConfigsFromLegacyFields = ({
   }));
 };
 
-const buildChannelModelState = (modelConfigs) => {
-  const normalizedConfigs = normalizeChannelModelConfigs(modelConfigs);
+const buildChannelModelState = (modelConfigs, protocol) => {
+  const normalizedConfigs = normalizeChannelModelConfigs(modelConfigs, protocol);
   const selectedModels = normalizedConfigs
     .filter((row) => row.selected && row.inactive !== true)
     .map((row) => row.model);
@@ -658,9 +668,12 @@ const buildChannelModelState = (modelConfigs) => {
   };
 };
 
-const buildNextInputsWithModelConfigs = (previousInputs, modelConfigs) => {
+const buildNextInputsWithModelConfigs = (previousInputs, modelConfigs, protocol) => {
   const { modelConfigs: normalizedConfigs, selectedModels } =
-    buildChannelModelState(modelConfigs);
+    buildChannelModelState(
+      modelConfigs,
+      protocol ?? previousInputs?.protocol,
+    );
   const currentTestModel = (previousInputs.test_model || '').toString().trim();
   const nextTestModel =
     currentTestModel !== '' && selectedModels.includes(currentTestModel)
@@ -684,7 +697,7 @@ const extractChannelModelListItems = (payload) => {
   return [];
 };
 
-const fetchAllChannelModelConfigs = async (channelId) => {
+const fetchAllChannelModelConfigs = async (channelId, protocol) => {
   const normalizedChannelId = (channelId || '').toString().trim();
   if (normalizedChannelId === '') {
     return [];
@@ -707,6 +720,7 @@ const fetchAllChannelModelConfigs = async (channelId) => {
     }
     const pageItems = normalizeChannelModelConfigs(
       extractChannelModelListItems(data),
+      protocol,
     );
     items.push(...pageItems);
     const total = Number(data?.total || pageItems.length || 0);
@@ -719,7 +733,7 @@ const fetchAllChannelModelConfigs = async (channelId) => {
     }
     page += 1;
   }
-  return normalizeChannelModelConfigs(items);
+  return normalizeChannelModelConfigs(items, protocol);
 };
 
 const fetchChannelTests = async (channelId) => {
@@ -832,6 +846,7 @@ const buildChannelModelTestSignature = ({
     channelID,
   })}|${normalizeModelIDs(models).join(',')}|${normalizeChannelModelConfigs(
     modelConfigs,
+    protocol,
   )
     .filter((row) => row.selected)
     .map((row) => `${row.model}:${row.type}:${row.endpoint || ''}`)
@@ -1027,6 +1042,10 @@ function protocol2secretPrompt(protocol, t) {
     default:
       return t('channel.edit.key_prompts.default');
   }
+}
+
+function protocolSelectionHint(t) {
+  return t('channel.edit.protocol_hint');
 }
 
 const resolveProtocolFromChannelPayload = (payload) => {
@@ -1298,8 +1317,9 @@ const EditChannel = () => {
   const detailTestingReadonly = isDetailMode && isAnyDetailSectionEditing;
   const inputReadonlyProps = detailBasicReadonly ? { readOnly: true } : {};
   const visibleModelConfigs = useMemo(
-    () => normalizeChannelModelConfigs(inputs.model_configs),
-    [inputs.model_configs],
+    () =>
+      normalizeChannelModelConfigs(inputs.model_configs, inputs.protocol),
+    [inputs.model_configs, inputs.protocol],
   );
   const detailEditingModelRow = useMemo(() => {
     if (!detailModelsEditing) {
@@ -1338,7 +1358,11 @@ const EditChannel = () => {
   }, [modelTestResults]);
   const modelTestRows = useMemo(() => {
     return visibleModelConfigs.filter((row) => {
-      const endpoint = normalizeChannelModelEndpoint(row.type, row.endpoint);
+      const endpoint = normalizeChannelModelEndpoint(
+        row.type,
+        row.endpoint,
+        inputs.protocol,
+      );
       const resultKey = buildModelTestResultKey(row.model, endpoint);
       if (row.inactive) {
         return false;
@@ -1929,6 +1953,7 @@ const EditChannel = () => {
       const effectiveKey = buildEffectiveKey();
       const derivedModelState = buildChannelModelState(
         baseInputs.model_configs,
+        baseInputs.protocol,
       );
       let localInputs = { ...baseInputs, key: effectiveKey };
       localInputs.id = (localInputs.id || '').toString().trim();
@@ -2054,6 +2079,7 @@ const EditChannel = () => {
       const nextInputs = buildNextInputsWithModelConfigs(
         inputs,
         nextModelConfigs,
+        inputs.protocol,
       );
       const payload = buildChannelPayloadFromState(nextInputs, config);
       setDetailModelMutating(true);
@@ -2201,7 +2227,7 @@ const EditChannel = () => {
       }
       try {
         const remoteConfigs =
-          await fetchAllChannelModelConfigs(targetChannelID);
+          await fetchAllChannelModelConfigs(targetChannelID, inputs.protocol);
         const remoteModels = normalizeModelIDs(
           remoteConfigs
             .filter((row) => row && row.selected === true)
@@ -2336,9 +2362,9 @@ const EditChannel = () => {
   }, [createStep, ensureModelsStepCompleted, goToCreateStep]);
 
   const loadChannelModelConfigsFromServer = useCallback(
-    async (targetChannelId) => {
+    async (targetChannelId, protocol) => {
       try {
-        return await fetchAllChannelModelConfigs(targetChannelId);
+        return await fetchAllChannelModelConfigs(targetChannelId, protocol);
       } catch (error) {
         throw new Error(
           error?.message || t('channel.edit.messages.fetch_models_failed'),
@@ -2376,13 +2402,14 @@ const EditChannel = () => {
         return;
       }
       const [nextModelConfigs, nextTests, nextTasks] = await Promise.all([
-        loadChannelModelConfigsFromServer(normalizedChannelId),
+        loadChannelModelConfigsFromServer(normalizedChannelId, inputs.protocol),
         loadChannelTestsFromServer(normalizedChannelId),
         loadChannelTasksFromServer(normalizedChannelId),
       ]);
       const nextInputs = buildNextInputsWithModelConfigs(
         inputs,
         nextModelConfigs,
+        inputs.protocol,
       );
       const nextSignature = buildChannelModelTestSignature({
         protocol: inputs.protocol,
@@ -2426,7 +2453,10 @@ const EditChannel = () => {
         if (success) {
           const [remoteModelConfigs, channelTestsData, activeTasks] =
             await Promise.all([
-              loadChannelModelConfigsFromServer(data.id || targetId),
+              loadChannelModelConfigsFromServer(
+                data.id || targetId,
+                resolveProtocolFromChannelPayload(data),
+              ),
               forCopy
                 ? Promise.resolve({ items: [], lastTestedAt: 0 })
                 : loadChannelTestsFromServer(data.id || targetId),
@@ -2446,7 +2476,10 @@ const EditChannel = () => {
             parsedConfig = JSON.parse(data.config);
           }
           const normalizedProtocol = resolveProtocolFromChannelPayload(data);
-          const modelState = buildChannelModelState(remoteModelConfigs);
+          const modelState = buildChannelModelState(
+            remoteModelConfigs,
+            normalizedProtocol,
+          );
           const loadedModelTestSignature = buildChannelModelTestSignature({
             protocol: normalizedProtocol,
             key: '',
@@ -2567,6 +2600,7 @@ const EditChannel = () => {
               ? { ...detailEditingModelSnapshot }
               : row,
           ),
+          prev.protocol,
         ),
       );
     }
@@ -2803,6 +2837,7 @@ const EditChannel = () => {
                 ? { ...row, provider: preferredProvider }
                 : row,
             ),
+            prev.protocol,
           ),
         );
       }
@@ -2932,7 +2967,11 @@ const EditChannel = () => {
         .filter((row) => normalizedTargets.includes(row.model))
         .map((row) => ({
           model: row.model,
-          endpoint: normalizeChannelModelEndpoint(row.type, row.endpoint),
+          endpoint: normalizeChannelModelEndpoint(
+            row.type,
+            row.endpoint,
+            inputs.protocol,
+          ),
         }));
       setModelTesting(true);
       setModelTestingScope(scope === 'single' ? 'single' : 'batch');
@@ -3034,14 +3073,20 @@ const EditChannel = () => {
         }
         return {
           ...row,
-          endpoint: normalizeChannelModelEndpoint(row.type, endpoint),
+          endpoint: normalizeChannelModelEndpoint(
+            row.type,
+            endpoint,
+            inputs.protocol,
+          ),
         };
       });
       if (isDetailMode) {
         await persistDetailModelConfigs(nextConfigs);
         return;
       }
-      setInputs((prev) => buildNextInputsWithModelConfigs(prev, nextConfigs));
+      setInputs((prev) =>
+        buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
+      );
     },
     [
       detailTestingReadonly,
@@ -3142,13 +3187,17 @@ const EditChannel = () => {
           detailModelsEditing &&
           detailEditingModelKey === (upstreamModel || '').toString().trim()
         ) {
-          setInputs((prev) => buildNextInputsWithModelConfigs(prev, nextConfigs));
+          setInputs((prev) =>
+            buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
+          );
           return;
         }
         await persistDetailModelConfigs(nextConfigs);
         return;
       }
-      setInputs((prev) => buildNextInputsWithModelConfigs(prev, nextConfigs));
+      setInputs((prev) =>
+        buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
+      );
     },
     [
       canSelectChannelModel,
@@ -3209,6 +3258,7 @@ const EditChannel = () => {
               [field]: value,
             };
           }),
+          prev.protocol,
         ),
       );
     },
@@ -3223,7 +3273,9 @@ const EditChannel = () => {
     if (isDetailMode) {
       return;
     }
-    setInputs((prev) => buildNextInputsWithModelConfigs(prev, nextConfigs));
+    setInputs((prev) =>
+      buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
+    );
   }, [
     canSelectChannelModel,
     isDetailMode,
@@ -3238,7 +3290,9 @@ const EditChannel = () => {
     if (isDetailMode) {
       return;
     }
-    setInputs((prev) => buildNextInputsWithModelConfigs(prev, nextConfigs));
+    setInputs((prev) =>
+      buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
+    );
   }, [isDetailMode, visibleModelConfigs]);
 
   useEffect(() => {
@@ -4266,6 +4320,12 @@ const EditChannel = () => {
                   <Form.Group widths='equal'>
                     <Form.Input
                       className='router-section-input'
+                      label={t('channel.edit.id')}
+                      value={inputs.id || '-'}
+                      readOnly
+                    />
+                    <Form.Input
+                      className='router-section-input'
                       label={t('channel.edit.identifier')}
                       name='name'
                       placeholder={t('channel.edit.identifier_placeholder')}
@@ -4301,6 +4361,19 @@ const EditChannel = () => {
                       )}
                     </Form.Field>
                   </Form.Group>
+                  {!detailBasicReadonly && (
+                    <div
+                      style={{
+                        marginTop: '-6px',
+                        marginBottom: '12px',
+                        color: 'var(--router-text-muted, rgba(0,0,0,0.45))',
+                        fontSize: '12px',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {protocolSelectionHint(t)}
+                    </div>
+                  )}
                   {baseURLField && keyField ? (
                     <Form.Group widths='equal'>
                       {baseURLField}
@@ -4560,6 +4633,19 @@ const EditChannel = () => {
                       )}
                     </Form.Field>
                   </Form.Group>
+                  {!detailBasicReadonly && (
+                    <div
+                      style={{
+                        marginTop: '-6px',
+                        marginBottom: '12px',
+                        color: 'var(--router-text-muted, rgba(0,0,0,0.45))',
+                        fontSize: '12px',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {protocolSelectionHint(t)}
+                    </div>
+                  )}
                   {baseURLField && keyField ? (
                     <Form.Group widths='equal'>
                       {baseURLField}
@@ -5565,6 +5651,7 @@ const EditChannel = () => {
                                 normalizeChannelModelEndpoint(
                                   row.type,
                                   row.endpoint,
+                                  inputs.protocol,
                                 );
                               const item = modelTestResultsByKey.get(
                                 buildModelTestResultKey(
@@ -5632,7 +5719,10 @@ const EditChannel = () => {
                                         }
                                         value={
                                           row.endpoint ||
-                                          defaultChannelModelEndpoint(row.type)
+                                          defaultChannelModelEndpoint(
+                                            row.type,
+                                            inputs.protocol,
+                                          )
                                         }
                                         onChange={(e, { value }) =>
                                           updateModelTestEndpoint(row.model, value)
@@ -5649,7 +5739,10 @@ const EditChannel = () => {
                                         }
                                         value={
                                           row.endpoint ||
-                                          defaultChannelModelEndpoint(row.type)
+                                          defaultChannelModelEndpoint(
+                                            row.type,
+                                            inputs.protocol,
+                                          )
                                         }
                                         onChange={(e, { value }) =>
                                           updateModelTestEndpoint(row.model, value)
@@ -5873,6 +5966,7 @@ const EditChannel = () => {
                               normalizeChannelModelEndpoint(
                                 row.type,
                                 row.endpoint,
+                                inputs.protocol,
                               );
                             const item = modelTestResultsByKey.get(
                               buildModelTestResultKey(
@@ -5931,7 +6025,10 @@ const EditChannel = () => {
                                       disabled={detailModelMutating}
                                       value={
                                         row.endpoint ||
-                                        defaultChannelModelEndpoint(row.type)
+                                        defaultChannelModelEndpoint(
+                                          row.type,
+                                          inputs.protocol,
+                                        )
                                       }
                                       onChange={(e, { value }) =>
                                         updateModelTestEndpoint(row.model, value)
@@ -5945,7 +6042,10 @@ const EditChannel = () => {
                                       disabled={detailModelMutating}
                                       value={
                                         row.endpoint ||
-                                        defaultChannelModelEndpoint(row.type)
+                                        defaultChannelModelEndpoint(
+                                          row.type,
+                                          inputs.protocol,
+                                        )
                                       }
                                       onChange={(e, { value }) =>
                                         updateModelTestEndpoint(row.model, value)

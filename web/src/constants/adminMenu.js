@@ -49,6 +49,11 @@ export const ADMIN_MENU_GROUPS = [
     icon: 'users',
     items: [
       {
+        name: 'header.topup',
+        to: '/admin/topup',
+        icon: 'credit card',
+      },
+      {
         name: 'header.package',
         to: '/admin/package',
         icon: 'gift',

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Header, Label, Pagination, Table } from 'semantic-ui-react';
+import { useNavigate } from 'react-router-dom';
+import { Button, Card, Label, Pagination, Table } from 'semantic-ui-react';
 import { API, timestamp2string, showError } from '../../helpers';
 import {
   formatTopupBusinessType,
@@ -13,6 +14,7 @@ const PAGE_SIZE = 10;
 
 const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { renderDisplayAmount } = useTopUpWorkspace();
   const isRedemptionRecord = recordKey === 'redeem';
   const [orders, setOrders] = useState([]);
@@ -129,21 +131,49 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
     Math.ceil(redemptionTotal / PAGE_SIZE),
   );
 
+  const actionButton = useMemo(() => {
+    switch (recordKey) {
+      case 'package':
+        return {
+          label: t('topup.record_nav.package'),
+          onClick: () => navigate('/workspace/service/pricing'),
+        };
+      case 'redeem':
+        return {
+          label: t('topup.record_nav.redeem'),
+          onClick: () => navigate('/workspace/topup?tab=balance'),
+        };
+      case 'topup':
+      default:
+        return {
+          label: t('topup.record_nav.topup'),
+          onClick: () => navigate('/workspace/topup?tab=balance'),
+        };
+    }
+  }, [navigate, recordKey, t]);
+
   return (
     <Card fluid className='router-soft-card'>
       <Card.Content>
         <Card.Header className='router-card-header'>
           <div className='router-toolbar'>
-            <Header as='h3' className='router-section-title'>
-              {t(`topup.record_nav.${recordKey}`)}
-            </Header>
-            <Button
-              className='router-section-button'
-              onClick={refreshCurrent}
-              loading={loadingOrders || loadingRedemptionRecords}
-            >
-              {t('topup.records.refresh')}
-            </Button>
+            <div className='router-toolbar-start' />
+            <div className='router-toolbar-end'>
+              <Button
+                primary
+                className='router-section-button'
+                onClick={actionButton.onClick}
+              >
+                {actionButton.label}
+              </Button>
+              <Button
+                className='router-section-button'
+                onClick={refreshCurrent}
+                loading={loadingOrders || loadingRedemptionRecords}
+              >
+                {t('topup.records.refresh')}
+              </Button>
+            </div>
           </div>
         </Card.Header>
 

@@ -1930,6 +1930,7 @@ type createTopUpOrderRequest struct {
 	Amount       float64 `json:"amount"`
 	Currency     string  `json:"currency"`
 	Quota        int64   `json:"quota"`
+	PlanID       string  `json:"plan_id"`
 	PackageID    string  `json:"package_id"`
 	ReturnURL    string  `json:"return_url"`
 }
@@ -2046,6 +2047,7 @@ func CreateTopUpOrder(c *gin.Context) {
 		Amount:       req.Amount,
 		Currency:     req.Currency,
 		Quota:        req.Quota,
+		PlanID:       req.PlanID,
 		PackageID:    req.PackageID,
 		ReturnURL:    req.ReturnURL,
 	})

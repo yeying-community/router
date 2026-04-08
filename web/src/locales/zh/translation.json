@@ -81,7 +81,32 @@
       "amount_invalid": "请输入大于 0 的充值金额",
       "request_failed": "创建充值订单失败",
       "popup_blocked": "浏览器拦截了新窗口，请允许弹窗后重试",
-      "no_link": "超级管理员未设置充值链接！"
+      "no_link": "超级管理员未设置充值链接！",
+      "plan_hint": "请选择固定充值档位进行下单。",
+      "pay_label": "支付 {{amount}}",
+      "credited_label": "到账额度"
+    },
+    "manage": {
+      "title": "充值档位",
+      "create_title": "新增充值档位",
+      "edit_title": "编辑充值档位",
+      "delete_title": "删除充值档位",
+      "delete_confirm": "确认删除充值档位“{{name}}”？",
+      "group_placeholder": "请选择分组",
+      "load_failed": "加载充值档位失败",
+      "create_failed": "创建充值档位失败",
+      "create_success": "充值档位创建成功",
+      "save_failed": "保存充值档位失败",
+      "save_success": "充值档位已保存",
+      "delete_failed": "删除充值档位失败",
+      "delete_success": "充值档位已删除",
+      "columns": {
+        "name": "名称",
+        "group": "分组",
+        "pay_amount": "支付金额",
+        "credited_amount": "到账额度",
+        "enabled": "状态"
+      }
     },
     "pricing": {
       "title": "报价",
@@ -374,9 +399,11 @@
       "title_detail": "渠道详情",
       "title_edit": "更新渠道信息",
       "title_create": "创建新的渠道",
+      "id": "渠道ID",
       "identifier": "渠道标识",
       "identifier_placeholder": "例如：openai-main",
       "type": "协议类型",
+      "protocol_hint": "按上游接口规范选择协议，不要按模型名选择。Bearer + /v1/responses 或 /v1/chat/completions 通常选 OpenAI；x-api-key + /v1/messages 通常选 Anthropic。",
       "name": "渠道标识",
       "name_placeholder": "例如：openai-main",
       "group": "分组",
@@ -872,11 +899,16 @@
   "common": {
     "loading": "加载中...",
     "no_data": "暂无数据",
+    "add": "新增",
     "download": "下载",
     "basic_info": "基础信息",
     "cancel": "取消",
     "confirm": "确认",
     "edit": "编辑",
+    "refresh": "刷新",
+    "enabled": "启用",
+    "disabled": "停用",
+    "operation": "操作",
     "save": "保存",
     "unlimited": "不限额",
     "quota": {

@@ -19,6 +19,14 @@ import (
 	"github.com/yeying-community/router/internal/relay/model"
 )
 
+const anthropicScannerMaxTokenSize = 8 * 1024 * 1024
+
+func newAnthropicStreamScanner(body io.Reader) *bufio.Scanner {
+	scanner := bufio.NewScanner(body)
+	scanner.Buffer(make([]byte, 0, 64*1024), anthropicScannerMaxTokenSize)
+	return scanner
+}
+
 func stopReasonClaude2OpenAI(reason *string) string {
 	if reason == nil {
 		return ""
@@ -306,9 +314,107 @@ func ResponseClaude2OpenAI(claudeResponse *Response) *openai.TextResponse {
 	return &fullTextResponse
 }
 
+func copyResponseHeaders(target *gin.Context, source http.Header) {
+	for key, values := range source {
+		if len(values) == 0 {
+			continue
+		}
+		if strings.EqualFold(key, "Content-Length") {
+			continue
+		}
+		for _, value := range values {
+			target.Writer.Header().Add(key, value)
+		}
+	}
+}
+
+func relayMessagesResponse(c *gin.Context, resp *http.Response) (*model.Usage, *model.ErrorWithStatusCode) {
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return nil, openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
+	}
+
+	copyResponseHeaders(c, resp.Header)
+	c.Writer.WriteHeader(resp.StatusCode)
+	if _, err := c.Writer.Write(responseBody); err != nil {
+		return nil, openai.ErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError)
+	}
+
+	var claudeResponse Response
+	if err := json.Unmarshal(responseBody, &claudeResponse); err != nil {
+		return nil, openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError)
+	}
+	usage := &model.Usage{
+		PromptTokens:     claudeResponse.Usage.InputTokens,
+		CompletionTokens: claudeResponse.Usage.OutputTokens,
+		TotalTokens:      claudeResponse.Usage.InputTokens + claudeResponse.Usage.OutputTokens,
+	}
+	return usage, nil
+}
+
+func relayMessagesStreamResponse(c *gin.Context, resp *http.Response) (*model.Usage, *model.ErrorWithStatusCode) {
+	copyResponseHeaders(c, resp.Header)
+	c.Writer.WriteHeader(resp.StatusCode)
+
+	scanner := newAnthropicStreamScanner(resp.Body)
+	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
+		}
+		if i := strings.IndexByte(string(data), '\n'); i >= 0 {
+			return i + 1, data[:i], nil
+		}
+		if atEOF {
+			return len(data), data, nil
+		}
+		return 0, nil, nil
+	})
+
+	usage := &model.Usage{}
+	for scanner.Scan() {
+		line := scanner.Text()
+		if _, err := c.Writer.Write([]byte(line + "\n")); err != nil {
+			return nil, openai.ErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError)
+		}
+		c.Writer.Flush()
+
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "" || data == "[DONE]" {
+			continue
+		}
+
+		var claudeResponse StreamResponse
+		if err := json.Unmarshal([]byte(data), &claudeResponse); err != nil {
+			continue
+		}
+		if claudeResponse.Message != nil {
+			usage.PromptTokens += claudeResponse.Message.Usage.InputTokens
+			usage.CompletionTokens += claudeResponse.Message.Usage.OutputTokens
+		}
+		if claudeResponse.Usage != nil {
+			usage.PromptTokens += claudeResponse.Usage.InputTokens
+			usage.CompletionTokens += claudeResponse.Usage.OutputTokens
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return nil, openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
+	}
+	usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	return usage, nil
+}
+
 func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
 	createdTime := helper.GetTimestamp()
-	scanner := bufio.NewScanner(resp.Body)
+	scanner := newAnthropicStreamScanner(resp.Body)
 	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		if atEOF && len(data) == 0 {
 			return 0, nil, nil

@@ -218,7 +218,7 @@ func inferUpstreamModelCardType(item openAIModelCard) string {
 	return fallback
 }
 
-func fetchChannelModelsDetailed(key, baseURL, providerFilter string) ([]model.ChannelModel, channelModelFetchTrace, error) {
+func fetchChannelModelsDetailed(protocol, key, baseURL, providerFilter string) ([]model.ChannelModel, channelModelFetchTrace, error) {
 	trace := channelModelFetchTrace{}
 	trimmedKey := strings.TrimSpace(key)
 	if trimmedKey == "" {
@@ -235,7 +235,13 @@ func fetchChannelModelsDetailed(key, baseURL, providerFilter string) ([]model.Ch
 	if err != nil {
 		return nil, trace, fmt.Errorf("创建请求失败")
 	}
-	httpReq.Header.Set("Authorization", "Bearer "+trimmedKey)
+	switch relaychannel.NormalizeProtocolName(protocol) {
+	case "anthropic":
+		httpReq.Header.Set("x-api-key", trimmedKey)
+		httpReq.Header.Set("anthropic-version", "2023-06-01")
+	default:
+		httpReq.Header.Set("Authorization", "Bearer "+trimmedKey)
+	}
 	trace.RequestPayload = buildHTTPRequestPayloadForLog(httpReq.Method, modelsURL, httpReq.Header, nil)
 
 	resp, err := client.HTTPClient.Do(httpReq)
