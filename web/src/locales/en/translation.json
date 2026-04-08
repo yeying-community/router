@@ -1992,6 +1992,7 @@
       "other_methods": "Other login methods",
       "wallet_title": "Wallet Login",
       "wallet_button": "Sign in with wallet",
+      "password_button": "Sign in with password",
       "wallet_disabled": "Wallet login is disabled",
       "wechat": {
         "scan_tip": "Scan QR code to follow WeChat Official Account, enter 'code' to get verification code (valid for 3 minutes)",

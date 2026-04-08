@@ -172,7 +172,7 @@ const LoginForm = () => {
                     setShowPasswordLogin((previousState) => !previousState)
                   }
                 >
-                  使用账密登陆
+                  {t('auth.login.password_button', '使用账密登录')}
                 </Button>
               )}
 

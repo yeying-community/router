@@ -1988,6 +1988,7 @@
       "other_methods": "使用其他方式登录",
       "wallet_title": "钱包登录",
       "wallet_button": "使用钱包登录",
+      "password_button": "使用账密登录",
       "wallet_disabled": "钱包登录未开启",
       "wechat": {
         "scan_tip": "微信扫码关注公众号，输入「验证码」获取验证码（三分钟内有效）",
