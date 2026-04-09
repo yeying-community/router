@@ -8,7 +8,6 @@ const PackagePurchasePage = () => {
   const { t } = useTranslation();
   const { renderDisplayAmount, createTopupOrder } = useTopUpWorkspace();
   const [packages, setPackages] = useState([]);
-  const [selectedPackageId, setSelectedPackageId] = useState('');
   const [loading, setLoading] = useState(false);
   const [creatingPackageId, setCreatingPackageId] = useState('');
 
@@ -24,12 +23,6 @@ const PackagePurchasePage = () => {
         }
         const rows = Array.isArray(data) ? data : [];
         setPackages(rows);
-        setSelectedPackageId((current) => {
-          if (current && rows.some((item) => item?.id === current)) {
-            return current;
-          }
-          return rows[0]?.id || '';
-        });
       } catch (error) {
         showError(error?.message || t('topup.external_topup.request_failed'));
       } finally {
@@ -40,7 +33,7 @@ const PackagePurchasePage = () => {
   }, [t]);
 
   const handlePurchase = async (packageId = '') => {
-    const packageID = (packageId || selectedPackageId || '').trim();
+    const packageID = (packageId || '').trim();
     if (!packageID) {
       showInfo(t('topup.external_topup.package_select_required'));
       return;
@@ -85,23 +78,19 @@ const PackagePurchasePage = () => {
                   }}
                 >
                   {packages.map((item) => {
-                    const selected = item?.id === selectedPackageId;
                     return (
                       <div
                         key={item?.id || '-'}
-                        onClick={() => setSelectedPackageId(item?.id || '')}
                         style={{
                           flex: '0 0 320px',
                           minWidth: '320px',
-                          border: selected ? '1px solid #2563eb' : '1px solid #e5e7eb',
+                          border: '1px solid #e5e7eb',
                           borderRadius: '16px',
                           padding: '1rem 1rem 0.95rem',
-                          cursor: 'pointer',
-                          background: selected ? '#eff6ff' : '#fff',
+                          cursor: 'default',
+                          background: '#fff',
                           textAlign: 'left',
-                          boxShadow: selected
-                            ? '0 12px 30px rgba(37, 99, 235, 0.12)'
-                            : '0 8px 24px rgba(15, 23, 42, 0.06)',
+                          boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)',
                           display: 'grid',
                           gap: '0.85rem',
                           scrollSnapAlign: 'start',
@@ -132,28 +121,13 @@ const PackagePurchasePage = () => {
                               {item?.description || '-'}
                             </div>
                           </div>
-                          <div
-                            style={{
-                              fontSize: '0.8rem',
-                              lineHeight: 1,
-                              padding: '0.38rem 0.55rem',
-                              borderRadius: '999px',
-                              background: selected ? '#2563eb' : '#f3f4f6',
-                              color: selected ? '#fff' : '#4b5563',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {selected
-                              ? t('topup.pricing.selected')
-                              : t('topup.pricing.select')}
-                          </div>
                         </div>
 
                         <div
                           style={{
                             fontSize: '1.5rem',
                             fontWeight: 700,
-                            color: selected ? '#1d4ed8' : '#111827',
+                            color: '#111827',
                           }}
                         >
                           {`${item?.sale_currency || 'CNY'} ${Number(item?.sale_price ?? 0).toFixed(2)}`}
@@ -169,7 +143,7 @@ const PackagePurchasePage = () => {
                           <div
                             style={{
                               borderRadius: '12px',
-                              background: selected ? 'rgba(255,255,255,0.72)' : '#f8fafc',
+                              background: '#f8fafc',
                               padding: '0.75rem 0.8rem',
                             }}
                           >
@@ -189,7 +163,7 @@ const PackagePurchasePage = () => {
                           <div
                             style={{
                               borderRadius: '12px',
-                              background: selected ? 'rgba(255,255,255,0.72)' : '#f8fafc',
+                              background: '#f8fafc',
                               padding: '0.75rem 0.8rem',
                             }}
                           >
@@ -209,7 +183,7 @@ const PackagePurchasePage = () => {
                           <div
                             style={{
                               borderRadius: '12px',
-                              background: selected ? 'rgba(255,255,255,0.72)' : '#f8fafc',
+                              background: '#f8fafc',
                               padding: '0.75rem 0.8rem',
                             }}
                           >

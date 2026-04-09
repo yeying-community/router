@@ -99,12 +99,12 @@ export const buildUserWorkspaceMenuItems = ({ includeChat = false } = {}) => {
           to: '/workspace/topup?tab=records&record=redeem',
           icon: 'ticket alternate',
         },
+        {
+          name: 'header.log',
+          to: '/workspace/log',
+          icon: 'book',
+        },
       ],
-    },
-    {
-      name: 'header.log',
-      to: '/workspace/log',
-      icon: 'book',
     },
     {
       name: 'header.task',
