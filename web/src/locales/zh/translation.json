@@ -142,9 +142,16 @@
         "status": "状态",
         "amount": "金额",
         "detail": "明细",
+        "package_name": "套餐名称",
         "action": "操作",
         "order_id": "订单号",
         "transaction_id": "交易号"
+      },
+      "detail_title": "购买记录详情",
+      "fields": {
+        "title": "订单标题",
+        "provider_order_id": "渠道单号",
+        "status_message": "状态说明"
       },
       "status": {
         "created": "待支付",

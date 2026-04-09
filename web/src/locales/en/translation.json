@@ -142,9 +142,16 @@
         "status": "Status",
         "amount": "Amount",
         "detail": "Detail",
+        "package_name": "Package Name",
         "action": "Action",
         "order_id": "Order ID",
         "transaction_id": "Transaction ID"
+      },
+      "detail_title": "Purchase Record Detail",
+      "fields": {
+        "title": "Order Title",
+        "provider_order_id": "Provider Order ID",
+        "status_message": "Status Message"
       },
       "status": {
         "created": "Awaiting Payment",
