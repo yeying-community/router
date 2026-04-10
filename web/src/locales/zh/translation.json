@@ -235,7 +235,7 @@
       "placeholder": "请输入兑换码",
       "paste": "粘贴",
       "paste_error": "无法访问剪贴板，请手动粘贴",
-      "submit": "立即兑换",
+      "submit": "兑换",
       "submitting": "兑换中...",
       "empty_code": "请输入兑换码！",
       "success": "充值成功！",

@@ -235,7 +235,7 @@
       "placeholder": "Please enter redemption code",
       "paste": "Paste",
       "paste_error": "Cannot access clipboard, please paste manually",
-      "submit": "Redeem Now",
+      "submit": "Redeem",
       "submitting": "Redeeming...",
       "empty_code": "Please enter the redemption code!",
       "success": "Top up successful!",

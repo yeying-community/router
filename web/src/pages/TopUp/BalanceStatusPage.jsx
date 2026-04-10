@@ -23,25 +23,6 @@ const BalanceStatusPage = () => {
     <div style={{ display: 'grid', gap: '1rem' }}>
       <Card fluid className='router-soft-card router-soft-card-fill'>
         <Card.Content className='router-card-fill'>
-          <Card.Header className='router-card-header'>
-            <div className='router-toolbar'>
-              <div className='router-toolbar-start'>
-                <div className='router-section-title router-title-accent-primary'>
-                  {t('topup.mine.balance')}
-                </div>
-              </div>
-              <div className='router-toolbar-end'>
-                <Button
-                  primary
-                  size='small'
-                  className='router-section-button'
-                  onClick={() => navigate('/workspace/service/pricing')}
-                >
-                  {t('topup.record_nav.topup')}
-                </Button>
-              </div>
-            </div>
-          </Card.Header>
           <Card.Description className='router-card-fill'>
             <div className='router-card-body-spread'>
               <div
@@ -94,6 +75,16 @@ const BalanceStatusPage = () => {
                     </Statistic.Label>
                   </Statistic>
                 </div>
+              </div>
+              <div className='router-action-footer'>
+                <Button
+                  primary
+                  fluid
+                  className='router-section-button'
+                  onClick={() => navigate('/workspace/service/pricing')}
+                >
+                  {t('topup.record_nav.topup')}
+                </Button>
               </div>
             </div>
           </Card.Description>

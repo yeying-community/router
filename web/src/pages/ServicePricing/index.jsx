@@ -19,7 +19,10 @@ const ServicePricing = () => {
                 gap: '1rem',
               }}
             >
-              <div className='router-section-title router-title-accent-positive'>
+              <div
+                className='router-section-title'
+                style={{ color: '#111827', fontWeight: 700 }}
+              >
                 {t('topup.pricing.page_title')}
               </div>
               <div className='router-text-muted'>
