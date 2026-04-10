@@ -176,6 +176,9 @@
         "transaction_id": "Transaction ID"
       },
       "detail_title": "Purchase Record Detail",
+      "detail_title_topup": "Top-up Detail",
+      "detail_title_package": "Purchase Detail",
+      "detail_path": "Detail",
       "fields": {
         "title": "Order Title",
         "provider_order_id": "Provider Order ID",

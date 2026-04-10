@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Button,
   Card,
   Label,
-  Modal,
   Pagination,
   Popup,
   Table,
@@ -24,6 +23,7 @@ const PAGE_SIZE = 10;
 const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { renderDisplayAmount } = useTopUpWorkspace();
   const isRedemptionRecord = recordKey === 'redeem';
   const isPackageRecord = recordKey === 'package';
@@ -32,9 +32,6 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
   const [ordersTotal, setOrdersTotal] = useState(0);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [refreshingOrderID, setRefreshingOrderID] = useState('');
-  const [orderDetailOpen, setOrderDetailOpen] = useState(false);
-  const [orderDetailLoading, setOrderDetailLoading] = useState(false);
-  const [activeOrderDetail, setActiveOrderDetail] = useState(null);
   const [redemptionRecords, setRedemptionRecords] = useState([]);
   const [redemptionPage, setRedemptionPage] = useState(1);
   const [redemptionTotal, setRedemptionTotal] = useState(0);
@@ -166,12 +163,6 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
             item.id === normalizedOrderID ? { ...item, ...data } : item,
           ),
         );
-        setActiveOrderDetail((previous) => {
-          if (!previous || previous.id !== normalizedOrderID) {
-            return previous;
-          }
-          return { ...previous, ...(data || {}) };
-        });
         return data || null;
       } catch (error) {
         showError(error?.message || t('topup.external_topup.request_failed'));
@@ -239,12 +230,6 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
             item.id === normalizedOrderID ? { ...item, ...(data || {}) } : item,
           ),
         );
-        setActiveOrderDetail((previous) => {
-          if (!previous || previous.id !== normalizedOrderID) {
-            return previous;
-          }
-          return { ...previous, ...(data || {}) };
-        });
         showSuccess(t('topup.records.order_canceled'));
       } catch (error) {
         showError(error?.message || t('topup.external_topup.request_failed'));
@@ -255,32 +240,21 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
     [t],
   );
 
-  const openOrderDetail = useCallback(
-    async (order) => {
+  const openOrderDetailPage = useCallback(
+    (order) => {
       const normalizedOrderID = (order?.id || '').trim();
       if (!normalizedOrderID) {
         return;
       }
-      setOrderDetailOpen(true);
-      setActiveOrderDetail(order || null);
-      setOrderDetailLoading(true);
-      try {
-        const res = await API.get(
-          `/api/v1/public/user/topup/orders/${normalizedOrderID}`,
-        );
-        const { success, message, data } = res?.data || {};
-        if (!success) {
-          showError(message || t('topup.external_topup.request_failed'));
-          return;
-        }
-        setActiveOrderDetail(data || order || null);
-      } catch (error) {
-        showError(error?.message || t('topup.external_topup.request_failed'));
-      } finally {
-        setOrderDetailLoading(false);
-      }
+      const currentPagePath = `${location.pathname}${location.search}${location.hash}`;
+      navigate(`/workspace/topup/orders/${encodeURIComponent(normalizedOrderID)}`, {
+        state: {
+          from: currentPagePath,
+          recordKey: isPackageRecord ? 'package' : 'topup',
+        },
+      });
     },
-    [t],
+    [isPackageRecord, location.hash, location.pathname, location.search, navigate],
   );
 
   const actionButton = useMemo(() => {
@@ -429,10 +403,8 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
                   orders.map((order) => (
                     <Table.Row
                       key={order.id}
-                      onClick={
-                        isPackageRecord ? () => openOrderDetail(order) : undefined
-                      }
-                      style={isPackageRecord ? { cursor: 'pointer' } : undefined}
+                      onClick={() => openOrderDetailPage(order)}
+                      style={{ cursor: 'pointer' }}
                     >
                       <Table.Cell>
                         {order.created_at ? timestamp2string(order.created_at) : '-'}
@@ -544,160 +516,6 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
                   }}
                 />
               </div>
-            ) : null}
-            {isPackageRecord ? (
-              <Modal
-                open={orderDetailOpen}
-                onClose={() => {
-                  setOrderDetailOpen(false);
-                  setActiveOrderDetail(null);
-                  setOrderDetailLoading(false);
-                }}
-                size='small'
-              >
-                <Modal.Header>
-                  {t('topup.external_topup_orders.detail_title')}
-                </Modal.Header>
-                <Modal.Content>
-                  <Table basic='very' compact='very'>
-                    <Table.Body>
-                      <Table.Row>
-                        <Table.Cell width={5}>
-                          {t('topup.external_topup_orders.columns.order_id')}
-                        </Table.Cell>
-                        <Table.Cell>{activeOrderDetail?.id || '-'}</Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell width={5}>
-                          {t('topup.external_topup_orders.columns.package_name')}
-                        </Table.Cell>
-                        <Table.Cell>{activeOrderDetail?.package_name || '-'}</Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell width={5}>
-                          {t('topup.external_topup_orders.columns.status')}
-                        </Table.Cell>
-                        <Table.Cell>
-                          {activeOrderDetail ? renderTopupOrderStatus(activeOrderDetail?.status, t) : '-'}
-                        </Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell width={5}>
-                          {t('topup.external_topup_orders.fields.status_message')}
-                        </Table.Cell>
-                        <Table.Cell>{activeOrderDetail?.status_message || '-'}</Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell width={5}>
-                          {t('topup.external_topup_orders.columns.amount')}
-                        </Table.Cell>
-                        <Table.Cell>
-                          {activeOrderDetail?.amount > 0
-                            ? `${activeOrderDetail?.currency || 'CNY'} ${Number(activeOrderDetail?.amount || 0).toFixed(2)}`
-                            : activeOrderDetail?.quota > 0
-                              ? renderDisplayAmount(activeOrderDetail?.quota)
-                              : '-'}
-                        </Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell width={5}>
-                          {t('topup.external_topup_orders.fields.title')}
-                        </Table.Cell>
-                        <Table.Cell>{activeOrderDetail?.title || '-'}</Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell width={5}>
-                          {t('topup.external_topup_orders.columns.transaction_id')}
-                        </Table.Cell>
-                        <Table.Cell>{activeOrderDetail?.transaction_id || '-'}</Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell width={5}>
-                          {t('topup.external_topup_orders.fields.provider_order_id')}
-                        </Table.Cell>
-                        <Table.Cell>{activeOrderDetail?.provider_order_id || '-'}</Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell width={5}>
-                          {t('topup.external_topup_orders.columns.time')}
-                        </Table.Cell>
-                        <Table.Cell>
-                          {activeOrderDetail?.created_at
-                            ? timestamp2string(activeOrderDetail?.created_at)
-                            : '-'}
-                        </Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell width={5}>
-                          {t('topup.external_topup_orders.fields.updated_at')}
-                        </Table.Cell>
-                        <Table.Cell>
-                          {activeOrderDetail?.updated_at
-                            ? timestamp2string(activeOrderDetail?.updated_at)
-                            : '-'}
-                        </Table.Cell>
-                      </Table.Row>
-                    </Table.Body>
-                  </Table>
-                </Modal.Content>
-                <Modal.Actions>
-                  <Button
-                    className='router-section-button'
-                    onClick={() => {
-                      if ((activeOrderDetail?.id || '').trim() === '') {
-                        return;
-                      }
-                      manualRefreshOrder(activeOrderDetail?.id);
-                    }}
-                    loading={(activeOrderDetail?.id || '') !== '' && refreshingOrderID === activeOrderDetail?.id}
-                    disabled={(activeOrderDetail?.id || '') === ''}
-                  >
-                    {t('topup.records.refresh_status')}
-                  </Button>
-                  {['created', 'pending'].includes(activeOrderDetail?.status) ? (
-                    <>
-                      <Button
-                        primary
-                        className='router-section-button'
-                        onClick={() => {
-                          if (!activeOrderDetail) {
-                            return;
-                          }
-                          continuePay(activeOrderDetail);
-                        }}
-                        loading={(activeOrderDetail?.id || '') !== '' && refreshingOrderID === activeOrderDetail?.id}
-                        disabled={!activeOrderDetail}
-                      >
-                        {t('topup.records.continue_pay')}
-                      </Button>
-                      <Button
-                        className='router-section-button'
-                        onClick={() => {
-                          if ((activeOrderDetail?.id || '').trim() === '') {
-                            return;
-                          }
-                          cancelPay(activeOrderDetail?.id);
-                        }}
-                        loading={(activeOrderDetail?.id || '') !== '' && refreshingOrderID === activeOrderDetail?.id}
-                        disabled={(activeOrderDetail?.id || '') === ''}
-                      >
-                        {t('topup.records.cancel_pay')}
-                      </Button>
-                    </>
-                  ) : null}
-                  <Button
-                    className='router-section-button'
-                    onClick={() => {
-                      setOrderDetailOpen(false);
-                      setActiveOrderDetail(null);
-                      setOrderDetailLoading(false);
-                    }}
-                    loading={orderDetailLoading}
-                  >
-                    {t('common.cancel')}
-                  </Button>
-                </Modal.Actions>
-              </Modal>
             ) : null}
           </>
         )}

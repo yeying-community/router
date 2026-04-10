@@ -29,6 +29,7 @@ import Redemption from './pages/Redemption';
 import EditRedemption from './pages/Redemption/EditRedemption';
 import RedemptionDetail from './pages/Redemption/RedemptionDetail';
 import TopUp from './pages/TopUp';
+import TopUpOrderDetail from './pages/TopUp/TopUpOrderDetail';
 import Log from './pages/Log';
 import LogDetail from './pages/Log/Detail';
 import Chat from './pages/Chat';
@@ -352,6 +353,14 @@ function App() {
           element={
             <Suspense fallback={<Loading />}>
               <TopUpTabRedirect />
+            </Suspense>
+          }
+        />
+        <Route
+          path='/workspace/topup/orders/:id'
+          element={
+            <Suspense fallback={<Loading />}>
+              <TopUpOrderDetail />
             </Suspense>
           }
         />

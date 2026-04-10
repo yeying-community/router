@@ -176,6 +176,9 @@
         "transaction_id": "交易号"
       },
       "detail_title": "购买记录详情",
+      "detail_title_topup": "充值详情",
+      "detail_title_package": "购买详情",
+      "detail_path": "详情",
       "fields": {
         "title": "订单标题",
         "provider_order_id": "渠道单号",
