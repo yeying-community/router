@@ -149,6 +149,11 @@
     },
     "package_status": {
       "view_pricing": "View Pricing",
+      "no_active_package": "There is no active package",
+      "no_upgrade_target": "No upgrade target package is available",
+      "select_upgrade_target": "Select Upgrade Package",
+      "select_upgrade_target_hint": "Choose a target package and continue to payment.",
+      "upgrade_now": "Confirm Upgrade and Pay",
       "empty_description": "There is no active package right now. You can buy a package from the pricing page or top up balance to try the service first.",
       "daily_title": "Today's Package Quota",
       "emergency_title": "Monthly Emergency Quota",

@@ -1,8 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Header, Label, Statistic } from 'semantic-ui-react';
-import { API, showError, timestamp2string } from '../../helpers';
+import {
+  Button,
+  Card,
+  Dropdown,
+  Header,
+  Label,
+  Modal,
+  Statistic,
+} from 'semantic-ui-react';
+import { API, showError, showInfo, timestamp2string } from '../../helpers';
 import {
   renderTopupIntegerAmountWithExactPopup,
   useTopUpWorkspace,
@@ -190,11 +198,22 @@ const PackageUsageCard = ({ title, period, timezone, items, footer }) => (
 const CurrentPackagePage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { displayCurrency, displayCurrencyIndex } = useTopUpWorkspace();
+  const {
+    displayCurrency,
+    displayCurrencyIndex,
+    previewPackagePurchase,
+    createTopupOrder,
+  } = useTopUpWorkspace();
   const [loading, setLoading] = useState(false);
   const [activePackage, setActivePackage] = useState(createEmptyActivePackage());
   const [dailySnapshot, setDailySnapshot] = useState(createEmptyDailySnapshot());
   const [quotaSummary, setQuotaSummary] = useState(createEmptyQuotaSummary());
+  const [renewing, setRenewing] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [loadingUpgradeTargets, setLoadingUpgradeTargets] = useState(false);
+  const [upgradeTargets, setUpgradeTargets] = useState([]);
+  const [selectedUpgradePackageId, setSelectedUpgradePackageId] = useState('');
+  const [submittingUpgrade, setSubmittingUpgrade] = useState(false);
 
   const renderIntegerAmount = useCallback(
     (yycAmount) =>
@@ -399,6 +418,136 @@ const CurrentPackagePage = () => {
     [navigate],
   );
 
+  const quickPurchasePackage = useCallback(
+    async (packageID, requestedOperationType = '') => {
+      const normalizedPackageID = (packageID || '').toString().trim();
+      if (normalizedPackageID === '') {
+        showInfo(t('topup.external_topup.package_select_required'));
+        return false;
+      }
+      const preview = await previewPackagePurchase({
+        package_id: normalizedPackageID,
+        operation_type: (requestedOperationType || '').toString().trim(),
+      });
+      if (!preview) {
+        return false;
+      }
+      const operationType = String(
+        preview?.operation_type || requestedOperationType || '',
+      ).trim();
+      return createTopupOrder({
+        business_type: 'package_purchase',
+        operation_type: operationType,
+        package_id: normalizedPackageID,
+        return_url: window.location.href,
+      });
+    },
+    [createTopupOrder, previewPackagePurchase, t],
+  );
+
+  const handleRenew = useCallback(async () => {
+    const packageID = (activeSubscription?.package_id || '').toString().trim();
+    if (packageID === '') {
+      showInfo(t('topup.package_status.no_active_package'));
+      return;
+    }
+    setRenewing(true);
+    try {
+      await quickPurchasePackage(packageID, 'renew');
+    } finally {
+      setRenewing(false);
+    }
+  }, [activeSubscription?.package_id, quickPurchasePackage, t]);
+
+  const buildUpgradeOptionText = useCallback((item) => {
+    const name = String(item?.name || item?.package_name || item?.id || '-').trim();
+    const price = Number(item?.sale_price ?? 0);
+    const currency = String(item?.sale_currency || 'USD').toUpperCase();
+    if (!Number.isFinite(price) || price <= 0) {
+      return name;
+    }
+    return `${name} (${currency} ${price.toFixed(2)})`;
+  }, []);
+
+  const loadUpgradeTargets = useCallback(async () => {
+    const currentPackageID = (activeSubscription?.package_id || '').toString().trim();
+    if (currentPackageID === '') {
+      showInfo(t('topup.package_status.no_active_package'));
+      return [];
+    }
+    setLoadingUpgradeTargets(true);
+    try {
+      const res = await API.get('/api/v1/public/user/packages');
+      const { success, message, data } = res?.data || {};
+      if (!success) {
+        throw new Error(message || t('topup.external_topup.request_failed'));
+      }
+      const rows = Array.isArray(data) ? data : [];
+      const candidates = rows.filter((row) => {
+        const rowID = String(row?.id || '').trim();
+        if (rowID === '' || rowID === currentPackageID) {
+          return false;
+        }
+        const status = Number(row?.status ?? 1);
+        return !Number.isFinite(status) || status === 1;
+      });
+      return candidates;
+    } catch (error) {
+      showError(error?.message || t('topup.external_topup.request_failed'));
+      return [];
+    } finally {
+      setLoadingUpgradeTargets(false);
+    }
+  }, [activeSubscription?.package_id, t]);
+
+  const handleUpgrade = useCallback(async () => {
+    const candidates = await loadUpgradeTargets();
+    if (candidates.length === 0) {
+      showInfo(t('topup.package_status.no_upgrade_target'));
+      return;
+    }
+    if (candidates.length === 1) {
+      setSubmittingUpgrade(true);
+      try {
+        await quickPurchasePackage(candidates[0]?.id, 'upgrade');
+      } finally {
+        setSubmittingUpgrade(false);
+      }
+      return;
+    }
+    const defaultTargetID = String(candidates[0]?.id || '').trim();
+    setUpgradeTargets(candidates);
+    setSelectedUpgradePackageId(defaultTargetID);
+    setUpgradeModalOpen(true);
+  }, [loadUpgradeTargets, quickPurchasePackage, t]);
+
+  const handleConfirmUpgrade = useCallback(async () => {
+    const targetPackageID = (selectedUpgradePackageId || '').trim();
+    if (targetPackageID === '') {
+      showInfo(t('topup.external_topup.package_select_required'));
+      return;
+    }
+    setSubmittingUpgrade(true);
+    try {
+      const created = await quickPurchasePackage(targetPackageID, 'upgrade');
+      if (created) {
+        setUpgradeModalOpen(false);
+      }
+    } finally {
+      setSubmittingUpgrade(false);
+    }
+  }, [quickPurchasePackage, selectedUpgradePackageId, t]);
+
+  const upgradeOptions = useMemo(
+    () =>
+      (upgradeTargets || []).map((item) => ({
+        key: String(item?.id || ''),
+        value: String(item?.id || ''),
+        text: buildUpgradeOptionText(item),
+      })),
+    [buildUpgradeOptionText, upgradeTargets],
+  );
+
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
       <Card fluid className='router-soft-card'>
@@ -418,8 +567,9 @@ const CurrentPackagePage = () => {
                 <Button
                   className='router-section-button'
                   basic
-                  disabled={!activeSubscription}
-                  onClick={() => goPricing('renew')}
+                  disabled={!activeSubscription || loadingUpgradeTargets}
+                  loading={renewing}
+                  onClick={handleRenew}
                 >
                   {t('topup.external_topup.package_operation.renew')}
                 </Button>
@@ -427,7 +577,8 @@ const CurrentPackagePage = () => {
                   className='router-section-button'
                   basic
                   disabled={!activeSubscription}
-                  onClick={() => goPricing('upgrade')}
+                  loading={loadingUpgradeTargets || submittingUpgrade}
+                  onClick={handleUpgrade}
                 >
                   {t('topup.external_topup.package_operation.upgrade')}
                 </Button>
@@ -512,6 +663,54 @@ const CurrentPackagePage = () => {
           />
         </>
       ) : null}
+
+      <Modal
+        size='small'
+        open={upgradeModalOpen}
+        onClose={() => {
+          if (submittingUpgrade) {
+            return;
+          }
+          setUpgradeModalOpen(false);
+        }}
+      >
+        <Modal.Header>{t('topup.package_status.select_upgrade_target')}</Modal.Header>
+        <Modal.Content>
+          <div style={{ display: 'grid', gap: '0.8rem' }}>
+            <div className='router-text-muted'>
+              {t('topup.package_status.select_upgrade_target_hint')}
+            </div>
+            <Dropdown
+              className='router-page-dropdown'
+              fluid
+              selection
+              options={upgradeOptions}
+              value={selectedUpgradePackageId}
+              onChange={(_, data) =>
+                setSelectedUpgradePackageId(String(data?.value || ''))
+              }
+            />
+          </div>
+        </Modal.Content>
+        <Modal.Actions>
+          <Button
+            className='router-section-button'
+            onClick={() => setUpgradeModalOpen(false)}
+            disabled={submittingUpgrade}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            primary
+            className='router-section-button'
+            loading={submittingUpgrade}
+            disabled={submittingUpgrade || selectedUpgradePackageId === ''}
+            onClick={handleConfirmUpgrade}
+          >
+            {t('topup.package_status.upgrade_now')}
+          </Button>
+        </Modal.Actions>
+      </Modal>
     </div>
   );
 };
