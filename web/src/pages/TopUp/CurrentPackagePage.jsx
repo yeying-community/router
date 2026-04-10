@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Header, Label, Statistic } from 'semantic-ui-react';
 import { API, showError, timestamp2string } from '../../helpers';
-import { useTopUpWorkspace } from './shared.jsx';
+import {
+  renderTopupIntegerAmountWithExactPopup,
+  useTopUpWorkspace,
+} from './shared.jsx';
 
 const createEmptyActivePackage = () => ({
   has_active_subscription: false,
@@ -187,11 +190,21 @@ const PackageUsageCard = ({ title, period, timezone, items, footer }) => (
 const CurrentPackagePage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { renderDisplayAmount } = useTopUpWorkspace();
+  const { displayCurrency, displayCurrencyIndex } = useTopUpWorkspace();
   const [loading, setLoading] = useState(false);
   const [activePackage, setActivePackage] = useState(createEmptyActivePackage());
   const [dailySnapshot, setDailySnapshot] = useState(createEmptyDailySnapshot());
   const [quotaSummary, setQuotaSummary] = useState(createEmptyQuotaSummary());
+
+  const renderIntegerAmount = useCallback(
+    (yycAmount) =>
+      renderTopupIntegerAmountWithExactPopup({
+        yycAmount,
+        displayCurrency,
+        displayCurrencyIndex,
+      }),
+    [displayCurrency, displayCurrencyIndex],
+  );
 
   const loadQuotaSummary = useCallback(async () => {
     const res = await API.get('/api/v1/public/user/quota/summary');
@@ -281,12 +294,12 @@ const CurrentPackagePage = () => {
       {
         key: 'daily_limit',
         label: t('user.detail.package_daily_limit'),
-        value: renderDisplayAmount(activeSubscription.daily_quota_limit || 0),
+        value: renderIntegerAmount(activeSubscription.daily_quota_limit || 0),
       },
       {
         key: 'emergency_limit',
         label: t('user.detail.package_emergency_limit'),
-        value: renderDisplayAmount(
+        value: renderIntegerAmount(
           activeSubscription.package_emergency_quota_limit || 0,
         ),
       },
@@ -315,7 +328,7 @@ const CurrentPackagePage = () => {
           : '-',
       },
     ];
-  }, [activeSubscription, renderDisplayAmount, t]);
+  }, [activeSubscription, renderIntegerAmount, t]);
 
   const dailyItems = useMemo(() => {
     if (!activeSubscription) {
@@ -327,22 +340,22 @@ const CurrentPackagePage = () => {
         label: t('user.detail.package_daily_limit'),
         value: dailySnapshot.unlimited
           ? t('common.unlimited')
-          : renderDisplayAmount(dailySnapshot.limit),
+          : renderIntegerAmount(dailySnapshot.limit),
       },
       {
         key: 'daily_used',
         label: t('user.detail.used_amount'),
-        value: renderDisplayAmount(dailySnapshot.consumed_quota),
+        value: renderIntegerAmount(dailySnapshot.consumed_quota),
       },
       {
         key: 'daily_remaining',
         label: t('user.detail.remaining_amount'),
         value: dailySnapshot.unlimited
           ? t('common.unlimited')
-          : renderDisplayAmount(dailySnapshot.remaining_quota),
+          : renderIntegerAmount(dailySnapshot.remaining_quota),
       },
     ];
-  }, [activeSubscription, dailySnapshot, renderDisplayAmount, t]);
+  }, [activeSubscription, dailySnapshot, renderIntegerAmount, t]);
 
   const emergencySnapshot = quotaSummary.package_emergency;
   const emergencyItems = useMemo(() => {
@@ -354,25 +367,25 @@ const CurrentPackagePage = () => {
         key: 'emergency_limit',
         label: t('user.detail.package_emergency_limit'),
         value: emergencySnapshot.enabled
-          ? renderDisplayAmount(emergencySnapshot.limit)
+          ? renderIntegerAmount(emergencySnapshot.limit)
           : '-',
       },
       {
         key: 'emergency_used',
         label: t('user.detail.used_amount'),
         value: emergencySnapshot.enabled
-          ? renderDisplayAmount(emergencySnapshot.consumed_quota)
+          ? renderIntegerAmount(emergencySnapshot.consumed_quota)
           : '-',
       },
       {
         key: 'emergency_remaining',
         label: t('user.detail.remaining_amount'),
         value: emergencySnapshot.enabled
-          ? renderDisplayAmount(emergencySnapshot.remaining_quota)
+          ? renderIntegerAmount(emergencySnapshot.remaining_quota)
           : '-',
       },
     ];
-  }, [activeSubscription, emergencySnapshot, renderDisplayAmount, t]);
+  }, [activeSubscription, emergencySnapshot, renderIntegerAmount, t]);
 
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
@@ -448,7 +461,7 @@ const CurrentPackagePage = () => {
             timezone={`${t('user.detail.package_timezone')}: ${dailySnapshot.timezone || activeSubscription.quota_reset_timezone || '-'}`}
             footer={
               <>
-                {t('topup.package_status.reserved')}: {renderDisplayAmount(dailySnapshot.reserved_quota)}
+                {t('topup.package_status.reserved')}: {renderIntegerAmount(dailySnapshot.reserved_quota)}
               </>
             }
             items={dailyItems}
@@ -461,7 +474,7 @@ const CurrentPackagePage = () => {
               <>
                 {t('topup.package_status.reserved')}:{' '}
                 {emergencySnapshot.enabled
-                  ? renderDisplayAmount(emergencySnapshot.reserved_quota)
+                  ? renderIntegerAmount(emergencySnapshot.reserved_quota)
                   : '-'}
               </>
             }

@@ -76,6 +76,9 @@
     "external_topup": {
       "title": "External Top-up",
       "current_balance": "Current Balance",
+      "total_balance": "Total Balance",
+      "topup_balance": "Top-up Balance",
+      "redeem_balance": "Redeem Balance",
       "button": "Top Up Now",
       "package_button": "Buy Package",
       "creating": "Creating order...",

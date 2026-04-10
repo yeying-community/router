@@ -19,6 +19,8 @@ const TopUpWorkspaceProvider = ({ children }) => {
   const { t } = useTranslation();
   const initialCurrencyIndex = buildInitialDisplayCurrencyIndex();
   const [userBalanceYYC, setUserBalanceYYC] = useState(0);
+  const [topupBalanceYYC, setTopupBalanceYYC] = useState(0);
+  const [redeemBalanceYYC, setRedeemBalanceYYC] = useState(0);
   const [topupPlans, setTopupPlans] = useState([]);
   const [displayCurrencyIndex, setDisplayCurrencyIndex] = useState(
     initialCurrencyIndex,
@@ -84,6 +86,36 @@ const TopUpWorkspaceProvider = ({ children }) => {
     }
   }, [t]);
 
+  const loadBalanceSummary = useCallback(
+    async ({ silent = false } = {}) => {
+      try {
+        const res = await API.get('/api/v1/public/user/topup/balance/summary');
+        const { success, message, data } = res?.data || {};
+        if (!success) {
+          if (!silent) {
+            showError(message || t('topup.external_topup.request_failed'));
+          }
+          return false;
+        }
+        const totalBalance = Number(
+          data?.total_yyc_balance ?? data?.yyc_balance ?? data?.quota ?? 0,
+        );
+        const topupBalance = Number(data?.topup_yyc_balance ?? 0);
+        const redeemBalance = Number(data?.redeem_yyc_balance ?? 0);
+        setUserBalanceYYC(Number.isFinite(totalBalance) ? totalBalance : 0);
+        setTopupBalanceYYC(Number.isFinite(topupBalance) ? topupBalance : 0);
+        setRedeemBalanceYYC(Number.isFinite(redeemBalance) ? redeemBalance : 0);
+        return true;
+      } catch (error) {
+        if (!silent) {
+          showError(error?.message || t('topup.external_topup.request_failed'));
+        }
+        return false;
+      }
+    },
+    [t],
+  );
+
   const loadTopupPlans = useCallback(async () => {
     try {
       const res = await API.get('/api/v1/public/topup/plans');
@@ -99,10 +131,14 @@ const TopUpWorkspaceProvider = ({ children }) => {
   }, [t]);
 
   useEffect(() => {
-    loadUserBalance().then();
+    loadBalanceSummary().then((success) => {
+      if (!success) {
+        loadUserBalance().then();
+      }
+    });
     loadTopupPlans().then();
     loadDisplayCurrencies().then();
-  }, [loadDisplayCurrencies, loadTopupPlans, loadUserBalance]);
+  }, [loadBalanceSummary, loadDisplayCurrencies, loadTopupPlans, loadUserBalance]);
 
   const createTopupOrder = useCallback(
     async (payload) => {
@@ -163,7 +199,10 @@ const TopUpWorkspaceProvider = ({ children }) => {
           if (!popup.closed) {
             popup.close();
           }
-          await loadUserBalance();
+          await Promise.all([
+            loadUserBalance(),
+            loadBalanceSummary({ silent: true }),
+          ]);
           showSuccess(t('topup.records.order_paid'));
           return true;
         }
@@ -186,7 +225,7 @@ const TopUpWorkspaceProvider = ({ children }) => {
         return false;
       }
     },
-    [loadUserBalance, t],
+    [loadBalanceSummary, loadUserBalance, t],
   );
 
   const previewPackagePurchase = useCallback(
@@ -237,6 +276,9 @@ const TopUpWorkspaceProvider = ({ children }) => {
           redeemed_at: 0,
         };
       setUserBalanceYYC(normalizedResult.after_yyc_balance);
+      setRedeemBalanceYYC((previous) =>
+        Math.max(0, previous + normalizedResult.redeemed_yyc),
+      );
       showSuccess(t('topup.redeem.success'));
       return normalizedResult;
     },
@@ -246,12 +288,15 @@ const TopUpWorkspaceProvider = ({ children }) => {
   const contextValue = useMemo(
     () => ({
       userBalanceYYC,
+      topupBalanceYYC,
+      redeemBalanceYYC,
       topupPlans,
       displayCurrency,
       displayCurrencyIndex,
       loadingDisplayCurrencies,
       renderDisplayAmount,
       loadUserBalance,
+      loadBalanceSummary,
       createTopupOrder,
       previewPackagePurchase,
       submitRedemption,
@@ -261,12 +306,15 @@ const TopUpWorkspaceProvider = ({ children }) => {
       displayCurrency,
       displayCurrencyIndex,
       loadDisplayCurrencies,
+      loadBalanceSummary,
       loadTopupPlans,
       loadUserBalance,
       loadingDisplayCurrencies,
       previewPackagePurchase,
+      redeemBalanceYYC,
       renderDisplayAmount,
       submitRedemption,
+      topupBalanceYYC,
       topupPlans,
       userBalanceYYC,
     ],

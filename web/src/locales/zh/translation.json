@@ -76,6 +76,9 @@
     "external_topup": {
       "title": "外部充值",
       "current_balance": "当前余额",
+      "total_balance": "总余额",
+      "topup_balance": "充值余额",
+      "redeem_balance": "兑换余额",
       "button": "立即充值",
       "package_button": "购买套餐",
       "creating": "创建订单中...",

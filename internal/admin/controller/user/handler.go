@@ -1924,6 +1924,12 @@ type topUpOrderListData struct {
 	PageSize int                `json:"page_size"`
 }
 
+type topUpBalanceSummaryData struct {
+	TotalYYCBalance  int64 `json:"total_yyc_balance"`
+	TopupYYCBalance  int64 `json:"topup_yyc_balance"`
+	RedeemYYCBalance int64 `json:"redeem_yyc_balance"`
+}
+
 type createTopUpOrderRequest struct {
 	BusinessType  string  `json:"business_type"`
 	OperationType string  `json:"operation_type"`
@@ -1962,6 +1968,136 @@ func parseTopupOrderPageParams(c *gin.Context) (int, int, string, error) {
 	default:
 		return page, pageSize, "", fmt.Errorf("无效的业务类型")
 	}
+}
+
+func minInt64(a int64, b int64) int64 {
+	if a <= b {
+		return a
+	}
+	return b
+}
+
+func normalizeNonNegativeQuota(value int64) int64 {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func buildTopUpBalanceSummary(totalBalance int64, topupInflow int64, redeemInflow int64) topUpBalanceSummaryData {
+	normalizedTotal := normalizeNonNegativeQuota(totalBalance)
+	normalizedTopup := normalizeNonNegativeQuota(topupInflow)
+	normalizedRedeem := normalizeNonNegativeQuota(redeemInflow)
+
+	totalInflow := normalizedTopup + normalizedRedeem
+	if totalInflow <= 0 {
+		return topUpBalanceSummaryData{
+			TotalYYCBalance:  normalizedTotal,
+			TopupYYCBalance:  normalizedTotal,
+			RedeemYYCBalance: 0,
+		}
+	}
+
+	consumed := totalInflow - normalizedTotal
+	if consumed < 0 {
+		consumed = 0
+	}
+
+	consumeFromTopup := minInt64(consumed, normalizedTopup)
+	topupRemain := normalizedTopup - consumeFromTopup
+	consumed -= consumeFromTopup
+	consumeFromRedeem := minInt64(consumed, normalizedRedeem)
+	redeemRemain := normalizedRedeem - consumeFromRedeem
+
+	sumRemain := topupRemain + redeemRemain
+	if sumRemain < normalizedTotal {
+		// For historical/manual balance adjustments without source information,
+		// attribute the residual to top-up balance so the split always matches total.
+		topupRemain += normalizedTotal - sumRemain
+		sumRemain = normalizedTotal
+	}
+	if sumRemain > normalizedTotal {
+		overflow := sumRemain - normalizedTotal
+		reduceTopup := minInt64(overflow, topupRemain)
+		topupRemain -= reduceTopup
+		overflow -= reduceTopup
+		if overflow > 0 {
+			redeemRemain -= minInt64(overflow, redeemRemain)
+		}
+	}
+
+	return topUpBalanceSummaryData{
+		TotalYYCBalance:  normalizedTotal,
+		TopupYYCBalance:  topupRemain,
+		RedeemYYCBalance: redeemRemain,
+	}
+}
+
+// GetCurrentUserTopUpBalanceSummary godoc
+// @Summary Get current user balance split summary
+// @Tags public
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/public/user/topup/balance/summary [get]
+func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
+	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
+	if userID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无效的 user id",
+		})
+		return
+	}
+
+	user, err := usersvc.GetByID(userID, false)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	var topupInflow int64
+	if err := model.DB.Model(&model.TopupOrder{}).
+		Select("COALESCE(SUM(quota), 0)").
+		Where(
+			"user_id = ? AND business_type = ? AND status = ?",
+			userID,
+			model.TopupOrderBusinessBalance,
+			model.TopupOrderStatusFulfilled,
+		).
+		Scan(&topupInflow).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	var redeemInflow int64
+	if err := model.DB.Model(&model.Redemption{}).
+		Select("COALESCE(SUM(quota), 0)").
+		Where(
+			"redeemed_by_user_id = ? AND status = ? AND redeemed_time > 0",
+			userID,
+			model.RedemptionCodeStatusUsed,
+		).
+		Scan(&redeemInflow).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    buildTopUpBalanceSummary(user.Quota, topupInflow, redeemInflow),
+	})
 }
 
 // GetTopUpOrders godoc

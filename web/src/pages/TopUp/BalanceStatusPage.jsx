@@ -1,31 +1,85 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, Statistic } from 'semantic-ui-react';
-import { useTopUpWorkspace } from './shared.jsx';
+import RedeemCodePage from './RedeemCodePage';
+import {
+  renderTopupIntegerAmountWithExactPopup,
+  useTopUpWorkspace,
+} from './shared.jsx';
 
 const BalanceStatusPage = () => {
   const { t } = useTranslation();
-  const { userBalanceYYC, renderDisplayAmount } = useTopUpWorkspace();
+  const {
+    userBalanceYYC,
+    topupBalanceYYC,
+    redeemBalanceYYC,
+    displayCurrency,
+    displayCurrencyIndex,
+  } = useTopUpWorkspace();
 
   return (
-    <Card fluid className='router-soft-card router-soft-card-fill'>
-      <Card.Content className='router-card-fill'>
-        <Card.Description className='router-card-fill'>
-          <div className='router-card-body-spread'>
-            <div className='router-center-panel'>
-              <Statistic className='router-accent-statistic'>
-                <Statistic.Value>
-                  {renderDisplayAmount(userBalanceYYC)}
-                </Statistic.Value>
-                <Statistic.Label>
-                  {t('topup.external_topup.current_balance')}
-                </Statistic.Label>
-              </Statistic>
+    <div style={{ display: 'grid', gap: '1rem' }}>
+      <Card fluid className='router-soft-card router-soft-card-fill'>
+        <Card.Content className='router-card-fill'>
+          <Card.Description className='router-card-fill'>
+            <div className='router-card-body-spread'>
+              <div
+                style={{
+                  display: 'grid',
+                  gap: '1rem',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  alignItems: 'center',
+                }}
+              >
+                <div className='router-center-panel' style={{ paddingTop: 0 }}>
+                  <Statistic className='router-accent-statistic' size='small'>
+                    <Statistic.Value>
+                      {renderTopupIntegerAmountWithExactPopup({
+                        yycAmount: userBalanceYYC,
+                        displayCurrency,
+                        displayCurrencyIndex,
+                      })}
+                    </Statistic.Value>
+                    <Statistic.Label>
+                      {t('topup.external_topup.total_balance')}
+                    </Statistic.Label>
+                  </Statistic>
+                </div>
+                <div className='router-center-panel' style={{ paddingTop: 0 }}>
+                  <Statistic size='small'>
+                    <Statistic.Value>
+                      {renderTopupIntegerAmountWithExactPopup({
+                        yycAmount: topupBalanceYYC,
+                        displayCurrency,
+                        displayCurrencyIndex,
+                      })}
+                    </Statistic.Value>
+                    <Statistic.Label>
+                      {t('topup.external_topup.topup_balance')}
+                    </Statistic.Label>
+                  </Statistic>
+                </div>
+                <div className='router-center-panel' style={{ paddingTop: 0 }}>
+                  <Statistic size='small'>
+                    <Statistic.Value>
+                      {renderTopupIntegerAmountWithExactPopup({
+                        yycAmount: redeemBalanceYYC,
+                        displayCurrency,
+                        displayCurrencyIndex,
+                      })}
+                    </Statistic.Value>
+                    <Statistic.Label>
+                      {t('topup.external_topup.redeem_balance')}
+                    </Statistic.Label>
+                  </Statistic>
+                </div>
+              </div>
             </div>
-          </div>
-        </Card.Description>
-      </Card.Content>
-    </Card>
+          </Card.Description>
+        </Card.Content>
+      </Card>
+      <RedeemCodePage />
+    </div>
   );
 };
 
