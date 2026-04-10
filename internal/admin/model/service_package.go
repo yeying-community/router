@@ -17,22 +17,22 @@ const (
 )
 
 type ServicePackage struct {
-	Id                         string `json:"id" gorm:"primaryKey;type:char(36)"`
-	Name                       string `json:"name" gorm:"type:varchar(64);not null;uniqueIndex"`
-	Description                string `json:"description" gorm:"type:varchar(255);default:''"`
-	GroupID                    string `json:"group_id" gorm:"type:char(36);not null;index"`
+	Id                         string  `json:"id" gorm:"primaryKey;type:char(36)"`
+	Name                       string  `json:"name" gorm:"type:varchar(64);not null;uniqueIndex"`
+	Description                string  `json:"description" gorm:"type:varchar(255);default:''"`
+	GroupID                    string  `json:"group_id" gorm:"type:char(36);not null;index"`
 	SalePrice                  float64 `json:"sale_price" gorm:"type:decimal(10,2);not null;default:0"`
-	SaleCurrency               string `json:"sale_currency" gorm:"type:varchar(16);not null;default:'CNY'"`
-	DailyQuotaLimit            int64  `json:"daily_quota_limit" gorm:"type:bigint;not null;default:0"`
-	PackageEmergencyQuotaLimit int64  `json:"package_emergency_quota_limit" gorm:"column:package_emergency_quota_limit;type:bigint;not null;default:0"`
-	DurationDays               int    `json:"duration_days" gorm:"type:int;not null;default:30"`
-	QuotaResetTimezone         string `json:"quota_reset_timezone" gorm:"type:varchar(64);not null;default:'Asia/Shanghai'"`
-	Enabled                    bool   `json:"enabled" gorm:"default:true;index"`
-	SortOrder                  int    `json:"sort_order" gorm:"default:0;index"`
-	Source                     string `json:"source" gorm:"type:varchar(32);default:'manual'"`
-	CreatedAt                  int64  `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt                  int64  `json:"updated_at" gorm:"bigint;index"`
-	GroupName                  string `json:"group_name,omitempty" gorm:"-"`
+	SaleCurrency               string  `json:"sale_currency" gorm:"type:varchar(16);not null;default:'CNY'"`
+	DailyQuotaLimit            int64   `json:"daily_quota_limit" gorm:"type:bigint;not null;default:0"`
+	PackageEmergencyQuotaLimit int64   `json:"package_emergency_quota_limit" gorm:"column:package_emergency_quota_limit;type:bigint;not null;default:0"`
+	DurationDays               int     `json:"duration_days" gorm:"type:int;not null;default:30"`
+	QuotaResetTimezone         string  `json:"quota_reset_timezone" gorm:"type:varchar(64);not null;default:'Asia/Shanghai'"`
+	Enabled                    bool    `json:"enabled" gorm:"default:true;index"`
+	SortOrder                  int     `json:"sort_order" gorm:"default:0;index"`
+	Source                     string  `json:"source" gorm:"type:varchar(32);default:'manual'"`
+	CreatedAt                  int64   `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt                  int64   `json:"updated_at" gorm:"bigint;index"`
+	GroupName                  string  `json:"group_name,omitempty" gorm:"-"`
 }
 
 func (ServicePackage) TableName() string {
@@ -356,7 +356,7 @@ func deleteServicePackageWithDB(db *gorm.DB, id string) error {
 	}
 	activeCount := int64(0)
 	if err := db.Model(&UserPackageSubscription{}).
-		Where("package_id = ? AND status = ?", normalizedID, UserPackageSubscriptionStatusActive).
+		Where("package_id = ? AND status IN ?", normalizedID, []int{UserPackageSubscriptionStatusActive, UserPackageSubscriptionStatusPending}).
 		Count(&activeCount).Error; err != nil {
 		return err
 	}

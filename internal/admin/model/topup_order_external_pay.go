@@ -125,13 +125,16 @@ func buildExternalPayQueryURL() (string, error) {
 }
 
 func buildExternalPayCreatePayload(order TopupOrder, clientType string) map[string]string {
+	normalizedBusinessType := resolveTopupOrderBusinessType(order.BusinessType, order.PackageID)
+	normalizedOperationType := resolveTopupOrderOperationType(normalizedBusinessType, order.OperationType)
 	payload := map[string]string{
 		"merchant_app":   config.TopUpMerchantAppValue(),
 		"order_id":       strings.TrimSpace(order.Id),
 		"transaction_id": strings.TrimSpace(order.TransactionID),
 		"user_id":        strings.TrimSpace(order.UserID),
 		"username":       strings.TrimSpace(order.Username),
-		"business_type":  strings.TrimSpace(order.BusinessType),
+		"business_type":  normalizedBusinessType,
+		"operation_type": normalizedOperationType,
 		"title":          strings.TrimSpace(order.Title),
 		"amount":         fmt.Sprintf("%.2f", order.Amount),
 		"currency":       strings.TrimSpace(order.Currency),

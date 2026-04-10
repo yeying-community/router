@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, Header } from 'semantic-ui-react';
+import { Card } from 'semantic-ui-react';
 import BalanceTopUpPage from '../TopUp/BalanceTopUpPage';
 import PackagePurchasePage from '../TopUp/PackagePurchasePage';
 import TopUpWorkspaceProvider from '../TopUp/provider.jsx';
@@ -13,17 +13,18 @@ const ServicePricing = () => {
       <div className='dashboard-container'>
         <Card fluid className='chart-card'>
           <Card.Content>
-            <Card.Header className='router-card-header'>
-              <Header as='h2' className='router-page-title'>
-                {t('topup.pricing.title')}
-              </Header>
-            </Card.Header>
             <div
               style={{
                 display: 'grid',
                 gap: '1rem',
               }}
             >
+              <div
+                className='router-section-title'
+                style={{ color: '#111827', fontWeight: 700 }}
+              >
+                {t('topup.pricing.page_title')}
+              </div>
               <div className='router-text-muted'>
                 {t('topup.pricing.subtitle')}
               </div>
@@ -84,7 +85,7 @@ const ServicePricing = () => {
         </Card>
 
         <PackagePurchasePage />
-        <BalanceTopUpPage />
+        <BalanceTopUpPage showCurrentBalance={false} />
       </div>
     </TopUpWorkspaceProvider>
   );

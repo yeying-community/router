@@ -430,6 +430,23 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return migrateUserQuotaCounterTypePackageEmergencyWithDB(tx)
 			},
 		},
+		{
+			Version:     "202604091100_topup_order_operation_type",
+			Description: "add topup order operation_type and backfill package purchases to new_purchase",
+			Up: func(tx *gorm.DB) error {
+				return ensureTopupOrderOperationTypeWithDB(tx)
+			},
+		},
+		{
+			Version:     "202604101600_drop_legacy_reward_option_keys",
+			Description: "remove legacy reward option keys from system settings",
+			Up: func(tx *gorm.DB) error {
+				return tx.Exec(
+					"DELETE FROM system_settings WHERE key IN ?",
+					[]string{"QuotaForNewUser", "QuotaForInviter", "QuotaForInvitee"},
+				).Error
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

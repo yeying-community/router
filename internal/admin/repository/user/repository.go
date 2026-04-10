@@ -143,6 +143,19 @@ func GetIDByAffCode(code string) (string, error) {
 	return user.Id, err
 }
 
+func resolveRewardQuotaFromTopupPlan(ctx context.Context, planID string, rewardKey string) int64 {
+	normalizedPlanID := strings.TrimSpace(planID)
+	if normalizedPlanID == "" {
+		return 0
+	}
+	resolvedPlan, err := model.ResolveTopupPlan(normalizedPlanID)
+	if err != nil {
+		logger.Warnf(ctx, "resolve reward topup plan failed reward=%s plan_id=%s err=%v", rewardKey, normalizedPlanID, err)
+		return 0
+	}
+	return resolvedPlan.QuotaYYC
+}
+
 func DeleteByID(id string) error {
 	if strings.TrimSpace(id) == "" {
 		return errors.New("id 为空！")
@@ -187,24 +200,30 @@ func Create(ctx context.Context, user *model.User, inviterId string) error {
 		return err
 	}
 	user.Group = resolvedGroup
-	user.Quota = config.QuotaForNewUser
+	newUserRewardQuota := resolveRewardQuotaFromTopupPlan(
+		ctx,
+		config.NewUserRewardTopupPlanID,
+		"new_user",
+	)
+	user.Quota = newUserRewardQuota
 	user.AccessToken = random.GetUUID()
 	user.AffCode = random.GetRandomString(4)
 	result := model.DB.Create(user)
 	if result.Error != nil {
 		return result.Error
 	}
-	if config.QuotaForNewUser > 0 {
-		model.RecordLog(ctx, user.Id, model.LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", common.LogQuota(config.QuotaForNewUser)))
+	if newUserRewardQuota > 0 {
+		model.RecordLog(ctx, user.Id, model.LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", common.LogQuota(newUserRewardQuota)))
 	}
 	if strings.TrimSpace(inviterId) != "" {
-		if config.QuotaForInvitee > 0 {
-			_ = IncreaseQuota(user.Id, config.QuotaForInvitee)
-			model.RecordLog(ctx, user.Id, model.LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", common.LogQuota(config.QuotaForInvitee)))
-		}
-		if config.QuotaForInviter > 0 {
-			_ = IncreaseQuota(inviterId, config.QuotaForInviter)
-			model.RecordLog(ctx, inviterId, model.LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", common.LogQuota(config.QuotaForInviter)))
+		inviterRewardQuota := resolveRewardQuotaFromTopupPlan(
+			ctx,
+			config.InviterRewardTopupPlanID,
+			"inviter",
+		)
+		if inviterRewardQuota > 0 {
+			_ = IncreaseQuota(inviterId, inviterRewardQuota)
+			model.RecordLog(ctx, inviterId, model.LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", common.LogQuota(inviterRewardQuota)))
 		}
 	}
 	cleanToken := model.Token{

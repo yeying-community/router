@@ -109,6 +109,12 @@ const renderPackageStatusLabel = (status, t) => {
           {t('user.detail.package_status_types.canceled')}
         </Label>
       );
+    case 5:
+      return (
+        <Label basic color='teal' className='router-tag'>
+          {t('user.detail.package_status_types.pending')}
+        </Label>
+      );
     default:
       return (
         <Label basic color='grey' className='router-tag'>

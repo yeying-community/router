@@ -247,10 +247,7 @@ export const buildFaceValueUnitOptions = (
 };
 
 export const BILLING_OPTION_SETTING_KEYS = [
-  'QuotaForNewUser',
   'PreConsumedQuota',
-  'QuotaForInviter',
-  'QuotaForInvitee',
 ];
 
 export const createBillingUnitState = (defaultUnit = DEFAULT_FIAT_DISPLAY_CODE) =>

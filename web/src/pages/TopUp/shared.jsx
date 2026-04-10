@@ -1,12 +1,14 @@
 import { createContext, useContext } from 'react';
-import { Label } from 'semantic-ui-react';
+import { Label, Popup } from 'semantic-ui-react';
 import {
+  convertYYCToDisplayAmount,
   DEFAULT_FIAT_DISPLAY_CODE,
   buildPublicDisplayCurrencyIndex,
   normalizeDisplayCurrencyCode,
   resolvePreferredDisplayCurrency,
   YYC_DISPLAY_CODE,
 } from '../../helpers/billing';
+import { formatAmountWithUnit } from '../../helpers/render';
 
 export const TOPUP_DISPLAY_CURRENCY_STORAGE_KEY = 'topup_display_currency';
 export const TOPUP_DEFAULT_TAB = 'balance';
@@ -16,11 +18,7 @@ export const TOPUP_RECORD_KEYS = ['topup', 'package', 'redeem'];
 export const TopUpWorkspaceContext = createContext(null);
 
 export const normalizeTopUpTab = (rawTab) =>
-  rawTab === 'redeem'
-    ? TOPUP_DEFAULT_TAB
-    : TOPUP_TAB_KEYS.includes(rawTab)
-      ? rawTab
-      : TOPUP_DEFAULT_TAB;
+  TOPUP_TAB_KEYS.includes(rawTab) ? rawTab : TOPUP_DEFAULT_TAB;
 
 export const normalizeTopUpRecord = (rawRecord) =>
   TOPUP_RECORD_KEYS.includes(rawRecord) ? rawRecord : TOPUP_DEFAULT_RECORD;
@@ -50,9 +48,20 @@ export const normalizeRedemptionRecord = (raw) => {
   if (!raw || typeof raw !== 'object') {
     return null;
   }
+  const redeemedTime = Number(raw?.redeemed_time ?? raw?.redeemed_at ?? 0) || 0;
+  const createdAt = Number(raw?.created_at ?? 0) || 0;
+  const normalizedTime = redeemedTime || createdAt;
   return {
     ...raw,
-    yycAmount: Number(raw?.yyc_amount ?? raw?.quota ?? 0) || 0,
+    created_at: normalizedTime,
+    yycAmount: Number(raw?.yyc_amount ?? raw?.yyc_value ?? raw?.quota ?? 0) || 0,
+    redemptionName:
+      String(raw?.redemption_name || raw?.name || '').trim(),
+    redemptionCode: String(raw?.code || '').trim(),
+    groupName: String(raw?.group_name || '').trim(),
+    faceValueAmount: Number(raw?.face_value_amount ?? 0) || 0,
+    faceValueUnit: String(raw?.face_value_unit || '').trim().toUpperCase(),
+    detailText: String(raw?.content || '').trim(),
   };
 };
 
@@ -171,6 +180,131 @@ export const formatTopupBusinessType = (type, t) => {
     default:
       return type || '-';
   }
+};
+
+const splitTopupDisplayTextUnit = (displayText) => {
+  const trimmed = String(displayText || '').trim();
+  if (trimmed === '') {
+    return {
+      amount: '-',
+      unit: '',
+    };
+  }
+  // YYC already contains leading symbol, keep as a single text block.
+  if (trimmed.startsWith('Ɏ ')) {
+    return {
+      amount: trimmed,
+      unit: '',
+    };
+  }
+  const separatorIndex = trimmed.lastIndexOf(' ');
+  if (separatorIndex <= 0) {
+    return {
+      amount: trimmed,
+      unit: '',
+    };
+  }
+  const amount = trimmed.slice(0, separatorIndex).trim();
+  const unit = trimmed.slice(separatorIndex + 1).trim().toUpperCase();
+  if (!/^[A-Z]{2,8}$/.test(unit)) {
+    return {
+      amount: trimmed,
+      unit: '',
+    };
+  }
+  return {
+    amount,
+    unit,
+  };
+};
+
+const renderTopupAmountTrigger = (displayText) => {
+  const { amount, unit } = splitTopupDisplayTextUnit(displayText);
+  if (!unit) {
+    return <span>{amount}</span>;
+  }
+  return (
+    <span className='router-topup-amount-trigger'>
+      <span>{amount}</span>
+      <span className='router-topup-amount-unit'>{unit}</span>
+    </span>
+  );
+};
+
+const buildTopupAmountDisplayTexts = ({
+  yycAmount,
+  displayCurrency,
+  displayCurrencyIndex,
+  exactFractionDigits = 6,
+}) => {
+  const normalizedYYCAmount = Number(yycAmount ?? 0);
+  if (!Number.isFinite(normalizedYYCAmount)) {
+    return {
+      integerText: '-',
+      exactText: '-',
+    };
+  }
+  const normalizedDisplayCurrency = normalizeDisplayCurrencyCode(displayCurrency);
+  if (normalizedDisplayCurrency === YYC_DISPLAY_CODE) {
+    return {
+      integerText: formatAmountWithUnit(
+        Math.round(normalizedYYCAmount),
+        YYC_DISPLAY_CODE,
+        0,
+      ),
+      exactText: formatAmountWithUnit(
+        normalizedYYCAmount,
+        YYC_DISPLAY_CODE,
+        exactFractionDigits,
+      ),
+    };
+  }
+  const convertedAmount = convertYYCToDisplayAmount(
+    normalizedYYCAmount,
+    normalizedDisplayCurrency,
+    displayCurrencyIndex,
+  );
+  if (!Number.isFinite(convertedAmount)) {
+    return {
+      integerText: '-',
+      exactText: '-',
+    };
+  }
+  return {
+    integerText: formatAmountWithUnit(
+      Math.round(convertedAmount),
+      normalizedDisplayCurrency,
+      0,
+    ),
+    exactText: formatAmountWithUnit(
+      convertedAmount,
+      normalizedDisplayCurrency,
+      exactFractionDigits,
+    ),
+  };
+};
+
+export const renderTopupIntegerAmountWithExactPopup = ({
+  yycAmount,
+  displayCurrency,
+  displayCurrencyIndex,
+  exactFractionDigits = 6,
+}) => {
+  const { integerText, exactText } = buildTopupAmountDisplayTexts({
+    yycAmount,
+    displayCurrency,
+    displayCurrencyIndex,
+    exactFractionDigits,
+  });
+  if (integerText === '-') {
+    return '-';
+  }
+  return (
+    <Popup
+      content={exactText}
+      trigger={renderTopupAmountTrigger(integerText)}
+    />
+  );
 };
 
 export const useTopUpWorkspace = () => useContext(TopUpWorkspaceContext);

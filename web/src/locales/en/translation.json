@@ -76,6 +76,9 @@
     "external_topup": {
       "title": "External Top-up",
       "current_balance": "Current Balance",
+      "total_balance": "Total Balance",
+      "topup_balance": "Top-up Balance",
+      "redeem_balance": "Redeem Balance",
       "button": "Top Up Now",
       "package_button": "Buy Package",
       "creating": "Creating order...",
@@ -86,6 +89,22 @@
       "package_title": "Package Purchase",
       "package_empty": "No purchasable packages",
       "package_select_required": "Please select a package",
+      "package_preview_title": "Confirm Package Purchase",
+      "package_preview_desc": "Please confirm the package action and payable amount.",
+      "package_preview_operation": "Operation",
+      "package_preview_current_package": "Current Package",
+      "package_preview_target_package": "Target Package",
+      "package_preview_current_expire_at": "Current Expiry",
+      "package_preview_effective_at": "Effective At",
+      "package_preview_expires_at": "New Expiry",
+      "package_preview_payable": "Payable Amount",
+      "package_preview_payable_yyc": "YYC Equivalent",
+      "package_confirm_button": "Proceed to Pay",
+      "package_operation": {
+        "new_purchase": "New Purchase",
+        "renew": "Renew",
+        "upgrade": "Upgrade"
+      },
       "plan_invalid": "Invalid top-up plan. Please refresh and try again.",
       "amount_invalid": "Please enter an amount greater than 0",
       "request_failed": "Failed to create top-up order",
@@ -119,6 +138,7 @@
     },
     "pricing": {
       "title": "Pricing",
+      "page_title": "Pricing Guide",
       "subtitle": "You can buy a package directly, or top up balance first and use the service on demand.",
       "package_mode_title": "Package Plans",
       "package_hint": "Best for stable usage. You get a daily allowance plus emergency capacity with clearer cost boundaries.",
@@ -129,6 +149,11 @@
     },
     "package_status": {
       "view_pricing": "View Pricing",
+      "no_active_package": "There is no active package",
+      "no_upgrade_target": "No upgrade target package is available",
+      "select_upgrade_target": "Select Upgrade Package",
+      "select_upgrade_target_hint": "Choose a target package and continue to payment.",
+      "upgrade_now": "Confirm Upgrade and Pay",
       "empty_description": "There is no active package right now. You can buy a package from the pricing page or top up balance to try the service first.",
       "daily_title": "Today's Package Quota",
       "emergency_title": "Monthly Emergency Quota",
@@ -145,12 +170,18 @@
         "status": "Status",
         "amount": "Amount",
         "detail": "Detail",
+        "quota": "Quota",
         "package_name": "Package Name",
         "action": "Action",
         "order_id": "Order ID",
         "transaction_id": "Transaction ID"
       },
       "detail_title": "Purchase Record Detail",
+      "detail_title_topup": "Top-up Detail",
+      "detail_title_package": "Purchase Detail",
+      "detail_path": "Detail",
+      "detail_path_topup": "Top-up",
+      "detail_path_package": "Purchase",
       "fields": {
         "title": "Order Title",
         "provider_order_id": "Provider Order ID",
@@ -181,7 +212,8 @@
       "columns": {
         "time": "Time",
         "amount": "Credited Amount",
-        "detail": "Detail"
+        "detail": "Detail",
+        "redemption_code": "Code"
       }
     },
     "redemption_result": {
@@ -204,7 +236,7 @@
       "placeholder": "Please enter redemption code",
       "paste": "Paste",
       "paste_error": "Cannot access clipboard, please paste manually",
-      "submit": "Redeem Now",
+      "submit": "Redeem",
       "submitting": "Redeeming...",
       "empty_code": "Please enter the redemption code!",
       "success": "Top up successful!",
@@ -1268,6 +1300,7 @@
         "active": "Active",
         "expired": "Expired",
         "replaced": "Replaced",
+        "pending": "Pending",
         "canceled": "Canceled",
         "unknown": "Unknown"
       },
@@ -1799,18 +1832,19 @@
     "operation": {
       "quota": {
         "title": "Balance Settings",
-        "new_user": "New User Starting Amount",
-        "new_user_placeholder": "e.g.: 100",
+        "new_user_reward": "New User Reward",
+        "new_user_reward_description": "Granted after a new user completes registration. Select a topup plan as reward source; leave empty to disable.",
+        "reward_plan_placeholder": "Select a topup plan (empty means disabled)",
         "default_group": "Default User Group",
         "default_group_placeholder": "No automatic assignment when unset",
         "pre_consume": "Pre-consumed Amount per Request",
         "pre_consume_placeholder": "Refund or charge difference after request",
-        "inviter_reward": "Inviter Reward Amount",
-        "inviter_reward_placeholder": "e.g.: 2000",
-        "invitee_reward": "Invitee Reward Amount",
-        "invitee_reward_placeholder": "e.g.: 1000",
+        "pre_consume_description": "Reserve estimated quota at request start, then settle by actual usage with refund/charge delta.",
+        "inviter_reward": "Invite Reward",
+        "inviter_reward_description": "When a user registers through an invite link, the inviter receives this reward. Select a topup plan as reward source; leave empty to disable.",
         "messages": {
-          "amount_invalid": "Amount must be greater than or equal to 0"
+          "amount_invalid": "Amount must be greater than or equal to 0",
+          "plan_invalid": "Invalid topup plan, please refresh and try again"
         },
         "buttons": {
           "save": "Save Balance Settings"

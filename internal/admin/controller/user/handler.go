@@ -16,6 +16,7 @@ import (
 	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/ctxkey"
+	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/i18n"
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/common/random"
@@ -60,6 +61,13 @@ type activeUserPackageSubscriptionPayload struct {
 
 type userRecentRedemptionsPayload struct {
 	Items []*presenter.Redemption `json:"items"`
+}
+
+type currentUserTopupRedemptionsData struct {
+	Items    []*presenter.Redemption `json:"items"`
+	Page     int                     `json:"page"`
+	PageSize int                     `json:"page_size"`
+	Total    int64                   `json:"total"`
 }
 
 func exposedUser(user *model.User) *presenter.User {
@@ -631,6 +639,83 @@ func GetUserRecentRedemptions(c *gin.Context) {
 		"message": "",
 		"data": userRecentRedemptionsPayload{
 			Items: presenter.NewRedemptions(rows),
+		},
+	})
+}
+
+// GetCurrentUserTopupRedemptions godoc
+// @Summary Get current user redemption top-up records
+// @Tags public
+// @Security BearerAuth
+// @Produce json
+// @Param page query int false "Page (1-based)"
+// @Param page_size query int false "Page size"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/public/user/topup/redemptions [get]
+func GetCurrentUserTopupRedemptions(c *gin.Context) {
+	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
+	if userID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "用户 ID 不能为空",
+		})
+		return
+	}
+	page, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("page", "1")))
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("page_size", strconv.Itoa(config.ItemsPerPage))))
+	if pageSize <= 0 {
+		pageSize = config.ItemsPerPage
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	var total int64
+	baseQuery := model.DB.Model(&model.Redemption{}).
+		Where("redeemed_by_user_id = ? AND redeemed_time > 0 AND status = ?", userID, model.RedemptionCodeStatusUsed)
+	if err := baseQuery.Count(&total).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	rows := make([]*model.Redemption, 0, pageSize)
+	if err := baseQuery.
+		Order("redeemed_time desc, id desc").
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
+		Find(&rows).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		row.RedeemedByUsername = model.GetUsernameById(userID)
+		groupID := strings.TrimSpace(row.GroupID)
+		if groupID == "" {
+			continue
+		}
+		if groupRow, err := model.GetGroupCatalogByID(groupID); err == nil {
+			row.GroupName = strings.TrimSpace(groupRow.Name)
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": currentUserTopupRedemptionsData{
+			Items:    presenter.NewRedemptions(rows),
+			Page:     page,
+			PageSize: pageSize,
+			Total:    total,
 		},
 	})
 }
@@ -1923,16 +2008,28 @@ type topUpOrderListData struct {
 	PageSize int                `json:"page_size"`
 }
 
+type topUpBalanceSummaryData struct {
+	TotalYYCBalance  int64 `json:"total_yyc_balance"`
+	TopupYYCBalance  int64 `json:"topup_yyc_balance"`
+	RedeemYYCBalance int64 `json:"redeem_yyc_balance"`
+}
+
 type createTopUpOrderRequest struct {
-	BusinessType string  `json:"business_type"`
-	ClientType   string  `json:"client_type"`
-	Title        string  `json:"title"`
-	Amount       float64 `json:"amount"`
-	Currency     string  `json:"currency"`
-	Quota        int64   `json:"quota"`
-	PlanID       string  `json:"plan_id"`
-	PackageID    string  `json:"package_id"`
-	ReturnURL    string  `json:"return_url"`
+	BusinessType  string  `json:"business_type"`
+	OperationType string  `json:"operation_type"`
+	ClientType    string  `json:"client_type"`
+	Title         string  `json:"title"`
+	Amount        float64 `json:"amount"`
+	Currency      string  `json:"currency"`
+	Quota         int64   `json:"quota"`
+	PlanID        string  `json:"plan_id"`
+	PackageID     string  `json:"package_id"`
+	ReturnURL     string  `json:"return_url"`
+}
+
+type previewPackagePurchaseRequest struct {
+	PackageID     string `json:"package_id"`
+	OperationType string `json:"operation_type"`
 }
 
 func parseTopupOrderPageParams(c *gin.Context) (int, int, string, error) {
@@ -1955,6 +2052,136 @@ func parseTopupOrderPageParams(c *gin.Context) (int, int, string, error) {
 	default:
 		return page, pageSize, "", fmt.Errorf("无效的业务类型")
 	}
+}
+
+func minInt64(a int64, b int64) int64 {
+	if a <= b {
+		return a
+	}
+	return b
+}
+
+func normalizeNonNegativeQuota(value int64) int64 {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func buildTopUpBalanceSummary(totalBalance int64, topupInflow int64, redeemInflow int64) topUpBalanceSummaryData {
+	normalizedTotal := normalizeNonNegativeQuota(totalBalance)
+	normalizedTopup := normalizeNonNegativeQuota(topupInflow)
+	normalizedRedeem := normalizeNonNegativeQuota(redeemInflow)
+
+	totalInflow := normalizedTopup + normalizedRedeem
+	if totalInflow <= 0 {
+		return topUpBalanceSummaryData{
+			TotalYYCBalance:  normalizedTotal,
+			TopupYYCBalance:  normalizedTotal,
+			RedeemYYCBalance: 0,
+		}
+	}
+
+	consumed := totalInflow - normalizedTotal
+	if consumed < 0 {
+		consumed = 0
+	}
+
+	consumeFromTopup := minInt64(consumed, normalizedTopup)
+	topupRemain := normalizedTopup - consumeFromTopup
+	consumed -= consumeFromTopup
+	consumeFromRedeem := minInt64(consumed, normalizedRedeem)
+	redeemRemain := normalizedRedeem - consumeFromRedeem
+
+	sumRemain := topupRemain + redeemRemain
+	if sumRemain < normalizedTotal {
+		// For historical/manual balance adjustments without source information,
+		// attribute the residual to top-up balance so the split always matches total.
+		topupRemain += normalizedTotal - sumRemain
+		sumRemain = normalizedTotal
+	}
+	if sumRemain > normalizedTotal {
+		overflow := sumRemain - normalizedTotal
+		reduceTopup := minInt64(overflow, topupRemain)
+		topupRemain -= reduceTopup
+		overflow -= reduceTopup
+		if overflow > 0 {
+			redeemRemain -= minInt64(overflow, redeemRemain)
+		}
+	}
+
+	return topUpBalanceSummaryData{
+		TotalYYCBalance:  normalizedTotal,
+		TopupYYCBalance:  topupRemain,
+		RedeemYYCBalance: redeemRemain,
+	}
+}
+
+// GetCurrentUserTopUpBalanceSummary godoc
+// @Summary Get current user balance split summary
+// @Tags public
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/public/user/topup/balance/summary [get]
+func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
+	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
+	if userID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无效的 user id",
+		})
+		return
+	}
+
+	user, err := usersvc.GetByID(userID, false)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	var topupInflow int64
+	if err := model.DB.Model(&model.TopupOrder{}).
+		Select("COALESCE(SUM(quota), 0)").
+		Where(
+			"user_id = ? AND business_type = ? AND status = ?",
+			userID,
+			model.TopupOrderBusinessBalance,
+			model.TopupOrderStatusFulfilled,
+		).
+		Scan(&topupInflow).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	var redeemInflow int64
+	if err := model.DB.Model(&model.Redemption{}).
+		Select("COALESCE(SUM(quota), 0)").
+		Where(
+			"redeemed_by_user_id = ? AND status = ? AND redeemed_time > 0",
+			userID,
+			model.RedemptionCodeStatusUsed,
+		).
+		Scan(&redeemInflow).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    buildTopUpBalanceSummary(user.Quota, topupInflow, redeemInflow),
+	})
 }
 
 // GetTopUpOrders godoc
@@ -1995,6 +2222,53 @@ func GetTopUpOrders(c *gin.Context) {
 			Page:     page,
 			PageSize: pageSize,
 		},
+	})
+}
+
+// PreviewPackagePurchase godoc
+// @Summary Preview current user package purchase/renew/upgrade
+// @Tags public
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/public/user/topup/package/preview [post]
+func PreviewPackagePurchase(c *gin.Context) {
+	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
+	if userID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无效的 user id",
+		})
+		return
+	}
+	req := previewPackagePurchaseRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	preview, err := model.PreviewPackagePurchaseWithDB(
+		model.DB,
+		userID,
+		strings.TrimSpace(req.PackageID),
+		strings.TrimSpace(req.OperationType),
+		helper.GetTimestamp(),
+	)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    preview,
 	})
 }
 
@@ -2041,15 +2315,16 @@ func CreateTopUpOrder(c *gin.Context) {
 		}
 	}
 	order, err := model.CreateTopupOrderWithDB(model.DB, userID, username, model.CreateTopupOrderInput{
-		BusinessType: req.BusinessType,
-		ClientType:   resolveTopUpClientType(req.ClientType, c.Request.UserAgent()),
-		Title:        req.Title,
-		Amount:       req.Amount,
-		Currency:     req.Currency,
-		Quota:        req.Quota,
-		PlanID:       req.PlanID,
-		PackageID:    req.PackageID,
-		ReturnURL:    req.ReturnURL,
+		BusinessType:  req.BusinessType,
+		OperationType: req.OperationType,
+		ClientType:    resolveTopUpClientType(req.ClientType, c.Request.UserAgent()),
+		Title:         req.Title,
+		Amount:        req.Amount,
+		Currency:      req.Currency,
+		Quota:         req.Quota,
+		PlanID:        req.PlanID,
+		PackageID:     req.PackageID,
+		ReturnURL:     req.ReturnURL,
 	})
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{

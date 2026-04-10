@@ -1,15 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Header } from 'semantic-ui-react';
-import { API, showError, showInfo } from '../../helpers';
+import { Button, Card, Header, Modal } from 'semantic-ui-react';
+import { API, showError, showInfo, timestamp2string } from '../../helpers';
 import { useTopUpWorkspace } from './shared.jsx';
+
+const formatMoney = (amount, currency) =>
+  `${Number(amount || 0).toFixed(2)} ${String(currency || 'USD').toUpperCase()}`;
+
+const formatTimeValue = (value, t) => {
+  const normalized = Number(value || 0);
+  if (!Number.isFinite(normalized) || normalized <= 0) {
+    return t('common.unlimited');
+  }
+  return timestamp2string(normalized);
+};
 
 const PackagePurchasePage = () => {
   const { t } = useTranslation();
-  const { renderDisplayAmount, createTopupOrder } = useTopUpWorkspace();
+  const { renderDisplayAmount, createTopupOrder, previewPackagePurchase } =
+    useTopUpWorkspace();
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [previewingPackageId, setPreviewingPackageId] = useState('');
   const [creatingPackageId, setCreatingPackageId] = useState('');
+  const [previewState, setPreviewState] = useState({
+    open: false,
+    packageId: '',
+    preview: null,
+  });
 
   useEffect(() => {
     const loadPackages = async () => {
@@ -38,24 +56,71 @@ const PackagePurchasePage = () => {
       showInfo(t('topup.external_topup.package_select_required'));
       return;
     }
+    setPreviewingPackageId(packageID);
+    try {
+      const preview = await previewPackagePurchase({
+        package_id: packageID,
+      });
+      if (!preview) {
+        return;
+      }
+      setPreviewState({
+        open: true,
+        packageId: packageID,
+        preview,
+      });
+    } finally {
+      setPreviewingPackageId('');
+    }
+  };
+
+  const closePreviewModal = () => {
+    if (creatingPackageId !== '') {
+      return;
+    }
+    setPreviewState({
+      open: false,
+      packageId: '',
+      preview: null,
+    });
+  };
+
+  const handleConfirmPurchase = async () => {
+    const packageID = (previewState.packageId || '').trim();
+    const operationType = String(
+      previewState?.preview?.operation_type || '',
+    ).trim();
+    if (!packageID) {
+      showInfo(t('topup.external_topup.package_select_required'));
+      return;
+    }
     setCreatingPackageId(packageID);
     try {
-      await createTopupOrder({
+      const created = await createTopupOrder({
         business_type: 'package_purchase',
+        operation_type: operationType,
         package_id: packageID,
         return_url: window.location.href,
       });
+      if (created) {
+        closePreviewModal();
+      }
     } finally {
       setCreatingPackageId('');
     }
   };
+
+  const operationType = String(previewState?.preview?.operation_type || '').trim();
+  const operationLabel =
+    t(`topup.external_topup.package_operation.${operationType}`) ||
+    operationType ||
+    '-';
 
   return (
     <Card fluid className='router-soft-card router-soft-card-fill'>
       <Card.Content className='router-card-fill'>
         <Card.Header className='router-card-header'>
           <Header as='h3' className='router-section-title router-title-accent-positive'>
-            <i className='boxes icon' />
             {t('topup.external_topup.package_title')}
           </Header>
         </Card.Header>
@@ -212,10 +277,16 @@ const PackagePurchasePage = () => {
                             event.stopPropagation();
                             handlePurchase(item?.id || '');
                           }}
-                          loading={creatingPackageId === (item?.id || '')}
-                          disabled={creatingPackageId !== ''}
+                          loading={
+                            previewingPackageId === (item?.id || '') ||
+                            creatingPackageId === (item?.id || '')
+                          }
+                          disabled={
+                            previewingPackageId !== '' || creatingPackageId !== ''
+                          }
                         >
-                          {creatingPackageId === (item?.id || '')
+                          {previewingPackageId === (item?.id || '') ||
+                          creatingPackageId === (item?.id || '')
                             ? t('topup.external_topup.creating')
                             : t('topup.external_topup.package_button')}
                         </Button>
@@ -228,6 +299,91 @@ const PackagePurchasePage = () => {
           </div>
         </Card.Description>
       </Card.Content>
+      <Modal
+        size='small'
+        open={previewState.open}
+        onClose={closePreviewModal}
+        closeOnDimmerClick={creatingPackageId === ''}
+      >
+        <Modal.Header>
+          {t('topup.external_topup.package_preview_title')}
+        </Modal.Header>
+        <Modal.Content>
+          <div className='router-text-muted' style={{ marginBottom: '0.75rem' }}>
+            {t('topup.external_topup.package_preview_desc')}
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '160px minmax(0, 1fr)',
+              rowGap: '0.65rem',
+              columnGap: '0.75rem',
+              alignItems: 'center',
+            }}
+          >
+            <div className='router-text-muted'>
+              {t('topup.external_topup.package_preview_operation')}
+            </div>
+            <div>{operationLabel}</div>
+
+            <div className='router-text-muted'>
+              {t('topup.external_topup.package_preview_current_package')}
+            </div>
+            <div>{previewState?.preview?.current_package_name || '-'}</div>
+
+            <div className='router-text-muted'>
+              {t('topup.external_topup.package_preview_target_package')}
+            </div>
+            <div>{previewState?.preview?.target_package_name || '-'}</div>
+
+            <div className='router-text-muted'>
+              {t('topup.external_topup.package_preview_current_expire_at')}
+            </div>
+            <div>
+              {formatTimeValue(previewState?.preview?.current_expires_at, t)}
+            </div>
+
+            <div className='router-text-muted'>
+              {t('topup.external_topup.package_preview_effective_at')}
+            </div>
+            <div>{formatTimeValue(previewState?.preview?.start_at, t)}</div>
+
+            <div className='router-text-muted'>
+              {t('topup.external_topup.package_preview_expires_at')}
+            </div>
+            <div>{formatTimeValue(previewState?.preview?.expires_at, t)}</div>
+
+            <div className='router-text-muted'>
+              {t('topup.external_topup.package_preview_payable')}
+            </div>
+            <div>
+              {formatMoney(
+                previewState?.preview?.payable_amount,
+                previewState?.preview?.payable_currency,
+              )}
+            </div>
+
+            <div className='router-text-muted'>
+              {t('topup.external_topup.package_preview_payable_yyc')}
+            </div>
+            <div>{renderDisplayAmount(previewState?.preview?.payable_yyc || 0)}</div>
+          </div>
+        </Modal.Content>
+        <Modal.Actions>
+          <Button onClick={closePreviewModal} disabled={creatingPackageId !== ''}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            primary
+            className='router-section-button'
+            loading={creatingPackageId !== ''}
+            disabled={creatingPackageId !== ''}
+            onClick={handleConfirmPurchase}
+          >
+            {t('topup.external_topup.package_confirm_button')}
+          </Button>
+        </Modal.Actions>
+      </Modal>
     </Card>
   );
 };

@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, Header } from 'semantic-ui-react';
-import BalanceTopUpPage from './BalanceTopUpPage';
+import { Card } from 'semantic-ui-react';
+import BalanceStatusPage from './BalanceStatusPage';
 import CurrentPackagePage from './CurrentPackagePage';
-import RedeemCodePage from './RedeemCodePage';
 import TopUpRecordsPage from './TopUpRecordsPage';
 import {
   normalizeTopUpRecord,
@@ -13,7 +11,6 @@ import {
 import TopUpWorkspaceProvider from './provider.jsx';
 
 const TopUpLayout = () => {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const searchParamsString = searchParams.toString();
@@ -57,38 +54,15 @@ const TopUpLayout = () => {
         return <TopUpRecordsPage recordKey={activeRecord} />;
       case 'balance':
       default:
-        return (
-          <>
-            <BalanceTopUpPage />
-            <RedeemCodePage />
-          </>
-        );
+        return <BalanceStatusPage />;
     }
   }, [activeKey, activeRecord]);
-
-  const pageTitle = useMemo(() => {
-    switch (activeKey) {
-      case 'package':
-        return t('topup.mine.package');
-      case 'records':
-        return t(`topup.record_nav.${activeRecord}`);
-      case 'balance':
-      default:
-        return t('topup.mine.balance');
-    }
-  }, [activeKey, activeRecord, t]);
 
   return (
     <TopUpWorkspaceProvider>
       <div className='dashboard-container'>
         <Card fluid className='chart-card'>
           <Card.Content>
-            <Card.Header className='router-card-header'>
-              <Header as='h2' className='router-page-title'>
-                {pageTitle}
-              </Header>
-            </Card.Header>
-
             {activeContent}
           </Card.Content>
         </Card>

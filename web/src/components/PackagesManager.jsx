@@ -8,7 +8,7 @@ import {
   Table,
 } from 'semantic-ui-react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { API, showError, showInfo, showSuccess, timestamp2string } from '../helpers';
 import { ITEMS_PER_PAGE } from '../constants';
 import {
@@ -126,6 +126,7 @@ const renderPackageAmountFieldValue = (row, type, displayUnit, currencyIndex) =>
 
 const PackagesManager = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -144,7 +145,6 @@ const PackagesManager = () => {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [viewOpen, setViewOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const [form, setForm] = useState(createEmptyForm('USD'));
@@ -317,7 +317,6 @@ const PackagesManager = () => {
     if (submitting) return;
     setCreateOpen(false);
     setEditOpen(false);
-    setViewOpen(false);
     setDeleteOpen(false);
     setActiveRow(null);
     resetForm();
@@ -327,27 +326,15 @@ const PackagesManager = () => {
     if (submitting) return;
     setCreateOpen(true);
     setEditOpen(false);
-    setViewOpen(false);
     setActiveRow(null);
     resetForm();
   };
 
-  const openViewModal = async (row) => {
+  const openViewPage = (row) => {
     if (!row || submitting) return;
     const id = (row.id || '').toString().trim();
     if (id === '') return;
-    try {
-      const res = await API.get(`/api/v1/admin/package/${encodeURIComponent(id)}`);
-      const { success, message, data } = res.data || {};
-      if (!success) {
-        showError(message || t('package_manage.messages.load_failed'));
-        return;
-      }
-      setActiveRow(data);
-      setViewOpen(true);
-    } catch (error) {
-      showError(error);
-    }
+    navigate(`/admin/package/detail/${encodeURIComponent(id)}`);
   };
 
   const openEditModal = async (row) => {
@@ -656,7 +643,7 @@ const PackagesManager = () => {
                 <Table.Row
                   key={row.id}
                   className={loading || submitting ? '' : 'router-row-clickable'}
-                  onClick={() => openViewModal(row)}
+                  onClick={() => openViewPage(row)}
                 >
                   <Table.Cell className='router-package-name-cell'>{row.name || '-'}</Table.Cell>
                   <Table.Cell>{row.group_name || row.group_id || '-'}</Table.Cell>
@@ -918,126 +905,6 @@ const PackagesManager = () => {
     </Form>
   );
 
-  const renderDetailModal = () => (
-    <Modal
-      open={viewOpen}
-      onClose={closeAllModals}
-      size='small'
-    >
-      <Modal.Header>{t('package_manage.dialog.detail_title')}</Modal.Header>
-      <Modal.Content>
-        <Form>
-          <Form.Group widths='equal'>
-            <Form.Input
-              className='router-section-input'
-              label={t('package_manage.form.id')}
-              value={activeRow?.id || '-'}
-              readOnly
-            />
-            <Form.Input
-              className='router-section-input'
-              label={t('package_manage.table.name')}
-              value={activeRow?.name || '-'}
-              readOnly
-            />
-            <Form.Input
-              className='router-section-input'
-              label={t('package_manage.table.group')}
-              value={activeRow?.group_name || activeRow?.group_id || '-'}
-              readOnly
-            />
-          </Form.Group>
-
-          <Form.TextArea
-            className='router-section-input'
-            label={t('package_manage.form.description')}
-            value={activeRow?.description || '-'}
-            readOnly
-          />
-
-          <Form.Group widths='equal'>
-            <Form.Input
-              className='router-section-input'
-              label={t('package_manage.form.sale_price')}
-              value={`${activeRow?.sale_currency || 'CNY'} ${activeRow?.sale_price ?? 0}`}
-              readOnly
-            />
-            <Form.Input
-              className='router-section-input'
-              label={t('package_manage.form.sale_currency')}
-              value={activeRow?.sale_currency || 'CNY'}
-              readOnly
-            />
-          </Form.Group>
-
-          <Form.Group widths='equal'>
-            <Form.Input
-              className='router-section-input'
-              label={t('package_manage.table.daily_quota_limit')}
-              value={renderPackageAmountFieldValue(
-                activeRow,
-                'daily',
-                displayUnit,
-                currencyIndex
-              )}
-              readOnly
-            />
-            <Form.Input
-              className='router-section-input'
-              label={t('package_manage.table.package_emergency_quota_limit')}
-              value={renderPackageAmountFieldValue(
-                activeRow,
-                'emergency',
-                displayUnit,
-                currencyIndex
-              )}
-              readOnly
-            />
-          </Form.Group>
-
-          <Form.Group widths='equal'>
-            <Form.Input
-              className='router-section-input'
-              label={t('package_manage.table.duration_days')}
-              value={Number(activeRow?.duration_days || 0) || '-'}
-              readOnly
-            />
-            <Form.Input
-              className='router-section-input'
-              label={t('package_manage.table.status')}
-              value={
-                activeRow?.enabled
-                  ? t('package_manage.status.enabled')
-                  : t('package_manage.status.disabled')
-              }
-              readOnly
-            />
-          </Form.Group>
-
-          <Form.Group widths='equal'>
-            <Form.Input
-              className='router-section-input'
-              label={t('package_manage.form.quota_reset_timezone')}
-              value={activeRow?.quota_reset_timezone || '-'}
-              readOnly
-            />
-            <Form.Input
-              className='router-section-input'
-              label={t('package_manage.table.updated_at')}
-              value={activeRow?.updated_at ? timestamp2string(activeRow.updated_at) : '-'}
-              readOnly
-            />
-          </Form.Group>
-        </Form>
-      </Modal.Content>
-      <Modal.Actions>
-        <Button type='button' onClick={closeAllModals} disabled={submitting}>
-          {t('common.cancel')}
-        </Button>
-      </Modal.Actions>
-    </Modal>
-  );
-
   return (
     <div>
       {renderTable()}
@@ -1096,8 +963,6 @@ const PackagesManager = () => {
           </Button>
         </Modal.Actions>
       </Modal>
-
-      {renderDetailModal()}
     </div>
   );
 };

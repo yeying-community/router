@@ -38,7 +38,6 @@ const RedeemCodePage = () => {
         <Card.Content className='router-card-fill'>
           <Card.Header className='router-card-header'>
             <Header as='h3' className='router-section-title router-title-accent-positive'>
-              <i className='ticket alternate icon' />
               {t('topup.redeem.title')}
             </Header>
           </Card.Header>

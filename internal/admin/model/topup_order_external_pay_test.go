@@ -45,6 +45,7 @@ func TestCreateTopupOrderByExternalPayAPI(t *testing.T) {
 			"user_id":        "user_1",
 			"username":       "alice",
 			"business_type":  TopupOrderBusinessBalance,
+			"operation_type": TopupOrderOperationTopup,
 			"title":          "账户充值",
 			"amount":         "12.50",
 			"currency":       "CNY",
@@ -103,6 +104,9 @@ func TestCreateTopupOrderByExternalPayAPI(t *testing.T) {
 	}
 	if captured["client_type"] != "mobile" {
 		t.Fatalf("unexpected client_type: %q", captured["client_type"])
+	}
+	if captured["operation_type"] != TopupOrderOperationTopup {
+		t.Fatalf("unexpected operation_type: %q", captured["operation_type"])
 	}
 }
 

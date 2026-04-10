@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Icon, Menu } from 'semantic-ui-react';
+import { Icon, Menu, Popup } from 'semantic-ui-react';
 import { useTranslation } from 'react-i18next';
 import {
   buildUserWorkspaceMenuItems,
@@ -32,6 +32,7 @@ const UserSidebar = ({ compact = false }) => {
       return accumulator;
     }, {});
   });
+  const [compactPopupGroup, setCompactPopupGroup] = useState('');
   const previousGroupActiveRef = useRef(groupActiveMap);
 
   useEffect(() => {
@@ -55,11 +56,86 @@ const UserSidebar = ({ compact = false }) => {
     previousGroupActiveRef.current = groupActiveMap;
   }, [groupActiveMap]);
 
+  useEffect(() => {
+    if (!compact) {
+      setCompactPopupGroup('');
+    }
+  }, [compact]);
+
+  useEffect(() => {
+    setCompactPopupGroup('');
+  }, [location.pathname, location.search, location.hash]);
+
   return (
     <Menu vertical fluid className='router-admin-sidebar-menu'>
       {menuItems.map((item) => {
         if (item.type === 'group' && Array.isArray(item.items)) {
           const groupActive = Boolean(groupActiveMap[item.key]);
+          if (compact) {
+            const popupOpen = compactPopupGroup === item.key;
+            return (
+              <Popup
+                key={item.key}
+                className='router-admin-compact-popup'
+                on='click'
+                position='right center'
+                open={popupOpen}
+                onClose={() =>
+                  setCompactPopupGroup((previous) =>
+                    previous === item.key ? '' : previous,
+                  )
+                }
+                trigger={
+                  <Menu.Item
+                    className={`router-admin-sidebar-group ${groupActive ? 'active' : ''}`}
+                    onClick={() =>
+                      setCompactPopupGroup((previous) =>
+                        previous === item.key ? '' : item.key,
+                      )
+                    }
+                    title={t(item.name)}
+                  >
+                    <span className='router-admin-sidebar-group-title'>
+                      <Icon
+                        name={item.icon}
+                        className='router-admin-sidebar-item-icon'
+                      />
+                      <span className='router-admin-sidebar-group-label'>
+                        {t(item.name)}
+                      </span>
+                    </span>
+                  </Menu.Item>
+                }
+              >
+                <Menu vertical secondary className='router-admin-compact-popup-menu'>
+                  {item.items.map((child) => {
+                    const active = isUserRouteActive(location, child.to);
+                    return (
+                      <Menu.Item
+                        key={child.to}
+                        active={active}
+                        className='router-admin-compact-popup-item'
+                        onClick={() => {
+                          setCompactPopupGroup('');
+                          navigate(child.to);
+                        }}
+                      >
+                        <span className='router-admin-compact-popup-item-content'>
+                          <Icon
+                            name={child.icon}
+                            className='router-admin-compact-popup-item-icon'
+                          />
+                          <span className='router-admin-compact-popup-item-label'>
+                            {t(child.name)}
+                          </span>
+                        </span>
+                      </Menu.Item>
+                    );
+                  })}
+                </Menu>
+              </Popup>
+            );
+          }
           const groupOpen = Boolean(openGroups[item.key]);
           return (
             <Menu.Item

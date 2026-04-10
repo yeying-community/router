@@ -11,6 +11,12 @@ import (
 
 const SystemSettingsTableName = "system_settings"
 
+var deprecatedRewardOptionKeys = map[string]struct{}{
+	"QuotaForNewUser": {},
+	"QuotaForInviter": {},
+	"QuotaForInvitee": {},
+}
+
 type Option struct {
 	Key   string `json:"key" gorm:"primaryKey"`
 	Value string `json:"value"`
@@ -51,10 +57,9 @@ func InitOptionMap() {
 	config.OptionMap["Footer"] = config.Footer
 	config.OptionMap["SystemName"] = config.SystemName
 	config.OptionMap["Logo"] = config.Logo
-	config.OptionMap["QuotaForNewUser"] = strconv.FormatInt(config.QuotaForNewUser, 10)
+	config.OptionMap["NewUserRewardTopupPlanID"] = config.NewUserRewardTopupPlanID
 	config.OptionMap["DefaultUserGroup"] = config.DefaultUserGroup
-	config.OptionMap["QuotaForInviter"] = strconv.FormatInt(config.QuotaForInviter, 10)
-	config.OptionMap["QuotaForInvitee"] = strconv.FormatInt(config.QuotaForInvitee, 10)
+	config.OptionMap["InviterRewardTopupPlanID"] = config.InviterRewardTopupPlanID
 	config.OptionMap["QuotaRemindThreshold"] = strconv.FormatInt(config.QuotaRemindThreshold, 10)
 	config.OptionMap["PreConsumedQuota"] = strconv.FormatInt(config.PreConsumedQuota, 10)
 	config.OptionMap["QuotaPerUnit"] = strconv.FormatFloat(config.QuotaPerUnit, 'f', -1, 64)
@@ -94,6 +99,15 @@ func SyncOptions(frequency int) {
 }
 
 func UpdateOption(key string, value string) error {
+	normalizedKey := strings.TrimSpace(key)
+	if _, ok := deprecatedRewardOptionKeys[normalizedKey]; ok {
+		if DB != nil {
+			if err := DB.Where("key = ?", normalizedKey).Delete(&Option{}).Error; err != nil {
+				return err
+			}
+		}
+		return UpdateOptionMap(normalizedKey, "")
+	}
 	return mustOptionRepo().UpdateOption(key, value)
 }
 
@@ -103,6 +117,10 @@ func UpdateOptionMap(key string, value string) (err error) {
 	switch key {
 	case "WalletLoginEnabled", "WalletAutoRegisterEnabled", "WalletAllowedChains", "AutoRegisterEnabled", "Theme",
 		"ServerAddress", "TopUpLink", "TopUpSignSecret", "TopUpCallbackToken", "ChatLink":
+		delete(config.OptionMap, key)
+		return nil
+	}
+	if _, ok := deprecatedRewardOptionKeys[key]; ok {
 		delete(config.OptionMap, key)
 		return nil
 	}
@@ -144,14 +162,12 @@ func UpdateOptionMap(key string, value string) (err error) {
 		config.SystemName = value
 	case "Logo":
 		config.Logo = value
-	case "QuotaForNewUser":
-		config.QuotaForNewUser, _ = strconv.ParseInt(value, 10, 64)
+	case "NewUserRewardTopupPlanID":
+		config.NewUserRewardTopupPlanID = strings.TrimSpace(value)
 	case "DefaultUserGroup":
 		config.DefaultUserGroup = strings.TrimSpace(value)
-	case "QuotaForInviter":
-		config.QuotaForInviter, _ = strconv.ParseInt(value, 10, 64)
-	case "QuotaForInvitee":
-		config.QuotaForInvitee, _ = strconv.ParseInt(value, 10, 64)
+	case "InviterRewardTopupPlanID":
+		config.InviterRewardTopupPlanID = strings.TrimSpace(value)
 	case "QuotaRemindThreshold":
 		config.QuotaRemindThreshold, _ = strconv.ParseInt(value, 10, 64)
 	case "PreConsumedQuota":

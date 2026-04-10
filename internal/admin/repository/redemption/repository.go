@@ -60,16 +60,16 @@ func hydrateRedemptionGroupNamesWithDB(db *gorm.DB, rows []*model.Redemption) er
 
 func init() {
 	model.BindRedemptionRepository(model.RedemptionRepository{
-		GetAllRedemptions:    GetAll,
-		SearchRedemptions:    Search,
-		GetRedemptionById:    GetByID,
+		GetAllRedemptions:               GetAll,
+		SearchRedemptions:               Search,
+		GetRedemptionById:               GetByID,
 		ListRedemptionsByRedeemedUserID: ListByRedeemedUserID,
-		Redeem:               Redeem,
-		Insert:               Create,
-		SelectUpdate:         SelectUpdate,
-		Update:               Update,
-		Delete:               Delete,
-		DeleteRedemptionById: DeleteByID,
+		Redeem:                          Redeem,
+		Insert:                          Create,
+		SelectUpdate:                    SelectUpdate,
+		Update:                          Update,
+		Delete:                          Delete,
+		DeleteRedemptionById:            DeleteByID,
 	})
 }
 
@@ -251,7 +251,11 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 	if err != nil {
 		return model.RedemptionResult{}, errors.New("兑换失败，" + err.Error())
 	}
-	model.RecordLog(ctx, userId, model.LogTypeTopup, fmt.Sprintf("通过兑换码充值 %s", common.LogQuota(redemption.Quota)))
+	logContent := fmt.Sprintf("通过兑换码充值 %s", common.LogQuota(redemption.Quota))
+	if redemptionName := strings.TrimSpace(redemption.Name); redemptionName != "" {
+		logContent = fmt.Sprintf("通过兑换码充值（%s）%s", redemptionName, common.LogQuota(redemption.Quota))
+	}
+	model.RecordTopupLog(ctx, userId, logContent, int(redemption.Quota))
 	return result, nil
 }
 

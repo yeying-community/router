@@ -27,11 +27,21 @@ const normalizeOptionValue = (value, fallback = '') => {
   return `${value}`;
 };
 
+const formatPlanNumber = (value) => {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric)) {
+    return '0';
+  }
+  if (Math.abs(numeric - Math.round(numeric)) < 0.000001) {
+    return `${Math.round(numeric)}`;
+  }
+  return numeric.toFixed(6).replace(/\.?0+$/, '');
+};
+
 const BALANCE_OPTION_KEYS = {
-  newUserAmount: 'QuotaForNewUser',
+  newUserRewardPlan: 'NewUserRewardTopupPlanID',
   defaultGroup: 'DefaultUserGroup',
-  inviterRewardAmount: 'QuotaForInviter',
-  inviteeRewardAmount: 'QuotaForInvitee',
+  inviterRewardPlan: 'InviterRewardTopupPlanID',
   balanceReminderThreshold: 'QuotaRemindThreshold',
   preConsumedAmount: 'PreConsumedQuota',
 };
@@ -40,10 +50,9 @@ const OperationSetting = ({ section = '' }) => {
   const { t } = useTranslation();
   const now = new Date();
   const [inputs, setInputs] = useState({
-    [BALANCE_OPTION_KEYS.newUserAmount]: 0,
+    [BALANCE_OPTION_KEYS.newUserRewardPlan]: '',
     [BALANCE_OPTION_KEYS.defaultGroup]: '',
-    [BALANCE_OPTION_KEYS.inviterRewardAmount]: 0,
-    [BALANCE_OPTION_KEYS.inviteeRewardAmount]: 0,
+    [BALANCE_OPTION_KEYS.inviterRewardPlan]: '',
     [BALANCE_OPTION_KEYS.balanceReminderThreshold]: 0,
     [BALANCE_OPTION_KEYS.preConsumedAmount]: 0,
     AutomaticDisableChannelEnabled: '',
@@ -54,6 +63,8 @@ const OperationSetting = ({ section = '' }) => {
   });
   const [originInputs, setOriginInputs] = useState({});
   const [groupOptions, setGroupOptions] = useState([]);
+  const [topupPlanOptions, setTopupPlanOptions] = useState([]);
+  const [topupPlanById, setTopupPlanById] = useState({});
   const [billingCurrencyIndex, setBillingCurrencyIndex] = useState(
     buildBillingCurrencyIndex([], { activeOnly: true })
   );
@@ -116,6 +127,7 @@ const OperationSetting = ({ section = '' }) => {
   useEffect(() => {
     getOptions().then();
     loadGroups().then();
+    loadTopupPlans().then();
     loadBillingCurrencies().then();
   }, []);
 
@@ -158,6 +170,42 @@ const OperationSetting = ({ section = '' }) => {
           value: group.id,
           text: group.name || group.id,
         })),
+      );
+    } catch (error) {
+      showError(error?.message || error);
+    }
+  };
+
+  const loadTopupPlans = async () => {
+    try {
+      const res = await API.get('/api/v1/admin/topup/plans');
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message);
+        return;
+      }
+      const rows = (Array.isArray(data) ? data : [])
+        .filter((item) => Boolean(item?.enabled))
+        .map((item) => ({
+          id: (item?.id || '').toString().trim(),
+          name: (item?.name || '').toString().trim(),
+          amount: Number(item?.amount || 0),
+          amount_currency: (item?.amount_currency || '').toString().trim().toUpperCase(),
+          quota_amount: Number(item?.quota_amount || 0),
+          quota_currency: (item?.quota_currency || '').toString().trim().toUpperCase(),
+        }))
+        .filter((item) => item.id);
+      const indexed = rows.reduce((result, item) => {
+        result[item.id] = item;
+        return result;
+      }, {});
+      setTopupPlanById(indexed);
+      setTopupPlanOptions(
+        rows.map((item) => ({
+          key: item.id,
+          value: item.id,
+          text: `${formatPlanNumber(item.amount)} ${item.amount_currency} / ${formatPlanNumber(item.quota_amount)} ${item.quota_currency}`,
+        }))
       );
     } catch (error) {
       showError(error?.message || error);
@@ -263,84 +311,22 @@ const OperationSetting = ({ section = '' }) => {
         break;
       case 'balance':
         {
-          const yycForNewUser = billingInputValueToYYC(
-            inputs[BALANCE_OPTION_KEYS.newUserAmount],
-            billingUnits[BALANCE_OPTION_KEYS.newUserAmount],
-            billingCurrencyIndex
-          );
-          if (
-            !Number.isFinite(yycForNewUser) ||
-            yycForNewUser < 0
-          ) {
-            showError(t('setting.operation.quota.messages.amount_invalid'));
+          const newUserRewardPlanID = normalizeOptionValue(
+            inputs[BALANCE_OPTION_KEYS.newUserRewardPlan],
+            '',
+          ).trim();
+          const inviterRewardPlanID = normalizeOptionValue(
+            inputs[BALANCE_OPTION_KEYS.inviterRewardPlan],
+            '',
+          ).trim();
+          if (newUserRewardPlanID && !topupPlanById[newUserRewardPlanID]) {
+            showError(t('setting.operation.quota.messages.plan_invalid'));
             break;
           }
-          if (
-            normalizeOptionValue(originInputs[BALANCE_OPTION_KEYS.newUserAmount], '0') !==
-            `${Math.trunc(yycForNewUser)}`
-          ) {
-            await updateOption(
-              BALANCE_OPTION_KEYS.newUserAmount,
-              `${Math.trunc(yycForNewUser)}`
-            );
-          }
-        }
-        if (
-          originInputs[BALANCE_OPTION_KEYS.defaultGroup] !==
-          inputs[BALANCE_OPTION_KEYS.defaultGroup]
-        ) {
-          await updateOption(
-            BALANCE_OPTION_KEYS.defaultGroup,
-            inputs[BALANCE_OPTION_KEYS.defaultGroup]
-          );
-        }
-        {
-          const yycForInvitee = billingInputValueToYYC(
-            inputs[BALANCE_OPTION_KEYS.inviteeRewardAmount],
-            billingUnits[BALANCE_OPTION_KEYS.inviteeRewardAmount],
-            billingCurrencyIndex
-          );
-          if (
-            !Number.isFinite(yycForInvitee) ||
-            yycForInvitee < 0
-          ) {
-            showError(t('setting.operation.quota.messages.amount_invalid'));
+          if (inviterRewardPlanID && !topupPlanById[inviterRewardPlanID]) {
+            showError(t('setting.operation.quota.messages.plan_invalid'));
             break;
           }
-          if (
-            normalizeOptionValue(originInputs[BALANCE_OPTION_KEYS.inviteeRewardAmount], '0') !==
-            `${Math.trunc(yycForInvitee)}`
-          ) {
-            await updateOption(
-              BALANCE_OPTION_KEYS.inviteeRewardAmount,
-              `${Math.trunc(yycForInvitee)}`
-            );
-          }
-        }
-        {
-          const yycForInviter = billingInputValueToYYC(
-            inputs[BALANCE_OPTION_KEYS.inviterRewardAmount],
-            billingUnits[BALANCE_OPTION_KEYS.inviterRewardAmount],
-            billingCurrencyIndex
-          );
-          if (
-            !Number.isFinite(yycForInviter) ||
-            yycForInviter < 0
-          ) {
-            showError(t('setting.operation.quota.messages.amount_invalid'));
-            break;
-          }
-          if (
-            normalizeOptionValue(originInputs[BALANCE_OPTION_KEYS.inviterRewardAmount], '0') !==
-            `${Math.trunc(yycForInviter)}`
-          ) {
-            await updateOption(
-              BALANCE_OPTION_KEYS.inviterRewardAmount,
-              `${Math.trunc(yycForInviter)}`
-            );
-          }
-        }
-        {
           const preConsumedYYC = billingInputValueToYYC(
             inputs[BALANCE_OPTION_KEYS.preConsumedAmount],
             billingUnits[BALANCE_OPTION_KEYS.preConsumedAmount],
@@ -362,6 +348,33 @@ const OperationSetting = ({ section = '' }) => {
               `${Math.trunc(preConsumedYYC)}`
             );
           }
+          if (
+            normalizeOptionValue(originInputs[BALANCE_OPTION_KEYS.newUserRewardPlan], '') !==
+            newUserRewardPlanID
+          ) {
+            await updateOption(
+              BALANCE_OPTION_KEYS.newUserRewardPlan,
+              newUserRewardPlanID
+            );
+          }
+          if (
+            normalizeOptionValue(originInputs[BALANCE_OPTION_KEYS.inviterRewardPlan], '') !==
+            inviterRewardPlanID
+          ) {
+            await updateOption(
+              BALANCE_OPTION_KEYS.inviterRewardPlan,
+              inviterRewardPlanID
+            );
+          }
+        }
+        if (
+          originInputs[BALANCE_OPTION_KEYS.defaultGroup] !==
+          inputs[BALANCE_OPTION_KEYS.defaultGroup]
+        ) {
+          await updateOption(
+            BALANCE_OPTION_KEYS.defaultGroup,
+            inputs[BALANCE_OPTION_KEYS.defaultGroup]
+          );
         }
         break;
       case 'retry':
@@ -413,7 +426,12 @@ const OperationSetting = ({ section = '' }) => {
     billingUnits,
   ]);
 
-  const renderBalanceInputField = (labelKey, optionKey, placeholderKey) => (
+  const renderBalanceInputField = (
+    labelKey,
+    optionKey,
+    placeholderKey,
+    descriptionKey = '',
+  ) => (
     <Form.Field>
       <label>{t(labelKey)}</label>
       <div className='router-section-input-with-unit'>
@@ -455,6 +473,32 @@ const OperationSetting = ({ section = '' }) => {
           aria-label={t(labelKey)}
         />
       </div>
+      {descriptionKey ? (
+        <div className='router-section-field-description'>{t(descriptionKey)}</div>
+      ) : null}
+    </Form.Field>
+  );
+
+  const renderTopupPlanField = (
+    labelKey,
+    optionKey,
+    placeholderKey,
+    descriptionKey,
+  ) => (
+    <Form.Field>
+      <label>{t(labelKey)}</label>
+      <Form.Dropdown
+        className='router-section-input'
+        selection
+        clearable
+        search
+        options={topupPlanOptions}
+        name={optionKey}
+        value={inputs[optionKey] || ''}
+        onChange={handleInputChange}
+        placeholder={t(placeholderKey)}
+      />
+      <div className='router-section-field-description'>{t(descriptionKey)}</div>
     </Form.Field>
   );
 
@@ -479,10 +523,25 @@ const OperationSetting = ({ section = '' }) => {
               <Header as='h3' className='router-section-title'>{t('setting.operation.quota.title')}</Header>
               <Form.Group widths='equal'>
                 {renderBalanceInputField(
-                  'setting.operation.quota.new_user',
-                  BALANCE_OPTION_KEYS.newUserAmount,
-                  'setting.operation.quota.new_user_placeholder'
+                  'setting.operation.quota.pre_consume',
+                  BALANCE_OPTION_KEYS.preConsumedAmount,
+                  'setting.operation.quota.pre_consume_placeholder',
+                  'setting.operation.quota.pre_consume_description'
                 )}
+                {renderTopupPlanField(
+                  'setting.operation.quota.new_user_reward',
+                  BALANCE_OPTION_KEYS.newUserRewardPlan,
+                  'setting.operation.quota.reward_plan_placeholder',
+                  'setting.operation.quota.new_user_reward_description'
+                )}
+                {renderTopupPlanField(
+                  'setting.operation.quota.inviter_reward',
+                  BALANCE_OPTION_KEYS.inviterRewardPlan,
+                  'setting.operation.quota.reward_plan_placeholder',
+                  'setting.operation.quota.inviter_reward_description'
+                )}
+              </Form.Group>
+              <Form.Group widths='equal'>
                 <Form.Dropdown
                   className='router-section-input'
                   label={t('setting.operation.quota.default_group')}
@@ -495,23 +554,6 @@ const OperationSetting = ({ section = '' }) => {
                   value={inputs[BALANCE_OPTION_KEYS.defaultGroup] || ''}
                   placeholder={t('setting.operation.quota.default_group_placeholder')}
                 />
-                {renderBalanceInputField(
-                  'setting.operation.quota.pre_consume',
-                  BALANCE_OPTION_KEYS.preConsumedAmount,
-                  'setting.operation.quota.pre_consume_placeholder'
-                )}
-              </Form.Group>
-              <Form.Group widths='equal'>
-                {renderBalanceInputField(
-                  'setting.operation.quota.inviter_reward',
-                  BALANCE_OPTION_KEYS.inviterRewardAmount,
-                  'setting.operation.quota.inviter_reward_placeholder'
-                )}
-                {renderBalanceInputField(
-                  'setting.operation.quota.invitee_reward',
-                  BALANCE_OPTION_KEYS.inviteeRewardAmount,
-                  'setting.operation.quota.invitee_reward_placeholder'
-                )}
               </Form.Group>
               <Form.Button
                 className='router-section-button'

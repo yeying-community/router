@@ -92,9 +92,12 @@ func SetApiRouter(engine *gin.Engine) {
 				publicSelfRoute.GET("/aff", user.GetAffCode)
 				publicSelfRoute.GET("/packages", plan.GetPublicPackages)
 				publicSelfRoute.GET("/topup/orders", user.GetTopUpOrders)
+				publicSelfRoute.GET("/topup/redemptions", user.GetCurrentUserTopupRedemptions)
+				publicSelfRoute.GET("/topup/balance/summary", user.GetCurrentUserTopUpBalanceSummary)
 				publicSelfRoute.GET("/topup/orders/:id", user.GetTopUpOrder)
 				publicSelfRoute.POST("/topup/orders/:id/refresh", user.RefreshTopUpOrder)
 				publicSelfRoute.POST("/topup/orders/:id/cancel", user.CancelTopUpOrder)
+				publicSelfRoute.POST("/topup/package/preview", user.PreviewPackagePurchase)
 				publicSelfRoute.POST("/topup/orders", user.CreateTopUpOrder)
 				publicSelfRoute.POST("/topup", user.TopUp)
 			}

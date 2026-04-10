@@ -132,10 +132,9 @@ var MessagePusherToken = ""
 var TurnstileSiteKey = ""
 var TurnstileSecretKey = ""
 
-var QuotaForNewUser int64 = 0
+var NewUserRewardTopupPlanID = ""
 var DefaultUserGroup = ""
-var QuotaForInviter int64 = 0
-var QuotaForInvitee int64 = 0
+var InviterRewardTopupPlanID = ""
 var ChannelDisableThreshold = 5.0
 var AutomaticDisableChannelEnabled = false
 var AutomaticEnableChannelEnabled = false

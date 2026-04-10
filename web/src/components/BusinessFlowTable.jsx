@@ -55,6 +55,8 @@ const renderPackageStatus = (status, t) => {
       return <Label basic color='blue' className='router-tag'>{t('user.detail.package_status_types.replaced')}</Label>;
     case 4:
       return <Label basic color='red' className='router-tag'>{t('user.detail.package_status_types.canceled')}</Label>;
+    case 5:
+      return <Label basic color='teal' className='router-tag'>{t('user.detail.package_status_types.pending')}</Label>;
     default:
       return <Label basic color='grey' className='router-tag'>{t('user.detail.package_status_types.unknown')}</Label>;
   }
@@ -377,6 +379,7 @@ const BusinessFlowTable = ({ kind }) => {
           { key: '2', value: '2', text: t('user.detail.package_status_types.expired') },
           { key: '3', value: '3', text: t('user.detail.package_status_types.replaced') },
           { key: '4', value: '4', text: t('user.detail.package_status_types.canceled') },
+          { key: '5', value: '5', text: t('user.detail.package_status_types.pending') },
         ],
         columns: [
           compactUserColumn,

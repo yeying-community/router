@@ -21,9 +21,6 @@ const Setting = () => {
       <div className='dashboard-container'>
         <Card fluid className='chart-card'>
           <Card.Content>
-            <Card.Header className='header router-page-title'>
-              {t('setting.title')}
-            </Card.Header>
             <PersonalSetting />
           </Card.Content>
         </Card>

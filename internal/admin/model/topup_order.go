@@ -3,6 +3,7 @@ package model
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -17,18 +18,22 @@ import (
 )
 
 const (
-	TopupOrdersTableName      = "topup_orders"
-	TopupOrderStatusCreated   = "created"
-	TopupOrderStatusPending   = "pending"
-	TopupOrderStatusPaid      = "paid"
-	TopupOrderStatusFulfilled = "fulfilled"
-	TopupOrderStatusFailed    = "failed"
-	TopupOrderStatusCanceled  = "canceled"
-	TopupOrderSourceTopUp     = "top_up_link"
-	TopupOrderSourceTopUpAPI  = "top_up_api"
-	TopupOrderBusinessBalance = "balance_topup"
-	TopupOrderBusinessPackage = "package_purchase"
-	TopupOrderCurrencyCNY     = "CNY"
+	TopupOrdersTableName       = "topup_orders"
+	TopupOrderStatusCreated    = "created"
+	TopupOrderStatusPending    = "pending"
+	TopupOrderStatusPaid       = "paid"
+	TopupOrderStatusFulfilled  = "fulfilled"
+	TopupOrderStatusFailed     = "failed"
+	TopupOrderStatusCanceled   = "canceled"
+	TopupOrderSourceTopUp      = "top_up_link"
+	TopupOrderSourceTopUpAPI   = "top_up_api"
+	TopupOrderBusinessBalance  = "balance_topup"
+	TopupOrderBusinessPackage  = "package_purchase"
+	TopupOrderCurrencyCNY      = "CNY"
+	TopupOrderOperationTopup   = "topup"
+	TopupOrderOperationNew     = "new_purchase"
+	TopupOrderOperationRenew   = "renew"
+	TopupOrderOperationUpgrade = "upgrade"
 )
 
 type TopupOrder struct {
@@ -42,6 +47,7 @@ type TopupOrder struct {
 	RedemptionID    string  `json:"redemption_id" gorm:"type:char(36);index"`
 	TransactionID   string  `json:"transaction_id" gorm:"type:varchar(64);uniqueIndex"`
 	BusinessType    string  `json:"business_type" gorm:"type:varchar(32);default:'balance_topup';index"`
+	OperationType   string  `json:"operation_type" gorm:"type:varchar(32);default:'';index"`
 	Title           string  `json:"title" gorm:"type:varchar(255);default:''"`
 	Amount          float64 `json:"amount" gorm:"type:decimal(10,2);default:0"`
 	Currency        string  `json:"currency" gorm:"type:varchar(16);default:'CNY'"`
@@ -60,15 +66,16 @@ type TopupOrder struct {
 }
 
 type CreateTopupOrderInput struct {
-	BusinessType string
-	ClientType   string
-	Title        string
-	Amount       float64
-	Currency     string
-	Quota        int64
-	PlanID       string
-	PackageID    string
-	ReturnURL    string
+	BusinessType  string
+	OperationType string
+	ClientType    string
+	Title         string
+	Amount        float64
+	Currency      string
+	Quota         int64
+	PlanID        string
+	PackageID     string
+	ReturnURL     string
 }
 
 type TopupOrderCallbackInput struct {
@@ -82,6 +89,20 @@ type TopupOrderCallbackInput struct {
 	StatusMessage   string
 	PaidAt          int64
 	RedeemedAt      int64
+}
+
+type PackagePurchasePreview struct {
+	OperationType      string  `json:"operation_type"`
+	StartAt            int64   `json:"start_at"`
+	ExpiresAt          int64   `json:"expires_at"`
+	CurrentExpiresAt   int64   `json:"current_expires_at"`
+	TargetPackageID    string  `json:"target_package_id"`
+	TargetPackageName  string  `json:"target_package_name"`
+	CurrentPackageID   string  `json:"current_package_id"`
+	CurrentPackageName string  `json:"current_package_name"`
+	PayableAmount      float64 `json:"payable_amount"`
+	PayableCurrency    string  `json:"payable_currency"`
+	PayableYYC         int64   `json:"payable_yyc"`
 }
 
 func (TopupOrder) TableName() string {
@@ -108,6 +129,7 @@ func normalizeTopupOrderRow(row *TopupOrder) {
 	row.RedemptionID = strings.TrimSpace(row.RedemptionID)
 	row.TransactionID = strings.TrimSpace(row.TransactionID)
 	row.BusinessType = resolveTopupOrderBusinessType(row.BusinessType, row.PackageID)
+	row.OperationType = resolveTopupOrderOperationType(row.BusinessType, row.OperationType)
 	row.Title = strings.TrimSpace(row.Title)
 	row.Amount = normalizeTopupOrderAmount(row.Amount)
 	row.Currency = normalizeTopupOrderCurrency(row.Currency)
@@ -153,6 +175,35 @@ func normalizeTopupOrderBusinessType(value string) string {
 	}
 }
 
+func normalizeTopupOrderOperationType(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case TopupOrderOperationNew:
+		return TopupOrderOperationNew
+	case TopupOrderOperationRenew:
+		return TopupOrderOperationRenew
+	case TopupOrderOperationUpgrade:
+		return TopupOrderOperationUpgrade
+	default:
+		return ""
+	}
+}
+
+func resolveTopupOrderOperationType(businessType string, value string) string {
+	switch strings.TrimSpace(businessType) {
+	case TopupOrderBusinessBalance:
+		// Balance top-up always carries a fixed operation type so it can be
+		// explicitly included in upstream signatures.
+		return TopupOrderOperationTopup
+	case TopupOrderBusinessPackage:
+		if normalized := normalizeTopupOrderOperationType(value); normalized != "" {
+			return normalized
+		}
+		return TopupOrderOperationNew
+	default:
+		return ""
+	}
+}
+
 func resolveTopupOrderBusinessType(value string, packageID string) string {
 	if normalized := normalizeTopupOrderBusinessType(value); normalized != "" {
 		return normalized
@@ -161,6 +212,265 @@ func resolveTopupOrderBusinessType(value string, packageID string) string {
 		return TopupOrderBusinessPackage
 	}
 	return TopupOrderBusinessBalance
+}
+
+func topupOrderAmountCurrencyLabel(code string) string {
+	normalized := normalizeBillingCurrencyCode(code)
+	if normalized == BillingCurrencyCodeCNY {
+		return "元"
+	}
+	return normalized
+}
+
+func buildTopupOrderPlanTitle(plan ResolvedTopupPlan) string {
+	amountPart := strings.TrimSpace(
+		formatTopupPlanNumber(plan.Amount) + " " + topupOrderAmountCurrencyLabel(plan.AmountCurrency),
+	)
+	quotaPart := strings.TrimSpace(
+		formatTopupPlanNumber(plan.QuotaAmount) + " " + normalizeBillingCurrencyCode(plan.QuotaCurrency),
+	)
+	parts := make([]string, 0, 2)
+	if amountPart != "" {
+		parts = append(parts, amountPart)
+	}
+	if quotaPart != "" {
+		parts = append(parts, quotaPart)
+	}
+	return strings.Join(parts, " / ")
+}
+
+func resolvePackagePurchaseOperationType(requestedOperationType string, activeSubscription *UserPackageSubscription, targetPackageID string) string {
+	if normalized := normalizeTopupOrderOperationType(requestedOperationType); normalized != "" {
+		return normalized
+	}
+	if activeSubscription == nil {
+		return TopupOrderOperationNew
+	}
+	if strings.TrimSpace(activeSubscription.PackageID) == strings.TrimSpace(targetPackageID) {
+		return TopupOrderOperationRenew
+	}
+	return TopupOrderOperationUpgrade
+}
+
+func calcPackagePriceYYC(amount float64, currency string) (int64, error) {
+	if amount <= 0 {
+		return 0, nil
+	}
+	yycPerUnit, err := GetBillingCurrencyYYCPerUnit(currency)
+	if err != nil {
+		return 0, err
+	}
+	return normalizeTopupOrderQuota(int64(math.Round(amount * yycPerUnit))), nil
+}
+
+func calcPayableAmountByYYC(payableYYC int64, currency string) (float64, error) {
+	if payableYYC <= 0 {
+		return 0, nil
+	}
+	yycPerUnit, err := GetBillingCurrencyYYCPerUnit(currency)
+	if err != nil {
+		return 0, err
+	}
+	if yycPerUnit <= 0 {
+		return 0, fmt.Errorf("币种兑换率无效：%s", strings.TrimSpace(strings.ToUpper(currency)))
+	}
+	// Round up to cents to avoid rounding down an otherwise payable amount.
+	amount := math.Ceil((float64(payableYYC)/yycPerUnit)*100) / 100
+	if amount <= 0 {
+		return 0.01, nil
+	}
+	return amount, nil
+}
+
+func calcUpgradePayableYYCWithDB(db *gorm.DB, activeSubscription UserPackageSubscription, targetPackage ServicePackage, now int64) (int64, error) {
+	if db == nil {
+		return 0, fmt.Errorf("database handle is nil")
+	}
+	if activeSubscription.ExpiresAt <= 0 {
+		targetYYC, err := calcPackagePriceYYC(targetPackage.SalePrice, targetPackage.SaleCurrency)
+		if err != nil {
+			return 0, err
+		}
+		return targetYYC, nil
+	}
+	currentPackage, err := getServicePackageByIDWithDB(db, activeSubscription.PackageID)
+	if err != nil {
+		// If historical template is missing, fallback to full target price.
+		targetYYC, convertErr := calcPackagePriceYYC(targetPackage.SalePrice, targetPackage.SaleCurrency)
+		if convertErr != nil {
+			return 0, convertErr
+		}
+		return targetYYC, nil
+	}
+	currentYYC, err := calcPackagePriceYYC(currentPackage.SalePrice, currentPackage.SaleCurrency)
+	if err != nil {
+		return 0, err
+	}
+	targetYYC, err := calcPackagePriceYYC(targetPackage.SalePrice, targetPackage.SaleCurrency)
+	if err != nil {
+		return 0, err
+	}
+	diffYYC := targetYYC - currentYYC
+	if diffYYC <= 0 {
+		return 0, nil
+	}
+
+	periodSeconds := activeSubscription.ExpiresAt - activeSubscription.StartedAt + 1
+	if periodSeconds <= 0 {
+		durationDays := normalizeServicePackageDurationDays(currentPackage.DurationDays)
+		periodSeconds = int64(durationDays) * 86400
+	}
+	if periodSeconds <= 0 {
+		return diffYYC, nil
+	}
+	remainingSeconds := activeSubscription.ExpiresAt - now + 1
+	if remainingSeconds <= 0 {
+		return 0, nil
+	}
+	if remainingSeconds > periodSeconds {
+		remainingSeconds = periodSeconds
+	}
+	return int64(math.Ceil(float64(diffYYC) * (float64(remainingSeconds) / float64(periodSeconds)))), nil
+}
+
+func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, requestedOperationType string, now int64) (PackagePurchasePreview, error) {
+	if db == nil {
+		return PackagePurchasePreview{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return PackagePurchasePreview{}, fmt.Errorf("用户 ID 不能为空")
+	}
+	normalizedPackageID := strings.TrimSpace(packageID)
+	if normalizedPackageID == "" {
+		return PackagePurchasePreview{}, fmt.Errorf("套餐 ID 不能为空")
+	}
+	effectiveNow := now
+	if effectiveNow <= 0 {
+		effectiveNow = helper.GetTimestamp()
+	}
+	targetPackage, err := getServicePackageByIDWithDB(db, normalizedPackageID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return PackagePurchasePreview{}, fmt.Errorf("套餐不存在")
+		}
+		return PackagePurchasePreview{}, err
+	}
+	if !targetPackage.Enabled {
+		return PackagePurchasePreview{}, fmt.Errorf("套餐已禁用")
+	}
+
+	if err := syncUserPackageSubscriptionsWithDB(db, normalizedUserID, effectiveNow); err != nil {
+		return PackagePurchasePreview{}, err
+	}
+	var active *UserPackageSubscription
+	activeSubscription, activeErr := getActiveUserPackageSubscriptionWithDB(db, normalizedUserID)
+	if activeErr == nil {
+		active = &activeSubscription
+	} else if !errors.Is(activeErr, gorm.ErrRecordNotFound) {
+		return PackagePurchasePreview{}, activeErr
+	}
+
+	operationType := resolvePackagePurchaseOperationType(requestedOperationType, active, normalizedPackageID)
+	preview := PackagePurchasePreview{
+		OperationType:     operationType,
+		TargetPackageID:   strings.TrimSpace(targetPackage.Id),
+		TargetPackageName: strings.TrimSpace(targetPackage.Name),
+		PayableCurrency:   normalizeTopupOrderCurrency(targetPackage.SaleCurrency),
+	}
+	if active != nil {
+		preview.CurrentPackageID = strings.TrimSpace(active.PackageID)
+		preview.CurrentPackageName = strings.TrimSpace(active.PackageName)
+		preview.CurrentExpiresAt = active.ExpiresAt
+	}
+
+	switch operationType {
+	case TopupOrderOperationRenew:
+		if active == nil {
+			return PackagePurchasePreview{}, fmt.Errorf("当前无生效套餐，无法续费")
+		}
+		if strings.TrimSpace(active.PackageID) != normalizedPackageID {
+			return PackagePurchasePreview{}, fmt.Errorf("当前生效套餐与续费套餐不一致")
+		}
+		tailEnd, hasUnlimitedTail, err := latestUserPackageSubscriptionTailWithDB(db, normalizedUserID)
+		if err != nil {
+			return PackagePurchasePreview{}, err
+		}
+		if hasUnlimitedTail {
+			return PackagePurchasePreview{}, fmt.Errorf("当前套餐无到期时间，无法续费")
+		}
+		startAt := effectiveNow
+		if tailEnd >= effectiveNow {
+			startAt = tailEnd + 1
+		}
+		durationDays := normalizeServicePackageDurationDays(targetPackage.DurationDays)
+		expiresAt := int64(0)
+		if durationDays > 0 {
+			expiresAt = startAt + int64(durationDays)*86400 - 1
+		}
+		preview.StartAt = startAt
+		preview.ExpiresAt = expiresAt
+		preview.PayableAmount = normalizeTopupOrderAmount(targetPackage.SalePrice)
+		payableYYC, err := calcPackagePriceYYC(preview.PayableAmount, preview.PayableCurrency)
+		if err != nil {
+			return PackagePurchasePreview{}, err
+		}
+		preview.PayableYYC = payableYYC
+	case TopupOrderOperationUpgrade:
+		if active == nil {
+			operationType = TopupOrderOperationNew
+			preview.OperationType = operationType
+		} else if strings.TrimSpace(active.PackageID) == normalizedPackageID {
+			return PackagePurchasePreview{}, fmt.Errorf("目标套餐与当前套餐一致，请使用续费")
+		}
+		if preview.OperationType == TopupOrderOperationUpgrade {
+			payableYYC, err := calcUpgradePayableYYCWithDB(db, *active, targetPackage, effectiveNow)
+			if err != nil {
+				return PackagePurchasePreview{}, err
+			}
+			if payableYYC <= 0 {
+				return PackagePurchasePreview{}, fmt.Errorf("目标套餐无需补差价，请选择续费或待当前周期结束后更换")
+			}
+			payableAmount, err := calcPayableAmountByYYC(payableYYC, preview.PayableCurrency)
+			if err != nil {
+				return PackagePurchasePreview{}, err
+			}
+			preview.PayableYYC = payableYYC
+			preview.PayableAmount = normalizeTopupOrderAmount(payableAmount)
+			preview.StartAt = effectiveNow
+			preview.ExpiresAt = active.ExpiresAt
+			break
+		}
+		fallthrough
+	case TopupOrderOperationNew:
+		durationDays := normalizeServicePackageDurationDays(targetPackage.DurationDays)
+		expiresAt := int64(0)
+		if durationDays > 0 {
+			expiresAt = effectiveNow + int64(durationDays)*86400 - 1
+		}
+		preview.StartAt = effectiveNow
+		preview.ExpiresAt = expiresAt
+		preview.PayableAmount = normalizeTopupOrderAmount(targetPackage.SalePrice)
+		payableYYC, err := calcPackagePriceYYC(preview.PayableAmount, preview.PayableCurrency)
+		if err != nil {
+			return PackagePurchasePreview{}, err
+		}
+		preview.PayableYYC = payableYYC
+	default:
+		return PackagePurchasePreview{}, fmt.Errorf("无效的套餐操作类型")
+	}
+
+	if preview.PayableAmount <= 0 {
+		return PackagePurchasePreview{}, fmt.Errorf("套餐应付金额必须大于 0")
+	}
+	if preview.PayableYYC <= 0 {
+		payableYYC, err := calcPackagePriceYYC(preview.PayableAmount, preview.PayableCurrency)
+		if err != nil {
+			return PackagePurchasePreview{}, err
+		}
+		preview.PayableYYC = payableYYC
+	}
+	return preview, nil
 }
 
 func normalizeTopupOrderCurrency(value string) string {
@@ -238,13 +548,16 @@ func buildTopupOrderRedirectURL(baseLink string, order TopupOrder) (string, erro
 	if parsed.Scheme == "" || parsed.Host == "" {
 		return "", fmt.Errorf("充值链接配置无效")
 	}
+	normalizedBusinessType := resolveTopupOrderBusinessType(order.BusinessType, order.PackageID)
+	normalizedOperationType := resolveTopupOrderOperationType(normalizedBusinessType, order.OperationType)
 	payload := map[string]string{
 		"merchant_app":   config.TopUpMerchantAppValue(),
 		"order_id":       strings.TrimSpace(order.Id),
 		"transaction_id": strings.TrimSpace(order.TransactionID),
 		"user_id":        strings.TrimSpace(order.UserID),
 		"username":       strings.TrimSpace(order.Username),
-		"business_type":  strings.TrimSpace(order.BusinessType),
+		"business_type":  normalizedBusinessType,
+		"operation_type": normalizedOperationType,
 		"title":          strings.TrimSpace(order.Title),
 		"amount":         fmt.Sprintf("%.2f", order.Amount),
 		"currency":       strings.TrimSpace(order.Currency),
@@ -299,6 +612,7 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 		Source:        TopupOrderSourceTopUp,
 		TransactionID: random.GetUUID(),
 		BusinessType:  businessType,
+		OperationType: resolveTopupOrderOperationType(businessType, input.OperationType),
 		Amount:        amount,
 		Currency:      currency,
 		Quota:         normalizeTopupOrderQuota(input.Quota),
@@ -326,10 +640,7 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 			if strings.TrimSpace(input.Title) != "" {
 				order.Title = strings.TrimSpace(input.Title)
 			} else {
-				order.Title = resolvedPlan.Name + " / " + formatTopupPlanNumber(resolvedPlan.QuotaAmount) + " " + resolvedPlan.QuotaCurrency
-				if strings.TrimSpace(resolvedPlan.GroupName) != "" {
-					order.Title += " / " + strings.TrimSpace(resolvedPlan.GroupName)
-				}
+				order.Title = buildTopupOrderPlanTitle(resolvedPlan)
 			}
 		} else {
 			order.Currency = BillingCurrencyCodeCNY
@@ -356,28 +667,46 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 		if strings.TrimSpace(order.PackageID) == "" {
 			return TopupOrder{}, fmt.Errorf("套餐 ID 不能为空")
 		}
-		servicePackage, err := getServicePackageByIDWithDB(db, order.PackageID)
+		preview, err := PreviewPackagePurchaseWithDB(
+			db,
+			strings.TrimSpace(order.UserID),
+			strings.TrimSpace(order.PackageID),
+			order.OperationType,
+			helper.GetTimestamp(),
+		)
 		if err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return TopupOrder{}, fmt.Errorf("套餐不存在")
-			}
 			return TopupOrder{}, err
 		}
-		if !servicePackage.Enabled {
-			return TopupOrder{}, fmt.Errorf("套餐已禁用")
-		}
-		order.Amount = normalizeTopupOrderAmount(servicePackage.SalePrice)
-		order.Currency = normalizeTopupOrderCurrency(servicePackage.SaleCurrency)
+		order.OperationType = resolveTopupOrderOperationType(TopupOrderBusinessPackage, preview.OperationType)
+		order.Amount = normalizeTopupOrderAmount(preview.PayableAmount)
+		order.Currency = normalizeTopupOrderCurrency(preview.PayableCurrency)
 		if order.Amount <= 0 {
-			return TopupOrder{}, fmt.Errorf("套餐售价未配置")
+			return TopupOrder{}, fmt.Errorf("套餐应付金额必须大于 0")
 		}
-		order.PackageName = strings.TrimSpace(servicePackage.Name)
+		order.PackageName = strings.TrimSpace(preview.TargetPackageName)
 		if strings.TrimSpace(input.Title) != "" {
 			order.Title = strings.TrimSpace(input.Title)
-		} else if order.PackageName != "" {
-			order.Title = "购买套餐：" + order.PackageName
 		} else {
-			order.Title = "购买套餐"
+			switch order.OperationType {
+			case TopupOrderOperationRenew:
+				if order.PackageName != "" {
+					order.Title = "续费套餐：" + order.PackageName
+				} else {
+					order.Title = "续费套餐"
+				}
+			case TopupOrderOperationUpgrade:
+				if order.PackageName != "" {
+					order.Title = "升级套餐：" + order.PackageName
+				} else {
+					order.Title = "升级套餐"
+				}
+			default:
+				if order.PackageName != "" {
+					order.Title = "购买套餐：" + order.PackageName
+				} else {
+					order.Title = "购买套餐"
+				}
+			}
 		}
 	default:
 		return TopupOrder{}, fmt.Errorf("无效的业务类型")
@@ -463,8 +792,14 @@ func findReusableTopupOrderWithDB(db *gorm.DB, order TopupOrder) (TopupOrder, bo
 
 	switch order.BusinessType {
 	case TopupOrderBusinessPackage:
+		operationType := resolveTopupOrderOperationType(TopupOrderBusinessPackage, order.OperationType)
 		query = query.Where("business_type = ?", TopupOrderBusinessPackage).
 			Where("package_id = ?", order.PackageID)
+		if operationType == TopupOrderOperationNew {
+			query = query.Where("(COALESCE(TRIM(operation_type), '') = '' OR operation_type = ?)", operationType)
+		} else {
+			query = query.Where("operation_type = ?", operationType)
+		}
 	case TopupOrderBusinessBalance:
 		query = query.Where("business_type = ?", TopupOrderBusinessBalance).
 			Where("amount = ?", order.Amount).
@@ -771,8 +1106,19 @@ func FulfillTopupOrderWithDB(db *gorm.DB, orderID string) (TopupOrder, bool, err
 			if strings.TrimSpace(order.PackageID) == "" {
 				return fmt.Errorf("套餐 ID 不能为空")
 			}
-			if _, err := AssignServicePackageToUserWithDB(tx, order.PackageID, order.UserID, helper.GetTimestamp()); err != nil {
-				return err
+			switch resolveTopupOrderOperationType(TopupOrderBusinessPackage, order.OperationType) {
+			case TopupOrderOperationRenew:
+				if _, err := RenewServicePackageForUserWithDB(tx, order.PackageID, order.UserID, helper.GetTimestamp()); err != nil {
+					return err
+				}
+			case TopupOrderOperationUpgrade:
+				if _, err := UpgradeServicePackageForUserWithDB(tx, order.PackageID, order.UserID, helper.GetTimestamp()); err != nil {
+					return err
+				}
+			default:
+				if _, err := AssignServicePackageToUserWithDB(tx, order.PackageID, order.UserID, helper.GetTimestamp()); err != nil {
+					return err
+				}
 			}
 		default:
 			return fmt.Errorf("无效的业务类型")
