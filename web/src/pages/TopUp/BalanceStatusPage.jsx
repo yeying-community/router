@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, Statistic } from 'semantic-ui-react';
+import { useNavigate } from 'react-router-dom';
+import { Button, Card, Statistic } from 'semantic-ui-react';
 import RedeemCodePage from './RedeemCodePage';
 import {
   renderTopupIntegerAmountWithExactPopup,
@@ -9,6 +10,7 @@ import {
 
 const BalanceStatusPage = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const {
     userBalanceYYC,
     topupBalanceYYC,
@@ -23,6 +25,18 @@ const BalanceStatusPage = () => {
         <Card.Content className='router-card-fill'>
           <Card.Description className='router-card-fill'>
             <div className='router-card-body-spread'>
+              <div className='router-toolbar'>
+                <div className='router-toolbar-start'>
+                  <Button
+                    primary
+                    size='small'
+                    className='router-section-button'
+                    onClick={() => navigate('/workspace/service/pricing')}
+                  >
+                    {t('topup.record_nav.topup')}
+                  </Button>
+                </div>
+              </div>
               <div
                 style={{
                   display: 'grid',
