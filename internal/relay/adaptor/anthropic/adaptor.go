@@ -28,6 +28,9 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *meta.Meta) error {
 	adaptor.SetupCommonRequestHeader(c, req, meta)
+	if meta.ForceUpstreamStream {
+		req.Header.Set("Accept", "text/event-stream")
+	}
 	req.Header.Set("x-api-key", meta.APIKey)
 	anthropicVersion := c.Request.Header.Get("anthropic-version")
 	if anthropicVersion == "" {
@@ -80,6 +83,9 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 			return relayMessagesStreamResponse(c, resp)
 		}
 		return relayMessagesResponse(c, resp)
+	}
+	if meta.Mode == relaymode.ChatCompletions && upstreamMode == relaymode.Messages && !meta.IsStream {
+		return relayMessagesStreamAsChatResponse(c, resp, meta.PromptTokens, meta.ActualModelName)
 	}
 	if meta.IsStream {
 		err, usage = StreamHandler(c, resp)

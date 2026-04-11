@@ -3,10 +3,13 @@ package model
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/yeying-community/router/common/config"
+	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/common/message"
+	"gorm.io/gorm"
 )
 
 const (
@@ -107,6 +110,18 @@ func DecreaseTokenQuota(id string, quota int64) error {
 	return mustTokenRepo().DecreaseTokenQuota(id, quota)
 }
 
+func adjustTokenUsedQuotaOnly(id string, delta int64) error {
+	if strings.TrimSpace(id) == "" || delta == 0 {
+		return nil
+	}
+	return DB.Model(&Token{}).Where("id = ?", id).Updates(
+		map[string]interface{}{
+			"used_quota":    gorm.Expr("used_quota + ?", delta),
+			"accessed_time": helper.GetTimestamp(),
+		},
+	).Error
+}
+
 func decreaseTokenQuota(id string, quota int64) error {
 	return mustTokenRepo().DecreaseTokenQuotaDirect(id, quota)
 }
@@ -171,6 +186,11 @@ func PreConsumeTokenQuota(tokenId string, quota int64) (err error) {
 		if err != nil {
 			return err
 		}
+	} else if quota > 0 {
+		err = adjustTokenUsedQuotaOnly(tokenId, quota)
+		if err != nil {
+			return err
+		}
 	}
 	err = DecreaseUserQuota(token.UserId, quota)
 	return err
@@ -184,8 +204,11 @@ func PreConsumeTokenRemainQuota(tokenId string, quota int64) error {
 	if err != nil {
 		return err
 	}
-	if token.UnlimitedQuota || quota == 0 {
+	if quota == 0 {
 		return nil
+	}
+	if token.UnlimitedQuota {
+		return adjustTokenUsedQuotaOnly(tokenId, quota)
 	}
 	if token.RemainQuota < quota {
 		return errors.New("令牌额度不足")
@@ -212,6 +235,11 @@ func PostConsumeTokenQuota(tokenId string, quota int64) (err error) {
 		if err != nil {
 			return err
 		}
+	} else if quota != 0 {
+		err = adjustTokenUsedQuotaOnly(tokenId, quota)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -221,8 +249,11 @@ func PostConsumeTokenRemainQuota(tokenId string, quota int64) error {
 	if err != nil {
 		return err
 	}
-	if token.UnlimitedQuota || quota == 0 {
+	if quota == 0 {
 		return nil
+	}
+	if token.UnlimitedQuota {
+		return adjustTokenUsedQuotaOnly(tokenId, quota)
 	}
 	if quota > 0 {
 		return DecreaseTokenQuota(tokenId, quota)

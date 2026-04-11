@@ -520,7 +520,6 @@ const OperationSetting = ({ section = '' }) => {
         <Form loading={loading}>
           {sectionVisible.balance ? (
             <>
-              <Header as='h3' className='router-section-title'>{t('setting.operation.quota.title')}</Header>
               <Form.Group widths='equal'>
                 {renderBalanceInputField(
                   'setting.operation.quota.pre_consume',
