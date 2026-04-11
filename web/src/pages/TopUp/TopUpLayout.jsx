@@ -7,6 +7,7 @@ import TopUpRecordsPage from './TopUpRecordsPage';
 import {
   normalizeTopUpRecord,
   normalizeTopUpTab,
+  sanitizeTopUpSearchParams,
 } from './shared.jsx';
 import TopUpWorkspaceProvider from './provider.jsx';
 
@@ -20,8 +21,12 @@ const TopUpLayout = () => {
   useEffect(() => {
     const normalizedTab = normalizeTopUpTab(rawTab);
     const normalizedRecord = normalizeTopUpRecord(rawRecord);
-    const nextSearchParams = new URLSearchParams(searchParamsString);
+    const nextSearchParams = sanitizeTopUpSearchParams(searchParamsString);
     let changed = false;
+
+    if (searchParamsString !== nextSearchParams.toString()) {
+      changed = true;
+    }
 
     if (rawTab !== normalizedTab) {
       nextSearchParams.set('tab', normalizedTab);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Header, Modal } from 'semantic-ui-react';
 import { API, showError, showInfo, timestamp2string } from '../../helpers';
-import { useTopUpWorkspace } from './shared.jsx';
+import { buildTopUpReturnURL, useTopUpWorkspace } from './shared.jsx';
 
 const formatMoney = (amount, currency) =>
   `${Number(amount || 0).toFixed(2)} ${String(currency || 'USD').toUpperCase()}`;
@@ -100,7 +100,7 @@ const PackagePurchasePage = () => {
         business_type: 'package_purchase',
         operation_type: operationType,
         package_id: packageID,
-        return_url: window.location.href,
+        return_url: buildTopUpReturnURL(),
       });
       if (created) {
         closePreviewModal();

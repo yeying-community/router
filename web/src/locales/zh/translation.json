@@ -101,6 +101,7 @@
       "package_preview_payable_yyc": "折合 YYC",
       "package_confirm_button": "去支付",
       "package_operation": {
+        "purchase": "新购",
         "new_purchase": "新购",
         "renew": "续费",
         "upgrade": "升级"

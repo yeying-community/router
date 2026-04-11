@@ -101,6 +101,7 @@
       "package_preview_payable_yyc": "YYC Equivalent",
       "package_confirm_button": "Proceed to Pay",
       "package_operation": {
+        "purchase": "New Purchase",
         "new_purchase": "New Purchase",
         "renew": "Renew",
         "upgrade": "Upgrade"

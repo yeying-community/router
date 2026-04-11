@@ -15,6 +15,7 @@ export const TOPUP_DEFAULT_TAB = 'balance';
 export const TOPUP_TAB_KEYS = ['balance', 'package', 'records'];
 export const TOPUP_DEFAULT_RECORD = 'topup';
 export const TOPUP_RECORD_KEYS = ['topup', 'package', 'redeem'];
+export const TOPUP_ALLOWED_QUERY_KEYS = ['tab', 'record', 'intent'];
 export const TopUpWorkspaceContext = createContext(null);
 
 export const normalizeTopUpTab = (rawTab) =>
@@ -22,6 +23,35 @@ export const normalizeTopUpTab = (rawTab) =>
 
 export const normalizeTopUpRecord = (rawRecord) =>
   TOPUP_RECORD_KEYS.includes(rawRecord) ? rawRecord : TOPUP_DEFAULT_RECORD;
+
+export const sanitizeTopUpSearchParams = (rawSearch = '') => {
+  const source = new URLSearchParams(rawSearch || '');
+  const next = new URLSearchParams();
+  TOPUP_ALLOWED_QUERY_KEYS.forEach((key) => {
+    const value = source.get(key);
+    if (value) {
+      next.set(key, value);
+    }
+  });
+  return next;
+};
+
+export const buildTopUpReturnURL = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  try {
+    const currentURL = new URL(window.location.href);
+    const nextURL = new URL(currentURL.origin + currentURL.pathname);
+    const currentParams = sanitizeTopUpSearchParams(currentURL.search || '');
+    currentParams.forEach((value, key) => {
+      nextURL.searchParams.set(key, value);
+    });
+    return nextURL.toString();
+  } catch (error) {
+    return window.location.origin + window.location.pathname;
+  }
+};
 
 export const normalizeTopUpResult = (raw) => {
   if (!raw || typeof raw !== 'object') {

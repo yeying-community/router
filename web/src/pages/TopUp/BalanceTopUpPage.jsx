@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Header } from 'semantic-ui-react';
 import { showError } from '../../helpers';
-import { useTopUpWorkspace } from './shared.jsx';
+import { buildTopUpReturnURL, useTopUpWorkspace } from './shared.jsx';
 
 const renderPlanAmount = (amount, currency) =>
   `${Number(amount || 0)} ${String(currency || 'CNY').toUpperCase()}`;
@@ -30,7 +30,7 @@ const BalanceTopUpPage = () => {
       await createTopupOrder({
         business_type: 'balance_topup',
         plan_id: planID,
-        return_url: window.location.href,
+        return_url: buildTopUpReturnURL(),
       });
     } finally {
       setCreatingPlanID('');

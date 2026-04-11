@@ -31,7 +31,7 @@ const (
 	TopupOrderBusinessPackage  = "package_purchase"
 	TopupOrderCurrencyCNY      = "CNY"
 	TopupOrderOperationTopup   = "topup"
-	TopupOrderOperationNew     = "new_purchase"
+	TopupOrderOperationNew     = "purchase"
 	TopupOrderOperationRenew   = "renew"
 	TopupOrderOperationUpgrade = "upgrade"
 )
@@ -138,7 +138,7 @@ func normalizeTopupOrderRow(row *TopupOrder) {
 	row.PackageName = strings.TrimSpace(row.PackageName)
 	row.ClientType = strings.TrimSpace(strings.ToLower(row.ClientType))
 	row.CallbackURL = strings.TrimSpace(row.CallbackURL)
-	row.ReturnURL = strings.TrimSpace(row.ReturnURL)
+	row.ReturnURL = sanitizeTopupReturnURL(row.ReturnURL)
 	row.StatusMessage = strings.TrimSpace(row.StatusMessage)
 	row.RedirectURL = strings.TrimSpace(row.RedirectURL)
 }
@@ -179,6 +179,8 @@ func normalizeTopupOrderOperationType(value string) string {
 	switch strings.TrimSpace(strings.ToLower(value)) {
 	case TopupOrderOperationNew:
 		return TopupOrderOperationNew
+	case "new_purchase":
+		return TopupOrderOperationNew
 	case TopupOrderOperationRenew:
 		return TopupOrderOperationRenew
 	case TopupOrderOperationUpgrade:
@@ -202,6 +204,56 @@ func resolveTopupOrderOperationType(businessType string, value string) string {
 	default:
 		return ""
 	}
+}
+
+func sanitizeTopupReturnURL(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return trimmed
+	}
+	if parsed.Scheme == "" || parsed.Host == "" {
+		return trimmed
+	}
+	query := parsed.Query()
+	for _, key := range []string{
+		"pay_status",
+		"trade_no",
+		"provider_order_id",
+		"merchant_app",
+		"order_id",
+		"transaction_id",
+		"user_id",
+		"username",
+		"business_type",
+		"operation_type",
+		"title",
+		"amount",
+		"currency",
+		"quota",
+		"package_id",
+		"package_name",
+		"client_type",
+		"callback_url",
+		"timestamp",
+		"nonce",
+		"sign",
+	} {
+		query.Del(key)
+	}
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
+}
+
+func isDirtyTopupReturnURL(raw string) bool {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return false
+	}
+	return sanitizeTopupReturnURL(trimmed) != trimmed
 }
 
 func resolveTopupOrderBusinessType(value string, packageID string) string {
@@ -619,7 +671,7 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 		PackageID:     strings.TrimSpace(input.PackageID),
 		ClientType:    strings.TrimSpace(input.ClientType),
 		CallbackURL:   topupOrderCallbackURL(),
-		ReturnURL:     strings.TrimSpace(input.ReturnURL),
+		ReturnURL:     sanitizeTopupReturnURL(input.ReturnURL),
 	}
 	if order.UserID == "" {
 		return TopupOrder{}, fmt.Errorf("无效的 user id")
@@ -816,6 +868,11 @@ func findReusableTopupOrderWithDB(db *gorm.DB, order TopupOrder) (TopupOrder, bo
 	for i := range rows {
 		candidate := rows[i]
 		normalizeTopupOrderRow(&candidate)
+		if isDirtyTopupReturnURL(candidate.ReturnURL) ||
+			strings.Contains(candidate.RedirectURL, "pay_status=") ||
+			strings.Contains(candidate.RedirectURL, "trade_no=") {
+			continue
+		}
 		if candidate.Source == TopupOrderSourceTopUpAPI &&
 			strings.TrimSpace(candidate.ProviderOrderID) != "" &&
 			(candidate.Status == TopupOrderStatusCreated ||

@@ -12,6 +12,7 @@ import {
 } from 'semantic-ui-react';
 import { API, showError, showInfo, timestamp2string } from '../../helpers';
 import {
+  buildTopUpReturnURL,
   renderTopupIntegerAmountWithExactPopup,
   useTopUpWorkspace,
 } from './shared.jsx';
@@ -428,7 +429,7 @@ const CurrentPackagePage = () => {
         business_type: 'package_purchase',
         operation_type: operationType,
         package_id: normalizedPackageID,
-        return_url: window.location.href,
+        return_url: buildTopUpReturnURL(),
       });
     },
     [createTopupOrder, previewPackagePurchase, t],
