@@ -315,3 +315,13 @@ func convertTextRequestForUpstream(req *relaymodel.GeneralOpenAIRequest, downstr
 
 	return cloned, nil
 }
+
+func shouldForceUpstreamTextStream(downstreamMode int, upstreamMode int, downstreamStream bool) bool {
+	if downstreamStream {
+		return false
+	}
+	if downstreamMode != relaymode.ChatCompletions {
+		return false
+	}
+	return upstreamMode == relaymode.Responses || upstreamMode == relaymode.Messages
+}

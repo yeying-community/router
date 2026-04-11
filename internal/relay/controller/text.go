@@ -92,6 +92,10 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	if err != nil {
 		return openai.ErrorWrapper(err, "convert_request_failed", http.StatusBadRequest)
 	}
+	if shouldForceUpstreamTextStream(meta.Mode, upstreamMode, meta.IsStream) {
+		upstreamRequest.Stream = true
+		meta.ForceUpstreamStream = true
+	}
 	// set system prompt on the request shape that will actually be sent upstream
 	systemPromptReset := setSystemPrompt(ctx, upstreamRequest, meta.ForcedSystemPrompt)
 

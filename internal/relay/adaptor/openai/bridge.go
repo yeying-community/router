@@ -2,6 +2,7 @@ package openai
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -146,6 +147,202 @@ func relayResponsesAsChatResponse(c *gin.Context, resp *http.Response, modelName
 	return usage, nil
 }
 
+func relayResponsesStreamAsChatResponse(c *gin.Context, resp *http.Response, modelName string, promptTokens int) (*model.Usage, *model.ErrorWithStatusCode) {
+	if resp == nil {
+		return nil, ErrorWrapper(fmt.Errorf("resp is nil"), "nil_response", http.StatusInternalServerError)
+	}
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return nil, ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
+	}
+
+	trimmedBody := strings.TrimSpace(string(responseBody))
+	if !strings.HasPrefix(trimmedBody, "event:") && !strings.HasPrefix(trimmedBody, "data:") {
+		fallbackResp := &http.Response{
+			StatusCode: resp.StatusCode,
+			Header:     resp.Header.Clone(),
+			Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
+		}
+		return relayResponsesAsChatResponse(c, fallbackResp, modelName, promptTokens)
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(responseBody))
+	scanner.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
+	scanner.Split(bufio.ScanLines)
+
+	currentEvent := ""
+	var responseTextBuilder strings.Builder
+	sawDelta := false
+	responseID := ""
+	responseModel := strings.TrimSpace(modelName)
+	createdAt := time.Now().Unix()
+	usage := &model.Usage{
+		PromptTokens: promptTokens,
+	}
+
+	for scanner.Scan() {
+		line := strings.TrimSuffix(scanner.Text(), "\r")
+		if line == "" {
+			currentEvent = ""
+			continue
+		}
+		if strings.HasPrefix(line, "event:") {
+			currentEvent = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+			continue
+		}
+		if !strings.HasPrefix(line, dataPrefix) {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, dataPrefix))
+		if data == "" || data == done {
+			continue
+		}
+
+		payload := map[string]any{}
+		if err := json.Unmarshal([]byte(data), &payload); err != nil {
+			continue
+		}
+
+		if usagePayload, ok := payload["usage"].(map[string]any); ok {
+			if prompt, ok := parseIntFromAny(usagePayload["input_tokens"]); ok && prompt > 0 {
+				usage.PromptTokens = prompt
+			}
+			if completion, ok := parseIntFromAny(usagePayload["output_tokens"]); ok && completion > 0 {
+				usage.CompletionTokens = completion
+			}
+			if total, ok := parseIntFromAny(usagePayload["total_tokens"]); ok && total > 0 {
+				usage.TotalTokens = total
+			}
+		}
+		if responsePayload, ok := payload["response"].(map[string]any); ok {
+			if value, ok := responsePayload["id"].(string); ok && strings.TrimSpace(value) != "" && responseID == "" {
+				responseID = strings.TrimSpace(value)
+			}
+			if value, ok := responsePayload["model"].(string); ok && strings.TrimSpace(value) != "" {
+				responseModel = strings.TrimSpace(value)
+			}
+			if value, ok := parseIntFromAny(responsePayload["created_at"]); ok && value > 0 {
+				createdAt = int64(value)
+			}
+			if usagePayload, ok := responsePayload["usage"].(map[string]any); ok {
+				if prompt, ok := parseIntFromAny(usagePayload["input_tokens"]); ok && prompt > 0 {
+					usage.PromptTokens = prompt
+				}
+				if completion, ok := parseIntFromAny(usagePayload["output_tokens"]); ok && completion > 0 {
+					usage.CompletionTokens = completion
+				}
+				if total, ok := parseIntFromAny(usagePayload["total_tokens"]); ok && total > 0 {
+					usage.TotalTokens = total
+				}
+			}
+		}
+		if value, ok := payload["id"].(string); ok && strings.TrimSpace(value) != "" && responseID == "" {
+			responseID = strings.TrimSpace(value)
+		}
+		if value, ok := payload["model"].(string); ok && strings.TrimSpace(value) != "" {
+			responseModel = strings.TrimSpace(value)
+		}
+		if value, ok := parseIntFromAny(payload["created_at"]); ok && value > 0 {
+			createdAt = int64(value)
+		}
+
+		textPayload := responsesStreamTextPayload{}
+		if err := json.Unmarshal([]byte(data), &textPayload); err != nil {
+			continue
+		}
+		eventName := currentEvent
+		if eventName == "" {
+			if payloadEvent, ok := payload["type"].(string); ok {
+				eventName = strings.TrimSpace(payloadEvent)
+			}
+		}
+		switch eventName {
+		case "response.output_text.delta":
+			deltaText := textPayload.Delta
+			if strings.TrimSpace(deltaText) == "" {
+				deltaText = textPayload.Text
+			}
+			if strings.TrimSpace(deltaText) == "" {
+				deltaText = textPayload.OutputText
+			}
+			if strings.TrimSpace(deltaText) != "" {
+				responseTextBuilder.WriteString(deltaText)
+				sawDelta = true
+			}
+		case "response.output_text":
+			if sawDelta {
+				continue
+			}
+			text := textPayload.Text
+			if strings.TrimSpace(text) == "" {
+				text = textPayload.OutputText
+			}
+			if strings.TrimSpace(text) != "" {
+				responseTextBuilder.WriteString(text)
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
+	}
+
+	responseText := strings.TrimSpace(responseTextBuilder.String())
+	if usage.CompletionTokens == 0 && responseText != "" {
+		usage.CompletionTokens = CountTokenText(responseText, modelName)
+	}
+	if usage.PromptTokens == 0 {
+		usage.PromptTokens = promptTokens
+	}
+	if usage.TotalTokens == 0 {
+		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	}
+	if responseID == "" {
+		responseID = fmt.Sprintf("resp_%d", time.Now().UnixNano())
+	}
+
+	chatResponse := TextResponse{
+		Id:      strings.TrimSpace(responseID),
+		Object:  "chat.completion",
+		Created: createdAt,
+		Model:   strings.TrimSpace(responseModel),
+		Choices: []TextResponseChoice{{
+			Index: 0,
+			Message: model.Message{
+				Role:    "assistant",
+				Content: responseText,
+			},
+			FinishReason: "stop",
+		}},
+		Usage: *usage,
+	}
+	if chatResponse.Model == "" {
+		chatResponse.Model = modelName
+	}
+
+	encoded, err := json.Marshal(chatResponse)
+	if err != nil {
+		return nil, ErrorWrapper(err, "marshal_response_body_failed", http.StatusInternalServerError)
+	}
+	for k, v := range resp.Header {
+		if len(v) == 0 {
+			continue
+		}
+		if strings.EqualFold(k, "Content-Type") || strings.EqualFold(k, "Content-Length") {
+			continue
+		}
+		c.Writer.Header().Set(k, v[0])
+	}
+	c.Writer.Header().Set("Content-Type", "application/json")
+	c.Writer.WriteHeader(resp.StatusCode)
+	if _, err := c.Writer.Write(encoded); err != nil {
+		return nil, ErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError)
+	}
+	return usage, nil
+}
+
 func relayChatAsResponsesResponse(c *gin.Context, resp *http.Response, modelName string, promptTokens int) (*model.Usage, *model.ErrorWithStatusCode) {
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -236,6 +433,7 @@ func StreamResponsesAsChatHandler(c *gin.Context, resp *http.Response, modelName
 	var usage *model.Usage
 	currentEvent := ""
 	firstDelta := true
+	sawDelta := false
 	finishRendered := false
 	createdAt := time.Now().Unix()
 
@@ -268,8 +466,16 @@ func StreamResponsesAsChatHandler(c *gin.Context, resp *http.Response, modelName
 
 		textPayload := responsesStreamTextPayload{}
 		_ = json.Unmarshal([]byte(data), &textPayload)
+		payload := map[string]any{}
+		_ = json.Unmarshal([]byte(data), &payload)
+		eventName := currentEvent
+		if eventName == "" {
+			if payloadEvent, ok := payload["type"].(string); ok {
+				eventName = strings.TrimSpace(payloadEvent)
+			}
+		}
 		deltaText := ""
-		switch currentEvent {
+		switch eventName {
 		case "response.output_text.delta":
 			deltaText = textPayload.Delta
 			if deltaText == "" {
@@ -278,13 +484,18 @@ func StreamResponsesAsChatHandler(c *gin.Context, resp *http.Response, modelName
 			if deltaText == "" {
 				deltaText = textPayload.OutputText
 			}
-		case "response.output_text", "response.completed":
-			deltaText = textPayload.Text
-			if deltaText == "" {
-				deltaText = textPayload.OutputText
+			if deltaText != "" {
+				sawDelta = true
 			}
-			if deltaText == "" {
-				deltaText = textPayload.Delta
+		case "response.output_text", "response.output_text.done", "response.completed":
+			if !sawDelta {
+				deltaText = textPayload.Text
+				if deltaText == "" {
+					deltaText = textPayload.OutputText
+				}
+				if deltaText == "" {
+					deltaText = textPayload.Delta
+				}
 			}
 		default:
 			deltaText = textPayload.Delta
@@ -319,7 +530,7 @@ func StreamResponsesAsChatHandler(c *gin.Context, resp *http.Response, modelName
 				return ErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError), usage
 			}
 		}
-		if currentEvent == "response.completed" && !finishRendered {
+		if eventName == "response.completed" && !finishRendered {
 			chunk := ChatCompletionsStreamResponse{
 				Id:      fmt.Sprintf("chatcmpl_%d", time.Now().UnixNano()),
 				Object:  "chat.completion.chunk",

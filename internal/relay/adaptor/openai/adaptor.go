@@ -79,6 +79,9 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *meta.Meta) error {
 	adaptor.SetupCommonRequestHeader(c, req, meta)
+	if meta.ForceUpstreamStream {
+		req.Header.Set("Accept", "text/event-stream")
+	}
 	if meta.ChannelProtocol == relaychannel.Azure {
 		req.Header.Set("api-key", meta.APIKey)
 		return nil
@@ -132,7 +135,7 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 			respErr, usage := StreamResponsesAsChatHandler(c, resp, meta.ActualModelName, meta.PromptTokens)
 			return usage, respErr
 		}
-		return relayResponsesAsChatResponse(c, resp, meta.ActualModelName, meta.PromptTokens)
+		return relayResponsesStreamAsChatResponse(c, resp, meta.ActualModelName, meta.PromptTokens)
 	}
 	if meta.Mode == relaymode.Responses && upstreamMode == relaymode.ChatCompletions {
 		if meta.IsStream {
