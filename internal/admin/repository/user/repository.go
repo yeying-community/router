@@ -192,8 +192,6 @@ func Create(ctx context.Context, user *model.User, inviterId string) error {
 		user.CreatedAt = now
 	}
 	user.UpdatedAt = now
-	user.DailyQuotaLimit = model.NormalizeUserDailyQuotaLimitForWrite(user.DailyQuotaLimit)
-	user.PackageEmergencyQuotaLimit = model.NormalizeUserPackageEmergencyQuotaLimitForWrite(user.PackageEmergencyQuotaLimit)
 	user.QuotaResetTimezone = model.NormalizeUserQuotaResetTimezoneForWrite(user.QuotaResetTimezone)
 	resolvedGroup, err := model.ResolveUserCreateGroupAssignment(user.Group)
 	if err != nil {
@@ -271,8 +269,6 @@ func Update(user *model.User, updatePassword bool) error {
 		}
 		user.Group = resolvedGroup.Id
 	}
-	user.DailyQuotaLimit = model.NormalizeUserDailyQuotaLimitForWrite(user.DailyQuotaLimit)
-	user.PackageEmergencyQuotaLimit = model.NormalizeUserPackageEmergencyQuotaLimitForWrite(user.PackageEmergencyQuotaLimit)
 	user.QuotaResetTimezone = model.NormalizeUserQuotaResetTimezoneForWrite(user.QuotaResetTimezone)
 	if user.Status == model.UserStatusDisabled {
 		blacklist.BanUser(user.Id)
@@ -280,17 +276,15 @@ func Update(user *model.User, updatePassword bool) error {
 		blacklist.UnbanUser(user.Id)
 	}
 	updates := map[string]any{
-		"username":                      user.Username,
-		"display_name":                  user.DisplayName,
-		"role":                          user.Role,
-		"status":                        user.Status,
-		"email":                         user.Email,
-		"quota":                         user.Quota,
-		"group":                         user.Group,
-		"daily_quota_limit":             user.DailyQuotaLimit,
-		"package_emergency_quota_limit": user.PackageEmergencyQuotaLimit,
-		"quota_reset_timezone":          user.QuotaResetTimezone,
-		"updated_at":                    helper.GetTimestamp(),
+		"username":             user.Username,
+		"display_name":         user.DisplayName,
+		"role":                 user.Role,
+		"status":               user.Status,
+		"email":                user.Email,
+		"quota":                user.Quota,
+		"group":                user.Group,
+		"quota_reset_timezone": user.QuotaResetTimezone,
+		"updated_at":           helper.GetTimestamp(),
 	}
 	if updatePassword {
 		updates["password"] = user.Password

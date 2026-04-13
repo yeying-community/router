@@ -111,9 +111,9 @@ const renderPackageAmountValue = (yycAmount, displayUnit, currencyIndex) => {
 
 const resolvePackageYYCAmount = (row, type) => {
   if (type === 'daily') {
-    return Number(row?.yyc_daily_limit ?? row?.daily_quota_limit ?? 0);
+    return Number(row?.daily_quota_limit ?? 0);
   }
-  return Number(row?.yyc_package_emergency_limit ?? row?.package_emergency_quota_limit ?? 0);
+  return Number(row?.package_emergency_quota_limit ?? 0);
 };
 
 const renderPackageAmountFieldValue = (row, type, displayUnit, currencyIndex) => {
@@ -366,13 +366,13 @@ const PackagesManager = () => {
         sale_price: detail?.sale_price ?? '0',
         sale_currency: detail?.sale_currency || 'CNY',
         daily_amount: yycToBillingInputValue(
-          Number(detail?.yyc_daily_limit ?? detail?.daily_quota_limit ?? 0),
+          Number(detail?.daily_quota_limit ?? 0),
           defaultBillingUnit,
           currencyIndex
         ),
         daily_amount_unit: defaultBillingUnit,
         emergency_amount: yycToBillingInputValue(
-          Number(detail?.yyc_package_emergency_limit ?? detail?.package_emergency_quota_limit ?? 0),
+          Number(detail?.package_emergency_quota_limit ?? 0),
           defaultBillingUnit,
           currencyIndex
         ),

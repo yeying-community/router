@@ -23,33 +23,35 @@ const (
 // User if you add sensitive fields, don't forget to clean them in setupLogin function.
 // Otherwise, the sensitive information will be saved on local storage in plain text!
 type User struct {
-	Id                         string  `json:"id" gorm:"type:char(36);primaryKey"`
-	Username                   string  `json:"username" gorm:"unique;index" validate:"max=20"`
-	Password                   string  `json:"password" gorm:"not null;" validate:"min=8,max=20"`
-	DisplayName                string  `json:"display_name" gorm:"index" validate:"max=20"`
-	Role                       int     `json:"role" gorm:"type:int;default:1"`   // admin, util
-	Status                     int     `json:"status" gorm:"type:int;default:1"` // enabled, disabled
-	Email                      string  `json:"email" gorm:"index" validate:"max=50"`
-	GitHubId                   string  `json:"github_id" gorm:"column:github_id;index"`
-	WeChatId                   string  `json:"wechat_id" gorm:"column:wechat_id;index"`
-	LarkId                     string  `json:"lark_id" gorm:"column:lark_id;index"`
-	OidcId                     string  `json:"oidc_id" gorm:"column:oidc_id;index"`
-	WalletAddress              *string `json:"wallet_address" gorm:"column:wallet_address;uniqueIndex" validate:"omitempty"`
-	VerificationCode           string  `json:"verification_code" gorm:"-:all"`
-	AccessToken                string  `json:"access_token" gorm:"type:char(32);column:access_token;uniqueIndex"`
-	Quota                      int64   `json:"quota" gorm:"bigint;default:0"`
-	UsedQuota                  int64   `json:"used_quota" gorm:"bigint;default:0;column:used_quota"`
-	RequestCount               int     `json:"request_count" gorm:"type:int;default:0;"`
-	Group                      string  `json:"group" gorm:"type:varchar(32);default:''"`
-	DailyQuotaLimit            int64   `json:"daily_quota_limit" gorm:"type:bigint;not null;default:0"`
-	PackageEmergencyQuotaLimit int64   `json:"package_emergency_quota_limit" gorm:"column:package_emergency_quota_limit;type:bigint;not null;default:0"`
-	QuotaResetTimezone         string  `json:"quota_reset_timezone" gorm:"type:varchar(64);not null;default:'Asia/Shanghai'"`
-	AffCode                    string  `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
-	InviterId                  string  `json:"inviter_id" gorm:"type:char(36);column:inviter_id;index"`
-	HasPassword                bool    `json:"has_password" gorm:"column:has_password;default:false"`
-	CreatedAt                  int64   `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt                  int64   `json:"updated_at" gorm:"bigint;index"`
-	CanManageUsers             bool    `json:"can_manage_users" gorm:"-"`
+	Id               string  `json:"id" gorm:"type:char(36);primaryKey"`
+	Username         string  `json:"username" gorm:"unique;index" validate:"max=20"`
+	Password         string  `json:"password" gorm:"not null;" validate:"min=8,max=20"`
+	DisplayName      string  `json:"display_name" gorm:"index" validate:"max=20"`
+	Role             int     `json:"role" gorm:"type:int;default:1"`   // admin, util
+	Status           int     `json:"status" gorm:"type:int;default:1"` // enabled, disabled
+	Email            string  `json:"email" gorm:"index" validate:"max=50"`
+	GitHubId         string  `json:"github_id" gorm:"column:github_id;index"`
+	WeChatId         string  `json:"wechat_id" gorm:"column:wechat_id;index"`
+	LarkId           string  `json:"lark_id" gorm:"column:lark_id;index"`
+	OidcId           string  `json:"oidc_id" gorm:"column:oidc_id;index"`
+	WalletAddress    *string `json:"wallet_address" gorm:"column:wallet_address;uniqueIndex" validate:"omitempty"`
+	VerificationCode string  `json:"verification_code" gorm:"-:all"`
+	AccessToken      string  `json:"access_token" gorm:"type:char(32);column:access_token;uniqueIndex"`
+	Quota            int64   `json:"quota" gorm:"bigint;default:0"`
+	UsedQuota        int64   `json:"used_quota" gorm:"bigint;default:0;column:used_quota"`
+	RequestCount     int     `json:"request_count" gorm:"type:int;default:0;"`
+	Group            string  `json:"group" gorm:"type:varchar(32);default:''"`
+	// Compatibility-only API fields. Runtime policy is derived from active package;
+	// these fields are intentionally not persisted in users table.
+	DailyQuotaLimit            int64  `json:"-" gorm:"-"`
+	PackageEmergencyQuotaLimit int64  `json:"-" gorm:"-"`
+	QuotaResetTimezone         string `json:"quota_reset_timezone" gorm:"type:varchar(64);not null;default:'Asia/Shanghai'"`
+	AffCode                    string `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
+	InviterId                  string `json:"inviter_id" gorm:"type:char(36);column:inviter_id;index"`
+	HasPassword                bool   `json:"has_password" gorm:"column:has_password;default:false"`
+	CreatedAt                  int64  `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt                  int64  `json:"updated_at" gorm:"bigint;index"`
+	CanManageUsers             bool   `json:"can_manage_users" gorm:"-"`
 }
 
 func NormalizeWalletAddress(address string) string {

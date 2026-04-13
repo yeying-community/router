@@ -9,17 +9,16 @@ func migratePackageEmergencyQuotaColumnsWithDB(tx *gorm.DB) error {
 
 	targets := []struct {
 		table   string
-		model   any
 		current string
 		legacy  string
 	}{
-		{table: "users", model: &User{}, current: "package_emergency_quota_limit", legacy: "monthly_emergency_quota_limit"},
-		{table: ServicePackagesTableName, model: &ServicePackage{}, current: "package_emergency_quota_limit", legacy: "monthly_emergency_quota_limit"},
-		{table: UserPackageSubscriptionsTableName, model: &UserPackageSubscription{}, current: "package_emergency_quota_limit", legacy: "monthly_emergency_quota_limit"},
+		{table: "users", current: "package_emergency_quota_limit", legacy: "monthly_emergency_quota_limit"},
+		{table: ServicePackagesTableName, current: "package_emergency_quota_limit", legacy: "monthly_emergency_quota_limit"},
+		{table: UserPackageSubscriptionsTableName, current: "package_emergency_quota_limit", legacy: "monthly_emergency_quota_limit"},
 	}
 
 	for _, target := range targets {
-		hasCurrent := tx.Migrator().HasColumn(target.model, target.current)
+		hasCurrent := tx.Migrator().HasColumn(target.table, target.current)
 		if !hasCurrent {
 			if err := tx.Exec(
 				"ALTER TABLE " + target.table + " ADD COLUMN " + target.current + " bigint NOT NULL DEFAULT 0",
@@ -28,7 +27,7 @@ func migratePackageEmergencyQuotaColumnsWithDB(tx *gorm.DB) error {
 			}
 		}
 
-		hasLegacy := tx.Migrator().HasColumn(target.model, target.legacy)
+		hasLegacy := tx.Migrator().HasColumn(target.table, target.legacy)
 		if !hasLegacy {
 			continue
 		}
@@ -39,7 +38,7 @@ func migratePackageEmergencyQuotaColumnsWithDB(tx *gorm.DB) error {
 			return err
 		}
 
-		if err := tx.Migrator().DropColumn(target.model, target.legacy); err != nil {
+		if err := tx.Migrator().DropColumn(target.table, target.legacy); err != nil {
 			return err
 		}
 	}

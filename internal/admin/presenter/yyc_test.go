@@ -6,13 +6,11 @@ import (
 	"github.com/yeying-community/router/internal/admin/model"
 )
 
-func TestNewUserAddsYYCAliases(t *testing.T) {
+func TestNewUserAddsYYCBaseAliases(t *testing.T) {
 	row := &model.User{
-		Id:                         "u1",
-		Quota:                      1200,
-		UsedQuota:                  3400,
-		DailyQuotaLimit:            5600,
-		PackageEmergencyQuotaLimit: 7800,
+		Id:        "u1",
+		Quota:     1200,
+		UsedQuota: 3400,
 	}
 	view := NewUser(row)
 	if view == nil {
@@ -23,12 +21,6 @@ func TestNewUserAddsYYCAliases(t *testing.T) {
 	}
 	if view.YYCUsed != row.UsedQuota {
 		t.Fatalf("yyc_used=%d, want %d", view.YYCUsed, row.UsedQuota)
-	}
-	if view.YYCDailyLimit != row.DailyQuotaLimit {
-		t.Fatalf("yyc_daily_limit=%d, want %d", view.YYCDailyLimit, row.DailyQuotaLimit)
-	}
-	if view.YYCPackageEmergencyLimit != row.PackageEmergencyQuotaLimit {
-		t.Fatalf("yyc_package_emergency_limit=%d, want %d", view.YYCPackageEmergencyLimit, row.PackageEmergencyQuotaLimit)
 	}
 }
 

@@ -320,8 +320,6 @@ const UserDetail = () => {
     email: '',
     yyc_balance: 0,
     group: '',
-    daily_amount: 0,
-    emergency_amount: 0,
     reset_timezone: 'Asia/Shanghai',
     role: 1,
     status: 1,
@@ -367,8 +365,6 @@ const UserDetail = () => {
         email: data?.email || '',
         yyc_balance: Number(data?.yyc_balance ?? data?.quota ?? 0),
         group: data?.group || '',
-        daily_amount: Number(data?.yyc_daily_limit ?? data?.daily_quota_limit ?? 0),
-        emergency_amount: Number(data?.yyc_package_emergency_limit ?? data?.package_emergency_quota_limit ?? 0),
         reset_timezone: data?.quota_reset_timezone || 'Asia/Shanghai',
         role: Number(data?.role || 1),
         status: Number(data?.status || 1),
@@ -769,8 +765,6 @@ const UserDetail = () => {
         email,
         group,
         quota: Math.trunc(yycBalance),
-        daily_quota_limit: Math.trunc(Number(inputs.daily_amount || 0)),
-        package_emergency_quota_limit: Math.trunc(Number(inputs.emergency_amount || 0)),
         quota_reset_timezone: inputs.reset_timezone || 'Asia/Shanghai',
         role: Number(inputs.role || 1),
         status: Number(inputs.status || 1),
@@ -794,8 +788,6 @@ const UserDetail = () => {
       setActionLoading('');
     }
   }, [
-    inputs.daily_amount,
-    inputs.emergency_amount,
     inputs.role,
     inputs.status,
     inputs.reset_timezone,

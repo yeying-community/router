@@ -8,11 +8,9 @@ import (
 
 type User struct {
 	*model.User
-	YYCBalance               int64  `json:"yyc_balance"`
-	YYCUsed                  int64  `json:"yyc_used"`
-	YYCDailyLimit            int64  `json:"yyc_daily_limit"`
-	YYCPackageEmergencyLimit int64  `json:"yyc_package_emergency_limit"`
-	ActivePackageName        string `json:"active_package_name,omitempty"`
+	YYCBalance        int64  `json:"yyc_balance"`
+	YYCUsed           int64  `json:"yyc_used"`
+	ActivePackageName string `json:"active_package_name,omitempty"`
 }
 
 func NewUser(user *model.User) *User {
@@ -20,11 +18,9 @@ func NewUser(user *model.User) *User {
 		return nil
 	}
 	return &User{
-		User:                     user,
-		YYCBalance:               user.Quota,
-		YYCUsed:                  user.UsedQuota,
-		YYCDailyLimit:            user.DailyQuotaLimit,
-		YYCPackageEmergencyLimit: user.PackageEmergencyQuotaLimit,
+		User:       user,
+		YYCBalance: user.Quota,
+		YYCUsed:    user.UsedQuota,
 	}
 }
 

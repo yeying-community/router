@@ -468,6 +468,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&Redemption{})
 			},
 		},
+		{
+			Version:     "202604141030_drop_user_quota_snapshot_columns",
+			Description: "drop legacy users daily/package emergency snapshot columns",
+			Up: func(tx *gorm.DB) error {
+				return dropLegacyUserQuotaSnapshotColumnsWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
