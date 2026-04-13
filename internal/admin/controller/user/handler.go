@@ -1528,13 +1528,6 @@ func UpdateUser(c *gin.Context) {
 		})
 		return
 	}
-	if updatedUser.DailyQuotaLimit < 0 || updatedUser.PackageEmergencyQuotaLimit < 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": i18n.Translate(c, "invalid_input"),
-		})
-		return
-	}
 	quotaResetTimezone, err := model.ValidateUserQuotaResetTimezone(updatedUser.QuotaResetTimezone)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{

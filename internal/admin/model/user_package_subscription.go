@@ -119,10 +119,8 @@ func syncUserPackageSubscriptionsWithDB(db *gorm.DB, userID string, now int64) e
 		}
 
 		return tx.Model(&User{}).Where("id = ?", normalizedUserID).Updates(map[string]any{
-			"group":                         strings.TrimSpace(pending.GroupID),
-			"daily_quota_limit":             normalizeUserDailyQuotaLimit(pending.DailyQuotaLimit),
-			"package_emergency_quota_limit": normalizeUserPackageEmergencyQuotaLimit(pending.PackageEmergencyQuotaLimit),
-			"quota_reset_timezone":          normalizeUserQuotaResetTimezone(pending.QuotaResetTimezone),
+			"group":                strings.TrimSpace(pending.GroupID),
+			"quota_reset_timezone": normalizeUserQuotaResetTimezone(pending.QuotaResetTimezone),
 		}).Error
 	})
 }
@@ -257,10 +255,8 @@ func AssignServicePackageToUserWithDB(db *gorm.DB, packageID string, userID stri
 			return nil
 		}
 		return tx.Model(&User{}).Where("id = ?", normalizedUserID).Updates(map[string]any{
-			"group":                         strings.TrimSpace(servicePackage.GroupID),
-			"daily_quota_limit":             normalizeUserDailyQuotaLimit(subscription.DailyQuotaLimit),
-			"package_emergency_quota_limit": normalizeUserPackageEmergencyQuotaLimit(subscription.PackageEmergencyQuotaLimit),
-			"quota_reset_timezone":          normalizeUserQuotaResetTimezone(subscription.QuotaResetTimezone),
+			"group":                strings.TrimSpace(servicePackage.GroupID),
+			"quota_reset_timezone": normalizeUserQuotaResetTimezone(subscription.QuotaResetTimezone),
 		}).Error
 	})
 	if err != nil {

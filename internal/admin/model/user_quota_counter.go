@@ -119,22 +119,8 @@ func GetUserDailyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizDate string)
 	if err != nil {
 		return UserDailyQuotaSnapshot{}, err
 	}
-	counter := UserQuotaCounter{}
-	err = db.Where("user_id = ? AND counter_type = ? AND period_key = ?", normalizedUserID, UserQuotaCounterTypeDaily, normalizedBizDate).First(&counter).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return UserDailyQuotaSnapshot{}, err
-	}
-	if err == gorm.ErrRecordNotFound {
-		counter = UserQuotaCounter{UserID: normalizedUserID, CounterType: UserQuotaCounterTypeDaily, PeriodKey: normalizedBizDate}
-	}
-	consumed := counter.ConsumedQuota
-	if consumed < 0 {
-		consumed = 0
-	}
-	reserved := counter.ReservedQuota
-	if reserved < 0 {
-		reserved = 0
-	}
+	consumed := int64(0)
+	reserved := int64(0)
 	unlimited := policy.DailyLimit <= 0
 	remaining := int64(0)
 	if !unlimited {
@@ -152,7 +138,7 @@ func GetUserDailyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizDate string)
 		RemainingQuota: remaining,
 		Unlimited:      unlimited,
 		Timezone:       policy.Timezone,
-		UpdatedAt:      counter.UpdatedAt,
+		UpdatedAt:      0,
 	}, nil
 }
 

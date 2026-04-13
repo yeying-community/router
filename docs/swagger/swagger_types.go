@@ -77,8 +77,6 @@ type AdminUserUpdateRequest struct {
 	Group                      string `json:"group,omitempty" example:"default"`
 	Password                   string `json:"password,omitempty" example:"NewPass123"`
 	WalletAddress              string `json:"wallet_address,omitempty" example:"0x1111111111111111111111111111111111111111"`
-	DailyQuotaLimit            int64  `json:"daily_quota_limit,omitempty" example:"1000"`
-	PackageEmergencyQuotaLimit int64  `json:"package_emergency_quota_limit,omitempty" example:"2000"`
 	QuotaResetTimezone         string `json:"quota_reset_timezone,omitempty" example:"Asia/Shanghai"`
 }
 
@@ -120,13 +118,9 @@ type UserPublic struct {
 	Group                      string  `json:"group" example:"default"`
 	AffCode                    string  `json:"aff_code" example:"ABCD"`
 	InviterID                  int     `json:"inviter_id" example:"0"`
-	DailyQuotaLimit            int64   `json:"daily_quota_limit" example:"0"`
-	PackageEmergencyQuotaLimit int64   `json:"package_emergency_quota_limit" example:"0"`
 	QuotaResetTimezone         string  `json:"quota_reset_timezone" example:"Asia/Shanghai"`
 	YYCBalance                 int64   `json:"yyc_balance" example:"0"`
 	YYCUsed                    int64   `json:"yyc_used" example:"0"`
-	YYCDailyLimit              int64   `json:"yyc_daily_limit" example:"0"`
-	YYCPackageEmergencyLimit   int64   `json:"yyc_package_emergency_limit" example:"0"`
 }
 
 type UserSelfResponse struct {
