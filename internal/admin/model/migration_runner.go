@@ -461,6 +461,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&UserBalanceLotTransaction{})
 			},
 		},
+		{
+			Version:     "202604132230_redemption_validity_fields",
+			Description: "add redemption code validity and redeemed credit validity fields",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Redemption{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

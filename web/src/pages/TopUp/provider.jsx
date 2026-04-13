@@ -316,6 +316,7 @@ const TopUpWorkspaceProvider = ({ children }) => {
           face_value_amount: 0,
           face_value_unit: '',
           redeemed_at: 0,
+          credit_expires_at: 0,
         };
       setUserBalanceYYC(normalizedResult.after_yyc_balance);
       setRedeemBalanceYYC((previous) =>

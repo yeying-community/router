@@ -251,7 +251,8 @@
         "redemption_id": "兑换码记录",
         "group": "分组",
         "face_value": "面值",
-        "redeemed_at": "兑换时间"
+        "redeemed_at": "兑换时间",
+        "credit_expires_at": "到账额度过期时间"
       }
     },
     "redeem": {
@@ -1062,6 +1063,7 @@
       "quota": "到账 YYC",
       "credited_yyc": "到账 YYC",
       "created_time": "创建时间",
+      "code_expires_at": "兑换码过期时间",
       "redeemed_time": "兑换时间",
       "actions": "操作",
       "no_name": "无",
@@ -1095,6 +1097,10 @@
       "face_value_unit": "单位",
       "face_value_unit_placeholder": "请选择面值单位",
       "credit_yyc": "到账 YYC",
+      "code_validity_days": "兑换码有效期（天）",
+      "code_validity_days_placeholder": "0 表示永久有效",
+      "credit_validity_days": "到账额度有效期（天）",
+      "credit_validity_days_placeholder": "0 表示永久有效",
       "count": "生成数量",
       "count_placeholder": "请输入生成数量",
       "buttons": {
@@ -1106,6 +1112,10 @@
       "title": "兑换码详情",
       "code": "兑换码",
       "redeemed_by": "兑换用户",
+      "code_validity_days": "兑换码有效期",
+      "credit_validity_days": "到账额度有效期",
+      "code_expires_at": "兑换码过期时间",
+      "credit_expires_at": "到账额度过期时间",
       "buttons": {
         "back": "返回"
       }
@@ -1118,7 +1128,9 @@
       "name_required": "请输入兑换码名称",
       "group_required": "请选择分组",
       "count_invalid": "生成数量必须大于 0",
-      "face_value_invalid": "面值必须大于 0"
+      "face_value_invalid": "面值必须大于 0",
+      "code_validity_invalid": "兑换码有效期必须大于或等于 0",
+      "credit_validity_invalid": "到账额度有效期必须大于或等于 0"
     }
   },
   "log": {

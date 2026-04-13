@@ -17,6 +17,8 @@ const originInputs = {
   group_id: '',
   face_value_amount: '100000',
   face_value_unit: YYC_UNIT,
+  code_validity_days: 0,
+  credit_validity_days: 0,
   count: 1,
 };
 
@@ -54,7 +56,15 @@ const EditRedemption = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const { name, group_id, face_value_amount, face_value_unit, count } = inputs;
+  const {
+    name,
+    group_id,
+    face_value_amount,
+    face_value_unit,
+    code_validity_days,
+    credit_validity_days,
+    count,
+  } = inputs;
 
   const yycPreview = useMemo(
     () => computeYYCPreview(face_value_amount, face_value_unit, currencyIndex),
@@ -120,6 +130,8 @@ const EditRedemption = () => {
     const localInputs = { ...inputs };
     localInputs.count = Number.parseInt(`${localInputs.count ?? ''}`, 10);
     localInputs.face_value_amount = Number.parseFloat(`${localInputs.face_value_amount ?? ''}`);
+    localInputs.code_validity_days = Number.parseInt(`${localInputs.code_validity_days ?? ''}`, 10);
+    localInputs.credit_validity_days = Number.parseInt(`${localInputs.credit_validity_days ?? ''}`, 10);
     if (!Number.isFinite(localInputs.count) || localInputs.count <= 0) {
       showError(t('redemption.messages.count_invalid'));
       return;
@@ -131,6 +143,14 @@ const EditRedemption = () => {
       showError(t('redemption.messages.face_value_invalid'));
       return;
     }
+    if (!Number.isFinite(localInputs.code_validity_days) || localInputs.code_validity_days < 0) {
+      showError(t('redemption.messages.code_validity_invalid'));
+      return;
+    }
+    if (!Number.isFinite(localInputs.credit_validity_days) || localInputs.credit_validity_days < 0) {
+      showError(t('redemption.messages.credit_validity_invalid'));
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -139,6 +159,8 @@ const EditRedemption = () => {
         group_id: localInputs.group_id,
         face_value_amount: localInputs.face_value_amount,
         face_value_unit: localInputs.face_value_unit,
+        code_validity_days: localInputs.code_validity_days,
+        credit_validity_days: localInputs.credit_validity_days,
         count: localInputs.count,
       });
       const { success, message, data } = res.data;
@@ -260,6 +282,30 @@ const EditRedemption = () => {
                 min='1'
               />
             </Form.Field>
+            <Form.Group widths='equal'>
+              <Form.Input
+                className='router-section-input'
+                label={t('redemption.edit.code_validity_days')}
+                name='code_validity_days'
+                placeholder={t('redemption.edit.code_validity_days_placeholder')}
+                onChange={handleInputChange}
+                value={code_validity_days}
+                autoComplete='off'
+                type='number'
+                min='0'
+              />
+              <Form.Input
+                className='router-section-input'
+                label={t('redemption.edit.credit_validity_days')}
+                name='credit_validity_days'
+                placeholder={t('redemption.edit.credit_validity_days_placeholder')}
+                onChange={handleInputChange}
+                value={credit_validity_days}
+                autoComplete='off'
+                type='number'
+                min='0'
+              />
+            </Form.Group>
           </Form>
         </Card.Content>
       </Card>

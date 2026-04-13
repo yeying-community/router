@@ -176,18 +176,38 @@ func AddRedemption(c *gin.Context) {
 		})
 		return
 	}
+	codeValidityDays := redemption.CodeValidityDays
+	if codeValidityDays < 0 || codeValidityDays > model.UserBalanceLotMaxValidityDay {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "兑换码有效期天数超出范围",
+		})
+		return
+	}
+	creditValidityDays := redemption.CreditValidityDays
+	if creditValidityDays < 0 || creditValidityDays > model.UserBalanceLotMaxValidityDay {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "兑换到账有效期天数超出范围",
+		})
+		return
+	}
 	var codes []string
 	for i := 0; i < redemption.Count; i++ {
 		code := random.GetUUID()
+		createdAt := helper.GetTimestamp()
 		cleanRedemption := model.Redemption{
-			UserId:          c.GetString(ctxkey.Id),
-			Name:            redemption.Name,
-			GroupID:         redemption.GroupID,
-			Code:            code,
-			CreatedTime:     helper.GetTimestamp(),
-			FaceValueAmount: redemption.FaceValueAmount,
-			FaceValueUnit:   redemption.FaceValueUnit,
-			Quota:           redemption.Quota,
+			UserId:             c.GetString(ctxkey.Id),
+			Name:               redemption.Name,
+			GroupID:            redemption.GroupID,
+			Code:               code,
+			CreatedTime:        createdAt,
+			FaceValueAmount:    redemption.FaceValueAmount,
+			FaceValueUnit:      redemption.FaceValueUnit,
+			Quota:              redemption.Quota,
+			CodeValidityDays:   codeValidityDays,
+			CodeExpiresAt:      model.ResolveBalanceCreditExpiresAt(createdAt, codeValidityDays),
+			CreditValidityDays: creditValidityDays,
 		}
 		err = cleanRedemption.Insert()
 		if err != nil {
@@ -280,6 +300,23 @@ func UpdateRedemption(c *gin.Context) {
 		cleanRedemption.GroupName = resolvedGroup.Name
 		cleanRedemption.FaceValueAmount = redemption.FaceValueAmount
 		cleanRedemption.FaceValueUnit = redemption.FaceValueUnit
+		if redemption.CodeValidityDays < 0 || redemption.CodeValidityDays > model.UserBalanceLotMaxValidityDay {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "兑换码有效期天数超出范围",
+			})
+			return
+		}
+		if redemption.CreditValidityDays < 0 || redemption.CreditValidityDays > model.UserBalanceLotMaxValidityDay {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "兑换到账有效期天数超出范围",
+			})
+			return
+		}
+		cleanRedemption.CodeValidityDays = redemption.CodeValidityDays
+		cleanRedemption.CodeExpiresAt = model.ResolveBalanceCreditExpiresAt(cleanRedemption.CreatedTime, cleanRedemption.CodeValidityDays)
+		cleanRedemption.CreditValidityDays = redemption.CreditValidityDays
 		if err := model.NormalizeRedemptionFaceValueFieldsWithDB(model.DB, cleanRedemption); err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,

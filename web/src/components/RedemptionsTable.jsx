@@ -32,6 +32,14 @@ function renderTimestamp(timestamp) {
   return <>{timestamp2string(timestamp)}</>;
 }
 
+function renderExpiryTime(timestamp, t) {
+  const normalized = Number(timestamp || 0);
+  if (!Number.isFinite(normalized) || normalized <= 0) {
+    return t('common.never');
+  }
+  return renderTimestamp(normalized);
+}
+
 function renderGroupLabel(redemption) {
   const groupName = (redemption?.group_name || '').toString().trim();
   if (groupName) {
@@ -403,6 +411,14 @@ const RedemptionsTable = () => {
             <Table.HeaderCell
               className='router-sortable-header'
               onClick={() => {
+                sortRedemption('code_expires_at');
+              }}
+            >
+              {t('redemption.table.code_expires_at')}
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              className='router-sortable-header'
+              onClick={() => {
                 sortRedemption('redeemed_time');
               }}
             >
@@ -442,6 +458,9 @@ const RedemptionsTable = () => {
                   <Table.Cell>{renderDisplayFaceValue(redemption, displayUnit, currencyIndex)}</Table.Cell>
                   <Table.Cell>
                     {renderTimestamp(redemption.createdTime || redemption.created_time)}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {renderExpiryTime(redemption.code_expires_at, t)}
                   </Table.Cell>
                   <Table.Cell>
                     {redemption.redeemedTime
@@ -524,7 +543,7 @@ const RedemptionsTable = () => {
 
         <Table.Footer>
           <Table.Row>
-            <Table.HeaderCell colSpan='7'>
+            <Table.HeaderCell colSpan='8'>
               <Pagination
                 className='router-page-pagination'
                 floated='right'

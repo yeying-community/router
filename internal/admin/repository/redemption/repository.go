@@ -171,6 +171,10 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 		if redemption.Status != model.RedemptionCodeStatusEnabled {
 			return errors.New("该兑换码已被使用")
 		}
+		now := helper.GetTimestamp()
+		if redemption.CodeExpiresAt > 0 && now > redemption.CodeExpiresAt {
+			return errors.New("该兑换码已过期")
+		}
 		if strings.TrimSpace(redemption.TopupOrderID) != "" {
 			order := model.TopupOrder{}
 			if err := tx.Set("gorm:query_option", "FOR UPDATE").
@@ -212,14 +216,15 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			redemption.GroupName = strings.TrimSpace(groupRow.Name)
 		}
 		beforeYYCBalance := user.Quota
-		redeemedAt := helper.GetTimestamp()
+		redeemedAt := now
+		creditExpiresAt := model.ResolveBalanceCreditExpiresAt(redeemedAt, redemption.CreditValidityDays)
 		_, creditedNow, err := model.CreditUserBalanceLotWithDB(tx, model.UserBalanceLotCreditInput{
 			UserID:     strings.TrimSpace(userId),
 			SourceType: model.UserBalanceLotSourceRedeem,
 			SourceID:   strings.TrimSpace(redemption.Id),
 			TotalYYC:   redemption.Quota,
 			GrantedAt:  redeemedAt,
-			ExpiresAt:  0,
+			ExpiresAt:  creditExpiresAt,
 		})
 		if err != nil {
 			return err
@@ -240,6 +245,7 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			return err
 		}
 		redemption.RedeemedTime = redeemedAt
+		redemption.CreditExpiresAt = creditExpiresAt
 		redemption.Status = model.RedemptionCodeStatusUsed
 		redemption.RedeemedByUserId = strings.TrimSpace(userId)
 		if err := tx.Save(redemption).Error; err != nil {
@@ -256,6 +262,7 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			FaceValueAmount:  redemption.FaceValueAmount,
 			FaceValueUnit:    strings.TrimSpace(redemption.FaceValueUnit),
 			RedeemedAt:       redemption.RedeemedTime,
+			CreditExpiresAt:  redemption.CreditExpiresAt,
 		}
 		if strings.TrimSpace(redemption.TopupOrderID) != "" {
 			if err := model.MarkTopupOrderRedeemedWithDB(tx, redemption.TopupOrderID, redemption.Id, redemption.RedeemedTime); err != nil {
@@ -276,8 +283,29 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 }
 
 func Create(redemption *model.Redemption) error {
+	if redemption == nil {
+		return errors.New("兑换码不能为空")
+	}
 	if strings.TrimSpace(redemption.Id) == "" {
 		redemption.Id = random.GetUUID()
+	}
+	if redemption.CreatedTime <= 0 {
+		redemption.CreatedTime = helper.GetTimestamp()
+	}
+	if redemption.CodeValidityDays < 0 {
+		redemption.CodeValidityDays = 0
+	} else if redemption.CodeValidityDays > model.UserBalanceLotMaxValidityDay {
+		redemption.CodeValidityDays = model.UserBalanceLotMaxValidityDay
+	}
+	if redemption.CreditValidityDays < 0 {
+		redemption.CreditValidityDays = 0
+	} else if redemption.CreditValidityDays > model.UserBalanceLotMaxValidityDay {
+		redemption.CreditValidityDays = model.UserBalanceLotMaxValidityDay
+	}
+	if redemption.CodeValidityDays > 0 {
+		redemption.CodeExpiresAt = model.ResolveBalanceCreditExpiresAt(redemption.CreatedTime, redemption.CodeValidityDays)
+	} else {
+		redemption.CodeExpiresAt = 0
 	}
 	return model.DB.Create(redemption).Error
 }
@@ -287,7 +315,9 @@ func SelectUpdate(redemption *model.Redemption) error {
 }
 
 func Update(redemption *model.Redemption) error {
-	return model.DB.Model(redemption).Select("name", "status", "group_id", "face_value_amount", "face_value_unit", "quota", "redeemed_time").Updates(redemption).Error
+	return model.DB.Model(redemption).
+		Select("name", "status", "group_id", "face_value_amount", "face_value_unit", "quota", "code_validity_days", "code_expires_at", "credit_validity_days", "credit_expires_at", "redeemed_time").
+		Updates(redemption).Error
 }
 
 func Delete(redemption *model.Redemption) error {

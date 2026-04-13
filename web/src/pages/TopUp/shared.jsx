@@ -71,6 +71,7 @@ export const normalizeTopUpResult = (raw) => {
     face_value_amount: Number(raw?.face_value_amount ?? 0) || 0,
     face_value_unit: raw?.face_value_unit || '',
     redeemed_at: Number(raw?.redeemed_at ?? 0) || 0,
+    credit_expires_at: Number(raw?.credit_expires_at ?? 0) || 0,
   };
 };
 

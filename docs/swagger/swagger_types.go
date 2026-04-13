@@ -275,6 +275,7 @@ type UserTopUpResult struct {
 	FaceValueAmount  float64 `json:"face_value_amount" example:"10"`
 	FaceValueUnit    string  `json:"face_value_unit" example:"USD"`
 	RedeemedAt       int64   `json:"redeemed_at" example:"1774000000"`
+	CreditExpiresAt  int64   `json:"credit_expires_at" example:"1776591999"`
 }
 
 // --- Token responses ---
@@ -482,20 +483,24 @@ type ModelProviderCatalogResponse struct {
 }
 
 type RedemptionCreateRequest struct {
-	Name            string  `json:"name" example:"InviteBonus"`
-	GroupID         string  `json:"group_id" example:"474c9b7b534047ce9205220990f53087"`
-	Count           int     `json:"count" example:"5"`
-	FaceValueAmount float64 `json:"face_value_amount" example:"10"`
-	FaceValueUnit   string  `json:"face_value_unit" example:"USD"`
+	Name               string  `json:"name" example:"InviteBonus"`
+	GroupID            string  `json:"group_id" example:"474c9b7b534047ce9205220990f53087"`
+	Count              int     `json:"count" example:"5"`
+	FaceValueAmount    float64 `json:"face_value_amount" example:"10"`
+	FaceValueUnit      string  `json:"face_value_unit" example:"USD"`
+	CodeValidityDays   int     `json:"code_validity_days" example:"30"`
+	CreditValidityDays int     `json:"credit_validity_days" example:"30"`
 }
 
 type RedemptionUpdateRequest struct {
-	ID              string  `json:"id" example:"2d66a0b2d8c44efda9c7f5f21a4e2c4d"`
-	Name            string  `json:"name,omitempty" example:"InviteBonus"`
-	GroupID         string  `json:"group_id,omitempty" example:"474c9b7b534047ce9205220990f53087"`
-	FaceValueAmount float64 `json:"face_value_amount,omitempty" example:"10"`
-	FaceValueUnit   string  `json:"face_value_unit,omitempty" example:"USD"`
-	Status          int     `json:"status,omitempty" example:"1"`
+	ID                 string  `json:"id" example:"2d66a0b2d8c44efda9c7f5f21a4e2c4d"`
+	Name               string  `json:"name,omitempty" example:"InviteBonus"`
+	GroupID            string  `json:"group_id,omitempty" example:"474c9b7b534047ce9205220990f53087"`
+	FaceValueAmount    float64 `json:"face_value_amount,omitempty" example:"10"`
+	FaceValueUnit      string  `json:"face_value_unit,omitempty" example:"USD"`
+	Status             int     `json:"status,omitempty" example:"1"`
+	CodeValidityDays   int     `json:"code_validity_days,omitempty" example:"30"`
+	CreditValidityDays int     `json:"credit_validity_days,omitempty" example:"30"`
 }
 
 // --- OpenAI-compatible models ---

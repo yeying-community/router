@@ -146,6 +146,14 @@ const RedeemCodePage = () => {
                       : '-'}
                   </Table.Cell>
                 </Table.Row>
+                <Table.Row>
+                  <Table.Cell>{t('topup.redemption_result.fields.credit_expires_at')}</Table.Cell>
+                  <Table.Cell colSpan={3}>
+                    {recentResult.credit_expires_at
+                      ? timestamp2string(recentResult.credit_expires_at)
+                      : t('common.never')}
+                  </Table.Cell>
+                </Table.Row>
               </Table.Body>
             </Table>
           </Card.Content>

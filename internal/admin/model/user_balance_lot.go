@@ -81,6 +81,10 @@ func resolveBalanceCreditExpiresAt(grantedAt int64, validityDays int) int64 {
 	return dayStart.Add(time.Duration(normalizedDays)*24*time.Hour - time.Second).Unix()
 }
 
+func ResolveBalanceCreditExpiresAt(grantedAt int64, validityDays int) int64 {
+	return resolveBalanceCreditExpiresAt(grantedAt, validityDays)
+}
+
 func normalizeUserBalanceLotStatus(value string) string {
 	switch strings.TrimSpace(strings.ToLower(value)) {
 	case UserBalanceLotStatusActive:

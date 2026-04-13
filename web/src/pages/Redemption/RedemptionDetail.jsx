@@ -121,6 +121,8 @@ const RedemptionDetail = () => {
     group_id: '',
     face_value_amount: '0',
     face_value_unit: YYC_UNIT,
+    code_validity_days: 0,
+    credit_validity_days: 0,
   });
   const isEditing = searchParams.get('edit') === '1';
   const returnPath = (() => {
@@ -143,6 +145,8 @@ const RedemptionDetail = () => {
       group_id: (data?.group_id || '').toString().trim(),
       face_value_amount: normalizeFaceValueAmount(data),
       face_value_unit: normalizeFaceValueUnit(data),
+      code_validity_days: Number(data?.code_validity_days ?? 0) || 0,
+      credit_validity_days: Number(data?.credit_validity_days ?? 0) || 0,
     });
   }, []);
 
@@ -244,6 +248,16 @@ const RedemptionDetail = () => {
       showError(t('redemption.messages.face_value_invalid'));
       return;
     }
+    const codeValidityDays = Number.parseInt(`${inputs.code_validity_days ?? ''}`, 10);
+    if (!Number.isFinite(codeValidityDays) || codeValidityDays < 0) {
+      showError(t('redemption.messages.code_validity_invalid'));
+      return;
+    }
+    const creditValidityDays = Number.parseInt(`${inputs.credit_validity_days ?? ''}`, 10);
+    if (!Number.isFinite(creditValidityDays) || creditValidityDays < 0) {
+      showError(t('redemption.messages.credit_validity_invalid'));
+      return;
+    }
 
     setSaving(true);
     try {
@@ -253,6 +267,8 @@ const RedemptionDetail = () => {
         group_id: inputs.group_id,
         face_value_amount: faceValueAmount,
         face_value_unit: inputs.face_value_unit,
+        code_validity_days: codeValidityDays,
+        credit_validity_days: creditValidityDays,
       });
       const { success, message, data } = res.data || {};
       if (!success) {
@@ -455,6 +471,50 @@ const RedemptionDetail = () => {
                   </Form.Field>
                 ) : null}
                 <Form.Group widths='equal'>
+                  {isEditing ? (
+                    <Form.Input
+                      className='router-section-input'
+                      label={t('redemption.edit.code_validity_days')}
+                      name='code_validity_days'
+                      type='number'
+                      value={inputs.code_validity_days}
+                      placeholder={t('redemption.edit.code_validity_days_placeholder')}
+                      onChange={handleInputChange}
+                      min='0'
+                    />
+                  ) : (
+                    <Form.Input
+                      className='router-section-input'
+                      label={t('redemption.detail.code_validity_days')}
+                      value={Number(redemption?.code_validity_days || 0) > 0
+                        ? `${Number(redemption?.code_validity_days || 0)} ${t('common.day')}`
+                        : t('common.never')}
+                      readOnly
+                    />
+                  )}
+                  {isEditing ? (
+                    <Form.Input
+                      className='router-section-input'
+                      label={t('redemption.edit.credit_validity_days')}
+                      name='credit_validity_days'
+                      type='number'
+                      value={inputs.credit_validity_days}
+                      placeholder={t('redemption.edit.credit_validity_days_placeholder')}
+                      onChange={handleInputChange}
+                      min='0'
+                    />
+                  ) : (
+                    <Form.Input
+                      className='router-section-input'
+                      label={t('redemption.detail.credit_validity_days')}
+                      value={Number(redemption?.credit_validity_days || 0) > 0
+                        ? `${Number(redemption?.credit_validity_days || 0)} ${t('common.day')}`
+                        : t('common.never')}
+                      readOnly
+                    />
+                  )}
+                </Form.Group>
+                <Form.Group widths='equal'>
                   <Form.Input
                     className='router-section-input'
                     label={t('redemption.table.created_time')}
@@ -472,6 +532,28 @@ const RedemptionDetail = () => {
                       redemption?.redeemed_time
                         ? timestamp2string(redemption.redeemed_time)
                         : t('redemption.table.not_redeemed')
+                    }
+                    readOnly
+                  />
+                </Form.Group>
+                <Form.Group widths='equal'>
+                  <Form.Input
+                    className='router-section-input'
+                    label={t('redemption.detail.code_expires_at')}
+                    value={
+                      Number(redemption?.code_expires_at || 0) > 0
+                        ? timestamp2string(redemption.code_expires_at)
+                        : t('common.never')
+                    }
+                    readOnly
+                  />
+                  <Form.Input
+                    className='router-section-input'
+                    label={t('redemption.detail.credit_expires_at')}
+                    value={
+                      Number(redemption?.credit_expires_at || 0) > 0
+                        ? timestamp2string(redemption.credit_expires_at)
+                        : t('common.never')
                     }
                     readOnly
                   />

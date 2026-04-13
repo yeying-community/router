@@ -251,7 +251,8 @@
         "redemption_id": "Redemption Record",
         "group": "Group",
         "face_value": "Face Value",
-        "redeemed_at": "Redeemed At"
+        "redeemed_at": "Redeemed At",
+        "credit_expires_at": "Credited Balance Expires At"
       }
     },
     "redeem": {
@@ -1062,6 +1063,7 @@
       "quota": "Credited YYC",
       "credited_yyc": "Credited YYC",
       "created_time": "Created Time",
+      "code_expires_at": "Code Expires At",
       "redeemed_time": "Redeemed Time",
       "actions": "Actions",
       "no_name": "None",
@@ -1095,6 +1097,10 @@
       "face_value_unit": "Unit",
       "face_value_unit_placeholder": "Please select unit",
       "credit_yyc": "Credited YYC",
+      "code_validity_days": "Code Validity (Days)",
+      "code_validity_days_placeholder": "0 means never expires",
+      "credit_validity_days": "Credited Balance Validity (Days)",
+      "credit_validity_days_placeholder": "0 means never expires",
       "count": "Generate Count",
       "count_placeholder": "Please enter number of codes to generate",
       "buttons": {
@@ -1106,6 +1112,10 @@
       "title": "Redemption Detail",
       "code": "Code",
       "redeemed_by": "Redeemed By",
+      "code_validity_days": "Code Validity",
+      "credit_validity_days": "Credited Balance Validity",
+      "code_expires_at": "Code Expires At",
+      "credit_expires_at": "Credited Balance Expires At",
       "buttons": {
         "back": "Back"
       }
@@ -1118,7 +1128,9 @@
       "name_required": "Please enter the redemption code name",
       "group_required": "Please select a group",
       "count_invalid": "Generate count must be greater than 0",
-      "face_value_invalid": "Face value must be greater than 0"
+      "face_value_invalid": "Face value must be greater than 0",
+      "code_validity_invalid": "Code validity must be greater than or equal to 0",
+      "credit_validity_invalid": "Credited balance validity must be greater than or equal to 0"
     }
   },
   "log": {
