@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -57,16 +58,29 @@ func GetUserQuotaPolicyWithDB(db *gorm.DB, userID string) (UserQuotaPolicy, erro
 		return UserQuotaPolicy{}, fmt.Errorf("用户 ID 不能为空")
 	}
 	var row User
-	err := db.Select("id", "daily_quota_limit", "package_emergency_quota_limit", "quota_reset_timezone").
+	err := db.Select("id", "quota_reset_timezone").
 		First(&row, "id = ?", normalizedUserID).Error
 	if err != nil {
 		return UserQuotaPolicy{}, err
 	}
-	return UserQuotaPolicy{
-		DailyLimit:            normalizeUserDailyQuotaLimit(row.DailyQuotaLimit),
-		PackageEmergencyLimit: normalizeUserPackageEmergencyQuotaLimit(row.PackageEmergencyQuotaLimit),
+	policy := UserQuotaPolicy{
+		DailyLimit:            0,
+		PackageEmergencyLimit: 0,
 		Timezone:              normalizeUserQuotaResetTimezone(row.QuotaResetTimezone),
-	}, nil
+	}
+	// Quota policy now follows active package only. User row fields are kept as
+	// compatibility snapshots for UI and historical data, not as runtime source.
+	activeSubscription, err := getActiveUserPackageSubscriptionWithDB(db, normalizedUserID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return policy, nil
+		}
+		return UserQuotaPolicy{}, err
+	}
+	policy.DailyLimit = normalizeServicePackageDailyQuotaLimit(activeSubscription.DailyQuotaLimit)
+	policy.PackageEmergencyLimit = normalizeServicePackagePackageEmergencyQuotaLimit(activeSubscription.PackageEmergencyQuotaLimit)
+	policy.Timezone = normalizeServicePackageTimezone(activeSubscription.QuotaResetTimezone)
+	return policy, nil
 }
 
 func GetUserQuotaPolicy(userID string) (UserQuotaPolicy, error) {
