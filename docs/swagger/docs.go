@@ -3113,6 +3113,138 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/user/{id}/topup/balance/lots": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List user balance lots (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source type: topup_order/redemption/legacy_migration",
+                        "name": "source_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Status: active/exhausted/expired",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Only lots with remaining balance, default true",
+                        "name": "positive_only",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/user/{id}/topup/balance/transactions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List user balance lot transactions (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source type: topup_order/redemption/legacy_migration",
+                        "name": "source_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction type: credit/consume/expire",
+                        "name": "tx_type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/public/about": {
             "get": {
                 "produces": [
@@ -6046,6 +6178,66 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/public/user/package/subscription": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "Get current active package subscription for current user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/user/packages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "List enabled packages (public)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/public/user/quota/daily": {
             "get": {
                 "security": [
@@ -6514,6 +6706,154 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/public/user/topup/balance/lots": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "List current user balance lots",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source type: topup_order/redemption/legacy_migration",
+                        "name": "source_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Status: active/exhausted/expired",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Only lots with remaining balance, default true",
+                        "name": "positive_only",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/user/topup/balance/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "Get current user balance split summary",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/user/topup/balance/transactions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "List current user balance lot transactions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source type: topup_order/redemption/legacy_migration",
+                        "name": "source_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction type: credit/consume/expire",
+                        "name": "tx_type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/public/user/topup/orders": {
             "get": {
                 "security": [
@@ -6539,6 +6879,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Page size",
                         "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Business type: balance_topup or package_purchase",
+                        "name": "business_type",
                         "in": "query"
                     }
                 ],
@@ -6624,6 +6970,161 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/v1/public/user/topup/orders/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "Cancel current user top up order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.UserTopUpOrderDetailResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/user/topup/orders/{id}/refresh": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "Refresh current user top up order status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.UserTopUpOrderDetailResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/user/topup/package/preview": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "Preview current user package purchase/renew/upgrade",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/user/topup/redemptions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "public"
+                ],
+                "summary": "Get current user redemption top-up records",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page (1-based)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/docs.StandardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/docs.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -6671,10 +7172,6 @@ const docTemplate = `{
         "docs.AdminUserUpdateRequest": {
             "type": "object",
             "properties": {
-                "daily_quota_limit": {
-                    "type": "integer",
-                    "example": 1000
-                },
                 "display_name": {
                     "type": "string",
                     "example": "Alice"
@@ -6690,10 +7187,6 @@ const docTemplate = `{
                 "id": {
                     "type": "integer",
                     "example": 123
-                },
-                "package_emergency_quota_limit": {
-                    "type": "integer",
-                    "example": 2000
                 },
                 "password": {
                     "type": "string",
@@ -8189,9 +8682,17 @@ const docTemplate = `{
         "docs.RedemptionCreateRequest": {
             "type": "object",
             "properties": {
+                "code_validity_days": {
+                    "type": "integer",
+                    "example": 30
+                },
                 "count": {
                     "type": "integer",
                     "example": 5
+                },
+                "credit_validity_days": {
+                    "type": "integer",
+                    "example": 30
                 },
                 "face_value_amount": {
                     "type": "number",
@@ -8214,6 +8715,14 @@ const docTemplate = `{
         "docs.RedemptionUpdateRequest": {
             "type": "object",
             "properties": {
+                "code_validity_days": {
+                    "type": "integer",
+                    "example": 30
+                },
+                "credit_validity_days": {
+                    "type": "integer",
+                    "example": 30
+                },
                 "face_value_amount": {
                     "type": "number",
                     "example": 10
@@ -8773,10 +9282,6 @@ const docTemplate = `{
                     "type": "string",
                     "example": "ABCD"
                 },
-                "daily_quota_limit": {
-                    "type": "integer",
-                    "example": 0
-                },
                 "display_name": {
                     "type": "string",
                     "example": "Alice"
@@ -8808,10 +9313,6 @@ const docTemplate = `{
                 "oidc_id": {
                     "type": "string",
                     "example": ""
-                },
-                "package_emergency_quota_limit": {
-                    "type": "integer",
-                    "example": 0
                 },
                 "password": {
                     "type": "string",
@@ -8858,14 +9359,6 @@ const docTemplate = `{
                     "example": ""
                 },
                 "yyc_balance": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "yyc_daily_limit": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "yyc_package_emergency_limit": {
                     "type": "integer",
                     "example": 0
                 },
@@ -9145,6 +9638,10 @@ const docTemplate = `{
                 "before_yyc_balance": {
                     "type": "integer",
                     "example": 500000
+                },
+                "credit_expires_at": {
+                    "type": "integer",
+                    "example": 1776591999
                 },
                 "face_value_amount": {
                     "type": "number",

@@ -43,8 +43,8 @@ type User struct {
 	Group            string  `json:"group" gorm:"type:varchar(32);default:''"`
 	// Compatibility-only API fields. Runtime policy is derived from active package;
 	// these fields are intentionally not persisted in users table.
-	DailyQuotaLimit            int64  `json:"daily_quota_limit" gorm:"-"`
-	PackageEmergencyQuotaLimit int64  `json:"package_emergency_quota_limit" gorm:"-"`
+	DailyQuotaLimit            int64  `json:"-" gorm:"-"`
+	PackageEmergencyQuotaLimit int64  `json:"-" gorm:"-"`
 	QuotaResetTimezone         string `json:"quota_reset_timezone" gorm:"type:varchar(64);not null;default:'Asia/Shanghai'"`
 	AffCode                    string `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
 	InviterId                  string `json:"inviter_id" gorm:"type:char(36);column:inviter_id;index"`
