@@ -1950,6 +1950,32 @@ code {
     width: 72px;
 }
 
+.router-cell-checkbox-stream {
+    width: 96px;
+}
+
+.router-cell-checkbox-stream-create {
+    width: 64px;
+}
+
+.ui.table.router-detail-table th.router-cell-checkbox-stream-create,
+.ui.table.router-detail-table td.router-cell-checkbox-stream-create {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+}
+
+.router-model-header-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.router-model-header-checkbox-label {
+    white-space: nowrap;
+}
+
 .router-nowrap {
     white-space: nowrap;
 }

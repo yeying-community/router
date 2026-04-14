@@ -1748,6 +1748,32 @@ const EditChannel = () => {
     return parts.filter(Boolean).join(' · ');
   }, [modelAssignmentSummaryText, modelSelectionSummaryText]);
 
+  const createStepCurrentPageSelectableModels = useMemo(() => {
+    if (isDetailMode) {
+      return [];
+    }
+    return renderedModelConfigs.filter((row) => canSelectChannelModel(row));
+  }, [canSelectChannelModel, isDetailMode, renderedModelConfigs]);
+
+  const createStepCurrentPageAllSelected = useMemo(() => {
+    return (
+      createStepCurrentPageSelectableModels.length > 0 &&
+      createStepCurrentPageSelectableModels.every((row) => row.selected === true)
+    );
+  }, [createStepCurrentPageSelectableModels]);
+
+  const createStepCurrentPagePartiallySelected = useMemo(() => {
+    if (createStepCurrentPageAllSelected) {
+      return false;
+    }
+    return createStepCurrentPageSelectableModels.some(
+      (row) => row.selected === true,
+    );
+  }, [
+    createStepCurrentPageAllSelected,
+    createStepCurrentPageSelectableModels,
+  ]);
+
   const handleInputChange = (e, { name, value }) => {
     const nextValue = name === 'id' ? normalizeChannelIdentifier(value) : value;
     setInputs((inputs) => ({ ...inputs, [name]: nextValue }));
@@ -3410,66 +3436,68 @@ const EditChannel = () => {
       selectDisabled = false,
       streamDisabled = false,
       inDetailMode = false,
-    }) => (
-      <>
-        <Table.Cell
-          textAlign='center'
-          className={inDetailMode ? 'router-cell-checkbox' : undefined}
-        >
-          <Checkbox
-            checked={!!row.selected}
-            disabled={selectDisabled || (!canSelect && !row.selected)}
-            onChange={(e, { checked }) =>
-              toggleModelSelection(row.upstream_model, checked)
-            }
-          />
-        </Table.Cell>
-        <Table.Cell
-          textAlign='center'
-          className={inDetailMode ? 'router-cell-checkbox' : undefined}
-        >
-          <Checkbox
-            checked={!!row.is_stream_only}
-            disabled={streamDisabled}
-            onChange={(e, { checked }) =>
-              toggleModelStreamOnly(row.upstream_model, checked)
-            }
-          />
-        </Table.Cell>
-      </>
-    ),
+      streamCellClassName = '',
+    }) => {
+      const selectCellClassName = inDetailMode
+        ? 'router-cell-checkbox'
+        : undefined;
+      const defaultStreamCellClassName = inDetailMode
+        ? 'router-cell-checkbox router-cell-checkbox-stream'
+        : 'router-cell-checkbox-stream';
+      const resolvedStreamCellClassName = [
+        defaultStreamCellClassName,
+        streamCellClassName,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      return (
+        <>
+          <Table.Cell textAlign='center' className={selectCellClassName}>
+            <Checkbox
+              checked={!!row.selected}
+              disabled={selectDisabled || (!canSelect && !row.selected)}
+              onChange={(e, { checked }) =>
+                toggleModelSelection(row.upstream_model, checked)
+              }
+            />
+          </Table.Cell>
+          <Table.Cell
+            textAlign='center'
+            className={resolvedStreamCellClassName}
+          >
+            <Checkbox
+              checked={!!row.is_stream_only}
+              disabled={streamDisabled}
+              onChange={(e, { checked }) =>
+                toggleModelStreamOnly(row.upstream_model, checked)
+              }
+            />
+          </Table.Cell>
+        </>
+      );
+    },
     [toggleModelSelection, toggleModelStreamOnly],
   );
 
-  const selectAllModels = useCallback(() => {
-    const nextConfigs = visibleModelConfigs.map((row) => ({
-      ...row,
-      selected: canSelectChannelModel(row),
-    }));
-    if (isDetailMode) {
-      return;
-    }
-    setInputs((prev) =>
-      buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
-    );
-  }, [
-    canSelectChannelModel,
-    isDetailMode,
-    visibleModelConfigs,
-  ]);
-
-  const clearSelectedModels = useCallback(() => {
-    const nextConfigs = visibleModelConfigs.map((row) => ({
-      ...row,
-      selected: false,
-    }));
-    if (isDetailMode) {
-      return;
-    }
-    setInputs((prev) =>
-      buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
-    );
-  }, [isDetailMode, visibleModelConfigs]);
+  const toggleCreateStepCurrentPageSelections = useCallback(
+    (checked) => {
+      const targetIDs = new Set(
+        createStepCurrentPageSelectableModels.map((row) => row.upstream_model),
+      );
+      if (targetIDs.size === 0) {
+        return;
+      }
+      const nextConfigs = visibleModelConfigs.map((row) =>
+        targetIDs.has(row.upstream_model)
+          ? { ...row, selected: !!checked }
+          : row,
+      );
+      setInputs((prev) =>
+        buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
+      );
+    },
+    [createStepCurrentPageSelectableModels, visibleModelConfigs],
+  );
 
   useEffect(() => {
     const selectedModels = visibleModelConfigs
@@ -5147,7 +5175,11 @@ const EditChannel = () => {
                             <Table.HeaderCell width={1} textAlign='center'>
                               {t('channel.edit.model_selector.table.selected')}
                             </Table.HeaderCell>
-                            <Table.HeaderCell width={1} textAlign='center'>
+                            <Table.HeaderCell
+                              width={1}
+                              textAlign='center'
+                              className='router-cell-checkbox-stream'
+                            >
                               {t('channel.edit.model_selector.table.stream_only')}
                             </Table.HeaderCell>
                             <Table.HeaderCell width={3}>
@@ -5420,22 +5452,6 @@ const EditChannel = () => {
                         >
                           {fetchModelsButtonText}
                         </Button>
-                        <Button
-                          type='button'
-                          className='router-page-button'
-                          onClick={selectAllModels}
-                          disabled={visibleModelConfigs.length === 0}
-                        >
-                          {t('channel.edit.buttons.select_all')}
-                        </Button>
-                        <Button
-                          type='button'
-                          className='router-page-button'
-                          onClick={clearSelectedModels}
-                          disabled={inputs.models.length === 0}
-                        >
-                          {t('channel.edit.buttons.clear')}
-                        </Button>
                         <Form.Input
                           className='router-section-input router-search-form-sm'
                           icon='search'
@@ -5454,9 +5470,32 @@ const EditChannel = () => {
                         <Table.Header>
                         <Table.Row>
                           <Table.HeaderCell width={1} textAlign='center'>
-                            {t('channel.edit.model_selector.table.selected')}
+                            <div className='router-model-header-checkbox'>
+                              <span className='router-model-header-checkbox-label'>
+                                {t('channel.edit.model_selector.table.selected')}
+                              </span>
+                              <Checkbox
+                                checked={createStepCurrentPageAllSelected}
+                                indeterminate={
+                                  createStepCurrentPagePartiallySelected
+                                }
+                                disabled={
+                                  createStepCurrentPageSelectableModels.length ===
+                                  0
+                                }
+                                onChange={(e, { checked }) =>
+                                  toggleCreateStepCurrentPageSelections(
+                                    !!checked,
+                                  )
+                                }
+                              />
+                            </div>
                           </Table.HeaderCell>
-                          <Table.HeaderCell width={1} textAlign='center'>
+                          <Table.HeaderCell
+                            width={1}
+                            textAlign='center'
+                            className='router-cell-checkbox-stream router-cell-checkbox-stream-create'
+                          >
                             {t('channel.edit.model_selector.table.stream_only')}
                           </Table.HeaderCell>
                           <Table.HeaderCell width={5}>
@@ -5524,6 +5563,8 @@ const EditChannel = () => {
                                 {renderModelToggleCells({
                                   row,
                                   canSelect: canSelectRow,
+                                  streamCellClassName:
+                                    'router-cell-checkbox-stream-create',
                                 })}
                                 <Table.Cell title={row.upstream_model}>
                                   <span className='router-nowrap'>
