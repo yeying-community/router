@@ -579,6 +579,7 @@
         "summary": "已选择 {{selected}} / {{total}}",
         "table": {
           "selected": "启用",
+          "stream_only": "仅流式",
           "name": "名称",
           "alias": "别名",
           "type": "类型",
@@ -643,8 +644,6 @@
           "status_title": "模型状态",
           "pricing_title": "计费信息",
           "status_hint": "关闭后，该模型不会参与当前渠道的可用模型集合。",
-          "stream_only_label": "仅流式上游",
-          "stream_only_hint": "开启后，Router 会以流式请求上游，并在下游非流式时自动聚合为非流式响应。",
           "provider_placeholder": "请选择供应商",
           "provider_empty": "当前模型暂未归属供应商"
         },

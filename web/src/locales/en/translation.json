@@ -579,6 +579,7 @@
         "summary": "Selected {{selected}} / {{total}}",
         "table": {
           "selected": "Enabled",
+          "stream_only": "Upstream Stream Only",
           "name": "Name",
           "alias": "Alias",
           "type": "Type",
@@ -643,8 +644,6 @@
           "status_title": "Model Status",
           "pricing_title": "Pricing",
           "status_hint": "When disabled, this model will not participate in the current channel's available model set.",
-          "stream_only_label": "Upstream Stream Only",
-          "stream_only_hint": "When enabled, Router calls upstream in streaming mode and auto-aggregates to non-stream when downstream requests non-stream.",
           "provider_placeholder": "Select a provider",
           "provider_empty": "No provider is assigned to this model yet"
         },
