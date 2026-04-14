@@ -19,6 +19,7 @@ type ChannelModel struct {
 	Provider      string   `json:"provider,omitempty" gorm:"type:varchar(128);default:'';index"`
 	Type          string   `json:"type" gorm:"type:varchar(32);default:'text'"`
 	Endpoint      string   `json:"endpoint" gorm:"type:varchar(255);default:''"`
+	Endpoints     []string `json:"endpoints,omitempty" gorm:"-"`
 	Inactive      bool     `json:"inactive,omitempty" gorm:"not null;default:false;index"`
 	Selected      bool     `json:"selected" gorm:"default:false;index"`
 	InputPrice    *float64 `json:"input_price,omitempty" gorm:"type:double precision"`
@@ -372,6 +373,10 @@ func loadChannelModelRowsByChannelIDs(db *gorm.DB, channelIDs []string) (map[str
 	if len(normalizedIDs) == 0 {
 		return rowsByChannelID, nil
 	}
+	endpointStateByChannelID, err := loadChannelModelEndpointStateByChannelIDsWithDB(db, normalizedIDs)
+	if err != nil {
+		return nil, err
+	}
 	rows := make([]ChannelModel, 0)
 	if err := db.
 		Where("channel_id IN ?", normalizedIDs).
@@ -384,6 +389,7 @@ func loadChannelModelRowsByChannelIDs(db *gorm.DB, channelIDs []string) (map[str
 		if row.ChannelId == "" || row.Model == "" {
 			continue
 		}
+		applyChannelModelEndpointState(&row, endpointStateByChannelID[row.ChannelId][row.Model])
 		rowsByChannelID[row.ChannelId] = append(rowsByChannelID[row.ChannelId], row)
 	}
 	return rowsByChannelID, nil
@@ -424,8 +430,13 @@ func listChannelModelRowsByChannelIDWithDB(db *gorm.DB, channelID string) ([]Cha
 		Find(&rows).Error; err != nil {
 		return nil, err
 	}
+	endpointStateByChannelID, err := loadChannelModelEndpointStateByChannelIDsWithDB(db, []string{normalizedChannelID})
+	if err != nil {
+		return nil, err
+	}
 	for i := range rows {
 		normalizeChannelModelRow(&rows[i])
+		applyChannelModelEndpointState(&rows[i], endpointStateByChannelID[normalizedChannelID][rows[i].Model])
 	}
 	return rows, nil
 }
@@ -457,8 +468,13 @@ func ListChannelModelRowsPageWithDB(db *gorm.DB, channelID string, page int, pag
 		Find(&rows).Error; err != nil {
 		return nil, 0, err
 	}
+	endpointStateByChannelID, err := loadChannelModelEndpointStateByChannelIDsWithDB(db, []string{normalizedChannelID})
+	if err != nil {
+		return nil, 0, err
+	}
 	for i := range rows {
 		normalizeChannelModelRow(&rows[i])
+		applyChannelModelEndpointState(&rows[i], endpointStateByChannelID[normalizedChannelID][rows[i].Model])
 	}
 	return rows, total, nil
 }
@@ -498,7 +514,12 @@ func normalizeChannelModelRow(row *ChannelModel) {
 		row.UpstreamModel = row.Model
 	}
 	row.Type = normalizeExplicitChannelModelType(row.Type)
-	row.Endpoint = NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
+	row.Endpoints = NormalizeChannelModelDirectEndpoints(row.Type, row.Endpoints, row.Endpoint)
+	if len(row.Endpoints) > 0 {
+		row.Endpoint = row.Endpoints[0]
+	} else {
+		row.Endpoint = NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
+	}
 	row.PriceUnit = strings.TrimSpace(strings.ToLower(row.PriceUnit))
 	row.Currency = normalizeChannelModelCurrency(row.Currency)
 	row.InputPrice = cloneNormalizedChannelModelPrice(row.InputPrice)
@@ -737,11 +758,121 @@ func completeChannelModelRowDefaults(row *ChannelModel, channelProtocol int) {
 	}
 	normalizeChannelModelRow(row)
 	row.Type = resolveChannelModelType(row.Type, channelProtocol, row.UpstreamModel, row.Model)
-	row.Endpoint = NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
+	row.Endpoints = NormalizeChannelModelDirectEndpoints(row.Type, row.Endpoints, row.Endpoint)
+	if len(row.Endpoints) > 0 {
+		row.Endpoint = row.Endpoints[0]
+	} else {
+		row.Endpoint = NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
+	}
 	row.PriceUnit = normalizeChannelModelPriceUnit(row.PriceUnit, row.Type, channelProtocol, row.UpstreamModel, row.Model)
 	row.Currency = normalizeChannelModelCurrency(row.Currency)
 	row.InputPrice = cloneNormalizedChannelModelPrice(row.InputPrice)
 	row.OutputPrice = cloneNormalizedChannelModelPrice(row.OutputPrice)
+}
+
+func NormalizeChannelModelDirectEndpoints(modelType string, endpoints []string, fallback string) []string {
+	candidates := make([]string, 0, len(endpoints)+1)
+	candidates = append(candidates, endpoints...)
+	if strings.TrimSpace(fallback) != "" {
+		candidates = append(candidates, fallback)
+	}
+	if len(candidates) == 0 {
+		candidates = append(candidates, DefaultChannelModelEndpoint(modelType))
+	}
+	seen := make(map[string]struct{}, len(candidates))
+	result := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		normalized := NormalizeChannelModelEndpoint(modelType, candidate)
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		result = append(result, normalized)
+	}
+	if len(result) == 0 {
+		normalized := NormalizeChannelModelEndpoint(modelType, fallback)
+		if normalized == "" {
+			normalized = DefaultChannelModelEndpoint(modelType)
+		}
+		if normalized != "" {
+			result = append(result, normalized)
+		}
+	}
+	return result
+}
+
+type channelModelEndpointState struct {
+	Endpoints []string
+	Enabled   map[string]bool
+}
+
+func loadChannelModelEndpointStateByChannelIDsWithDB(db *gorm.DB, channelIDs []string) (map[string]map[string]channelModelEndpointState, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelIDs := normalizeTrimmedValuesPreserveOrder(channelIDs)
+	if len(normalizedChannelIDs) == 0 {
+		return map[string]map[string]channelModelEndpointState{}, nil
+	}
+	rows := make([]ChannelModelEndpoint, 0)
+	if err := db.
+		Where("channel_id IN ?", normalizedChannelIDs).
+		Order("channel_id asc, model asc, endpoint asc").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	result := make(map[string]map[string]channelModelEndpointState)
+	for _, row := range rows {
+		channelID := strings.TrimSpace(row.ChannelId)
+		modelName := strings.TrimSpace(row.Model)
+		endpoint := NormalizeRequestedChannelModelEndpoint(row.Endpoint)
+		if channelID == "" || modelName == "" || endpoint == "" {
+			continue
+		}
+		if _, ok := result[channelID]; !ok {
+			result[channelID] = make(map[string]channelModelEndpointState)
+		}
+		state, ok := result[channelID][modelName]
+		if !ok {
+			state = channelModelEndpointState{
+				Endpoints: make([]string, 0, 3),
+				Enabled:   make(map[string]bool),
+			}
+		}
+		if _, exists := state.Enabled[endpoint]; !exists {
+			state.Endpoints = append(state.Endpoints, endpoint)
+		}
+		state.Enabled[endpoint] = row.Enabled
+		result[channelID][modelName] = state
+	}
+	return result, nil
+}
+
+func applyChannelModelEndpointState(row *ChannelModel, state channelModelEndpointState) {
+	if row == nil {
+		return
+	}
+	candidates := make([]string, 0, len(row.Endpoints)+len(state.Endpoints)+1)
+	candidates = append(candidates, row.Endpoints...)
+	candidates = append(candidates, state.Endpoints...)
+	candidates = append(candidates, row.Endpoint)
+	row.Endpoints = NormalizeChannelModelDirectEndpoints(row.Type, candidates, row.Endpoint)
+	if len(row.Endpoints) == 0 {
+		row.Endpoint = NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
+		return
+	}
+	if len(state.Enabled) > 0 {
+		for _, endpoint := range row.Endpoints {
+			if enabled, ok := state.Enabled[endpoint]; ok && enabled {
+				row.Endpoint = endpoint
+				return
+			}
+		}
+	}
+	row.Endpoint = row.Endpoints[0]
 }
 
 func normalizeExplicitChannelModelType(raw string) string {

@@ -198,6 +198,40 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			},
 		},
 		{
+			Version:     "202604141130_channel_model_direct_endpoints",
+			Description: "reseed channel model endpoint rows to direct upstream endpoints",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&ChannelModelEndpoint{}); err != nil {
+					return err
+				}
+				channelIDs := make([]string, 0)
+				if err := tx.Model(&Channel{}).Distinct("id").Pluck("id", &channelIDs).Error; err != nil {
+					return err
+				}
+				for _, channelID := range normalizeTrimmedValuesPreserveOrder(channelIDs) {
+					channelProtocol, err := loadChannelProtocolByChannelIDWithDB(tx, channelID)
+					if err != nil {
+						return err
+					}
+					rows := make([]ChannelModel, 0)
+					if err := tx.
+						Where("channel_id = ?", channelID).
+						Order("sort_order asc, model asc").
+						Find(&rows).Error; err != nil {
+						return err
+					}
+					for i := range rows {
+						normalizeChannelModelRow(&rows[i])
+						completeChannelModelRowDefaults(&rows[i], channelProtocol)
+					}
+					if err := SyncChannelModelEndpointsWithDB(tx, channelID, rows); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+		},
+		{
 			Version:     "202604011030_billing_currency_cny_decouple",
 			Description: "decouple CNY yyc rate from system default linkage and switch legacy default source to manual",
 			Up: func(tx *gorm.DB) error {

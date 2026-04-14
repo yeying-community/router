@@ -2,7 +2,6 @@ package anthropic
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/relay/adaptor"
+	"github.com/yeying-community/router/internal/relay/adaptor/openai"
 	"github.com/yeying-community/router/internal/relay/meta"
 	"github.com/yeying-community/router/internal/relay/model"
 	"github.com/yeying-community/router/internal/relay/relaymode"
@@ -22,14 +22,42 @@ func (a *Adaptor) Init(meta *meta.Meta) {
 
 }
 
+func resolveUpstreamMode(meta *meta.Meta) int {
+	if meta == nil {
+		return relaymode.Messages
+	}
+	if meta.UpstreamMode != 0 {
+		return meta.UpstreamMode
+	}
+	return meta.Mode
+}
+
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
-	return fmt.Sprintf("%s/v1/messages", meta.BaseURL), nil
+	upstreamMode := resolveUpstreamMode(meta)
+	requestPath := strings.TrimSpace(meta.UpstreamRequestPath)
+	if requestPath == "" {
+		switch upstreamMode {
+		case relaymode.ChatCompletions:
+			requestPath = "/v1/chat/completions"
+		case relaymode.Responses:
+			requestPath = "/v1/responses"
+		default:
+			requestPath = "/v1/messages"
+		}
+	}
+	return openai.GetFullRequestURL(meta.BaseURL, requestPath, meta.ChannelProtocol), nil
 }
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *meta.Meta) error {
 	adaptor.SetupCommonRequestHeader(c, req, meta)
 	if meta.ForceUpstreamStream {
 		req.Header.Set("Accept", "text/event-stream")
+	}
+	upstreamMode := resolveUpstreamMode(meta)
+	if upstreamMode != relaymode.Messages {
+		req.Header.Set("Authorization", "Bearer "+meta.APIKey)
+		req.Header.Set("x-api-key", meta.APIKey)
+		return nil
 	}
 	req.Header.Set("x-api-key", meta.APIKey)
 	anthropicVersion := c.Request.Header.Get("anthropic-version")
@@ -52,6 +80,9 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 	if request == nil {
 		return nil, errors.New("request is nil")
 	}
+	if relayMode != relaymode.Messages {
+		return request, nil
+	}
 	return ConvertRequest(*request), nil
 }
 
@@ -67,10 +98,7 @@ func (a *Adaptor) DoRequest(c *gin.Context, meta *meta.Meta, requestBody io.Read
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Meta) (usage *model.Usage, err *model.ErrorWithStatusCode) {
-	upstreamMode := meta.Mode
-	if meta.UpstreamMode != 0 {
-		upstreamMode = meta.UpstreamMode
-	}
+	upstreamMode := resolveUpstreamMode(meta)
 	if meta.Mode == relaymode.Messages && upstreamMode == relaymode.Messages {
 		logger.Debugf(
 			c.Request.Context(),
@@ -86,6 +114,11 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 	}
 	if meta.Mode == relaymode.ChatCompletions && upstreamMode == relaymode.Messages && !meta.IsStream {
 		return relayMessagesStreamAsChatResponse(c, resp, meta.PromptTokens, meta.ActualModelName)
+	}
+	if upstreamMode != relaymode.Messages {
+		openaiAdaptor := &openai.Adaptor{}
+		openaiAdaptor.Init(meta)
+		return openaiAdaptor.DoResponse(c, resp, meta)
 	}
 	if meta.IsStream {
 		err, usage = StreamHandler(c, resp)

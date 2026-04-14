@@ -41,10 +41,30 @@ func TestResolveChannelModelCapabilityEndpointsForAudioUsesGenericAudioCapabilit
 	}
 }
 
+func TestResolveChannelModelCapabilityEndpointsForMessagesTextIncludesMessagesAndChat(t *testing.T) {
+	row := ChannelModel{
+		Model:         "claude-sonnet-4-6",
+		UpstreamModel: "claude-sonnet-4-6",
+		Type:          ProviderModelTypeText,
+		Selected:      true,
+		Endpoint:      ChannelModelEndpointMessages,
+	}
+
+	got := ResolveChannelModelCapabilityEndpoints(row)
+	if len(got) != 2 {
+		t.Fatalf("ResolveChannelModelCapabilityEndpoints len = %d, want 2", len(got))
+	}
+	if got[0] != ChannelModelEndpointMessages {
+		t.Fatalf("got[0] = %q, want %q", got[0], ChannelModelEndpointMessages)
+	}
+	if got[1] != ChannelModelEndpointChat {
+		t.Fatalf("got[1] = %q, want %q", got[1], ChannelModelEndpointChat)
+	}
+}
+
 func TestBuildChannelModelEndpointRowsPreservesExistingDisabledEndpointState(t *testing.T) {
 	existing := []ChannelModelEndpoint{
-		{ChannelId: "channel-1", Model: "gpt-5.4", Endpoint: ChannelModelEndpointChat, Enabled: false},
-		{ChannelId: "channel-1", Model: "gpt-5.4", Endpoint: ChannelModelEndpointResponses, Enabled: true},
+		{ChannelId: "channel-1", Model: "gpt-5.4", Endpoint: ChannelModelEndpointResponses, Enabled: false},
 	}
 	rows := []ChannelModel{
 		{
@@ -58,14 +78,38 @@ func TestBuildChannelModelEndpointRowsPreservesExistingDisabledEndpointState(t *
 	}
 
 	got := BuildChannelModelEndpointRows(existing, rows)
+	if len(got) != 1 {
+		t.Fatalf("BuildChannelModelEndpointRows len = %d, want 1", len(got))
+	}
+	if got[0].Endpoint != ChannelModelEndpointResponses || got[0].Enabled {
+		t.Fatalf("responses endpoint = (%q, %t), want (%q, false)", got[0].Endpoint, got[0].Enabled, ChannelModelEndpointResponses)
+	}
+}
+
+func TestBuildChannelModelEndpointRowsUsesExplicitDirectEndpoints(t *testing.T) {
+	rows := []ChannelModel{
+		{
+			ChannelId:     "channel-1",
+			Model:         "gpt-5.4",
+			UpstreamModel: "gpt-5.4",
+			Type:          ProviderModelTypeText,
+			Selected:      true,
+			Endpoint:      ChannelModelEndpointResponses,
+			Endpoints: []string{
+				ChannelModelEndpointChat,
+				ChannelModelEndpointResponses,
+			},
+		},
+	}
+	got := BuildChannelModelEndpointRows(nil, rows)
 	if len(got) != 2 {
-		t.Fatalf("BuildChannelModelEndpointRows len = %d, want 2", len(got))
+		t.Fatalf("len(got)=%d, want 2", len(got))
 	}
-	if got[0].Endpoint != ChannelModelEndpointChat || got[0].Enabled {
-		t.Fatalf("chat endpoint = (%q, %t), want (%q, false)", got[0].Endpoint, got[0].Enabled, ChannelModelEndpointChat)
+	if got[0].Endpoint != ChannelModelEndpointChat {
+		t.Fatalf("got[0].Endpoint=%q, want %q", got[0].Endpoint, ChannelModelEndpointChat)
 	}
-	if got[1].Endpoint != ChannelModelEndpointResponses || !got[1].Enabled {
-		t.Fatalf("responses endpoint = (%q, %t), want (%q, true)", got[1].Endpoint, got[1].Enabled, ChannelModelEndpointResponses)
+	if got[1].Endpoint != ChannelModelEndpointResponses {
+		t.Fatalf("got[1].Endpoint=%q, want %q", got[1].Endpoint, ChannelModelEndpointResponses)
 	}
 }
 
@@ -113,11 +157,33 @@ func TestBuildDisabledChannelModelEndpointRowsMarksOnlyTargetEndpoint(t *testing
 	}
 }
 
-func TestNormalizeRequestedChannelModelEndpointMessagesMapsToChat(t *testing.T) {
-	if got := NormalizeRequestedChannelModelEndpoint("/v1/messages"); got != ChannelModelEndpointChat {
-		t.Fatalf("NormalizeRequestedChannelModelEndpoint(/v1/messages)=%q, want %q", got, ChannelModelEndpointChat)
+func TestNormalizeRequestedChannelModelEndpointMessagesMapsToMessages(t *testing.T) {
+	if got := NormalizeRequestedChannelModelEndpoint("/v1/messages"); got != ChannelModelEndpointMessages {
+		t.Fatalf("NormalizeRequestedChannelModelEndpoint(/v1/messages)=%q, want %q", got, ChannelModelEndpointMessages)
 	}
-	if got := NormalizeRequestedChannelModelEndpoint("/api/v1/public/messages"); got != ChannelModelEndpointChat {
-		t.Fatalf("NormalizeRequestedChannelModelEndpoint(/api/v1/public/messages)=%q, want %q", got, ChannelModelEndpointChat)
+	if got := NormalizeRequestedChannelModelEndpoint("/api/v1/public/messages"); got != ChannelModelEndpointMessages {
+		t.Fatalf("NormalizeRequestedChannelModelEndpoint(/api/v1/public/messages)=%q, want %q", got, ChannelModelEndpointMessages)
+	}
+}
+
+func TestIsChannelModelRequestEndpointSupportedByEndpointMapMessagesBackCompat(t *testing.T) {
+	endpointMap := map[string]bool{
+		ChannelModelEndpointChat: true,
+	}
+	supported, explicit := IsChannelModelRequestEndpointSupportedByEndpointMap(endpointMap, ChannelModelEndpointMessages)
+	if !explicit || !supported {
+		t.Fatalf("messages support from legacy chat endpoint = (%t, %t), want (true, true)", supported, explicit)
+	}
+}
+
+func TestIsChannelModelRequestEndpointSupportedByEndpointMapBridgeCompatibility(t *testing.T) {
+	endpointMap := map[string]bool{
+		ChannelModelEndpointResponses: true,
+	}
+	if supported, explicit := IsChannelModelRequestEndpointSupportedByEndpointMap(endpointMap, ChannelModelEndpointChat); !explicit || !supported {
+		t.Fatalf("chat request support via responses endpoint = (%t, %t), want (true, true)", supported, explicit)
+	}
+	if supported, explicit := IsChannelModelRequestEndpointSupportedByEndpointMap(endpointMap, ChannelModelEndpointMessages); !explicit || !supported {
+		t.Fatalf("messages request support via responses endpoint = (%t, %t), want (true, true)", supported, explicit)
 	}
 }

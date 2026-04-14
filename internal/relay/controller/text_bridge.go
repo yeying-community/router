@@ -99,7 +99,7 @@ func normalizeResponsesInput(req *relaymodel.GeneralOpenAIRequest) bool {
 	return changed
 }
 
-func normalizeResponsesRequestBody(raw []byte) ([]byte, error) {
+func normalizeResponsesRequestBody(raw []byte, modelName string) ([]byte, error) {
 	if len(raw) == 0 {
 		return raw, nil
 	}
@@ -107,9 +107,21 @@ func normalizeResponsesRequestBody(raw []byte) ([]byte, error) {
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return nil, err
 	}
+	if strings.TrimSpace(modelName) != "" {
+		payload["model"] = strings.TrimSpace(modelName)
+	}
+	if payload["input"] == nil {
+		if parsed, ok := parseMessagesAnyForResponsesInput(payload["messages"]); ok {
+			payload["input"] = parsed
+			delete(payload, "messages")
+		}
+	}
 	normalized, changed := normalizeResponsesInputValue(payload["input"])
 	if changed {
 		payload["input"] = normalized
+	}
+	if parsed, ok := parseMessagesAnyForResponsesInput(payload["input"]); ok {
+		payload["input"] = parsed
 	}
 	return json.Marshal(payload)
 }
@@ -141,6 +153,196 @@ func cloneGeneralOpenAIRequest(req *relaymodel.GeneralOpenAIRequest) (*relaymode
 		return nil, err
 	}
 	return cloned, nil
+}
+
+func convertMessageContentForResponses(content any) any {
+	switch value := content.(type) {
+	case string:
+		return []any{
+			map[string]any{
+				"type": "input_text",
+				"text": value,
+			},
+		}
+	case []any:
+		converted := make([]any, 0, len(value))
+		changed := false
+		for _, item := range value {
+			block, ok := item.(map[string]any)
+			if !ok {
+				converted = append(converted, item)
+				continue
+			}
+			blockType := strings.TrimSpace(fmt.Sprint(block["type"]))
+			switch blockType {
+			case relaymodel.ContentTypeText:
+				text, _ := block["text"].(string)
+				converted = append(converted, map[string]any{
+					"type": "input_text",
+					"text": text,
+				})
+				changed = true
+			case relaymodel.ContentTypeImageURL:
+				url := ""
+				detail := ""
+				switch imageURL := block["image_url"].(type) {
+				case map[string]any:
+					url = strings.TrimSpace(fmt.Sprint(imageURL["url"]))
+					detail = strings.TrimSpace(fmt.Sprint(imageURL["detail"]))
+				case string:
+					url = strings.TrimSpace(imageURL)
+				default:
+					converted = append(converted, item)
+					continue
+				}
+				if url == "" {
+					converted = append(converted, item)
+					continue
+				}
+				imagePart := map[string]any{
+					"type":      "input_image",
+					"image_url": url,
+				}
+				if detail != "" {
+					imagePart["detail"] = detail
+				}
+				converted = append(converted, imagePart)
+				changed = true
+			default:
+				converted = append(converted, item)
+			}
+		}
+		if changed {
+			return converted
+		}
+	}
+	return content
+}
+
+func convertMessagesForResponsesInput(messages []relaymodel.Message) []any {
+	if len(messages) == 0 {
+		return nil
+	}
+	input := make([]any, 0, len(messages))
+	for _, message := range messages {
+		role := strings.TrimSpace(message.Role)
+		if role == "" {
+			role = "user"
+		}
+		item := map[string]any{"role": role}
+		if message.Content != nil {
+			item["content"] = convertMessageContentForResponses(message.Content)
+		}
+		if message.Name != nil {
+			if name := strings.TrimSpace(*message.Name); name != "" {
+				item["name"] = name
+			}
+		}
+		if len(message.ToolCalls) > 0 {
+			item["tool_calls"] = message.ToolCalls
+		}
+		if toolCallID := strings.TrimSpace(message.ToolCallId); toolCallID != "" {
+			item["tool_call_id"] = toolCallID
+		}
+		input = append(input, item)
+	}
+	return input
+}
+
+func parseMessagesAnyForResponsesInput(value any) ([]any, bool) {
+	items, ok := value.([]any)
+	if !ok || len(items) == 0 {
+		return nil, false
+	}
+	input := make([]any, 0, len(items))
+	for _, item := range items {
+		message, ok := item.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		role := strings.TrimSpace(fmt.Sprint(message["role"]))
+		if role == "" {
+			role = "user"
+		}
+		converted := map[string]any{"role": role}
+		if content, exists := message["content"]; exists {
+			converted["content"] = convertMessageContentForResponses(content)
+		}
+		if name := strings.TrimSpace(fmt.Sprint(message["name"])); name != "" {
+			converted["name"] = name
+		}
+		if toolCalls, exists := message["tool_calls"]; exists {
+			converted["tool_calls"] = toolCalls
+		}
+		if toolCallID := strings.TrimSpace(fmt.Sprint(message["tool_call_id"])); toolCallID != "" {
+			converted["tool_call_id"] = toolCallID
+		}
+		input = append(input, converted)
+	}
+	return input, true
+}
+
+func shouldTruncateFieldForRelayDebug(fieldKey string, value string) bool {
+	key := strings.ToLower(strings.TrimSpace(fieldKey))
+	if key == "image_url" || key == "url" || strings.Contains(key, "image") || strings.Contains(key, "b64") || strings.Contains(key, "base64") {
+		return true
+	}
+	lowerValue := strings.ToLower(strings.TrimSpace(value))
+	if strings.HasPrefix(lowerValue, "data:image/") {
+		return true
+	}
+	return false
+}
+
+func truncateRelayDebugValue(value string) string {
+	const (
+		head = 48
+		tail = 24
+	)
+	if len(value) <= head+tail+16 {
+		return value
+	}
+	return fmt.Sprintf("%s...%s(len=%d)", value[:head], value[len(value)-tail:], len(value))
+}
+
+func sanitizePayloadForRelayDebugValue(value any, parentKey string) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		result := make(map[string]any, len(typed))
+		for key, child := range typed {
+			result[key] = sanitizePayloadForRelayDebugValue(child, key)
+		}
+		return result
+	case []any:
+		result := make([]any, 0, len(typed))
+		for _, child := range typed {
+			result = append(result, sanitizePayloadForRelayDebugValue(child, parentKey))
+		}
+		return result
+	case string:
+		if shouldTruncateFieldForRelayDebug(parentKey, typed) {
+			return truncateRelayDebugValue(typed)
+		}
+		return typed
+	default:
+		return value
+	}
+}
+
+func sanitizePayloadForRelayDebug(raw []byte) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return fmt.Sprintf("{\"_parse_error\":%q,\"_raw_len\":%d}", err.Error(), len(raw))
+	}
+	sanitized := sanitizePayloadForRelayDebugValue(payload, "").(map[string]any)
+	encoded, err := json.Marshal(sanitized)
+	if err != nil {
+		return fmt.Sprintf("{\"_marshal_error\":%q,\"_raw_len\":%d}", err.Error(), len(raw))
+	}
+	return string(encoded)
 }
 
 func parseInputAsMessages(input any) []relaymodel.Message {
@@ -213,71 +415,173 @@ func supportsMessagesUpstream(meta *meta.Meta) bool {
 	return meta.APIType == apitype.Anthropic || meta.APIType == apitype.AwsClaude
 }
 
+func endpointByRelayMode(mode int) string {
+	switch mode {
+	case relaymode.Messages:
+		return adminmodel.ChannelModelEndpointMessages
+	case relaymode.Responses:
+		return adminmodel.ChannelModelEndpointResponses
+	default:
+		return adminmodel.ChannelModelEndpointChat
+	}
+}
+
+func resolveRequestedTextEndpoint(meta *meta.Meta) string {
+	if meta == nil {
+		return adminmodel.ChannelModelEndpointChat
+	}
+	if normalized := adminmodel.NormalizeRequestedChannelModelEndpoint(meta.RequestURLPath); normalized != "" {
+		return normalized
+	}
+	return endpointByRelayMode(meta.Mode)
+}
+
+func rowSupportsTextEndpoint(row adminmodel.ChannelModel, endpoint string) bool {
+	normalizedEndpoint := adminmodel.NormalizeRequestedChannelModelEndpoint(endpoint)
+	if normalizedEndpoint == "" {
+		return false
+	}
+	for _, candidate := range adminmodel.ResolveChannelModelCapabilityEndpoints(row) {
+		if adminmodel.NormalizeRequestedChannelModelEndpoint(candidate) == normalizedEndpoint {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveSelectedModelDirectTextEndpointSupport(meta *meta.Meta, row adminmodel.ChannelModel, originModelName string, actualModelName string) (supportsChat bool, supportsResponses bool, supportsMessages bool) {
+	directEndpoints := adminmodel.ResolveChannelModelDirectEndpoints(row)
+	for _, endpoint := range directEndpoints {
+		switch adminmodel.NormalizeRequestedChannelModelEndpoint(endpoint) {
+		case adminmodel.ChannelModelEndpointChat:
+			supportsChat = true
+		case adminmodel.ChannelModelEndpointResponses:
+			supportsResponses = true
+		case adminmodel.ChannelModelEndpointMessages:
+			supportsMessages = true
+		}
+	}
+	if meta == nil {
+		return supportsChat, supportsResponses, supportsMessages
+	}
+	modelCandidates := []string{
+		strings.TrimSpace(row.Model),
+		strings.TrimSpace(row.UpstreamModel),
+		strings.TrimSpace(actualModelName),
+		strings.TrimSpace(originModelName),
+	}
+	endpointMap := adminmodel.CacheGetChannelModelEndpointSupport(meta.ChannelId, modelCandidates...)
+	if len(endpointMap) == 0 {
+		return supportsChat, supportsResponses, supportsMessages
+	}
+	if enabled, ok := endpointMap[adminmodel.ChannelModelEndpointChat]; ok && supportsChat && !enabled {
+		supportsChat = false
+	}
+	if enabled, ok := endpointMap[adminmodel.ChannelModelEndpointResponses]; ok && supportsResponses && !enabled {
+		supportsResponses = false
+	}
+	if enabled, ok := endpointMap[adminmodel.ChannelModelEndpointMessages]; ok && supportsMessages && !enabled {
+		supportsMessages = false
+	}
+	return supportsChat, supportsResponses, supportsMessages
+}
+
+func hasSelectedTextChannelModelConfigs(rows []adminmodel.ChannelModel) bool {
+	for _, row := range adminmodel.NormalizeChannelModelConfigsPreserveOrder(rows) {
+		if !row.Selected || row.Inactive {
+			continue
+		}
+		endpoint := adminmodel.NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
+		if endpoint == adminmodel.ChannelModelEndpointChat ||
+			endpoint == adminmodel.ChannelModelEndpointResponses ||
+			endpoint == adminmodel.ChannelModelEndpointMessages {
+			return true
+		}
+	}
+	return false
+}
+
 func resolveChannelTextUpstream(meta *meta.Meta, originModelName string, actualModelName string) (int, string, error) {
 	if meta == nil {
 		return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
 	}
-	if meta.APIType == apitype.Anthropic || meta.APIType == apitype.AwsClaude {
-		if meta.Mode == relaymode.Responses {
-			return 0, "", fmt.Errorf("channel does not support %s", adminmodel.ChannelModelEndpointResponses)
+	requestEndpoint := resolveRequestedTextEndpoint(meta)
+	if row, ok := adminmodel.FindSelectedChannelModelConfig(meta.ChannelModelConfigs, originModelName, actualModelName); ok {
+		supportsChat, supportsResponses, supportsMessagesDirect := resolveSelectedModelDirectTextEndpointSupport(meta, row, originModelName, actualModelName)
+		supportsMessages := supportsMessagesDirect && supportsMessagesUpstream(meta)
+
+		switch requestEndpoint {
+		case adminmodel.ChannelModelEndpointChat:
+			if supportsChat {
+				return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
+			}
+			if supportsMessages {
+				return relaymode.Messages, adminmodel.ChannelModelEndpointMessages, nil
+			}
+			if supportsResponses {
+				return relaymode.Responses, adminmodel.ChannelModelEndpointResponses, nil
+			}
+		case adminmodel.ChannelModelEndpointMessages:
+			if supportsMessages {
+				return relaymode.Messages, adminmodel.ChannelModelEndpointMessages, nil
+			}
+			if supportsChat {
+				return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
+			}
+			if supportsResponses {
+				return relaymode.Responses, adminmodel.ChannelModelEndpointResponses, nil
+			}
+		case adminmodel.ChannelModelEndpointResponses:
+			if supportsResponses {
+				return relaymode.Responses, adminmodel.ChannelModelEndpointResponses, nil
+			}
+			if supportsChat {
+				return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
+			}
+		}
+
+		if supportsMessagesUpstream(meta) {
+			if supportsMessages {
+				return relaymode.Messages, adminmodel.ChannelModelEndpointMessages, nil
+			}
+			if supportsChat {
+				return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
+			}
+			if supportsResponses {
+				return relaymode.Responses, adminmodel.ChannelModelEndpointResponses, nil
+			}
+		} else {
+			if supportsResponses {
+				return relaymode.Responses, adminmodel.ChannelModelEndpointResponses, nil
+			}
+			if supportsChat {
+				return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
+			}
+		}
+
+		return 0, "", fmt.Errorf(
+			"channel model %q does not support request endpoint %s",
+			strings.TrimSpace(row.Model),
+			requestEndpoint,
+		)
+	}
+	if hasSelectedTextChannelModelConfigs(meta.ChannelModelConfigs) {
+		requestModel := strings.TrimSpace(actualModelName)
+		if requestModel == "" {
+			requestModel = strings.TrimSpace(originModelName)
+		}
+		if requestModel == "" {
+			requestModel = "(empty)"
+		}
+		return 0, "", fmt.Errorf("requested model %q is not selected for this channel", requestModel)
+	}
+	if supportsMessagesUpstream(meta) {
+		if requestEndpoint == adminmodel.ChannelModelEndpointResponses {
+			return 0, "", fmt.Errorf("channel does not support %s without selected model endpoint config", adminmodel.ChannelModelEndpointResponses)
 		}
 		return relaymode.Messages, adminmodel.ChannelModelEndpointMessages, nil
 	}
-	if row, ok := adminmodel.FindSelectedChannelModelConfig(meta.ChannelModelConfigs, originModelName, actualModelName); ok {
-		endpoint := adminmodel.NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
-		if endpoint == adminmodel.ChannelModelEndpointResponses {
-			return relaymode.Responses, endpoint, nil
-		}
-		if endpoint == adminmodel.ChannelModelEndpointMessages {
-			if supportsMessagesUpstream(meta) {
-				return relaymode.Messages, endpoint, nil
-			}
-			return 0, "", fmt.Errorf("channel protocol does not support %s endpoint; please use anthropic/awsclaude protocol", adminmodel.ChannelModelEndpointMessages)
-		}
-		if meta.Mode == relaymode.Responses {
-			return 0, "", fmt.Errorf("channel model %q does not support %s", strings.TrimSpace(row.Model), adminmodel.ChannelModelEndpointResponses)
-		}
-		return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
-	}
-
-	fallbackEndpoint := ""
-	for _, row := range adminmodel.NormalizeChannelModelConfigsPreserveOrder(meta.ChannelModelConfigs) {
-		if !row.Selected {
-			continue
-		}
-		if adminmodel.InferModelType(row.Model) != adminmodel.ProviderModelTypeText &&
-			adminmodel.InferModelType(row.UpstreamModel) != adminmodel.ProviderModelTypeText &&
-			adminmodel.NormalizeChannelModelEndpoint(row.Type, row.Endpoint) != adminmodel.ChannelModelEndpointChat &&
-			adminmodel.NormalizeChannelModelEndpoint(row.Type, row.Endpoint) != adminmodel.ChannelModelEndpointResponses {
-			continue
-		}
-		endpoint := adminmodel.NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
-		if endpoint == adminmodel.ChannelModelEndpointResponses {
-			return relaymode.Responses, adminmodel.ChannelModelEndpointResponses, nil
-		}
-		if fallbackEndpoint == "" {
-			fallbackEndpoint = endpoint
-		}
-	}
-	if fallbackEndpoint == adminmodel.ChannelModelEndpointMessages {
-		if supportsMessagesUpstream(meta) {
-			return relaymode.Messages, fallbackEndpoint, nil
-		}
-		return 0, "", fmt.Errorf("selected channel models require %s endpoint, but channel protocol is not anthropic/awsclaude", adminmodel.ChannelModelEndpointMessages)
-	}
-	if fallbackEndpoint == adminmodel.ChannelModelEndpointChat {
-		if meta.Mode == relaymode.Responses {
-			return 0, "", fmt.Errorf("selected channel models do not support %s", adminmodel.ChannelModelEndpointResponses)
-		}
-		return relaymode.ChatCompletions, fallbackEndpoint, nil
-	}
-	if fallbackEndpoint == adminmodel.ChannelModelEndpointResponses {
-		return relaymode.Responses, fallbackEndpoint, nil
-	}
-	if meta.Mode == relaymode.Responses {
-		return 0, "", fmt.Errorf("channel does not support %s", adminmodel.ChannelModelEndpointResponses)
-	}
-	return relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat, nil
+	return relaymode.Responses, adminmodel.ChannelModelEndpointResponses, nil
 }
 
 func convertTextRequestForUpstream(req *relaymodel.GeneralOpenAIRequest, downstreamMode int, upstreamMode int) (*relaymodel.GeneralOpenAIRequest, error) {
@@ -288,7 +592,7 @@ func convertTextRequestForUpstream(req *relaymodel.GeneralOpenAIRequest, downstr
 
 	if upstreamMode == relaymode.Responses {
 		if cloned.Input == nil && len(cloned.Messages) > 0 {
-			cloned.Input = cloned.Messages
+			cloned.Input = convertMessagesForResponsesInput(cloned.Messages)
 			cloned.Messages = nil
 		}
 		if cloned.MaxOutputTokens == nil && cloned.MaxTokens > 0 {
@@ -300,6 +604,20 @@ func convertTextRequestForUpstream(req *relaymodel.GeneralOpenAIRequest, downstr
 	}
 
 	if upstreamMode == relaymode.ChatCompletions {
+		if len(cloned.Messages) == 0 {
+			cloned.Messages = parseInputAsMessages(cloned.Input)
+		}
+		if len(cloned.Messages) == 0 {
+			return nil, fmt.Errorf("field messages or input is required")
+		}
+		cloned.Input = nil
+		if cloned.MaxTokens == 0 && cloned.MaxOutputTokens != nil && *cloned.MaxOutputTokens > 0 {
+			cloned.MaxTokens = *cloned.MaxOutputTokens
+		}
+		return cloned, nil
+	}
+
+	if upstreamMode == relaymode.Messages {
 		if len(cloned.Messages) == 0 {
 			cloned.Messages = parseInputAsMessages(cloned.Input)
 		}

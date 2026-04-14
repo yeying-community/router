@@ -197,6 +197,35 @@ const normalizeChannelModelEndpoint = (type, value, protocol) => {
   return defaultChannelModelEndpoint(normalizedType, protocol);
 };
 
+const normalizeChannelModelEndpoints = (type, endpoints, endpoint, protocol) => {
+  const candidates = [];
+  if (Array.isArray(endpoints)) {
+    endpoints.forEach((item) => {
+      candidates.push(item);
+    });
+  }
+  if ((endpoint || '').toString().trim() !== '') {
+    candidates.push(endpoint);
+  }
+  if (candidates.length === 0) {
+    candidates.push(defaultChannelModelEndpoint(type, protocol));
+  }
+  const seen = new Set();
+  const result = [];
+  candidates.forEach((item) => {
+    const normalized = normalizeChannelModelEndpoint(type, item, protocol);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    result.push(normalized);
+  });
+  if (result.length === 0) {
+    result.push(defaultChannelModelEndpoint(type, protocol));
+  }
+  return result;
+};
+
 const CHANNEL_MODEL_TYPE_OPTIONS = [
   { key: 'text', value: 'text', text: 'text' },
   { key: 'image', value: 'image', text: 'image' },
@@ -220,6 +249,17 @@ const IMAGE_MODEL_ENDPOINT_OPTIONS = [
   { key: 'images_edits', value: '/v1/images/edits', text: '/v1/images/edits' },
   { key: 'batches', value: '/v1/batches', text: '/v1/batches' },
 ];
+
+const endpointOptionsForModelType = (type) => {
+  const normalizedType = normalizeChannelModelType(type);
+  if (normalizedType === 'image') {
+    return IMAGE_MODEL_ENDPOINT_OPTIONS;
+  }
+  if (normalizedType === 'text') {
+    return TEXT_MODEL_ENDPOINT_OPTIONS;
+  }
+  return [];
+};
 
 const CHANNEL_MODEL_PAGE_SIZE = 10;
 
@@ -572,12 +612,26 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
   if (!model) {
     return null;
   }
+  const normalizedEndpoints = normalizeChannelModelEndpoints(
+    row.type,
+    row.endpoints || row.endpoint_list || [],
+    row.endpoint,
+    protocol,
+  );
+  const normalizedEndpointCandidate = normalizeChannelModelEndpoint(
+    row.type,
+    row.endpoint,
+    protocol,
+  );
   return {
     model,
     upstream_model: upstreamModel || model,
     provider: normalizeChannelModelProviderValue(row.provider),
     type: normalizeChannelModelType(row.type),
-    endpoint: normalizeChannelModelEndpoint(row.type, row.endpoint, protocol),
+    endpoint: normalizedEndpoints.includes(normalizedEndpointCandidate)
+      ? normalizedEndpointCandidate
+      : normalizedEndpoints[0],
+    endpoints: normalizedEndpoints,
     inactive: row.inactive === true,
     selected: row.selected === true,
     input_price: normalizePriceOverrideValue(row.input_price),
@@ -849,7 +903,15 @@ const buildChannelModelTestSignature = ({
     protocol,
   )
     .filter((row) => row.selected)
-    .map((row) => `${row.model}:${row.type}:${row.endpoint || ''}`)
+    .map(
+      (row) =>
+        `${row.model}:${row.type}:${normalizeChannelModelEndpoints(
+          row.type,
+          row.endpoints,
+          row.endpoint,
+          protocol,
+        ).join('|')}`,
+    )
     .join(',')}`;
 
 const normalizeModelTestResults = (results) => {
@@ -3071,11 +3133,18 @@ const EditChannel = () => {
         if (row.model !== modelName) {
           return row;
         }
+        const nextEndpoint = normalizeChannelModelEndpoint(
+          row.type,
+          endpoint,
+          inputs.protocol,
+        );
         return {
           ...row,
-          endpoint: normalizeChannelModelEndpoint(
+          endpoint: nextEndpoint,
+          endpoints: normalizeChannelModelEndpoints(
             row.type,
-            endpoint,
+            row.endpoints,
+            nextEndpoint,
             inputs.protocol,
           ),
         };
@@ -3251,6 +3320,40 @@ const EditChannel = () => {
               return {
                 ...row,
                 provider: normalizeChannelModelProviderValue(value),
+              };
+            }
+            if (field === 'endpoint') {
+              const nextEndpoint = normalizeChannelModelEndpoint(
+                row.type,
+                value,
+                prev.protocol,
+              );
+              const nextEndpoints = normalizeChannelModelEndpoints(
+                row.type,
+                row.endpoints,
+                nextEndpoint,
+                prev.protocol,
+              );
+              return {
+                ...row,
+                endpoint: nextEndpoint,
+                endpoints: nextEndpoints,
+              };
+            }
+            if (field === 'endpoints') {
+              const nextEndpoints = normalizeChannelModelEndpoints(
+                row.type,
+                Array.isArray(value) ? value : [],
+                row.endpoint,
+                prev.protocol,
+              );
+              const nextEndpoint = nextEndpoints.includes(row.endpoint)
+                ? row.endpoint
+                : nextEndpoints[0];
+              return {
+                ...row,
+                endpoint: nextEndpoint,
+                endpoints: nextEndpoints,
               };
             }
             return {
@@ -3729,6 +3832,35 @@ const EditChannel = () => {
                     readOnly
                   />
                 </Form.Group>
+                {(detailEditingModelRow.type === 'text' ||
+                  detailEditingModelRow.type === 'image') && (
+                  <Form.Field>
+                    <label>{t('channel.edit.model_tester.table.endpoint')}</label>
+                    <Dropdown
+                      selection
+                      fluid
+                      multiple
+                      className='router-modal-dropdown'
+                      options={endpointOptionsForModelType(
+                        detailEditingModelRow.type,
+                      )}
+                      value={normalizeChannelModelEndpoints(
+                        detailEditingModelRow.type,
+                        detailEditingModelRow.endpoints,
+                        detailEditingModelRow.endpoint,
+                        inputs.protocol,
+                      )}
+                      disabled={detailModelMutating}
+                      onChange={(e, { value }) =>
+                        updateModelConfigField(
+                          detailEditingModelRow.upstream_model,
+                          'endpoints',
+                          value,
+                        )
+                      }
+                    />
+                  </Form.Field>
+                )}
                 <Form.Field>
                   <label>{t('channel.edit.model_selector.table.providers')}</label>
                   <div className='router-channel-model-editor-provider-row'>

@@ -46,6 +46,18 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	}
 	meta.UpstreamMode = upstreamMode
 	meta.UpstreamRequestPath = upstreamPath
+	if config.DebugEnabled {
+		logger.Debugf(
+			ctx,
+			"[text_route] downstream=%s upstream=%s api_type=%d channel_protocol=%d origin_model=%s actual_model=%s",
+			relayModeLabel(meta.Mode),
+			relayModeLabel(upstreamMode),
+			meta.APIType,
+			meta.ChannelProtocol,
+			strings.TrimSpace(meta.OriginModelName),
+			strings.TrimSpace(meta.ActualModelName),
+		)
+	}
 	groupRatio := adminmodel.GetGroupBillingRatio(meta.Group)
 	pricing, err := adminmodel.ResolveChannelModelPricing(meta.ChannelProtocol, meta.ChannelModelConfigs, textRequest.Model)
 	if err != nil {
@@ -156,6 +168,15 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 			strings.TrimSpace(meta.ActualModelName),
 			meta.IsStream,
 		)
+		if config.DebugEnabled {
+			logger.Debugf(
+				c.Request.Context(),
+				"[upstream_request_body] downstream=%s upstream=%s body=%s",
+				relayModeLabel(meta.Mode),
+				relayModeLabel(upstreamMode),
+				sanitizePayloadForRelayDebug(jsonData),
+			)
+		}
 		return bytes.NewBuffer(jsonData), nil
 	}
 	if meta.Mode == relaymode.Responses && upstreamMode == relaymode.Responses {
@@ -163,7 +184,7 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 		if err != nil {
 			return nil, err
 		}
-		jsonData, err := normalizeResponsesRequestBody(rawBody)
+		jsonData, err := normalizeResponsesRequestBody(rawBody, meta.ActualModelName)
 		if err != nil {
 			return nil, err
 		}
@@ -174,6 +195,15 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 			strings.TrimSpace(meta.ActualModelName),
 			meta.IsStream,
 		)
+		if config.DebugEnabled {
+			logger.Debugf(
+				c.Request.Context(),
+				"[upstream_request_body] downstream=%s upstream=%s body=%s",
+				relayModeLabel(meta.Mode),
+				relayModeLabel(upstreamMode),
+				sanitizePayloadForRelayDebug(jsonData),
+			)
+		}
 		return bytes.NewBuffer(jsonData), nil
 	}
 	if upstreamMode == relaymode.Responses {
@@ -193,6 +223,15 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 			strings.TrimSpace(meta.ActualModelName),
 			meta.IsStream,
 		)
+		if config.DebugEnabled {
+			logger.Debugf(
+				c.Request.Context(),
+				"[upstream_request_body] downstream=%s upstream=%s body=%s",
+				relayModeLabel(meta.Mode),
+				relayModeLabel(upstreamMode),
+				sanitizePayloadForRelayDebug(jsonData),
+			)
+		}
 		return bytes.NewBuffer(jsonData), nil
 	}
 	if !config.EnforceIncludeUsage &&
@@ -218,7 +257,47 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 		logger.Debugf(c.Request.Context(), "converted request json_marshal_failed: %s\n", err.Error())
 		return nil, err
 	}
-	logger.Debugf(c.Request.Context(), "converted request: \n%s", string(jsonData))
+	if config.DebugEnabled {
+		logger.Debugf(
+			c.Request.Context(),
+			"[converted_request_body] downstream=%s upstream=%s len=%d body=%s",
+			relayModeLabel(meta.Mode),
+			relayModeLabel(upstreamMode),
+			len(jsonData),
+			sanitizePayloadForRelayDebug(jsonData),
+		)
+	}
 	requestBody = bytes.NewBuffer(jsonData)
 	return requestBody, nil
+}
+
+func relayModeLabel(mode int) string {
+	switch mode {
+	case relaymode.ChatCompletions:
+		return "chat_completions"
+	case relaymode.Messages:
+		return "messages"
+	case relaymode.Responses:
+		return "responses"
+	case relaymode.Completions:
+		return "completions"
+	case relaymode.Embeddings:
+		return "embeddings"
+	case relaymode.Moderations:
+		return "moderations"
+	case relaymode.ImagesGenerations:
+		return "images_generations"
+	case relaymode.Edits:
+		return "edits"
+	case relaymode.AudioSpeech:
+		return "audio_speech"
+	case relaymode.AudioTranslation:
+		return "audio_translation"
+	case relaymode.AudioTranscription:
+		return "audio_transcription"
+	case relaymode.Videos:
+		return "videos"
+	default:
+		return "unknown"
+	}
 }
