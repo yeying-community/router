@@ -73,6 +73,7 @@ type channelModelTestsRequest struct {
 type channelModelTestTargetItem struct {
 	Model    string `json:"model"`
 	Endpoint string `json:"endpoint,omitempty"`
+	IsStream *bool  `json:"is_stream,omitempty"`
 }
 
 type channelModelListData struct {
@@ -92,6 +93,7 @@ type channelTestListData struct {
 
 type channelModelTestExecution struct {
 	LatencyMs          int64
+	IsStream           bool
 	Message            string
 	InputPayload       string
 	OutputPayload      string
@@ -107,6 +109,7 @@ const (
 
 	defaultChannelModelPageSize = 10
 	maxChannelModelPageSize     = 100
+	channelModelTestRetryMax    = 3
 )
 
 func resolveModelsURL(baseURL string) string {
@@ -474,6 +477,7 @@ func buildChannelModelTestResult(row model.ChannelModel, execution channelModelT
 		UpstreamModel: strings.TrimSpace(row.UpstreamModel),
 		Type:          modelType,
 		Endpoint:      endpoint,
+		IsStream:      execution.IsStream,
 		LatencyMs:     execution.LatencyMs,
 		Message:       strings.TrimSpace(execution.Message),
 	}
@@ -498,10 +502,14 @@ func buildChannelModelTestResult(row model.ChannelModel, execution channelModelT
 }
 
 func runSingleChannelModelTest(channel *model.Channel, row model.ChannelModel) (model.ChannelTest, channelModelTestExecution) {
-	return runSingleChannelModelTestWithContext(context.Background(), channel, row)
+	return runSingleChannelModelTestWithContextAndStream(context.Background(), channel, row, nil)
 }
 
 func runSingleChannelModelTestWithContext(ctx context.Context, channel *model.Channel, row model.ChannelModel) (model.ChannelTest, channelModelTestExecution) {
+	return runSingleChannelModelTestWithContextAndStream(ctx, channel, row, nil)
+}
+
+func runSingleChannelModelTestWithContextAndStream(ctx context.Context, channel *model.Channel, row model.ChannelModel, requestedStream *bool) (model.ChannelTest, channelModelTestExecution) {
 	modelType := resolveSelectionModelType(row)
 	endpoint := model.NormalizeChannelModelEndpoint(modelType, row.Endpoint)
 
@@ -546,12 +554,17 @@ func runSingleChannelModelTestWithContext(ctx context.Context, channel *model.Ch
 		}, execution), execution
 	default:
 		if endpoint == model.ChannelModelEndpointChat || endpoint == model.ChannelModelEndpointMessages {
+			stream := false
+			if requestedStream != nil {
+				stream = *requestedStream
+			}
 			execution := executeChannelTextModelTest(ctx, channel, endpoint, &relaymodel.GeneralOpenAIRequest{
 				Model: row.Model,
 				Messages: []relaymodel.Message{{
 					Role:    "user",
 					Content: config.TestPrompt,
 				}},
+				Stream: stream,
 			})
 			return buildChannelModelTestResult(model.ChannelModel{
 				Model:         row.Model,
@@ -560,11 +573,47 @@ func runSingleChannelModelTestWithContext(ctx context.Context, channel *model.Ch
 				Endpoint:      endpoint,
 			}, execution), execution
 		}
-		execution := executeChannelTextModelTest(ctx, channel, model.ChannelModelEndpointResponses, &relaymodel.GeneralOpenAIRequest{
-			Model:  row.Model,
-			Input:  config.TestPrompt,
-			Stream: row.IsStreamOnly,
-		})
+		if requestedStream != nil {
+			requestBody := buildResponsesTextModelTestRequestBody(row.Model, *requestedStream)
+			execution := executeChannelTextModelTestRawBodyWithRetry(
+				ctx,
+				channel,
+				model.ChannelModelEndpointResponses,
+				requestBody,
+				row.Model,
+				channelModelTestRetryMax,
+			)
+			return buildChannelModelTestResult(model.ChannelModel{
+				Model:         row.Model,
+				UpstreamModel: row.UpstreamModel,
+				Type:          modelType,
+				Endpoint:      model.ChannelModelEndpointResponses,
+			}, execution), execution
+		}
+		requestBody := buildResponsesTextModelTestRequestBody(row.Model, true)
+		execution := executeChannelTextModelTestRawBodyWithRetry(
+			ctx,
+			channel,
+			model.ChannelModelEndpointResponses,
+			requestBody,
+			row.Model,
+			channelModelTestRetryMax,
+		)
+		if execution.Err != nil && !row.IsStreamOnly {
+			// Keep a non-stream fallback for channels that reject streaming test probes.
+			fallbackBody := buildResponsesTextModelTestRequestBody(row.Model, false)
+			fallback := executeChannelTextModelTestRawBodyWithRetry(
+				ctx,
+				channel,
+				model.ChannelModelEndpointResponses,
+				fallbackBody,
+				row.Model,
+				1,
+			)
+			if fallback.Err == nil {
+				execution = fallback
+			}
+		}
 		return buildChannelModelTestResult(model.ChannelModel{
 			Model:         row.Model,
 			UpstreamModel: row.UpstreamModel,
@@ -584,6 +633,7 @@ func logChannelModelTestExecution(c *gin.Context, channelID string, result model
 		stringField("upstream_model", result.UpstreamModel),
 		stringField("type", result.Type),
 		stringField("endpoint", result.Endpoint),
+		stringField("is_stream", strconv.FormatBool(result.IsStream)),
 		stringField("status", result.Status),
 		int64Field("latency_ms", result.LatencyMs),
 		stringField("message", result.Message),
@@ -659,6 +709,7 @@ func newChannelRelayRuntimeContext(path string, channel *model.Channel, requestC
 	}
 	c.Request = req.WithContext(requestCtx)
 	c.Request.Header.Set("Content-Type", "application/json")
+	c.Request.Header.Set("User-Agent", "router-channel-model-tester/1.0")
 	middleware.SetupContextForSelectedChannel(c, channel, "")
 	return c, meta.GetByContext(c), nil
 }
@@ -738,6 +789,10 @@ func executeChannelTextModelTest(ctx context.Context, channel *model.Channel, pa
 	relayMeta.OriginModelName = request.Model
 	relayMeta.ActualModelName = request.Model
 	relayMeta.ForceUpstreamStream = request.Stream
+	execution.IsStream = request.Stream
+	if request.Stream {
+		c.Request.Header.Set("Accept", "text/event-stream")
+	}
 	if path == model.ChannelModelEndpointResponses {
 		if request.Input == nil && len(request.Messages) > 0 {
 			request.Input = request.Messages
@@ -759,6 +814,10 @@ func executeChannelTextModelTest(ctx context.Context, channel *model.Channel, pa
 	requestURL := resolveChannelEndpointURL(resolveChannelBaseURL(channel.GetProtocol(), channel.GetBaseURL()), path)
 	requestHeader := http.Header{}
 	requestHeader.Set("Content-Type", "application/json")
+	requestHeader.Set("User-Agent", "router-channel-model-tester/1.0")
+	if request.Stream {
+		requestHeader.Set("Accept", "text/event-stream")
+	}
 	execution.InputPayload = buildHTTPRequestPayloadForLog(http.MethodPost, requestURL, requestHeader, requestBody)
 
 	startedAt := time.Now()
@@ -795,6 +854,191 @@ func executeChannelTextModelTest(ctx context.Context, channel *model.Channel, pa
 	}
 	execution.Message = message
 	return execution
+}
+
+func replaceModelNameInRawTextRequest(body []byte, modelName string) ([]byte, bool, error) {
+	trimmedModel := strings.TrimSpace(modelName)
+	if len(body) == 0 {
+		return nil, false, fmt.Errorf("请求不能为空")
+	}
+	if trimmedModel == "" {
+		return body, false, nil
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, false, fmt.Errorf("解析模板请求失败: %w", err)
+	}
+	payload["model"] = trimmedModel
+	updatedBody, err := json.Marshal(payload)
+	if err != nil {
+		return nil, false, fmt.Errorf("序列化模板请求失败: %w", err)
+	}
+	stream := false
+	if rawStream, exists := payload["stream"]; exists {
+		if parsed, ok := rawStream.(bool); ok {
+			stream = parsed
+		}
+	}
+	return updatedBody, stream, nil
+}
+
+func executeChannelTextModelTestRawBody(ctx context.Context, channel *model.Channel, path string, requestBody []byte, requestedModel string) channelModelTestExecution {
+	execution := channelModelTestExecution{}
+	if len(requestBody) == 0 {
+		execution.Err = fmt.Errorf("请求不能为空")
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": execution.Err.Error()})
+		return execution
+	}
+	c, relayMeta, err := newChannelRelayRuntimeContext(path, channel, ctx)
+	if err != nil {
+		execution.Err = err
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		return execution
+	}
+	adaptor := relay.GetAdaptor(relayMeta.APIType)
+	if adaptor == nil {
+		execution.Err = fmt.Errorf("invalid api type: %d", relayMeta.APIType)
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": execution.Err.Error()})
+		return execution
+	}
+	adaptor.Init(relayMeta)
+	actualModel := resolveChannelUpstreamModelName(channel, requestedModel)
+	if strings.TrimSpace(actualModel) == "" {
+		execution.Err = fmt.Errorf("未找到可用于测试的模型")
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": execution.Err.Error()})
+		return execution
+	}
+	updatedBody, stream, err := replaceModelNameInRawTextRequest(requestBody, actualModel)
+	if err != nil {
+		execution.Err = err
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		return execution
+	}
+	execution.IsStream = stream
+	relayMeta.OriginModelName = strings.TrimSpace(requestedModel)
+	relayMeta.ActualModelName = strings.TrimSpace(actualModel)
+	relayMeta.ForceUpstreamStream = stream
+	if stream {
+		c.Request.Header.Set("Accept", "text/event-stream")
+	}
+	requestURL := resolveChannelEndpointURL(resolveChannelBaseURL(channel.GetProtocol(), channel.GetBaseURL()), path)
+	requestHeader := http.Header{}
+	requestHeader.Set("Content-Type", "application/json")
+	requestHeader.Set("User-Agent", "router-channel-model-tester/1.0")
+	if stream {
+		requestHeader.Set("Accept", "text/event-stream")
+	}
+	execution.InputPayload = buildHTTPRequestPayloadForLog(http.MethodPost, requestURL, requestHeader, updatedBody)
+
+	startedAt := time.Now()
+	resp, err := adaptor.DoRequest(c, relayMeta, bytes.NewBuffer(updatedBody))
+	execution.LatencyMs = time.Since(startedAt).Milliseconds()
+	if err != nil {
+		execution.Err = err
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		return execution
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		execution.Err = err
+		execution.OutputPayload = buildHTTPResponsePayloadForLog(resp.StatusCode, resp.Header, nil)
+		return execution
+	}
+	if closeErr := resp.Body.Close(); closeErr != nil {
+		execution.Err = closeErr
+		execution.OutputPayload = buildHTTPResponsePayloadForLog(resp.StatusCode, resp.Header, body)
+		return execution
+	}
+	execution.ResponseStatusCode = resp.StatusCode
+	execution.ResponseHeader = resp.Header.Clone()
+	execution.ResponseBody = append([]byte(nil), body...)
+	execution.OutputPayload = buildHTTPResponsePayloadForLog(resp.StatusCode, resp.Header, body)
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		execution.Err = parseChannelUpstreamError(resp.StatusCode, body)
+		return execution
+	}
+	message, parseErr := parseTextModelTestResponseByEndpoint(path, string(body))
+	if parseErr != nil {
+		execution.Err = parseErr
+		return execution
+	}
+	execution.Message = message
+	return execution
+}
+
+func executeChannelTextModelTestRawBodyWithRetry(ctx context.Context, channel *model.Channel, path string, requestBody []byte, requestedModel string, maxAttempts int) channelModelTestExecution {
+	if maxAttempts < 1 {
+		maxAttempts = 1
+	}
+	var last channelModelTestExecution
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		last = executeChannelTextModelTestRawBody(ctx, channel, path, requestBody, requestedModel)
+		if last.Err == nil || !shouldRetryChannelTextModelTest(last) || attempt == maxAttempts {
+			return last
+		}
+		time.Sleep(time.Duration(attempt) * 250 * time.Millisecond)
+	}
+	return last
+}
+
+func shouldRetryChannelTextModelTest(execution channelModelTestExecution) bool {
+	if execution.Err == nil {
+		return false
+	}
+	switch execution.ResponseStatusCode {
+	case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	}
+	message := strings.ToLower(strings.TrimSpace(execution.Err.Error()))
+	if message == "" {
+		return false
+	}
+	keywords := []string{
+		"http status code: 429",
+		"http status code: 500",
+		"http status code: 502",
+		"http status code: 503",
+		"http status code: 504",
+		"temporarily unavailable",
+		"timeout",
+		"i/o timeout",
+		"connection reset",
+		"暂时不可用",
+		"稍后重试",
+	}
+	for _, keyword := range keywords {
+		if strings.Contains(message, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+func buildResponsesTextModelTestRequest(modelName string, stream bool) *relaymodel.GeneralOpenAIRequest {
+	return &relaymodel.GeneralOpenAIRequest{
+		Model: modelName,
+		Input: []any{
+			map[string]any{
+				"role": "user",
+				"content": []any{
+					map[string]any{
+						"type": "input_text",
+						"text": config.TestPrompt,
+					},
+				},
+			},
+		},
+		Stream: stream,
+	}
+}
+
+func buildResponsesTextModelTestRequestBody(modelName string, stream bool) []byte {
+	request := buildResponsesTextModelTestRequest(modelName, stream)
+	body, err := json.Marshal(request)
+	if err != nil {
+		return nil
+	}
+	return body
 }
 
 func parseTextModelTestResponseByEndpoint(path string, resp string) (string, error) {

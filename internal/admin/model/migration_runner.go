@@ -516,6 +516,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&ChannelModel{})
 			},
 		},
+		{
+			Version:     "202604151130_channel_test_is_stream",
+			Description: "add is_stream flag to channel model test results",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelTest{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

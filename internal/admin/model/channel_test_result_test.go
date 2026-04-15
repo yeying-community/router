@@ -47,6 +47,7 @@ func TestNormalizeChannelTestRowsKeepsLatestByModelAndEndpoint(t *testing.T) {
 			Model:     "gpt-4.1",
 			Type:      ProviderModelTypeText,
 			Endpoint:  ChannelModelEndpointResponses,
+			IsStream:  false,
 			Status:    ChannelTestStatusUnsupported,
 			Supported: false,
 			TestedAt:  10,
@@ -56,6 +57,7 @@ func TestNormalizeChannelTestRowsKeepsLatestByModelAndEndpoint(t *testing.T) {
 			Model:     " gpt-4.1 ",
 			Type:      ProviderModelTypeText,
 			Endpoint:  ChannelModelEndpointResponses,
+			IsStream:  true,
 			Status:    ChannelTestStatusSupported,
 			Supported: true,
 			TestedAt:  20,
@@ -65,6 +67,7 @@ func TestNormalizeChannelTestRowsKeepsLatestByModelAndEndpoint(t *testing.T) {
 			Model:     "gpt-4.1",
 			Type:      ProviderModelTypeText,
 			Endpoint:  ChannelModelEndpointChat,
+			IsStream:  false,
 			Status:    ChannelTestStatusSupported,
 			Supported: true,
 			TestedAt:  15,
@@ -74,7 +77,7 @@ func TestNormalizeChannelTestRowsKeepsLatestByModelAndEndpoint(t *testing.T) {
 	if len(rows) != 2 {
 		t.Fatalf("NormalizeChannelTestRows returned %d rows, want 2", len(rows))
 	}
-	if rows[0].Endpoint != ChannelModelEndpointResponses || rows[0].Status != ChannelTestStatusSupported || !rows[0].Supported || rows[0].TestedAt != 20 {
+	if rows[0].Endpoint != ChannelModelEndpointResponses || rows[0].Status != ChannelTestStatusSupported || !rows[0].Supported || rows[0].TestedAt != 20 || !rows[0].IsStream {
 		t.Fatalf("unexpected normalized row[0]: %#v", rows[0])
 	}
 	if rows[1].Endpoint != ChannelModelEndpointChat {

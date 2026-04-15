@@ -25,6 +25,7 @@ type ChannelTest struct {
 	UpstreamModel       string `json:"upstream_model,omitempty" gorm:"type:varchar(255);default:'';index"`
 	Type                string `json:"type" gorm:"type:varchar(32);default:'text';index"`
 	Endpoint            string `json:"endpoint" gorm:"type:varchar(255);index"`
+	IsStream            bool   `json:"is_stream" gorm:"not null;default:false"`
 	Status              string `json:"status" gorm:"type:varchar(32);index"`
 	Supported           bool   `json:"supported" gorm:"not null;default:false"`
 	Message             string `json:"message,omitempty" gorm:"type:text"`
@@ -66,6 +67,7 @@ func NormalizeChannelTestRows(rows []ChannelTest) []ChannelTest {
 			UpstreamModel:       strings.TrimSpace(row.UpstreamModel),
 			Type:                normalizeModelType(row.Type, row.Model),
 			Endpoint:            NormalizeChannelModelEndpoint(row.Type, row.Endpoint),
+			IsStream:            row.IsStream,
 			Status:              NormalizeChannelTestStatus(row.Status),
 			Supported:           row.Supported && NormalizeChannelTestStatus(row.Status) == ChannelTestStatusSupported,
 			Message:             strings.TrimSpace(row.Message),

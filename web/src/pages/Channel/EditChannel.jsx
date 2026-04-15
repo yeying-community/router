@@ -925,24 +925,38 @@ const normalizeModelTestResults = (results) => {
       (item) =>
         item && typeof item === 'object' && typeof item.model === 'string',
     )
-    .map((item) => ({
-      channel_id: (item.channel_id || '').toString().trim(),
-      model: item.model || '',
-      upstream_model: item.upstream_model || '',
-      type: normalizeChannelModelType(item.type),
-      endpoint: item.endpoint || '',
-      status: item.status || 'unsupported',
-      supported: !!item.supported,
-      message: item.message || '',
-      latency_ms: Number(item.latency_ms || 0),
-      tested_at: Number(item.tested_at || 0),
-      artifact_path: (item.artifact_path || '').toString().trim(),
-      artifact_name: (item.artifact_name || '').toString().trim(),
-      artifact_content_type: (item.artifact_content_type || '')
-        .toString()
-        .trim(),
-      artifact_size: Number(item.artifact_size || 0),
-    }));
+    .map((item) => {
+      const hasIsStream =
+        Object.prototype.hasOwnProperty.call(item, 'is_stream') ||
+        Object.prototype.hasOwnProperty.call(item, 'isStream');
+      const rawIsStream = hasIsStream
+        ? item.is_stream ?? item.isStream
+        : null;
+      return {
+        channel_id: (item.channel_id || '').toString().trim(),
+        model: item.model || '',
+        upstream_model: item.upstream_model || '',
+        type: normalizeChannelModelType(item.type),
+        endpoint: item.endpoint || '',
+        is_stream:
+          rawIsStream === true
+            ? true
+            : rawIsStream === false
+              ? false
+              : null,
+        status: item.status || 'unsupported',
+        supported: !!item.supported,
+        message: item.message || '',
+        latency_ms: Number(item.latency_ms || 0),
+        tested_at: Number(item.tested_at || 0),
+        artifact_path: (item.artifact_path || '').toString().trim(),
+        artifact_name: (item.artifact_name || '').toString().trim(),
+        artifact_content_type: (item.artifact_content_type || '')
+          .toString()
+          .trim(),
+        artifact_size: Number(item.artifact_size || 0),
+      };
+    });
 };
 
 const buildModelTestResultKey = (modelName, endpoint) =>
@@ -3062,6 +3076,7 @@ const EditChannel = () => {
             row.endpoint,
             inputs.protocol,
           ),
+          is_stream: !!row.is_stream_only,
         }));
       setModelTesting(true);
       setModelTestingScope(scope === 'single' ? 'single' : 'batch');
@@ -3177,6 +3192,30 @@ const EditChannel = () => {
           ),
         };
       });
+      if (isDetailMode) {
+        await persistDetailModelConfigs(nextConfigs);
+        return;
+      }
+      setInputs((prev) =>
+        buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
+      );
+    },
+    [
+      detailTestingReadonly,
+      isDetailMode,
+      persistDetailModelConfigs,
+      visibleModelConfigs,
+    ],
+  );
+
+  const updateModelTestStream = useCallback(
+    async (modelName, isStream) => {
+      if (detailTestingReadonly) {
+        return;
+      }
+      const nextConfigs = visibleModelConfigs.map((row) =>
+        row.model === modelName ? { ...row, is_stream_only: !!isStream } : row,
+      );
       if (isDetailMode) {
         await persistDetailModelConfigs(nextConfigs);
         return;
@@ -5859,6 +5898,9 @@ const EditChannel = () => {
                               {t('channel.edit.model_tester.table.endpoint')}
                             </Table.HeaderCell>
                             <Table.HeaderCell collapsing>
+                              {t('channel.edit.model_tester.table.is_stream')}
+                            </Table.HeaderCell>
+                            <Table.HeaderCell collapsing>
                               {t('channel.edit.model_tester.table.status')}
                             </Table.HeaderCell>
                             <Table.HeaderCell collapsing>
@@ -5875,7 +5917,7 @@ const EditChannel = () => {
                         <Table.Body>
                           {modelTestRows.length === 0 ? (
                             <Table.Row>
-                              <Table.Cell className='router-empty-cell' colSpan='8'>
+                              <Table.Cell className='router-empty-cell' colSpan='9'>
                                 {t('channel.edit.model_tester.empty')}
                               </Table.Cell>
                             </Table.Row>
@@ -5985,6 +6027,18 @@ const EditChannel = () => {
                                     ) : (
                                       row.endpoint || '-'
                                     )}
+                                  </Table.Cell>
+                                  <Table.Cell textAlign='center'>
+                                    <Checkbox
+                                      checked={!!row.is_stream_only}
+                                      disabled={
+                                        detailTestingReadonly ||
+                                        detailModelMutating
+                                      }
+                                      onChange={(e, { checked }) =>
+                                        updateModelTestStream(row.model, !!checked)
+                                      }
+                                    />
                                   </Table.Cell>
                                   <Table.Cell>
                                     <Label
@@ -6174,6 +6228,9 @@ const EditChannel = () => {
                             {t('channel.edit.model_tester.table.endpoint')}
                           </Table.HeaderCell>
                           <Table.HeaderCell collapsing>
+                            {t('channel.edit.model_tester.table.is_stream')}
+                          </Table.HeaderCell>
+                          <Table.HeaderCell collapsing>
                             {t('channel.edit.model_tester.table.status')}
                           </Table.HeaderCell>
                           <Table.HeaderCell collapsing>
@@ -6190,7 +6247,7 @@ const EditChannel = () => {
                       <Table.Body>
                         {modelTestRows.length === 0 ? (
                           <Table.Row>
-                            <Table.Cell className='router-empty-cell' colSpan='8'>
+                            <Table.Cell className='router-empty-cell' colSpan='9'>
                               {t('channel.edit.model_tester.empty')}
                             </Table.Cell>
                           </Table.Row>
@@ -6288,6 +6345,15 @@ const EditChannel = () => {
                                   ) : (
                                     row.endpoint || '-'
                                   )}
+                                </Table.Cell>
+                                <Table.Cell textAlign='center'>
+                                  <Checkbox
+                                    checked={!!row.is_stream_only}
+                                    disabled={detailModelMutating}
+                                    onChange={(e, { checked }) =>
+                                      updateModelTestStream(row.model, !!checked)
+                                    }
+                                  />
                                 </Table.Cell>
                                 <Table.Cell>
                                   <Label

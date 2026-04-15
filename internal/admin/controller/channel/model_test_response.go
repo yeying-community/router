@@ -11,7 +11,12 @@ import (
 )
 
 type responsesEnvelope struct {
+	Status     string `json:"status"`
 	OutputText string `json:"output_text"`
+	Usage      *struct {
+		OutputTokens int `json:"output_tokens"`
+		TotalTokens  int `json:"total_tokens"`
+	} `json:"usage,omitempty"`
 	Output []struct {
 		Content []struct {
 			Type       string `json:"type"`
@@ -70,6 +75,9 @@ func parseResponsesModelTestResponse(resp string) (string, error) {
 		}
 	}
 	if len(contentTypes) == 0 {
+		if strings.EqualFold(strings.TrimSpace(env.Status), "completed") && env.Usage != nil && (env.Usage.OutputTokens > 0 || env.Usage.TotalTokens > 0) {
+			return "responses 接口返回成功（无可见文本，已返回用量）", nil
+		}
 		return "", errors.New("response has no output text, output is empty")
 	}
 	return "", errors.New("response has no output text, content types: " + strings.Join(contentTypes, ","))
@@ -224,7 +232,28 @@ func parseTextModelTestStreamResponse(resp string) (string, error) {
 		if err := json.Unmarshal([]byte(data), &responsePayload); err == nil {
 			text := extractTextFromStreamPayload(currentEvent, responsePayload)
 			if text != "" {
-				textParts = append(textParts, text)
+				normalizedEvent := strings.TrimSpace(currentEvent)
+				effectiveEvent := normalizedEvent
+				if effectiveEvent == "" {
+					effectiveEvent = strings.TrimSpace(responsePayload.Type)
+				}
+				if strings.HasPrefix(effectiveEvent, "response.output_text") || effectiveEvent == "response.completed" {
+					joined := strings.Join(textParts, "")
+					switch {
+					case joined == "":
+						textParts = append(textParts, text)
+					case strings.Contains(text, joined):
+						// completed payload already contains all deltas; keep a single copy.
+						textParts = []string{text}
+					case strings.Contains(joined, text):
+						// completed payload is only a subset; keep existing accumulated text.
+					default:
+						// completed payload carries incremental tail (for example punctuation).
+						textParts = append(textParts, text)
+					}
+				} else {
+					textParts = append(textParts, text)
+				}
 				continue
 			}
 		}
@@ -232,7 +261,7 @@ func parseTextModelTestStreamResponse(resp string) (string, error) {
 		var chatPayload chatStreamEnvelope
 		if err := json.Unmarshal([]byte(data), &chatPayload); err == nil {
 			for _, choice := range chatPayload.Choices {
-				if deltaText := strings.TrimSpace(choice.Delta.StringContent()); deltaText != "" {
+				if deltaText := choice.Delta.StringContent(); deltaText != "" {
 					textParts = append(textParts, deltaText)
 				}
 			}
@@ -251,42 +280,42 @@ func parseTextModelTestStreamResponse(resp string) (string, error) {
 func extractTextFromStreamPayload(event string, payload streamTextPayload) string {
 	switch strings.TrimSpace(event) {
 	case "response.output_text.delta":
-		if strings.TrimSpace(payload.Delta) != "" {
-			return strings.TrimSpace(payload.Delta)
+		if payload.Delta != "" {
+			return payload.Delta
 		}
 	case "response.output_text", "response.completed":
-		if strings.TrimSpace(payload.Text) != "" {
-			return strings.TrimSpace(payload.Text)
+		if payload.Text != "" {
+			return payload.Text
 		}
-		if strings.TrimSpace(payload.OutputText) != "" {
-			return strings.TrimSpace(payload.OutputText)
+		if payload.OutputText != "" {
+			return payload.OutputText
 		}
-		if strings.TrimSpace(payload.Delta) != "" {
-			return strings.TrimSpace(payload.Delta)
+		if payload.Delta != "" {
+			return payload.Delta
 		}
 	default:
-		if strings.TrimSpace(payload.Text) != "" {
-			return strings.TrimSpace(payload.Text)
+		if payload.Text != "" {
+			return payload.Text
 		}
-		if strings.TrimSpace(payload.OutputText) != "" {
-			return strings.TrimSpace(payload.OutputText)
+		if payload.OutputText != "" {
+			return payload.OutputText
 		}
-		if strings.TrimSpace(payload.Delta) != "" {
-			return strings.TrimSpace(payload.Delta)
+		if payload.Delta != "" {
+			return payload.Delta
 		}
 		if strings.TrimSpace(payload.Message) != "" {
 			return strings.TrimSpace(payload.Message)
 		}
 	}
 	if strings.HasPrefix(strings.TrimSpace(payload.Type), "response.output_text") {
-		if strings.TrimSpace(payload.Delta) != "" {
-			return strings.TrimSpace(payload.Delta)
+		if payload.Delta != "" {
+			return payload.Delta
 		}
-		if strings.TrimSpace(payload.Text) != "" {
-			return strings.TrimSpace(payload.Text)
+		if payload.Text != "" {
+			return payload.Text
 		}
-		if strings.TrimSpace(payload.OutputText) != "" {
-			return strings.TrimSpace(payload.OutputText)
+		if payload.OutputText != "" {
+			return payload.OutputText
 		}
 	}
 	return ""
