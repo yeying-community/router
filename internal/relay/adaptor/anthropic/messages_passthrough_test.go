@@ -152,3 +152,68 @@ func TestRelayMessagesStreamAsChatResponse(t *testing.T) {
 		t.Fatalf("expected upstream header to be copied, got %q", recorder.Header().Get("X-Upstream"))
 	}
 }
+
+func TestRelayMessagesResponseSkipsUpstreamCORSHeaders(t *testing.T) {
+	ctx, recorder := newAnthropicPassthroughTestContext()
+	recorder.Header().Set("Access-Control-Allow-Origin", "http://localhost:3020")
+	recorder.Header().Set("Access-Control-Allow-Credentials", "true")
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Access-Control-Allow-Origin":      []string{"*"},
+			"Access-Control-Allow-Credentials": []string{"true"},
+			"X-Upstream":                       []string{"ok"},
+		},
+		Body: io.NopCloser(strings.NewReader(`{
+			"id":"msg_123",
+			"type":"message",
+			"role":"assistant",
+			"content":[{"type":"text","text":"hello from claude"}],
+			"usage":{"input_tokens":10,"output_tokens":5}
+		}`)),
+	}
+
+	_, relayErr := relayMessagesResponse(ctx, resp)
+	if relayErr != nil {
+		t.Fatalf("relayMessagesResponse returned error: %+v", relayErr)
+	}
+	allowOriginValues := recorder.Header().Values("Access-Control-Allow-Origin")
+	if len(allowOriginValues) != 1 || allowOriginValues[0] != "http://localhost:3020" {
+		t.Fatalf("expected CORS allow-origin header to remain middleware value, got %#v", allowOriginValues)
+	}
+	if recorder.Header().Get("X-Upstream") != "ok" {
+		t.Fatalf("expected non-CORS upstream headers to remain copied, got %q", recorder.Header().Get("X-Upstream"))
+	}
+}
+
+func TestRelayMessagesStreamAsChatResponseSkipsUpstreamCORSHeaders(t *testing.T) {
+	ctx, recorder := newAnthropicPassthroughTestContext()
+	recorder.Header().Set("Access-Control-Allow-Origin", "http://localhost:3020")
+	recorder.Header().Set("Access-Control-Allow-Credentials", "true")
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Content-Type":                     []string{"text/event-stream"},
+			"Access-Control-Allow-Origin":      []string{"*"},
+			"Access-Control-Allow-Credentials": []string{"true"},
+		},
+		Body: io.NopCloser(strings.NewReader(
+			"event: message_start\n" +
+				"data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"model\":\"claude-opus-4-6\",\"usage\":{\"input_tokens\":11,\"output_tokens\":0}}}\n\n" +
+				"event: content_block_delta\n" +
+				"data: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"hello\"}}\n\n" +
+				"event: message_delta\n" +
+				"data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":7}}\n\n" +
+				"data: [DONE]\n",
+		)),
+	}
+
+	_, relayErr := relayMessagesStreamAsChatResponse(ctx, resp, 11, "claude-opus-4-6")
+	if relayErr != nil {
+		t.Fatalf("relayMessagesStreamAsChatResponse returned error: %+v", relayErr)
+	}
+	allowOriginValues := recorder.Header().Values("Access-Control-Allow-Origin")
+	if len(allowOriginValues) != 1 || allowOriginValues[0] != "http://localhost:3020" {
+		t.Fatalf("expected CORS allow-origin header to remain middleware value, got %#v", allowOriginValues)
+	}
+}

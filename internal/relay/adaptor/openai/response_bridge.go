@@ -167,12 +167,7 @@ func relayResponsesAsChatResponse(c *gin.Context, resp *http.Response, modelName
 	if err != nil {
 		return nil, ErrorWrapper(err, "marshal_response_body_failed", http.StatusInternalServerError)
 	}
-	for k, v := range resp.Header {
-		if len(v) == 0 {
-			continue
-		}
-		c.Writer.Header().Set(k, v[0])
-	}
+	copyUpstreamResponseHeaders(c, resp.Header, true)
 	c.Writer.Header().Set("Content-Type", "application/json")
 	c.Writer.WriteHeader(resp.StatusCode)
 	if _, err := c.Writer.Write(payload); err != nil {
@@ -233,12 +228,7 @@ func relayChatAsResponsesResponse(c *gin.Context, resp *http.Response, modelName
 	if err != nil {
 		return nil, ErrorWrapper(err, "marshal_response_body_failed", http.StatusInternalServerError)
 	}
-	for k, v := range resp.Header {
-		if len(v) == 0 {
-			continue
-		}
-		c.Writer.Header().Set(k, v[0])
-	}
+	copyUpstreamResponseHeaders(c, resp.Header, true)
 	c.Writer.Header().Set("Content-Type", "application/json")
 	c.Writer.WriteHeader(resp.StatusCode)
 	if _, err := c.Writer.Write(encoded); err != nil {

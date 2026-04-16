@@ -208,6 +208,77 @@ func TestRelayMessagesStreamResponse(t *testing.T) {
 	}
 }
 
+func TestRelayResponsesResponseSkipsUpstreamCORSHeaders(t *testing.T) {
+	ctx, recorder := newBridgeTestContext()
+	recorder.Header().Set("Access-Control-Allow-Origin", "http://localhost:3020")
+	recorder.Header().Set("Access-Control-Allow-Credentials", "true")
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Access-Control-Allow-Origin":      []string{"*"},
+			"Access-Control-Allow-Credentials": []string{"true"},
+			"X-Upstream":                       []string{"ok"},
+		},
+		Body: io.NopCloser(strings.NewReader(`{
+			"id":"resp_123",
+			"object":"response",
+			"model":"gpt-5.4",
+			"usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}
+		}`)),
+	}
+
+	usage, relayErr := relayResponsesResponse(ctx, resp)
+	if relayErr != nil {
+		t.Fatalf("relayResponsesResponse returned error: %+v", relayErr)
+	}
+	if usage == nil || usage.TotalTokens != 15 {
+		t.Fatalf("unexpected usage: %#v", usage)
+	}
+	allowOriginValues := recorder.Header().Values("Access-Control-Allow-Origin")
+	if len(allowOriginValues) != 1 || allowOriginValues[0] != "http://localhost:3020" {
+		t.Fatalf("expected CORS allow-origin header to remain middleware value, got %#v", allowOriginValues)
+	}
+	if recorder.Header().Get("X-Upstream") != "ok" {
+		t.Fatalf("expected non-CORS upstream headers to remain copied, got %q", recorder.Header().Get("X-Upstream"))
+	}
+}
+
+func TestRelayMessagesResponseSkipsUpstreamCORSHeaders(t *testing.T) {
+	ctx, recorder := newBridgeTestContext()
+	recorder.Header().Set("Access-Control-Allow-Origin", "http://localhost:3020")
+	recorder.Header().Set("Access-Control-Allow-Credentials", "true")
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Access-Control-Allow-Origin":      []string{"*"},
+			"Access-Control-Allow-Credentials": []string{"true"},
+			"X-Upstream":                       []string{"ok"},
+		},
+		Body: io.NopCloser(strings.NewReader(`{
+			"id":"msg_123",
+			"type":"message",
+			"role":"assistant",
+			"content":[{"type":"text","text":"hello"}],
+			"usage":{"input_tokens":10,"output_tokens":5}
+		}`)),
+	}
+
+	usage, relayErr := relayMessagesResponse(ctx, resp, 10, "claude-sonnet-4-6")
+	if relayErr != nil {
+		t.Fatalf("relayMessagesResponse returned error: %+v", relayErr)
+	}
+	if usage == nil || usage.TotalTokens != 15 {
+		t.Fatalf("unexpected usage: %#v", usage)
+	}
+	allowOriginValues := recorder.Header().Values("Access-Control-Allow-Origin")
+	if len(allowOriginValues) != 1 || allowOriginValues[0] != "http://localhost:3020" {
+		t.Fatalf("expected CORS allow-origin header to remain middleware value, got %#v", allowOriginValues)
+	}
+	if recorder.Header().Get("X-Upstream") != "ok" {
+		t.Fatalf("expected non-CORS upstream headers to remain copied, got %q", recorder.Header().Get("X-Upstream"))
+	}
+}
+
 func TestStreamResponsesAsChatHandlerNoDuplicateContentFromCompleted(t *testing.T) {
 	ctx, recorder := newBridgeTestContext()
 	resp := &http.Response{
