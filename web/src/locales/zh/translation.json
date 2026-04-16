@@ -687,6 +687,7 @@
           "model": "模型",
           "type": "类型",
           "endpoint": "端点",
+          "is_stream": "是否流式",
           "status": "结果",
           "latency": "耗时",
           "message": "说明",

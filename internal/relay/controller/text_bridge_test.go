@@ -11,9 +11,33 @@ import (
 	"github.com/yeying-community/router/internal/relay/relaymode"
 )
 
-func TestResolveChannelTextUpstreamPrefersSelectedModelEndpoint(t *testing.T) {
+func TestResolveChannelTextUpstreamOpenAIResponsesModelDownstreamChatBridgesToResponses(t *testing.T) {
 	meta := &meta.Meta{
-		Mode: relaymode.ChatCompletions,
+		Mode:           relaymode.ChatCompletions,
+		RequestURLPath: adminmodel.ChannelModelEndpointChat,
+		ChannelModelConfigs: []adminmodel.ChannelModel{{
+			Model:     "gpt-4.1",
+			Type:      adminmodel.ProviderModelTypeText,
+			Selected:  true,
+			Endpoint:  adminmodel.ChannelModelEndpointResponses,
+			SortOrder: 1,
+		}},
+	}
+
+	mode, path, err := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
+	if err != nil {
+		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
+	}
+	if mode != relaymode.Responses || path != adminmodel.ChannelModelEndpointResponses {
+		t.Fatalf("resolveChannelTextUpstream selected responses bridge = (%d, %q), want (%d, %q)", mode, path, relaymode.Responses, adminmodel.ChannelModelEndpointResponses)
+	}
+}
+
+func TestResolveChannelTextUpstreamOpenAIResponsesModelDownstreamResponsesUsesResponses(t *testing.T) {
+	meta := &meta.Meta{
+		Mode:           relaymode.Responses,
+		RequestURLPath: adminmodel.ChannelModelEndpointResponses,
+		APIType:        apitype.OpenAI,
 		ChannelModelConfigs: []adminmodel.ChannelModel{{
 			Model:     "gpt-4.1",
 			Type:      adminmodel.ProviderModelTypeText,
@@ -32,10 +56,11 @@ func TestResolveChannelTextUpstreamPrefersSelectedModelEndpoint(t *testing.T) {
 	}
 }
 
-func TestResolveChannelTextUpstreamPrefersSelectedMessagesEndpoint(t *testing.T) {
+func TestResolveChannelTextUpstreamAnthropicMessagesModelDownstreamMessagesUsesMessages(t *testing.T) {
 	meta := &meta.Meta{
-		Mode:    relaymode.Messages,
-		APIType: apitype.Anthropic,
+		Mode:           relaymode.Messages,
+		RequestURLPath: adminmodel.ChannelModelEndpointMessages,
+		APIType:        apitype.Anthropic,
 		ChannelModelConfigs: []adminmodel.ChannelModel{{
 			Model:     "claude-sonnet-4-6",
 			Type:      adminmodel.ProviderModelTypeText,
@@ -54,10 +79,11 @@ func TestResolveChannelTextUpstreamPrefersSelectedMessagesEndpoint(t *testing.T)
 	}
 }
 
-func TestResolveChannelTextUpstreamRejectsMessagesEndpointForOpenAIProtocol(t *testing.T) {
+func TestResolveChannelTextUpstreamAnthropicMessagesModelDownstreamChatBridgesToMessages(t *testing.T) {
 	meta := &meta.Meta{
-		Mode:    relaymode.ChatCompletions,
-		APIType: apitype.OpenAI,
+		Mode:           relaymode.ChatCompletions,
+		RequestURLPath: adminmodel.ChannelModelEndpointChat,
+		APIType:        apitype.Anthropic,
 		ChannelModelConfigs: []adminmodel.ChannelModel{{
 			Model:     "claude-sonnet-4-6",
 			Type:      adminmodel.ProviderModelTypeText,
@@ -67,13 +93,61 @@ func TestResolveChannelTextUpstreamRejectsMessagesEndpointForOpenAIProtocol(t *t
 		}},
 	}
 
-	_, _, err := resolveChannelTextUpstream(meta, "claude-sonnet-4-6", "claude-sonnet-4-6")
-	if err == nil {
-		t.Fatalf("resolveChannelTextUpstream returned nil error, want messages endpoint rejection for openai protocol")
+	mode, path, err := resolveChannelTextUpstream(meta, "claude-sonnet-4-6", "claude-sonnet-4-6")
+	if err != nil {
+		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
+	}
+	if mode != relaymode.Messages || path != adminmodel.ChannelModelEndpointMessages {
+		t.Fatalf("resolveChannelTextUpstream selected messages bridge = (%d, %q), want (%d, %q)", mode, path, relaymode.Messages, adminmodel.ChannelModelEndpointMessages)
 	}
 }
 
-func TestResolveChannelTextUpstreamFallsBackToSelectedModels(t *testing.T) {
+func TestResolveChannelTextUpstreamOpenAIDirectChatEndpointPreferredForDownstreamChat(t *testing.T) {
+	meta := &meta.Meta{
+		Mode:           relaymode.ChatCompletions,
+		RequestURLPath: adminmodel.ChannelModelEndpointChat,
+		ChannelModelConfigs: []adminmodel.ChannelModel{{
+			Model:     "gpt-4.1",
+			Type:      adminmodel.ProviderModelTypeText,
+			Selected:  true,
+			Endpoint:  adminmodel.ChannelModelEndpointChat,
+			Endpoints: []string{adminmodel.ChannelModelEndpointChat, adminmodel.ChannelModelEndpointResponses},
+			SortOrder: 1,
+		}},
+	}
+
+	mode, path, err := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
+	if err != nil {
+		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
+	}
+	if mode != relaymode.ChatCompletions || path != adminmodel.ChannelModelEndpointChat {
+		t.Fatalf("resolveChannelTextUpstream selected chat direct = (%d, %q), want (%d, %q)", mode, path, relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat)
+	}
+}
+
+func TestResolveChannelTextUpstreamOpenAIChatOnlyModelDownstreamResponsesFallsBackToChat(t *testing.T) {
+	meta := &meta.Meta{
+		Mode:           relaymode.Responses,
+		RequestURLPath: adminmodel.ChannelModelEndpointResponses,
+		APIType:        apitype.OpenAI,
+		ChannelModelConfigs: []adminmodel.ChannelModel{{
+			Model:    "gpt-4.1",
+			Type:     adminmodel.ProviderModelTypeText,
+			Selected: true,
+			Endpoint: adminmodel.ChannelModelEndpointChat,
+		}},
+	}
+
+	mode, path, err := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
+	if err != nil {
+		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
+	}
+	if mode != relaymode.ChatCompletions || path != adminmodel.ChannelModelEndpointChat {
+		t.Fatalf("resolveChannelTextUpstream selected chat fallback = (%d, %q), want (%d, %q)", mode, path, relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat)
+	}
+}
+
+func TestResolveChannelTextUpstreamRejectsWhenRequestedModelNotSelected(t *testing.T) {
 	meta := &meta.Meta{
 		Mode: relaymode.ChatCompletions,
 		ChannelModelConfigs: []adminmodel.ChannelModel{{
@@ -84,42 +158,33 @@ func TestResolveChannelTextUpstreamFallsBackToSelectedModels(t *testing.T) {
 		}},
 	}
 
-	mode, path, err := resolveChannelTextUpstream(meta, "unknown", "unknown")
+	_, _, err := resolveChannelTextUpstream(meta, "unknown", "unknown")
+	if err == nil {
+		t.Fatalf("resolveChannelTextUpstream returned nil error, want model-not-selected error")
+	}
+}
+
+func TestResolveChannelTextUpstreamNoModelConfigsOpenAIDefaultsResponses(t *testing.T) {
+	meta := &meta.Meta{
+		Mode:           relaymode.ChatCompletions,
+		RequestURLPath: adminmodel.ChannelModelEndpointChat,
+		APIType:        apitype.OpenAI,
+	}
+
+	mode, path, err := resolveChannelTextUpstream(meta, "gpt-5.4", "gpt-5.4")
 	if err != nil {
 		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
 	}
 	if mode != relaymode.Responses || path != adminmodel.ChannelModelEndpointResponses {
-		t.Fatalf("resolveChannelTextUpstream selected-model fallback = (%d, %q), want (%d, %q)", mode, path, relaymode.Responses, adminmodel.ChannelModelEndpointResponses)
+		t.Fatalf("resolveChannelTextUpstream no-config openai responses = (%d, %q), want (%d, %q)", mode, path, relaymode.Responses, adminmodel.ChannelModelEndpointResponses)
 	}
 }
 
-func TestResolveChannelTextUpstreamRejectsResponsesWhenChannelOnlySupportsChat(t *testing.T) {
+func TestResolveChannelTextUpstreamNoModelConfigsAnthropicDefaultsMessages(t *testing.T) {
 	meta := &meta.Meta{
-		Mode: relaymode.Responses,
-		ChannelModelConfigs: []adminmodel.ChannelModel{{
-			Model:    "gpt-4.1",
-			Type:     adminmodel.ProviderModelTypeText,
-			Selected: true,
-			Endpoint: adminmodel.ChannelModelEndpointChat,
-		}},
-	}
-
-	_, _, err := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
-	if err == nil {
-		t.Fatalf("resolveChannelTextUpstream returned nil error, want unsupported responses endpoint")
-	}
-}
-
-func TestResolveChannelTextUpstreamAnthropicForcesMessagesUpstream(t *testing.T) {
-	meta := &meta.Meta{
-		Mode:    relaymode.Messages,
-		APIType: apitype.Anthropic,
-		ChannelModelConfigs: []adminmodel.ChannelModel{{
-			Model:    "claude-sonnet-4-6",
-			Type:     adminmodel.ProviderModelTypeText,
-			Selected: true,
-			Endpoint: adminmodel.ChannelModelEndpointResponses,
-		}},
+		Mode:           relaymode.ChatCompletions,
+		RequestURLPath: adminmodel.ChannelModelEndpointChat,
+		APIType:        apitype.Anthropic,
 	}
 
 	mode, path, err := resolveChannelTextUpstream(meta, "claude-sonnet-4-6", "claude-sonnet-4-6")
@@ -127,19 +192,7 @@ func TestResolveChannelTextUpstreamAnthropicForcesMessagesUpstream(t *testing.T)
 		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
 	}
 	if mode != relaymode.Messages || path != adminmodel.ChannelModelEndpointMessages {
-		t.Fatalf("resolveChannelTextUpstream anthropic selected = (%d, %q), want (%d, %q)", mode, path, relaymode.Messages, adminmodel.ChannelModelEndpointMessages)
-	}
-}
-
-func TestResolveChannelTextUpstreamAnthropicRejectsResponsesMode(t *testing.T) {
-	meta := &meta.Meta{
-		Mode:    relaymode.Responses,
-		APIType: apitype.AwsClaude,
-	}
-
-	_, _, err := resolveChannelTextUpstream(meta, "claude-sonnet-4-6", "claude-sonnet-4-6")
-	if err == nil {
-		t.Fatalf("resolveChannelTextUpstream returned nil error for anthropic responses mode")
+		t.Fatalf("resolveChannelTextUpstream no-config anthropic messages = (%d, %q), want (%d, %q)", mode, path, relaymode.Messages, adminmodel.ChannelModelEndpointMessages)
 	}
 }
 
@@ -168,6 +221,89 @@ func TestConvertTextRequestForUpstreamToResponses(t *testing.T) {
 	}
 }
 
+func TestConvertTextRequestForUpstreamToResponsesWithImageContent(t *testing.T) {
+	req := &relaymodel.GeneralOpenAIRequest{
+		Model: "gpt-5.4",
+		Messages: []relaymodel.Message{{
+			Role: "user",
+			Content: []any{
+				map[string]any{
+					"type": "text",
+					"text": "describe this image",
+				},
+				map[string]any{
+					"type": "image_url",
+					"image_url": map[string]any{
+						"url":    "https://example.com/a.png",
+						"detail": "high",
+					},
+				},
+			},
+		}},
+	}
+
+	converted, err := convertTextRequestForUpstream(req, relaymode.ChatCompletions, relaymode.Responses)
+	if err != nil {
+		t.Fatalf("convertTextRequestForUpstream returned error: %v", err)
+	}
+	inputList, ok := converted.Input.([]any)
+	if !ok || len(inputList) != 1 {
+		t.Fatalf("converted.Input = %#v, want one-item input list", converted.Input)
+	}
+	first, ok := inputList[0].(map[string]any)
+	if !ok {
+		t.Fatalf("converted.Input[0] = %#v, want map", inputList[0])
+	}
+	contentList, ok := first["content"].([]any)
+	if !ok || len(contentList) != 2 {
+		t.Fatalf("converted.Input[0].content = %#v, want two content blocks", first["content"])
+	}
+	textPart, ok := contentList[0].(map[string]any)
+	if !ok || textPart["type"] != "input_text" || textPart["text"] != "describe this image" {
+		t.Fatalf("contentList[0] = %#v, want input_text", contentList[0])
+	}
+	imagePart, ok := contentList[1].(map[string]any)
+	if !ok || imagePart["type"] != "input_image" || imagePart["image_url"] != "https://example.com/a.png" || imagePart["detail"] != "high" {
+		t.Fatalf("contentList[1] = %#v, want input_image", contentList[1])
+	}
+}
+
+func TestConvertTextRequestForUpstreamToResponsesWithImageURLStringContent(t *testing.T) {
+	req := &relaymodel.GeneralOpenAIRequest{
+		Model: "gpt-5.4",
+		Messages: []relaymodel.Message{{
+			Role: "user",
+			Content: []any{
+				map[string]any{
+					"type":      "image_url",
+					"image_url": "https://example.com/raw.png",
+				},
+			},
+		}},
+	}
+
+	converted, err := convertTextRequestForUpstream(req, relaymode.ChatCompletions, relaymode.Responses)
+	if err != nil {
+		t.Fatalf("convertTextRequestForUpstream returned error: %v", err)
+	}
+	inputList, ok := converted.Input.([]any)
+	if !ok || len(inputList) != 1 {
+		t.Fatalf("converted.Input = %#v, want one-item input list", converted.Input)
+	}
+	first, ok := inputList[0].(map[string]any)
+	if !ok {
+		t.Fatalf("converted.Input[0] = %#v, want map", inputList[0])
+	}
+	contentList, ok := first["content"].([]any)
+	if !ok || len(contentList) != 1 {
+		t.Fatalf("converted.Input[0].content = %#v, want one content block", first["content"])
+	}
+	imagePart, ok := contentList[0].(map[string]any)
+	if !ok || imagePart["type"] != "input_image" || imagePart["image_url"] != "https://example.com/raw.png" {
+		t.Fatalf("contentList[0] = %#v, want input_image with image_url", contentList[0])
+	}
+}
+
 func TestConvertTextRequestForUpstreamToChat(t *testing.T) {
 	req := &relaymodel.GeneralOpenAIRequest{
 		Model:           "gpt-4.1",
@@ -190,9 +326,31 @@ func TestConvertTextRequestForUpstreamToChat(t *testing.T) {
 	}
 }
 
+func TestConvertTextRequestForUpstreamToMessagesFromInput(t *testing.T) {
+	req := &relaymodel.GeneralOpenAIRequest{
+		Model:           "claude-sonnet-4-6",
+		Input:           "hello from responses input",
+		MaxOutputTokens: func() *int { value := 320; return &value }(),
+	}
+
+	converted, err := convertTextRequestForUpstream(req, relaymode.Responses, relaymode.Messages)
+	if err != nil {
+		t.Fatalf("convertTextRequestForUpstream returned error: %v", err)
+	}
+	if converted.Input != nil {
+		t.Fatalf("converted.Input = %#v, want nil", converted.Input)
+	}
+	if len(converted.Messages) != 1 || converted.Messages[0].StringContent() != "hello from responses input" {
+		t.Fatalf("converted.Messages = %#v, want single converted user message", converted.Messages)
+	}
+	if converted.MaxTokens != 320 {
+		t.Fatalf("converted.MaxTokens = %d, want 320", converted.MaxTokens)
+	}
+}
+
 func TestNormalizeResponsesRequestBodyPreservesUnknownFields(t *testing.T) {
 	raw := []byte(`{"model":"gpt-5.2-codex","instructions":"keep me","input":"hello","tools":[{"type":"web_search"}]}`)
-	normalized, err := normalizeResponsesRequestBody(raw)
+	normalized, err := normalizeResponsesRequestBody(raw, "gpt-5.4")
 	if err != nil {
 		t.Fatalf("normalizeResponsesRequestBody returned error: %v", err)
 	}
@@ -204,6 +362,9 @@ func TestNormalizeResponsesRequestBodyPreservesUnknownFields(t *testing.T) {
 	if payload["instructions"] != "keep me" {
 		t.Fatalf("payload.instructions = %#v, want %q", payload["instructions"], "keep me")
 	}
+	if payload["model"] != "gpt-5.4" {
+		t.Fatalf("payload.model = %#v, want %q", payload["model"], "gpt-5.4")
+	}
 	input, ok := payload["input"].([]any)
 	if !ok || len(input) != 1 {
 		t.Fatalf("payload.input = %#v, want single-item array", payload["input"])
@@ -214,6 +375,52 @@ func TestNormalizeResponsesRequestBodyPreservesUnknownFields(t *testing.T) {
 	}
 	if first["role"] != "user" || first["content"] != "hello" {
 		t.Fatalf("payload.input[0] = %#v, want user message", first)
+	}
+}
+
+func TestNormalizeResponsesRequestBodyConvertsMessagesWithImageContent(t *testing.T) {
+	raw := []byte(`{
+		"model":"gpt-5.4",
+		"messages":[
+			{
+				"role":"user",
+				"content":[
+					{"type":"text","text":"what is in this image"},
+					{"type":"image_url","image_url":{"url":"https://example.com/img.png","detail":"low"}}
+				]
+			}
+		]
+	}`)
+	normalized, err := normalizeResponsesRequestBody(raw, "gpt-5.4")
+	if err != nil {
+		t.Fatalf("normalizeResponsesRequestBody returned error: %v", err)
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(normalized, &payload); err != nil {
+		t.Fatalf("json.Unmarshal normalized body returned error: %v", err)
+	}
+	if _, exists := payload["messages"]; exists {
+		t.Fatalf("payload.messages = %#v, want removed", payload["messages"])
+	}
+	input, ok := payload["input"].([]any)
+	if !ok || len(input) != 1 {
+		t.Fatalf("payload.input = %#v, want one-item array", payload["input"])
+	}
+	first, ok := input[0].(map[string]any)
+	if !ok {
+		t.Fatalf("payload.input[0] = %#v, want map", input[0])
+	}
+	content, ok := first["content"].([]any)
+	if !ok || len(content) != 2 {
+		t.Fatalf("payload.input[0].content = %#v, want two blocks", first["content"])
+	}
+	textPart, ok := content[0].(map[string]any)
+	if !ok || textPart["type"] != "input_text" || textPart["text"] != "what is in this image" {
+		t.Fatalf("content[0] = %#v, want input_text", content[0])
+	}
+	imagePart, ok := content[1].(map[string]any)
+	if !ok || imagePart["type"] != "input_image" || imagePart["image_url"] != "https://example.com/img.png" || imagePart["detail"] != "low" {
+		t.Fatalf("content[1] = %#v, want input_image", content[1])
 	}
 }
 
@@ -233,5 +440,138 @@ func TestNormalizeMessagesRequestBodyUpdatesModel(t *testing.T) {
 	}
 	if payload["stream"] != true {
 		t.Fatalf("payload.stream = %#v, want true", payload["stream"])
+	}
+}
+
+func TestNormalizeRequestBodyForResponsesConvertsToolsChoiceAndFormat(t *testing.T) {
+	raw := []byte(`{
+		"model":"gpt-5.4",
+		"max_completion_tokens":128,
+		"response_format":{
+			"type":"json_schema",
+			"json_schema":{
+				"name":"calendar_event",
+				"schema":{"type":"object","properties":{"title":{"type":"string"}},"required":["title"]},
+				"strict":true
+			}
+		},
+		"tools":[
+			{
+				"type":"function",
+				"function":{
+					"name":"lookup_weather",
+					"description":"lookup weather",
+					"parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]},
+					"strict":true
+				}
+			}
+		],
+		"tool_choice":{
+			"type":"function",
+			"function":{"name":"lookup_weather"}
+		},
+		"n":1
+	}`)
+	normalized, err := normalizeRequestBodyForResponses(raw)
+	if err != nil {
+		t.Fatalf("normalizeRequestBodyForResponses returned error: %v", err)
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(normalized, &payload); err != nil {
+		t.Fatalf("json.Unmarshal normalized body returned error: %v", err)
+	}
+	if _, exists := payload["response_format"]; exists {
+		t.Fatalf("payload.response_format should be removed, got %#v", payload["response_format"])
+	}
+	if _, exists := payload["n"]; exists {
+		t.Fatalf("payload.n should be removed, got %#v", payload["n"])
+	}
+	if payload["max_output_tokens"] != float64(128) {
+		t.Fatalf("payload.max_output_tokens = %#v, want 128", payload["max_output_tokens"])
+	}
+	if _, exists := payload["max_completion_tokens"]; exists {
+		t.Fatalf("payload.max_completion_tokens should be removed, got %#v", payload["max_completion_tokens"])
+	}
+	text, ok := payload["text"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload.text = %#v, want map", payload["text"])
+	}
+	format, ok := text["format"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload.text.format = %#v, want map", text["format"])
+	}
+	if format["type"] != "json_schema" || format["name"] != "calendar_event" || format["strict"] != true {
+		t.Fatalf("payload.text.format = %#v, want json_schema with name/strict", format)
+	}
+	tools, ok := payload["tools"].([]any)
+	if !ok || len(tools) != 1 {
+		t.Fatalf("payload.tools = %#v, want one tool", payload["tools"])
+	}
+	tool, ok := tools[0].(map[string]any)
+	if !ok {
+		t.Fatalf("payload.tools[0] = %#v, want map", tools[0])
+	}
+	if tool["type"] != "function" || tool["name"] != "lookup_weather" {
+		t.Fatalf("payload.tools[0] = %#v, want flattened function tool", tool)
+	}
+	if _, exists := tool["function"]; exists {
+		t.Fatalf("payload.tools[0].function should be removed, got %#v", tool["function"])
+	}
+	toolChoice, ok := payload["tool_choice"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload.tool_choice = %#v, want map", payload["tool_choice"])
+	}
+	if toolChoice["type"] != "function" || toolChoice["name"] != "lookup_weather" {
+		t.Fatalf("payload.tool_choice = %#v, want flattened function choice", toolChoice)
+	}
+}
+
+func TestNormalizeRequestBodyForResponsesConvertsLegacyFunctionsAndFunctionCall(t *testing.T) {
+	raw := []byte(`{
+		"model":"gpt-5.4",
+		"functions":[
+			{
+				"name":"legacy_lookup",
+				"description":"legacy",
+				"parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}
+			}
+		],
+		"function_call":{"name":"legacy_lookup"},
+		"max_tokens":64
+	}`)
+	normalized, err := normalizeRequestBodyForResponses(raw)
+	if err != nil {
+		t.Fatalf("normalizeRequestBodyForResponses returned error: %v", err)
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(normalized, &payload); err != nil {
+		t.Fatalf("json.Unmarshal normalized body returned error: %v", err)
+	}
+	if _, exists := payload["functions"]; exists {
+		t.Fatalf("payload.functions should be removed, got %#v", payload["functions"])
+	}
+	if _, exists := payload["function_call"]; exists {
+		t.Fatalf("payload.function_call should be removed, got %#v", payload["function_call"])
+	}
+	if payload["max_output_tokens"] != float64(64) {
+		t.Fatalf("payload.max_output_tokens = %#v, want 64", payload["max_output_tokens"])
+	}
+	tools, ok := payload["tools"].([]any)
+	if !ok || len(tools) != 1 {
+		t.Fatalf("payload.tools = %#v, want one legacy-converted tool", payload["tools"])
+	}
+	tool, ok := tools[0].(map[string]any)
+	if !ok {
+		t.Fatalf("payload.tools[0] = %#v, want map", tools[0])
+	}
+	if tool["type"] != "function" || tool["name"] != "legacy_lookup" {
+		t.Fatalf("payload.tools[0] = %#v, want converted legacy function", tool)
+	}
+	toolChoice, ok := payload["tool_choice"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload.tool_choice = %#v, want map", payload["tool_choice"])
+	}
+	if toolChoice["type"] != "function" || toolChoice["name"] != "legacy_lookup" {
+		t.Fatalf("payload.tool_choice = %#v, want legacy function_call conversion", toolChoice)
 	}
 }

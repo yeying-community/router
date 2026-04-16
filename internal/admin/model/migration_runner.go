@@ -198,6 +198,40 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			},
 		},
 		{
+			Version:     "202604141130_channel_model_direct_endpoints",
+			Description: "reseed channel model endpoint rows to direct upstream endpoints",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&ChannelModelEndpoint{}); err != nil {
+					return err
+				}
+				channelIDs := make([]string, 0)
+				if err := tx.Model(&Channel{}).Distinct("id").Pluck("id", &channelIDs).Error; err != nil {
+					return err
+				}
+				for _, channelID := range normalizeTrimmedValuesPreserveOrder(channelIDs) {
+					channelProtocol, err := loadChannelProtocolByChannelIDWithDB(tx, channelID)
+					if err != nil {
+						return err
+					}
+					rows := make([]ChannelModel, 0)
+					if err := tx.
+						Where("channel_id = ?", channelID).
+						Order("sort_order asc, model asc").
+						Find(&rows).Error; err != nil {
+						return err
+					}
+					for i := range rows {
+						normalizeChannelModelRow(&rows[i])
+						completeChannelModelRowDefaults(&rows[i], channelProtocol)
+					}
+					if err := SyncChannelModelEndpointsWithDB(tx, channelID, rows); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+		},
+		{
 			Version:     "202604011030_billing_currency_cny_decouple",
 			Description: "decouple CNY yyc rate from system default linkage and switch legacy default source to manual",
 			Up: func(tx *gorm.DB) error {
@@ -473,6 +507,41 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			Description: "drop legacy users daily/package emergency snapshot columns",
 			Up: func(tx *gorm.DB) error {
 				return dropLegacyUserQuotaSnapshotColumnsWithDB(tx)
+			},
+		},
+		{
+			Version:     "202604151130_channel_test_is_stream",
+			Description: "add is_stream flag to channel model test results",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelTest{})
+			},
+		},
+		{
+			Version:     "202604151900_drop_channel_model_stream_only",
+			Description: "drop legacy is_stream_only column from channel model configs",
+			Up: func(tx *gorm.DB) error {
+				return dropChannelModelStreamOnlyWithDB(tx)
+			},
+		},
+		{
+			Version:     "202604161230_group_model_providers",
+			Description: "add canonical group_model_providers table and backfill provider mapping from current abilities",
+			Up: func(tx *gorm.DB) error {
+				return migrateGroupModelProvidersWithDB(tx)
+			},
+		},
+		{
+			Version:     "202604161700_channel_model_provider_catalog_backfill",
+			Description: "rebuild channel model provider from provider catalog unique matches and resync group model provider mapping",
+			Up: func(tx *gorm.DB) error {
+				return backfillChannelModelProviderFromCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202604161830_channel_model_provider_catalog_reconcile",
+			Description: "reconcile channel/group model provider mappings strictly from provider catalog unique matches",
+			Up: func(tx *gorm.DB) error {
+				return backfillChannelModelProviderFromCatalogWithDB(tx)
 			},
 		},
 	}

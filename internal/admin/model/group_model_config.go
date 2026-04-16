@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	commonutils "github.com/yeying-community/router/common/utils"
 	"gorm.io/gorm"
 )
 
@@ -238,7 +239,10 @@ func replaceGroupModelConfigsWithDB(db *gorm.DB, groupID string, channelIDs []st
 	}
 	groupCol := `"group"`
 	if len(allowedChannelIDs) == 0 {
-		return db.Where(groupCol+" = ?", groupID).Delete(&Ability{}).Error
+		if err := db.Where(groupCol+" = ?", groupID).Delete(&Ability{}).Error; err != nil {
+			return err
+		}
+		return replaceGroupModelProvidersWithDB(db, groupID, map[string]string{})
 	}
 
 	allowedSet := make(map[string]struct{}, len(allowedChannelIDs))
@@ -292,14 +296,20 @@ func replaceGroupModelConfigsWithDB(db *gorm.DB, groupID string, channelIDs []st
 		abilities = append(abilities, buildDefaultAbilitiesForGroupChannel(groupID, channelsByID[channelID])...)
 	}
 	abilities = normalizeAbilityRowsPreserveOrder(abilities)
+	providerByModel, err := resolveGroupModelProvidersForAbilities(abilities, selectedCatalogs)
+	if err != nil {
+		return err
+	}
 
 	if err := db.Where(groupCol+" = ?", groupID).Delete(&Ability{}).Error; err != nil {
 		return err
 	}
-	if len(abilities) == 0 {
-		return nil
+	if len(abilities) > 0 {
+		if err := db.Create(&abilities).Error; err != nil {
+			return err
+		}
 	}
-	return db.Create(&abilities).Error
+	return replaceGroupModelProvidersWithDB(db, groupID, providerByModel)
 }
 
 func listGroupBoundChannelIDsWithDB(db *gorm.DB, groupID string) ([]string, error) {
@@ -432,6 +442,58 @@ func resolveGroupModelConfigPriority(item GroupModelConfigItem, channel *Channel
 	return helperInt64Pointer(channel.Priority)
 }
 
+func resolveGroupModelProvidersForAbilities(abilities []Ability, catalogs map[string]groupModelConfigChannelCatalog) (map[string]string, error) {
+	providerCandidates := make(map[string]map[string]struct{}, len(abilities))
+	modelOrder := make([]string, 0, len(abilities))
+	seenModel := make(map[string]struct{}, len(abilities))
+	for _, ability := range abilities {
+		modelName := strings.TrimSpace(ability.Model)
+		channelID := strings.TrimSpace(ability.ChannelId)
+		if modelName == "" || channelID == "" {
+			continue
+		}
+		if _, ok := seenModel[modelName]; !ok {
+			seenModel[modelName] = struct{}{}
+			modelOrder = append(modelOrder, modelName)
+		}
+		catalog, ok := catalogs[channelID]
+		if !ok {
+			continue
+		}
+		provider := catalog.ResolveProvider(GroupModelConfigItem{
+			Model:         modelName,
+			UpstreamModel: strings.TrimSpace(ability.UpstreamModel),
+		}, ability.UpstreamModel)
+		provider = commonutils.NormalizeProvider(provider)
+		if provider == "" {
+			continue
+		}
+		if _, ok := providerCandidates[modelName]; !ok {
+			providerCandidates[modelName] = make(map[string]struct{}, 1)
+		}
+		providerCandidates[modelName][provider] = struct{}{}
+	}
+
+	providerByModel := make(map[string]string, len(modelOrder))
+	for _, modelName := range modelOrder {
+		candidateSet := providerCandidates[modelName]
+		if len(candidateSet) == 0 {
+			providerByModel[modelName] = ""
+			continue
+		}
+		providers := make([]string, 0, len(candidateSet))
+		for provider := range candidateSet {
+			providers = append(providers, provider)
+		}
+		sort.Strings(providers)
+		if len(providers) > 1 {
+			return nil, fmt.Errorf("同一分组模型仅允许一个供应商: %s (%s)", modelName, strings.Join(providers, " / "))
+		}
+		providerByModel[modelName] = providers[0]
+	}
+	return providerByModel, nil
+}
+
 func helperBoolPointer(value bool) *bool {
 	result := value
 	return &result
@@ -486,23 +548,34 @@ func buildGroupModelConfigChannelModels(channel *Channel) []GroupModelConfigChan
 }
 
 type groupModelConfigChannelCatalog struct {
-	aliasToUpstream map[string]string
-	upstreamSet     map[string]struct{}
+	aliasToUpstream  map[string]string
+	upstreamSet      map[string]struct{}
+	aliasToProvider  map[string]string
+	upstreamProvider map[string]string
 }
 
 func buildGroupModelConfigChannelCatalog(channel *Channel) groupModelConfigChannelCatalog {
 	catalog := groupModelConfigChannelCatalog{
-		aliasToUpstream: make(map[string]string),
-		upstreamSet:     make(map[string]struct{}),
+		aliasToUpstream:  make(map[string]string),
+		upstreamSet:      make(map[string]struct{}),
+		aliasToProvider:  make(map[string]string),
+		upstreamProvider: make(map[string]string),
 	}
 	for _, row := range channelSelectedModelConfigs(channel) {
 		modelName := strings.TrimSpace(row.Model)
 		upstream := NormalizeAbilityUpstreamModel(modelName, row.UpstreamModel)
+		provider := commonutils.NormalizeProvider(row.Provider)
 		if modelName != "" {
 			catalog.aliasToUpstream[modelName] = upstream
+			if provider != "" {
+				catalog.aliasToProvider[modelName] = provider
+			}
 		}
 		if upstream != "" {
 			catalog.upstreamSet[upstream] = struct{}{}
+			if provider != "" {
+				catalog.upstreamProvider[upstream] = provider
+			}
 		}
 	}
 	return catalog
@@ -518,6 +591,25 @@ func (catalog groupModelConfigChannelCatalog) ResolveUpstream(item GroupModelCon
 	}
 	if resolved, ok := catalog.aliasToUpstream[strings.TrimSpace(item.Model)]; ok {
 		return resolved
+	}
+	return ""
+}
+
+func (catalog groupModelConfigChannelCatalog) ResolveProvider(item GroupModelConfigItem, resolvedUpstream string) string {
+	modelName := strings.TrimSpace(item.Model)
+	if modelName != "" {
+		if provider, ok := catalog.aliasToProvider[modelName]; ok && provider != "" {
+			return provider
+		}
+	}
+	upstream := strings.TrimSpace(resolvedUpstream)
+	if upstream == "" {
+		upstream = strings.TrimSpace(item.UpstreamModel)
+	}
+	if upstream != "" {
+		if provider, ok := catalog.upstreamProvider[upstream]; ok && provider != "" {
+			return provider
+		}
 	}
 	return ""
 }

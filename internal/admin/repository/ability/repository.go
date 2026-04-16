@@ -164,6 +164,9 @@ func DeleteAbilities(channel *model.Channel) error {
 	if err := model.DB.Where("channel_id = ?", channel.Id).Delete(&model.Ability{}).Error; err != nil {
 		return err
 	}
+	if err := model.SyncGroupModelProvidersForGroups(groups...); err != nil {
+		return err
+	}
 	model.RefreshAbilityCachesForGroups(groups...)
 	return nil
 }
@@ -198,7 +201,7 @@ func UpdateAbilities(channel *model.Channel) error {
 				return err
 			}
 		}
-		return nil
+		return model.SyncGroupModelProvidersForGroupsWithDB(tx, groups...)
 	})
 	if err != nil {
 		return err
@@ -213,6 +216,9 @@ func UpdateAbilityStatus(channelId string, status bool) error {
 		return err
 	}
 	if err := model.DB.Model(&model.Ability{}).Where("channel_id = ?", channelId).Select("enabled").Update("enabled", status).Error; err != nil {
+		return err
+	}
+	if err := model.SyncGroupModelProvidersForGroups(groups...); err != nil {
 		return err
 	}
 	model.RefreshAbilityCachesForGroups(groups...)

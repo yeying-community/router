@@ -22,6 +22,7 @@ func runMainBaselineMigrationWithDB(tx *gorm.DB) error {
 		&Token{},
 		&Redemption{},
 		&Ability{},
+		&GroupModelProvider{},
 		&Option{},
 		&Provider{},
 		&ProviderModel{},

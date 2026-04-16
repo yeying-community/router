@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/yeying-community/router/common/helper"
@@ -16,6 +17,7 @@ type channelModelTestTaskPayload struct {
 	ChannelID string `json:"channel_id"`
 	Model     string `json:"model"`
 	Endpoint  string `json:"endpoint"`
+	IsStream  *bool  `json:"is_stream,omitempty"`
 }
 
 type channelRefreshModelsTaskPayload struct {
@@ -26,10 +28,20 @@ type channelRefreshBalanceTaskPayload struct {
 	ChannelID string `json:"channel_id"`
 }
 
-func buildChannelModelTestTaskDedupeKey(channelID string, row model.ChannelModel) string {
+func buildChannelModelTestTaskDedupeKey(channelID string, row model.ChannelModel, streamOverride *bool) string {
 	modelID := strings.TrimSpace(row.Model)
 	endpoint := model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), row.Endpoint)
-	return fmt.Sprintf("%s:%s:%s:%s", model.AsyncTaskTypeChannelModelTest, strings.TrimSpace(channelID), modelID, endpoint)
+	if streamOverride == nil {
+		return fmt.Sprintf("%s:%s:%s:%s", model.AsyncTaskTypeChannelModelTest, strings.TrimSpace(channelID), modelID, endpoint)
+	}
+	return fmt.Sprintf(
+		"%s:%s:%s:%s:%t",
+		model.AsyncTaskTypeChannelModelTest,
+		strings.TrimSpace(channelID),
+		modelID,
+		endpoint,
+		*streamOverride,
+	)
 }
 
 func buildChannelRefreshModelsTaskDedupeKey(channelID string) string {
@@ -40,7 +52,7 @@ func buildChannelRefreshBalanceTaskDedupeKey(channelID string) string {
 	return fmt.Sprintf("%s:%s", model.AsyncTaskTypeChannelRefreshBalance, strings.TrimSpace(channelID))
 }
 
-func buildChannelModelTestTaskPayload(row model.ChannelModel, channelID string, endpointOverride string) string {
+func buildChannelModelTestTaskPayload(row model.ChannelModel, channelID string, endpointOverride string, streamOverride *bool) string {
 	endpoint := model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), endpointOverride)
 	if strings.TrimSpace(endpointOverride) == "" {
 		endpoint = model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), row.Endpoint)
@@ -49,6 +61,7 @@ func buildChannelModelTestTaskPayload(row model.ChannelModel, channelID string, 
 		ChannelID: strings.TrimSpace(channelID),
 		Model:     strings.TrimSpace(row.Model),
 		Endpoint:  endpoint,
+		IsStream:  streamOverride,
 	})
 }
 
@@ -73,26 +86,29 @@ func CreateChannelModelTestTasks(channelID string, createdBy string, requestedTe
 	createdCount := 0
 	reusedCount := 0
 	endpointOverrides := make(map[string]string, len(requestedConfigs))
+	streamOverrides := make(map[string]*bool, len(requestedConfigs))
 	for _, item := range requestedConfigs {
 		modelID := strings.TrimSpace(item.Model)
 		if modelID == "" {
 			continue
 		}
 		endpointOverrides[modelID] = strings.TrimSpace(item.Endpoint)
+		streamOverrides[modelID] = item.IsStream
 	}
 	for _, row := range targetRows {
 		endpoint := endpointOverrides[strings.TrimSpace(row.Model)]
 		if endpoint != "" {
 			row.Endpoint = endpoint
 		}
+		stream := streamOverrides[strings.TrimSpace(row.Model)]
 		normalizedEndpoint := model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), row.Endpoint)
 		task, reused, err := model.CreateOrReuseAsyncTaskWithDB(model.DB, model.AsyncTask{
 			Type:      model.AsyncTaskTypeChannelModelTest,
-			DedupeKey: buildChannelModelTestTaskDedupeKey(normalizedChannelID, row),
+			DedupeKey: buildChannelModelTestTaskDedupeKey(normalizedChannelID, row, stream),
 			ChannelId: normalizedChannelID,
 			Model:     strings.TrimSpace(row.Model),
 			Endpoint:  normalizedEndpoint,
-			Payload:   buildChannelModelTestTaskPayload(row, normalizedChannelID, endpoint),
+			Payload:   buildChannelModelTestTaskPayload(row, normalizedChannelID, endpoint, stream),
 			CreatedBy: strings.TrimSpace(createdBy),
 			TraceID:   strings.TrimSpace(traceID),
 		})
@@ -192,7 +208,7 @@ func executeChannelModelTestTask(ctx context.Context, task *model.AsyncTask) (st
 	if endpoint := strings.TrimSpace(payload.Endpoint); endpoint != "" {
 		row.Endpoint = endpoint
 	}
-	testResult, execution := runSingleChannelModelTestWithContext(ctx, channelRow, row)
+	testResult, execution := runSingleChannelModelTestWithContextAndStream(ctx, channelRow, row, payload.IsStream)
 	testResult.ChannelId = channelID
 	persistChannelTestArtifactForExecution(ctx, task.Id, &testResult, &execution)
 	logChannelAsyncTestExecution(task, testResult, execution)
@@ -203,6 +219,7 @@ func executeChannelModelTestTask(ctx context.Context, task *model.AsyncTask) (st
 		"channel_id": channelID,
 		"model":      testResult.Model,
 		"endpoint":   testResult.Endpoint,
+		"is_stream":  testResult.IsStream,
 		"status":     testResult.Status,
 		"supported":  testResult.Supported,
 		"message":    testResult.Message,
@@ -285,6 +302,7 @@ func logChannelAsyncTestExecution(task *model.AsyncTask, result model.ChannelTes
 		stringField("upstream_model", result.UpstreamModel),
 		stringField("type", result.Type),
 		stringField("endpoint", result.Endpoint),
+		stringField("is_stream", strconv.FormatBool(result.IsStream)),
 		stringField("status", result.Status),
 		int64Field("latency_ms", result.LatencyMs),
 		stringField("message", result.Message),

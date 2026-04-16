@@ -197,6 +197,35 @@ const normalizeChannelModelEndpoint = (type, value, protocol) => {
   return defaultChannelModelEndpoint(normalizedType, protocol);
 };
 
+const normalizeChannelModelEndpoints = (type, endpoints, endpoint, protocol) => {
+  const candidates = [];
+  if (Array.isArray(endpoints)) {
+    endpoints.forEach((item) => {
+      candidates.push(item);
+    });
+  }
+  if ((endpoint || '').toString().trim() !== '') {
+    candidates.push(endpoint);
+  }
+  if (candidates.length === 0) {
+    candidates.push(defaultChannelModelEndpoint(type, protocol));
+  }
+  const seen = new Set();
+  const result = [];
+  candidates.forEach((item) => {
+    const normalized = normalizeChannelModelEndpoint(type, item, protocol);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    result.push(normalized);
+  });
+  if (result.length === 0) {
+    result.push(defaultChannelModelEndpoint(type, protocol));
+  }
+  return result;
+};
+
 const CHANNEL_MODEL_TYPE_OPTIONS = [
   { key: 'text', value: 'text', text: 'text' },
   { key: 'image', value: 'image', text: 'image' },
@@ -220,6 +249,17 @@ const IMAGE_MODEL_ENDPOINT_OPTIONS = [
   { key: 'images_edits', value: '/v1/images/edits', text: '/v1/images/edits' },
   { key: 'batches', value: '/v1/batches', text: '/v1/batches' },
 ];
+
+const endpointOptionsForModelType = (type) => {
+  const normalizedType = normalizeChannelModelType(type);
+  if (normalizedType === 'image') {
+    return IMAGE_MODEL_ENDPOINT_OPTIONS;
+  }
+  if (normalizedType === 'text') {
+    return TEXT_MODEL_ENDPOINT_OPTIONS;
+  }
+  return [];
+};
 
 const CHANNEL_MODEL_PAGE_SIZE = 10;
 
@@ -572,14 +612,29 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
   if (!model) {
     return null;
   }
+  const normalizedEndpoints = normalizeChannelModelEndpoints(
+    row.type,
+    row.endpoints || row.endpoint_list || [],
+    row.endpoint,
+    protocol,
+  );
+  const normalizedEndpointCandidate = normalizeChannelModelEndpoint(
+    row.type,
+    row.endpoint,
+    protocol,
+  );
   return {
     model,
     upstream_model: upstreamModel || model,
     provider: normalizeChannelModelProviderValue(row.provider),
     type: normalizeChannelModelType(row.type),
-    endpoint: normalizeChannelModelEndpoint(row.type, row.endpoint, protocol),
+    endpoint: normalizedEndpoints.includes(normalizedEndpointCandidate)
+      ? normalizedEndpointCandidate
+      : normalizedEndpoints[0],
+    endpoints: normalizedEndpoints,
     inactive: row.inactive === true,
     selected: row.selected === true,
+    is_stream: row.is_stream === true || row.isStream === true,
     input_price: normalizePriceOverrideValue(row.input_price),
     output_price: normalizePriceOverrideValue(row.output_price),
     price_unit: normalizePriceUnitValue(row.price_unit),
@@ -849,7 +904,15 @@ const buildChannelModelTestSignature = ({
     protocol,
   )
     .filter((row) => row.selected)
-    .map((row) => `${row.model}:${row.type}:${row.endpoint || ''}`)
+    .map(
+      (row) =>
+        `${row.model}:${row.type}:${normalizeChannelModelEndpoints(
+          row.type,
+          row.endpoints,
+          row.endpoint,
+          protocol,
+        ).join('|')}`,
+    )
     .join(',')}`;
 
 const normalizeModelTestResults = (results) => {
@@ -861,24 +924,38 @@ const normalizeModelTestResults = (results) => {
       (item) =>
         item && typeof item === 'object' && typeof item.model === 'string',
     )
-    .map((item) => ({
-      channel_id: (item.channel_id || '').toString().trim(),
-      model: item.model || '',
-      upstream_model: item.upstream_model || '',
-      type: normalizeChannelModelType(item.type),
-      endpoint: item.endpoint || '',
-      status: item.status || 'unsupported',
-      supported: !!item.supported,
-      message: item.message || '',
-      latency_ms: Number(item.latency_ms || 0),
-      tested_at: Number(item.tested_at || 0),
-      artifact_path: (item.artifact_path || '').toString().trim(),
-      artifact_name: (item.artifact_name || '').toString().trim(),
-      artifact_content_type: (item.artifact_content_type || '')
-        .toString()
-        .trim(),
-      artifact_size: Number(item.artifact_size || 0),
-    }));
+    .map((item) => {
+      const hasIsStream =
+        Object.prototype.hasOwnProperty.call(item, 'is_stream') ||
+        Object.prototype.hasOwnProperty.call(item, 'isStream');
+      const rawIsStream = hasIsStream
+        ? item.is_stream ?? item.isStream
+        : null;
+      return {
+        channel_id: (item.channel_id || '').toString().trim(),
+        model: item.model || '',
+        upstream_model: item.upstream_model || '',
+        type: normalizeChannelModelType(item.type),
+        endpoint: item.endpoint || '',
+        is_stream:
+          rawIsStream === true
+            ? true
+            : rawIsStream === false
+              ? false
+              : null,
+        status: item.status || 'unsupported',
+        supported: !!item.supported,
+        message: item.message || '',
+        latency_ms: Number(item.latency_ms || 0),
+        tested_at: Number(item.tested_at || 0),
+        artifact_path: (item.artifact_path || '').toString().trim(),
+        artifact_name: (item.artifact_name || '').toString().trim(),
+        artifact_content_type: (item.artifact_content_type || '')
+          .toString()
+          .trim(),
+        artifact_size: Number(item.artifact_size || 0),
+      };
+    });
 };
 
 const buildModelTestResultKey = (modelName, endpoint) =>
@@ -1683,6 +1760,32 @@ const EditChannel = () => {
     }
     return parts.filter(Boolean).join(' · ');
   }, [modelAssignmentSummaryText, modelSelectionSummaryText]);
+
+  const createStepCurrentPageSelectableModels = useMemo(() => {
+    if (isDetailMode) {
+      return [];
+    }
+    return renderedModelConfigs.filter((row) => canSelectChannelModel(row));
+  }, [canSelectChannelModel, isDetailMode, renderedModelConfigs]);
+
+  const createStepCurrentPageAllSelected = useMemo(() => {
+    return (
+      createStepCurrentPageSelectableModels.length > 0 &&
+      createStepCurrentPageSelectableModels.every((row) => row.selected === true)
+    );
+  }, [createStepCurrentPageSelectableModels]);
+
+  const createStepCurrentPagePartiallySelected = useMemo(() => {
+    if (createStepCurrentPageAllSelected) {
+      return false;
+    }
+    return createStepCurrentPageSelectableModels.some(
+      (row) => row.selected === true,
+    );
+  }, [
+    createStepCurrentPageAllSelected,
+    createStepCurrentPageSelectableModels,
+  ]);
 
   const handleInputChange = (e, { name, value }) => {
     const nextValue = name === 'id' ? normalizeChannelIdentifier(value) : value;
@@ -2972,6 +3075,7 @@ const EditChannel = () => {
             row.endpoint,
             inputs.protocol,
           ),
+          is_stream: !!row.is_stream,
         }));
       setModelTesting(true);
       setModelTestingScope(scope === 'single' ? 'single' : 'batch');
@@ -3071,15 +3175,46 @@ const EditChannel = () => {
         if (row.model !== modelName) {
           return row;
         }
+        const nextEndpoint = normalizeChannelModelEndpoint(
+          row.type,
+          endpoint,
+          inputs.protocol,
+        );
         return {
           ...row,
-          endpoint: normalizeChannelModelEndpoint(
+          endpoint: nextEndpoint,
+          endpoints: normalizeChannelModelEndpoints(
             row.type,
-            endpoint,
+            row.endpoints,
+            nextEndpoint,
             inputs.protocol,
           ),
         };
       });
+      if (isDetailMode) {
+        await persistDetailModelConfigs(nextConfigs);
+        return;
+      }
+      setInputs((prev) =>
+        buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
+      );
+    },
+    [
+      detailTestingReadonly,
+      isDetailMode,
+      persistDetailModelConfigs,
+      visibleModelConfigs,
+    ],
+  );
+
+  const updateModelTestStream = useCallback(
+    async (modelName, isStream) => {
+      if (detailTestingReadonly) {
+        return;
+      }
+      const nextConfigs = visibleModelConfigs.map((row) =>
+        row.model === modelName ? { ...row, is_stream: !!isStream } : row,
+      );
       if (isDetailMode) {
         await persistDetailModelConfigs(nextConfigs);
         return;
@@ -3253,6 +3388,40 @@ const EditChannel = () => {
                 provider: normalizeChannelModelProviderValue(value),
               };
             }
+            if (field === 'endpoint') {
+              const nextEndpoint = normalizeChannelModelEndpoint(
+                row.type,
+                value,
+                prev.protocol,
+              );
+              const nextEndpoints = normalizeChannelModelEndpoints(
+                row.type,
+                row.endpoints,
+                nextEndpoint,
+                prev.protocol,
+              );
+              return {
+                ...row,
+                endpoint: nextEndpoint,
+                endpoints: nextEndpoints,
+              };
+            }
+            if (field === 'endpoints') {
+              const nextEndpoints = normalizeChannelModelEndpoints(
+                row.type,
+                Array.isArray(value) ? value : [],
+                row.endpoint,
+                prev.protocol,
+              );
+              const nextEndpoint = nextEndpoints.includes(row.endpoint)
+                ? row.endpoint
+                : nextEndpoints[0];
+              return {
+                ...row,
+                endpoint: nextEndpoint,
+                endpoints: nextEndpoints,
+              };
+            }
             return {
               ...row,
               [field]: value,
@@ -3265,35 +3434,50 @@ const EditChannel = () => {
     [detailEditingModelKey, detailModelsEditing, isDetailMode, visibleModelConfigs],
   );
 
-  const selectAllModels = useCallback(() => {
-    const nextConfigs = visibleModelConfigs.map((row) => ({
-      ...row,
-      selected: canSelectChannelModel(row),
-    }));
-    if (isDetailMode) {
-      return;
-    }
-    setInputs((prev) =>
-      buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
-    );
-  }, [
-    canSelectChannelModel,
-    isDetailMode,
-    visibleModelConfigs,
-  ]);
+  const renderModelToggleCells = useCallback(
+    ({
+      row,
+      canSelect,
+      selectDisabled = false,
+      inDetailMode = false,
+    }) => {
+      const selectCellClassName = inDetailMode
+        ? 'router-cell-checkbox'
+        : undefined;
+      return (
+        <Table.Cell textAlign='center' className={selectCellClassName}>
+          <Checkbox
+            checked={!!row.selected}
+            disabled={selectDisabled || (!canSelect && !row.selected)}
+            onChange={(e, { checked }) =>
+              toggleModelSelection(row.upstream_model, checked)
+            }
+          />
+        </Table.Cell>
+      );
+    },
+    [toggleModelSelection],
+  );
 
-  const clearSelectedModels = useCallback(() => {
-    const nextConfigs = visibleModelConfigs.map((row) => ({
-      ...row,
-      selected: false,
-    }));
-    if (isDetailMode) {
-      return;
-    }
-    setInputs((prev) =>
-      buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
-    );
-  }, [isDetailMode, visibleModelConfigs]);
+  const toggleCreateStepCurrentPageSelections = useCallback(
+    (checked) => {
+      const targetIDs = new Set(
+        createStepCurrentPageSelectableModels.map((row) => row.upstream_model),
+      );
+      if (targetIDs.size === 0) {
+        return;
+      }
+      const nextConfigs = visibleModelConfigs.map((row) =>
+        targetIDs.has(row.upstream_model)
+          ? { ...row, selected: !!checked }
+          : row,
+      );
+      setInputs((prev) =>
+        buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
+      );
+    },
+    [createStepCurrentPageSelectableModels, visibleModelConfigs],
+  );
 
   useEffect(() => {
     const selectedModels = visibleModelConfigs
@@ -3729,6 +3913,35 @@ const EditChannel = () => {
                     readOnly
                   />
                 </Form.Group>
+                {(detailEditingModelRow.type === 'text' ||
+                  detailEditingModelRow.type === 'image') && (
+                  <Form.Field>
+                    <label>{t('channel.edit.model_tester.table.endpoint')}</label>
+                    <Dropdown
+                      selection
+                      fluid
+                      multiple
+                      className='router-modal-dropdown'
+                      options={endpointOptionsForModelType(
+                        detailEditingModelRow.type,
+                      )}
+                      value={normalizeChannelModelEndpoints(
+                        detailEditingModelRow.type,
+                        detailEditingModelRow.endpoints,
+                        detailEditingModelRow.endpoint,
+                        inputs.protocol,
+                      )}
+                      disabled={detailModelMutating}
+                      onChange={(e, { value }) =>
+                        updateModelConfigField(
+                          detailEditingModelRow.upstream_model,
+                          'endpoints',
+                          value,
+                        )
+                      }
+                    />
+                  </Form.Field>
+                )}
                 <Form.Field>
                   <label>{t('channel.edit.model_selector.table.providers')}</label>
                   <div className='router-channel-model-editor-provider-row'>
@@ -4937,9 +5150,9 @@ const EditChannel = () => {
                         compact='very'
                         style={{ tableLayout: 'fixed' }}
                       >
-                        <Table.Header>
-                          <Table.Row>
-                            <Table.HeaderCell width={1} textAlign='center'>
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.HeaderCell width={1} textAlign='center'>
                               {t('channel.edit.model_selector.table.selected')}
                             </Table.HeaderCell>
                             <Table.HeaderCell width={3}>
@@ -5012,27 +5225,15 @@ const EditChannel = () => {
                                 <Table.Row
                                   key={`${row.upstream_model}-${row.model}`}
                                 >
-                                  <Table.Cell
-                                    textAlign='center'
-                                    className='router-cell-checkbox'
-                                  >
-                                    <Checkbox
-                                      checked={!!row.selected}
-                                      disabled={
-                                        detailModelMutating ||
-                                        detailModelsEditing ||
-                                        providerCatalogLoading ||
-                                        (!canSelectChannelModel(row) &&
-                                          !row.selected)
-                                      }
-                                      onChange={(e, { checked }) =>
-                                        toggleModelSelection(
-                                          row.upstream_model,
-                                          checked,
-                                        )
-                                      }
-                                    />
-                                  </Table.Cell>
+                                  {renderModelToggleCells({
+                                    row,
+                                    canSelect: canSelectChannelModel(row),
+                                    selectDisabled:
+                                      detailModelMutating ||
+                                      detailModelsEditing ||
+                                      providerCatalogLoading,
+                                    inDetailMode: true,
+                                  })}
                                   <Table.Cell
                                     title={row.upstream_model}
                                     className='router-cell-truncate'
@@ -5222,22 +5423,6 @@ const EditChannel = () => {
                         >
                           {fetchModelsButtonText}
                         </Button>
-                        <Button
-                          type='button'
-                          className='router-page-button'
-                          onClick={selectAllModels}
-                          disabled={visibleModelConfigs.length === 0}
-                        >
-                          {t('channel.edit.buttons.select_all')}
-                        </Button>
-                        <Button
-                          type='button'
-                          className='router-page-button'
-                          onClick={clearSelectedModels}
-                          disabled={inputs.models.length === 0}
-                        >
-                          {t('channel.edit.buttons.clear')}
-                        </Button>
                         <Form.Input
                           className='router-section-input router-search-form-sm'
                           icon='search'
@@ -5253,10 +5438,29 @@ const EditChannel = () => {
                       </div>
                     </div>
                     <Table celled stackable className='router-detail-table'>
-                      <Table.Header>
+                        <Table.Header>
                         <Table.Row>
                           <Table.HeaderCell width={1} textAlign='center'>
-                            {t('channel.edit.model_selector.table.selected')}
+                            <div className='router-model-header-checkbox'>
+                              <span className='router-model-header-checkbox-label'>
+                                {t('channel.edit.model_selector.table.selected')}
+                              </span>
+                              <Checkbox
+                                checked={createStepCurrentPageAllSelected}
+                                indeterminate={
+                                  createStepCurrentPagePartiallySelected
+                                }
+                                disabled={
+                                  createStepCurrentPageSelectableModels.length ===
+                                  0
+                                }
+                                onChange={(e, { checked }) =>
+                                  toggleCreateStepCurrentPageSelections(
+                                    !!checked,
+                                  )
+                                }
+                              />
+                            </div>
                           </Table.HeaderCell>
                           <Table.HeaderCell width={5}>
                             {t('channel.edit.model_selector.table.name')}
@@ -5320,18 +5524,10 @@ const EditChannel = () => {
                               <Table.Row
                                 key={`${row.upstream_model}-${row.model}`}
                               >
-                                <Table.Cell textAlign='center'>
-                                  <Checkbox
-                                    checked={!!row.selected}
-                                    disabled={!canSelectRow && !row.selected}
-                                    onChange={(e, { checked }) =>
-                                      toggleModelSelection(
-                                        row.upstream_model,
-                                        checked,
-                                      )
-                                    }
-                                  />
-                                </Table.Cell>
+                                {renderModelToggleCells({
+                                  row,
+                                  canSelect: canSelectRow,
+                                })}
                                 <Table.Cell title={row.upstream_model}>
                                   <span className='router-nowrap'>
                                     {row.upstream_model}
@@ -5625,6 +5821,9 @@ const EditChannel = () => {
                               {t('channel.edit.model_tester.table.endpoint')}
                             </Table.HeaderCell>
                             <Table.HeaderCell collapsing>
+                              {t('channel.edit.model_tester.table.is_stream')}
+                            </Table.HeaderCell>
+                            <Table.HeaderCell collapsing>
                               {t('channel.edit.model_tester.table.status')}
                             </Table.HeaderCell>
                             <Table.HeaderCell collapsing>
@@ -5641,7 +5840,7 @@ const EditChannel = () => {
                         <Table.Body>
                           {modelTestRows.length === 0 ? (
                             <Table.Row>
-                              <Table.Cell className='router-empty-cell' colSpan='8'>
+                              <Table.Cell className='router-empty-cell' colSpan='9'>
                                 {t('channel.edit.model_tester.empty')}
                               </Table.Cell>
                             </Table.Row>
@@ -5751,6 +5950,18 @@ const EditChannel = () => {
                                     ) : (
                                       row.endpoint || '-'
                                     )}
+                                  </Table.Cell>
+                                  <Table.Cell textAlign='center'>
+                                    <Checkbox
+                                      checked={!!row.is_stream}
+                                      disabled={
+                                        detailTestingReadonly ||
+                                        detailModelMutating
+                                      }
+                                      onChange={(e, { checked }) =>
+                                        updateModelTestStream(row.model, !!checked)
+                                      }
+                                    />
                                   </Table.Cell>
                                   <Table.Cell>
                                     <Label
@@ -5940,6 +6151,9 @@ const EditChannel = () => {
                             {t('channel.edit.model_tester.table.endpoint')}
                           </Table.HeaderCell>
                           <Table.HeaderCell collapsing>
+                            {t('channel.edit.model_tester.table.is_stream')}
+                          </Table.HeaderCell>
+                          <Table.HeaderCell collapsing>
                             {t('channel.edit.model_tester.table.status')}
                           </Table.HeaderCell>
                           <Table.HeaderCell collapsing>
@@ -5956,7 +6170,7 @@ const EditChannel = () => {
                       <Table.Body>
                         {modelTestRows.length === 0 ? (
                           <Table.Row>
-                            <Table.Cell className='router-empty-cell' colSpan='8'>
+                            <Table.Cell className='router-empty-cell' colSpan='9'>
                               {t('channel.edit.model_tester.empty')}
                             </Table.Cell>
                           </Table.Row>
@@ -6054,6 +6268,15 @@ const EditChannel = () => {
                                   ) : (
                                     row.endpoint || '-'
                                   )}
+                                </Table.Cell>
+                                <Table.Cell textAlign='center'>
+                                  <Checkbox
+                                    checked={!!row.is_stream}
+                                    disabled={detailModelMutating}
+                                    onChange={(e, { checked }) =>
+                                      updateModelTestStream(row.model, !!checked)
+                                    }
+                                  />
                                 </Table.Cell>
                                 <Table.Cell>
                                   <Label

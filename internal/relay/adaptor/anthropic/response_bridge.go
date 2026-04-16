@@ -20,12 +20,28 @@ func copyResponseHeaders(target *gin.Context, source http.Header) {
 		if len(values) == 0 {
 			continue
 		}
-		if strings.EqualFold(key, "Content-Length") {
+		if shouldSkipUpstreamResponseHeader(key) {
 			continue
 		}
 		for _, value := range values {
 			target.Writer.Header().Add(key, value)
 		}
+	}
+}
+
+func shouldSkipUpstreamResponseHeader(key string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(key))
+	if normalized == "" {
+		return true
+	}
+	if strings.HasPrefix(normalized, "access-control-") {
+		return true
+	}
+	switch normalized {
+	case "connection", "content-length", "transfer-encoding":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -254,7 +270,7 @@ func relayMessagesStreamAsChatResponse(c *gin.Context, resp *http.Response, prom
 		if len(values) == 0 {
 			continue
 		}
-		if strings.EqualFold(key, "Content-Type") || strings.EqualFold(key, "Content-Length") {
+		if strings.EqualFold(key, "Content-Type") || shouldSkipUpstreamResponseHeader(key) {
 			continue
 		}
 		c.Writer.Header().Set(key, values[0])

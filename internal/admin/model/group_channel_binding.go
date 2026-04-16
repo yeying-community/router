@@ -148,10 +148,12 @@ func replaceGroupChannelBindingsWithDB(db *gorm.DB, groupID string, channelIDs [
 	if err := db.Where(groupCol+" = ?", groupID).Delete(&Ability{}).Error; err != nil {
 		return err
 	}
-	if len(abilities) == 0 {
-		return nil
+	if len(abilities) > 0 {
+		if err := db.Create(&abilities).Error; err != nil {
+			return err
+		}
 	}
-	return db.Create(&abilities).Error
+	return SyncGroupModelProvidersForGroupsWithDB(db, groupID)
 }
 
 func loadEnabledChannelsByIDWithDB(db *gorm.DB, channelIDs []string) (map[string]*Channel, error) {

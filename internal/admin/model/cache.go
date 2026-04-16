@@ -272,6 +272,46 @@ func CacheListSatisfiedChannelsForRequest(group string, model string, requestPat
 	return cacheFilterChannelsByRequestEndpoint(channels, model, requestPath)
 }
 
+func CacheGetChannelModelEndpointSupport(channelID string, modelCandidates ...string) map[string]bool {
+	normalizedChannelID := strings.TrimSpace(channelID)
+	normalizedCandidates := normalizeTrimmedValuesPreserveOrder(modelCandidates)
+	if normalizedChannelID == "" || len(normalizedCandidates) == 0 {
+		return nil
+	}
+	if config.MemoryCacheEnabled {
+		channelSyncLock.RLock()
+		modelMap := channel2model2endpointEnabled[normalizedChannelID]
+		for _, modelName := range normalizedCandidates {
+			if endpointMap, ok := modelMap[modelName]; ok && len(endpointMap) > 0 {
+				result := make(map[string]bool, len(endpointMap))
+				for endpoint, enabled := range endpointMap {
+					result[endpoint] = enabled
+				}
+				channelSyncLock.RUnlock()
+				return result
+			}
+		}
+		channelSyncLock.RUnlock()
+	}
+	for _, modelName := range normalizedCandidates {
+		supportByChannelID, err := listChannelModelEndpointSupportByChannelIDsWithDB(DB, []string{normalizedChannelID}, modelName)
+		if err != nil {
+			logger.SysError("load channel model endpoint support failed: " + err.Error())
+			continue
+		}
+		endpointMap := supportByChannelID[normalizedChannelID]
+		if len(endpointMap) == 0 {
+			continue
+		}
+		result := make(map[string]bool, len(endpointMap))
+		for endpoint, enabled := range endpointMap {
+			result[endpoint] = enabled
+		}
+		return result
+	}
+	return nil
+}
+
 func CacheGetGroupModelMapping(group string, modelName string, channelID string) map[string]string {
 	group = strings.TrimSpace(group)
 	modelName = strings.TrimSpace(modelName)

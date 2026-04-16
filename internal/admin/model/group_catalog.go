@@ -539,6 +539,9 @@ func deleteGroupCatalogWithDB(db *gorm.DB, id string) ([]string, error) {
 		if err := tx.Where(groupCol+" IN ?", groupRefValues).Delete(&Ability{}).Error; err != nil {
 			return err
 		}
+		if err := tx.Where(groupCol+" IN ?", groupRefValues).Delete(&GroupModelProvider{}).Error; err != nil {
+			return err
+		}
 		return tx.Where("id = ?", row.Id).Delete(&GroupCatalog{}).Error
 	}); err != nil {
 		return nil, err

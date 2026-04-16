@@ -135,7 +135,7 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 			respErr, usage := StreamResponsesAsChatHandler(c, resp, meta.ActualModelName, meta.PromptTokens)
 			return usage, respErr
 		}
-		return relayResponsesStreamAsChatResponse(c, resp, meta.ActualModelName, meta.PromptTokens)
+		return relayResponsesAsChatResponse(c, resp, meta.ActualModelName, meta.PromptTokens)
 	}
 	if meta.Mode == relaymode.Responses && upstreamMode == relaymode.ChatCompletions {
 		if meta.IsStream {
@@ -187,12 +187,7 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 }
 
 func relayRawResponse(c *gin.Context, resp *http.Response) *model.ErrorWithStatusCode {
-	for k, v := range resp.Header {
-		if len(v) == 0 {
-			continue
-		}
-		c.Writer.Header().Set(k, v[0])
-	}
+	copyUpstreamResponseHeaders(c, resp.Header, false)
 	c.Writer.WriteHeader(resp.StatusCode)
 	_, err := io.Copy(c.Writer, resp.Body)
 	if err != nil {
@@ -239,12 +234,7 @@ func relayMessagesResponse(c *gin.Context, resp *http.Response, promptTokens int
 	if err := resp.Body.Close(); err != nil {
 		return nil, ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
 	}
-	for k, v := range resp.Header {
-		if len(v) == 0 {
-			continue
-		}
-		c.Writer.Header().Set(k, v[0])
-	}
+	copyUpstreamResponseHeaders(c, resp.Header, false)
 	c.Writer.WriteHeader(resp.StatusCode)
 	if _, err := c.Writer.Write(responseBody); err != nil {
 		return nil, ErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError)
@@ -286,12 +276,7 @@ func relayMessagesStreamResponse(c *gin.Context, resp *http.Response, promptToke
 	if resp == nil {
 		return nil, ErrorWrapper(errors.New("resp is nil"), "nil_response", http.StatusInternalServerError)
 	}
-	for k, v := range resp.Header {
-		if len(v) == 0 {
-			continue
-		}
-		c.Writer.Header().Set(k, v[0])
-	}
+	copyUpstreamResponseHeaders(c, resp.Header, false)
 	c.Writer.WriteHeader(resp.StatusCode)
 
 	scanner := bufio.NewScanner(resp.Body)
@@ -418,12 +403,7 @@ func relayResponsesResponse(c *gin.Context, resp *http.Response) (*model.Usage, 
 	}
 	var envelope responsesEnvelope
 	_ = json.Unmarshal(responseBody, &envelope)
-	for k, v := range resp.Header {
-		if len(v) == 0 {
-			continue
-		}
-		c.Writer.Header().Set(k, v[0])
-	}
+	copyUpstreamResponseHeaders(c, resp.Header, false)
 	c.Writer.WriteHeader(resp.StatusCode)
 	if _, err := c.Writer.Write(responseBody); err != nil {
 		return nil, ErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError)

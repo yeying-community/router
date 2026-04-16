@@ -238,8 +238,9 @@ func buildSelectedModelTestSignature(channel *model.Channel) string {
 		if upstreamModel == "" {
 			upstreamModel = modelID
 		}
-		endpoint := strings.TrimSpace(row.Endpoint)
-		parts = append(parts, modelID+"=>"+upstreamModel+"#"+modelType+"@"+endpoint)
+		endpoints := model.NormalizeChannelModelDirectEndpoints(modelType, row.Endpoints, row.Endpoint)
+		endpointSignature := strings.Join(endpoints, "|")
+		parts = append(parts, modelID+"=>"+upstreamModel+"#"+modelType+"@"+endpointSignature)
 	}
 	return strings.Join(parts, "|")
 }

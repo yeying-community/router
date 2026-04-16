@@ -687,6 +687,7 @@
           "model": "Model",
           "type": "Type",
           "endpoint": "Endpoint",
+          "is_stream": "Stream",
           "status": "Status",
           "latency": "Latency",
           "message": "Message",

@@ -1950,6 +1950,17 @@ code {
     width: 72px;
 }
 
+.router-model-header-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.router-model-header-checkbox-label {
+    white-space: nowrap;
+}
+
 .router-nowrap {
     white-space: nowrap;
 }
