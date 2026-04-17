@@ -16,14 +16,22 @@ func TestBuildOpenAIModelsForRequestOwnedByFromProviderStats(t *testing.T) {
 	c.Set(ctxkey.AvailableModels, "gpt-5.4,claude-sonnet-4-6")
 
 	original := loadGroupModelProvidersFn
+	originalEndpoints := loadGroupModelSupportedEndpointsFn
 	loadGroupModelProvidersFn = func(groupID string, modelNames []string) (map[string]string, error) {
 		return map[string]string{
 			"gpt-5.4":           "openai",
 			"claude-sonnet-4-6": "anthropic",
 		}, nil
 	}
+	loadGroupModelSupportedEndpointsFn = func(groupID string, modelNames []string) (map[string][]string, error) {
+		return map[string][]string{
+			"gpt-5.4":           {"/v1/responses", "/v1/chat/completions"},
+			"claude-sonnet-4-6": {"/v1/messages"},
+		}, nil
+	}
 	t.Cleanup(func() {
 		loadGroupModelProvidersFn = original
+		loadGroupModelSupportedEndpointsFn = originalEndpoints
 	})
 
 	items, itemMap, err := buildOpenAIModelsForRequest(c)
@@ -38,6 +46,12 @@ func TestBuildOpenAIModelsForRequestOwnedByFromProviderStats(t *testing.T) {
 	}
 	if got := itemMap["claude-sonnet-4-6"].OwnedBy; got != "anthropic" {
 		t.Fatalf("claude-sonnet-4-6 owned_by = %q, want %q", got, "anthropic")
+	}
+	if got := itemMap["gpt-5.4"].SupportedEndpoints; len(got) != 2 || got[0] != "/v1/chat/completions" || got[1] != "/v1/responses" {
+		t.Fatalf("gpt-5.4 supported_endpoints = %#v, want [/v1/chat/completions /v1/responses]", got)
+	}
+	if got := itemMap["claude-sonnet-4-6"].SupportedEndpoints; len(got) != 1 || got[0] != "/v1/messages" {
+		t.Fatalf("claude-sonnet-4-6 supported_endpoints = %#v, want [/v1/messages]", got)
 	}
 }
 
@@ -70,14 +84,22 @@ func TestListModelsOwnedByUsesProviderStats(t *testing.T) {
 	c.Set(ctxkey.AvailableModels, "gpt-5.4,claude-sonnet-4-6")
 
 	original := loadGroupModelProvidersFn
+	originalEndpoints := loadGroupModelSupportedEndpointsFn
 	loadGroupModelProvidersFn = func(groupID string, modelNames []string) (map[string]string, error) {
 		return map[string]string{
 			"gpt-5.4":           "openai",
 			"claude-sonnet-4-6": "anthropic",
 		}, nil
 	}
+	loadGroupModelSupportedEndpointsFn = func(groupID string, modelNames []string) (map[string][]string, error) {
+		return map[string][]string{
+			"gpt-5.4":           {"/v1/chat/completions", "/v1/responses"},
+			"claude-sonnet-4-6": {"/v1/messages"},
+		}, nil
+	}
 	t.Cleanup(func() {
 		loadGroupModelProvidersFn = original
+		loadGroupModelSupportedEndpointsFn = originalEndpoints
 	})
 
 	ListModels(c)
@@ -107,6 +129,16 @@ func TestListModelsOwnedByUsesProviderStats(t *testing.T) {
 	}
 	if got := ownedBy["claude-sonnet-4-6"]; got != "anthropic" {
 		t.Fatalf("claude-sonnet-4-6 owned_by = %q, want %q", got, "anthropic")
+	}
+	supportedEndpoints := map[string][]string{}
+	for _, item := range payload.Data {
+		supportedEndpoints[item.Id] = item.SupportedEndpoints
+	}
+	if got := supportedEndpoints["gpt-5.4"]; len(got) != 2 || got[0] != "/v1/chat/completions" || got[1] != "/v1/responses" {
+		t.Fatalf("gpt-5.4 supported_endpoints = %#v, want [/v1/chat/completions /v1/responses]", got)
+	}
+	if got := supportedEndpoints["claude-sonnet-4-6"]; len(got) != 1 || got[0] != "/v1/messages" {
+		t.Fatalf("claude-sonnet-4-6 supported_endpoints = %#v, want [/v1/messages]", got)
 	}
 }
 
@@ -141,13 +173,20 @@ func TestRetrieveModelSharesListOwnedByLogic(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	original := loadGroupModelProvidersFn
+	originalEndpoints := loadGroupModelSupportedEndpointsFn
 	loadGroupModelProvidersFn = func(groupID string, modelNames []string) (map[string]string, error) {
 		return map[string]string{
 			"gpt-5.4": "openai",
 		}, nil
 	}
+	loadGroupModelSupportedEndpointsFn = func(groupID string, modelNames []string) (map[string][]string, error) {
+		return map[string][]string{
+			"gpt-5.4": {"/v1/responses"},
+		}, nil
+	}
 	t.Cleanup(func() {
 		loadGroupModelProvidersFn = original
+		loadGroupModelSupportedEndpointsFn = originalEndpoints
 	})
 
 	{
@@ -166,6 +205,9 @@ func TestRetrieveModelSharesListOwnedByLogic(t *testing.T) {
 		}
 		if item.OwnedBy != "openai" {
 			t.Fatalf("owned_by = %q, want %q", item.OwnedBy, "openai")
+		}
+		if len(item.SupportedEndpoints) != 1 || item.SupportedEndpoints[0] != "/v1/responses" {
+			t.Fatalf("supported_endpoints = %#v, want [/v1/responses]", item.SupportedEndpoints)
 		}
 	}
 

@@ -291,6 +291,66 @@ func ListLatestChannelTestsByChannelIDWithDB(db *gorm.DB, channelID string) ([]C
 	return NormalizeChannelTestRows(rowsByChannelID[normalizedChannelID]), nil
 }
 
+// ListLatestChannelTestSupportByChannelIDsWithDB returns latest endpoint test support by
+// channel + model + endpoint.
+// The returned map shape is:
+// channel_id -> model -> endpoint -> supported
+func ListLatestChannelTestSupportByChannelIDsWithDB(db *gorm.DB, channelIDs []string, modelNames []string) (map[string]map[string]map[string]bool, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	result := make(map[string]map[string]map[string]bool)
+	normalizedChannelIDs := normalizeTrimmedValuesPreserveOrder(channelIDs)
+	if len(normalizedChannelIDs) == 0 {
+		return result, nil
+	}
+
+	modelFilterSet := make(map[string]struct{})
+	for _, modelName := range NormalizeChannelModelIDsPreserveOrder(modelNames) {
+		normalizedModelName := strings.TrimSpace(modelName)
+		if normalizedModelName == "" {
+			continue
+		}
+		modelFilterSet[normalizedModelName] = struct{}{}
+	}
+
+	rowsByChannelID, err := loadChannelTestRowsByChannelIDs(db, normalizedChannelIDs)
+	if err != nil {
+		return nil, err
+	}
+	for channelID, rows := range rowsByChannelID {
+		normalizedChannelID := strings.TrimSpace(channelID)
+		if normalizedChannelID == "" {
+			continue
+		}
+		for _, row := range NormalizeChannelTestRows(rows) {
+			modelName := strings.TrimSpace(row.Model)
+			if modelName == "" {
+				continue
+			}
+			if len(modelFilterSet) > 0 {
+				if _, ok := modelFilterSet[modelName]; !ok {
+					continue
+				}
+			}
+			endpoint := NormalizeRequestedChannelModelEndpoint(row.Endpoint)
+			if endpoint == "" {
+				continue
+			}
+			if _, ok := result[normalizedChannelID]; !ok {
+				result[normalizedChannelID] = make(map[string]map[string]bool)
+			}
+			if _, ok := result[normalizedChannelID][modelName]; !ok {
+				result[normalizedChannelID][modelName] = make(map[string]bool)
+			}
+			result[normalizedChannelID][modelName][endpoint] =
+				NormalizeChannelTestStatus(row.Status) == ChannelTestStatusSupported && row.Supported
+		}
+	}
+
+	return result, nil
+}
+
 func GetLatestChannelTestByModelEndpointWithDB(db *gorm.DB, channelID string, modelID string, endpoint string) (ChannelTest, error) {
 	if db == nil {
 		return ChannelTest{}, fmt.Errorf("database handle is nil")

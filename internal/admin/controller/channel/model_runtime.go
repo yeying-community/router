@@ -1573,15 +1573,11 @@ func persistChannelModelTests(channelID string, results []model.ChannelTest) err
 	}
 	targetModels = model.NormalizeChannelModelIDsPreserveOrder(targetModels)
 	return model.DB.Transaction(func(tx *gorm.DB) error {
-		currentRows, err := model.ListChannelModelRowsByChannelIDWithDB(tx, normalizedChannelID)
-		if err != nil {
-			return err
-		}
 		insertedResults, err := model.AppendChannelTestsForModelsWithDB(tx, normalizedChannelID, targetModels, results)
 		if err != nil {
 			return err
 		}
-		if err := model.ReplaceChannelModelConfigsWithDB(tx, normalizedChannelID, model.ApplyChannelTestResultsToModelConfigs(currentRows, insertedResults)); err != nil {
+		if err := model.ApplyChannelModelEndpointSupportFromTestsWithDB(tx, normalizedChannelID, insertedResults); err != nil {
 			return err
 		}
 		return model.EnsureChannelTestModelWithDB(tx, normalizedChannelID)

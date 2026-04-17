@@ -310,6 +310,84 @@ func replaceChannelModelEndpointRowsWithDB(db *gorm.DB, channelID string, rows [
 	})
 }
 
+func buildChannelModelEndpointRowsByTests(rows []ChannelModelEndpoint, channelID string, tests []ChannelTest) ([]ChannelModelEndpoint, bool) {
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return rows, false
+	}
+
+	result := make([]ChannelModelEndpoint, 0, len(rows)+len(tests))
+	indexByKey := make(map[string]int, len(rows)+len(tests))
+	changed := false
+
+	for _, row := range rows {
+		normalizedModel := strings.TrimSpace(row.Model)
+		normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(row.Endpoint)
+		if normalizedModel == "" || normalizedEndpoint == "" {
+			continue
+		}
+		key := normalizedModel + "::" + normalizedEndpoint
+		if _, ok := indexByKey[key]; ok {
+			continue
+		}
+		item := ChannelModelEndpoint{
+			ChannelId: normalizedChannelID,
+			Model:     normalizedModel,
+			Endpoint:  normalizedEndpoint,
+			Enabled:   row.Enabled,
+			UpdatedAt: row.UpdatedAt,
+		}
+		indexByKey[key] = len(result)
+		result = append(result, item)
+	}
+
+	for _, test := range NormalizeChannelTestRows(tests) {
+		normalizedModel := strings.TrimSpace(test.Model)
+		normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(test.Endpoint)
+		if normalizedModel == "" || normalizedEndpoint == "" {
+			continue
+		}
+		supported := NormalizeChannelTestStatus(test.Status) == ChannelTestStatusSupported && test.Supported
+		key := normalizedModel + "::" + normalizedEndpoint
+		if idx, ok := indexByKey[key]; ok {
+			if result[idx].Enabled != supported {
+				result[idx].Enabled = supported
+				changed = true
+			}
+			continue
+		}
+		indexByKey[key] = len(result)
+		result = append(result, ChannelModelEndpoint{
+			ChannelId: normalizedChannelID,
+			Model:     normalizedModel,
+			Endpoint:  normalizedEndpoint,
+			Enabled:   supported,
+		})
+		changed = true
+	}
+
+	return result, changed
+}
+
+func ApplyChannelModelEndpointSupportFromTestsWithDB(db *gorm.DB, channelID string, tests []ChannelTest) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" || len(tests) == 0 {
+		return nil
+	}
+	rows, err := listChannelModelEndpointRowsByChannelIDWithDB(db, normalizedChannelID)
+	if err != nil {
+		return err
+	}
+	nextRows, changed := buildChannelModelEndpointRowsByTests(rows, normalizedChannelID, tests)
+	if !changed {
+		return nil
+	}
+	return replaceChannelModelEndpointRowsWithDB(db, normalizedChannelID, nextRows)
+}
+
 func buildDisabledChannelModelEndpointRows(rows []ChannelModelEndpoint, channelID string, modelName string, endpoint string) ([]ChannelModelEndpoint, bool) {
 	normalizedChannelID := strings.TrimSpace(channelID)
 	normalizedModelName := strings.TrimSpace(modelName)

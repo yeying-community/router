@@ -157,6 +157,52 @@ func TestBuildDisabledChannelModelEndpointRowsMarksOnlyTargetEndpoint(t *testing
 	}
 }
 
+func TestBuildChannelModelEndpointRowsByTestsUpdatesEndpointSupport(t *testing.T) {
+	rows := []ChannelModelEndpoint{
+		{ChannelId: "channel-1", Model: "gpt-5.4", Endpoint: ChannelModelEndpointChat, Enabled: true},
+		{ChannelId: "channel-1", Model: "gpt-5.4", Endpoint: ChannelModelEndpointResponses, Enabled: true},
+	}
+	tests := []ChannelTest{
+		{
+			ChannelId:     "channel-1",
+			Model:         "gpt-5.4",
+			Endpoint:      ChannelModelEndpointResponses,
+			Status:        ChannelTestStatusUnsupported,
+			Supported:     false,
+			UpstreamModel: "gpt-5.4",
+		},
+		{
+			ChannelId:     "channel-1",
+			Model:         "gpt-5.4",
+			Endpoint:      ChannelModelEndpointMessages,
+			Status:        ChannelTestStatusSupported,
+			Supported:     true,
+			UpstreamModel: "gpt-5.4",
+		},
+	}
+
+	got, changed := buildChannelModelEndpointRowsByTests(rows, "channel-1", tests)
+	if !changed {
+		t.Fatalf("changed = false, want true")
+	}
+	if len(got) != 3 {
+		t.Fatalf("len(got) = %d, want 3", len(got))
+	}
+	gotMap := map[string]bool{}
+	for _, row := range got {
+		gotMap[row.Model+"::"+row.Endpoint] = row.Enabled
+	}
+	if enabled := gotMap["gpt-5.4::"+ChannelModelEndpointChat]; !enabled {
+		t.Fatalf("chat endpoint enabled = false, want true")
+	}
+	if enabled := gotMap["gpt-5.4::"+ChannelModelEndpointResponses]; enabled {
+		t.Fatalf("responses endpoint enabled = true, want false")
+	}
+	if enabled := gotMap["gpt-5.4::"+ChannelModelEndpointMessages]; !enabled {
+		t.Fatalf("messages endpoint enabled = false, want true")
+	}
+}
+
 func TestNormalizeRequestedChannelModelEndpointMessagesMapsToMessages(t *testing.T) {
 	if got := NormalizeRequestedChannelModelEndpoint("/v1/messages"); got != ChannelModelEndpointMessages {
 		t.Fatalf("NormalizeRequestedChannelModelEndpoint(/v1/messages)=%q, want %q", got, ChannelModelEndpointMessages)

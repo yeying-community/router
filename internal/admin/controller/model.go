@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -72,13 +73,14 @@ type OpenAIModelPermission struct {
 }
 
 type OpenAIModels struct {
-	Id         string                  `json:"id"`
-	Object     string                  `json:"object"`
-	Created    int                     `json:"created"`
-	OwnedBy    string                  `json:"owned_by"`
-	Permission []OpenAIModelPermission `json:"permission"`
-	Root       string                  `json:"root"`
-	Parent     *string                 `json:"parent"`
+	Id                 string                  `json:"id"`
+	Object             string                  `json:"object"`
+	Created            int                     `json:"created"`
+	OwnedBy            string                  `json:"owned_by"`
+	SupportedEndpoints []string                `json:"supported_endpoints,omitempty"`
+	Permission         []OpenAIModelPermission `json:"permission"`
+	Root               string                  `json:"root"`
+	Parent             *string                 `json:"parent"`
 }
 
 var channelId2Models map[int][]string
@@ -115,6 +117,119 @@ func init() {
 }
 
 var loadGroupModelProvidersFn = model.ListGroupModelProviderMapByModels
+var loadGroupModelSupportedEndpointsFn = listGroupModelSupportedEndpoints
+
+var endpointSortOrder = map[string]int{
+	model.ChannelModelEndpointChat:      10,
+	model.ChannelModelEndpointResponses: 20,
+	model.ChannelModelEndpointMessages:  30,
+	model.ChannelModelEndpointImages:    40,
+	model.ChannelModelEndpointImageEdit: 50,
+	model.ChannelModelEndpointBatches:   60,
+	model.ChannelModelEndpointAudio:     70,
+	model.ChannelModelEndpointVideos:    80,
+}
+
+func sortModelEndpoints(endpoints []string) []string {
+	normalized := model.NormalizeChannelModelIDsPreserveOrder(endpoints)
+	if len(normalized) == 0 {
+		return []string{}
+	}
+	sort.SliceStable(normalized, func(i, j int) bool {
+		left := normalized[i]
+		right := normalized[j]
+		leftOrder, leftOk := endpointSortOrder[left]
+		rightOrder, rightOk := endpointSortOrder[right]
+		switch {
+		case leftOk && rightOk && leftOrder != rightOrder:
+			return leftOrder < rightOrder
+		case leftOk && !rightOk:
+			return true
+		case !leftOk && rightOk:
+			return false
+		default:
+			return left < right
+		}
+	})
+	return normalized
+}
+
+func listGroupModelSupportedEndpoints(groupID string, modelNames []string) (map[string][]string, error) {
+	normalizedGroupID := strings.TrimSpace(groupID)
+	result := make(map[string][]string)
+	if normalizedGroupID == "" {
+		return result, nil
+	}
+	normalizedModels := model.NormalizeChannelModelIDsPreserveOrder(modelNames)
+	for _, modelName := range normalizedModels {
+		if strings.TrimSpace(modelName) == "" {
+			continue
+		}
+		channels, err := model.CacheListSatisfiedChannels(normalizedGroupID, modelName)
+		if err != nil {
+			// Keep provider mapping strict, but endpoint metadata should not block /v1/models.
+			continue
+		}
+		channelIDs := make([]string, 0, len(channels))
+		for _, channel := range channels {
+			if channel == nil {
+				continue
+			}
+			channelID := strings.TrimSpace(channel.Id)
+			if channelID == "" {
+				continue
+			}
+			channelIDs = append(channelIDs, channelID)
+		}
+		supportedByChannelID, err := model.ListLatestChannelTestSupportByChannelIDsWithDB(
+			model.DB,
+			channelIDs,
+			[]string{modelName},
+		)
+		if err != nil {
+			// Keep provider mapping strict, but endpoint metadata should not block /v1/models.
+			continue
+		}
+		endpointSet := make(map[string]struct{})
+		for _, channel := range channels {
+			if channel == nil {
+				continue
+			}
+			channelID := strings.TrimSpace(channel.Id)
+			if channelID == "" {
+				continue
+			}
+			enabledMap := model.CacheGetChannelModelEndpointSupport(channel.Id, modelName)
+			if len(enabledMap) == 0 {
+				continue
+			}
+			channelModelSupportMap := supportedByChannelID[channelID][modelName]
+			for endpoint, enabled := range enabledMap {
+				if !enabled {
+					continue
+				}
+				normalizedEndpoint := model.NormalizeRequestedChannelModelEndpoint(endpoint)
+				if normalizedEndpoint == "" {
+					continue
+				}
+				// /v1/models only exposes endpoints that are both enabled and recently tested as supported.
+				if supported, ok := channelModelSupportMap[normalizedEndpoint]; !ok || !supported {
+					continue
+				}
+				endpointSet[normalizedEndpoint] = struct{}{}
+			}
+		}
+		if len(endpointSet) == 0 {
+			continue
+		}
+		endpoints := make([]string, 0, len(endpointSet))
+		for endpoint := range endpointSet {
+			endpoints = append(endpoints, endpoint)
+		}
+		result[modelName] = sortModelEndpoints(endpoints)
+	}
+	return result, nil
+}
 
 func cloneDefaultModelPermissions() []OpenAIModelPermission {
 	permissions := make([]OpenAIModelPermission, len(defaultModelPermissions))
@@ -167,6 +282,10 @@ func buildOpenAIModelsForRequest(c *gin.Context) ([]OpenAIModels, map[string]Ope
 	if err != nil {
 		return nil, nil, err
 	}
+	endpointsByModel, err := loadGroupModelSupportedEndpointsFn(userGroup, modelNames)
+	if err != nil {
+		return nil, nil, err
+	}
 	items := make([]OpenAIModels, 0, len(modelNames))
 	itemMap := make(map[string]OpenAIModels, len(modelNames))
 	missingProviderModels := make([]string, 0)
@@ -177,13 +296,14 @@ func buildOpenAIModelsForRequest(c *gin.Context) ([]OpenAIModels, map[string]Ope
 			continue
 		}
 		item := OpenAIModels{
-			Id:         modelName,
-			Object:     "model",
-			Created:    1626777600,
-			OwnedBy:    ownedBy,
-			Permission: cloneDefaultModelPermissions(),
-			Root:       modelName,
-			Parent:     nil,
+			Id:                 modelName,
+			Object:             "model",
+			Created:            1626777600,
+			OwnedBy:            ownedBy,
+			SupportedEndpoints: sortModelEndpoints(endpointsByModel[modelName]),
+			Permission:         cloneDefaultModelPermissions(),
+			Root:               modelName,
+			Parent:             nil,
 		}
 		items = append(items, item)
 		itemMap[modelName] = item

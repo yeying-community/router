@@ -642,29 +642,6 @@ func lockChannelRowForUpdateWithDB(db *gorm.DB, channelID string) error {
 		Take(&row).Error
 }
 
-func ApplyChannelTestResultsToModelConfigs(rows []ChannelModel, results []ChannelTest) []ChannelModel {
-	if len(rows) == 0 {
-		return []ChannelModel{}
-	}
-	resultByModel := make(map[string]ChannelTest, len(results))
-	for _, item := range NormalizeChannelTestRows(results) {
-		modelID := strings.TrimSpace(item.Model)
-		if modelID == "" {
-			continue
-		}
-		resultByModel[modelID] = item
-	}
-	next := make([]ChannelModel, 0, len(rows))
-	for _, row := range NormalizeChannelModelConfigsPreserveOrder(rows) {
-		if item, ok := resultByModel[strings.TrimSpace(row.Model)]; ok {
-			row.Type = item.Type
-			row.Endpoint = item.Endpoint
-		}
-		next = append(next, row)
-	}
-	return NormalizeChannelModelConfigsPreserveOrder(next)
-}
-
 func BuildFetchedChannelModelConfigs(existingRows []ChannelModel, fetchedRows []ChannelModel, channelProtocol int, selectAll bool) []ChannelModel {
 	normalizedFetchedRows := NormalizeChannelModelConfigsPreserveOrder(fetchedRows)
 	normalizedExisting := NormalizeChannelModelConfigsPreserveOrder(existingRows)
