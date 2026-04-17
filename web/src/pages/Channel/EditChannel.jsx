@@ -1449,6 +1449,67 @@ const EditChannel = () => {
       return modelTestResultsByKey.has(resultKey);
     });
   }, [modelTestResultsByKey, visibleModelConfigs]);
+  const modelTestRowModelSet = useMemo(
+    () =>
+      new Set(
+        modelTestRows
+          .map((row) => (row.model || '').toString().trim())
+          .filter((modelName) => modelName !== ''),
+      ),
+    [modelTestRows],
+  );
+  const modelTestBulkEndpointValue = useMemo(() => {
+    if (modelTestRows.length === 0) {
+      return '';
+    }
+    const endpointSet = new Set(
+      modelTestRows.map((row) =>
+        normalizeChannelModelEndpoint(row.type, row.endpoint, inputs.protocol),
+      ),
+    );
+    if (endpointSet.size !== 1) {
+      return '';
+    }
+    return Array.from(endpointSet)[0] || '';
+  }, [inputs.protocol, modelTestRows]);
+  const modelTestBulkEndpointOptions = useMemo(() => {
+    if (modelTestRows.length === 0) {
+      return [];
+    }
+    const labelByValue = new Map();
+    let commonValues = null;
+    modelTestRows.forEach((row) => {
+      const rowValues = new Set();
+      endpointOptionsForModelType(row.type).forEach((option) => {
+        const normalizedValue = normalizeChannelModelEndpoint(
+          row.type,
+          option.value,
+          inputs.protocol,
+        );
+        if (normalizedValue === '') {
+          return;
+        }
+        rowValues.add(normalizedValue);
+        if (!labelByValue.has(normalizedValue)) {
+          labelByValue.set(normalizedValue, option.text || normalizedValue);
+        }
+      });
+      if (commonValues === null) {
+        commonValues = rowValues;
+        return;
+      }
+      commonValues = new Set(
+        Array.from(commonValues).filter((value) => rowValues.has(value)),
+      );
+    });
+    return Array.from(commonValues || [])
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({
+        key: value,
+        value,
+        text: labelByValue.get(value) || value,
+      }));
+  }, [inputs.protocol, modelTestRows]);
   const allModelTestTargetsSelected = useMemo(() => {
     if (modelTestRows.length === 0) {
       return false;
@@ -3303,6 +3364,52 @@ const EditChannel = () => {
     [
       detailTestingReadonly,
       isDetailMode,
+      persistDetailModelConfigs,
+      visibleModelConfigs,
+    ],
+  );
+  const updateAllModelTestEndpoints = useCallback(
+    async (endpoint) => {
+      if (detailTestingReadonly) {
+        return;
+      }
+      const targetEndpoint = (endpoint || '').toString().trim();
+      if (targetEndpoint === '' || modelTestRowModelSet.size === 0) {
+        return;
+      }
+      const nextConfigs = visibleModelConfigs.map((row) => {
+        if (!modelTestRowModelSet.has(row.model)) {
+          return row;
+        }
+        const nextEndpoint = normalizeChannelModelEndpoint(
+          row.type,
+          targetEndpoint,
+          inputs.protocol,
+        );
+        return {
+          ...row,
+          endpoint: nextEndpoint,
+          endpoints: normalizeChannelModelEndpoints(
+            row.type,
+            row.endpoints,
+            nextEndpoint,
+            inputs.protocol,
+          ),
+        };
+      });
+      if (isDetailMode) {
+        await persistDetailModelConfigs(nextConfigs);
+        return;
+      }
+      setInputs((prev) =>
+        buildNextInputsWithModelConfigs(prev, nextConfigs, prev.protocol),
+      );
+    },
+    [
+      detailTestingReadonly,
+      inputs.protocol,
+      isDetailMode,
+      modelTestRowModelSet,
       persistDetailModelConfigs,
       visibleModelConfigs,
     ],
@@ -5951,7 +6058,32 @@ const EditChannel = () => {
                               {t('channel.edit.model_tester.table.type')}
                             </Table.HeaderCell>
                             <Table.HeaderCell>
-                              {t('channel.edit.model_tester.table.endpoint')}
+                              <div className='router-table-header-with-control'>
+                                <span>
+                                  {t('channel.edit.model_tester.table.endpoint')}
+                                </span>
+                                <Dropdown
+                                  selection
+                                  compact
+                                  className='router-inline-dropdown'
+                                  placeholder={t(
+                                    'channel.edit.model_tester.table.batch_set',
+                                  )}
+                                  options={modelTestBulkEndpointOptions}
+                                  disabled={
+                                    detailTestingReadonly ||
+                                    detailModelMutating ||
+                                    modelTestBulkEndpointOptions.length === 0
+                                  }
+                                  value={modelTestBulkEndpointValue || undefined}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                  }}
+                                  onChange={(e, { value }) => {
+                                    updateAllModelTestEndpoints(value);
+                                  }}
+                                />
+                              </div>
                             </Table.HeaderCell>
                             <Table.HeaderCell collapsing>
                               {t('channel.edit.model_tester.table.is_stream')}
@@ -6281,7 +6413,31 @@ const EditChannel = () => {
                             {t('channel.edit.model_tester.table.type')}
                           </Table.HeaderCell>
                           <Table.HeaderCell>
-                            {t('channel.edit.model_tester.table.endpoint')}
+                            <div className='router-table-header-with-control'>
+                              <span>
+                                {t('channel.edit.model_tester.table.endpoint')}
+                              </span>
+                              <Dropdown
+                                selection
+                                compact
+                                className='router-inline-dropdown'
+                                placeholder={t(
+                                  'channel.edit.model_tester.table.batch_set',
+                                )}
+                                options={modelTestBulkEndpointOptions}
+                                disabled={
+                                  detailModelMutating ||
+                                  modelTestBulkEndpointOptions.length === 0
+                                }
+                                value={modelTestBulkEndpointValue || undefined}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                }}
+                                onChange={(e, { value }) => {
+                                  updateAllModelTestEndpoints(value);
+                                }}
+                              />
+                            </div>
                           </Table.HeaderCell>
                           <Table.HeaderCell collapsing>
                             {t('channel.edit.model_tester.table.is_stream')}

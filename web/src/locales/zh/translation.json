@@ -689,6 +689,7 @@
           "model": "模型",
           "type": "类型",
           "endpoint": "端点",
+          "batch_set": "批量设置",
           "supported_endpoints": "已通过端点",
           "is_stream": "是否流式",
           "status": "结果",

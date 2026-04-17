@@ -689,6 +689,7 @@
           "model": "Model",
           "type": "Type",
           "endpoint": "Endpoint",
+          "batch_set": "Batch",
           "supported_endpoints": "Supported Endpoints",
           "is_stream": "Stream",
           "status": "Status",
