@@ -52,6 +52,124 @@ func TestRelayMessagesResponsePreservesAnthropicShape(t *testing.T) {
 	}
 }
 
+func TestCalcClaudeTotalTokensUsesIterations(t *testing.T) {
+	inputTotal, outputTotal, total := calcClaudeTotalTokens(&Usage{
+		InputTokens:              999,
+		OutputTokens:             888,
+		CacheCreationInputTokens: 777,
+		CacheReadInputTokens:     666,
+		Iterations: []UsageIteration{
+			{
+				Type:                     "tool_result",
+				Model:                    "claude-opus-4-6",
+				InputTokens:              10,
+				OutputTokens:             3,
+				CacheCreationInputTokens: 2,
+				CacheReadInputTokens:     1,
+			},
+			{
+				Type:                     "message",
+				Model:                    "claude-opus-4-6",
+				InputTokens:              20,
+				OutputTokens:             4,
+				CacheCreationInputTokens: 5,
+				CacheReadInputTokens:     6,
+			},
+		},
+	})
+
+	if inputTotal != 44 || outputTotal != 7 || total != 51 {
+		t.Fatalf("unexpected totals: input=%d output=%d total=%d", inputTotal, outputTotal, total)
+	}
+}
+
+func TestCalcClaudeTotalTokensFallsBackToTopLevelUsage(t *testing.T) {
+	inputTotal, outputTotal, total := calcClaudeTotalTokens(&Usage{
+		InputTokens:              10,
+		OutputTokens:             4,
+		CacheCreationInputTokens: 3,
+		CacheReadInputTokens:     2,
+	})
+
+	if inputTotal != 15 || outputTotal != 4 || total != 19 {
+		t.Fatalf("unexpected totals: input=%d output=%d total=%d", inputTotal, outputTotal, total)
+	}
+}
+
+func TestRelayMessagesResponseUsesClaudeRealTokenTotals(t *testing.T) {
+	ctx, _ := newAnthropicPassthroughTestContext()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{},
+		Body: io.NopCloser(strings.NewReader(`{
+			"id":"msg_123",
+			"type":"message",
+			"role":"assistant",
+			"content":[{"type":"text","text":"hello from claude"}],
+			"usage":{
+				"input_tokens":10,
+				"output_tokens":5,
+				"cache_creation_input_tokens":3,
+				"cache_read_input_tokens":2
+			}
+		}`)),
+	}
+
+	usage, relayErr := relayMessagesResponse(ctx, resp)
+	if relayErr != nil {
+		t.Fatalf("relayMessagesResponse returned error: %+v", relayErr)
+	}
+	if usage == nil || usage.PromptTokens != 15 || usage.CompletionTokens != 5 || usage.TotalTokens != 20 {
+		t.Fatalf("unexpected usage: %#v", usage)
+	}
+}
+
+func TestRelayMessagesResponseUsesIterationsInsteadOfTopLevelUsage(t *testing.T) {
+	ctx, _ := newAnthropicPassthroughTestContext()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{},
+		Body: io.NopCloser(strings.NewReader(`{
+			"id":"msg_123",
+			"type":"message",
+			"role":"assistant",
+			"content":[{"type":"text","text":"hello from claude"}],
+			"usage":{
+				"input_tokens":100,
+				"output_tokens":50,
+				"cache_creation_input_tokens":30,
+				"cache_read_input_tokens":20,
+				"iterations":[
+					{
+						"type":"message",
+						"model":"claude-opus-4-6",
+						"input_tokens":10,
+						"output_tokens":3,
+						"cache_creation_input_tokens":2,
+						"cache_read_input_tokens":1
+					},
+					{
+						"type":"message",
+						"model":"claude-opus-4-6",
+						"input_tokens":20,
+						"output_tokens":4,
+						"cache_creation_input_tokens":5,
+						"cache_read_input_tokens":6
+					}
+				]
+			}
+		}`)),
+	}
+
+	usage, relayErr := relayMessagesResponse(ctx, resp)
+	if relayErr != nil {
+		t.Fatalf("relayMessagesResponse returned error: %+v", relayErr)
+	}
+	if usage == nil || usage.PromptTokens != 44 || usage.CompletionTokens != 7 || usage.TotalTokens != 51 {
+		t.Fatalf("unexpected usage: %#v", usage)
+	}
+}
+
 func TestRelayMessagesStreamResponsePreservesAnthropicSSE(t *testing.T) {
 	ctx, recorder := newAnthropicPassthroughTestContext()
 	resp := &http.Response{
@@ -116,6 +234,56 @@ func TestRelayMessagesStreamResponseSupportsLargeAnthropicDataLine(t *testing.T)
 	}
 }
 
+func TestRelayMessagesStreamResponseUsesLatestUsageSnapshot(t *testing.T) {
+	ctx, _ := newAnthropicPassthroughTestContext()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Content-Type": []string{"text/event-stream"},
+		},
+		Body: io.NopCloser(strings.NewReader(
+			"event: message_start\n" +
+				"data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"usage\":{\"input_tokens\":11,\"output_tokens\":0}}}\n\n" +
+				"event: message_delta\n" +
+				"data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":7}}\n\n" +
+				"event: message_delta\n" +
+				"data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":9}}\n\n",
+		)),
+	}
+
+	usage, relayErr := relayMessagesStreamResponse(ctx, resp)
+	if relayErr != nil {
+		t.Fatalf("relayMessagesStreamResponse returned error: %+v", relayErr)
+	}
+	if usage == nil || usage.PromptTokens != 11 || usage.CompletionTokens != 9 || usage.TotalTokens != 20 {
+		t.Fatalf("unexpected usage: %#v", usage)
+	}
+}
+
+func TestRelayMessagesStreamResponseUsesIterationsForBillingTotals(t *testing.T) {
+	ctx, _ := newAnthropicPassthroughTestContext()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Content-Type": []string{"text/event-stream"},
+		},
+		Body: io.NopCloser(strings.NewReader(
+			"event: message_start\n" +
+				"data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"usage\":{\"input_tokens\":11,\"output_tokens\":0}}}\n\n" +
+				"event: message_delta\n" +
+				"data: {\"type\":\"message_delta\",\"usage\":{\"input_tokens\":100,\"output_tokens\":50,\"cache_creation_input_tokens\":30,\"cache_read_input_tokens\":20,\"iterations\":[{\"type\":\"message\",\"model\":\"claude-opus-4-6\",\"input_tokens\":10,\"output_tokens\":3,\"cache_creation_input_tokens\":2,\"cache_read_input_tokens\":1},{\"type\":\"message\",\"model\":\"claude-opus-4-6\",\"input_tokens\":20,\"output_tokens\":4,\"cache_creation_input_tokens\":5,\"cache_read_input_tokens\":6}]}}\n\n",
+		)),
+	}
+
+	usage, relayErr := relayMessagesStreamResponse(ctx, resp)
+	if relayErr != nil {
+		t.Fatalf("relayMessagesStreamResponse returned error: %+v", relayErr)
+	}
+	if usage == nil || usage.PromptTokens != 44 || usage.CompletionTokens != 7 || usage.TotalTokens != 51 {
+		t.Fatalf("unexpected usage: %#v", usage)
+	}
+}
+
 func TestRelayMessagesStreamAsChatResponse(t *testing.T) {
 	ctx, recorder := newAnthropicPassthroughTestContext()
 	resp := &http.Response{
@@ -150,6 +318,33 @@ func TestRelayMessagesStreamAsChatResponse(t *testing.T) {
 	}
 	if recorder.Header().Get("X-Upstream") != "ok" {
 		t.Fatalf("expected upstream header to be copied, got %q", recorder.Header().Get("X-Upstream"))
+	}
+}
+
+func TestRelayMessagesStreamAsChatResponseUsesIterationsForBillingTotals(t *testing.T) {
+	ctx, _ := newAnthropicPassthroughTestContext()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Content-Type": []string{"text/event-stream"},
+		},
+		Body: io.NopCloser(strings.NewReader(
+			"event: message_start\n" +
+				"data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"model\":\"claude-opus-4-6\",\"usage\":{\"input_tokens\":11,\"output_tokens\":0}}}\n\n" +
+				"event: content_block_delta\n" +
+				"data: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"hello\"}}\n\n" +
+				"event: message_delta\n" +
+				"data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"input_tokens\":100,\"output_tokens\":50,\"cache_creation_input_tokens\":30,\"cache_read_input_tokens\":20,\"iterations\":[{\"type\":\"message\",\"model\":\"claude-opus-4-6\",\"input_tokens\":10,\"output_tokens\":3,\"cache_creation_input_tokens\":2,\"cache_read_input_tokens\":1},{\"type\":\"message\",\"model\":\"claude-opus-4-6\",\"input_tokens\":20,\"output_tokens\":4,\"cache_creation_input_tokens\":5,\"cache_read_input_tokens\":6}]}}\n\n" +
+				"data: [DONE]\n",
+		)),
+	}
+
+	usage, relayErr := relayMessagesStreamAsChatResponse(ctx, resp, 11, "claude-opus-4-6")
+	if relayErr != nil {
+		t.Fatalf("relayMessagesStreamAsChatResponse returned error: %+v", relayErr)
+	}
+	if usage == nil || usage.PromptTokens != 44 || usage.CompletionTokens != 7 || usage.TotalTokens != 51 {
+		t.Fatalf("unexpected usage: %#v", usage)
 	}
 }
 

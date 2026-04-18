@@ -118,6 +118,32 @@ func applyClaudeUsageTotals(usage *model.Usage, claudeUsage *Usage) {
 	usage.TotalTokens = total
 }
 
+func mergeClaudeUsageSnapshot(dst *Usage, src *Usage) *Usage {
+	if src == nil {
+		return dst
+	}
+	if dst == nil {
+		copy := *src
+		return &copy
+	}
+	if src.InputTokens > 0 {
+		dst.InputTokens = src.InputTokens
+	}
+	if src.OutputTokens > 0 {
+		dst.OutputTokens = src.OutputTokens
+	}
+	if src.CacheCreationInputTokens > 0 {
+		dst.CacheCreationInputTokens = src.CacheCreationInputTokens
+	}
+	if src.CacheReadInputTokens > 0 {
+		dst.CacheReadInputTokens = src.CacheReadInputTokens
+	}
+	if len(src.Iterations) > 0 {
+		dst.Iterations = append([]UsageIteration(nil), src.Iterations...)
+	}
+	return dst
+}
+
 func relayMessagesStreamResponse(c *gin.Context, resp *http.Response) (*model.Usage, *model.ErrorWithStatusCode) {
 	copyResponseHeaders(c, resp.Header)
 	c.Writer.WriteHeader(resp.StatusCode)
@@ -159,13 +185,11 @@ func relayMessagesStreamResponse(c *gin.Context, resp *http.Response) (*model.Us
 		}
 		if claudeResponse.Message != nil {
 			applyUsageSnapshot(usage, &claudeResponse.Message.Usage)
-			latest := claudeResponse.Message.Usage
-			latestUsage = &latest
+			latestUsage = mergeClaudeUsageSnapshot(latestUsage, &claudeResponse.Message.Usage)
 		}
 		if claudeResponse.Usage != nil {
 			applyUsageSnapshot(usage, claudeResponse.Usage)
-			latest := *claudeResponse.Usage
-			latestUsage = &latest
+			latestUsage = mergeClaudeUsageSnapshot(latestUsage, claudeResponse.Usage)
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -254,8 +278,7 @@ func relayMessagesStreamAsChatResponse(c *gin.Context, resp *http.Response, prom
 				if payload.Message.Usage.OutputTokens > 0 {
 					usage.CompletionTokens = payload.Message.Usage.OutputTokens
 				}
-				latest := payload.Message.Usage
-				latestUsage = &latest
+				latestUsage = mergeClaudeUsageSnapshot(latestUsage, &payload.Message.Usage)
 			}
 		case "content_block_start":
 			if payload.ContentBlock != nil && payload.ContentBlock.Type == "text" && strings.TrimSpace(payload.ContentBlock.Text) != "" {
@@ -273,8 +296,7 @@ func relayMessagesStreamAsChatResponse(c *gin.Context, resp *http.Response, prom
 				if payload.Usage.OutputTokens > 0 {
 					usage.CompletionTokens = payload.Usage.OutputTokens
 				}
-				latest := *payload.Usage
-				latestUsage = &latest
+				latestUsage = mergeClaudeUsageSnapshot(latestUsage, payload.Usage)
 			}
 			if payload.Delta != nil && payload.Delta.StopReason != nil {
 				reason := stopReasonClaude2OpenAI(payload.Delta.StopReason)

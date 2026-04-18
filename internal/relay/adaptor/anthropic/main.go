@@ -355,8 +355,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 
 		response, meta := StreamResponseClaude2OpenAI(&claudeResponse)
 		if meta != nil {
-			latest := meta.Usage
-			latestUsage = &latest
+			latestUsage = mergeClaudeUsageSnapshot(latestUsage, &meta.Usage)
 			applyClaudeUsageTotals(&usage, latestUsage)
 			if len(meta.Id) > 0 { // only message_start has an id, otherwise it's a finish_reason event.
 				modelName = meta.Model
