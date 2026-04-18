@@ -676,6 +676,7 @@
         "download_unavailable": "当前测试结果没有可下载文件",
         "stale": "连接信息、模型选择或端点已变更，请重新执行模型测试。",
         "untested": "当前端点尚未执行测试。",
+        "latest_result_from_endpoint": "当前端点未测试，展示最近一次测试结果（端点：{{endpoint}}）",
         "status": {
           "pending": "排队中",
           "running": "运行中",
@@ -694,6 +695,7 @@
           "is_stream": "是否流式",
           "status": "结果",
           "latency": "耗时",
+          "tested_at": "最近测试",
           "message": "说明",
           "actions": "操作"
         }
