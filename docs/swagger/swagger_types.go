@@ -216,7 +216,6 @@ type UserTopUpOrder struct {
 	Source          string `json:"source" example:"top_up_link"`
 	ProviderName    string `json:"provider_name" example:"faka"`
 	ProviderOrderID string `json:"provider_order_id" example:"provider_order_123"`
-	RedemptionID    string `json:"redemption_id" example:"474c9b7b534047ce9205220990f53087"`
 	TransactionID   string `json:"transaction_id" example:"019cf473b1837d0088eff3078d4f9373"`
 	StatusMessage   string `json:"status_message" example:"payment received"`
 	RedirectURL     string `json:"redirect_url" example:"https://example.com/topup?user_id=1&transaction_id=tx_123"`
@@ -232,8 +231,6 @@ type TopupOrderCallbackRequest struct {
 	ProviderOrderID string `json:"provider_order_id" example:"provider_order_123"`
 	Status          string `json:"status" example:"paid"`
 	ProviderName    string `json:"provider_name" example:"faka"`
-	RedemptionID    string `json:"redemption_id" example:"848f6666d94346519ae2f4c3c98a408c"`
-	RedemptionCode  string `json:"redemption_code" example:"redeem-xxxx-xxxx"`
 	StatusMessage   string `json:"status_message" example:"payment received"`
 	PaidAt          int64  `json:"paid_at" example:"1774000100"`
 	RedeemedAt      int64  `json:"redeemed_at" example:"1774000200"`

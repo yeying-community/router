@@ -19,10 +19,8 @@ const (
 const RedemptionFaceValueUnitYYC = "YYC"
 
 type Redemption struct {
-	Id     string `json:"id" gorm:"type:char(36);primaryKey"`
-	UserId string `json:"user_id" gorm:"type:char(36);index"`
-	// Keep for historical linkage compatibility in storage only; do not expose in query APIs.
-	TopupOrderID       string  `json:"-" gorm:"type:char(36);index"`
+	Id                 string  `json:"id" gorm:"type:char(36);primaryKey"`
+	UserId             string  `json:"user_id" gorm:"type:char(36);index"`
 	RedeemedByUserId   string  `json:"redeemed_by_user_id" gorm:"type:char(36);index"`
 	RedeemedByUsername string  `json:"redeemed_by_username,omitempty" gorm:"-"`
 	GroupID            string  `json:"group_id" gorm:"column:group_id;type:char(36);index"`

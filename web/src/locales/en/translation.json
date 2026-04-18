@@ -676,6 +676,7 @@
         "download_unavailable": "No downloadable artifact is available for this test result",
         "stale": "Connection info, model selection, or endpoint changed. Please run model tests again.",
         "untested": "The current endpoint has not been tested yet.",
+        "latest_result_from_endpoint": "Current endpoint is untested. Showing latest test result from endpoint: {{endpoint}}.",
         "status": {
           "pending": "Pending",
           "running": "Running",
@@ -694,6 +695,7 @@
           "is_stream": "Stream",
           "status": "Status",
           "latency": "Latency",
+          "tested_at": "Last Tested",
           "message": "Message",
           "actions": "Actions"
         }

@@ -175,30 +175,6 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 		if redemption.CodeExpiresAt > 0 && now > redemption.CodeExpiresAt {
 			return errors.New("该兑换码已过期")
 		}
-		if strings.TrimSpace(redemption.TopupOrderID) != "" {
-			order := model.TopupOrder{}
-			if err := tx.Set("gorm:query_option", "FOR UPDATE").
-				Where("id = ?", strings.TrimSpace(redemption.TopupOrderID)).
-				First(&order).Error; err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					return errors.New("关联订单不存在")
-				}
-				return err
-			}
-			if strings.TrimSpace(order.UserID) != strings.TrimSpace(userId) {
-				return errors.New("该兑换码不属于当前用户")
-			}
-			switch model.NormalizeTopupOrderStatus(order.Status) {
-			case model.TopupOrderStatusPaid, model.TopupOrderStatusFulfilled:
-				// allowed
-			case model.TopupOrderStatusCreated, model.TopupOrderStatusPending:
-				return errors.New("当前订单尚未支付")
-			case model.TopupOrderStatusFailed, model.TopupOrderStatusCanceled:
-				return errors.New("当前订单状态不允许兑换")
-			default:
-				return errors.New("当前订单状态不允许兑换")
-			}
-		}
 		err = tx.Set("gorm:query_option", "FOR UPDATE").Where("id = ?", userId).First(user).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -263,11 +239,6 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			FaceValueUnit:    strings.TrimSpace(redemption.FaceValueUnit),
 			RedeemedAt:       redemption.RedeemedTime,
 			CreditExpiresAt:  redemption.CreditExpiresAt,
-		}
-		if strings.TrimSpace(redemption.TopupOrderID) != "" {
-			if err := model.MarkTopupOrderRedeemedWithDB(tx, redemption.TopupOrderID, redemption.Id, redemption.RedeemedTime); err != nil {
-				return err
-			}
 		}
 		return nil
 	})

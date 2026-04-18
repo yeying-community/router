@@ -1418,17 +1418,23 @@ const EditChannel = () => {
     });
     return index;
   }, [modelTestResults]);
-  const testedEndpointsByModel = useMemo(() => {
+  const latestModelTestResultByModel = useMemo(() => {
     const index = new Map();
     normalizeModelTestResults(modelTestResults).forEach((item) => {
       const modelName = (item.model || '').toString().trim();
-      const endpoint = (item.endpoint || '').toString().trim();
-      if (modelName === '' || endpoint === '') {
+      if (modelName === '') {
         return;
       }
-      const existing = index.get(modelName) || new Set();
-      existing.add(endpoint);
-      index.set(modelName, existing);
+      const existing = index.get(modelName);
+      if (!existing) {
+        index.set(modelName, item);
+        return;
+      }
+      const existingTestedAt = Number(existing?.tested_at || 0);
+      const currentTestedAt = Number(item?.tested_at || 0);
+      if (currentTestedAt > existingTestedAt) {
+        index.set(modelName, item);
+      }
     });
     return index;
   }, [modelTestResults]);
@@ -6094,6 +6100,9 @@ const EditChannel = () => {
                             <Table.HeaderCell collapsing>
                               {t('channel.edit.model_tester.table.latency')}
                             </Table.HeaderCell>
+                            <Table.HeaderCell collapsing>
+                              {t('channel.edit.model_tester.table.tested_at')}
+                            </Table.HeaderCell>
                             <Table.HeaderCell>
                               {t('channel.edit.model_tester.table.message')}
                             </Table.HeaderCell>
@@ -6105,7 +6114,7 @@ const EditChannel = () => {
                         <Table.Body>
                           {modelTestRows.length === 0 ? (
                             <Table.Row>
-                              <Table.Cell className='router-empty-cell' colSpan='9'>
+                              <Table.Cell className='router-empty-cell' colSpan='10'>
                                 {t('channel.edit.model_tester.empty')}
                               </Table.Cell>
                             </Table.Row>
@@ -6123,33 +6132,33 @@ const EditChannel = () => {
                                   normalizedEndpoint,
                                 ),
                               );
+                              const latestItemForModel =
+                                latestModelTestResultByModel.get(row.model) ||
+                                null;
+                              const displayItem = item || latestItemForModel;
                               const activeTask =
                                 activeChannelTasksByModel.get(row.model) || null;
-                              const hasTestedOtherEndpoint =
-                                (testedEndpointsByModel.get(row.model) ||
-                                  new Set()).size > 0;
-                              const isStale =
-                                !activeTask && !item && hasTestedOtherEndpoint;
+                              const useLatestResult =
+                                !activeTask && !item && !!latestItemForModel;
                               const canDownloadArtifact =
-                                !!item?.artifact_path || !!item?.artifact_name;
+                                !!displayItem?.artifact_path ||
+                                !!displayItem?.artifact_name;
                               const effectiveStatus =
                                 activeTask?.status ||
-                                item?.status ||
-                                (isStale ? 'stale' : 'untested');
+                                displayItem?.status ||
+                                'untested';
                               const labelColor =
                                 effectiveStatus === 'running'
                                   ? 'blue'
                                   : effectiveStatus === 'pending'
                                     ? 'orange'
-                                    : effectiveStatus === 'stale'
-                                      ? 'yellow'
-                                      : effectiveStatus === 'untested'
-                                        ? undefined
-                                        : effectiveStatus === 'supported'
-                                          ? 'green'
-                                          : effectiveStatus === 'skipped'
-                                            ? 'grey'
-                                            : 'red';
+                                    : effectiveStatus === 'untested'
+                                      ? undefined
+                                      : effectiveStatus === 'supported'
+                                        ? 'green'
+                                        : effectiveStatus === 'skipped'
+                                          ? 'grey'
+                                          : 'red';
                               return (
                                 <Table.Row key={row.model}>
                                   <Table.Cell textAlign='center'>
@@ -6242,16 +6251,29 @@ const EditChannel = () => {
                                     </Label>
                                   </Table.Cell>
                                   <Table.Cell>
-                                    {item?.latency_ms > 0
-                                      ? `${item.latency_ms} ms`
+                                    {displayItem?.latency_ms > 0
+                                      ? `${displayItem.latency_ms} ms`
                                       : '-'}
                                   </Table.Cell>
                                   <Table.Cell>
-                                    {item?.message ||
-                                      (isStale
-                                        ? t('channel.edit.model_tester.stale')
-                                        : effectiveStatus === 'untested'
-                                          ? t('channel.edit.model_tester.untested')
+                                    {displayItem?.tested_at > 0
+                                      ? timestamp2string(displayItem.tested_at)
+                                      : '-'}
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    {useLatestResult
+                                      ? t(
+                                          'channel.edit.model_tester.latest_result_from_endpoint',
+                                          {
+                                            endpoint:
+                                              displayItem?.endpoint || '-',
+                                          },
+                                        )
+                                      : displayItem?.message ||
+                                        (effectiveStatus === 'untested'
+                                          ? t(
+                                              'channel.edit.model_tester.untested',
+                                            )
                                           : '-')}
                                   </Table.Cell>
                                   <Table.Cell collapsing>
@@ -6287,7 +6309,9 @@ const EditChannel = () => {
                                         basic
                                         disabled={!canDownloadArtifact}
                                         onClick={() =>
-                                          handleDownloadModelTestArtifact(item)
+                                          handleDownloadModelTestArtifact(
+                                            displayItem,
+                                          )
                                         }
                                       >
                                         {t('common.download')}
@@ -6448,6 +6472,9 @@ const EditChannel = () => {
                           <Table.HeaderCell collapsing>
                             {t('channel.edit.model_tester.table.latency')}
                           </Table.HeaderCell>
+                          <Table.HeaderCell collapsing>
+                            {t('channel.edit.model_tester.table.tested_at')}
+                          </Table.HeaderCell>
                           <Table.HeaderCell>
                             {t('channel.edit.model_tester.table.message')}
                           </Table.HeaderCell>
@@ -6459,7 +6486,7 @@ const EditChannel = () => {
                       <Table.Body>
                         {modelTestRows.length === 0 ? (
                           <Table.Row>
-                            <Table.Cell className='router-empty-cell' colSpan='9'>
+                            <Table.Cell className='router-empty-cell' colSpan='10'>
                               {t('channel.edit.model_tester.empty')}
                             </Table.Cell>
                           </Table.Row>
@@ -6477,33 +6504,33 @@ const EditChannel = () => {
                                 normalizedEndpoint,
                               ),
                             );
+                            const latestItemForModel =
+                              latestModelTestResultByModel.get(row.model) ||
+                              null;
+                            const displayItem = item || latestItemForModel;
                             const activeTask =
                               activeChannelTasksByModel.get(row.model) || null;
-                            const hasTestedOtherEndpoint =
-                              (testedEndpointsByModel.get(row.model) ||
-                                new Set()).size > 0;
-                            const isStale =
-                              !activeTask && !item && hasTestedOtherEndpoint;
+                            const useLatestResult =
+                              !activeTask && !item && !!latestItemForModel;
                             const canDownloadArtifact =
-                              !!item?.artifact_path || !!item?.artifact_name;
+                              !!displayItem?.artifact_path ||
+                              !!displayItem?.artifact_name;
                             const effectiveStatus =
                               activeTask?.status ||
-                              item?.status ||
-                              (isStale ? 'stale' : 'untested');
+                              displayItem?.status ||
+                              'untested';
                             const labelColor =
                               effectiveStatus === 'running'
                                 ? 'blue'
                                 : effectiveStatus === 'pending'
                                   ? 'orange'
-                                  : effectiveStatus === 'stale'
-                                    ? 'yellow'
-                                    : effectiveStatus === 'untested'
-                                      ? undefined
-                                      : effectiveStatus === 'supported'
-                                        ? 'green'
-                                        : effectiveStatus === 'skipped'
-                                          ? 'grey'
-                                          : 'red';
+                                  : effectiveStatus === 'untested'
+                                    ? undefined
+                                    : effectiveStatus === 'supported'
+                                      ? 'green'
+                                      : effectiveStatus === 'skipped'
+                                        ? 'grey'
+                                        : 'red';
                             return (
                               <Table.Row key={row.model}>
                                 <Table.Cell textAlign='center'>
@@ -6581,15 +6608,26 @@ const EditChannel = () => {
                                   </Label>
                                 </Table.Cell>
                                 <Table.Cell>
-                                  {item?.latency_ms > 0
-                                    ? `${item.latency_ms} ms`
+                                  {displayItem?.latency_ms > 0
+                                    ? `${displayItem.latency_ms} ms`
                                     : '-'}
                                 </Table.Cell>
                                 <Table.Cell>
-                                  {item?.message ||
-                                    (isStale
-                                      ? t('channel.edit.model_tester.stale')
-                                      : effectiveStatus === 'untested'
+                                  {displayItem?.tested_at > 0
+                                    ? timestamp2string(displayItem.tested_at)
+                                    : '-'}
+                                </Table.Cell>
+                                <Table.Cell>
+                                  {useLatestResult
+                                    ? t(
+                                        'channel.edit.model_tester.latest_result_from_endpoint',
+                                        {
+                                          endpoint:
+                                            displayItem?.endpoint || '-',
+                                        },
+                                      )
+                                    : displayItem?.message ||
+                                      (effectiveStatus === 'untested'
                                         ? t('channel.edit.model_tester.untested')
                                         : '-')}
                                 </Table.Cell>
@@ -6625,7 +6663,9 @@ const EditChannel = () => {
                                       basic
                                       disabled={!canDownloadArtifact}
                                       onClick={() =>
-                                        handleDownloadModelTestArtifact(item)
+                                        handleDownloadModelTestArtifact(
+                                          displayItem,
+                                        )
                                       }
                                     >
                                       {t('common.download')}
