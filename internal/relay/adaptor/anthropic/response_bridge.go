@@ -69,7 +69,53 @@ func relayMessagesResponse(c *gin.Context, resp *http.Response) (*model.Usage, *
 		CompletionTokens: claudeResponse.Usage.OutputTokens,
 		TotalTokens:      claudeResponse.Usage.InputTokens + claudeResponse.Usage.OutputTokens,
 	}
+	applyClaudeUsageTotals(usage, &claudeResponse.Usage)
 	return usage, nil
+}
+
+func calcClaudeTotalTokens(u *Usage) (inputTotal int, outputTotal int, total int) {
+	if u == nil {
+		return 0, 0, 0
+	}
+	if len(u.Iterations) > 0 {
+		for _, it := range u.Iterations {
+			inputTotal += it.InputTokens
+			inputTotal += it.CacheReadInputTokens
+			inputTotal += it.CacheCreationInputTokens
+			outputTotal += it.OutputTokens
+		}
+		total = inputTotal + outputTotal
+		return inputTotal, outputTotal, total
+	}
+
+	inputTotal += u.InputTokens
+	inputTotal += u.CacheReadInputTokens
+	inputTotal += u.CacheCreationInputTokens
+	outputTotal += u.OutputTokens
+	total = inputTotal + outputTotal
+	return inputTotal, outputTotal, total
+}
+
+func applyUsageSnapshot(usage *model.Usage, claudeUsage *Usage) {
+	if usage == nil || claudeUsage == nil {
+		return
+	}
+	if claudeUsage.InputTokens > 0 {
+		usage.PromptTokens = claudeUsage.InputTokens
+	}
+	if claudeUsage.OutputTokens > 0 {
+		usage.CompletionTokens = claudeUsage.OutputTokens
+	}
+}
+
+func applyClaudeUsageTotals(usage *model.Usage, claudeUsage *Usage) {
+	if usage == nil || claudeUsage == nil {
+		return
+	}
+	inputTotal, outputTotal, total := calcClaudeTotalTokens(claudeUsage)
+	usage.PromptTokens = inputTotal
+	usage.CompletionTokens = outputTotal
+	usage.TotalTokens = total
 }
 
 func relayMessagesStreamResponse(c *gin.Context, resp *http.Response) (*model.Usage, *model.ErrorWithStatusCode) {
@@ -91,6 +137,7 @@ func relayMessagesStreamResponse(c *gin.Context, resp *http.Response) (*model.Us
 	})
 
 	usage := &model.Usage{}
+	var latestUsage *Usage
 	for scanner.Scan() {
 		line := scanner.Text()
 		if _, err := c.Writer.Write([]byte(line + "\n")); err != nil {
@@ -111,12 +158,14 @@ func relayMessagesStreamResponse(c *gin.Context, resp *http.Response) (*model.Us
 			continue
 		}
 		if claudeResponse.Message != nil {
-			usage.PromptTokens += claudeResponse.Message.Usage.InputTokens
-			usage.CompletionTokens += claudeResponse.Message.Usage.OutputTokens
+			applyUsageSnapshot(usage, &claudeResponse.Message.Usage)
+			latest := claudeResponse.Message.Usage
+			latestUsage = &latest
 		}
 		if claudeResponse.Usage != nil {
-			usage.PromptTokens += claudeResponse.Usage.InputTokens
-			usage.CompletionTokens += claudeResponse.Usage.OutputTokens
+			applyUsageSnapshot(usage, claudeResponse.Usage)
+			latest := *claudeResponse.Usage
+			latestUsage = &latest
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -125,7 +174,10 @@ func relayMessagesStreamResponse(c *gin.Context, resp *http.Response) (*model.Us
 	if err := resp.Body.Close(); err != nil {
 		return nil, openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError)
 	}
-	usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	applyClaudeUsageTotals(usage, latestUsage)
+	if usage.TotalTokens == 0 {
+		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	}
 	return usage, nil
 }
 
@@ -159,6 +211,7 @@ func relayMessagesStreamAsChatResponse(c *gin.Context, resp *http.Response, prom
 	responseID := ""
 	responseModel := strings.TrimSpace(modelName)
 	finishReason := "stop"
+	var latestUsage *Usage
 	usage := &model.Usage{
 		PromptTokens: promptTokens,
 	}
@@ -201,6 +254,8 @@ func relayMessagesStreamAsChatResponse(c *gin.Context, resp *http.Response, prom
 				if payload.Message.Usage.OutputTokens > 0 {
 					usage.CompletionTokens = payload.Message.Usage.OutputTokens
 				}
+				latest := payload.Message.Usage
+				latestUsage = &latest
 			}
 		case "content_block_start":
 			if payload.ContentBlock != nil && payload.ContentBlock.Type == "text" && strings.TrimSpace(payload.ContentBlock.Text) != "" {
@@ -218,6 +273,8 @@ func relayMessagesStreamAsChatResponse(c *gin.Context, resp *http.Response, prom
 				if payload.Usage.OutputTokens > 0 {
 					usage.CompletionTokens = payload.Usage.OutputTokens
 				}
+				latest := *payload.Usage
+				latestUsage = &latest
 			}
 			if payload.Delta != nil && payload.Delta.StopReason != nil {
 				reason := stopReasonClaude2OpenAI(payload.Delta.StopReason)
@@ -238,7 +295,10 @@ func relayMessagesStreamAsChatResponse(c *gin.Context, resp *http.Response, prom
 	if usage.PromptTokens == 0 {
 		usage.PromptTokens = promptTokens
 	}
-	usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	applyClaudeUsageTotals(usage, latestUsage)
+	if usage.TotalTokens == 0 {
+		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	}
 
 	response := openai.TextResponse{
 		Id:      fmt.Sprintf("chatcmpl-%s", responseID),
