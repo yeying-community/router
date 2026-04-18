@@ -28,18 +28,18 @@ type channelRefreshBalanceTaskPayload struct {
 	ChannelID string `json:"channel_id"`
 }
 
-func buildChannelModelTestTaskDedupeKey(channelID string, row model.ChannelModel, streamOverride *bool) string {
-	modelID := strings.TrimSpace(row.Model)
-	endpoint := model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), row.Endpoint)
+func buildChannelModelTestTaskDedupeKey(channelID string, modelID string, endpoint string, streamOverride *bool) string {
+	normalizedModelID := strings.TrimSpace(modelID)
+	normalizedEndpoint := model.NormalizeRequestedChannelModelEndpoint(endpoint)
 	if streamOverride == nil {
-		return fmt.Sprintf("%s:%s:%s:%s", model.AsyncTaskTypeChannelModelTest, strings.TrimSpace(channelID), modelID, endpoint)
+		return fmt.Sprintf("%s:%s:%s:%s", model.AsyncTaskTypeChannelModelTest, strings.TrimSpace(channelID), normalizedModelID, normalizedEndpoint)
 	}
 	return fmt.Sprintf(
 		"%s:%s:%s:%s:%t",
 		model.AsyncTaskTypeChannelModelTest,
 		strings.TrimSpace(channelID),
-		modelID,
-		endpoint,
+		normalizedModelID,
+		normalizedEndpoint,
 		*streamOverride,
 	)
 }
@@ -52,15 +52,11 @@ func buildChannelRefreshBalanceTaskDedupeKey(channelID string) string {
 	return fmt.Sprintf("%s:%s", model.AsyncTaskTypeChannelRefreshBalance, strings.TrimSpace(channelID))
 }
 
-func buildChannelModelTestTaskPayload(row model.ChannelModel, channelID string, endpointOverride string, streamOverride *bool) string {
-	endpoint := model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), endpointOverride)
-	if strings.TrimSpace(endpointOverride) == "" {
-		endpoint = model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), row.Endpoint)
-	}
+func buildChannelModelTestTaskPayload(modelID string, channelID string, endpoint string, streamOverride *bool) string {
 	return marshalJSONForLog(channelModelTestTaskPayload{
 		ChannelID: strings.TrimSpace(channelID),
-		Model:     strings.TrimSpace(row.Model),
-		Endpoint:  endpoint,
+		Model:     strings.TrimSpace(modelID),
+		Endpoint:  model.NormalizeRequestedChannelModelEndpoint(endpoint),
 		IsStream:  streamOverride,
 	})
 }
@@ -101,14 +97,18 @@ func CreateChannelModelTestTasks(channelID string, createdBy string, requestedTe
 			row.Endpoint = endpoint
 		}
 		stream := streamOverrides[strings.TrimSpace(row.Model)]
-		normalizedEndpoint := model.NormalizeChannelModelEndpoint(resolveSelectionModelType(row), row.Endpoint)
+		normalizedEndpoint, endpointErr := resolveChannelModelTestEndpoint(resolveSelectionModelType(row), row.Endpoint)
+		if endpointErr != nil {
+			return nil, createdCount, reusedCount, endpointErr
+		}
+		modelID := strings.TrimSpace(row.Model)
 		task, reused, err := model.CreateOrReuseAsyncTaskWithDB(model.DB, model.AsyncTask{
 			Type:      model.AsyncTaskTypeChannelModelTest,
-			DedupeKey: buildChannelModelTestTaskDedupeKey(normalizedChannelID, row, stream),
+			DedupeKey: buildChannelModelTestTaskDedupeKey(normalizedChannelID, modelID, normalizedEndpoint, stream),
 			ChannelId: normalizedChannelID,
-			Model:     strings.TrimSpace(row.Model),
+			Model:     modelID,
 			Endpoint:  normalizedEndpoint,
-			Payload:   buildChannelModelTestTaskPayload(row, normalizedChannelID, endpoint, stream),
+			Payload:   buildChannelModelTestTaskPayload(modelID, normalizedChannelID, normalizedEndpoint, stream),
 			CreatedBy: strings.TrimSpace(createdBy),
 			TraceID:   strings.TrimSpace(traceID),
 		})

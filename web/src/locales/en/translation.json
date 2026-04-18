@@ -664,7 +664,9 @@
         "single": "Test",
         "task_created": "{{count}} test tasks submitted, {{reused}} active tasks reused.",
         "selection": "Selected {{selected}} / {{total}}",
-        "selection_notice": "Model test results are only used to diagnose channel capability and do not change whether a selected model can be used. As long as the model is selected, it can still be used when creating or editing groups.",
+        "selection_notice": "Model test results are used for the publish review step. Only tested-and-supported endpoints should be published.",
+        "review_hint": "Confirm the final configuration of enabled models here. If you change model endpoints, go back to Step 3 and pass tests again before publishing.",
+        "review_pending_notice": "{{count}} models still have current endpoints that are not tested/supported, so publishing cannot continue.",
         "verify_required": "Please finish the current model tests before continuing.",
         "empty": "No testable models yet. Please select models in step 2 first.",
         "last_tested": "Last tested at: {{time}}",
@@ -674,6 +676,7 @@
         "download_unavailable": "No downloadable artifact is available for this test result",
         "stale": "Connection info, model selection, or endpoint changed. Please run model tests again.",
         "untested": "The current endpoint has not been tested yet.",
+        "latest_result_from_endpoint": "Current endpoint is untested. Showing latest test result from endpoint: {{endpoint}}.",
         "status": {
           "pending": "Pending",
           "running": "Running",
@@ -687,9 +690,12 @@
           "model": "Model",
           "type": "Type",
           "endpoint": "Endpoint",
+          "batch_set": "Batch",
+          "supported_endpoints": "Supported Endpoints",
           "is_stream": "Stream",
           "status": "Status",
           "latency": "Latency",
+          "tested_at": "Last Tested",
           "message": "Message",
           "actions": "Actions"
         }
@@ -700,6 +706,7 @@
         "key_required": "Please enter the channel key!",
         "groups_required": "Please select at least one group!",
         "models_required": "Please select at least one model!",
+        "model_tests_required": "Please complete model tests and ensure current endpoints are supported: {{models}}",
         "create_channel_failed": "Failed to create channel",
         "save_channel_failed": "Failed to save channel",
         "fetch_models_failed": "Failed to fetch models",
@@ -722,8 +729,10 @@
         "step_basic": "Step 1: Connection",
         "step_models": "Step 2: Model Selection",
         "step_model_tests": "Step 3: Model Test",
-        "step_advanced": "Step 4: Advanced Settings"
+        "step_review": "Step 4: Publish Review",
+        "step_advanced": "Step 5: Advanced Settings"
       },
+      "advanced_title": "Advanced Settings",
       "aws_region_placeholder": "region, e.g.: us-west-2",
       "aws_ak_placeholder": "AWS IAM Access Key",
       "aws_sk_placeholder": "AWS IAM Secret Key",

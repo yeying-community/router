@@ -1295,12 +1295,6 @@ definitions:
       redeemed_at:
         example: 1774000200
         type: integer
-      redemption_code:
-        example: redeem-xxxx-xxxx
-        type: string
-      redemption_id:
-        example: 848f6666d94346519ae2f4c3c98a408c
-        type: string
       status:
         example: paid
         type: string
@@ -1689,9 +1683,6 @@ definitions:
       redeemed_at:
         example: 1774000200
         type: integer
-      redemption_id:
-        example: 474c9b7b534047ce9205220990f53087
-        type: string
       redirect_url:
         example: https://example.com/topup?user_id=1&transaction_id=tx_123
         type: string

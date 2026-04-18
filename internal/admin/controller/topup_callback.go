@@ -20,8 +20,6 @@ type topupCallbackRequest struct {
 	ProviderOrderID string `json:"provider_order_id"`
 	Status          string `json:"status"`
 	ProviderName    string `json:"provider_name"`
-	RedemptionID    string `json:"redemption_id"`
-	RedemptionCode  string `json:"redemption_code"`
 	StatusMessage   string `json:"status_message"`
 	PaidAt          int64  `json:"paid_at"`
 	RedeemedAt      int64  `json:"redeemed_at"`
@@ -120,8 +118,6 @@ func ProcessTopupCallback(c *gin.Context) {
 		ProviderOrderID: req.ProviderOrderID,
 		Status:          req.Status,
 		ProviderName:    req.ProviderName,
-		RedemptionID:    req.RedemptionID,
-		RedemptionCode:  req.RedemptionCode,
 		StatusMessage:   req.StatusMessage,
 		PaidAt:          req.PaidAt,
 		RedeemedAt:      req.RedeemedAt,

@@ -664,7 +664,9 @@
         "single": "测试",
         "task_created": "已提交 {{count}} 个测试任务，其中复用 {{reused}} 个运行中任务。",
         "selection": "已勾选 {{selected}} / {{total}}",
-        "selection_notice": "模型测试结果仅用于诊断渠道能力，不会改变已选模型是否可用。只要模型已被选中，创建或编辑分组时都可以继续使用。",
+        "selection_notice": "模型测试结果将用于后续发布确认。建议仅发布测试通过的模型端点。",
+        "review_hint": "请在此确认已启用模型的最终配置。若修改模型端点，需要重新回到步骤 3 测试通过后再继续。",
+        "review_pending_notice": "仍有 {{count}} 个模型的当前端点未测试通过，无法继续发布。",
         "verify_required": "请先完成当前模型测试后再继续。",
         "empty": "当前没有可测试的模型，请先在第二步选择模型。",
         "last_tested": "最近测试时间：{{time}}",
@@ -674,6 +676,7 @@
         "download_unavailable": "当前测试结果没有可下载文件",
         "stale": "连接信息、模型选择或端点已变更，请重新执行模型测试。",
         "untested": "当前端点尚未执行测试。",
+        "latest_result_from_endpoint": "当前端点未测试，展示最近一次测试结果（端点：{{endpoint}}）",
         "status": {
           "pending": "排队中",
           "running": "运行中",
@@ -687,9 +690,12 @@
           "model": "模型",
           "type": "类型",
           "endpoint": "端点",
+          "batch_set": "批量设置",
+          "supported_endpoints": "已通过端点",
           "is_stream": "是否流式",
           "status": "结果",
           "latency": "耗时",
+          "tested_at": "最近测试",
           "message": "说明",
           "actions": "操作"
         }
@@ -700,6 +706,7 @@
         "key_required": "请填写渠道密钥！",
         "groups_required": "请至少选择一个分组！",
         "models_required": "请至少选择一个模型！",
+        "model_tests_required": "请先完成模型测试并确保当前端点测试通过：{{models}}",
         "create_channel_failed": "创建渠道失败",
         "save_channel_failed": "保存渠道失败",
         "fetch_models_failed": "获取模型失败",
@@ -722,8 +729,10 @@
         "step_basic": "步骤 1：连接信息",
         "step_models": "步骤 2：模型选择",
         "step_model_tests": "步骤 3：模型测试",
-        "step_advanced": "步骤 4：高级配置"
+        "step_review": "步骤 4：发布确认",
+        "step_advanced": "步骤 5：高级配置"
       },
+      "advanced_title": "高级配置",
       "aws_region_placeholder": "region，例如：us-west-2",
       "aws_ak_placeholder": "AWS IAM Access Key",
       "aws_sk_placeholder": "AWS IAM Secret Key",

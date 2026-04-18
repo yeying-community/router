@@ -95,3 +95,27 @@ func TestBuildChannelModelTestResult_PreserveIsStream(t *testing.T) {
 		t.Fatalf("expected supported result, got status=%q supported=%v", result.Status, result.Supported)
 	}
 }
+
+func TestResolveChannelModelTestEndpoint_StrictRejectsEmpty(t *testing.T) {
+	_, err := resolveChannelModelTestEndpoint(adminmodel.ProviderModelTypeText, "")
+	if err == nil {
+		t.Fatalf("expected error when endpoint is empty")
+	}
+}
+
+func TestResolveChannelModelTestEndpoint_StrictRejectsMismatchedType(t *testing.T) {
+	_, err := resolveChannelModelTestEndpoint(adminmodel.ProviderModelTypeText, adminmodel.ChannelModelEndpointImages)
+	if err == nil {
+		t.Fatalf("expected error when text model uses image endpoint")
+	}
+}
+
+func TestResolveChannelModelTestEndpoint_AcceptsMessagesForText(t *testing.T) {
+	endpoint, err := resolveChannelModelTestEndpoint(adminmodel.ProviderModelTypeText, adminmodel.ChannelModelEndpointMessages)
+	if err != nil {
+		t.Fatalf("resolveChannelModelTestEndpoint returned error: %v", err)
+	}
+	if endpoint != adminmodel.ChannelModelEndpointMessages {
+		t.Fatalf("endpoint = %q, want %q", endpoint, adminmodel.ChannelModelEndpointMessages)
+	}
+}

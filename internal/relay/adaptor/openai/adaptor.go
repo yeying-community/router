@@ -137,13 +137,6 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 		}
 		return relayResponsesAsChatResponse(c, resp, meta.ActualModelName, meta.PromptTokens)
 	}
-	if meta.Mode == relaymode.Responses && upstreamMode == relaymode.ChatCompletions {
-		if meta.IsStream {
-			respErr, usage := StreamChatAsResponsesHandler(c, resp, meta.ActualModelName, meta.PromptTokens)
-			return usage, respErr
-		}
-		return relayChatAsResponsesResponse(c, resp, meta.ActualModelName, meta.PromptTokens)
-	}
 	if upstreamMode == relaymode.Responses {
 		if resp == nil {
 			return nil, ErrorWrapper(errors.New("resp is nil"), "nil_response", http.StatusInternalServerError)

@@ -11,7 +11,7 @@ import (
 	"github.com/yeying-community/router/internal/relay/relaymode"
 )
 
-func TestResolveChannelTextUpstreamOpenAIResponsesModelDownstreamChatBridgesToResponses(t *testing.T) {
+func TestResolveChannelTextUpstreamOpenAIResponsesModelDownstreamChatRejected(t *testing.T) {
 	meta := &meta.Meta{
 		Mode:           relaymode.ChatCompletions,
 		RequestURLPath: adminmodel.ChannelModelEndpointChat,
@@ -24,12 +24,9 @@ func TestResolveChannelTextUpstreamOpenAIResponsesModelDownstreamChatBridgesToRe
 		}},
 	}
 
-	mode, path, err := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
-	if err != nil {
-		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
-	}
-	if mode != relaymode.Responses || path != adminmodel.ChannelModelEndpointResponses {
-		t.Fatalf("resolveChannelTextUpstream selected responses bridge = (%d, %q), want (%d, %q)", mode, path, relaymode.Responses, adminmodel.ChannelModelEndpointResponses)
+	_, _, err := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
+	if err == nil {
+		t.Fatalf("resolveChannelTextUpstream returned nil error, want endpoint-not-supported error")
 	}
 }
 
@@ -79,7 +76,7 @@ func TestResolveChannelTextUpstreamAnthropicMessagesModelDownstreamMessagesUsesM
 	}
 }
 
-func TestResolveChannelTextUpstreamAnthropicMessagesModelDownstreamChatBridgesToMessages(t *testing.T) {
+func TestResolveChannelTextUpstreamAnthropicMessagesModelDownstreamChatRejected(t *testing.T) {
 	meta := &meta.Meta{
 		Mode:           relaymode.ChatCompletions,
 		RequestURLPath: adminmodel.ChannelModelEndpointChat,
@@ -93,12 +90,9 @@ func TestResolveChannelTextUpstreamAnthropicMessagesModelDownstreamChatBridgesTo
 		}},
 	}
 
-	mode, path, err := resolveChannelTextUpstream(meta, "claude-sonnet-4-6", "claude-sonnet-4-6")
-	if err != nil {
-		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
-	}
-	if mode != relaymode.Messages || path != adminmodel.ChannelModelEndpointMessages {
-		t.Fatalf("resolveChannelTextUpstream selected messages bridge = (%d, %q), want (%d, %q)", mode, path, relaymode.Messages, adminmodel.ChannelModelEndpointMessages)
+	_, _, err := resolveChannelTextUpstream(meta, "claude-sonnet-4-6", "claude-sonnet-4-6")
+	if err == nil {
+		t.Fatalf("resolveChannelTextUpstream returned nil error, want endpoint-not-supported error")
 	}
 }
 
@@ -125,7 +119,7 @@ func TestResolveChannelTextUpstreamOpenAIDirectChatEndpointPreferredForDownstrea
 	}
 }
 
-func TestResolveChannelTextUpstreamOpenAIChatOnlyModelDownstreamResponsesFallsBackToChat(t *testing.T) {
+func TestResolveChannelTextUpstreamOpenAIChatOnlyModelDownstreamResponsesRejected(t *testing.T) {
 	meta := &meta.Meta{
 		Mode:           relaymode.Responses,
 		RequestURLPath: adminmodel.ChannelModelEndpointResponses,
@@ -138,12 +132,9 @@ func TestResolveChannelTextUpstreamOpenAIChatOnlyModelDownstreamResponsesFallsBa
 		}},
 	}
 
-	mode, path, err := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
-	if err != nil {
-		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
-	}
-	if mode != relaymode.ChatCompletions || path != adminmodel.ChannelModelEndpointChat {
-		t.Fatalf("resolveChannelTextUpstream selected chat fallback = (%d, %q), want (%d, %q)", mode, path, relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat)
+	_, _, err := resolveChannelTextUpstream(meta, "gpt-4.1", "gpt-4.1")
+	if err == nil {
+		t.Fatalf("resolveChannelTextUpstream returned nil error, want endpoint-not-supported error")
 	}
 }
 
@@ -164,7 +155,7 @@ func TestResolveChannelTextUpstreamRejectsWhenRequestedModelNotSelected(t *testi
 	}
 }
 
-func TestResolveChannelTextUpstreamNoModelConfigsOpenAIDefaultsResponses(t *testing.T) {
+func TestResolveChannelTextUpstreamNoModelConfigsOpenAIDownstreamChatUsesChat(t *testing.T) {
 	meta := &meta.Meta{
 		Mode:           relaymode.ChatCompletions,
 		RequestURLPath: adminmodel.ChannelModelEndpointChat,
@@ -175,15 +166,15 @@ func TestResolveChannelTextUpstreamNoModelConfigsOpenAIDefaultsResponses(t *test
 	if err != nil {
 		t.Fatalf("resolveChannelTextUpstream returned error: %v", err)
 	}
-	if mode != relaymode.Responses || path != adminmodel.ChannelModelEndpointResponses {
-		t.Fatalf("resolveChannelTextUpstream no-config openai responses = (%d, %q), want (%d, %q)", mode, path, relaymode.Responses, adminmodel.ChannelModelEndpointResponses)
+	if mode != relaymode.ChatCompletions || path != adminmodel.ChannelModelEndpointChat {
+		t.Fatalf("resolveChannelTextUpstream no-config openai chat = (%d, %q), want (%d, %q)", mode, path, relaymode.ChatCompletions, adminmodel.ChannelModelEndpointChat)
 	}
 }
 
-func TestResolveChannelTextUpstreamNoModelConfigsAnthropicDefaultsMessages(t *testing.T) {
+func TestResolveChannelTextUpstreamNoModelConfigsAnthropicDownstreamMessagesUsesMessages(t *testing.T) {
 	meta := &meta.Meta{
-		Mode:           relaymode.ChatCompletions,
-		RequestURLPath: adminmodel.ChannelModelEndpointChat,
+		Mode:           relaymode.Messages,
+		RequestURLPath: adminmodel.ChannelModelEndpointMessages,
 		APIType:        apitype.Anthropic,
 	}
 
@@ -193,6 +184,32 @@ func TestResolveChannelTextUpstreamNoModelConfigsAnthropicDefaultsMessages(t *te
 	}
 	if mode != relaymode.Messages || path != adminmodel.ChannelModelEndpointMessages {
 		t.Fatalf("resolveChannelTextUpstream no-config anthropic messages = (%d, %q), want (%d, %q)", mode, path, relaymode.Messages, adminmodel.ChannelModelEndpointMessages)
+	}
+}
+
+func TestResolveChannelTextUpstreamNoModelConfigsAnthropicDownstreamChatRejected(t *testing.T) {
+	meta := &meta.Meta{
+		Mode:           relaymode.ChatCompletions,
+		RequestURLPath: adminmodel.ChannelModelEndpointChat,
+		APIType:        apitype.Anthropic,
+	}
+
+	_, _, err := resolveChannelTextUpstream(meta, "claude-sonnet-4-6", "claude-sonnet-4-6")
+	if err == nil {
+		t.Fatalf("resolveChannelTextUpstream returned nil error, want unsupported chat error")
+	}
+}
+
+func TestResolveChannelTextUpstreamNoModelConfigsOpenAIMessagesRejected(t *testing.T) {
+	meta := &meta.Meta{
+		Mode:           relaymode.Messages,
+		RequestURLPath: adminmodel.ChannelModelEndpointMessages,
+		APIType:        apitype.OpenAI,
+	}
+
+	_, _, err := resolveChannelTextUpstream(meta, "gpt-5.4", "gpt-5.4")
+	if err == nil {
+		t.Fatalf("resolveChannelTextUpstream returned nil error, want unsupported messages error")
 	}
 }
 
@@ -345,82 +362,6 @@ func TestConvertTextRequestForUpstreamToMessagesFromInput(t *testing.T) {
 	}
 	if converted.MaxTokens != 320 {
 		t.Fatalf("converted.MaxTokens = %d, want 320", converted.MaxTokens)
-	}
-}
-
-func TestNormalizeResponsesRequestBodyPreservesUnknownFields(t *testing.T) {
-	raw := []byte(`{"model":"gpt-5.2-codex","instructions":"keep me","input":"hello","tools":[{"type":"web_search"}]}`)
-	normalized, err := normalizeResponsesRequestBody(raw, "gpt-5.4")
-	if err != nil {
-		t.Fatalf("normalizeResponsesRequestBody returned error: %v", err)
-	}
-
-	payload := map[string]any{}
-	if err := json.Unmarshal(normalized, &payload); err != nil {
-		t.Fatalf("json.Unmarshal normalized body returned error: %v", err)
-	}
-	if payload["instructions"] != "keep me" {
-		t.Fatalf("payload.instructions = %#v, want %q", payload["instructions"], "keep me")
-	}
-	if payload["model"] != "gpt-5.4" {
-		t.Fatalf("payload.model = %#v, want %q", payload["model"], "gpt-5.4")
-	}
-	input, ok := payload["input"].([]any)
-	if !ok || len(input) != 1 {
-		t.Fatalf("payload.input = %#v, want single-item array", payload["input"])
-	}
-	first, ok := input[0].(map[string]any)
-	if !ok {
-		t.Fatalf("payload.input[0] = %#v, want object", input[0])
-	}
-	if first["role"] != "user" || first["content"] != "hello" {
-		t.Fatalf("payload.input[0] = %#v, want user message", first)
-	}
-}
-
-func TestNormalizeResponsesRequestBodyConvertsMessagesWithImageContent(t *testing.T) {
-	raw := []byte(`{
-		"model":"gpt-5.4",
-		"messages":[
-			{
-				"role":"user",
-				"content":[
-					{"type":"text","text":"what is in this image"},
-					{"type":"image_url","image_url":{"url":"https://example.com/img.png","detail":"low"}}
-				]
-			}
-		]
-	}`)
-	normalized, err := normalizeResponsesRequestBody(raw, "gpt-5.4")
-	if err != nil {
-		t.Fatalf("normalizeResponsesRequestBody returned error: %v", err)
-	}
-	payload := map[string]any{}
-	if err := json.Unmarshal(normalized, &payload); err != nil {
-		t.Fatalf("json.Unmarshal normalized body returned error: %v", err)
-	}
-	if _, exists := payload["messages"]; exists {
-		t.Fatalf("payload.messages = %#v, want removed", payload["messages"])
-	}
-	input, ok := payload["input"].([]any)
-	if !ok || len(input) != 1 {
-		t.Fatalf("payload.input = %#v, want one-item array", payload["input"])
-	}
-	first, ok := input[0].(map[string]any)
-	if !ok {
-		t.Fatalf("payload.input[0] = %#v, want map", input[0])
-	}
-	content, ok := first["content"].([]any)
-	if !ok || len(content) != 2 {
-		t.Fatalf("payload.input[0].content = %#v, want two blocks", first["content"])
-	}
-	textPart, ok := content[0].(map[string]any)
-	if !ok || textPart["type"] != "input_text" || textPart["text"] != "what is in this image" {
-		t.Fatalf("content[0] = %#v, want input_text", content[0])
-	}
-	imagePart, ok := content[1].(map[string]any)
-	if !ok || imagePart["type"] != "input_image" || imagePart["image_url"] != "https://example.com/img.png" || imagePart["detail"] != "low" {
-		t.Fatalf("content[1] = %#v, want input_image", content[1])
 	}
 }
 

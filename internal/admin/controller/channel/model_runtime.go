@@ -491,7 +491,10 @@ func resolveChannelTestTargetModels(channel *model.Channel, mode string, request
 
 func buildChannelModelTestResult(row model.ChannelModel, execution channelModelTestExecution) model.ChannelTest {
 	modelType := resolveSelectionModelType(row)
-	endpoint := model.NormalizeChannelModelEndpoint(modelType, row.Endpoint)
+	endpoint := model.NormalizeRequestedChannelModelEndpoint(strings.TrimSpace(row.Endpoint))
+	if endpoint == "" {
+		endpoint = strings.TrimSpace(row.Endpoint)
+	}
 	result := model.ChannelTest{
 		Model:         strings.TrimSpace(row.Model),
 		UpstreamModel: strings.TrimSpace(row.UpstreamModel),
@@ -529,9 +532,60 @@ func runSingleChannelModelTestWithContext(ctx context.Context, channel *model.Ch
 	return runSingleChannelModelTestWithContextAndStream(ctx, channel, row, nil)
 }
 
+func isChannelModelTestEndpointAllowed(modelType string, endpoint string) bool {
+	normalizedEndpoint := model.NormalizeRequestedChannelModelEndpoint(endpoint)
+	if normalizedEndpoint == "" {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(modelType)) {
+	case model.ProviderModelTypeImage:
+		return normalizedEndpoint == model.ChannelModelEndpointResponses ||
+			normalizedEndpoint == model.ChannelModelEndpointBatches ||
+			normalizedEndpoint == model.ChannelModelEndpointImageEdit ||
+			normalizedEndpoint == model.ChannelModelEndpointImages
+	case model.ProviderModelTypeAudio:
+		return normalizedEndpoint == model.ChannelModelEndpointAudio
+	case model.ProviderModelTypeVideo:
+		return normalizedEndpoint == model.ChannelModelEndpointVideos
+	default:
+		return normalizedEndpoint == model.ChannelModelEndpointChat ||
+			normalizedEndpoint == model.ChannelModelEndpointMessages ||
+			normalizedEndpoint == model.ChannelModelEndpointResponses
+	}
+}
+
+func resolveChannelModelTestEndpoint(modelType string, endpoint string) (string, error) {
+	raw := strings.TrimSpace(endpoint)
+	if raw == "" {
+		return "", fmt.Errorf("模型测试端点未配置，请先为模型明确选择端点")
+	}
+	normalized := model.NormalizeRequestedChannelModelEndpoint(raw)
+	if normalized == "" {
+		return "", fmt.Errorf("模型测试端点无效: %s", raw)
+	}
+	if !isChannelModelTestEndpointAllowed(modelType, normalized) {
+		return "", fmt.Errorf("模型类型 %s 不支持测试端点 %s", strings.TrimSpace(modelType), normalized)
+	}
+	return normalized, nil
+}
+
 func runSingleChannelModelTestWithContextAndStream(ctx context.Context, channel *model.Channel, row model.ChannelModel, requestedStream *bool) (model.ChannelTest, channelModelTestExecution) {
 	modelType := resolveSelectionModelType(row)
-	endpoint := model.NormalizeChannelModelEndpoint(modelType, row.Endpoint)
+	endpoint, endpointErr := resolveChannelModelTestEndpoint(modelType, row.Endpoint)
+	if endpointErr != nil {
+		execution := channelModelTestExecution{
+			Err: endpointErr,
+			OutputPayload: marshalJSONForLog(map[string]any{
+				"error": endpointErr.Error(),
+			}),
+		}
+		return buildChannelModelTestResult(model.ChannelModel{
+			Model:         row.Model,
+			UpstreamModel: row.UpstreamModel,
+			Type:          modelType,
+			Endpoint:      strings.TrimSpace(row.Endpoint),
+		}, execution), execution
+	}
 
 	switch modelType {
 	case model.ProviderModelTypeImage:
@@ -593,52 +647,24 @@ func runSingleChannelModelTestWithContextAndStream(ctx context.Context, channel 
 				Endpoint:      endpoint,
 			}, execution), execution
 		}
+		stream := false
 		if requestedStream != nil {
-			requestBody := buildResponsesTextModelTestRequestBody(row.Model, *requestedStream)
-			execution := executeChannelTextModelTestRawBodyWithRetry(
-				ctx,
-				channel,
-				model.ChannelModelEndpointResponses,
-				requestBody,
-				row.Model,
-				channelModelTestRetryMax,
-			)
-			return buildChannelModelTestResult(model.ChannelModel{
-				Model:         row.Model,
-				UpstreamModel: row.UpstreamModel,
-				Type:          modelType,
-				Endpoint:      model.ChannelModelEndpointResponses,
-			}, execution), execution
+			stream = *requestedStream
 		}
-		requestBody := buildResponsesTextModelTestRequestBody(row.Model, true)
+		requestBody := buildResponsesTextModelTestRequestBody(row.Model, stream)
 		execution := executeChannelTextModelTestRawBodyWithRetry(
 			ctx,
 			channel,
-			model.ChannelModelEndpointResponses,
+			endpoint,
 			requestBody,
 			row.Model,
 			channelModelTestRetryMax,
 		)
-		if execution.Err != nil {
-			// Keep a non-stream fallback for channels that reject streaming test probes.
-			fallbackBody := buildResponsesTextModelTestRequestBody(row.Model, false)
-			fallback := executeChannelTextModelTestRawBodyWithRetry(
-				ctx,
-				channel,
-				model.ChannelModelEndpointResponses,
-				fallbackBody,
-				row.Model,
-				1,
-			)
-			if fallback.Err == nil {
-				execution = fallback
-			}
-		}
 		return buildChannelModelTestResult(model.ChannelModel{
 			Model:         row.Model,
 			UpstreamModel: row.UpstreamModel,
 			Type:          modelType,
-			Endpoint:      model.ChannelModelEndpointResponses,
+			Endpoint:      endpoint,
 		}, execution), execution
 	}
 }
@@ -1547,15 +1573,11 @@ func persistChannelModelTests(channelID string, results []model.ChannelTest) err
 	}
 	targetModels = model.NormalizeChannelModelIDsPreserveOrder(targetModels)
 	return model.DB.Transaction(func(tx *gorm.DB) error {
-		currentRows, err := model.ListChannelModelRowsByChannelIDWithDB(tx, normalizedChannelID)
-		if err != nil {
-			return err
-		}
 		insertedResults, err := model.AppendChannelTestsForModelsWithDB(tx, normalizedChannelID, targetModels, results)
 		if err != nil {
 			return err
 		}
-		if err := model.ReplaceChannelModelConfigsWithDB(tx, normalizedChannelID, model.ApplyChannelTestResultsToModelConfigs(currentRows, insertedResults)); err != nil {
+		if err := model.ApplyChannelModelEndpointSupportFromTestsWithDB(tx, normalizedChannelID, insertedResults); err != nil {
 			return err
 		}
 		return model.EnsureChannelTestModelWithDB(tx, normalizedChannelID)

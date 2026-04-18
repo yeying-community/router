@@ -8961,14 +8961,6 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 1774000200
                 },
-                "redemption_code": {
-                    "type": "string",
-                    "example": "redeem-xxxx-xxxx"
-                },
-                "redemption_id": {
-                    "type": "string",
-                    "example": "848f6666d94346519ae2f4c3c98a408c"
-                },
                 "status": {
                     "type": "string",
                     "example": "paid"
@@ -9509,10 +9501,6 @@ const docTemplate = `{
                 "redeemed_at": {
                     "type": "integer",
                     "example": 1774000200
-                },
-                "redemption_id": {
-                    "type": "string",
-                    "example": "474c9b7b534047ce9205220990f53087"
                 },
                 "redirect_url": {
                     "type": "string",

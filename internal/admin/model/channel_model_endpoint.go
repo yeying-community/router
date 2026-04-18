@@ -63,36 +63,7 @@ func ResolveChannelModelCapabilityEndpoints(row ChannelModel) []string {
 	case ProviderModelTypeVideo:
 		return []string{ChannelModelEndpointVideos}
 	default:
-		directEndpoints := ResolveChannelModelDirectEndpoints(normalized)
-		result := make([]string, 0, len(directEndpoints)*2)
-		seen := make(map[string]struct{}, len(directEndpoints)*2)
-		appendEndpoint := func(endpoint string) {
-			normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(endpoint)
-			if normalizedEndpoint == "" {
-				return
-			}
-			if _, ok := seen[normalizedEndpoint]; ok {
-				return
-			}
-			seen[normalizedEndpoint] = struct{}{}
-			result = append(result, normalizedEndpoint)
-		}
-		for _, endpoint := range directEndpoints {
-			switch NormalizeRequestedChannelModelEndpoint(endpoint) {
-			case ChannelModelEndpointResponses:
-				appendEndpoint(ChannelModelEndpointChat)
-				appendEndpoint(ChannelModelEndpointResponses)
-			case ChannelModelEndpointMessages:
-				appendEndpoint(ChannelModelEndpointMessages)
-				appendEndpoint(ChannelModelEndpointChat)
-			default:
-				appendEndpoint(endpoint)
-			}
-		}
-		if len(result) == 0 {
-			return []string{ChannelModelEndpointChat}
-		}
-		return result
+		return ResolveChannelModelDirectEndpoints(normalized)
 	}
 }
 
@@ -310,6 +281,84 @@ func replaceChannelModelEndpointRowsWithDB(db *gorm.DB, channelID string, rows [
 	})
 }
 
+func buildChannelModelEndpointRowsByTests(rows []ChannelModelEndpoint, channelID string, tests []ChannelTest) ([]ChannelModelEndpoint, bool) {
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return rows, false
+	}
+
+	result := make([]ChannelModelEndpoint, 0, len(rows)+len(tests))
+	indexByKey := make(map[string]int, len(rows)+len(tests))
+	changed := false
+
+	for _, row := range rows {
+		normalizedModel := strings.TrimSpace(row.Model)
+		normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(row.Endpoint)
+		if normalizedModel == "" || normalizedEndpoint == "" {
+			continue
+		}
+		key := normalizedModel + "::" + normalizedEndpoint
+		if _, ok := indexByKey[key]; ok {
+			continue
+		}
+		item := ChannelModelEndpoint{
+			ChannelId: normalizedChannelID,
+			Model:     normalizedModel,
+			Endpoint:  normalizedEndpoint,
+			Enabled:   row.Enabled,
+			UpdatedAt: row.UpdatedAt,
+		}
+		indexByKey[key] = len(result)
+		result = append(result, item)
+	}
+
+	for _, test := range NormalizeChannelTestRows(tests) {
+		normalizedModel := strings.TrimSpace(test.Model)
+		normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(test.Endpoint)
+		if normalizedModel == "" || normalizedEndpoint == "" {
+			continue
+		}
+		supported := NormalizeChannelTestStatus(test.Status) == ChannelTestStatusSupported && test.Supported
+		key := normalizedModel + "::" + normalizedEndpoint
+		if idx, ok := indexByKey[key]; ok {
+			if result[idx].Enabled != supported {
+				result[idx].Enabled = supported
+				changed = true
+			}
+			continue
+		}
+		indexByKey[key] = len(result)
+		result = append(result, ChannelModelEndpoint{
+			ChannelId: normalizedChannelID,
+			Model:     normalizedModel,
+			Endpoint:  normalizedEndpoint,
+			Enabled:   supported,
+		})
+		changed = true
+	}
+
+	return result, changed
+}
+
+func ApplyChannelModelEndpointSupportFromTestsWithDB(db *gorm.DB, channelID string, tests []ChannelTest) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" || len(tests) == 0 {
+		return nil
+	}
+	rows, err := listChannelModelEndpointRowsByChannelIDWithDB(db, normalizedChannelID)
+	if err != nil {
+		return err
+	}
+	nextRows, changed := buildChannelModelEndpointRowsByTests(rows, normalizedChannelID, tests)
+	if !changed {
+		return nil
+	}
+	return replaceChannelModelEndpointRowsWithDB(db, normalizedChannelID, nextRows)
+}
+
 func buildDisabledChannelModelEndpointRows(rows []ChannelModelEndpoint, channelID string, modelName string, endpoint string) ([]ChannelModelEndpoint, bool) {
 	normalizedChannelID := strings.TrimSpace(channelID)
 	normalizedModelName := strings.TrimSpace(modelName)
@@ -393,55 +442,25 @@ func IsChannelModelRequestEndpointSupportedByEndpointMap(endpointMap map[string]
 		return false, false
 	}
 	hasTextEndpoint := false
-	readEndpointEnabled := func(endpoint string) (bool, bool) {
-		enabled, ok := endpointMap[endpoint]
+	for _, endpoint := range []string{
+		ChannelModelEndpointChat,
+		ChannelModelEndpointResponses,
+		ChannelModelEndpointMessages,
+	} {
+		if _, ok := endpointMap[endpoint]; ok {
+			hasTextEndpoint = true
+			break
+		}
+	}
+	if normalizedEndpoint == ChannelModelEndpointChat ||
+		normalizedEndpoint == ChannelModelEndpointResponses ||
+		normalizedEndpoint == ChannelModelEndpointMessages {
+		enabled, ok := endpointMap[normalizedEndpoint]
 		if ok {
 			return enabled, true
 		}
-		return false, false
-	}
-	if _, ok := endpointMap[ChannelModelEndpointChat]; ok {
-		hasTextEndpoint = true
-	}
-	if _, ok := endpointMap[ChannelModelEndpointResponses]; ok {
-		hasTextEndpoint = true
-	}
-	if _, ok := endpointMap[ChannelModelEndpointMessages]; ok {
-		hasTextEndpoint = true
-	}
-	if hasTextEndpoint {
-		switch normalizedEndpoint {
-		case ChannelModelEndpointChat, ChannelModelEndpointResponses, ChannelModelEndpointMessages:
-			// Direct endpoint match first.
-			if enabled, ok := readEndpointEnabled(normalizedEndpoint); ok {
-				return enabled, true
-			}
-			// Compatibility bridge for text requests.
-			if enabled, ok := readEndpointEnabled(ChannelModelEndpointChat); ok && enabled {
-				return true, true
-			}
-			if enabled, ok := readEndpointEnabled(ChannelModelEndpointResponses); ok && enabled {
-				return true, true
-			}
-			if enabled, ok := readEndpointEnabled(ChannelModelEndpointMessages); ok && enabled {
-				return true, true
-			}
-			// Backward compatibility for historical rows where /v1/messages was normalized to chat.
-			if normalizedEndpoint == ChannelModelEndpointMessages {
-				if enabled, ok := readEndpointEnabled(ChannelModelEndpointChat); ok {
-					return enabled, true
-				}
-			}
+		if hasTextEndpoint {
 			return false, true
-		}
-	}
-	if normalizedEndpoint == ChannelModelEndpointMessages {
-		if enabled, ok := endpointMap[ChannelModelEndpointMessages]; ok {
-			return enabled, true
-		}
-		// Backward compatibility for historical rows where /v1/messages was normalized to chat.
-		if enabled, ok := endpointMap[ChannelModelEndpointChat]; ok {
-			return enabled, true
 		}
 		return false, false
 	}

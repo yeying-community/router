@@ -1,9 +1,110 @@
 package model
 
-import "testing"
+import (
+	"testing"
+
+	relaychannel "github.com/yeying-community/router/internal/relay/channel"
+)
 
 func float64Ptr(value float64) *float64 {
 	return &value
+}
+
+func TestBuildDefaultChannelModelConfigsWithProtocol_AnthropicPrefersMessages(t *testing.T) {
+	rows := BuildDefaultChannelModelConfigsWithProtocol([]string{"claude-sonnet-4-6"}, relaychannel.Anthropic)
+	if len(rows) != 1 {
+		t.Fatalf("len(rows) = %d, want 1", len(rows))
+	}
+	if rows[0].Endpoint != ChannelModelEndpointMessages {
+		t.Fatalf("rows[0].Endpoint = %q, want %q", rows[0].Endpoint, ChannelModelEndpointMessages)
+	}
+	if len(rows[0].Endpoints) == 0 || rows[0].Endpoints[0] != ChannelModelEndpointMessages {
+		t.Fatalf("rows[0].Endpoints = %#v, want first %q", rows[0].Endpoints, ChannelModelEndpointMessages)
+	}
+}
+
+func TestNormalizeChannelModelRow_PreservesExplicitPrimaryEndpoint(t *testing.T) {
+	row := ChannelModel{
+		Model:         "gpt-5.1",
+		UpstreamModel: "gpt-5.1",
+		Type:          ProviderModelTypeText,
+		Endpoint:      ChannelModelEndpointChat,
+		Endpoints: []string{
+			ChannelModelEndpointResponses,
+			ChannelModelEndpointChat,
+		},
+	}
+	normalizeChannelModelRow(&row)
+	if row.Endpoint != ChannelModelEndpointChat {
+		t.Fatalf("row.Endpoint = %q, want %q", row.Endpoint, ChannelModelEndpointChat)
+	}
+	if len(row.Endpoints) != 2 {
+		t.Fatalf("len(row.Endpoints) = %d, want 2", len(row.Endpoints))
+	}
+}
+
+func TestCompleteChannelModelRowDefaults_PreservesExplicitPrimaryEndpoint(t *testing.T) {
+	row := ChannelModel{
+		Model:         "gpt-5.1",
+		UpstreamModel: "gpt-5.1",
+		Type:          ProviderModelTypeText,
+		Endpoint:      ChannelModelEndpointChat,
+		Endpoints: []string{
+			ChannelModelEndpointResponses,
+			ChannelModelEndpointChat,
+		},
+	}
+	completeChannelModelRowDefaults(&row, relaychannel.OpenAI)
+	if row.Endpoint != ChannelModelEndpointChat {
+		t.Fatalf("row.Endpoint = %q, want %q", row.Endpoint, ChannelModelEndpointChat)
+	}
+	if len(row.Endpoints) != 2 {
+		t.Fatalf("len(row.Endpoints) = %d, want 2", len(row.Endpoints))
+	}
+}
+
+func TestNormalizeChannelModelRow_UsesFirstEndpointWhenPrimaryMissing(t *testing.T) {
+	row := ChannelModel{
+		Model:         "gpt-5.1",
+		UpstreamModel: "gpt-5.1",
+		Type:          ProviderModelTypeText,
+		Endpoint:      "",
+		Endpoints: []string{
+			ChannelModelEndpointChat,
+			ChannelModelEndpointResponses,
+		},
+	}
+	normalizeChannelModelRow(&row)
+	if row.Endpoint != ChannelModelEndpointChat {
+		t.Fatalf("row.Endpoint = %q, want %q", row.Endpoint, ChannelModelEndpointChat)
+	}
+}
+
+func TestApplyChannelModelEndpointState_PreservesExplicitPrimaryEvenIfDisabled(t *testing.T) {
+	row := ChannelModel{
+		Model:         "gpt-5.1",
+		UpstreamModel: "gpt-5.1",
+		Type:          ProviderModelTypeText,
+		Endpoint:      ChannelModelEndpointChat,
+		Endpoints: []string{
+			ChannelModelEndpointChat,
+			ChannelModelEndpointResponses,
+		},
+	}
+	state := channelModelEndpointState{
+		Endpoints: []string{
+			ChannelModelEndpointChat,
+			ChannelModelEndpointResponses,
+		},
+		Enabled: map[string]bool{
+			ChannelModelEndpointChat:      false,
+			ChannelModelEndpointResponses: true,
+		},
+	}
+	applyChannelModelEndpointState(&row, state)
+	if row.Endpoint != ChannelModelEndpointChat {
+		t.Fatalf("row.Endpoint = %q, want %q", row.Endpoint, ChannelModelEndpointChat)
+	}
 }
 
 func TestBuildFetchedChannelModelConfigsPreservesExistingSelectionsAndMarksMissingRowsInactive(t *testing.T) {
@@ -83,71 +184,6 @@ func TestBuildFetchedChannelModelConfigsPreservesExistingSelectionsAndMarksMissi
 	}
 	if !rows[2].Inactive {
 		t.Fatalf("rows[2].Inactive = false, want true")
-	}
-}
-
-func TestApplyChannelTestResultsToModelConfigsKeepsSelection(t *testing.T) {
-	rows := []ChannelModel{
-		{
-			ChannelId:     "channel-1",
-			Model:         "gpt-5.1",
-			UpstreamModel: "gpt-5.1",
-			Type:          ProviderModelTypeText,
-			Selected:      true,
-		},
-	}
-	results := []ChannelTest{
-		{
-			ChannelId:     "channel-1",
-			Model:         "gpt-5.1",
-			UpstreamModel: "gpt-5.1",
-			Type:          ProviderModelTypeText,
-			Endpoint:      ChannelModelEndpointResponses,
-			Status:        ChannelTestStatusSupported,
-			Supported:     true,
-		},
-	}
-
-	updated := ApplyChannelTestResultsToModelConfigs(rows, results)
-	if len(updated) != 1 {
-		t.Fatalf("ApplyChannelTestResultsToModelConfigs returned %d rows, want 1", len(updated))
-	}
-	if !updated[0].Selected {
-		t.Fatalf("updated[0].Selected = false, want true")
-	}
-}
-
-func TestApplyChannelTestResultsToModelConfigsKeepsSelectionWhenUnsupported(t *testing.T) {
-	rows := []ChannelModel{
-		{
-			ChannelId:     "channel-1",
-			Model:         "gpt-image-1",
-			UpstreamModel: "gpt-image-1",
-			Type:          ProviderModelTypeImage,
-			Selected:      true,
-		},
-	}
-	results := []ChannelTest{
-		{
-			ChannelId:     "channel-1",
-			Model:         "gpt-image-1",
-			UpstreamModel: "gpt-image-1",
-			Type:          ProviderModelTypeImage,
-			Endpoint:      ChannelModelEndpointImages,
-			Status:        ChannelTestStatusUnsupported,
-			Supported:     false,
-		},
-	}
-
-	updated := ApplyChannelTestResultsToModelConfigs(rows, results)
-	if len(updated) != 1 {
-		t.Fatalf("ApplyChannelTestResultsToModelConfigs returned %d rows, want 1", len(updated))
-	}
-	if !updated[0].Selected {
-		t.Fatalf("updated[0].Selected = false, want true even when unsupported")
-	}
-	if updated[0].Endpoint != ChannelModelEndpointImages {
-		t.Fatalf("updated[0].Endpoint = %q, want %q", updated[0].Endpoint, ChannelModelEndpointImages)
 	}
 }
 

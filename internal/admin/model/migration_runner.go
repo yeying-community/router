@@ -544,6 +544,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return backfillChannelModelProviderFromCatalogWithDB(tx)
 			},
 		},
+		{
+			Version:     "202604181030_drop_topup_redemption_link_columns",
+			Description: "drop historical topup/redemption mutual reference columns",
+			Up: func(tx *gorm.DB) error {
+				return dropTopupRedemptionLinkColumnsWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
