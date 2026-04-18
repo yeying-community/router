@@ -37,15 +37,13 @@ const (
 )
 
 type TopupOrder struct {
-	Id              string `json:"id" gorm:"type:char(36);primaryKey"`
-	UserID          string `json:"user_id" gorm:"type:char(36);index"`
-	Username        string `json:"username" gorm:"type:varchar(255);default:'';index"`
-	Status          string `json:"status" gorm:"type:varchar(32);default:'created';index"`
-	Source          string `json:"source" gorm:"type:varchar(64);default:'top_up_link';index"`
-	ProviderName    string `json:"provider_name" gorm:"type:varchar(128);default:''"`
-	ProviderOrderID string `json:"provider_order_id" gorm:"type:varchar(255);default:'';index"`
-	// Keep for historical linkage compatibility in storage only; do not expose in query APIs.
-	RedemptionID    string  `json:"-" gorm:"type:char(36);index"`
+	Id              string  `json:"id" gorm:"type:char(36);primaryKey"`
+	UserID          string  `json:"user_id" gorm:"type:char(36);index"`
+	Username        string  `json:"username" gorm:"type:varchar(255);default:'';index"`
+	Status          string  `json:"status" gorm:"type:varchar(32);default:'created';index"`
+	Source          string  `json:"source" gorm:"type:varchar(64);default:'top_up_link';index"`
+	ProviderName    string  `json:"provider_name" gorm:"type:varchar(128);default:''"`
+	ProviderOrderID string  `json:"provider_order_id" gorm:"type:varchar(255);default:'';index"`
 	TransactionID   string  `json:"transaction_id" gorm:"type:varchar(64);uniqueIndex"`
 	BusinessType    string  `json:"business_type" gorm:"type:varchar(32);default:'balance_topup';index"`
 	OperationType   string  `json:"operation_type" gorm:"type:varchar(32);default:'';index"`
@@ -88,8 +86,6 @@ type TopupOrderCallbackInput struct {
 	ProviderOrderID string
 	Status          string
 	ProviderName    string
-	RedemptionID    string
-	RedemptionCode  string
 	StatusMessage   string
 	PaidAt          int64
 	RedeemedAt      int64
@@ -130,7 +126,6 @@ func normalizeTopupOrderRow(row *TopupOrder) {
 	}
 	row.ProviderName = strings.TrimSpace(row.ProviderName)
 	row.ProviderOrderID = strings.TrimSpace(row.ProviderOrderID)
-	row.RedemptionID = strings.TrimSpace(row.RedemptionID)
 	row.TransactionID = strings.TrimSpace(row.TransactionID)
 	row.BusinessType = resolveTopupOrderBusinessType(row.BusinessType, row.PackageID)
 	row.OperationType = resolveTopupOrderOperationType(row.BusinessType, row.OperationType)
@@ -1062,8 +1057,6 @@ func ApplyTopupOrderCallbackWithDB(db *gorm.DB, input TopupOrderCallbackInput) (
 		if normalizedStatusMessage != "" {
 			order.StatusMessage = normalizedStatusMessage
 		}
-		// Keep topup/redemption linkage fields read-only for backward compatibility.
-		// Callback no longer writes topup_orders.redemption_id or redemptions.topup_order_id.
 		now := helper.GetTimestamp()
 		order.Status = normalizedStatus
 		switch normalizedStatus {
@@ -1097,32 +1090,6 @@ func ApplyTopupOrderCallbackWithDB(db *gorm.DB, input TopupOrderCallbackInput) (
 		return TopupOrder{}, err
 	}
 	return result, nil
-}
-
-func MarkTopupOrderRedeemedWithDB(tx *gorm.DB, orderID string, _ string, redeemedAt int64) error {
-	if tx == nil {
-		return fmt.Errorf("database handle is nil")
-	}
-	normalizedOrderID := strings.TrimSpace(orderID)
-	if normalizedOrderID == "" {
-		return nil
-	}
-	order := TopupOrder{}
-	if err := tx.Set("gorm:query_option", "FOR UPDATE").Where("id = ?", normalizedOrderID).First(&order).Error; err != nil {
-		return err
-	}
-	now := redeemedAt
-	if now <= 0 {
-		now = helper.GetTimestamp()
-	}
-	order.Status = TopupOrderStatusFulfilled
-	if order.PaidAt == 0 {
-		order.PaidAt = now
-	}
-	order.RedeemedAt = now
-	order.UpdatedAt = helper.GetTimestamp()
-	normalizeTopupOrderRow(&order)
-	return tx.Save(&order).Error
 }
 
 func FulfillTopupOrderWithDB(db *gorm.DB, orderID string) (TopupOrder, bool, error) {
