@@ -116,6 +116,12 @@ ucan:
   resource: ""
   # 动作声明：invoke / read / write。
   action: invoke
+  # 受信任的中心化 UCAN issuer DID 列表（可选）。
+  # 配置后，当 token.iss 命中该列表时，Router 将允许无 prf 的中心化 UCAN（subject 仍要求 0x 地址）。
+  # 示例：
+  # trusted_issuer_dids:
+  #   - "did:key:z6Mkgwdj3oxDdLFXMsGpM8ZkF6MY3sVNGHhAebfPn3HuHBtT"
+  trusted_issuer_dids: []
 
 feature:
   # 应用调试日志开关。

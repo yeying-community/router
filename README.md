@@ -67,6 +67,7 @@ bootstrap:
 
 - `database.sql_dsn: postgres://...`（必须为 PostgreSQL）
 - `ucan.aud: did:web:<公网域名>`
+- 若接入中心化 UCAN（无 `prf`），需配置 `ucan.trusted_issuer_dids`（填 Node issuer DID）
 - `auth.auto_register_enabled: true`（按需开启钱包自动注册）
 - `bootstrap.root_wallet_address: "0xabc...,0xdef..."`（按需开启“管理员管理管理员”的额外权限）
 - UCAN 能力定义基线见 [`docs/UCAN能力定义.md`](./docs/UCAN能力定义.md)
