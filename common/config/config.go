@@ -184,10 +184,6 @@ var MetricSuccessRateThreshold = 0.8
 var MetricSuccessChanSize = 1024
 var MetricFailChanSize = 128
 
-var InitialRootToken = ""
-
-var InitialRootAccessToken = ""
-
 var RootWalletAddress = ""
 var RootWalletAddresses []string
 

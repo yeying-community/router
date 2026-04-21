@@ -16,7 +16,7 @@ const formatTimeValue = (value, t) => {
 };
 
 const PackagePurchasePage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { renderDisplayAmount, createTopupOrder, previewPackagePurchase } =
     useTopUpWorkspace();
   const [packages, setPackages] = useState([]);
@@ -111,10 +111,13 @@ const PackagePurchasePage = () => {
   };
 
   const operationType = String(previewState?.preview?.operation_type || '').trim();
+  const operationKey = operationType
+    ? `topup.external_topup.package_operation.${operationType}`
+    : '';
   const operationLabel =
-    t(`topup.external_topup.package_operation.${operationType}`) ||
-    operationType ||
-    '-';
+    operationKey && i18n.exists(operationKey)
+      ? t(operationKey)
+      : operationType || '-';
 
   return (
     <Card fluid className='router-soft-card router-soft-card-fill'>

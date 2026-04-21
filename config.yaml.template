@@ -1,153 +1,218 @@
-# 复制为 config.yaml 后按需修改:
-# cp config.yaml.template config.yaml
+# 复制模板并生成本地配置：
+#   cp config.yaml.template config.yaml
+#
+# 注意：
+# 1) 本文件是“启动默认值”；如果数据库 system_settings 已配置同名项，部分配置会被数据库覆盖（例如登录注册开关）。
+# 2) 修改 config.yaml 后通常需要重启 Router 进程生效。
+# 3) 所有 *_seconds / *_hours / *_minutes 字段均为整数。
 
 server:
-  # 监听端口，可被 --port 覆盖
+  # HTTP 监听端口；可被启动参数 --port 覆盖。
   port: 3011
-  # debug / release / test
+  # Gin 模式：debug / release / test。
   gin_mode: release
-  # 日志目录，可被 --log-dir 覆盖
+  # 日志目录；可被启动参数 --log-dir 覆盖。
   log_dir: ./logs
-  # 对外访问地址，用于密码找回、充值回调等需要拼接公网 URL 的场景
+  # 对外可访问地址（必须带协议和端口），用于：
+  # - 密码重置链接
+  # - 支付回调与跳转 URL 组装
+  # 例： https://router.example.com
   address: ""
 
 database:
-  # 仅支持 PostgreSQL
-  # 本地 Docker Compose 默认: /Users/liuxin2/Workspace/opensource/deployer/middleware/postgresql/.env
-  # POSTGRES_USER=postgres POSTGRES_PASSWORD=postgres POSTGRES_DB=postgres POSTGRES_PORT=5432
+  # 主业务数据库 DSN（仅支持 PostgreSQL）。
+  # 格式：postgres://user:password@host:port/dbname?sslmode=disable
   sql_dsn: "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable"
-  # 日志库 DSN，留空则复用 sql_dsn
+  # 日志库 DSN；留空则复用 sql_dsn。
   log_sql_dsn: ""
+  # 连接池：空闲连接上限。
   max_idle_conns: 100
+  # 连接池：打开连接上限。
   max_open_conns: 1000
+  # 连接最大生命周期（秒）。
   max_lifetime_seconds: 60
 
 redis:
-  # 留空时不启用 Redis
-  # 单机示例: redis://:password@127.0.0.1:6379/0
+  # Redis 连接串；留空表示不启用 Redis。
+  # 单机示例：redis://:password@127.0.0.1:6379/0
+  # 哨兵示例：redis://10.0.0.1:26379,10.0.0.2:26379,10.0.0.3:26379/0
   conn_string: ""
-  # 哨兵模式可填写主节点名，conn_string 为逗号分隔地址
+  # 哨兵模式主节点名（单机模式留空）。
   master_name: ""
+  # Redis 密码（若 conn_string 已带密码，此项可留空）。
   password: ""
 
 node:
-  # master / slave
+  # 节点类型：master / slave。
+  # - master：完整能力（任务、对账、后台调度等）
+  # - slave：只承载转发/服务流量
   type: master
+  # slave 轮询间隔（秒）；master 可设为 0。
   polling_interval_seconds: 0
 
 cache:
+  # 是否启用内存缓存（生产建议按压测决定）。
   memory_cache_enabled: false
+  # 缓存同步周期（秒）。
   sync_frequency_seconds: 600
+  # 自动测试渠道频率（秒），0 表示关闭。
   channel_test_frequency: 0
+  # 是否启用批量更新。
   batch_update_enabled: false
+  # 批量更新间隔（秒）。
   batch_update_interval_seconds: 5
 
 auth:
-  # 必须替换为随机字符串
+  # 会话签名密钥（必须替换）。
+  # 生成命令（二选一）：
+  #   openssl rand -hex 32
+  #   python3 -c "import secrets; print(secrets.token_hex(32))"
   session_secret: random_string
-  # 用户名密码登录开关
+  # 用户名密码登录开关。
+  # 注意：若后台“系统设置”里有 PasswordLoginEnabled，会覆盖这里的值。
   password_login_enabled: true
-  # 用户名密码注册开关（仅控制账密注册）
+  # 用户名密码注册开关（仅控制账密注册）。
+  # 注意：若后台“系统设置”里有 PasswordRegisterEnabled，会覆盖这里的值。
   password_register_enabled: true
-  # 全局注册开关（关闭后，注册入口整体关闭）
+  # 全局注册开关（关闭后，注册入口整体关闭）。
+  # 注意：若后台“系统设置”里有 RegisterEnabled，会覆盖这里的值。
   register_enabled: true
+  # 钱包登录时是否允许自动注册新用户。
   auto_register_enabled: true
+  # 钱包 JWT 签名密钥。留空时将回退为 session_secret（不建议长期依赖回退）。
+  # 生成命令：
+  #   openssl rand -hex 32
   wallet_jwt_secret: ""
+  # 钱包 JWT 历史验签密钥列表（用于轮换），格式示例：
+  # - "old_secret_1"
+  # - "old_secret_2"
   wallet_jwt_fallback_secrets: []
+  # 钱包 JWT 访问令牌有效期（小时）。
   wallet_jwt_expire_hours: 72
+  # 钱包刷新令牌有效期（小时）。
   wallet_refresh_expire_hours: 720
+  # 钱包登录 nonce 过期时间（分钟）。
   wallet_nonce_ttl_minutes: 10
+  # 刷新 Cookie 域名，跨子域时按需配置，如 .example.com。
   wallet_refresh_cookie_domain: ""
+  # 刷新 Cookie 是否仅 HTTPS 发送（生产建议 true）。
   wallet_refresh_cookie_secure: false
+  # 刷新 Cookie SameSite：lax / strict / none。
   wallet_refresh_cookie_samesite: lax
 
 cors:
-  # 为空表示不限制（回显 Origin）
-  # 示例:
+  # CORS 允许来源列表；空数组表示不限制（回显 Origin）。
+  # 生产建议显式填写前端域名，避免过宽放开。
+  # 示例：
   # - https://router.example.com
   # - http://localhost:5181
   allowed_origins: []
 
 ucan:
-  # 公网部署建议显式设置 did:web:<your-domain>
+  # 期望受众（aud）。公网建议显式设置 did:web:<your-domain>。
   aud: ""
-  # 推荐资源语义: app:<scope>:<appId>（如 app:all:chat.example.com）
-  # 历史兼容: app:<appId> / llm:<host> / router:llm / profile
+  # 资源声明。推荐使用 app:<scope>:<appId>。
+  # 历史兼容：app:<appId> / llm:<host> / router:llm / profile
   resource: ""
-  # 推荐动作: invoke / read / write
+  # 动作声明：invoke / read / write。
   action: invoke
 
 feature:
+  # 应用调试日志开关。
   debug: false
+  # SQL 调试日志开关（生产建议 false）。
   debug_sql: false
+  # 是否禁用 OpenAI 兼容层（通常保持 false）。
   disable_openai_compat: false
-  # slave 节点可配置前端跳转地址
+  # slave 节点可配置前端跳转地址（可留空）。
   frontend_base_url: ""
 
 operation:
   # 支付接入模式：
-  # - redirect: 旧模式，router 直接拼接收银台 URL 参数并跳转
-  # - api: 新模式，router 服务端直连 yeying-room 的 create API，再跳转返回的 cashier_url
+  # - redirect：旧模式，router 直接拼接收银台 URL 跳转
+  # - api：新模式，router 服务端调用 create API，再跳转 cashier_url
   # 留空时：若配置了 top_up_api_create_url 则按 api，否则按 redirect
   top_up_mode: ""
-  # redirect 模式的收银台地址；api 模式下可留空。
-  # 如果配置的是 .../api.external_pay/cashier，且 top_up_mode=api 时，系统也可据此自动推导 create API 地址。
+  # redirect 模式收银台地址；api 模式可留空。
+  # 若配置的是 .../cashier，api 模式下系统可尝试推导 create URL。
   top_up_link: ""
-  # api 模式的下单接口地址，例如：
+  # api 模式统一下单地址（create）。
+  # 示例：
   # https://www.tidukongjian.com/addons/ymq_zixishi/public/index.php/addons/ymqzixishi/api.external_pay/create
   top_up_api_create_url: ""
-  # api 模式的查单接口地址；留空时会优先从 create URL 自动推导为 .../query
+  # api 模式查单地址（query）；留空时会优先从 create URL 推导。
   top_up_api_query_url: ""
-  # api 模式请求参数中的 uniacid
+  # api 请求参数 uniacid。
   top_up_api_uniacid: 1
-  # api 模式的外部商户标识，需与 yeying-room 的 external_pay_merchants 配置一致
+  # 外部商户标识，需与 yeying-room external_pay_merchants 配置一致。
   top_up_merchant_app: router
-  # api 模式请求超时秒数
+  # api 请求超时（秒）。
   top_up_api_timeout_seconds: 15
-  # 外部支付签名密钥；创建充值/购卡订单时使用
+  # 外部支付签名密钥（创建充值/购卡订单签名）。
+  # 生成命令：
+  #   openssl rand -hex 32
   top_up_sign_secret: ""
-  # 外部支付回调鉴权令牌；仅影响支付成功后的回调发货，不再用于前端按钮可用性判定
+  # 外部支付回调鉴权令牌（支付平台 -> /api/v1/public/topup/callback）。
+  # 生成命令：
+  #   openssl rand -hex 24
   top_up_callback_token: ""
-  # 用户工作区聊天入口；为空则不展示聊天菜单
+  # 用户工作区“聊天”入口 URL；留空则不展示该菜单。
   chat_link: ""
 
 relay:
+  # 上游请求总超时（秒）；0 表示使用默认策略。
   timeout_seconds: 0
+  # 全局代理（如 http://127.0.0.1:7890）；留空不走代理。
   proxy: ""
+  # 用户内容抓取/外链请求代理（可与 proxy 不同）。
   user_content_request_proxy: ""
+  # 用户内容抓取超时（秒）。
   user_content_request_timeout_seconds: 30
+  # Gemini 安全策略，常用 BLOCK_NONE。
   gemini_safety_setting: BLOCK_NONE
+  # Gemini API 版本，常用 v1。
   gemini_version: v1
+  # 是否强制要求 include_usage（仅对相关协议生效）。
   enforce_include_usage: false
+  # 模型测试默认提示词。
   test_prompt: "Output only your specific model name with no additional text."
 
 rate_limit:
+  # 全局 API 限流次数（窗口内）。
   global_api_rate_limit: 480
+  # 全局 API 限流窗口（秒）。
   global_api_rate_limit_duration_seconds: 180
+  # 全局 Web 限流次数（窗口内）。
   global_web_rate_limit: 240
+  # 全局 Web 限流窗口（秒）。
   global_web_rate_limit_duration_seconds: 180
 
 metrics:
+  # 是否启用渠道健康统计。
   enabled: false
+  # 指标处理队列大小。
   queue_size: 10
+  # 成功率阈值（0~1）。
   success_rate_threshold: 0.8
+  # 成功事件缓冲通道大小。
   success_chan_size: 1024
+  # 失败事件缓冲通道大小。
   fail_chan_size: 128
 
 bootstrap:
-  initial_root_token: ""
-  initial_root_access_token: ""
-  # 配置为拥有系统级用户管理权限的钱包地址，支持多个地址用英文逗号分隔；
-  # 留空则不显示用户管理页面，也不授予相关权限
+  # 拥有系统级用户管理权限的钱包地址；支持多个地址用英文逗号分隔。
+  # 示例：0xabc...,0xdef...
+  # 留空则不展示用户管理页面，也不授予相关权限。
   root_wallet_address: ""
 
 logging:
+  # true: 仅单日志文件；false: 按滚动策略分片。
   only_one_log_file: false
-  # 单个日志文件达到该大小（MB）后轮转
+  # 单日志文件轮转阈值（MB）。
   rotate_max_size_mb: 100
-  # 保留的历史文件数量，0 表示不限制
+  # 历史文件保留数量（0 表示不限制）。
   rotate_max_backups: 10
-  # 保留的历史文件天数，0 表示不按天删除
+  # 历史文件保留天数（0 表示不按天删除）。
   rotate_max_age_days: 14
-  # 是否压缩历史日志
+  # 是否压缩历史日志。
   rotate_compress: false
