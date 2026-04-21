@@ -45,6 +45,12 @@ cache:
 auth:
   # 必须替换为随机字符串
   session_secret: random_string
+  # 用户名密码登录开关
+  password_login_enabled: true
+  # 用户名密码注册开关（仅控制账密注册）
+  password_register_enabled: true
+  # 全局注册开关（关闭后，注册入口整体关闭）
+  register_enabled: true
   auto_register_enabled: true
   wallet_jwt_secret: ""
   wallet_jwt_fallback_secrets: []

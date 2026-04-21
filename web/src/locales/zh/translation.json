@@ -2157,6 +2157,7 @@
       "title": "用户登录",
       "username": "用户名 / 邮箱地址",
       "password": "密码",
+      "login": "登录",
       "button": "登录",
       "forgot_password": "忘记密码？",
       "reset_password": "点击重置",
@@ -2192,6 +2193,7 @@
       "title": "密码重置",
       "email": "邮箱地址",
       "button": "提交",
+      "remember_password": "想起密码了？",
       "notice": "系统将向您的邮箱发送一封包含重置链接的邮件，请注意查收。",
       "confirm": {
         "title": "密码重置确认",

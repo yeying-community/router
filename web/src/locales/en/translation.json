@@ -2161,6 +2161,7 @@
       "title": "User Login",
       "username": "Username / Email",
       "password": "Password",
+      "login": "Login",
       "button": "Login",
       "forgot_password": "Forgot password?",
       "reset_password": "Reset",
@@ -2196,6 +2197,7 @@
       "title": "Password Reset",
       "email": "Email address",
       "button": "Submit",
+      "remember_password": "Remember your password?",
       "notice": "The system will send an email containing a reset link to your mailbox. Please check your email.",
       "confirm": {
         "title": "Password Reset Confirmation",

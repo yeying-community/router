@@ -85,6 +85,9 @@ type CacheRuntimeConfig struct {
 
 type AuthRuntimeConfig struct {
 	SessionSecret               string   `yaml:"session_secret"`
+	PasswordLoginEnabled        bool     `yaml:"password_login_enabled"`
+	PasswordRegisterEnabled     bool     `yaml:"password_register_enabled"`
+	RegisterEnabled             bool     `yaml:"register_enabled"`
 	AutoRegisterEnabled         bool     `yaml:"auto_register_enabled"`
 	WalletJWTSecret             string   `yaml:"wallet_jwt_secret"`
 	WalletJWTFallbackSecrets    []string `yaml:"wallet_jwt_fallback_secrets"`
@@ -199,6 +202,9 @@ func defaultRuntimeConfig() RuntimeConfig {
 		},
 		Auth: AuthRuntimeConfig{
 			SessionSecret:               "",
+			PasswordLoginEnabled:        true,
+			PasswordRegisterEnabled:     true,
+			RegisterEnabled:             true,
 			AutoRegisterEnabled:         false,
 			WalletJWTSecret:             "",
 			WalletJWTFallbackSecrets:    []string{},
@@ -359,6 +365,9 @@ func ApplyRuntimeConfig(cfg *RuntimeConfig, portFlagSet bool, logDirFlagSet bool
 			config.SessionSecret = sessionSecret
 		}
 	}
+	config.PasswordLoginEnabled = cfg.Auth.PasswordLoginEnabled
+	config.PasswordRegisterEnabled = cfg.Auth.PasswordRegisterEnabled
+	config.RegisterEnabled = cfg.Auth.RegisterEnabled
 	config.AutoRegisterEnabled = cfg.Auth.AutoRegisterEnabled
 	config.WalletJWTSecret = strings.TrimSpace(cfg.Auth.WalletJWTSecret)
 	config.WalletJWTFallbackSecrets = normalizeStringSlice(cfg.Auth.WalletJWTFallbackSecrets)
@@ -563,6 +572,9 @@ func setCompatibilityEnvs() {
 	_ = os.Setenv("PORT", strconv.Itoa(*Port))
 	_ = os.Setenv("GIN_MODE", GinMode)
 	_ = os.Setenv("SESSION_SECRET", config.SessionSecret)
+	_ = os.Setenv("PASSWORD_LOGIN_ENABLED", strconv.FormatBool(config.PasswordLoginEnabled))
+	_ = os.Setenv("PASSWORD_REGISTER_ENABLED", strconv.FormatBool(config.PasswordRegisterEnabled))
+	_ = os.Setenv("REGISTER_ENABLED", strconv.FormatBool(config.RegisterEnabled))
 	_ = os.Setenv("AUTO_REGISTER_ENABLED", strconv.FormatBool(config.AutoRegisterEnabled))
 	_ = os.Setenv("WALLET_JWT_SECRET", config.WalletJWTSecret)
 	_ = os.Setenv("WALLET_JWT_FALLBACK_SECRETS", strings.Join(config.WalletJWTFallbackSecrets, ","))
