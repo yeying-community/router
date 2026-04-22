@@ -106,30 +106,30 @@
         "renew": "续费",
         "upgrade": "升级"
       },
-      "plan_invalid": "充值档位无效，请刷新后重试",
+      "plan_invalid": "充值额度无效，请刷新后重试",
       "amount_invalid": "请输入大于 0 的充值金额",
       "request_failed": "创建充值订单失败",
       "popup_blocked": "浏览器拦截了新窗口，请允许弹窗后重试",
       "no_link": "超级管理员未设置充值链接！",
-      "plan_hint": "请选择固定充值档位进行下单。",
+      "plan_hint": "请选择固定充值额度进行下单。",
       "pay_label": "支付 {{amount}}",
       "credited_label": "到账额度",
       "validity_label": "有效期"
     },
     "manage": {
-      "title": "充值档位",
-      "create_title": "新增充值档位",
-      "edit_title": "编辑充值档位",
-      "delete_title": "删除充值档位",
-      "delete_confirm": "确认删除充值档位“{{name}}”？",
+      "title": "充值额度",
+      "create_title": "新增充值额度",
+      "edit_title": "编辑充值额度",
+      "delete_title": "删除充值额度",
+      "delete_confirm": "确认删除充值额度“{{name}}”？",
       "group_placeholder": "请选择分组",
-      "load_failed": "加载充值档位失败",
-      "create_failed": "创建充值档位失败",
-      "create_success": "充值档位创建成功",
-      "save_failed": "保存充值档位失败",
-      "save_success": "充值档位已保存",
-      "delete_failed": "删除充值档位失败",
-      "delete_success": "充值档位已删除",
+      "load_failed": "加载充值额度失败",
+      "create_failed": "创建充值额度失败",
+      "create_success": "充值额度创建成功",
+      "save_failed": "保存充值额度失败",
+      "save_success": "充值额度已保存",
+      "delete_failed": "删除充值额度失败",
+      "delete_success": "充值额度已删除",
       "columns": {
         "name": "名称",
         "group": "分组",
@@ -1384,18 +1384,19 @@
         "package": "套餐",
         "package_placeholder": "请选择套餐模板",
         "package_required": "请选择套餐",
-        "topup_plan": "充值档位",
-        "topup_plan_placeholder": "请选择充值档位",
-        "topup_plan_required": "请选择充值档位"
+        "topup_plan": "充值额度",
+        "topup_plan_placeholder": "请选择充值额度",
+        "topup_plan_required": "请选择充值额度"
       },
       "buttons": {
         "back": "返回",
         "edit": "编辑",
         "gift_package": "赠送套餐",
-        "gift_topup": "赠送充值档位"
+        "gift_topup": "赠送额度",
+        "balance_manage": "额度管理"
       },
       "messages": {
-        "gift_topup_success": "赠送充值档位成功"
+        "gift_topup_success": "赠送额度成功"
       }
     },
     "edit": {
@@ -1914,18 +1915,18 @@
       "quota": {
         "title": "余额设置",
         "new_user_reward": "新客奖励",
-        "new_user_reward_description": "新用户注册成功后发放奖励。请选择一个充值档位作为奖励来源，留空表示不发放。",
-        "reward_plan_placeholder": "请选择充值档位（默认不发放）",
+        "new_user_reward_description": "新用户注册成功后发放奖励。请选择一个充值额度作为奖励来源，留空表示不发放。",
+        "reward_plan_placeholder": "请选择充值额度（默认不发放）",
         "default_group": "默认用户分组",
         "default_group_placeholder": "未配置则不自动分配",
         "pre_consume": "请求预扣金额",
         "pre_consume_placeholder": "请求结束后多退少补",
         "pre_consume_description": "用于请求开始时的预估预扣，成功后按实际消耗结算，多退少补。",
         "inviter_reward": "邀请奖励",
-        "inviter_reward_description": "用户通过邀请链接完成注册后，给邀请人发放奖励。请选择一个充值档位作为奖励来源，留空表示不发放。",
+        "inviter_reward_description": "用户通过邀请链接完成注册后，给邀请人发放奖励。请选择一个充值额度作为奖励来源，留空表示不发放。",
         "messages": {
           "amount_invalid": "金额必须大于或等于 0",
-          "plan_invalid": "充值档位无效，请刷新后重试"
+          "plan_invalid": "充值额度无效，请刷新后重试"
         },
         "buttons": {
           "save": "保存余额设置"

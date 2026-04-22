@@ -190,7 +190,7 @@ func resolveTopupPlanGroupWithDB(db *gorm.DB, groupRef string) (string, error) {
 
 func normalizeTopupPlanRowWithDB(db *gorm.DB, row *TopupPlan) error {
 	if row == nil {
-		return fmt.Errorf("充值档位不能为空")
+		return fmt.Errorf("充值额度不能为空")
 	}
 	row.EnsureID()
 	row.Name = normalizeTopupPlanName(row.Name, row.Amount, row.AmountCurrency)
@@ -366,12 +366,12 @@ func updateTopupPlanWithDB(db *gorm.DB, item TopupPlan) (TopupPlan, error) {
 	}
 	normalizedID := strings.TrimSpace(item.Id)
 	if normalizedID == "" {
-		return TopupPlan{}, fmt.Errorf("充值档位 ID 不能为空")
+		return TopupPlan{}, fmt.Errorf("充值额度 ID 不能为空")
 	}
 	row := TopupPlan{}
 	if err := db.Where("id = ?", normalizedID).First(&row).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return TopupPlan{}, fmt.Errorf("充值档位不存在")
+			return TopupPlan{}, fmt.Errorf("充值额度不存在")
 		}
 		return TopupPlan{}, err
 	}
@@ -404,14 +404,14 @@ func deleteTopupPlanWithDB(db *gorm.DB, id string) error {
 	}
 	normalizedID := strings.TrimSpace(id)
 	if normalizedID == "" {
-		return fmt.Errorf("充值档位 ID 不能为空")
+		return fmt.Errorf("充值额度 ID 不能为空")
 	}
 	result := db.Delete(&TopupPlan{}, "id = ?", normalizedID)
 	if result.Error != nil {
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("充值档位不存在")
+		return fmt.Errorf("充值额度不存在")
 	}
 	return nil
 }
@@ -445,17 +445,17 @@ func seedDefaultTopupPlansWithDB(db *gorm.DB) error {
 func ResolveTopupPlan(planID string) (ResolvedTopupPlan, error) {
 	normalizedPlanID := strings.TrimSpace(planID)
 	if normalizedPlanID == "" {
-		return ResolvedTopupPlan{}, fmt.Errorf("充值档位不能为空")
+		return ResolvedTopupPlan{}, fmt.Errorf("充值额度不能为空")
 	}
 	item, err := getTopupPlanByIDWithDB(DB, normalizedPlanID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ResolvedTopupPlan{}, fmt.Errorf("充值档位不存在")
+			return ResolvedTopupPlan{}, fmt.Errorf("充值额度不存在")
 		}
 		return ResolvedTopupPlan{}, err
 	}
 	if !item.Enabled {
-		return ResolvedTopupPlan{}, fmt.Errorf("充值档位已禁用")
+		return ResolvedTopupPlan{}, fmt.Errorf("充值额度已禁用")
 	}
 	yycPerUnit, err := GetBillingCurrencyYYCPerUnit(item.QuotaCurrency)
 	if err != nil {

@@ -888,6 +888,10 @@ const UserDetail = () => {
     navigate(target);
   }, [activePackageSubscription?.package_id, activePackageSubscription?.package_name, hasActivePackage, navigate]);
 
+  const openTopupManagement = useCallback(() => {
+    navigate('/admin/topup');
+  }, [navigate]);
+
   const copyWalletAddress = useCallback(async () => {
     const value = (inputs.wallet_address || '').toString().trim();
     if (value === '') {
@@ -1428,6 +1432,14 @@ const UserDetail = () => {
                     >
                       {t('user.detail.buttons.gift_topup')}
                     </Button>
+                    <Button
+                      type='button'
+                      className='router-page-button'
+                      disabled={loading || actionLoading !== '' || editSection !== ''}
+                      onClick={openTopupManagement}
+                    >
+                      {t('user.detail.buttons.balance_manage')}
+                    </Button>
                   </div>
                 </div>
                 <Form.Group widths='equal'>
@@ -1451,7 +1463,10 @@ const UserDetail = () => {
                   </Form.Field>
                 </Form.Group>
 
-                <div className='router-toolbar router-block-gap-sm' style={{ marginTop: '0.5rem' }}>
+                <div
+                  className='router-toolbar router-block-gap-sm'
+                  style={{ marginTop: '0.5rem', marginBottom: '0.75rem' }}
+                >
                   <div className='router-toolbar-start'>
                     <Header as='h4' className='router-entity-detail-section-title' style={{ margin: 0 }}>
                       {t('user.detail.balance_lots.title')}

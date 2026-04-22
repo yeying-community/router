@@ -1202,7 +1202,7 @@ func GrantTopupPlanToUserWithDB(db *gorm.DB, userID string, username string, pla
 	}
 	normalizedPlanID := strings.TrimSpace(planID)
 	if normalizedPlanID == "" {
-		return TopupOrder{}, fmt.Errorf("充值档位不能为空")
+		return TopupOrder{}, fmt.Errorf("充值额度不能为空")
 	}
 	normalizedUsername := strings.TrimSpace(username)
 	resolvedPlan, err := ResolveTopupPlan(normalizedPlanID)
@@ -1244,7 +1244,7 @@ func GrantTopupPlanToUserWithDB(db *gorm.DB, userID string, username string, pla
 			return fmt.Errorf("充值额度不能为空")
 		}
 		if strings.TrimSpace(order.Title) == "" {
-			order.Title = "管理员赠送充值档位"
+			order.Title = "管理员赠送充值额度"
 		}
 		normalizedGrantedBy := strings.TrimSpace(grantedBy)
 		if normalizedGrantedBy != "" {
