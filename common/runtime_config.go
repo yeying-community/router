@@ -104,9 +104,10 @@ type CORSRuntimeConfig struct {
 }
 
 type UCANRuntimeConfig struct {
-	Aud      string `yaml:"aud"`
-	Resource string `yaml:"resource"`
-	Action   string `yaml:"action"`
+	Aud               string   `yaml:"aud"`
+	Resource          string   `yaml:"resource"`
+	Action            string   `yaml:"action"`
+	TrustedIssuerDIDs []string `yaml:"trusted_issuer_dids"`
 }
 
 type FeatureRuntimeConfig struct {
@@ -217,9 +218,10 @@ func defaultRuntimeConfig() RuntimeConfig {
 			AllowedOrigins: []string{},
 		},
 		UCAN: UCANRuntimeConfig{
-			Aud:      "",
-			Resource: "",
-			Action:   config.DefaultUcanAction,
+			Aud:               "",
+			Resource:          "",
+			Action:            config.DefaultUcanAction,
+			TrustedIssuerDIDs: []string{},
 		},
 		Feature: FeatureRuntimeConfig{
 			Debug:               false,
@@ -393,6 +395,7 @@ func ApplyRuntimeConfig(cfg *RuntimeConfig, portFlagSet bool, logDirFlagSet bool
 	if action := strings.TrimSpace(cfg.UCAN.Action); action != "" {
 		config.UcanAction = action
 	}
+	config.UcanTrustedIssuerDIDs = normalizeStringSlice(cfg.UCAN.TrustedIssuerDIDs)
 
 	config.DebugEnabled = cfg.Feature.Debug
 	config.DebugSQLEnabled = cfg.Feature.DebugSQL
@@ -582,6 +585,7 @@ func setCompatibilityEnvs() {
 	_ = os.Setenv("UCAN_AUD", config.UcanAud)
 	_ = os.Setenv("UCAN_RESOURCE", config.UcanResource)
 	_ = os.Setenv("UCAN_ACTION", config.UcanAction)
+	_ = os.Setenv("UCAN_TRUSTED_ISSUER_DIDS", strings.Join(config.UcanTrustedIssuerDIDs, ","))
 	_ = os.Setenv("SQL_DSN", SQLDSN)
 	_ = os.Setenv("LOG_SQL_DSN", LogSQLDSN)
 	_ = os.Setenv("SQL_MAX_IDLE_CONNS", strconv.Itoa(SQLMaxIdleConns))

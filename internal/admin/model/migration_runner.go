@@ -551,6 +551,18 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return dropTopupRedemptionLinkColumnsWithDB(tx)
 			},
 		},
+		{
+			Version:     "202604221030_topup_plan_public_visible",
+			Description: "add topup plan public visibility flag for user-side plan exposure control",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&TopupPlan{}); err != nil {
+					return err
+				}
+				return tx.Exec(
+					"UPDATE topup_plans SET public_visible = TRUE WHERE public_visible IS NULL",
+				).Error
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

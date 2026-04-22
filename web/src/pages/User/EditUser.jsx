@@ -83,6 +83,17 @@ const formatCountValue = (value) => {
   return normalized.toLocaleString();
 };
 
+const formatPlanNumber = (value) => {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric)) {
+    return '0';
+  }
+  if (Math.abs(numeric - Math.round(numeric)) < 0.000001) {
+    return `${Math.round(numeric)}`;
+  }
+  return numeric.toFixed(6).replace(/\.?0+$/, '');
+};
+
 const renderPackageStatusLabel = (status, t) => {
   switch (Number(status)) {
     case 1:
@@ -273,6 +284,30 @@ const toPackageOptions = (rows) =>
     };
   });
 
+const toTopupPlanOptions = (rows, t) =>
+  (Array.isArray(rows) ? rows : [])
+    .filter((item) => Boolean(item?.enabled))
+    .map((item) => {
+      const id = (item?.id || '').toString().trim();
+      const amount = formatPlanNumber(item?.amount || 0);
+      const amountCurrency = (item?.amount_currency || '').toString().trim().toUpperCase();
+      const quotaAmount = formatPlanNumber(item?.quota_amount || 0);
+      const quotaCurrency = (item?.quota_currency || '').toString().trim().toUpperCase();
+      const validityDays = Number(item?.validity_days || 0);
+      const labelParts = [`${amount} ${amountCurrency}`, `${quotaAmount} ${quotaCurrency}`];
+      if (validityDays > 0) {
+        labelParts.push(`${validityDays}${t('common.day')}`);
+      } else {
+        labelParts.push(t('common.never'));
+      }
+      return {
+        key: id,
+        value: id,
+        text: labelParts.join(' / '),
+      };
+    })
+    .filter((option) => option.value);
+
 const parseDatetimeLocalValue = (value) => {
   if (typeof value !== 'string' || value.trim() === '') {
     return 0;
@@ -314,6 +349,12 @@ const UserDetail = () => {
   const [assignPackageForm, setAssignPackageForm] = useState({
     package_id: '',
     start_at: '',
+  });
+  const [topupPlanOptions, setTopupPlanOptions] = useState([]);
+  const [topupPlanOptionsLoading, setTopupPlanOptionsLoading] = useState(false);
+  const [assignTopupOpen, setAssignTopupOpen] = useState(false);
+  const [assignTopupForm, setAssignTopupForm] = useState({
+    plan_id: '',
   });
   const [inputs, setInputs] = useState({
     username: '',
@@ -531,6 +572,26 @@ const UserDetail = () => {
       setPackageOptionsLoading(false);
     }
   }, [packageOptions.length, t]);
+
+  const loadTopupPlanOptions = useCallback(async () => {
+    if (topupPlanOptions.length > 0) {
+      return;
+    }
+    setTopupPlanOptionsLoading(true);
+    try {
+      const res = await API.get('/api/v1/admin/topup/plans');
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('topup.manage.load_failed'));
+        return;
+      }
+      setTopupPlanOptions(toTopupPlanOptions(data, t));
+    } catch (error) {
+      showError(error?.message || error);
+    } finally {
+      setTopupPlanOptionsLoading(false);
+    }
+  }, [topupPlanOptions.length, t]);
 
   const loadBillingCurrencies = useCallback(async () => {
     try {
@@ -912,6 +973,60 @@ const UserDetail = () => {
     t,
     userId,
   ]);
+
+  const openAssignTopupModal = useCallback(() => {
+    setAssignTopupForm({
+      plan_id: '',
+    });
+    setAssignTopupOpen(true);
+    loadTopupPlanOptions().then();
+  }, [loadTopupPlanOptions]);
+
+  const closeAssignTopupModal = useCallback(() => {
+    if (actionLoading === 'assign-topup') {
+      return;
+    }
+    setAssignTopupOpen(false);
+    setAssignTopupForm({
+      plan_id: '',
+    });
+  }, [actionLoading]);
+
+  const submitAssignTopup = useCallback(async () => {
+    const normalizedUserId = (userId || '').toString().trim();
+    if (normalizedUserId === '') {
+      return;
+    }
+    const normalizedPlanID = (assignTopupForm.plan_id || '').toString().trim();
+    if (normalizedPlanID === '') {
+      showInfo(t('user.detail.assign.topup_plan_required'));
+      return;
+    }
+    setActionLoading('assign-topup');
+    try {
+      const res = await API.post(
+        `/api/v1/admin/user/${encodeURIComponent(normalizedUserId)}/topup/grant`,
+        {
+          plan_id: normalizedPlanID,
+        },
+      );
+      const { success, message } = res.data || {};
+      if (!success) {
+        showError(message || t('user.messages.operation_failed'));
+        return;
+      }
+      showSuccess(t('user.detail.messages.gift_topup_success'));
+      setAssignTopupOpen(false);
+      setAssignTopupForm({
+        plan_id: '',
+      });
+      await Promise.all([loadUser(), loadBalanceLots(), loadActivePackage()]);
+    } catch (error) {
+      showError(error?.message || error);
+    } finally {
+      setActionLoading('');
+    }
+  }, [assignTopupForm.plan_id, loadActivePackage, loadBalanceLots, loadUser, t, userId]);
 
   const formatAmountBySelectedUnit = useCallback(
     (yycAmount, { unlimited = false } = {}) => {
@@ -1305,6 +1420,14 @@ const UserDetail = () => {
                     >
                       {t('user.buttons.refresh')}
                     </Button>
+                    <Button
+                      type='button'
+                      className='router-page-button'
+                      disabled={loading || actionLoading !== '' || editSection !== ''}
+                      onClick={openAssignTopupModal}
+                    >
+                      {t('user.detail.buttons.gift_topup')}
+                    </Button>
                   </div>
                 </div>
                 <Form.Group widths='equal'>
@@ -1473,6 +1596,44 @@ const UserDetail = () => {
             color='blue'
             loading={actionLoading === 'assign-package'}
             onClick={submitAssignPackage}
+          >
+            {t('common.confirm')}
+          </Button>
+        </Modal.Actions>
+      </Modal>
+
+      <Modal open={assignTopupOpen} onClose={closeAssignTopupModal} size='small'>
+        <Modal.Header>{t('user.detail.buttons.gift_topup')}</Modal.Header>
+        <Modal.Content>
+          <Form>
+            <Form.Select
+              className='router-section-input'
+              search
+              selection
+              clearable
+              loading={topupPlanOptionsLoading}
+              label={t('user.detail.assign.topup_plan')}
+              placeholder={t('user.detail.assign.topup_plan_placeholder')}
+              options={topupPlanOptions}
+              value={assignTopupForm.plan_id}
+              onChange={(e, { value }) =>
+                setAssignTopupForm((prev) => ({
+                  ...prev,
+                  plan_id: (value || '').toString(),
+                }))
+              }
+            />
+          </Form>
+        </Modal.Content>
+        <Modal.Actions>
+          <Button type='button' onClick={closeAssignTopupModal} disabled={actionLoading === 'assign-topup'}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type='button'
+            color='blue'
+            loading={actionLoading === 'assign-topup'}
+            onClick={submitAssignTopup}
           >
             {t('common.confirm')}
           </Button>

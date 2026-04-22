@@ -22,6 +22,7 @@ const createEmptyPlan = () => ({
   quota_currency: 'USD',
   validity_days: 0,
   enabled: true,
+  public_visible: true,
   sort_order: 0,
 });
 
@@ -145,6 +146,7 @@ const TopupPlansManager = () => {
       quota_currency: row?.quota_currency || 'USD',
       validity_days: Number(row?.validity_days || 0),
       enabled: Boolean(row?.enabled),
+      public_visible: row?.public_visible !== false,
       sort_order: Number(row?.sort_order || index + 1),
     });
     setEditOpen(true);
@@ -163,6 +165,7 @@ const TopupPlansManager = () => {
         quota_currency: form.quota_currency || 'USD',
         validity_days: Number(form.validity_days || 0),
         enabled: Boolean(form.enabled),
+        public_visible: Boolean(form.public_visible),
         sort_order: Number(form.sort_order || 0),
       };
       const res = isCreating
@@ -216,6 +219,43 @@ const TopupPlansManager = () => {
     }
   };
 
+  const togglePublicVisible = async (row, checked) => {
+    const id = (row?.id || '').toString().trim();
+    if (!id) {
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        id,
+        name: row?.name || '',
+        group_id: row?.group_id || '',
+        amount: Number(row?.amount || 0),
+        amount_currency: row?.amount_currency || 'CNY',
+        quota_amount: Number(row?.quota_amount || 0),
+        quota_currency: row?.quota_currency || 'USD',
+        validity_days: Number(row?.validity_days || 0),
+        enabled: Boolean(row?.enabled),
+        public_visible: Boolean(checked),
+        sort_order: Number(row?.sort_order || 0),
+      };
+      const res = await API.put('/api/v1/admin/topup/plan', payload);
+      const { success, message, data } = res?.data || {};
+      if (!success) {
+        showError(message || t('topup.manage.save_failed'));
+        return;
+      }
+      setPlans((current) =>
+        current.map((item) => (((item?.id || '') === (data?.id || '')) ? data : item)),
+      );
+      showSuccess(t('topup.manage.save_success'));
+    } catch (error) {
+      showError(error?.message || t('topup.manage.save_failed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <>
       <div className='router-toolbar router-block-gap-sm' style={{ marginBottom: '1rem' }}>
@@ -252,6 +292,9 @@ const TopupPlansManager = () => {
                 {t('topup.manage.columns.enabled')}
               </Table.HeaderCell>
               <Table.HeaderCell className='router-topup-plan-status-cell'>
+                {t('topup.manage.columns.public_visible')}
+              </Table.HeaderCell>
+              <Table.HeaderCell className='router-topup-plan-status-cell'>
                 {t('topup.manage.columns.validity_days')}
               </Table.HeaderCell>
               <Table.HeaderCell className='router-table-action-cell router-topup-plan-action-cell'>
@@ -268,6 +311,14 @@ const TopupPlansManager = () => {
                 <Table.Cell className='router-topup-plan-quota-cell'>{`${row.quota_amount} ${row.quota_currency}`}</Table.Cell>
                 <Table.Cell className='router-topup-plan-status-cell'>
                   {row.enabled ? t('common.enabled') : t('common.disabled')}
+                </Table.Cell>
+                <Table.Cell className='router-topup-plan-status-cell'>
+                  <Checkbox
+                    toggle
+                    checked={row.public_visible !== false}
+                    disabled={saving}
+                    onChange={(_, data) => togglePublicVisible(row, Boolean(data.checked))}
+                  />
                 </Table.Cell>
                 <Table.Cell className='router-topup-plan-status-cell'>
                   {Number(row.validity_days || 0) > 0
@@ -360,6 +411,16 @@ const TopupPlansManager = () => {
                 checked={form.enabled}
                 label={t('topup.manage.columns.enabled')}
                 onChange={(_, data) => setForm((current) => ({ ...current, enabled: Boolean(data.checked) }))}
+              />
+            </Form.Field>
+            <Form.Field>
+              <Checkbox
+                toggle
+                checked={form.public_visible}
+                label={t('topup.manage.columns.public_visible')}
+                onChange={(_, data) =>
+                  setForm((current) => ({ ...current, public_visible: Boolean(data.checked) }))
+                }
               />
             </Form.Field>
             <Form.Input

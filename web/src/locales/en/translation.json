@@ -136,7 +136,12 @@
         "pay_amount": "Pay Amount",
         "credited_amount": "Credited Amount",
         "enabled": "Status",
+        "public_visible": "Public Visible",
         "validity_days": "Validity (Days)"
+      },
+      "visibility": {
+        "visible": "Visible",
+        "hidden": "Hidden"
       }
     },
     "balance_lots": {
@@ -1378,12 +1383,19 @@
       "assign": {
         "package": "Package",
         "package_placeholder": "Select package template",
-        "package_required": "Please select a package"
+        "package_required": "Please select a package",
+        "topup_plan": "Top-up Plan",
+        "topup_plan_placeholder": "Select a top-up plan",
+        "topup_plan_required": "Please select a top-up plan"
       },
       "buttons": {
         "back": "Back",
         "edit": "Edit",
-        "gift_package": "Gift Package"
+        "gift_package": "Gift Package",
+        "gift_topup": "Gift Top-up Plan"
+      },
+      "messages": {
+        "gift_topup_success": "Top-up plan granted successfully"
       }
     },
     "edit": {

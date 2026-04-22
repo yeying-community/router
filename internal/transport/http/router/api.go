@@ -216,6 +216,7 @@ func SetApiRouter(engine *gin.Engine) {
 			adminUserRoute.GET("/:id/quota/summary", user.GetUserQuotaSummary)
 			adminUserRoute.GET("/:id/topup/balance/lots", user.GetUserTopUpBalanceLots)
 			adminUserRoute.GET("/:id/topup/balance/transactions", user.GetUserTopUpBalanceLotTransactions)
+			adminUserRoute.POST("/:id/topup/grant", user.GrantUserTopUpPlan)
 			adminUserRoute.POST("/", user.CreateUser)
 			adminUserRoute.POST("/manage", user.ManageUser)
 			adminUserRoute.PUT("/", user.UpdateUser)

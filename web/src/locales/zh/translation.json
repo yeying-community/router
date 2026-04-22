@@ -136,7 +136,12 @@
         "pay_amount": "支付金额",
         "credited_amount": "到账额度",
         "enabled": "状态",
+        "public_visible": "对外展示",
         "validity_days": "有效期（天）"
+      },
+      "visibility": {
+        "visible": "展示",
+        "hidden": "隐藏"
       }
     },
     "balance_lots": {
@@ -1378,12 +1383,19 @@
       "assign": {
         "package": "套餐",
         "package_placeholder": "请选择套餐模板",
-        "package_required": "请选择套餐"
+        "package_required": "请选择套餐",
+        "topup_plan": "充值档位",
+        "topup_plan_placeholder": "请选择充值档位",
+        "topup_plan_required": "请选择充值档位"
       },
       "buttons": {
         "back": "返回",
         "edit": "编辑",
-        "gift_package": "赠送套餐"
+        "gift_package": "赠送套餐",
+        "gift_topup": "赠送充值档位"
+      },
+      "messages": {
+        "gift_topup_success": "赠送充值档位成功"
       }
     },
     "edit": {

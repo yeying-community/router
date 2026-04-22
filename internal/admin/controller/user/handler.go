@@ -1495,6 +1495,69 @@ func GetUserTopUpBalanceLotTransactions(c *gin.Context) {
 	})
 }
 
+// GrantUserTopUpPlan godoc
+// @Summary Grant topup plan balance to user (admin)
+// @Tags admin
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/admin/user/{id}/topup/grant [post]
+func GrantUserTopUpPlan(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "id 为空",
+		})
+		return
+	}
+	targetUser, err := usersvc.GetByID(id, false)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	if !requesterCanReadUser(c, targetUser) {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无权获取同级或更高等级用户的信息",
+		})
+		return
+	}
+	req := grantUserTopUpPlanRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	order, err := model.GrantTopupPlanToUserWithDB(
+		model.DB,
+		strings.TrimSpace(targetUser.Id),
+		strings.TrimSpace(targetUser.Username),
+		strings.TrimSpace(req.PlanID),
+		strings.TrimSpace(c.GetString(ctxkey.Id)),
+	)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    order,
+	})
+}
+
 // UpdateUser godoc
 // @Summary Update user (admin)
 // @Tags admin
@@ -2169,6 +2232,10 @@ type createTopUpOrderRequest struct {
 	PlanID        string  `json:"plan_id"`
 	PackageID     string  `json:"package_id"`
 	ReturnURL     string  `json:"return_url"`
+}
+
+type grantUserTopUpPlanRequest struct {
+	PlanID string `json:"plan_id"`
 }
 
 type previewPackagePurchaseRequest struct {

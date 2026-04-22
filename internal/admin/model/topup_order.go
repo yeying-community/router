@@ -1192,6 +1192,108 @@ func FulfillTopupOrderWithDB(db *gorm.DB, orderID string) (TopupOrder, bool, err
 	return result, fulfilledNow, nil
 }
 
+func GrantTopupPlanToUserWithDB(db *gorm.DB, userID string, username string, planID string, grantedBy string) (TopupOrder, error) {
+	if db == nil {
+		return TopupOrder{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return TopupOrder{}, fmt.Errorf("用户 ID 不能为空")
+	}
+	normalizedPlanID := strings.TrimSpace(planID)
+	if normalizedPlanID == "" {
+		return TopupOrder{}, fmt.Errorf("充值档位不能为空")
+	}
+	normalizedUsername := strings.TrimSpace(username)
+	resolvedPlan, err := ResolveTopupPlan(normalizedPlanID)
+	if err != nil {
+		return TopupOrder{}, err
+	}
+	now := helper.GetTimestamp()
+	result := TopupOrder{}
+	err = db.Transaction(func(tx *gorm.DB) error {
+		user := User{}
+		if err := tx.Select("id").First(&user, "id = ?", normalizedUserID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("用户不存在")
+			}
+			return err
+		}
+		order := TopupOrder{
+			Id:            random.GetUUID(),
+			UserID:        normalizedUserID,
+			Username:      normalizedUsername,
+			Status:        TopupOrderStatusFulfilled,
+			Source:        TopupOrderSourceTopUpAPI,
+			ProviderName:  "admin",
+			TransactionID: random.GetUUID(),
+			BusinessType:  TopupOrderBusinessBalance,
+			OperationType: TopupOrderOperationTopup,
+			Title:         buildTopupOrderPlanTitle(resolvedPlan),
+			Amount:        normalizeTopupOrderAmount(resolvedPlan.Amount),
+			Currency:      normalizeTopupOrderCurrency(resolvedPlan.AmountCurrency),
+			Quota:         normalizeTopupOrderQuota(resolvedPlan.QuotaYYC),
+			TopupPlanID:   strings.TrimSpace(resolvedPlan.Id),
+			ValidityDays:  normalizeTopupPlanValidityDays(resolvedPlan.ValidityDays),
+			PaidAt:        now,
+			RedeemedAt:    now,
+			CreatedAt:     now,
+			UpdatedAt:     now,
+		}
+		if order.Quota <= 0 {
+			return fmt.Errorf("充值额度不能为空")
+		}
+		if strings.TrimSpace(order.Title) == "" {
+			order.Title = "管理员赠送充值档位"
+		}
+		normalizedGrantedBy := strings.TrimSpace(grantedBy)
+		if normalizedGrantedBy != "" {
+			order.StatusMessage = "管理员赠送，操作者：" + normalizedGrantedBy
+		} else {
+			order.StatusMessage = "管理员赠送"
+		}
+		if order.ValidityDays > 0 {
+			order.CreditExpiresAt = resolveBalanceCreditExpiresAt(now, order.ValidityDays)
+		}
+		normalizeTopupOrderRow(&order)
+		if err := tx.Create(&order).Error; err != nil {
+			return err
+		}
+		lot, creditedNow, err := CreditUserBalanceLotWithDB(tx, UserBalanceLotCreditInput{
+			UserID:     normalizedUserID,
+			SourceType: UserBalanceLotSourceTopup,
+			SourceID:   order.Id,
+			TotalYYC:   order.Quota,
+			GrantedAt:  now,
+			ExpiresAt:  order.CreditExpiresAt,
+		})
+		if err != nil {
+			return err
+		}
+		if creditedNow {
+			if err := tx.Model(&User{}).
+				Where("id = ?", normalizedUserID).
+				Update("quota", gorm.Expr("quota + ?", order.Quota)).Error; err != nil {
+				return err
+			}
+		}
+		if lot.ExpiresAt > 0 && lot.ExpiresAt != order.CreditExpiresAt {
+			order.CreditExpiresAt = lot.ExpiresAt
+			if err := tx.Model(&TopupOrder{}).
+				Where("id = ?", order.Id).
+				Update("credit_expires_at", order.CreditExpiresAt).Error; err != nil {
+				return err
+			}
+		}
+		result = order
+		return nil
+	})
+	if err != nil {
+		return TopupOrder{}, err
+	}
+	return result, nil
+}
+
 func selectTopupOrderForCallbackWithDB(tx *gorm.DB, orderID string, transactionID string, providerOrderID string) (TopupOrder, error) {
 	if tx == nil {
 		return TopupOrder{}, fmt.Errorf("database handle is nil")

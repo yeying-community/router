@@ -55,6 +55,7 @@ type ucanStatement struct {
 type ucanPayload struct {
 	Iss          string                            `json:"iss"`
 	Aud          string                            `json:"aud"`
+	Sub          string                            `json:"sub"`
 	Cap          []UcanCapability                  `json:"cap,omitempty"`
 	Capabilities []UcanCapability                  `json:"capabilities,omitempty"`
 	Att          map[string]map[string]interface{} `json:"att,omitempty"`
@@ -283,12 +284,19 @@ func VerifyUcanInvocation(token string, expectedAud string, required []UcanCapab
 	if err != nil {
 		return "", err
 	}
-	if payload.Aud != expectedAud {
+	if !isEquivalentAudience(payload.Aud, expectedAud) {
 		logger.Loginf(nil, "UCAN audience mismatch expected=%s actual=%s", expectedAud, payload.Aud)
 		return "", errors.New("UCAN audience mismatch")
 	}
 	if !capsAllow(payload.Cap, required) {
 		return "", errors.New("UCAN capability denied")
+	}
+	if isTrustedUcanIssuerDid(payload.Iss) {
+		subject := normalizeWalletSubject(payload.Sub)
+		if subject == "" {
+			return "", errors.New("invalid UCAN subject")
+		}
+		return subject, nil
 	}
 	iss, err := verifyProofChain(payload.Iss, payload.Cap, exp, payload.Prf)
 	if err != nil {
@@ -386,8 +394,8 @@ func matchPattern(pattern, value string) bool {
 	if pattern == "" || value == "" {
 		return false
 	}
-	patternLower := strings.ToLower(pattern)
-	valueLower := strings.ToLower(value)
+	patternLower := strings.ToLower(normalizeLoopbackAlias(pattern))
+	valueLower := strings.ToLower(normalizeLoopbackAlias(value))
 	if pattern == "*" {
 		return true
 	}
@@ -496,7 +504,7 @@ func verifyRootProof(root ucanRootProof) (ucanStatement, string, error) {
 	if aud == "" || exp == 0 || len(cap) == 0 {
 		return ucanStatement{}, "", errors.New("invalid root claims")
 	}
-	if root.Aud != "" && root.Aud != aud {
+	if root.Aud != "" && !isEquivalentAudience(root.Aud, aud) {
 		logger.Loginf(nil, "UCAN root audience mismatch expected=%s actual=%s", root.Aud, aud)
 		return ucanStatement{}, "", errors.New("root audience mismatch")
 	}
@@ -611,7 +619,7 @@ func verifyProofChain(currentDid string, required []UcanCapability, requiredExp 
 		if err != nil {
 			return "", err
 		}
-		if payload.Aud != currentDid {
+		if !isEquivalentAudience(payload.Aud, currentDid) {
 			logger.Loginf(nil, "UCAN audience mismatch expected=%s actual=%s", currentDid, payload.Aud)
 			return "", errors.New("UCAN audience mismatch")
 		}
@@ -636,7 +644,7 @@ func verifyProofChain(currentDid string, required []UcanCapability, requiredExp 
 	if err != nil {
 		return "", err
 	}
-	if statement.Aud != currentDid {
+	if !isEquivalentAudience(statement.Aud, currentDid) {
 		logger.Loginf(nil, "UCAN root audience mismatch expected=%s actual=%s", currentDid, statement.Aud)
 		return "", errors.New("root audience mismatch")
 	}
@@ -650,3 +658,47 @@ func verifyProofChain(currentDid string, required []UcanCapability, requiredExp 
 }
 
 const base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+func normalizeLoopbackAlias(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+	return strings.ReplaceAll(trimmed, "127.0.0.1", "localhost")
+}
+
+func isEquivalentAudience(left, right string) bool {
+	leftTrimmed := strings.TrimSpace(left)
+	rightTrimmed := strings.TrimSpace(right)
+	if leftTrimmed == "" || rightTrimmed == "" {
+		return false
+	}
+	if strings.EqualFold(leftTrimmed, rightTrimmed) {
+		return true
+	}
+	return strings.EqualFold(normalizeLoopbackAlias(leftTrimmed), normalizeLoopbackAlias(rightTrimmed))
+}
+
+func isTrustedUcanIssuerDid(did string) bool {
+	target := strings.TrimSpace(did)
+	if target == "" {
+		return false
+	}
+	for _, issuerDid := range config.UcanTrustedIssuerDIDs {
+		if strings.EqualFold(strings.TrimSpace(issuerDid), target) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeWalletSubject(subject string) string {
+	trimmed := strings.TrimSpace(subject)
+	if len(trimmed) != 42 || !strings.HasPrefix(strings.ToLower(trimmed), "0x") {
+		return ""
+	}
+	if _, err := hex.DecodeString(trimmed[2:]); err != nil {
+		return ""
+	}
+	return strings.ToLower(trimmed)
+}

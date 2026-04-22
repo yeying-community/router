@@ -18,6 +18,7 @@ type upsertTopupPlanRequest struct {
 	QuotaCurrency  string  `json:"quota_currency"`
 	ValidityDays   int     `json:"validity_days"`
 	Enabled        bool    `json:"enabled"`
+	PublicVisible  *bool   `json:"public_visible"`
 	SortOrder      int     `json:"sort_order"`
 }
 
@@ -46,6 +47,10 @@ func CreateAdminTopupPlan(c *gin.Context) {
 		})
 		return
 	}
+	publicVisible := true
+	if request.PublicVisible != nil {
+		publicVisible = *request.PublicVisible
+	}
 	row, err := model.CreateTopupPlan(model.TopupPlan{
 		Name:           request.Name,
 		GroupID:        request.GroupID,
@@ -55,6 +60,7 @@ func CreateAdminTopupPlan(c *gin.Context) {
 		QuotaCurrency:  request.QuotaCurrency,
 		ValidityDays:   request.ValidityDays,
 		Enabled:        request.Enabled,
+		PublicVisible:  publicVisible,
 		SortOrder:      request.SortOrder,
 	})
 	if err != nil {
@@ -80,6 +86,20 @@ func UpdateAdminTopupPlan(c *gin.Context) {
 		})
 		return
 	}
+	publicVisible := true
+	if request.PublicVisible != nil {
+		publicVisible = *request.PublicVisible
+	} else {
+		existing, err := model.GetTopupPlanByID(request.Id)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+		publicVisible = existing.PublicVisible
+	}
 	row, err := model.UpdateTopupPlan(model.TopupPlan{
 		Id:             request.Id,
 		Name:           request.Name,
@@ -90,6 +110,7 @@ func UpdateAdminTopupPlan(c *gin.Context) {
 		QuotaCurrency:  request.QuotaCurrency,
 		ValidityDays:   request.ValidityDays,
 		Enabled:        request.Enabled,
+		PublicVisible:  publicVisible,
 		SortOrder:      request.SortOrder,
 	})
 	if err != nil {

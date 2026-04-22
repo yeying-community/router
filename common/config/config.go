@@ -122,6 +122,7 @@ const ProfileCompatUcanAction = "read"
 
 var UcanResource = ""
 var UcanAction = DefaultUcanAction
+var UcanTrustedIssuerDIDs []string
 
 // CORS allowlist (comma-separated env CORS_ALLOWED_ORIGINS)
 var CorsAllowedOrigins []string

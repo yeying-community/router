@@ -27,6 +27,7 @@ type TopupPlan struct {
 	QuotaCurrency  string  `json:"quota_currency" gorm:"type:varchar(16);not null;default:'USD'"`
 	ValidityDays   int     `json:"validity_days" gorm:"type:int;not null;default:0"`
 	Enabled        bool    `json:"enabled" gorm:"default:true;index"`
+	PublicVisible  bool    `json:"public_visible" gorm:"not null;default:true;index"`
 	SortOrder      int     `json:"sort_order" gorm:"default:0;index"`
 	CreatedAt      int64   `json:"created_at" gorm:"bigint;index"`
 	UpdatedAt      int64   `json:"updated_at" gorm:"bigint;index"`
@@ -62,6 +63,7 @@ func defaultTopupPlans(defaultGroupID string) []TopupPlan {
 			QuotaCurrency:  BillingCurrencyCodeUSD,
 			ValidityDays:   0,
 			Enabled:        true,
+			PublicVisible:  true,
 			SortOrder:      1,
 		},
 		{
@@ -73,6 +75,7 @@ func defaultTopupPlans(defaultGroupID string) []TopupPlan {
 			QuotaCurrency:  BillingCurrencyCodeUSD,
 			ValidityDays:   0,
 			Enabled:        true,
+			PublicVisible:  true,
 			SortOrder:      2,
 		},
 		{
@@ -84,6 +87,7 @@ func defaultTopupPlans(defaultGroupID string) []TopupPlan {
 			QuotaCurrency:  BillingCurrencyCodeUSD,
 			ValidityDays:   0,
 			Enabled:        true,
+			PublicVisible:  true,
 			SortOrder:      3,
 		},
 		{
@@ -95,6 +99,7 @@ func defaultTopupPlans(defaultGroupID string) []TopupPlan {
 			QuotaCurrency:  BillingCurrencyCodeUSD,
 			ValidityDays:   0,
 			Enabled:        true,
+			PublicVisible:  true,
 			SortOrder:      4,
 		},
 		{
@@ -106,6 +111,7 @@ func defaultTopupPlans(defaultGroupID string) []TopupPlan {
 			QuotaCurrency:  BillingCurrencyCodeUSD,
 			ValidityDays:   0,
 			Enabled:        true,
+			PublicVisible:  true,
 			SortOrder:      5,
 		},
 	}
@@ -306,7 +312,7 @@ func listTopupPlansWithDB(db *gorm.DB, enabledOnly bool) ([]TopupPlan, error) {
 	rows := make([]TopupPlan, 0)
 	query := db.Model(&TopupPlan{})
 	if enabledOnly {
-		query = query.Where("enabled = ?", true)
+		query = query.Where("enabled = ? AND public_visible = ?", true, true)
 	}
 	if err := query.Order("sort_order asc, created_at asc, name asc").Find(&rows).Error; err != nil {
 		return nil, err
@@ -377,6 +383,7 @@ func updateTopupPlanWithDB(db *gorm.DB, item TopupPlan) (TopupPlan, error) {
 	row.QuotaCurrency = item.QuotaCurrency
 	row.ValidityDays = item.ValidityDays
 	row.Enabled = item.Enabled
+	row.PublicVisible = item.PublicVisible
 	row.SortOrder = item.SortOrder
 	if err := normalizeTopupPlanRowWithDB(db, &row); err != nil {
 		return TopupPlan{}, err
