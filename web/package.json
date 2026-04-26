@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@yeying-community/web3-bs": "1.0.6",
+    "@yeying-community/web3-bs": "1.0.7",
     "axios": "^0.27.2",
     "history": "^5.3.0",
     "i18next": "23.16.8",
