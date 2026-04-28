@@ -3,7 +3,9 @@ package openai
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -88,7 +90,7 @@ func StreamHandler(c *gin.Context, resp *http.Response, relayMode int) (*model.E
 	}
 
 	if err := scanner.Err(); err != nil {
-		logger.SysError("error reading stream: " + err.Error())
+		logOpenAIStreamReadError("chat", err)
 	}
 
 	if !doneRendered {
@@ -209,7 +211,7 @@ func StreamResponsesHandler(c *gin.Context, resp *http.Response, modelName strin
 	}
 
 	if err := scanner.Err(); err != nil {
-		logger.SysError("error reading stream: " + err.Error())
+		logOpenAIStreamReadError("responses", err)
 	}
 
 	if !doneRendered {
@@ -225,6 +227,21 @@ func StreamResponsesHandler(c *gin.Context, resp *http.Response, modelName strin
 	}
 
 	return nil, usage
+}
+
+func logOpenAIStreamReadError(kind string, err error) {
+	if err == nil {
+		return
+	}
+	lowerMessage := strings.ToLower(strings.TrimSpace(err.Error()))
+	switch {
+	case errors.Is(err, context.Canceled) || strings.Contains(lowerMessage, "context canceled"):
+		logger.SysWarnf("[openai.stream] read_stopped kind=%s reason=context_canceled err=%q", strings.TrimSpace(kind), err.Error())
+	case strings.Contains(lowerMessage, "token too long"):
+		logger.SysErrorf("[openai.stream] read_failed kind=%s reason=scanner_token_too_long max_token_bytes=%d err=%q", strings.TrimSpace(kind), openaiScannerMaxTokenSize, err.Error())
+	default:
+		logger.SysErrorf("[openai.stream] read_failed kind=%s err=%q", strings.TrimSpace(kind), err.Error())
+	}
 }
 
 func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.ErrorWithStatusCode, *model.Usage) {

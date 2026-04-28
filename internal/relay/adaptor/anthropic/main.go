@@ -391,7 +391,12 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	}
 
 	if err := scanner.Err(); err != nil {
-		logger.SysError("error reading stream: " + err.Error())
+		lowerMessage := strings.ToLower(strings.TrimSpace(err.Error()))
+		if strings.Contains(lowerMessage, "context canceled") {
+			logger.SysWarnf("[anthropic.stream] read_stopped reason=context_canceled err=%q", err.Error())
+		} else {
+			logger.SysErrorf("[anthropic.stream] read_failed err=%q", err.Error())
+		}
 	}
 
 	render.Done(c)

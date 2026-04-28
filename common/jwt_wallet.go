@@ -19,11 +19,11 @@ type WalletClaims struct {
 
 // GenerateWalletJWT issues a JWT for the given user id and wallet address.
 func GenerateWalletJWT(userID string, walletAddress string) (token string, expiresAt time.Time, err error) {
-	secret := []byte(config.WalletJWTSecret)
+	secret := []byte(config.JWTSecret)
 	if len(secret) == 0 {
-		return "", time.Time{}, errors.New("wallet jwt secret not configured")
+		return "", time.Time{}, errors.New("auth.jwt_secret not configured")
 	}
-	expiresAt = time.Now().Add(time.Duration(config.WalletJWTExpireHours) * time.Hour)
+	expiresAt = time.Now().Add(time.Duration(config.JWTExpireHours) * time.Hour)
 	claims := WalletClaims{
 		UserID:        userID,
 		WalletAddress: walletAddress,
@@ -42,7 +42,7 @@ func GenerateWalletJWT(userID string, walletAddress string) (token string, expir
 
 // VerifyWalletJWT validates token and returns claims.
 func VerifyWalletJWT(tokenString string) (*WalletClaims, error) {
-	claims, err := verifyWithSecrets(tokenString, append([]string{config.WalletJWTSecret}, config.WalletJWTFallbackSecrets...))
+	claims, err := verifyWithSecrets(tokenString, append([]string{config.JWTSecret}, config.JWTFallbackSecrets...))
 	if err != nil {
 		return nil, err
 	}
@@ -54,11 +54,11 @@ func VerifyWalletJWT(tokenString string) (*WalletClaims, error) {
 
 // GenerateWalletRefreshJWT issues a refresh token for the given user id and wallet address.
 func GenerateWalletRefreshJWT(userID string, walletAddress string) (token string, expiresAt time.Time, err error) {
-	secret := []byte(config.WalletJWTSecret)
+	secret := []byte(config.JWTSecret)
 	if len(secret) == 0 {
-		return "", time.Time{}, errors.New("wallet jwt secret not configured")
+		return "", time.Time{}, errors.New("auth.jwt_secret not configured")
 	}
-	expiresAt = time.Now().Add(time.Duration(config.WalletRefreshTokenExpireHours) * time.Hour)
+	expiresAt = time.Now().Add(time.Duration(config.RefreshTokenExpireHours) * time.Hour)
 	claims := WalletClaims{
 		UserID:        userID,
 		WalletAddress: walletAddress,
@@ -77,7 +77,7 @@ func GenerateWalletRefreshJWT(userID string, walletAddress string) (token string
 
 // VerifyWalletRefreshJWT validates refresh token and returns claims.
 func VerifyWalletRefreshJWT(tokenString string) (*WalletClaims, error) {
-	claims, err := verifyWithSecrets(tokenString, append([]string{config.WalletJWTSecret}, config.WalletJWTFallbackSecrets...))
+	claims, err := verifyWithSecrets(tokenString, append([]string{config.JWTSecret}, config.JWTFallbackSecrets...))
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func VerifyWalletRefreshJWT(tokenString string) (*WalletClaims, error) {
 // verifyWithSecrets tries multiple secrets in order and returns on first success.
 func verifyWithSecrets(tokenString string, secrets []string) (*WalletClaims, error) {
 	if len(secrets) == 0 {
-		return nil, errors.New("wallet jwt secret not configured")
+		return nil, errors.New("auth.jwt_secret not configured")
 	}
 	var lastErr error
 	for _, sec := range secrets {

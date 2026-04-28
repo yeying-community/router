@@ -84,19 +84,19 @@ type CacheRuntimeConfig struct {
 }
 
 type AuthRuntimeConfig struct {
-	SessionSecret               string   `yaml:"session_secret"`
-	PasswordLoginEnabled        bool     `yaml:"password_login_enabled"`
-	PasswordRegisterEnabled     bool     `yaml:"password_register_enabled"`
-	RegisterEnabled             bool     `yaml:"register_enabled"`
-	AutoRegisterEnabled         bool     `yaml:"auto_register_enabled"`
-	WalletJWTSecret             string   `yaml:"wallet_jwt_secret"`
-	WalletJWTFallbackSecrets    []string `yaml:"wallet_jwt_fallback_secrets"`
-	WalletJWTExpireHours        int      `yaml:"wallet_jwt_expire_hours"`
-	WalletRefreshExpireHours    int      `yaml:"wallet_refresh_expire_hours"`
-	WalletNonceTTLMinutes       int      `yaml:"wallet_nonce_ttl_minutes"`
-	WalletRefreshCookieDomain   string   `yaml:"wallet_refresh_cookie_domain"`
-	WalletRefreshCookieSecure   bool     `yaml:"wallet_refresh_cookie_secure"`
-	WalletRefreshCookieSameSite string   `yaml:"wallet_refresh_cookie_samesite"`
+	CookieSecret            string   `yaml:"cookie_secret"`
+	PasswordLoginEnabled    bool     `yaml:"password_login_enabled"`
+	PasswordRegisterEnabled bool     `yaml:"password_register_enabled"`
+	RegisterEnabled         bool     `yaml:"register_enabled"`
+	AutoRegisterEnabled     bool     `yaml:"auto_register_enabled"`
+	JWTSecret               string   `yaml:"jwt_secret"`
+	JWTFallbackSecrets      []string `yaml:"jwt_fallback_secrets"`
+	JWTExpireHours          int      `yaml:"jwt_expire_hours"`
+	RefreshExpireHours      int      `yaml:"refresh_expire_hours"`
+	NonceTTLMinutes         int      `yaml:"nonce_ttl_minutes"`
+	RefreshCookieDomain     string   `yaml:"refresh_cookie_domain"`
+	RefreshCookieSecure     bool     `yaml:"refresh_cookie_secure"`
+	RefreshCookieSameSite   string   `yaml:"refresh_cookie_samesite"`
 }
 
 type CORSRuntimeConfig struct {
@@ -200,19 +200,19 @@ func defaultRuntimeConfig() RuntimeConfig {
 			BatchUpdateIntervalSeconds: 5,
 		},
 		Auth: AuthRuntimeConfig{
-			SessionSecret:               "",
-			PasswordLoginEnabled:        true,
-			PasswordRegisterEnabled:     true,
-			RegisterEnabled:             true,
-			AutoRegisterEnabled:         false,
-			WalletJWTSecret:             "",
-			WalletJWTFallbackSecrets:    []string{},
-			WalletJWTExpireHours:        72,
-			WalletRefreshExpireHours:    24 * 30,
-			WalletNonceTTLMinutes:       10,
-			WalletRefreshCookieDomain:   "",
-			WalletRefreshCookieSecure:   false,
-			WalletRefreshCookieSameSite: "lax",
+			CookieSecret:            "",
+			PasswordLoginEnabled:    true,
+			PasswordRegisterEnabled: true,
+			RegisterEnabled:         true,
+			AutoRegisterEnabled:     false,
+			JWTSecret:               "",
+			JWTFallbackSecrets:      []string{},
+			JWTExpireHours:          72,
+			RefreshExpireHours:      24 * 30,
+			NonceTTLMinutes:         10,
+			RefreshCookieDomain:     "",
+			RefreshCookieSecure:     false,
+			RefreshCookieSameSite:   "lax",
 		},
 		CORS: CORSRuntimeConfig{
 			AllowedOrigins: []string{},
@@ -356,35 +356,35 @@ func ApplyRuntimeConfig(cfg *RuntimeConfig, portFlagSet bool, logDirFlagSet bool
 	RedisMasterName = strings.TrimSpace(cfg.Redis.MasterName)
 	RedisPassword = strings.TrimSpace(cfg.Redis.Password)
 
-	if sessionSecret := strings.TrimSpace(cfg.Auth.SessionSecret); sessionSecret != "" {
-		if sessionSecret == "random_string" {
-			logger.SysError("auth.session_secret is set to an example value, please change it to a random string.")
+	if cookieSecret := strings.TrimSpace(cfg.Auth.CookieSecret); cookieSecret != "" {
+		if cookieSecret == "random_string" {
+			logger.SysError("auth.cookie_secret is set to an example value, please change it to a random string.")
 		} else {
-			config.SessionSecret = sessionSecret
+			config.CookieSecret = cookieSecret
 		}
 	}
 	config.PasswordLoginEnabled = cfg.Auth.PasswordLoginEnabled
 	config.PasswordRegisterEnabled = cfg.Auth.PasswordRegisterEnabled
 	config.RegisterEnabled = cfg.Auth.RegisterEnabled
 	config.AutoRegisterEnabled = cfg.Auth.AutoRegisterEnabled
-	config.WalletJWTSecret = strings.TrimSpace(cfg.Auth.WalletJWTSecret)
-	config.WalletJWTFallbackSecrets = normalizeStringSlice(cfg.Auth.WalletJWTFallbackSecrets)
-	if cfg.Auth.WalletJWTExpireHours > 0 {
-		config.WalletJWTExpireHours = cfg.Auth.WalletJWTExpireHours
+	config.JWTSecret = strings.TrimSpace(cfg.Auth.JWTSecret)
+	config.JWTFallbackSecrets = normalizeStringSlice(cfg.Auth.JWTFallbackSecrets)
+	if cfg.Auth.JWTExpireHours > 0 {
+		config.JWTExpireHours = cfg.Auth.JWTExpireHours
 	}
-	if cfg.Auth.WalletRefreshExpireHours > 0 {
-		config.WalletRefreshTokenExpireHours = cfg.Auth.WalletRefreshExpireHours
+	if cfg.Auth.RefreshExpireHours > 0 {
+		config.RefreshTokenExpireHours = cfg.Auth.RefreshExpireHours
 	}
-	if cfg.Auth.WalletNonceTTLMinutes > 0 {
-		config.WalletNonceTTLMinutes = cfg.Auth.WalletNonceTTLMinutes
+	if cfg.Auth.NonceTTLMinutes > 0 {
+		config.NonceTTLMinutes = cfg.Auth.NonceTTLMinutes
 	}
-	config.WalletRefreshCookieDomain = strings.TrimSpace(cfg.Auth.WalletRefreshCookieDomain)
-	config.WalletRefreshCookieSecure = cfg.Auth.WalletRefreshCookieSecure
-	if sameSite := strings.ToLower(strings.TrimSpace(cfg.Auth.WalletRefreshCookieSameSite)); sameSite != "" {
-		config.WalletRefreshCookieSameSite = sameSite
+	config.RefreshCookieDomain = strings.TrimSpace(cfg.Auth.RefreshCookieDomain)
+	config.RefreshCookieSecure = cfg.Auth.RefreshCookieSecure
+	if sameSite := strings.ToLower(strings.TrimSpace(cfg.Auth.RefreshCookieSameSite)); sameSite != "" {
+		config.RefreshCookieSameSite = sameSite
 	}
-	if config.WalletJWTSecret == "" {
-		config.WalletJWTSecret = config.SessionSecret
+	if config.CookieSecret != "" && config.JWTSecret != "" && config.CookieSecret == config.JWTSecret {
+		logger.SysError("auth.cookie_secret and auth.jwt_secret should not use the same value.")
 	}
 
 	config.CorsAllowedOrigins = normalizeStringSlice(cfg.CORS.AllowedOrigins)
@@ -568,19 +568,19 @@ func normalizeStringSlice(values []string) []string {
 func setCompatibilityEnvs() {
 	_ = os.Setenv("PORT", strconv.Itoa(*Port))
 	_ = os.Setenv("GIN_MODE", GinMode)
-	_ = os.Setenv("SESSION_SECRET", config.SessionSecret)
+	_ = os.Setenv("COOKIE_SECRET", config.CookieSecret)
 	_ = os.Setenv("PASSWORD_LOGIN_ENABLED", strconv.FormatBool(config.PasswordLoginEnabled))
 	_ = os.Setenv("PASSWORD_REGISTER_ENABLED", strconv.FormatBool(config.PasswordRegisterEnabled))
 	_ = os.Setenv("REGISTER_ENABLED", strconv.FormatBool(config.RegisterEnabled))
 	_ = os.Setenv("AUTO_REGISTER_ENABLED", strconv.FormatBool(config.AutoRegisterEnabled))
-	_ = os.Setenv("WALLET_JWT_SECRET", config.WalletJWTSecret)
-	_ = os.Setenv("WALLET_JWT_FALLBACK_SECRETS", strings.Join(config.WalletJWTFallbackSecrets, ","))
-	_ = os.Setenv("WALLET_JWT_EXPIRE_HOURS", strconv.Itoa(config.WalletJWTExpireHours))
-	_ = os.Setenv("WALLET_REFRESH_EXPIRE_HOURS", strconv.Itoa(config.WalletRefreshTokenExpireHours))
-	_ = os.Setenv("WALLET_NONCE_TTL_MINUTES", strconv.Itoa(config.WalletNonceTTLMinutes))
-	_ = os.Setenv("WALLET_REFRESH_COOKIE_DOMAIN", config.WalletRefreshCookieDomain)
-	_ = os.Setenv("WALLET_REFRESH_COOKIE_SECURE", strconv.FormatBool(config.WalletRefreshCookieSecure))
-	_ = os.Setenv("WALLET_REFRESH_COOKIE_SAMESITE", config.WalletRefreshCookieSameSite)
+	_ = os.Setenv("JWT_SECRET", config.JWTSecret)
+	_ = os.Setenv("JWT_FALLBACK_SECRETS", strings.Join(config.JWTFallbackSecrets, ","))
+	_ = os.Setenv("JWT_EXPIRE_HOURS", strconv.Itoa(config.JWTExpireHours))
+	_ = os.Setenv("REFRESH_EXPIRE_HOURS", strconv.Itoa(config.RefreshTokenExpireHours))
+	_ = os.Setenv("NONCE_TTL_MINUTES", strconv.Itoa(config.NonceTTLMinutes))
+	_ = os.Setenv("REFRESH_COOKIE_DOMAIN", config.RefreshCookieDomain)
+	_ = os.Setenv("REFRESH_COOKIE_SECURE", strconv.FormatBool(config.RefreshCookieSecure))
+	_ = os.Setenv("REFRESH_COOKIE_SAMESITE", config.RefreshCookieSameSite)
 	_ = os.Setenv("CORS_ALLOWED_ORIGINS", strings.Join(config.CorsAllowedOrigins, ","))
 	_ = os.Setenv("UCAN_AUD", config.UcanAud)
 	_ = os.Setenv("UCAN_RESOURCE", config.UcanResource)

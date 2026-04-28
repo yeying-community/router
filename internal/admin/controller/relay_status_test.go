@@ -186,3 +186,48 @@ func TestShouldDisableChannelModelRequestEndpointCapabilityForUnsupportedEndpoin
 		t.Fatalf("shouldDisableChannelModelRequestEndpointCapability = false, want true")
 	}
 }
+
+func TestIsClientAbortRelayErrorForContextCanceled(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusInternalServerError,
+		Error: relaymodel.Error{
+			Message: "context canceled",
+			Type:    "one_api_error",
+			Code:    "read_response_body_failed",
+		},
+	}
+
+	if !isClientAbortRelayError(err) {
+		t.Fatalf("isClientAbortRelayError = false, want true")
+	}
+}
+
+func TestIsClientAbortRelayErrorForDownstreamBrokenPipe(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusInternalServerError,
+		Error: relaymodel.Error{
+			Message: "write tcp 127.0.0.1:8080->127.0.0.1:12345: write: broken pipe",
+			Type:    "one_api_error",
+			Code:    "copy_response_body_failed",
+		},
+	}
+
+	if !isClientAbortRelayError(err) {
+		t.Fatalf("isClientAbortRelayError = false, want true")
+	}
+}
+
+func TestIsClientAbortRelayErrorSkipsUpstreamConnectionReset(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusInternalServerError,
+		Error: relaymodel.Error{
+			Message: "read tcp 192.168.0.19:62148->104.21.26.232:443: read: connection reset by peer",
+			Type:    "one_api_error",
+			Code:    "read_response_body_failed",
+		},
+	}
+
+	if isClientAbortRelayError(err) {
+		t.Fatalf("isClientAbortRelayError = true, want false")
+	}
+}

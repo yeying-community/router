@@ -64,10 +64,11 @@ cache:
 
 auth:
   # 会话签名密钥（必须替换）。
+  # 用途：签浏览器 Session Cookie、OAuth state、Turnstile 会话标记。
   # 生成命令（二选一）：
   #   openssl rand -hex 32
   #   python3 -c "import secrets; print(secrets.token_hex(32))"
-  session_secret: random_string
+  cookie_secret: random_string
   # 用户名密码登录开关。
   # 注意：若后台“系统设置”里有 PasswordLoginEnabled，会覆盖这里的值。
   password_login_enabled: true
@@ -79,26 +80,28 @@ auth:
   register_enabled: true
   # 钱包登录时是否允许自动注册新用户。
   auto_register_enabled: true
-  # 钱包 JWT 签名密钥。留空时将回退为 session_secret（不建议长期依赖回退）。
-  # 生成命令：
+  # JWT 签名密钥（用于钱包登录 access/refresh token）。
+  # 不要与 cookie_secret 复用，避免会话签名和令牌签名共用同一密钥。
+  # 生成命令（二选一）：
   #   openssl rand -hex 32
-  wallet_jwt_secret: ""
+  #   python3 -c "import secrets; print(secrets.token_hex(32))"
+  jwt_secret: ""
   # 钱包 JWT 历史验签密钥列表（用于轮换），格式示例：
   # - "old_secret_1"
   # - "old_secret_2"
-  wallet_jwt_fallback_secrets: []
-  # 钱包 JWT 访问令牌有效期（小时）。
-  wallet_jwt_expire_hours: 72
-  # 钱包刷新令牌有效期（小时）。
-  wallet_refresh_expire_hours: 720
+  jwt_fallback_secrets: []
+  # 钱包登录 access token 有效期（小时）。
+  jwt_expire_hours: 72
+  # 钱包登录 refresh token 有效期（小时）。
+  refresh_expire_hours: 720
   # 钱包登录 nonce 过期时间（分钟）。
-  wallet_nonce_ttl_minutes: 10
+  nonce_ttl_minutes: 10
   # 刷新 Cookie 域名，跨子域时按需配置，如 .example.com。
-  wallet_refresh_cookie_domain: ""
+  refresh_cookie_domain: ""
   # 刷新 Cookie 是否仅 HTTPS 发送（生产建议 true）。
-  wallet_refresh_cookie_secure: false
+  refresh_cookie_secure: false
   # 刷新 Cookie SameSite：lax / strict / none。
-  wallet_refresh_cookie_samesite: lax
+  refresh_cookie_samesite: lax
 
 cors:
   # CORS 允许来源列表；空数组表示不限制（回显 Origin）。

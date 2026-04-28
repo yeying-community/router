@@ -6,11 +6,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common"
+	"github.com/yeying-community/router/common/ctxkey"
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
 )
 
 func abortWithMessage(c *gin.Context, statusCode int, message string) {
+	c.Set(ctxkey.RelayError, strings.TrimSpace(message))
+	c.Set(ctxkey.RelayErrorType, "one_api_error")
+	c.Set(ctxkey.RelayErrorCode, "request_aborted")
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
 			"message": helper.MessageWithTraceID(message, c.GetString(helper.TraceIDKey)),
@@ -18,7 +22,7 @@ func abortWithMessage(c *gin.Context, statusCode int, message string) {
 		},
 	})
 	c.Abort()
-	logger.Error(c.Request.Context(), message)
+	logger.Warnf(c.Request.Context(), "request aborted status=%d reason=%q path=%s", statusCode, strings.TrimSpace(message), c.Request.URL.Path)
 }
 
 func normalizeRelayPath(path string) string {

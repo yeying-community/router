@@ -44,9 +44,14 @@ func RelayLogger() gin.HandlerFunc {
 			String("upstream_url", c.GetString(ctxkey.UpstreamURL)).
 			Int("upstream_status", c.GetInt(ctxkey.UpstreamStatus)).
 			Int("retry_count", c.GetInt(ctxkey.RelayRetryCount)).
+			String("termination", c.GetString(ctxkey.RelayTermination)).
+			String("error_type", c.GetString(ctxkey.RelayErrorType)).
+			String("error_code", c.GetString(ctxkey.RelayErrorCode)).
 			String("error", c.GetString(ctxkey.RelayError))
 
 		switch {
+		case c.GetString(ctxkey.RelayTermination) != "":
+			logger.RelayWarnf(c.Request.Context(), end.Build())
 		case status >= 500 || c.GetString(ctxkey.RelayError) != "":
 			logger.RelayErrorf(c.Request.Context(), end.Build())
 		case status >= 400:
