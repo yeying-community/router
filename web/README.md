@@ -4,7 +4,7 @@
 
 ```bash
 # 后端（在仓库根目录）
-AUTO_REGISTER_ENABLED=true WALLET_JWT_SECRET=dev_secret go run ./cmd/router --log-dir ./logs
+AUTO_REGISTER_ENABLED=true COOKIE_SECRET=dev_cookie_secret JWT_SECRET=dev_jwt_secret go run ./cmd/router --log-dir ./logs
 
 # 前端（本目录）
 npm install

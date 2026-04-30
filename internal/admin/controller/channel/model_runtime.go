@@ -834,7 +834,7 @@ func executeChannelTextModelTest(ctx context.Context, channel *model.Channel, pa
 	}
 	relayMeta.OriginModelName = request.Model
 	relayMeta.ActualModelName = request.Model
-	relayMeta.ForceUpstreamStream = request.Stream
+	relayMeta.IsStream = request.Stream
 	execution.IsStream = request.Stream
 	if request.Stream {
 		c.Request.Header.Set("Accept", "text/event-stream")
@@ -963,7 +963,7 @@ func executeChannelTextModelTestRawBody(ctx context.Context, channel *model.Chan
 	execution.IsStream = stream
 	relayMeta.OriginModelName = strings.TrimSpace(requestedModel)
 	relayMeta.ActualModelName = strings.TrimSpace(actualModel)
-	relayMeta.ForceUpstreamStream = stream
+	relayMeta.IsStream = stream
 	if stream {
 		c.Request.Header.Set("Accept", "text/event-stream")
 	}

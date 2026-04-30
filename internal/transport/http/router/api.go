@@ -341,6 +341,7 @@ func SetApiRouter(engine *gin.Engine) {
 			adminGroupRoute.GET("/:id/model-configs", group.GetGroupModelConfigs)
 			adminGroupRoute.PUT("/:id/channels", group.UpdateGroupChannels)
 			adminGroupRoute.PUT("/:id/model-configs", group.UpdateGroupModelConfigs)
+			adminGroupRoute.PUT("/:id/model-configs/:model", group.UpdateSingleGroupModelConfigs)
 		}
 		adminPackageRoute := adminRouter.Group("/package")
 		adminPackageRoute.Use(middleware.AdminAuth())

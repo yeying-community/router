@@ -31,7 +31,7 @@ var FXAutoSyncLastError = ""
 
 // Any options with "Secret", "Token" in its key won't be return by GetOptions
 
-var SessionSecret = uuid.New().String()
+var CookieSecret = uuid.New().String()
 
 var OptionMap map[string]string
 var OptionMapRWMutex sync.RWMutex
@@ -92,16 +92,16 @@ var WeChatAccountQRCodeImageURL = ""
 
 // Wallet login
 var AutoRegisterEnabled = false
-var WalletJWTSecret = ""
-var WalletJWTExpireHours = 72
-var WalletRefreshTokenExpireHours = 24 * 30
-var WalletNonceTTLMinutes = 10
-var WalletRefreshCookieDomain = ""
-var WalletRefreshCookieSecure = false
-var WalletRefreshCookieSameSite = "lax"
+var JWTSecret = ""
+var JWTExpireHours = 72
+var RefreshTokenExpireHours = 24 * 30
+var NonceTTLMinutes = 10
+var RefreshCookieDomain = ""
+var RefreshCookieSecure = false
+var RefreshCookieSameSite = "lax"
 
-// Optional fallback secrets (comma-separated env WALLET_JWT_FALLBACK_SECRETS) for verifying wallet JWTs issued by external services.
-var WalletJWTFallbackSecrets []string
+// Optional fallback secrets (comma-separated env JWT_FALLBACK_SECRETS) for verifying wallet JWTs issued by external services.
+var JWTFallbackSecrets []string
 
 // UCAN auth
 var UcanAud = ""

@@ -354,8 +354,12 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 
 		response, meta := StreamResponseClaude2OpenAI(&claudeResponse)
 		if meta != nil {
-			usage.PromptTokens += meta.Usage.InputTokens
-			usage.CompletionTokens += meta.Usage.OutputTokens
+			if meta.Usage.InputTokens > usage.PromptTokens {
+				usage.PromptTokens = meta.Usage.InputTokens
+			}
+			if meta.Usage.OutputTokens > usage.CompletionTokens {
+				usage.CompletionTokens = meta.Usage.OutputTokens
+			}
 			if len(meta.Id) > 0 { // only message_start has an id, otherwise it's a finish_reason event.
 				modelName = meta.Model
 				id = fmt.Sprintf("chatcmpl-%s", meta.Id)
@@ -391,7 +395,12 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	}
 
 	if err := scanner.Err(); err != nil {
-		logger.SysError("error reading stream: " + err.Error())
+		lowerMessage := strings.ToLower(strings.TrimSpace(err.Error()))
+		if strings.Contains(lowerMessage, "context canceled") {
+			logger.SysWarnf("[anthropic.stream] read_stopped reason=context_canceled err=%q", err.Error())
+		} else {
+			logger.SysErrorf("[anthropic.stream] read_failed err=%q", err.Error())
+		}
 	}
 
 	render.Done(c)
@@ -400,6 +409,7 @@ func StreamHandler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusC
 	if err != nil {
 		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
 	}
+	usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
 	return nil, &usage
 }
 

@@ -227,7 +227,7 @@ func logExternalPayCreateFailure(
 	if requestErr != nil {
 		requestError = requestErr.Error()
 	}
-	logger.SysWarnf(
+	logger.SysErrorf(
 		"[topup.external_pay] create_failed order_id=%q user_id=%q username=%q transaction_id=%q provider_name=%q business_type=%q amount=%.2f currency=%q client_type=%q merchant_app=%q uniacid=%q url=%q sign_fields=%s sign_base=%q sign=%q secret_fp=%q http_status=%d upstream_code=%d upstream_msg=%q response=%q err=%q",
 		strings.TrimSpace(order.Id),
 		strings.TrimSpace(order.UserID),
@@ -267,7 +267,7 @@ func logExternalPayQueryFailure(
 	if requestErr != nil {
 		requestError = requestErr.Error()
 	}
-	logger.SysWarnf(
+	logger.SysErrorf(
 		"[topup.external_pay] query_failed order_id=%q user_id=%q username=%q transaction_id=%q provider_order_id=%q provider_name=%q business_type=%q amount=%.2f currency=%q merchant_app=%q uniacid=%q url=%q sign_fields=%s sign_base=%q sign=%q secret_fp=%q http_status=%d upstream_code=%d upstream_msg=%q response=%q err=%q",
 		strings.TrimSpace(order.Id),
 		strings.TrimSpace(order.UserID),
@@ -594,5 +594,6 @@ func CancelTopupOrderWithDB(db *gorm.DB, orderID string, userID string) (TopupOr
 	if err != nil {
 		return TopupOrder{}, err
 	}
+	logTopupOrderLifecycle("canceled", result, order.Status, result.StatusMessage)
 	return result, nil
 }

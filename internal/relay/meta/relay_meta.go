@@ -37,7 +37,6 @@ type Meta struct {
 	UpstreamRequestPath string
 	PromptTokens        int // only for DoResponse
 	ForcedSystemPrompt  string
-	ForceUpstreamStream bool
 	StartTime           time.Time
 }
 

@@ -458,6 +458,20 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			},
 		},
 		{
+			Version:     "202604301100_anthropic_claude47_provider_catalog",
+			Description: "sync default provider catalog to add anthropic claude opus 4.7 pricing row",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202604301230_openai_gpt54mini_provider_catalog",
+			Description: "sync default provider catalog to add openai gpt-5.4-mini pricing row",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
 			Version:     "202604071800_package_emergency_counter_type",
 			Description: "rename user quota counter type monthly_emergency to package_emergency",
 			Up: func(tx *gorm.DB) error {

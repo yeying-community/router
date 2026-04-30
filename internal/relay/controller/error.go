@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/logger"
@@ -82,7 +81,6 @@ func RelayErrorHandler(meta *relaymeta.Meta, resp *http.Response) (ErrorWithStat
 	if config.DebugEnabled {
 		logger.SysLog(fmt.Sprintf("error happened, status code: %d, response: \n%s", resp.StatusCode, string(responseBody)))
 	}
-	logUpstreamFailure(meta, resp.StatusCode, responseBody)
 	err = resp.Body.Close()
 	if err != nil {
 		return
@@ -102,31 +100,4 @@ func RelayErrorHandler(meta *relaymeta.Meta, resp *http.Response) (ErrorWithStat
 		ErrorWithStatusCode.Error.Message = fmt.Sprintf("bad response status code %d", resp.StatusCode)
 	}
 	return
-}
-
-func logUpstreamFailure(meta *relaymeta.Meta, statusCode int, responseBody []byte) {
-	if meta == nil {
-		return
-	}
-	if statusCode != http.StatusTooManyRequests && statusCode != http.StatusServiceUnavailable {
-		return
-	}
-	bodyPreview := strings.TrimSpace(string(responseBody))
-	if len(bodyPreview) > 1000 {
-		bodyPreview = bodyPreview[:1000]
-	}
-	upstreamPath := strings.TrimSpace(meta.UpstreamRequestPath)
-	if upstreamPath == "" {
-		upstreamPath = strings.TrimSpace(meta.RequestURLPath)
-	}
-	logger.SysWarnf(
-		"[upstream_error] status=%d channel_id=%s protocol=%d model=%s upstream_path=%s base_url=%s body=%s",
-		statusCode,
-		strings.TrimSpace(meta.ChannelId),
-		meta.ChannelProtocol,
-		strings.TrimSpace(meta.ActualModelName),
-		upstreamPath,
-		strings.TrimSpace(meta.BaseURL),
-		bodyPreview,
-	)
 }

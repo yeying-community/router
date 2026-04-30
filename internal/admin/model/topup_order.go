@@ -13,6 +13,7 @@ import (
 
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/helper"
+	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/common/random"
 	"gorm.io/gorm"
 )
@@ -258,6 +259,41 @@ func isDirtyTopupReturnURL(raw string) bool {
 		return false
 	}
 	return sanitizeTopupReturnURL(trimmed) != trimmed
+}
+
+func previewTopupStatusReason(raw string) string {
+	trimmed := strings.Join(strings.Fields(strings.TrimSpace(raw)), " ")
+	if len(trimmed) > 160 {
+		return trimmed[:160] + "..."
+	}
+	return trimmed
+}
+
+func logTopupOrderLifecycle(event string, order TopupOrder, fromStatus string, reason string) {
+	logger.SysLogf(
+		"[topup.order] event=%s order_id=%q user_id=%q username=%q business_type=%q operation_type=%q source=%q from_status=%q to_status=%q amount=%.2f currency=%q quota=%d topup_plan_id=%q package_id=%q package_name=%q provider_name=%q provider_order_id=%q transaction_id=%q validity_days=%d credit_expires_at=%d reason=%q",
+		strings.TrimSpace(event),
+		strings.TrimSpace(order.Id),
+		strings.TrimSpace(order.UserID),
+		strings.TrimSpace(order.Username),
+		strings.TrimSpace(order.BusinessType),
+		strings.TrimSpace(order.OperationType),
+		strings.TrimSpace(order.Source),
+		strings.TrimSpace(fromStatus),
+		strings.TrimSpace(order.Status),
+		order.Amount,
+		strings.TrimSpace(order.Currency),
+		order.Quota,
+		strings.TrimSpace(order.TopupPlanID),
+		strings.TrimSpace(order.PackageID),
+		strings.TrimSpace(order.PackageName),
+		strings.TrimSpace(order.ProviderName),
+		strings.TrimSpace(order.ProviderOrderID),
+		strings.TrimSpace(order.TransactionID),
+		order.ValidityDays,
+		order.CreditExpiresAt,
+		previewTopupStatusReason(reason),
+	)
 }
 
 func resolveTopupOrderBusinessType(value string, packageID string) string {
@@ -791,6 +827,7 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 	if reusedOrder, reused, err := findReusableTopupOrderWithDB(db, order); err != nil {
 		return TopupOrder{}, err
 	} else if reused {
+		logTopupOrderLifecycle("reused", reusedOrder, order.Status, "reuse existing unfinished order")
 		return reusedOrder, nil
 	}
 
@@ -798,6 +835,7 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 		if err := db.Create(&order).Error; err != nil {
 			return TopupOrder{}, err
 		}
+		logTopupOrderLifecycle("created", order, "", "created local order before calling external payment api")
 		createResult, err := createTopupOrderByExternalPayAPI(order, input.ClientType)
 		if err != nil {
 			updateTime := helper.GetTimestamp()
@@ -811,6 +849,11 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 			if updateErr != nil {
 				return TopupOrder{}, fmt.Errorf("%s; update local top-up order failed: %w", err.Error(), updateErr)
 			}
+			failedOrder := order
+			failedOrder.Status = TopupOrderStatusFailed
+			failedOrder.StatusMessage = err.Error()
+			failedOrder.UpdatedAt = updateTime
+			logTopupOrderLifecycle("external_pay_create_failed", failedOrder, TopupOrderStatusCreated, err.Error())
 			return TopupOrder{}, err
 		}
 		order.ProviderName = createResult.ProviderName
@@ -828,6 +871,7 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 			}).Error; err != nil {
 			return TopupOrder{}, err
 		}
+		logTopupOrderLifecycle("external_pay_created", order, TopupOrderStatusCreated, "external payment order created and redirect url generated")
 		return order, nil
 	}
 
@@ -836,6 +880,7 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 	if err := db.Create(&order).Error; err != nil {
 		return TopupOrder{}, err
 	}
+	logTopupOrderLifecycle("created", order, "", "created redirect mode order")
 	return order, nil
 }
 
@@ -1043,11 +1088,13 @@ func ApplyTopupOrderCallbackWithDB(db *gorm.DB, input TopupOrderCallbackInput) (
 	normalizedProviderName := strings.TrimSpace(input.ProviderName)
 	normalizedStatusMessage := strings.TrimSpace(input.StatusMessage)
 	result := TopupOrder{}
+	previousStatus := ""
 	err := db.Transaction(func(tx *gorm.DB) error {
 		order, err := selectTopupOrderForCallbackWithDB(tx, normalizedOrderID, normalizedTransactionID, normalizedProviderOrderID)
 		if err != nil {
 			return err
 		}
+		previousStatus = order.Status
 		if normalizedProviderName != "" {
 			order.ProviderName = normalizedProviderName
 		}
@@ -1089,6 +1136,7 @@ func ApplyTopupOrderCallbackWithDB(db *gorm.DB, input TopupOrderCallbackInput) (
 	if err != nil {
 		return TopupOrder{}, err
 	}
+	logTopupOrderLifecycle("callback_applied", result, previousStatus, normalizedStatusMessage)
 	return result, nil
 }
 
@@ -1102,12 +1150,14 @@ func FulfillTopupOrderWithDB(db *gorm.DB, orderID string) (TopupOrder, bool, err
 	}
 	result := TopupOrder{}
 	fulfilledNow := false
+	previousStatus := ""
 	err := db.Transaction(func(tx *gorm.DB) error {
 		order := TopupOrder{}
 		if err := tx.Set("gorm:query_option", "FOR UPDATE").Where("id = ?", normalizedOrderID).First(&order).Error; err != nil {
 			return err
 		}
 		normalizeTopupOrderRow(&order)
+		previousStatus = order.Status
 		if order.Status == TopupOrderStatusFulfilled {
 			result = order
 			return nil
@@ -1188,6 +1238,9 @@ func FulfillTopupOrderWithDB(db *gorm.DB, orderID string) (TopupOrder, bool, err
 	})
 	if err != nil {
 		return TopupOrder{}, false, err
+	}
+	if fulfilledNow {
+		logTopupOrderLifecycle("fulfilled", result, previousStatus, result.StatusMessage)
 	}
 	return result, fulfilledNow, nil
 }
@@ -1291,6 +1344,7 @@ func GrantTopupPlanToUserWithDB(db *gorm.DB, userID string, username string, pla
 	if err != nil {
 		return TopupOrder{}, err
 	}
+	logTopupOrderLifecycle("granted", result, "", result.StatusMessage)
 	return result, nil
 }
 

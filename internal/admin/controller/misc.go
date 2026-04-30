@@ -53,8 +53,8 @@ func GetStatus(c *gin.Context) {
 			"password_login_enabled":    config.PasswordLoginEnabled,
 			"password_register_enabled": config.PasswordRegisterEnabled,
 			"register_enabled":          config.RegisterEnabled,
-			"wallet_jwt_enabled":        config.WalletJWTSecret != "",
-			"wallet_jwt_expire_hours":   config.WalletJWTExpireHours,
+			"jwt_enabled":               config.JWTSecret != "",
+			"jwt_expire_hours":          config.JWTExpireHours,
 		},
 	})
 	return

@@ -74,6 +74,44 @@ func ReplaceGroupModelConfigs(groupID string, channelIDs []string, items []Group
 	return nil
 }
 
+func ReplaceSingleGroupModelConfig(groupID string, modelName string, items []GroupModelConfigItem) error {
+	groupCatalog, err := getGroupCatalogByIDWithDB(DB, groupID)
+	if err != nil {
+		return err
+	}
+	normalizedModelName := strings.TrimSpace(modelName)
+	if normalizedModelName == "" {
+		return fmt.Errorf("模型不能为空")
+	}
+	if err := DB.Transaction(func(tx *gorm.DB) error {
+		currentItems, err := listGroupModelConfigItemsWithDB(tx, groupCatalog.Id)
+		if err != nil {
+			return err
+		}
+		boundChannelIDs, err := listGroupBoundChannelIDsWithDB(tx, groupCatalog.Id)
+		if err != nil {
+			return err
+		}
+		nextItems := make([]GroupModelConfigItem, 0, len(currentItems)+len(items))
+		for _, item := range currentItems {
+			if strings.TrimSpace(item.Model) == normalizedModelName {
+				continue
+			}
+			nextItems = append(nextItems, item)
+		}
+		for _, item := range items {
+			next := item
+			next.Model = normalizedModelName
+			nextItems = append(nextItems, next)
+		}
+		return replaceGroupModelConfigsWithDB(tx, groupCatalog.Id, boundChannelIDs, nextItems, true)
+	}); err != nil {
+		return err
+	}
+	RefreshAbilityCachesForGroups(groupCatalog.Id)
+	return nil
+}
+
 func listGroupModelConfigItemsWithDB(db *gorm.DB, groupID string) ([]GroupModelConfigItem, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database handle is nil")

@@ -59,7 +59,7 @@ func WalletNonce(c *gin.Context) {
 
 	nonce, message := common.GenerateWalletNonce(req.Address, "Login to "+config.SystemName, req.ChainId)
 	logger.Loginf(c.Request.Context(), "wallet nonce generated addr=%s chain=%s nonce=%s", strings.ToLower(req.Address), req.ChainId, nonce)
-	expireAt := time.Now().Add(time.Duration(config.WalletNonceTTLMinutes) * time.Minute)
+	expireAt := time.Now().Add(time.Duration(config.NonceTTLMinutes) * time.Minute)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -388,7 +388,7 @@ func WalletChallengeProto(c *gin.Context) {
 	}
 	nonce, message := common.GenerateWalletNonce(addr, "Login to "+config.SystemName, req.ChainId)
 	logger.Loginf(c.Request.Context(), "wallet proto challenge success addr=%s nonce=%s chain=%s", addr, nonce, req.ChainId)
-	expireAt := time.Now().Add(time.Duration(config.WalletNonceTTLMinutes) * time.Minute)
+	expireAt := time.Now().Add(time.Duration(config.NonceTTLMinutes) * time.Minute)
 	body := gin.H{
 		"nonce":      nonce,
 		"message":    message,
@@ -566,7 +566,7 @@ func WalletChallengeWeb3(c *gin.Context) {
 	}
 	now := time.Now()
 	nonce, message := common.GenerateWalletNonce(addr, "Login to "+config.SystemName, req.ChainId)
-	expiresAt := now.Add(time.Duration(config.WalletNonceTTLMinutes) * time.Minute)
+	expiresAt := now.Add(time.Duration(config.NonceTTLMinutes) * time.Minute)
 	logger.Loginf(c.Request.Context(), "wallet web3 challenge success addr=%s nonce=%s chain=%s", addr, nonce, req.ChainId)
 	writeWeb3OK(c, gin.H{
 		"address":   addr,
@@ -743,13 +743,13 @@ func setWalletRefreshCookie(c *gin.Context, token string, expiresAt time.Time) {
 	if maxAge < 0 {
 		maxAge = 0
 	}
-	c.SetSameSite(parseSameSite(config.WalletRefreshCookieSameSite))
-	c.SetCookie(walletRefreshCookieName, token, maxAge, "/", config.WalletRefreshCookieDomain, config.WalletRefreshCookieSecure, true)
+	c.SetSameSite(parseSameSite(config.RefreshCookieSameSite))
+	c.SetCookie(walletRefreshCookieName, token, maxAge, "/", config.RefreshCookieDomain, config.RefreshCookieSecure, true)
 }
 
 func clearWalletRefreshCookie(c *gin.Context) {
-	c.SetSameSite(parseSameSite(config.WalletRefreshCookieSameSite))
-	c.SetCookie(walletRefreshCookieName, "", -1, "/", config.WalletRefreshCookieDomain, config.WalletRefreshCookieSecure, true)
+	c.SetSameSite(parseSameSite(config.RefreshCookieSameSite))
+	c.SetCookie(walletRefreshCookieName, "", -1, "/", config.RefreshCookieDomain, config.RefreshCookieSecure, true)
 }
 
 func parseSameSite(value string) http.SameSite {

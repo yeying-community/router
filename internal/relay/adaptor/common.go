@@ -1,6 +1,8 @@
 package adaptor
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -65,7 +67,7 @@ func DoRequestHelper(a Adaptor, c *gin.Context, meta *meta.Meta, requestBody io.
 	}
 	resp, err := DoRequest(c, req)
 	if err != nil {
-		logger.RelayErrorf(c.Request.Context(), relaylogging.NewFields("UPSTREAM_ERR").
+		fields := relaylogging.NewFields("UPSTREAM_ERR").
 			String("method", req.Method).
 			String("url", fullRequestURL).
 			String("user_id", metaUserID).
@@ -73,8 +75,16 @@ func DoRequestHelper(a Adaptor, c *gin.Context, meta *meta.Meta, requestBody io.
 			String("channel_id", metaChannelID).
 			String("model", metaModelName).
 			String("endpoint", c.Request.URL.Path).
-			String("error", err.Error()).
-			Build())
+			String("error", err.Error())
+		if isRequestContextCanceled(err) {
+			fields.String("reason", "context_canceled")
+			logger.RelayWarnf(c.Request.Context(), fields.Build())
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			fields.String("reason", "deadline_exceeded")
+			logger.RelayErrorf(c.Request.Context(), fields.Build())
+		} else {
+			logger.RelayErrorf(c.Request.Context(), fields.Build())
+		}
 		return nil, fmt.Errorf("do request failed: %w", err)
 	}
 	c.Set(ctxkey.UpstreamStatus, resp.StatusCode)
@@ -86,13 +96,17 @@ func DoRequestHelper(a Adaptor, c *gin.Context, meta *meta.Meta, requestBody io.
 		String("channel_id", metaChannelID).
 		String("model", metaModelName).
 		String("endpoint", c.Request.URL.Path).
-		Int("status", resp.StatusCode).
-		Build()
+		Int("status", resp.StatusCode)
+	if resp.StatusCode >= http.StatusBadRequest {
+		contentType, bodyPreview := captureUpstreamErrorPreview(resp)
+		respFields.String("content_type", contentType)
+		respFields.String("body_preview", bodyPreview)
+	}
 	switch {
 	case resp.StatusCode >= http.StatusInternalServerError:
-		logger.RelayErrorf(c.Request.Context(), respFields)
+		logger.RelayErrorf(c.Request.Context(), respFields.Build())
 	case resp.StatusCode >= http.StatusBadRequest:
-		logger.RelayWarnf(c.Request.Context(), respFields)
+		logger.RelayWarnf(c.Request.Context(), respFields.Build())
 	}
 	return resp, nil
 }
@@ -123,6 +137,42 @@ func isSensitiveHeader(key string) bool {
 	default:
 		return false
 	}
+}
+
+func captureUpstreamErrorPreview(resp *http.Response) (string, string) {
+	if resp == nil || resp.Body == nil {
+		return "", ""
+	}
+	rawBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		resp.Body = io.NopCloser(bytes.NewBuffer(nil))
+		return strings.TrimSpace(resp.Header.Get("Content-Type")), fmt.Sprintf("read_body_failed: %s", err.Error())
+	}
+	_ = resp.Body.Close()
+	resp.Body = io.NopCloser(bytes.NewBuffer(rawBody))
+	return strings.TrimSpace(resp.Header.Get("Content-Type")), previewRelayResponseBody(rawBody)
+}
+
+func previewRelayResponseBody(body []byte) string {
+	trimmed := strings.TrimSpace(string(body))
+	if trimmed == "" {
+		return ""
+	}
+	normalized := strings.Join(strings.Fields(trimmed), " ")
+	if len(normalized) > 480 {
+		return normalized[:480] + "..."
+	}
+	return normalized
+}
+
+func isRequestContextCanceled(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+	return strings.Contains(strings.ToLower(strings.TrimSpace(err.Error())), "context canceled")
 }
 
 func DoRequest(c *gin.Context, req *http.Request) (*http.Response, error) {

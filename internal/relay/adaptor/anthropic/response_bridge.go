@@ -111,12 +111,20 @@ func relayMessagesStreamResponse(c *gin.Context, resp *http.Response) (*model.Us
 			continue
 		}
 		if claudeResponse.Message != nil {
-			usage.PromptTokens += claudeResponse.Message.Usage.InputTokens
-			usage.CompletionTokens += claudeResponse.Message.Usage.OutputTokens
+			if claudeResponse.Message.Usage.InputTokens > usage.PromptTokens {
+				usage.PromptTokens = claudeResponse.Message.Usage.InputTokens
+			}
+			if claudeResponse.Message.Usage.OutputTokens > usage.CompletionTokens {
+				usage.CompletionTokens = claudeResponse.Message.Usage.OutputTokens
+			}
 		}
 		if claudeResponse.Usage != nil {
-			usage.PromptTokens += claudeResponse.Usage.InputTokens
-			usage.CompletionTokens += claudeResponse.Usage.OutputTokens
+			if claudeResponse.Usage.InputTokens > usage.PromptTokens {
+				usage.PromptTokens = claudeResponse.Usage.InputTokens
+			}
+			if claudeResponse.Usage.OutputTokens > usage.CompletionTokens {
+				usage.CompletionTokens = claudeResponse.Usage.OutputTokens
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {

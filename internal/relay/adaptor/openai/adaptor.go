@@ -78,8 +78,10 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *meta.Meta) error {
 	adaptor.SetupCommonRequestHeader(c, req, meta)
-	if meta.ForceUpstreamStream {
+	if meta.IsStream {
 		req.Header.Set("Accept", "text/event-stream")
+	} else {
+		req.Header.Set("Accept", "application/json")
 	}
 	if meta.ChannelProtocol == relaychannel.Azure {
 		req.Header.Set("api-key", meta.APIKey)

@@ -3,7 +3,9 @@ package openai
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -88,7 +90,7 @@ func StreamHandler(c *gin.Context, resp *http.Response, relayMode int) (*model.E
 	}
 
 	if err := scanner.Err(); err != nil {
-		logger.SysError("error reading stream: " + err.Error())
+		logOpenAIStreamReadError("chat", err)
 	}
 
 	if !doneRendered {
@@ -209,7 +211,7 @@ func StreamResponsesHandler(c *gin.Context, resp *http.Response, modelName strin
 	}
 
 	if err := scanner.Err(); err != nil {
-		logger.SysError("error reading stream: " + err.Error())
+		logOpenAIStreamReadError("responses", err)
 	}
 
 	if !doneRendered {
@@ -227,6 +229,33 @@ func StreamResponsesHandler(c *gin.Context, resp *http.Response, modelName strin
 	return nil, usage
 }
 
+func logOpenAIStreamReadError(kind string, err error) {
+	if err == nil {
+		return
+	}
+	lowerMessage := strings.ToLower(strings.TrimSpace(err.Error()))
+	switch {
+	case errors.Is(err, context.Canceled) || strings.Contains(lowerMessage, "context canceled"):
+		logger.SysWarnf("[openai.stream] read_stopped kind=%s reason=context_canceled err=%q", strings.TrimSpace(kind), err.Error())
+	case strings.Contains(lowerMessage, "token too long"):
+		logger.SysErrorf("[openai.stream] read_failed kind=%s reason=scanner_token_too_long max_token_bytes=%d err=%q", strings.TrimSpace(kind), openaiScannerMaxTokenSize, err.Error())
+	default:
+		logger.SysErrorf("[openai.stream] read_failed kind=%s err=%q", strings.TrimSpace(kind), err.Error())
+	}
+}
+
+func previewOpenAINonStreamBody(body []byte) string {
+	trimmed := strings.TrimSpace(string(body))
+	if trimmed == "" {
+		return ""
+	}
+	normalized := strings.Join(strings.Fields(trimmed), " ")
+	if len(normalized) > 480 {
+		return normalized[:480] + "..."
+	}
+	return normalized
+}
+
 func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName string) (*model.ErrorWithStatusCode, *model.Usage) {
 	var textResponse SlimTextResponse
 	responseBody, err := io.ReadAll(resp.Body)
@@ -239,6 +268,14 @@ func Handler(c *gin.Context, resp *http.Response, promptTokens int, modelName st
 	}
 	err = json.Unmarshal(responseBody, &textResponse)
 	if err != nil {
+		logger.Errorf(
+			c.Request.Context(),
+			"[openai.nonstream] unmarshal_failed status=%d content_type=%q body_preview=%q err=%q",
+			resp.StatusCode,
+			strings.TrimSpace(resp.Header.Get("Content-Type")),
+			previewOpenAINonStreamBody(responseBody),
+			err.Error(),
+		)
 		return ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
 	}
 	if textResponse.Error.Type != "" {

@@ -85,6 +85,34 @@ func TestRelayMessagesStreamResponsePreservesAnthropicSSE(t *testing.T) {
 	}
 }
 
+func TestRelayMessagesStreamResponseUsesLatestCumulativeUsage(t *testing.T) {
+	ctx, _ := newAnthropicPassthroughTestContext()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Content-Type": []string{"text/event-stream"},
+		},
+		Body: io.NopCloser(strings.NewReader(
+			"event: message_start\n" +
+				"data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"usage\":{\"input_tokens\":382,\"output_tokens\":1}}}\n\n" +
+				"event: content_block_delta\n" +
+				"data: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"hello\"}}\n\n" +
+				"event: message_delta\n" +
+				"data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":53}}\n\n" +
+				"event: message_delta\n" +
+				"data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":117}}\n\n",
+		)),
+	}
+
+	usage, relayErr := relayMessagesStreamResponse(ctx, resp)
+	if relayErr != nil {
+		t.Fatalf("relayMessagesStreamResponse returned error: %+v", relayErr)
+	}
+	if usage == nil || usage.PromptTokens != 382 || usage.CompletionTokens != 117 || usage.TotalTokens != 499 {
+		t.Fatalf("unexpected cumulative usage handling: %#v", usage)
+	}
+}
+
 func TestRelayMessagesStreamResponseSupportsLargeAnthropicDataLine(t *testing.T) {
 	ctx, recorder := newAnthropicPassthroughTestContext()
 	largeText := strings.Repeat("a", 70*1024)

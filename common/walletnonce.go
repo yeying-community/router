@@ -47,10 +47,10 @@ func GenerateWalletNonce(address, messagePrefix, chainId string) (nonce string, 
 }
 
 func getWalletNonceTTL() time.Duration {
-	if config.WalletNonceTTLMinutes <= 0 {
+	if config.NonceTTLMinutes <= 0 {
 		return walletNonceTTL
 	}
-	return time.Duration(config.WalletNonceTTLMinutes) * time.Minute
+	return time.Duration(config.NonceTTLMinutes) * time.Minute
 }
 
 // GetWalletNonce returns stored nonce entry if valid

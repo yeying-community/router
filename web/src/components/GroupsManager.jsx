@@ -74,6 +74,20 @@ const toBoundChannelIDs = (items) =>
     .filter((item) => !!item.bound && Number(item?.status || 0) === 1)
     .map((item) => item.id);
 
+const collectChannelIDsFromGroupModelConfigs = (items) => {
+  const ids = [];
+  const seen = new Set();
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    const channelID = (item?.channel_id || '').trim();
+    if (channelID === '' || seen.has(channelID)) {
+      return;
+    }
+    seen.add(channelID);
+    ids.push(channelID);
+  });
+  return ids;
+};
+
 const toBoundChannelRows = (items) =>
   (Array.isArray(items) ? items : []).filter((item) => !!item.bound);
 
@@ -785,6 +799,47 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     }
   }, [activeGroup, applySavedDetailModelState, normalizeModelConfigsPayload, t]);
 
+  const saveSingleDetailModelConfigs = useCallback(async (modelName, items, channels = []) => {
+    const id = (activeGroup?.id || '').toString().trim();
+    const normalizedModel = (modelName || '').toString().trim();
+    if (id === '' || normalizedModel === '') {
+      return false;
+    }
+    const normalizedModelConfigs = normalizeModelConfigsPayload(items, collectChannelIDsFromGroupModelConfigs(items));
+    if (normalizedModelConfigs === null) {
+      return false;
+    }
+    setSubmitting(true);
+    try {
+      const res = await API.put(
+        `/api/v1/admin/group/${encodeURIComponent(id)}/model-configs/${encodeURIComponent(normalizedModel)}`,
+        {
+          model_configs: normalizedModelConfigs,
+        }
+      );
+      const { success, message } = res.data || {};
+      if (!success) {
+        showError(message || t('group_manage.messages.update_failed'));
+        return false;
+      }
+      const preservedRows = (Array.isArray(detailModelRows) ? detailModelRows : []).filter(
+        (item) => (item?.model || '').toString().trim() !== normalizedModel
+      );
+      applySavedDetailModelState(
+        sortGroupModelConfigRows([...preservedRows, ...items]),
+        channels,
+        toBoundChannelIDs(channels),
+      );
+      showSuccess(t('group_manage.messages.update_success'));
+      return true;
+    } catch (error) {
+      showError(error);
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  }, [activeGroup, applySavedDetailModelState, detailModelRows, normalizeModelConfigsPayload, t]);
+
   const closeDetailModelModal = useCallback(() => {
     if (submitting) {
       return;
@@ -1425,15 +1480,16 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       (Array.isArray(editorState.items) ? editorState.items : []).map((item) =>
         (item?.model || '').toString().trim() === normalizedModel
           ? { ...item, enabled: !!nextEnabled }
-          : item
+          : null
       )
+        .filter(Boolean)
     );
-    await saveDetailModelConfigs(
+    await saveSingleDetailModelConfigs(
+      normalizedModel,
       nextItems,
-      editorState.selectedChannelIDs,
       editorState.channels,
     );
-  }, [loadDetailModelEditorState, saveDetailModelConfigs]);
+  }, [loadDetailModelEditorState, saveSingleDetailModelConfigs]);
 
   const submitDetailModelDraft = useCallback(async () => {
     const model = detailModelEditTarget.trim();
@@ -1448,13 +1504,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       showInfo(t('group_manage.messages.model_channel_required'));
       return;
     }
-    const selectedChannelIDs =
-      Array.isArray(formChannelIDs) && formChannelIDs.length > 0
-        ? formChannelIDs
-        : toBoundChannelIDs(formModelChannels);
-    const baseRows = (Array.isArray(formModelConfigs) ? formModelConfigs : []).filter(
-      (item) => (item?.model || '').toString().trim() !== model
-    );
     const nextRows = selectedDrafts.map((item) => ({
       model,
       channel_id: item.channel_id,
@@ -1465,9 +1514,9 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       channel_protocol: item.channel_protocol,
       channel_status: item.channel_status,
     }));
-    const saved = await saveDetailModelConfigs(
-      sortGroupModelConfigRows([...baseRows, ...nextRows]),
-      selectedChannelIDs,
+    const saved = await saveSingleDetailModelConfigs(
+      model,
+      sortGroupModelConfigRows(nextRows),
       formModelChannels,
     );
     if (saved) {
@@ -1477,10 +1526,8 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     closeDetailModelModal,
     detailModelChannelDrafts,
     detailModelEditTarget,
-    formChannelIDs,
     formModelChannels,
-    formModelConfigs,
-    saveDetailModelConfigs,
+    saveSingleDetailModelConfigs,
     t,
   ]);
 

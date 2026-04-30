@@ -25,6 +25,34 @@ import (
 	"github.com/yeying-community/router/internal/relay/relaymode"
 )
 
+func logTextStreamAcceptConflict(c *gin.Context, meta *meta.Meta) {
+	if c == nil || c.Request == nil || meta == nil {
+		return
+	}
+	accept := strings.ToLower(strings.TrimSpace(c.Request.Header.Get("Accept")))
+	if accept == "" {
+		return
+	}
+	const sse = "text/event-stream"
+	hasSSEAccept := strings.Contains(accept, sse)
+	if meta.IsStream == hasSSEAccept {
+		return
+	}
+	logger.Warnf(
+		c.Request.Context(),
+		"[text_accept_conflict] path=%s stream=%t accept=%q resolved_accept=%q user_id=%s group=%s channel_id=%s origin_model=%s actual_model=%s",
+		strings.TrimSpace(c.Request.URL.Path),
+		meta.IsStream,
+		strings.TrimSpace(c.Request.Header.Get("Accept")),
+		map[bool]string{true: sse, false: "application/json"}[meta.IsStream],
+		strings.TrimSpace(meta.UserId),
+		strings.TrimSpace(meta.Group),
+		strings.TrimSpace(meta.ChannelId),
+		strings.TrimSpace(meta.OriginModelName),
+		strings.TrimSpace(meta.ActualModelName),
+	)
+}
+
 func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	ctx := c.Request.Context()
 	meta := meta.GetByContext(c)
@@ -35,6 +63,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return openai.ErrorWrapper(err, "invalid_text_request", http.StatusBadRequest)
 	}
 	meta.IsStream = textRequest.Stream
+	logTextStreamAcceptConflict(c, meta)
 
 	// map model name
 	meta.OriginModelName = textRequest.Model
@@ -122,7 +151,6 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	// do request
 	resp, err := adaptor.DoRequest(c, meta, requestBody)
 	if err != nil {
-		logger.Errorf(ctx, "DoRequest failed: %s", err.Error())
 		return openai.ErrorWrapper(err, "do_request_failed", http.StatusInternalServerError)
 	}
 	if isErrorHappened(meta, resp) {
@@ -133,7 +161,6 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	// do response
 	usage, respErr := adaptor.DoResponse(c, resp, meta)
 	if respErr != nil {
-		logger.Errorf(ctx, "respErr is not nil: %+v", respErr)
 		billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId, meta.UserId, billingPlan.ChargeUserBalance())
 		return respErr
 	}

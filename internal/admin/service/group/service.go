@@ -62,6 +62,10 @@ func ReplaceModelConfigs(id string, channelIDs []string, modelConfigs []model.Gr
 	return model.ReplaceGroupModelConfigs(id, channelIDs, modelConfigs, explicitChannels)
 }
 
+func ReplaceSingleModelConfig(id string, modelName string, modelConfigs []model.GroupModelConfigItem) error {
+	return model.ReplaceSingleGroupModelConfig(id, modelName, modelConfigs)
+}
+
 func GetDailyQuotaSnapshot(id string, userID string, bizDate string) (model.GroupDailyQuotaSnapshot, error) {
 	return model.GetGroupDailyQuotaSnapshot(id, userID, bizDate)
 }

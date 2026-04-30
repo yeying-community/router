@@ -88,12 +88,12 @@ func ValidateUserToken(key string) (*model.Token, error) {
 		return nil, errors.New("令牌验证失败")
 	}
 	if token.Status == model.TokenStatusExhausted {
-		return nil, fmt.Errorf("令牌 %s（#%s）额度已用尽", token.Name, token.Id)
+		return token, fmt.Errorf("令牌 %s（#%s）额度已用尽", token.Name, token.Id)
 	} else if token.Status == model.TokenStatusExpired {
-		return nil, errors.New("该令牌已过期")
+		return token, errors.New("该令牌已过期")
 	}
 	if token.Status != model.TokenStatusEnabled {
-		return nil, errors.New("该令牌状态不可用")
+		return token, errors.New("该令牌状态不可用")
 	}
 	if token.ExpiredTime != -1 && token.ExpiredTime < helper.GetTimestamp() {
 		if !common.RedisEnabled {
@@ -103,7 +103,7 @@ func ValidateUserToken(key string) (*model.Token, error) {
 				logger.SysError("failed to update token status" + err.Error())
 			}
 		}
-		return nil, errors.New("该令牌已过期")
+		return token, errors.New("该令牌已过期")
 	}
 	if !token.UnlimitedQuota && token.RemainQuota <= 0 {
 		if !common.RedisEnabled {
@@ -113,7 +113,7 @@ func ValidateUserToken(key string) (*model.Token, error) {
 				logger.SysError("failed to update token status" + err.Error())
 			}
 		}
-		return nil, errors.New("该令牌额度已用尽")
+		return token, errors.New("该令牌额度已用尽")
 	}
 	return token, nil
 }

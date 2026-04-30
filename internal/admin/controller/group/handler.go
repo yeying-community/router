@@ -459,6 +459,10 @@ type updateGroupModelConfigsRequest struct {
 	ModelConfigs []model.GroupModelConfigItem `json:"model_configs"`
 }
 
+type updateSingleGroupModelConfigsRequest struct {
+	ModelConfigs []model.GroupModelConfigItem `json:"model_configs"`
+}
+
 // UpdateGroupModelConfigs godoc
 // @Summary Update group model configs (admin)
 // @Tags admin
@@ -488,6 +492,56 @@ func UpdateGroupModelConfigs(c *gin.Context) {
 		return
 	}
 	if err := groupsvc.ReplaceModelConfigs(id, req.ChannelIDs, req.ModelConfigs, req.ChannelIDs != nil); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+	})
+}
+
+// UpdateSingleGroupModelConfigs godoc
+// @Summary Update one group model config set (admin)
+// @Tags admin
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Group ID"
+// @Param model path string true "Model ID"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/admin/group/{id}/model-configs/{model} [put]
+func UpdateSingleGroupModelConfigs(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "分组 ID 不能为空",
+		})
+		return
+	}
+	modelName := strings.TrimSpace(c.Param("model"))
+	if modelName == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "模型不能为空",
+		})
+		return
+	}
+
+	req := updateSingleGroupModelConfigsRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	if err := groupsvc.ReplaceSingleModelConfig(id, modelName, req.ModelConfigs); err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": err.Error(),

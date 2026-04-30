@@ -1,16 +1,10 @@
 package openai
 
 import (
-	"context"
-	"fmt"
-
-	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/relay/model"
 )
 
 func ErrorWrapper(err error, code string, statusCode int) *model.ErrorWithStatusCode {
-	logger.Error(context.TODO(), fmt.Sprintf("[%s]%+v", code, err))
-
 	Error := model.Error{
 		Message: err.Error(),
 		Type:    "one_api_error",

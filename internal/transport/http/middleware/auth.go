@@ -353,6 +353,11 @@ func TokenAuth() func(c *gin.Context) {
 		parts := strings.Split(key, "-")
 		key = parts[0]
 		token, err := model.ValidateUserToken(key)
+		if token != nil {
+			c.Set(ctxkey.Id, token.UserId)
+			c.Set(ctxkey.TokenId, token.Id)
+			c.Set(ctxkey.TokenName, token.Name)
+		}
 		if err != nil {
 			logger.Loginf(c.Request.Context(), "token auth failed: %v", err)
 			abortWithMessage(c, http.StatusUnauthorized, err.Error())
@@ -393,9 +398,6 @@ func TokenAuth() func(c *gin.Context) {
 				return
 			}
 		}
-		c.Set(ctxkey.Id, token.UserId)
-		c.Set(ctxkey.TokenId, token.Id)
-		c.Set(ctxkey.TokenName, token.Name)
 		if len(parts) > 1 {
 			if model.IsAdmin(token.UserId) {
 				c.Set(ctxkey.SpecificChannelId, parts[1])
