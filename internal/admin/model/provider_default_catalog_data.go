@@ -22,6 +22,7 @@ var defaultProviderCatalogTemplates = normalizeDefaultProviderCatalogTemplates([
 			{Model: "gpt-5.2-codex", Type: ProviderModelTypeText, InputPrice: 0.00175, OutputPrice: 0.014, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-5.3-codex", Type: ProviderModelTypeText, InputPrice: 0.00175, OutputPrice: 0.014, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-5.4", Type: ProviderModelTypeText, InputPrice: 0.0025, OutputPrice: 0.015, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
+			{Model: "gpt-5.4-mini", Type: ProviderModelTypeText, InputPrice: 0.00075, OutputPrice: 0.0045, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-5.5", Type: ProviderModelTypeText, InputPrice: 0.005, OutputPrice: 0.03, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-5-mini", Type: ProviderModelTypeText, InputPrice: 0.00025, OutputPrice: 0.002, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-5-nano", Type: ProviderModelTypeText, InputPrice: 0.00005, OutputPrice: 0.0004, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
