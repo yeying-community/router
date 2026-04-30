@@ -101,6 +101,7 @@ var defaultProviderCatalogTemplates = normalizeDefaultProviderCatalogTemplates([
 		OfficialURL: "https://platform.claude.com/docs/en/about-claude/pricing",
 		SortOrder:   110,
 		ModelDetails: []ProviderModelDetail{
+			{Model: "claude-opus-4-7", Type: ProviderModelTypeText, InputPrice: 0.005, OutputPrice: 0.025, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "claude-opus-4-6", Type: ProviderModelTypeText, InputPrice: 0.005, OutputPrice: 0.025, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "claude-opus-4-6-thinking", Type: ProviderModelTypeText, InputPrice: 0.005, OutputPrice: 0.025, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "claude-sonnet-4-6", Type: ProviderModelTypeText, InputPrice: 0.003, OutputPrice: 0.015, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},

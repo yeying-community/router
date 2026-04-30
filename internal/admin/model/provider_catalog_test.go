@@ -150,12 +150,13 @@ func TestBuildDefaultProviderCatalogSeeds_OpenAIIncludesGPT55Pricing(t *testing.
 	t.Fatalf("expected openai provider to exist")
 }
 
-func TestBuildDefaultProviderCatalogSeeds_AnthropicIncludesClaude46AndLegacyPricing(t *testing.T) {
+func TestBuildDefaultProviderCatalogSeeds_AnthropicIncludesClaude47AndLegacyPricing(t *testing.T) {
 	seeds := BuildDefaultProviderCatalogSeeds(1700000000)
 	expected := map[string]struct {
 		input  float64
 		output float64
 	}{
+		"claude-opus-4-7":            {input: 0.005, output: 0.025},
 		"claude-opus-4-6-thinking":   {input: 0.005, output: 0.025},
 		"claude-sonnet-4-5-20250929": {input: 0.003, output: 0.015},
 		"claude-sonnet-4-6":          {input: 0.003, output: 0.015},
