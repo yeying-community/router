@@ -1,147 +1,92 @@
-<p align="right">
-  <strong>中文</strong> | <a href="./README.en.md">English</a> | <a href="./README.ja.md">日本語</a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/yeying-community/router"><img src="https://raw.githubusercontent.com/yeying-community/router/main/web/public/logo.png" width="150" height="150" alt="router logo"></a>
-</p>
-
-<div align="center">
-
 # Router
 
-_通过标准的 OpenAI API 格式访问多家大模型服务，带管理后台，前端可内置到二进制中。_
+Router 是一个多模型路由服务，提供 OpenAI 兼容接口、管理后台，以及可随二进制一起发布的前端静态资源。
 
-</div>
+## 项目简介
 
-## 快速开始（开发）
+- 提供统一的 OpenAI API 兼容入口，接入多家大模型服务
+- 提供后台管理、用户与计费相关能力
+- 前端位于 `web/`，构建后可随服务端一起发布
 
-### 环境要求
+## 目录说明
+
+- `cmd/router`：程序入口
+- `internal`：后端业务实现与 HTTP 路由
+- `web`：管理后台前端
+- `scripts`：打包与启动脚本
+- `docs`：接口、路由、运营等专题文档
+
+## 本地环境要求
+
 - Go 1.22+
-- Node.js 16+
-- npm/yarn
-- PostgreSQL 14+（必需，当前仅支持 PostgreSQL）
+- Node.js 与 npm
+- PostgreSQL（`database.sql_dsn` 仅支持 PostgreSQL DSN）
 
-### 准备数据库
-请先准备一个可访问的 PostgreSQL 实例，并在 `config.yaml` 中配置：
+## 本地快速开始
+
+1. 准备本地配置文件：
+
+```bash
+cp config.yaml.template config.yaml
+```
+
+2. 至少补齐以下配置：
 
 ```yaml
 database:
   sql_dsn: "postgres://user:password@127.0.0.1:5432/router?sslmode=disable"
+
+auth:
+  cookie_secret: "replace-with-random-string"
+  jwt_secret: "replace-with-another-random-string"
 ```
 
-说明：
-- `database.sql_dsn` 必须是 PostgreSQL DSN。
-- 程序启动时会自动执行当前基线 migration。
+3. 启动后端：
 
-### 启动后端
 ```bash
-git clone https://github.com/yeying-community/router.git
-cd router
-
-cp config.yaml.template config.yaml
-# 按需编辑 config.yaml：
-
-# 启动后端
 go mod download
 go run ./cmd/router --config ./config.yaml --log-dir ./logs
+```
 
-# 启动前端
+4. 启动前端开发服务器：
+
+```bash
 cd web
-npm run dev
-
+npm install
+VITE_SERVER=http://localhost:3011 npm run dev
 ```
-访问 http://localhost:5181/
 
-如需开启“管理员管理管理员”的额外权限，请在 `config.yaml` 中配置：
+5. 打开 `http://localhost:5181`。
 
-```yaml
-bootstrap:
-  root_wallet_address: "0xabc...,0xdef..."
-```
-说明：
-- 支持多个钱包地址，使用英文逗号分隔。
-- 所有管理员都能看到“用户”页面。
-- 只有这些钱包地址对应的登录用户，才拥有“处理管理员账户”的额外能力，例如删除其他管理员、修改其他管理员角色。
-- 如果该配置留空，则普通管理员仍可管理普通用户，但不能处理管理员账户。
+## 配置说明
 
-- `database.sql_dsn: postgres://...`（必须为 PostgreSQL）
-- `ucan.aud: did:web:<公网域名>`
-- 若接入中心化 UCAN（无 `prf`），需配置 `ucan.trusted_issuer_dids`（填 Node issuer DID）
-- `auth.auto_register_enabled: true`（按需开启钱包自动注册）
-- `bootstrap.root_wallet_address: "0xabc...,0xdef..."`（按需开启“管理员管理管理员”的额外权限）
-- UCAN 能力定义基线见 [`docs/UCAN能力定义.md`](./docs/UCAN能力定义.md)
+- `database.sql_dsn`：必填，且只支持 PostgreSQL DSN。
+- `auth.cookie_secret`：不要保留模板中的示例值 `random_string`。
+- `auth.jwt_secret`：钱包登录的 access/refresh token 签发与校验依赖该字段；留空会导致相关流程不可用。
+- `server.address`：用于密码重置链接、支付回调与跳转 URL 组装；对外部署时应填写可访问地址。
+- `ucan.aud`：对外部署或服务端口不是默认 `3011` 时，建议显式设置为 `did:web:<公网域名>`。
+- `bootstrap.root_wallet_address`：可选；用于开启“管理员管理管理员”的额外权限，多个地址使用英文逗号分隔。
 
-若服务端口不是默认 `3011`，请显式设置 `ucan.aud`，否则可能出现 `UCAN audience mismatch`。
+## 本地验证方式
 
-## 打包发布
-
-仓库内提供了打包脚本 [`scripts/package.sh`](./scripts/package.sh)，用于生成带前端静态资源的发布包。
-
-### 前置条件
-- 本地已安装 Go、Node.js、npm
-- 本地可正常执行 `go build` 和 `npm run build --prefix web`
-- 仓库内存在 `config.yaml.template`
-- 已配置好打包用 remote，默认 `origin`
-
-### 基本用法
-
-自动选择下一个 patch 版本并打包：
+- 后端启动后访问状态接口：
 
 ```bash
-./scripts/package.sh
+curl http://127.0.0.1:3011/api/v1/public/status
 ```
 
-默认行为：
-- 先从 remote 拉取最新 refs 和 tags
-- 默认基于 `origin/main` 的最新 commit 打包
-- 不直接改动当前工作区，而是使用临时 worktree 构建产物
+- 前端启动后访问 `http://localhost:5181`，确认页面能正常加载并请求后端。
 
-基于已有 tag 重新打包：
+## 常见问题
 
-```bash
-./scripts/package.sh v0.0.1
-```
+- `config file "./config.yaml" not found`：先执行 `cp config.yaml.template config.yaml`。
+- `database.sql_dsn is required and only PostgreSQL is supported`：检查 `database.sql_dsn` 是否已配置为 PostgreSQL DSN。
+- 钱包登录或 refresh token 流程失败：检查 `auth.jwt_secret` 是否为空。
 
-### 脚本行为
-- 默认会自动构建前端和后端：`AUTO_BUILD=true`
-- 默认先执行 `git fetch <remote> --prune --tags`
-- 前端产物来自 `web/dist`
-- 后端二进制输出到 `build/router`
-- 输出压缩包目录为 `output/`
-- 构建过程基于临时 worktree，避免当前工作区未提交改动影响打包结果
-- 产物中会包含：
-  - `build/router`
-  - `config.yaml.template`
-  - `scripts/starter.sh`
-  - `web/dist`
+## 相关文档
 
-### 解压后使用
-
-```bash
-tar -xzf output/router-v0.0.1-<commit>.tar.gz
-cd router-v0.0.1-<commit>
-cp config.yaml.template config.yaml
-# 按需编辑 config.yaml
-./scripts/starter.sh start
-```
-
-`starter.sh` 支持以下命令：
-- `./scripts/starter.sh start`
-- `./scripts/starter.sh stop`
-- `./scripts/starter.sh restart`
-
-### 可选环境变量
-
-```bash
-PACKAGE_REMOTE=origin ./scripts/package.sh
-AUTO_BUILD=false ./scripts/package.sh v0.0.1
-KEEP_STAGE=1 ./scripts/package.sh
-PROJECT_NAME=router ./scripts/package.sh
-```
-
-说明：
-- `PACKAGE_REMOTE`：推送 tag 使用的远端名称，默认 `origin`
-- `AUTO_BUILD=false`：跳过自动构建，要求事先准备好 `build/router` 和 `web/dist`
-- `KEEP_STAGE=1`：保留解包后的临时目录，便于检查产物
-- `PROJECT_NAME`：覆盖输出包名前缀
+- [生产部署文档](./DEPLOYMENT.md)
+- [文档索引](./docs/README.md)
+- [接口参考](./API_reference.md)
+- [UCAN 能力定义](./docs/UCAN能力定义.md)
+- [问题排查](./docs/问题排查.md)
