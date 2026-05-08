@@ -17,7 +17,6 @@ import (
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/relay"
 	"github.com/yeying-community/router/internal/relay/adaptor"
-	"github.com/yeying-community/router/internal/relay/adaptor/anthropic"
 	"github.com/yeying-community/router/internal/relay/adaptor/openai"
 	"github.com/yeying-community/router/internal/relay/apitype"
 	"github.com/yeying-community/router/internal/relay/billing"
@@ -160,15 +159,6 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	if bizErr != nil {
 		logger.Warnf(ctx, "preConsumeQuota failed: %+v", *bizErr)
 		return bizErr
-	}
-
-	if meta.Mode == relaymode.Messages {
-		bridgedRequest, bridgeErr := anthropic.ParseMessagesRequestToGeneralOpenAIRequest(rawRequestBody)
-		if bridgeErr != nil {
-			return openai.ErrorWrapper(bridgeErr, "convert_request_failed", http.StatusBadRequest)
-		}
-		bridgedRequest.Model = textRequest.Model
-		textRequest = bridgedRequest
 	}
 
 	upstreamRequest, err := convertTextRequestForUpstream(textRequest, meta.Mode, upstreamMode)
