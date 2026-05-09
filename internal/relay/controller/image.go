@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +26,7 @@ import (
 	"github.com/yeying-community/router/internal/relay/imagerule"
 	"github.com/yeying-community/router/internal/relay/meta"
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
+	"github.com/yeying-community/router/internal/relay/relaymode"
 )
 
 func getImageRequest(c *gin.Context, _ int) (*relaymodel.ImageRequest, error) {
@@ -42,6 +45,126 @@ func getImageRequest(c *gin.Context, _ int) (*relaymodel.ImageRequest, error) {
 		imageRequest.Model = "dall-e-2"
 	}
 	return imageRequest, nil
+}
+
+func getImageEditRequest(c *gin.Context) (*relaymodel.ImageRequest, *multipart.Form, error) {
+	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+		return nil, nil, err
+	}
+	form := c.Request.MultipartForm
+	if form == nil {
+		return nil, nil, errors.New("multipart form is required")
+	}
+	imageRequest := &relaymodel.ImageRequest{
+		Model:          strings.TrimSpace(c.Request.FormValue("model")),
+		Prompt:         strings.TrimSpace(c.Request.FormValue("prompt")),
+		Size:           strings.TrimSpace(c.Request.FormValue("size")),
+		Quality:        strings.TrimSpace(c.Request.FormValue("quality")),
+		ResponseFormat: strings.TrimSpace(c.Request.FormValue("response_format")),
+		Style:          strings.TrimSpace(c.Request.FormValue("style")),
+		User:           strings.TrimSpace(c.Request.FormValue("user")),
+	}
+	if rawN := strings.TrimSpace(c.Request.FormValue("n")); rawN != "" {
+		n, err := strconv.Atoi(rawN)
+		if err != nil {
+			return nil, nil, err
+		}
+		imageRequest.N = n
+	}
+	if imageRequest.N == 0 {
+		imageRequest.N = 1
+	}
+	if len(form.File["image"]) == 0 {
+		return nil, nil, errors.New("image file is required")
+	}
+	return imageRequest, form, nil
+}
+
+func buildMultipartImageEditBody(form *multipart.Form, imageRequest *relaymodel.ImageRequest) (*bytes.Buffer, string, error) {
+	if form == nil {
+		return nil, "", errors.New("multipart form is required")
+	}
+	if imageRequest == nil {
+		return nil, "", errors.New("image request is nil")
+	}
+	bodyBuffer := &bytes.Buffer{}
+	writer := multipart.NewWriter(bodyBuffer)
+	knownFields := map[string]struct{}{
+		"model":           {},
+		"prompt":          {},
+		"n":               {},
+		"size":            {},
+		"quality":         {},
+		"response_format": {},
+		"style":           {},
+		"user":            {},
+	}
+	writeField := func(key string, value string) error {
+		if strings.TrimSpace(value) == "" {
+			return nil
+		}
+		return writer.WriteField(key, value)
+	}
+	if err := writeField("model", imageRequest.Model); err != nil {
+		return nil, "", err
+	}
+	if err := writeField("prompt", imageRequest.Prompt); err != nil {
+		return nil, "", err
+	}
+	if imageRequest.N > 0 {
+		if err := writer.WriteField("n", strconv.Itoa(imageRequest.N)); err != nil {
+			return nil, "", err
+		}
+	}
+	if err := writeField("size", imageRequest.Size); err != nil {
+		return nil, "", err
+	}
+	if err := writeField("quality", imageRequest.Quality); err != nil {
+		return nil, "", err
+	}
+	if err := writeField("response_format", imageRequest.ResponseFormat); err != nil {
+		return nil, "", err
+	}
+	if err := writeField("style", imageRequest.Style); err != nil {
+		return nil, "", err
+	}
+	if err := writeField("user", imageRequest.User); err != nil {
+		return nil, "", err
+	}
+	for key, values := range form.Value {
+		if _, known := knownFields[key]; known {
+			continue
+		}
+		for _, value := range values {
+			if err := writer.WriteField(key, value); err != nil {
+				return nil, "", err
+			}
+		}
+	}
+	for fieldName, files := range form.File {
+		for _, header := range files {
+			src, err := header.Open()
+			if err != nil {
+				return nil, "", err
+			}
+			part, err := writer.CreateFormFile(fieldName, header.Filename)
+			if err != nil {
+				_ = src.Close()
+				return nil, "", err
+			}
+			if _, err := io.Copy(part, src); err != nil {
+				_ = src.Close()
+				return nil, "", err
+			}
+			if err := src.Close(); err != nil {
+				return nil, "", err
+			}
+		}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, "", err
+	}
+	return bodyBuffer, writer.FormDataContentType(), nil
 }
 
 func isValidImageSize(model string, size string) bool {
@@ -109,7 +232,16 @@ func getImageCostRatio(imageRequest *relaymodel.ImageRequest) (float64, error) {
 func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatusCode {
 	ctx := c.Request.Context()
 	meta := meta.GetByContext(c)
-	imageRequest, err := getImageRequest(c, meta.Mode)
+	var (
+		imageRequest *relaymodel.ImageRequest
+		form         *multipart.Form
+		err          error
+	)
+	if relayMode == relaymode.ImagesEdits {
+		imageRequest, form, err = getImageEditRequest(c)
+	} else {
+		imageRequest, err = getImageRequest(c, meta.Mode)
+	}
 	if err != nil {
 		logger.Errorf(ctx, "image relay get request failed user_id=%s group=%s channel_id=%s endpoint=%s err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), c.Request.URL.Path, err.Error())
 		return openai.ErrorWrapper(err, "invalid_image_request", http.StatusBadRequest)
@@ -157,7 +289,14 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 
 	var requestBody io.Reader
-	if isModelMapped || meta.ChannelProtocol == relaychannel.Azure { // make Azure channel request body
+	if relayMode == relaymode.ImagesEdits {
+		requestBodyBuffer, contentType, buildErr := buildMultipartImageEditBody(form, imageRequest)
+		if buildErr != nil {
+			return openai.ErrorWrapper(buildErr, "marshal_image_request_failed", http.StatusInternalServerError)
+		}
+		c.Request.Header.Set("Content-Type", contentType)
+		requestBody = bytes.NewBuffer(requestBodyBuffer.Bytes())
+	} else if isModelMapped || meta.ChannelProtocol == relaychannel.Azure { // make Azure channel request body
 		jsonStr, err := json.Marshal(imageRequest)
 		if err != nil {
 			return openai.ErrorWrapper(err, "marshal_image_request_failed", http.StatusInternalServerError)
@@ -174,20 +313,22 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	adaptor.Init(meta)
 
 	// these adaptors need to convert the request
-	switch meta.ChannelProtocol {
-	case relaychannel.Zhipu,
-		relaychannel.Ali,
-		relaychannel.Replicate,
-		relaychannel.Baidu:
-		finalRequest, err := adaptor.ConvertImageRequest(imageRequest)
-		if err != nil {
-			return openai.ErrorWrapper(err, "convert_image_request_failed", http.StatusInternalServerError)
+	if relayMode != relaymode.ImagesEdits {
+		switch meta.ChannelProtocol {
+		case relaychannel.Zhipu,
+			relaychannel.Ali,
+			relaychannel.Replicate,
+			relaychannel.Baidu:
+			finalRequest, err := adaptor.ConvertImageRequest(imageRequest)
+			if err != nil {
+				return openai.ErrorWrapper(err, "convert_image_request_failed", http.StatusInternalServerError)
+			}
+			jsonStr, err := json.Marshal(finalRequest)
+			if err != nil {
+				return openai.ErrorWrapper(err, "marshal_image_request_failed", http.StatusInternalServerError)
+			}
+			requestBody = bytes.NewBuffer(jsonStr)
 		}
-		jsonStr, err := json.Marshal(finalRequest)
-		if err != nil {
-			return openai.ErrorWrapper(err, "marshal_image_request_failed", http.StatusInternalServerError)
-		}
-		requestBody = bytes.NewBuffer(jsonStr)
 	}
 
 	imageCount := imageRequest.N

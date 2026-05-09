@@ -32,6 +32,15 @@ func TestGetByPath_ImagesGenerations(t *testing.T) {
 	}
 }
 
+func TestGetByPath_ImagesEdits(t *testing.T) {
+	if got := GetByPath("/v1/images/edits"); got != ImagesEdits {
+		t.Fatalf("GetByPath(/v1/images/edits)=%d, want %d", got, ImagesEdits)
+	}
+	if got := GetByPath("/api/v1/public/images/edits"); got != ImagesEdits {
+		t.Fatalf("GetByPath(/api/v1/public/images/edits)=%d, want %d", got, ImagesEdits)
+	}
+}
+
 func TestGetByPath_Audio(t *testing.T) {
 	tests := []struct {
 		path string

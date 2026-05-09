@@ -26,7 +26,7 @@ func SetRelayRouter(engine *gin.Engine) {
 		relayV1Router.POST("/responses", controller.Relay)
 		relayV1Router.POST("/edits", controller.Relay)
 		relayV1Router.POST("/images/generations", controller.Relay)
-		relayV1Router.POST("/images/edits", controller.RelayNotImplemented)
+		relayV1Router.POST("/images/edits", controller.Relay)
 		relayV1Router.POST("/images/variations", controller.RelayNotImplemented)
 		relayV1Router.POST("/embeddings", controller.Relay)
 		relayV1Router.POST("/engines/:model/embeddings", controller.Relay)

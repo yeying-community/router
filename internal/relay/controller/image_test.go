@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"bytes"
+	"mime/multipart"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -31,6 +33,85 @@ func TestGetImageRequestAppliesDefaults(t *testing.T) {
 	}
 	if req.Model != "dall-e-2" {
 		t.Fatalf("Model = %q, want %q", req.Model, "dall-e-2")
+	}
+}
+
+func TestGetImageEditRequestParsesMultipartForm(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	if err := writer.WriteField("model", "gpt-image-2"); err != nil {
+		t.Fatalf("WriteField(model) error = %v", err)
+	}
+	if err := writer.WriteField("prompt", "edit this image"); err != nil {
+		t.Fatalf("WriteField(prompt) error = %v", err)
+	}
+	part, err := writer.CreateFormFile("image", "test.png")
+	if err != nil {
+		t.Fatalf("CreateFormFile(image) error = %v", err)
+	}
+	if _, err := part.Write([]byte("png-bytes")); err != nil {
+		t.Fatalf("part.Write() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer.Close() error = %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest("POST", "/v1/images/edits", body)
+	ctx.Request.Header.Set("Content-Type", writer.FormDataContentType())
+
+	req, form, err := getImageEditRequest(ctx)
+	if err != nil {
+		t.Fatalf("getImageEditRequest() error = %v", err)
+	}
+	if req.Model != "gpt-image-2" {
+		t.Fatalf("Model = %q, want %q", req.Model, "gpt-image-2")
+	}
+	if req.Prompt != "edit this image" {
+		t.Fatalf("Prompt = %q, want %q", req.Prompt, "edit this image")
+	}
+	if req.N != 1 {
+		t.Fatalf("N = %d, want %d", req.N, 1)
+	}
+	if form == nil || len(form.File["image"]) != 1 {
+		t.Fatalf("image file count = %d, want 1", len(form.File["image"]))
+	}
+}
+
+func TestBuildMultipartImageEditBodyRewritesModelField(t *testing.T) {
+	form := &multipart.Form{
+		Value: map[string][]string{
+			"model":  {"old-model"},
+			"prompt": {"old prompt"},
+			"user":   {"user-1"},
+		},
+		File: map[string][]*multipart.FileHeader{},
+	}
+	req := &relaymodel.ImageRequest{
+		Model:  "gpt-image-2",
+		Prompt: "new prompt",
+		N:      1,
+		User:   "user-1",
+	}
+
+	body, contentType, err := buildMultipartImageEditBody(form, req)
+	if err != nil {
+		t.Fatalf("buildMultipartImageEditBody() error = %v", err)
+	}
+	if !strings.HasPrefix(contentType, "multipart/form-data; boundary=") {
+		t.Fatalf("contentType = %q, want multipart/form-data boundary", contentType)
+	}
+	payload := body.String()
+	if !strings.Contains(payload, "gpt-image-2") {
+		t.Fatalf("payload missing rewritten model: %q", payload)
+	}
+	if strings.Contains(payload, "old-model") {
+		t.Fatalf("payload still contains old model: %q", payload)
+	}
+	if !strings.Contains(payload, "new prompt") {
+		t.Fatalf("payload missing rewritten prompt: %q", payload)
 	}
 }
 

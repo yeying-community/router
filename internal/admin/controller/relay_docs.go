@@ -94,6 +94,27 @@ func RelayModerationsDoc(c *gin.Context) {}
 // @Router /api/v1/public/images/generations [post]
 func RelayImagesGenerationsDoc(c *gin.Context) {}
 
+// RelayImagesEditsDoc godoc
+// @Summary Image edits (OpenAI compatible)
+// @Tags public
+// @Security BearerAuth
+// @Accept multipart/form-data
+// @Produce json
+// @Param image formData file true "Image file"
+// @Param model formData string true "Model ID (e.g., gpt-image-1)"
+// @Param prompt formData string true "Edit prompt"
+// @Param mask formData file false "Optional mask file"
+// @Param n formData int false "Number of images"
+// @Param size formData string false "Image size"
+// @Param quality formData string false "Image quality"
+// @Param response_format formData string false "Response format"
+// @Param user formData string false "User identifier"
+// @Success 200 {object} docs.OpenAIImageResponse
+// @Failure 400 {object} docs.OpenAIErrorResponse
+// @Failure 401 {object} docs.OpenAIErrorResponse
+// @Router /api/v1/public/images/edits [post]
+func RelayImagesEditsDoc(c *gin.Context) {}
+
 // RelayAudioTranscriptionsDoc godoc
 // @Summary Audio transcriptions (OpenAI compatible)
 // @Tags public

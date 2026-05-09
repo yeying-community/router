@@ -149,7 +149,7 @@ func SetApiRouter(engine *gin.Engine) {
 		publicRelayRouter.POST("/responses", admin.Relay)
 		publicRelayRouter.POST("/edits", admin.Relay)
 		publicRelayRouter.POST("/images/generations", admin.Relay)
-		publicRelayRouter.POST("/images/edits", admin.RelayNotImplemented)
+		publicRelayRouter.POST("/images/edits", admin.Relay)
 		publicRelayRouter.POST("/images/variations", admin.RelayNotImplemented)
 		publicRelayRouter.POST("/embeddings", admin.Relay)
 		publicRelayRouter.POST("/engines/:model/embeddings", admin.Relay)

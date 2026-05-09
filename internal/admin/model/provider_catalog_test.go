@@ -59,6 +59,9 @@ func TestBuildDefaultProviderCatalogSeeds_OpenAIIncludesGPTImage1ComplexPricing(
 			if detail.Currency != ProviderPriceCurrencyUSD {
 				t.Fatalf("gpt-image-1 currency=%q, want %q", detail.Currency, ProviderPriceCurrencyUSD)
 			}
+			if len(detail.SupportedEndpoints) != 3 {
+				t.Fatalf("gpt-image-1 supported_endpoints=%#v, want 3 endpoints", detail.SupportedEndpoints)
+			}
 			if len(detail.PriceComponents) != 9 {
 				t.Fatalf("gpt-image-1 price_components=%d, want 9", len(detail.PriceComponents))
 			}
@@ -184,6 +187,15 @@ func TestBuildDefaultProviderCatalogSeeds_OpenAIIncludesGPT55Pricing(t *testing.
 		t.Fatalf("expected openai seed to include gpt-5.5")
 	}
 	t.Fatalf("expected openai provider to exist")
+}
+
+func TestInferModelType_RecognizesGPTImageModels(t *testing.T) {
+	if got := InferModelType("gpt-image-1"); got != ProviderModelTypeImage {
+		t.Fatalf("InferModelType(gpt-image-1) = %q, want %q", got, ProviderModelTypeImage)
+	}
+	if got := InferModelType("gpt-image-2"); got != ProviderModelTypeImage {
+		t.Fatalf("InferModelType(gpt-image-2) = %q, want %q", got, ProviderModelTypeImage)
+	}
 }
 
 func TestBuildDefaultProviderCatalogSeeds_AnthropicIncludesClaude47AndLegacyPricing(t *testing.T) {
