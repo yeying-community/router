@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
 )
 
@@ -246,6 +247,64 @@ func TestGetImageCostRatio(t *testing.T) {
 			}
 			if got != tt.wantRatio {
 				t.Fatalf("getImageCostRatio() = %v, want %v", got, tt.wantRatio)
+			}
+		})
+	}
+}
+
+func TestValidateImageBillingPricing(t *testing.T) {
+	tests := []struct {
+		name    string
+		pricing adminmodel.ResolvedModelPricing
+		wantErr bool
+	}{
+		{
+			name: "per image allowed",
+			pricing: adminmodel.ResolvedModelPricing{
+				Model:     "dall-e-3",
+				Type:      adminmodel.ProviderModelTypeImage,
+				PriceUnit: adminmodel.ProviderPriceUnitPerImage,
+			},
+		},
+		{
+			name: "per request allowed",
+			pricing: adminmodel.ResolvedModelPricing{
+				Model:     "foo-image",
+				Type:      adminmodel.ProviderModelTypeImage,
+				PriceUnit: adminmodel.ProviderPriceUnitPerRequest,
+			},
+		},
+		{
+			name: "token based image endpoint blocked",
+			pricing: adminmodel.ResolvedModelPricing{
+				Model:     "gpt-image-2",
+				Type:      adminmodel.ProviderModelTypeImage,
+				PriceUnit: adminmodel.ProviderPriceUnitPer1KTokens,
+			},
+			wantErr: true,
+		},
+		{
+			name: "char based image endpoint blocked",
+			pricing: adminmodel.ResolvedModelPricing{
+				Model:     "weird-image",
+				Type:      adminmodel.ProviderModelTypeImage,
+				PriceUnit: adminmodel.ProviderPriceUnitPer1KChars,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateImageBillingPricing(tt.pricing)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("validateImageBillingPricing() error = nil, want error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("validateImageBillingPricing() error = %v", err)
 			}
 		})
 	}

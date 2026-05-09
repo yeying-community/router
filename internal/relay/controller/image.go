@@ -29,6 +29,15 @@ import (
 	"github.com/yeying-community/router/internal/relay/relaymode"
 )
 
+func validateImageBillingPricing(pricing adminmodel.ResolvedModelPricing) error {
+	switch strings.TrimSpace(strings.ToLower(pricing.PriceUnit)) {
+	case adminmodel.ProviderPriceUnitPer1KTokens, adminmodel.ProviderPriceUnitPer1KChars:
+		return fmt.Errorf("image billing strategy is not supported for model %s with price_unit %s on traditional image endpoints", strings.TrimSpace(pricing.Model), strings.TrimSpace(pricing.PriceUnit))
+	default:
+		return nil
+	}
+}
+
 func getImageRequest(c *gin.Context, _ int) (*relaymodel.ImageRequest, error) {
 	imageRequest := &relaymodel.ImageRequest{}
 	err := common.UnmarshalBodyReusable(c, imageRequest)
@@ -286,6 +295,9 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	pricing = adminmodel.ResolveImageRequestPricing(pricing, imageRequest.Size, imageRequest.Quality)
 	if pricing.MatchedComponent != "" {
 		imageCostRatio = 1
+	}
+	if billingErr := validateImageBillingPricing(pricing); billingErr != nil {
+		return openai.ErrorWrapper(billingErr, "unsupported_image_billing", http.StatusServiceUnavailable)
 	}
 
 	var requestBody io.Reader
