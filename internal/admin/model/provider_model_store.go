@@ -83,6 +83,7 @@ func LoadProviderModelDetailsMapForProviders(db *gorm.DB, providers []string) (m
 		}
 		detail := ProviderModelDetail{
 			Model:              modelName,
+			Description:        strings.TrimSpace(row.Description),
 			Type:               strings.TrimSpace(strings.ToLower(row.Type)),
 			SupportedEndpoints: splitProviderModelSupportedEndpoints(row.SupportedEndpoints),
 			InputPrice:         row.InputPrice,
@@ -171,6 +172,7 @@ func BuildProviderModelStoreRows(provider string, details []ProviderModelDetail,
 		rows = append(rows, ProviderModel{
 			Provider:           normalizedProvider,
 			Model:              detail.Model,
+			Description:        strings.TrimSpace(detail.Description),
 			Type:               detail.Type,
 			SupportedEndpoints: joinProviderModelSupportedEndpoints(detail.Type, detail.SupportedEndpoints),
 			InputPrice:         detail.InputPrice,

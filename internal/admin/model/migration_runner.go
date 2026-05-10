@@ -713,6 +713,16 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&ChannelModelEndpointPolicy{})
 			},
 		},
+		{
+			Version:     "202605101130_provider_model_description",
+			Description: "add provider model descriptions and sync default provider catalog descriptions",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&ProviderModel{}); err != nil {
+					return err
+				}
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

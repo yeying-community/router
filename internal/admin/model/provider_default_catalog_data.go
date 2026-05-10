@@ -353,6 +353,9 @@ func normalizeDefaultProviderSeedModelDetails(provider string, details []Provide
 		if next.UpdatedAt <= 0 {
 			next.UpdatedAt = now
 		}
+		if strings.TrimSpace(next.Description) == "" {
+			next.Description = defaultProviderModelDescription(normalizedProvider, next.Model)
+		}
 		if len(next.SupportedEndpoints) == 0 {
 			next.SupportedEndpoints = DefaultProviderModelSupportedEndpoints(normalizedProvider, next.Type, next.Model)
 		} else {

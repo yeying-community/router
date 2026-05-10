@@ -41,6 +41,7 @@ type providerCatalogListData struct {
 
 type appendProviderModelRequest struct {
 	Model              string   `json:"model"`
+	Description        string   `json:"description,omitempty"`
 	Type               string   `json:"type,omitempty"`
 	SupportedEndpoints []string `json:"supported_endpoints,omitempty"`
 	InputPrice         float64  `json:"input_price,omitempty"`
@@ -488,6 +489,7 @@ func appendModelToProviderItem(id string, req appendProviderModelRequest) (provi
 	now := helper.GetTimestamp()
 	detail := model.ProviderModelDetail{
 		Model:              strings.TrimSpace(req.Model),
+		Description:        strings.TrimSpace(req.Description),
 		Type:               strings.TrimSpace(strings.ToLower(req.Type)),
 		SupportedEndpoints: req.SupportedEndpoints,
 		InputPrice:         req.InputPrice,

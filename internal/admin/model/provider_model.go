@@ -7,6 +7,7 @@ const (
 type ProviderModel struct {
 	Provider           string  `json:"provider" gorm:"primaryKey;type:varchar(64)"`
 	Model              string  `json:"model" gorm:"primaryKey;type:varchar(255)"`
+	Description        string  `json:"description" gorm:"type:text;default:''"`
 	Type               string  `json:"type" gorm:"type:varchar(32);default:'text'"`
 	SupportedEndpoints string  `json:"supported_endpoints" gorm:"type:text;default:''"`
 	InputPrice         float64 `json:"input_price" gorm:"type:double precision;default:0"`

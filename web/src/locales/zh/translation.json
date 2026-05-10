@@ -457,6 +457,7 @@
         "search_placeholder": "搜索模型明细...",
         "model": "模型",
         "type": "类型",
+        "description": "描述",
         "supported_endpoints": "支持端点",
         "input_price": "输入价格",
         "output_price": "输出价格",

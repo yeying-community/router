@@ -321,6 +321,7 @@ const createEmptyModelDetail = (model = '') => {
   const t = inferModelType(model);
   return {
     model,
+    description: '',
     type: t,
     supported_endpoints: [],
     input_price: 0,
@@ -345,6 +346,8 @@ const normalizeModelDetails = (details) => {
           ? item.id.trim()
           : '';
     if (!model) return;
+    const description =
+      typeof item.description === 'string' ? item.description.trim() : '';
     const type =
       typeof item.type === 'string' && item.type.trim() !== ''
         ? item.type.trim().toLowerCase()
@@ -366,6 +369,7 @@ const normalizeModelDetails = (details) => {
     const updatedAt = Number(item.updated_at || 0);
     unique.set(model, {
       model,
+      description,
       type,
       supported_endpoints: normalizeSupportedEndpoints(
         item.supported_endpoints,
@@ -1357,6 +1361,7 @@ const ProvidersManager = () => {
         : detailRows.filter(({ detail }) => {
             const haystack = [
               detail.model || '',
+              detail.description || '',
               detail.type || '',
               (detail.supported_endpoints || []).join(','),
               detail.price_unit || '',
@@ -1416,6 +1421,9 @@ const ProvidersManager = () => {
                 {t('channel.providers.model_detail_table.type')}
               </Table.HeaderCell>
               <Table.HeaderCell width={4}>
+                {t('channel.providers.model_detail_table.description')}
+              </Table.HeaderCell>
+              <Table.HeaderCell width={4}>
                 {t('channel.providers.model_detail_table.supported_endpoints')}
               </Table.HeaderCell>
               <Table.HeaderCell>
@@ -1446,7 +1454,7 @@ const ProvidersManager = () => {
               <Table.Row>
                 <Table.Cell
                   className='router-empty-cell'
-                  colSpan={10}
+                  colSpan={11}
                   textAlign='center'
                 >
                   {t('channel.providers.model_detail_table.empty')}
@@ -1489,6 +1497,23 @@ const ProvidersManager = () => {
                             detailIndex,
                             'type',
                             value || 'text',
+                          )
+                        }
+                      />
+                    </Table.Cell>
+                    <Table.Cell className='router-cell-min-240'>
+                      <Form.TextArea
+                        className='router-inline-textarea'
+                        rows={3}
+                        value={detail.description || ''}
+                        disabled={disabled}
+                        onChange={(e, { value }) =>
+                          setModelDetailField(
+                            setValueFn,
+                            row,
+                            detailIndex,
+                            'description',
+                            value || '',
                           )
                         }
                       />
@@ -1960,6 +1985,7 @@ const ProvidersManager = () => {
         : detailRows.filter(({ detail }) => {
             const haystack = [
               detail.model || '',
+              detail.description || '',
               detail.type || '',
               (detail.supported_endpoints || []).join(','),
               detail.price_unit || '',
@@ -2020,6 +2046,9 @@ const ProvidersManager = () => {
                 {t('channel.providers.model_detail_table.type')}
               </Table.HeaderCell>
               <Table.HeaderCell width={4}>
+                {t('channel.providers.model_detail_table.description')}
+              </Table.HeaderCell>
+              <Table.HeaderCell width={4}>
                 {t('channel.providers.model_detail_table.supported_endpoints')}
               </Table.HeaderCell>
               <Table.HeaderCell>
@@ -2047,7 +2076,7 @@ const ProvidersManager = () => {
               <Table.Row>
                 <Table.Cell
                   className='router-empty-cell'
-                  colSpan={9}
+                  colSpan={10}
                   textAlign='center'
                 >
                   {t('channel.providers.model_detail_table.empty')}
@@ -2064,6 +2093,9 @@ const ProvidersManager = () => {
                     </Table.Cell>
                     <Table.Cell className='router-cell-min-80'>
                       {detail.type || 'text'}
+                    </Table.Cell>
+                    <Table.Cell className='router-cell-min-240'>
+                      {detail.description || '-'}
                     </Table.Cell>
                     <Table.Cell className='router-cell-min-300'>
                       {(detail.supported_endpoints || []).length > 0
@@ -2234,6 +2266,21 @@ const ProvidersManager = () => {
                 }
               />
             </Form.Group>
+            <Form.TextArea
+              className='router-section-input'
+              rows={4}
+              label={t('channel.providers.model_detail_table.description')}
+              value={detail.description || ''}
+              onChange={(e, { value }) =>
+                setModelDetailField(
+                  setDetailModelsValue,
+                  detailModelsDraft,
+                  detailEditingModelIndex,
+                  'description',
+                  value || '',
+                )
+              }
+            />
             <Form.Dropdown
               className='router-section-dropdown'
               label={t('channel.providers.model_detail_table.supported_endpoints')}

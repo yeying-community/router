@@ -49,6 +49,7 @@ type ProviderModelPriceComponentDetail struct {
 
 type ProviderModelDetail struct {
 	Model              string                              `json:"model"`
+	Description        string                              `json:"description,omitempty"`
 	Type               string                              `json:"type,omitempty"`
 	SupportedEndpoints []string                            `json:"supported_endpoints,omitempty"`
 	InputPrice         float64                             `json:"input_price,omitempty"`
@@ -100,6 +101,7 @@ func NormalizeProviderModelDetails(details []ProviderModelDetail) []ProviderMode
 		}
 		entry := ProviderModelDetail{
 			Model:              modelName,
+			Description:        strings.TrimSpace(detail.Description),
 			Type:               t,
 			SupportedEndpoints: NormalizeProviderModelSupportedEndpoints(t, detail.SupportedEndpoints),
 			InputPrice:         inputPrice,
@@ -114,6 +116,9 @@ func NormalizeProviderModelDetails(details []ProviderModelDetail) []ProviderMode
 			existing := normalized[idx]
 			if existing.Type == "" {
 				existing.Type = entry.Type
+			}
+			if existing.Description == "" {
+				existing.Description = entry.Description
 			}
 			if existing.PriceUnit == "" {
 				existing.PriceUnit = entry.PriceUnit

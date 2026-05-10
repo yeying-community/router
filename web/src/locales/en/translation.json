@@ -457,6 +457,7 @@
         "search_placeholder": "Search model details...",
         "model": "Model",
         "type": "Type",
+        "description": "Description",
         "supported_endpoints": "Supported Endpoints",
         "input_price": "Input Price",
         "output_price": "Output Price",

@@ -257,6 +257,9 @@ func TestBuildDefaultProviderCatalogSeeds_ModelDetailsMeta(t *testing.T) {
 		}
 		for _, detail := range seed.ModelDetails {
 			totalModels++
+			if strings.TrimSpace(detail.Description) == "" {
+				t.Fatalf("description should not be empty for provider %q model %q", seed.Provider, detail.Model)
+			}
 			switch detail.Type {
 			case ProviderModelTypeText:
 				hasText = true
@@ -354,6 +357,21 @@ func TestBuildDefaultProviderCatalogSeeds_HasUniqueCanonicalProviders(t *testing
 	}
 	if _, ok := seen["mistral"]; !ok {
 		t.Fatalf("expected mistral provider to exist")
+	}
+}
+
+func TestBuildProviderModelStoreRows_PreservesDescription(t *testing.T) {
+	rows := BuildProviderModelStoreRows("openai", []ProviderModelDetail{{
+		Model:       "gpt-5",
+		Description: "旗舰通用文本模型",
+		Type:        ProviderModelTypeText,
+		Source:      "default",
+	}}, 1700000000)
+	if len(rows.Models) != 1 {
+		t.Fatalf("expected 1 provider model row, got %d", len(rows.Models))
+	}
+	if got := rows.Models[0].Description; got != "旗舰通用文本模型" {
+		t.Fatalf("expected persisted description, got %q", got)
 	}
 }
 
