@@ -2,6 +2,7 @@ package channel
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/yeying-community/router/common/config"
@@ -144,5 +145,52 @@ func TestResolveChannelModelTestEndpointForRow_AllowsDeclaredEndpointForModel(t 
 	}
 	if endpoint != adminmodel.ChannelModelEndpointResponses {
 		t.Fatalf("endpoint = %q, want %q", endpoint, adminmodel.ChannelModelEndpointResponses)
+	}
+}
+
+func TestResolveChannelModelTestEndpointForRow_AllowsRealtimeForAudioModel(t *testing.T) {
+	endpoint, err := resolveChannelModelTestEndpointForRow(adminmodel.ChannelModel{
+		Model:     "gpt-realtime-2",
+		Type:      adminmodel.ProviderModelTypeAudio,
+		Endpoint:  adminmodel.ChannelModelEndpointRealtime,
+		Endpoints: []string{adminmodel.ChannelModelEndpointRealtime},
+	})
+	if err != nil {
+		t.Fatalf("resolveChannelModelTestEndpointForRow returned error: %v", err)
+	}
+	if endpoint != adminmodel.ChannelModelEndpointRealtime {
+		t.Fatalf("endpoint = %q, want %q", endpoint, adminmodel.ChannelModelEndpointRealtime)
+	}
+}
+
+func TestWrapRealtimeHandshakeError(t *testing.T) {
+	err := wrapRealtimeHandshakeError(errors.New("http status code: 401, error message: invalid token"))
+	if err == nil {
+		t.Fatal("expected wrapped error")
+	}
+	if got := err.Error(); got != "WebSocket 握手失败: http status code: 401, error message: invalid token" {
+		t.Fatalf("unexpected wrapped error: %q", got)
+	}
+}
+
+func TestWrapRealtimeSessionError(t *testing.T) {
+	err := wrapRealtimeSessionError(errors.New("realtime server error: model price not configured"))
+	if err == nil {
+		t.Fatal("expected wrapped error")
+	}
+	if got := err.Error(); got != "WebSocket 握手成功，但会话失败: realtime server error: model price not configured" {
+		t.Fatalf("unexpected wrapped error: %q", got)
+	}
+}
+
+func TestBuildRealtimeSessionSuccessMessage(t *testing.T) {
+	withText := buildRealtimeSessionSuccessMessage("realtime", "OK")
+	if withText != "WebSocket 会话成功（subprotocol=realtime），返回文本：OK" {
+		t.Fatalf("unexpected success message with text: %q", withText)
+	}
+
+	withoutText := buildRealtimeSessionSuccessMessage("", "")
+	if withoutText != "WebSocket 会话成功，未返回文本" {
+		t.Fatalf("unexpected success message without text: %q", withoutText)
 	}
 }

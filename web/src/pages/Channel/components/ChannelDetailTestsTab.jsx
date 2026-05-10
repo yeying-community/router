@@ -566,7 +566,7 @@ const ChannelDetailTestsTab = ({
                       <span className='router-cell-truncate'>{row.model || '-'}</span>
                     </Table.Cell>
                     <Table.Cell className='router-table-dropdown-cell'>
-                      {row.type === 'text' || row.type === 'image' ? (
+                      {row.type === 'text' || row.type === 'image' || row.type === 'audio' ? (
                         <Dropdown
                           selection
                           className='router-mini-dropdown router-table-dropdown-fluid'

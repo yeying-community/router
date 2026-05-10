@@ -25,6 +25,11 @@ func TestDefaultProviderModelSupportedEndpointsByProvider(t *testing.T) {
 		t.Fatalf("openai realtime default endpoints = %#v, want realtime", openAIRealtime)
 	}
 
+	regularAudio := DefaultProviderModelSupportedEndpoints("openai", ProviderModelTypeAudio, "tts-1")
+	if len(regularAudio) != 1 || regularAudio[0] != ChannelModelEndpointAudio {
+		t.Fatalf("openai regular audio default endpoints = %#v, want audio/speech", regularAudio)
+	}
+
 	anthropic := DefaultProviderModelSupportedEndpoints("anthropic", ProviderModelTypeText, "claude-opus-4-6")
 	if len(anthropic) != 1 || anthropic[0] != ChannelModelEndpointMessages {
 		t.Fatalf("anthropic default endpoints = %#v, want messages", anthropic)

@@ -29,7 +29,8 @@ const PROVIDER_ENDPOINT_SORT_ORDER = {
   '/v1/images/edits': 50,
   '/v1/batches': 60,
   '/v1/audio/speech': 70,
-  '/v1/videos': 80,
+  '/v1/realtime': 80,
+  '/v1/videos': 90,
 };
 
 const normalizeProvider = (provider) => {
@@ -197,6 +198,9 @@ const normalizeProviderEndpoint = (endpoint) => {
   if (normalized.startsWith('/v1/audio/')) {
     return '/v1/audio/speech';
   }
+  if (normalized.startsWith('/v1/realtime')) {
+    return '/v1/realtime';
+  }
   if (normalized.startsWith('/v1/videos')) {
     return '/v1/videos';
   }
@@ -214,7 +218,7 @@ const isProviderEndpointAllowedForType = (type, endpoint) => {
         '/v1/batches',
       ].includes(endpoint);
     case 'audio':
-      return endpoint === '/v1/audio/speech';
+      return endpoint === '/v1/audio/speech' || endpoint === '/v1/realtime';
     case 'video':
       return endpoint === '/v1/videos';
     case 'text':
@@ -2071,7 +2075,7 @@ const ProvidersManager = () => {
                             <Label
                               key={`${detail.model || 'model'}-${endpoint}`}
                               basic
-                              className='router-tag'
+                              className='router-tag router-provider-endpoint-tag'
                             >
                               {endpoint}
                             </Label>

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
 
 	"github.com/yeying-community/router/common/client"
@@ -650,12 +651,18 @@ func runSingleChannelModelTestWithContextAndStream(ctx context.Context, channel 
 			Endpoint:      endpoint,
 		}, execution), execution
 	case model.ProviderModelTypeAudio:
-		execution := executeChannelAudioModelTest(ctx, channel, row.Model, requestedAudioLanguage)
+		var execution channelModelTestExecution
+		switch endpoint {
+		case model.ChannelModelEndpointRealtime:
+			execution = executeChannelRealtimeModelTest(ctx, channel, row.Model)
+		default:
+			execution = executeChannelAudioModelTest(ctx, channel, row.Model, requestedAudioLanguage)
+		}
 		return buildChannelModelTestResult(model.ChannelModel{
 			Model:         row.Model,
 			UpstreamModel: row.UpstreamModel,
 			Type:          modelType,
-			Endpoint:      model.ChannelModelEndpointAudio,
+			Endpoint:      endpoint,
 		}, execution), execution
 	case model.ProviderModelTypeVideo:
 		execution := executeChannelVideoModelTest(ctx, channel, row.Model)
@@ -1504,6 +1511,260 @@ func executeChannelAudioModelTest(ctx context.Context, channel *model.Channel, m
 		return execution
 	}
 	execution.Message = fmt.Sprintf("返回 %d bytes (%s)", len(body), contentType)
+	return execution
+}
+
+func normalizeChannelTestRealtimeWebSocketURL(raw string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return "", err
+	}
+	switch parsed.Scheme {
+	case "https":
+		parsed.Scheme = "wss"
+	case "http":
+		parsed.Scheme = "ws"
+	case "wss", "ws":
+	default:
+		return "", fmt.Errorf("unsupported upstream scheme: %s", parsed.Scheme)
+	}
+	return parsed.String(), nil
+}
+
+type realtimeServerEventError struct {
+	Type    string `json:"type"`
+	EventID string `json:"event_id,omitempty"`
+	Error   struct {
+		Type    string `json:"type,omitempty"`
+		Code    any    `json:"code,omitempty"`
+		Message string `json:"message,omitempty"`
+	} `json:"error,omitempty"`
+	Response *struct {
+		Status string `json:"status,omitempty"`
+	} `json:"response,omitempty"`
+}
+
+func wrapRealtimeHandshakeError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("WebSocket 握手失败: %w", err)
+}
+
+func wrapRealtimeSessionError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("WebSocket 握手成功，但会话失败: %w", err)
+}
+
+func buildRealtimeSessionSuccessMessage(subprotocol string, responseText string) string {
+	base := "WebSocket 会话成功"
+	if strings.TrimSpace(subprotocol) != "" {
+		base = fmt.Sprintf("%s（subprotocol=%s）", base, strings.TrimSpace(subprotocol))
+	}
+	trimmedResponseText := strings.TrimSpace(responseText)
+	if trimmedResponseText == "" {
+		return base + "，未返回文本"
+	}
+	return fmt.Sprintf("%s，返回文本：%s", base, trimmedResponseText)
+}
+
+func writeRealtimeTestEvent(conn *websocket.Conn, payload map[string]any) error {
+	if conn == nil {
+		return fmt.Errorf("realtime connection is nil")
+	}
+	return conn.WriteJSON(payload)
+}
+
+func waitRealtimeTestCompletion(conn *websocket.Conn) (string, error) {
+	if conn == nil {
+		return "", fmt.Errorf("realtime connection is nil")
+	}
+	deadline := time.Now().Add(15 * time.Second)
+	_ = conn.SetReadDeadline(deadline)
+	textParts := make([]string, 0, 4)
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			return strings.TrimSpace(strings.Join(textParts, "")), err
+		}
+		event := map[string]any{}
+		if err := json.Unmarshal(message, &event); err != nil {
+			continue
+		}
+		eventType := strings.TrimSpace(fmt.Sprintf("%v", event["type"]))
+		switch eventType {
+		case "response.output_text.delta":
+			if delta := strings.TrimSpace(fmt.Sprintf("%v", event["delta"])); delta != "" && delta != "<nil>" {
+				textParts = append(textParts, delta)
+			}
+		case "response.text.delta":
+			if delta := strings.TrimSpace(fmt.Sprintf("%v", event["delta"])); delta != "" && delta != "<nil>" {
+				textParts = append(textParts, delta)
+			}
+		case "response.done":
+			rawResponse, ok := event["response"].(map[string]any)
+			if ok {
+				status := strings.TrimSpace(fmt.Sprintf("%v", rawResponse["status"]))
+				if status != "" && status != "completed" {
+					return strings.TrimSpace(strings.Join(textParts, "")), fmt.Errorf("realtime response finished with status %s", status)
+				}
+			}
+			return strings.TrimSpace(strings.Join(textParts, "")), nil
+		case "error":
+			realtimeErr := realtimeServerEventError{}
+			if err := json.Unmarshal(message, &realtimeErr); err == nil {
+				msg := strings.TrimSpace(realtimeErr.Error.Message)
+				if msg == "" {
+					msg = strings.TrimSpace(string(message))
+				}
+				return strings.TrimSpace(strings.Join(textParts, "")), fmt.Errorf("realtime server error: %s", msg)
+			}
+			return strings.TrimSpace(strings.Join(textParts, "")), fmt.Errorf("realtime server error: %s", strings.TrimSpace(string(message)))
+		}
+	}
+}
+
+func executeChannelRealtimeModelTest(ctx context.Context, channel *model.Channel, modelName string) channelModelTestExecution {
+	execution := channelModelTestExecution{}
+	actualModelName := resolveChannelUpstreamModelName(channel, modelName)
+	if actualModelName == "" {
+		execution.Err = fmt.Errorf("未找到可用于实时模型测试的模型")
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": execution.Err.Error()})
+		return execution
+	}
+	_, relayMeta, err := newChannelRelayRuntimeContext(model.ChannelModelEndpointRealtime, channel, ctx)
+	if err != nil {
+		execution.Err = err
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		return execution
+	}
+	adaptor := relay.GetAdaptor(relayMeta.APIType)
+	if adaptor == nil {
+		execution.Err = fmt.Errorf("invalid api type: %d", relayMeta.APIType)
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": execution.Err.Error()})
+		return execution
+	}
+	adaptor.Init(relayMeta)
+	relayMeta.OriginModelName = strings.TrimSpace(modelName)
+	relayMeta.ActualModelName = actualModelName
+
+	requestURL := resolveChannelEndpointURL(resolveChannelBaseURL(channel.GetProtocol(), channel.GetBaseURL()), model.ChannelModelEndpointRealtime)
+	if requestURL == "" {
+		execution.Err = fmt.Errorf("未找到 realtime 测试地址")
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": execution.Err.Error()})
+		return execution
+	}
+	parsedURL, err := url.Parse(requestURL)
+	if err != nil {
+		execution.Err = err
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		return execution
+	}
+	query := parsedURL.Query()
+	query.Set("model", actualModelName)
+	parsedURL.RawQuery = query.Encode()
+
+	upstreamURL, err := normalizeChannelTestRealtimeWebSocketURL(parsedURL.String())
+	if err != nil {
+		execution.Err = err
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		return execution
+	}
+
+	requestHeader := http.Header{}
+	requestHeader.Set("OpenAI-Beta", "realtime=v1")
+	switch relayMeta.ChannelProtocol {
+	case relaychannel.Azure:
+		requestHeader.Set("api-key", strings.TrimSpace(channel.Key))
+	default:
+		requestHeader.Set("Authorization", "Bearer "+strings.TrimSpace(channel.Key))
+	}
+	execution.InputPayload = buildHTTPRequestPayloadForLog(http.MethodGet, parsedURL.String(), requestHeader, nil)
+
+	dialer := websocket.Dialer{
+		Subprotocols: []string{"realtime"},
+	}
+	startedAt := time.Now()
+	conn, resp, err := dialer.DialContext(ctx, upstreamURL, requestHeader)
+	execution.LatencyMs = time.Since(startedAt).Milliseconds()
+	if resp != nil {
+		execution.ResponseStatusCode = resp.StatusCode
+		execution.ResponseHeader = resp.Header.Clone()
+	}
+	if err != nil {
+		if resp != nil {
+			body, _ := io.ReadAll(resp.Body)
+			if resp.Body != nil {
+				_ = resp.Body.Close()
+			}
+			execution.ResponseBody = append([]byte(nil), body...)
+			execution.OutputPayload = buildHTTPResponsePayloadForLog(resp.StatusCode, resp.Header, body)
+			execution.Err = wrapRealtimeHandshakeError(parseChannelUpstreamError(resp.StatusCode, body))
+			return execution
+		}
+		execution.Err = wrapRealtimeHandshakeError(err)
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		return execution
+	}
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
+	subprotocol := strings.TrimSpace(conn.Subprotocol())
+	if err := writeRealtimeTestEvent(conn, map[string]any{
+		"type": "session.update",
+		"session": map[string]any{
+			"type":         "realtime",
+			"instructions": "Reply with exactly OK.",
+		},
+	}); err != nil {
+		execution.Err = err
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		_ = conn.Close()
+		return execution
+	}
+	if err := writeRealtimeTestEvent(conn, map[string]any{
+		"type": "conversation.item.create",
+		"item": map[string]any{
+			"type": "message",
+			"role": "user",
+			"content": []map[string]any{
+				{
+					"type": "input_text",
+					"text": "Reply with exactly OK.",
+				},
+			},
+		},
+	}); err != nil {
+		execution.Err = err
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		_ = conn.Close()
+		return execution
+	}
+	if err := writeRealtimeTestEvent(conn, map[string]any{
+		"type": "response.create",
+		"response": map[string]any{
+			"modalities":   []string{"text"},
+			"instructions": "Reply with exactly OK.",
+		},
+	}); err != nil {
+		execution.Err = err
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		_ = conn.Close()
+		return execution
+	}
+	responseText, waitErr := waitRealtimeTestCompletion(conn)
+	_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "channel test complete"), time.Now().Add(2*time.Second))
+	_ = conn.Close()
+	if waitErr != nil {
+		execution.Err = wrapRealtimeSessionError(waitErr)
+		execution.OutputPayload = buildHTTPResponsePayloadForLog(http.StatusSwitchingProtocols, execution.ResponseHeader, []byte(execution.Err.Error()))
+		return execution
+	}
+	outputMessage := buildRealtimeSessionSuccessMessage(subprotocol, responseText)
+	execution.OutputPayload = buildHTTPResponsePayloadForLog(http.StatusSwitchingProtocols, execution.ResponseHeader, []byte(outputMessage))
+	execution.Message = outputMessage
 	return execution
 }
 

@@ -1443,6 +1443,10 @@ body,
     padding: 0.45em 0.72em !important;
 }
 
+.ui.label.router-tag.router-provider-endpoint-tag {
+    font-weight: 400 !important;
+}
+
 .ui.pagination.menu.router-page-pagination,
 .ui.pagination.menu.router-section-pagination {
     border-radius: 10px !important;

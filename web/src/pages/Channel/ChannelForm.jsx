@@ -243,6 +243,16 @@ const normalizeChannelModelEndpoint = (type, value, protocol) => {
         return defaultChannelModelEndpoint(normalizedType, protocol);
     }
   }
+  if (normalizedType === 'audio') {
+    switch (normalized) {
+      case '/v1/realtime':
+        return '/v1/realtime';
+      case '/v1/audio/speech':
+        return '/v1/audio/speech';
+      default:
+        return defaultChannelModelEndpoint(normalizedType, protocol);
+    }
+  }
   return defaultChannelModelEndpoint(normalizedType, protocol);
 };
 
@@ -300,6 +310,11 @@ const TEXT_MODEL_ENDPOINT_OPTIONS = [
   { key: 'messages', value: '/v1/messages', text: '/v1/messages' },
 ];
 
+const AUDIO_MODEL_ENDPOINT_OPTIONS = [
+  { key: 'audio_speech', value: '/v1/audio/speech', text: '/v1/audio/speech' },
+  { key: 'realtime', value: '/v1/realtime', text: '/v1/realtime' },
+];
+
 const IMAGE_MODEL_ENDPOINT_OPTIONS = [
   { key: 'responses', value: '/v1/responses', text: '/v1/responses' },
   {
@@ -319,13 +334,17 @@ const CHANNEL_ENDPOINT_SORT_ORDER = {
   '/v1/images/edits': 50,
   '/v1/batches': 60,
   '/v1/audio/speech': 70,
-  '/v1/videos': 80,
+  '/v1/realtime': 80,
+  '/v1/videos': 90,
 };
 
 const endpointOptionsForModelType = (type) => {
   const normalizedType = normalizeChannelModelType(type);
   if (normalizedType === 'image') {
     return IMAGE_MODEL_ENDPOINT_OPTIONS;
+  }
+  if (normalizedType === 'audio') {
+    return AUDIO_MODEL_ENDPOINT_OPTIONS;
   }
   if (normalizedType === 'text') {
     return TEXT_MODEL_ENDPOINT_OPTIONS;
