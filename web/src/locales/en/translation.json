@@ -456,6 +456,7 @@
         "add": "Add Model",
         "search_placeholder": "Search model details...",
         "model": "Model",
+        "description": "Description",
         "type": "Type",
         "supported_endpoints": "Supported Endpoints",
         "input_price": "Input Price",

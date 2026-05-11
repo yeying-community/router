@@ -324,6 +324,8 @@ const createEmptyModelDetail = (model = '') => {
   return {
     model,
     type: t,
+    description: '',
+    is_deleted: false,
     supported_endpoints: [],
     input_price: 0,
     output_price: 0,
@@ -365,10 +367,15 @@ const normalizeModelDetails = (details) => {
       typeof item.source === 'string' && item.source.trim() !== ''
         ? item.source.trim().toLowerCase()
         : 'manual';
+    const description =
+      typeof item.description === 'string' ? item.description.trim() : '';
+    const isDeleted = item.is_deleted === true;
     const updatedAt = Number(item.updated_at || 0);
     unique.set(model, {
       model,
       type,
+      description,
+      is_deleted: isDeleted,
       supported_endpoints: normalizeSupportedEndpoints(
         item.supported_endpoints,
         type,
@@ -384,9 +391,9 @@ const normalizeModelDetails = (details) => {
       price_components: normalizePriceComponents(item.price_components),
     });
   });
-  return Array.from(unique.values()).sort((a, b) =>
-    a.model.localeCompare(b.model),
-  );
+  return Array.from(unique.values())
+    .filter((item) => item.is_deleted !== true)
+    .sort((a, b) => a.model.localeCompare(b.model));
 };
 
 const detailsFromCatalogItem = (item) => {
@@ -1372,6 +1379,7 @@ const ProvidersManager = () => {
         : detailRows.filter(({ detail }) => {
             const haystack = [
               detail.model || '',
+              detail.description || '',
               detail.type || '',
               (detail.supported_endpoints || []).join(','),
               detail.price_unit || '',
@@ -1485,6 +1493,24 @@ const ProvidersManager = () => {
                             row,
                             detailIndex,
                             'model',
+                            value || '',
+                          )
+                        }
+                      />
+                      <Form.TextArea
+                        className='router-inline-input router-block-top-xs'
+                        rows={2}
+                        value={detail.description || ''}
+                        disabled={disabled}
+                        placeholder={t(
+                          'channel.providers.model_detail_table.description',
+                        )}
+                        onChange={(e, { value }) =>
+                          setModelDetailField(
+                            setValueFn,
+                            row,
+                            detailIndex,
+                            'description',
                             value || '',
                           )
                         }
@@ -1975,6 +2001,7 @@ const ProvidersManager = () => {
         : detailRows.filter(({ detail }) => {
             const haystack = [
               detail.model || '',
+              detail.description || '',
               detail.type || '',
               (detail.supported_endpoints || []).join(','),
               detail.price_unit || '',
@@ -2075,7 +2102,14 @@ const ProvidersManager = () => {
                 return (
                   <Table.Row key={`${detail.model || 'model'}-${detailIndex}`}>
                     <Table.Cell className='router-cell-min-130'>
-                      {detail.model || '-'}
+                      <div className='router-model-title'>
+                        {detail.model || '-'}
+                      </div>
+                      {detail.description ? (
+                        <div className='router-muted router-model-description'>
+                          {detail.description}
+                        </div>
+                      ) : null}
                     </Table.Cell>
                     <Table.Cell className='router-cell-min-80'>
                       {detail.type || 'text'}
@@ -2270,6 +2304,20 @@ const ProvidersManager = () => {
                   detailEditingModelIndex,
                   'supported_endpoints',
                   Array.isArray(value) ? value : [],
+                )
+              }
+            />
+            <Form.TextArea
+              className='router-section-input'
+              label={t('channel.providers.model_detail_table.description')}
+              value={detail.description || ''}
+              onChange={(e, { value }) =>
+                setModelDetailField(
+                  setDetailModelsValue,
+                  detailModelsDraft,
+                  detailEditingModelIndex,
+                  'description',
+                  value || '',
                 )
               }
             />

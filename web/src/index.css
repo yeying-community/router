@@ -2241,6 +2241,24 @@ body,
     min-width: 130px;
 }
 
+.router-model-title {
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.86);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.router-model-description {
+    margin-top: 4px;
+    max-width: 300px;
+    color: rgba(0, 0, 0, 0.52);
+    font-size: 12px;
+    line-height: 1.35;
+    white-space: normal;
+}
+
 .router-cell-min-80 {
     min-width: 80px;
 }

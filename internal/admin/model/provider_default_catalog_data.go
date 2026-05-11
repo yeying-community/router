@@ -23,7 +23,10 @@ var defaultProviderCatalogTemplates = normalizeDefaultProviderCatalogTemplates([
 			{Model: "gpt-5.3-codex", Type: ProviderModelTypeText, InputPrice: 0.00175, OutputPrice: 0.014, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-5.4", Type: ProviderModelTypeText, InputPrice: 0.0025, OutputPrice: 0.015, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-5.4-mini", Type: ProviderModelTypeText, InputPrice: 0.00075, OutputPrice: 0.0045, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
+			{Model: "gpt-5.4-nano", Type: ProviderModelTypeText, InputPrice: 0.0001, OutputPrice: 0.000625, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
+			{Model: "gpt-5.4-pro", Type: ProviderModelTypeText, InputPrice: 0.015, OutputPrice: 0.09, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-5.5", Type: ProviderModelTypeText, InputPrice: 0.005, OutputPrice: 0.03, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
+			{Model: "gpt-5.5-pro", Type: ProviderModelTypeText, InputPrice: 0.015, OutputPrice: 0.09, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-5-mini", Type: ProviderModelTypeText, InputPrice: 0.00025, OutputPrice: 0.002, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-5-nano", Type: ProviderModelTypeText, InputPrice: 0.00005, OutputPrice: 0.0004, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-5-pro", Type: ProviderModelTypeText, InputPrice: 0.015, OutputPrice: 0.12, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
@@ -71,6 +74,34 @@ var defaultProviderCatalogTemplates = normalizeDefaultProviderCatalogTemplates([
 				},
 			},
 			{
+				Model:              "gpt-image-1.5",
+				Type:               ProviderModelTypeImage,
+				SupportedEndpoints: []string{ChannelModelEndpointResponses, ChannelModelEndpointImages, ChannelModelEndpointImageEdit},
+				InputPrice:         0.008,
+				OutputPrice:        0.032,
+				PriceUnit:          ProviderPriceUnitPer1KTokens,
+				Currency:           ProviderPriceCurrencyUSD,
+				Source:             "default",
+				PriceComponents: []ProviderModelPriceComponentDetail{
+					{Component: ProviderModelPriceComponentText, InputPrice: 0.005, OutputPrice: 0.01, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default", SourceURL: "https://openai.com/api/pricing/", SortOrder: 10},
+					{Component: ProviderModelPriceComponentImageGeneration, InputPrice: 0.008, OutputPrice: 0.032, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default", SourceURL: "https://openai.com/api/pricing/", SortOrder: 20},
+				},
+			},
+			{
+				Model:              "gpt-image-1-mini",
+				Type:               ProviderModelTypeImage,
+				SupportedEndpoints: []string{ChannelModelEndpointResponses, ChannelModelEndpointImages, ChannelModelEndpointImageEdit},
+				InputPrice:         0.0025,
+				OutputPrice:        0.008,
+				PriceUnit:          ProviderPriceUnitPer1KTokens,
+				Currency:           ProviderPriceCurrencyUSD,
+				Source:             "default",
+				PriceComponents: []ProviderModelPriceComponentDetail{
+					{Component: ProviderModelPriceComponentText, InputPrice: 0.002, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default", SourceURL: "https://openai.com/api/pricing/", SortOrder: 10},
+					{Component: ProviderModelPriceComponentImageGeneration, InputPrice: 0.0025, OutputPrice: 0.008, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default", SourceURL: "https://openai.com/api/pricing/", SortOrder: 20},
+				},
+			},
+			{
 				Model:      "dall-e-3",
 				Type:       ProviderModelTypeImage,
 				InputPrice: 0.04,
@@ -90,12 +121,15 @@ var defaultProviderCatalogTemplates = normalizeDefaultProviderCatalogTemplates([
 			{Model: "gpt-realtime-2", Type: ProviderModelTypeAudio, InputPrice: 0.004, OutputPrice: 0.024, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-realtime-1.5", Type: ProviderModelTypeAudio, InputPrice: 0.0006, OutputPrice: 0.0024, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-realtime-mini", Type: ProviderModelTypeAudio, InputPrice: 0.0006, OutputPrice: 0.0024, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
+			{Model: "gpt-realtime-translate", Type: ProviderModelTypeAudio, InputPrice: 0.0015, OutputPrice: 0.006, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
+			{Model: "gpt-4o-mini-tts", Type: ProviderModelTypeAudio, InputPrice: 0.0006, PriceUnit: ProviderPriceUnitPer1KChars, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-audio", Type: ProviderModelTypeAudio, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "gpt-audio-mini", Type: ProviderModelTypeAudio, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "whisper-1", Type: ProviderModelTypeAudio, PriceUnit: ProviderPriceUnitPerMinute, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "tts-1", Type: ProviderModelTypeAudio, PriceUnit: ProviderPriceUnitPer1KChars, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "tts-1-hd", Type: ProviderModelTypeAudio, PriceUnit: ProviderPriceUnitPer1KChars, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "sora-2", Type: ProviderModelTypeVideo, PriceUnit: ProviderPriceUnitPerSecond, Currency: ProviderPriceCurrencyUSD, Source: "default"},
+			{Model: "sora-2-pro", Type: ProviderModelTypeVideo, PriceUnit: ProviderPriceUnitPerSecond, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 		},
 	},
 	{
@@ -197,6 +231,8 @@ var defaultProviderCatalogTemplates = normalizeDefaultProviderCatalogTemplates([
 		OfficialURL: "https://docs.x.ai/docs/models",
 		SortOrder:   130,
 		ModelDetails: []ProviderModelDetail{
+			{Model: "grok-4.20", Type: ProviderModelTypeText, InputPrice: 0.00125, OutputPrice: 0.0025, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
+			{Model: "grok-4.3", Type: ProviderModelTypeText, InputPrice: 0.00125, OutputPrice: 0.0025, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "grok-4", Type: ProviderModelTypeText, InputPrice: 0.003, OutputPrice: 0.015, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "grok-4-fast-non-reasoning", Type: ProviderModelTypeText, InputPrice: 0.0002, OutputPrice: 0.0005, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
 			{Model: "grok-4-fast-reasoning", Type: ProviderModelTypeText, InputPrice: 0.0002, OutputPrice: 0.0005, PriceUnit: ProviderPriceUnitPer1KTokens, Currency: ProviderPriceCurrencyUSD, Source: "default"},
@@ -356,6 +392,10 @@ func normalizeDefaultProviderSeedModelDetails(provider string, details []Provide
 		if next.UpdatedAt <= 0 {
 			next.UpdatedAt = now
 		}
+		if strings.TrimSpace(next.Description) == "" {
+			next.Description = defaultProviderModelDescription(normalizedProvider, next.Model, next.Type)
+		}
+		next.IsDeleted = defaultProviderModelDeleted(normalizedProvider, next.Model)
 		if len(next.SupportedEndpoints) == 0 {
 			next.SupportedEndpoints = DefaultProviderModelSupportedEndpoints(normalizedProvider, next.Type, next.Model)
 		} else {

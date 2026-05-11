@@ -50,6 +50,8 @@ type ProviderModelPriceComponentDetail struct {
 type ProviderModelDetail struct {
 	Model              string                              `json:"model"`
 	Type               string                              `json:"type,omitempty"`
+	Description        string                              `json:"description,omitempty"`
+	IsDeleted          bool                                `json:"is_deleted,omitempty"`
 	SupportedEndpoints []string                            `json:"supported_endpoints,omitempty"`
 	InputPrice         float64                             `json:"input_price,omitempty"`
 	OutputPrice        float64                             `json:"output_price,omitempty"`
@@ -101,6 +103,8 @@ func NormalizeProviderModelDetails(details []ProviderModelDetail) []ProviderMode
 		entry := ProviderModelDetail{
 			Model:              modelName,
 			Type:               t,
+			Description:        strings.TrimSpace(detail.Description),
+			IsDeleted:          detail.IsDeleted,
 			SupportedEndpoints: NormalizeProviderModelSupportedEndpoints(t, detail.SupportedEndpoints),
 			InputPrice:         inputPrice,
 			OutputPrice:        outputPrice,
@@ -114,6 +118,12 @@ func NormalizeProviderModelDetails(details []ProviderModelDetail) []ProviderMode
 			existing := normalized[idx]
 			if existing.Type == "" {
 				existing.Type = entry.Type
+			}
+			if existing.Description == "" {
+				existing.Description = entry.Description
+			}
+			if entry.IsDeleted {
+				existing.IsDeleted = true
 			}
 			if existing.PriceUnit == "" {
 				existing.PriceUnit = entry.PriceUnit
@@ -145,6 +155,20 @@ func NormalizeProviderModelDetails(details []ProviderModelDetail) []ProviderMode
 		return normalized[i].Model < normalized[j].Model
 	})
 	return normalized
+}
+
+func FilterActiveProviderModelDetails(details []ProviderModelDetail) []ProviderModelDetail {
+	if len(details) == 0 {
+		return []ProviderModelDetail{}
+	}
+	filtered := make([]ProviderModelDetail, 0, len(details))
+	for _, detail := range NormalizeProviderModelDetails(details) {
+		if detail.IsDeleted {
+			continue
+		}
+		filtered = append(filtered, detail)
+	}
+	return filtered
 }
 
 func NormalizeProviderModelPriceComponents(details []ProviderModelPriceComponentDetail) []ProviderModelPriceComponentDetail {

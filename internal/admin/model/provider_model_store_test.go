@@ -68,6 +68,8 @@ func TestBuildProviderModelRows_CanonicalizeAndMergeDuplicates(t *testing.T) {
 		{
 			Model:       "gpt-3.5-turbo-0613",
 			Type:        ProviderModelTypeText,
+			Description: "测试模型描述",
+			IsDeleted:   true,
 			InputPrice:  0,
 			OutputPrice: 0.001,
 			PriceUnit:   ProviderPriceUnitPer1KTokens,
@@ -95,6 +97,12 @@ func TestBuildProviderModelRows_CanonicalizeAndMergeDuplicates(t *testing.T) {
 	}
 	if rows[0].InputPrice <= 0 {
 		t.Fatalf("expected merged positive input price, got %f", rows[0].InputPrice)
+	}
+	if rows[0].Description != "测试模型描述" {
+		t.Fatalf("expected description to be preserved, got %q", rows[0].Description)
+	}
+	if !rows[0].IsDeleted {
+		t.Fatalf("expected is_deleted to be preserved")
 	}
 	if rows[0].OutputPrice <= 0 {
 		t.Fatalf("expected existing output price to be preserved, got %f", rows[0].OutputPrice)

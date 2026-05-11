@@ -36,7 +36,7 @@ func LoadUniqueProviderMapByModelsWithDB(db *gorm.DB, modelNames []string) (map[
 	if err := db.
 		Model(&ProviderModel{}).
 		Select("provider", "model").
-		Where("model IN ?", candidates).
+		Where("is_deleted = ? AND model IN ?", false, candidates).
 		Find(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func LoadProviderModelEndpointMapByModelsWithDB(db *gorm.DB, provider string, mo
 	if err := db.
 		Model(&ProviderModel{}).
 		Select("provider", "model", "type", "supported_endpoints").
-		Where("provider = ? AND model IN ?", normalizedProvider, candidates).
+		Where("provider = ? AND is_deleted = ? AND model IN ?", normalizedProvider, false, candidates).
 		Find(&rows).Error; err != nil {
 		return nil, err
 	}

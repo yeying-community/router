@@ -845,6 +845,48 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return nil
 			},
 		},
+		{
+			Version:     "202605102100_provider_model_descriptions",
+			Description: "add provider model descriptions and resync default provider catalog",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605111030_refresh_provider_model_descriptions_and_defaults",
+			Description: "refresh provider model descriptions from official model catalogs and add newly tracked default models",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605111130_refresh_openai_and_xai_official_models",
+			Description: "refresh openai and xai official model descriptions and add newly tracked openai video models",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605111210_refresh_retired_anthropic_model_descriptions",
+			Description: "clear descriptions for retired anthropic models while keeping catalog rows for backward compatibility",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605111330_refresh_retired_google_and_qwen_model_descriptions",
+			Description: "clear descriptions for retired or stopped-updating google and qwen models while keeping catalog rows for backward compatibility",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605111430_provider_model_soft_delete_flag",
+			Description: "add provider model soft delete flag and mark upstream-retired default models",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

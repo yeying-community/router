@@ -27,6 +27,9 @@ func TestBuildDefaultProviderCatalogSeeds_OpenAIIncludesDALLE3(t *testing.T) {
 			if detail.Currency != ProviderPriceCurrencyUSD {
 				t.Fatalf("dall-e-3 currency=%q, want %q", detail.Currency, ProviderPriceCurrencyUSD)
 			}
+			if strings.TrimSpace(detail.Description) == "" {
+				t.Fatalf("dall-e-3 description should not be empty")
+			}
 			if len(detail.PriceComponents) != 6 {
 				t.Fatalf("dall-e-3 price_components=%d, want 6", len(detail.PriceComponents))
 			}
@@ -225,6 +228,160 @@ func TestBuildDefaultProviderCatalogSeeds_OpenAIIncludesGPT55Pricing(t *testing.
 		t.Fatalf("expected openai seed to include gpt-5.5")
 	}
 	t.Fatalf("expected openai provider to exist")
+}
+
+func TestBuildDefaultProviderCatalogSeeds_OpenAIIncludesNewOfficialModels(t *testing.T) {
+	seeds := BuildDefaultProviderCatalogSeeds(1700000000)
+	expected := map[string]struct {
+		modelType string
+	}{
+		"gpt-5.4-nano":           {modelType: ProviderModelTypeText},
+		"gpt-5.4-pro":            {modelType: ProviderModelTypeText},
+		"gpt-5.5-pro":            {modelType: ProviderModelTypeText},
+		"gpt-image-1.5":          {modelType: ProviderModelTypeImage},
+		"gpt-image-1-mini":       {modelType: ProviderModelTypeImage},
+		"gpt-realtime-translate": {modelType: ProviderModelTypeAudio},
+		"gpt-4o-mini-tts":        {modelType: ProviderModelTypeAudio},
+		"sora-2-pro":             {modelType: ProviderModelTypeVideo},
+	}
+
+	for _, seed := range seeds {
+		if seed.Provider != "openai" {
+			continue
+		}
+		found := make(map[string]bool, len(expected))
+		for _, detail := range seed.ModelDetails {
+			want, ok := expected[detail.Model]
+			if !ok {
+				continue
+			}
+			if detail.Type != want.modelType {
+				t.Fatalf("%s type=%q, want %q", detail.Model, detail.Type, want.modelType)
+			}
+			if strings.TrimSpace(detail.Description) == "" {
+				t.Fatalf("%s description should not be empty", detail.Model)
+			}
+			found[detail.Model] = true
+		}
+		for modelName := range expected {
+			if !found[modelName] {
+				t.Fatalf("expected openai seed to include %s", modelName)
+			}
+		}
+		return
+	}
+	t.Fatalf("expected openai provider to exist")
+}
+
+func TestBuildDefaultProviderCatalogSeeds_XAIIncludesNewOfficialModels(t *testing.T) {
+	seeds := BuildDefaultProviderCatalogSeeds(1700000000)
+	expected := map[string]bool{
+		"grok-4.20": false,
+		"grok-4.3":  false,
+	}
+
+	for _, seed := range seeds {
+		if seed.Provider != "xai" {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			if _, ok := expected[detail.Model]; !ok {
+				continue
+			}
+			if strings.TrimSpace(detail.Description) == "" {
+				t.Fatalf("%s description should not be empty", detail.Model)
+			}
+			expected[detail.Model] = true
+		}
+		for modelName, found := range expected {
+			if !found {
+				t.Fatalf("expected xai seed to include %s", modelName)
+			}
+		}
+		return
+	}
+	t.Fatalf("expected xai provider to exist")
+}
+
+func TestBuildDefaultProviderCatalogSeeds_UnknownOrLegacyDescriptionsStayEmpty(t *testing.T) {
+	seeds := BuildDefaultProviderCatalogSeeds(1700000000)
+	checks := map[string]map[string]bool{
+		"anthropic": {
+			"claude-3-5-haiku-20241022": false,
+		},
+		"google": {
+			"gemini-live-2.5-flash-preview": false,
+		},
+		"qwen": {
+			"qwen-omni-turbo-latest": false,
+		},
+		"xai": {
+			"grok-2-image-1212": false,
+		},
+	}
+
+	for _, seed := range seeds {
+		providerChecks, ok := checks[seed.Provider]
+		if !ok {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			if _, exists := providerChecks[detail.Model]; !exists {
+				continue
+			}
+			if strings.TrimSpace(detail.Description) != "" {
+				t.Fatalf("%s/%s description=%q, want empty", seed.Provider, detail.Model, detail.Description)
+			}
+			if !detail.IsDeleted {
+				t.Fatalf("%s/%s is_deleted=false, want true", seed.Provider, detail.Model)
+			}
+			providerChecks[detail.Model] = true
+		}
+	}
+
+	for provider, models := range checks {
+		for modelName, found := range models {
+			if !found {
+				t.Fatalf("expected %s seed to include %s", provider, modelName)
+			}
+		}
+	}
+}
+
+func TestBuildDefaultProviderCatalogSeeds_AllDescriptionsReviewed(t *testing.T) {
+	seeds := BuildDefaultProviderCatalogSeeds(1700000000)
+	allowedEmpty := map[string]map[string]struct{}{
+		"anthropic": {
+			"claude-3-5-haiku-20241022": {},
+		},
+		"google": {
+			"gemini-live-2.5-flash-preview": {},
+		},
+		"qwen": {
+			"qwen-omni-turbo-latest": {},
+		},
+		"xai": {
+			"grok-2-image-1212": {},
+		},
+	}
+
+	for _, seed := range seeds {
+		for _, detail := range seed.ModelDetails {
+			description := strings.TrimSpace(detail.Description)
+			if description != "" {
+				continue
+			}
+			if !detail.IsDeleted {
+				t.Fatalf("empty description without is_deleted for %s/%s", seed.Provider, detail.Model)
+			}
+			if providerAllowed, ok := allowedEmpty[seed.Provider]; ok {
+				if _, exists := providerAllowed[detail.Model]; exists {
+					continue
+				}
+			}
+			t.Fatalf("unexpected empty description for %s/%s", seed.Provider, detail.Model)
+		}
+	}
 }
 
 func TestBuildDefaultProviderCatalogSeeds_OpenAIIncludesRealtime15And2Pricing(t *testing.T) {

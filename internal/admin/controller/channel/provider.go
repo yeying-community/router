@@ -42,6 +42,8 @@ type providerCatalogListData struct {
 type appendProviderModelRequest struct {
 	Model              string   `json:"model"`
 	Type               string   `json:"type,omitempty"`
+	Description        string   `json:"description,omitempty"`
+	IsDeleted          bool     `json:"is_deleted,omitempty"`
 	SupportedEndpoints []string `json:"supported_endpoints,omitempty"`
 	InputPrice         float64  `json:"input_price,omitempty"`
 	OutputPrice        float64  `json:"output_price,omitempty"`
@@ -51,7 +53,7 @@ type appendProviderModelRequest struct {
 }
 
 func providerModelNames(details []model.ProviderModelDetail) []string {
-	normalized := model.NormalizeProviderModelDetails(details)
+	normalized := model.FilterActiveProviderModelDetails(details)
 	names := make([]string, 0, len(normalized))
 	for _, item := range normalized {
 		if strings.TrimSpace(item.Model) == "" {
@@ -105,6 +107,35 @@ func applyProviderModelEndpointDefaults(provider string, details []model.Provide
 		)
 	}
 	return model.NormalizeProviderModelDetails(normalizedDetails)
+}
+
+func mergeMissingProviderDetailsAsDeleted(current []model.ProviderModelDetail, existing []model.ProviderModelDetail) []model.ProviderModelDetail {
+	if len(existing) == 0 {
+		return model.NormalizeProviderModelDetails(current)
+	}
+	merged := make([]model.ProviderModelDetail, 0, len(current)+len(existing))
+	merged = append(merged, current...)
+	currentByModel := make(map[string]struct{}, len(current))
+	for _, detail := range current {
+		modelName := strings.TrimSpace(detail.Model)
+		if modelName == "" {
+			continue
+		}
+		currentByModel[modelName] = struct{}{}
+	}
+	for _, detail := range existing {
+		modelName := strings.TrimSpace(detail.Model)
+		if modelName == "" {
+			continue
+		}
+		if _, ok := currentByModel[modelName]; ok {
+			continue
+		}
+		deletedDetail := detail
+		deletedDetail.IsDeleted = true
+		merged = append(merged, deletedDetail)
+	}
+	return model.NormalizeProviderModelDetails(merged)
 }
 
 func normalizeProviderCatalogID(item providerCatalogItem) string {
@@ -166,7 +197,7 @@ func buildProviderCatalogItems(rows []model.Provider) ([]providerCatalogItem, er
 		if provider == "" {
 			continue
 		}
-		details := model.NormalizeProviderModelDetails(detailsByProvider[provider])
+		details := model.FilterActiveProviderModelDetails(detailsByProvider[provider])
 		items = append(items, providerCatalogItem{
 			ID:           provider,
 			Name:         strings.TrimSpace(row.Name),
@@ -191,7 +222,7 @@ func buildProviderListQuery(keyword string) *gorm.DB {
 	}
 	likeKeyword := "%" + normalizedKeyword + "%"
 	return query.Where(
-		`LOWER(id) LIKE ? OR LOWER(name) LIKE ? OR LOWER(COALESCE(base_url, '')) LIKE ? OR LOWER(COALESCE(official_url, '')) LIKE ? OR LOWER(source) LIKE ? OR EXISTS (SELECT 1 FROM `+model.ProviderModelsTableName+` pm WHERE pm.provider = providers.id AND LOWER(pm.model) LIKE ?)`,
+		`LOWER(id) LIKE ? OR LOWER(name) LIKE ? OR LOWER(COALESCE(base_url, '')) LIKE ? OR LOWER(COALESCE(official_url, '')) LIKE ? OR LOWER(source) LIKE ? OR EXISTS (SELECT 1 FROM `+model.ProviderModelsTableName+` pm WHERE pm.provider = providers.id AND pm.is_deleted = false AND LOWER(pm.model) LIKE ?)`,
 		likeKeyword,
 		likeKeyword,
 		likeKeyword,
@@ -309,6 +340,9 @@ func normalizeProviderUpsertItem(providerID string, item providerCatalogItem, ex
 	details := mergeProviderDetailInputs(detailInput, item.Models, now)
 	if len(details) == 0 && existing != nil {
 		details = mergeProviderDetailInputs(existing.ModelDetails, existing.Models, now)
+	}
+	if existing != nil {
+		details = mergeMissingProviderDetailsAsDeleted(details, existing.ModelDetails)
 	}
 	details = applyProviderModelEndpointDefaults(provider, details)
 
@@ -489,6 +523,8 @@ func appendModelToProviderItem(id string, req appendProviderModelRequest) (provi
 	detail := model.ProviderModelDetail{
 		Model:              strings.TrimSpace(req.Model),
 		Type:               strings.TrimSpace(strings.ToLower(req.Type)),
+		Description:        strings.TrimSpace(req.Description),
+		IsDeleted:          req.IsDeleted,
 		SupportedEndpoints: req.SupportedEndpoints,
 		InputPrice:         req.InputPrice,
 		OutputPrice:        req.OutputPrice,
