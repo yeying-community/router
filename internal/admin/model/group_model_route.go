@@ -17,6 +17,13 @@ type GroupModelRoute struct {
 	Priority      *int64 `json:"priority" gorm:"bigint;default:0;index"`
 }
 
+func (route GroupModelRoute) GetPriority() int64 {
+	if route.Priority == nil {
+		return 0
+	}
+	return *route.Priority
+}
+
 const (
 	GroupModelRoutesTableName = "group_model_routes"
 )

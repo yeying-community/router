@@ -40,3 +40,28 @@ func TestNormalizeGroupModelRouteRowsPreserveOrder_DeduplicatesByPrimaryKey(t *t
 		t.Fatalf("unexpected fallback upstream model: %q", got[1].UpstreamModel)
 	}
 }
+
+func TestCloneChannelWithPriorityDoesNotMutateOriginal(t *testing.T) {
+	originalPriority := int64(0)
+	channel := &Channel{
+		Id:       "channel-1",
+		Priority: &originalPriority,
+	}
+
+	cloned := CloneChannelWithPriority(channel, 3)
+	if cloned == nil {
+		t.Fatalf("expected cloned channel, got nil")
+	}
+	if cloned == channel {
+		t.Fatalf("expected cloned channel to be a different pointer")
+	}
+	if channel.GetPriority() != 0 {
+		t.Fatalf("original priority = %d, want 0", channel.GetPriority())
+	}
+	if cloned.GetPriority() != 3 {
+		t.Fatalf("cloned priority = %d, want 3", cloned.GetPriority())
+	}
+	if cloned.Priority == channel.Priority {
+		t.Fatalf("expected cloned priority pointer to be independent")
+	}
+}

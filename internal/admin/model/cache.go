@@ -235,7 +235,10 @@ func InitChannelCache() {
 		if _, ok := newGroup2model2channel2upstream[groupName][modelName]; !ok {
 			newGroup2model2channel2upstream[groupName][modelName] = make(map[string]string)
 		}
-		newGroup2model2channels[groupName][modelName] = append(newGroup2model2channels[groupName][modelName], channel)
+		newGroup2model2channels[groupName][modelName] = append(
+			newGroup2model2channels[groupName][modelName],
+			CloneChannelWithPriority(channel, route.GetPriority()),
+		)
 		newGroup2model2channel2upstream[groupName][modelName][channelID] = NormalizeGroupModelRouteUpstreamModel(modelName, route.UpstreamModel)
 	}
 
@@ -243,7 +246,12 @@ func InitChannelCache() {
 	for group, model2channels := range newGroup2model2channels {
 		for model, channels := range model2channels {
 			sort.Slice(channels, func(i, j int) bool {
-				return channels[i].GetPriority() > channels[j].GetPriority()
+				leftPriority := channels[i].GetPriority()
+				rightPriority := channels[j].GetPriority()
+				if leftPriority != rightPriority {
+					return leftPriority > rightPriority
+				}
+				return strings.TrimSpace(channels[i].Id) < strings.TrimSpace(channels[j].Id)
 			})
 			newGroup2model2channels[group][model] = channels
 		}

@@ -178,6 +178,16 @@ func (channel *Channel) GetPriority() int64 {
 	return *channel.Priority
 }
 
+func CloneChannelWithPriority(channel *Channel, priority int64) *Channel {
+	if channel == nil {
+		return nil
+	}
+	cloned := *channel
+	clonedPriority := priority
+	cloned.Priority = &clonedPriority
+	return &cloned
+}
+
 func (channel *Channel) GetBaseURL() string {
 	if channel.BaseURL == nil {
 		return ""

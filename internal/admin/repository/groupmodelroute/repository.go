@@ -74,10 +74,11 @@ func ListSatisfiedChannels(group string, modelName string) ([]*model.Channel, er
 		}
 		channelByID[strings.TrimSpace(channel.Id)] = channel
 	}
-	result := make([]*model.Channel, 0, len(channelIDs))
-	for _, channelID := range channelIDs {
+	result := make([]*model.Channel, 0, len(routeRows))
+	for _, route := range routeRows {
+		channelID := strings.TrimSpace(route.ChannelId)
 		if channel := channelByID[channelID]; channel != nil {
-			result = append(result, channel)
+			result = append(result, model.CloneChannelWithPriority(channel, route.GetPriority()))
 		}
 	}
 	return result, nil
@@ -243,6 +244,8 @@ func GetTopChannelByModel(group string, modelName string) (*model.Channel, error
 	if err := model.HydrateChannelWithModels(model.DB, &channel); err != nil {
 		return nil, err
 	}
+	priority := route.GetPriority()
+	channel.Priority = &priority
 	return &channel, nil
 }
 

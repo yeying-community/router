@@ -123,3 +123,26 @@ func TestSelectRandomSatisfiedChannelReturnsNilWhenAllTiersExhausted(t *testing.
 		t.Fatalf("unexpected remaining candidates: got %d want %d", stats.RemainingCandidates, 0)
 	}
 }
+
+func TestSelectRandomSatisfiedChannelUsesRoutePriorityOverride(t *testing.T) {
+	basePriority := int64(0)
+	channels := []*Channel{
+		CloneChannelWithPriority(&Channel{Id: "channel-a", Priority: &basePriority}, 1),
+		CloneChannelWithPriority(&Channel{Id: "channel-b", Priority: &basePriority}, 1),
+		CloneChannelWithPriority(&Channel{Id: "channel-c", Priority: &basePriority}, 0),
+	}
+
+	got, stats := SelectRandomSatisfiedChannelWithStats(channels, false, nil)
+	if got == nil {
+		t.Fatalf("expected channel, got nil")
+	}
+	if got.Id != "channel-a" && got.Id != "channel-b" {
+		t.Fatalf("unexpected channel id: got %q want tier-1 candidate", got.Id)
+	}
+	if stats.SelectedPriority != 1 {
+		t.Fatalf("selected priority = %d, want 1", stats.SelectedPriority)
+	}
+	if stats.SelectedTierCandidates != 2 {
+		t.Fatalf("selected tier candidates = %d, want 2", stats.SelectedTierCandidates)
+	}
+}
