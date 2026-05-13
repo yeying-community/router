@@ -55,6 +55,7 @@
       "records": "Top-up Records"
     },
     "records": {
+      "title": "Top-up Orders",
       "refresh": "Refresh",
       "order_title": "Order Records",
       "order_empty": "No order records yet",

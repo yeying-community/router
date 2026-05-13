@@ -55,6 +55,7 @@
       "records": "充值记录"
     },
     "records": {
+      "title": "充值订单",
       "refresh": "刷新",
       "order_title": "订单记录",
       "order_empty": "暂无订单记录",

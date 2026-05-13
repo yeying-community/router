@@ -8,6 +8,7 @@ import {
   AppSection,
   AppTable,
   AppTag,
+  AppToolbar,
   AppTooltip,
 } from '../../router-ui';
 import {
