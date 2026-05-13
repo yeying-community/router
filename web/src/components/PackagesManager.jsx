@@ -22,7 +22,6 @@ import {
   AppFormRow,
   AppInput,
   AppInputNumber,
-  AppMenuDropdown,
   AppModal,
   AppPagination,
   AppSelect,
@@ -537,8 +536,12 @@ const PackagesManager = () => {
   const renderTable = () => (
     <>
       <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'business', label: t('header.business_operation') },
+          { key: 'package', label: t('header.package'), active: true },
+        ]}
         title={t('header.package')}
-        meta={`${rows.length} / ${totalCount}`}
         actions={
           <div className='router-list-toolbar-actions'>
             <AppButton
@@ -704,27 +707,17 @@ const PackagesManager = () => {
                   >
                   {t('package_manage.buttons.edit')}
                 </AppButton>
-                  <AppMenuDropdown
+                  <AppButton
+                    type='button'
+                    className='router-inline-button'
+                    color='red'
                     disabled={submitting}
-                    items={[
-                      {
-                        key: 'delete',
-                        label: t('package_manage.buttons.delete'),
-                        danger: true,
-                        onClick: () => {
-                          openDeleteModal(row);
-                        },
-                      },
-                    ]}
+                    onClick={() => {
+                      openDeleteModal(row);
+                    }}
                   >
-                    <AppButton
-                      type='button'
-                      className='router-inline-button'
-                      disabled={submitting}
-                    >
-                      {t('common.operation')}
-                    </AppButton>
-                  </AppMenuDropdown>
+                    {t('package_manage.buttons.delete')}
+                  </AppButton>
                 </div>
               ),
             },

@@ -324,7 +324,6 @@ const RedemptionsTable = () => {
       <AppFilterHeader
         className='router-block-gap-md'
         title={t('header.redemption')}
-        meta={`${redemptions.filter((row) => !row?.deleted).length} / ${totalCount}`}
         actions={
           <div className='router-list-toolbar-actions'>
             <AppButton

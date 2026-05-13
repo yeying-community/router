@@ -731,6 +731,19 @@ const LogsTable = () => {
   return (
     <>
       <AppFilterHeader
+        breadcrumbs={[
+          {
+            key: 'workspace',
+            label: isAdminScope
+              ? t('header.admin_workspace')
+              : t('header.user_workspace'),
+          },
+          {
+            key: 'section',
+            label: isAdminScope ? t('header.platform_operation') : t('header.records'),
+          },
+          { key: 'log', label: t('header.log'), active: true },
+        ]}
         title={t('header.log')}
         picker={
             <AppPopover
@@ -906,7 +919,7 @@ const LogsTable = () => {
         endClassName='router-log-query-wrap'
       />
       <AppTable
-        className='router-list-table'
+        className='router-list-table router-log-table'
         pagination={false}
         rowKey={(log) =>
           log.id ||

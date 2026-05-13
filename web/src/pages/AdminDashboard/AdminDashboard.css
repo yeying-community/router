@@ -233,10 +233,10 @@
 
 @media (max-width: 768px) {
   .admin-dashboard-toolbar.router-log-toolbar {
-    flex-wrap: wrap;
+    align-items: stretch;
   }
 
-  .admin-dashboard-toolbar.router-log-toolbar > .router-toolbar-end {
+  .admin-dashboard-toolbar.router-log-toolbar .router-filter-toolbar-actions {
     flex-wrap: wrap !important;
     width: 100%;
     justify-content: flex-start;

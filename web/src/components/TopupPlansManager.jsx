@@ -267,14 +267,14 @@ const TopupPlansManager = () => {
         title={t('topup.manage.title')}
         titleClassName='router-ui-section-title'
         actions={
-          <>
-          <AppButton className='router-section-button' color='blue' onClick={openCreate}>
-            {t('common.add')}
-          </AppButton>
-          <AppButton className='router-section-button' onClick={() => loadPlans()} loading={loading}>
-            {t('common.refresh')}
-          </AppButton>
-          </>
+          <div className='router-list-toolbar-actions'>
+            <AppButton className='router-page-button' color='blue' onClick={openCreate}>
+              {t('common.add')}
+            </AppButton>
+            <AppButton className='router-page-button' onClick={() => loadPlans()} loading={loading}>
+              {t('common.refresh')}
+            </AppButton>
+          </div>
         }
       />
 

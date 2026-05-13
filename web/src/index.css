@@ -9,7 +9,7 @@ body {
 }
 
 :root {
-    --router-shell-horizontal-padding: 12px;
+    --router-shell-horizontal-padding: 24px;
     --router-font-family: 'Helvetica Neue', Arial, Helvetica, "Microsoft YaHei", sans-serif;
     --router-font-weight-normal: 400;
     --router-font-weight-medium: 500;
@@ -210,11 +210,22 @@ body,
 }
 
 .router-admin-main {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     max-width: none !important;
     width: auto !important;
     margin: 0 !important;
-    padding: 0 0 0 6px !important;
+    padding: 20px 24px 40px !important;
+    box-sizing: border-box;
+}
+
+.router-admin-main > .dashboard-container {
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0;
+    background-color: transparent;
+    box-sizing: border-box;
 }
 
 .router-ui-sider.router-admin-sidebar .ant-layout-sider-children {
@@ -349,12 +360,13 @@ body,
 .router-header-container {
     width: 100%;
     max-width: 1200px;
-    padding: 0;
+    padding: 0 var(--router-shell-horizontal-padding);
     min-height: 52px;
     margin: 0 auto;
     display: flex;
     align-items: center;
     gap: 12px;
+    box-sizing: border-box;
 }
 
 .router-header-brand {
@@ -903,6 +915,8 @@ body,
     line-height: 1.4;
 }
 
+.router-ui-input.router-section-input,
+.router-ui-input.router-section-input.ant-input-affix-wrapper,
 .router-ui-input.router-section-input .ant-input,
 .router-ui-input-number.router-section-input .ant-input-number-input {
     font-size: 14px !important;
@@ -911,6 +925,8 @@ body,
     height: 38px !important;
 }
 
+.router-ui-input.router-section-input,
+.router-ui-input.router-section-input.ant-input-affix-wrapper,
 .router-ui-input.router-section-input .ant-input,
 .router-ui-input-number.router-section-input .ant-input-number-input {
     padding-top: 0.68em !important;
@@ -922,6 +938,8 @@ body,
     opacity: 0.72 !important;
 }
 
+.router-ui-input.router-section-input,
+.router-ui-input.router-section-input.ant-input-affix-wrapper,
 .router-ui-input.router-section-input .ant-input,
 .router-ui-input-number.router-section-input,
 .router-ui-input-number.router-section-input .ant-input-number-input-wrap {
@@ -1476,6 +1494,49 @@ body,
     gap: 12px;
 }
 
+.router-tab-detail-page {
+    --router-tab-toolbar-control-height: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.router-tab-detail-page > .router-entity-detail-tabs {
+    margin-bottom: 0 !important;
+}
+
+.router-tab-detail-page > .router-entity-detail-tabs + .router-provider-detail-section,
+.router-tab-detail-page > .router-entity-detail-tabs + .router-entity-detail-section,
+.router-tab-detail-page > .router-entity-detail-tabs + .router-page-stack,
+.router-tab-detail-page > .router-entity-detail-tabs + .router-filter-header,
+.router-tab-detail-page > .router-entity-detail-tabs + .router-log-toolbar {
+    margin-top: 0 !important;
+}
+
+.router-tab-detail-page .router-provider-detail-section,
+.router-tab-detail-page .router-entity-detail-section {
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+
+.router-tab-detail-page .router-provider-detail-section.ant-card,
+.router-tab-detail-page .router-entity-detail-section.ant-card {
+    border: none;
+    background: transparent;
+}
+
+.router-tab-detail-page .router-provider-detail-section.ant-card .ant-card-body,
+.router-tab-detail-page .router-entity-detail-section.ant-card .ant-card-body {
+    padding: 0;
+}
+
+.router-tab-detail-page .router-provider-detail-section.ant-card:hover,
+.router-tab-detail-page .router-entity-detail-section.ant-card:hover {
+    border-color: transparent;
+}
+
 .router-provider-detail-section,
 .router-entity-detail-section {
     border: 1px solid rgba(34, 36, 38, 0.08);
@@ -1523,6 +1584,7 @@ body,
     gap: 12px;
     flex-wrap: wrap;
     margin-bottom: 12px;
+    min-width: 0;
 }
 
 .router-ui-section-title {
@@ -1531,6 +1593,18 @@ body,
     font-weight: 600;
     color: #1f2937;
     margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.router-ui-section-extra {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .router-ui-section-body,
@@ -1569,6 +1643,98 @@ body,
     line-height: 1.2 !important;
     min-height: 30px !important;
     padding: 0.54em 0.82em !important;
+}
+
+.router-tab-detail-page .router-filter-toolbar {
+    --router-filter-toolbar-control-height: var(--router-tab-toolbar-control-height);
+}
+
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-button,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-button,
+.router-tab-detail-page .router-filter-toolbar .router-ui-button.router-page-button,
+.router-tab-detail-page .router-filter-toolbar .router-ui-button.router-section-button,
+.router-tab-detail-page .router-filter-toolbar .router-ui-button.router-inline-button {
+    min-height: var(--router-tab-toolbar-control-height) !important;
+    height: var(--router-tab-toolbar-control-height) !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-header-search,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-header-search.ant-input-affix-wrapper,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-header-search .ant-input,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-input,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-input.ant-input-affix-wrapper,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-input .ant-input,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-header-search,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-header-search.ant-input-affix-wrapper,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-header-search .ant-input,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-input,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-input.ant-input-affix-wrapper,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-input .ant-input,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-select.router-section-dropdown,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-select.router-section-dropdown .ant-select-selector,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-select.router-mini-dropdown,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-select.router-mini-dropdown .ant-select-selector,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-select.router-section-dropdown,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-select.router-section-dropdown .ant-select-selector,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-select.router-mini-dropdown,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-select.router-mini-dropdown .ant-select-selector,
+.router-tab-detail-page .router-filter-toolbar .router-ui-input.router-inline-input,
+.router-tab-detail-page .router-filter-toolbar .router-ui-input.router-inline-input.ant-input-affix-wrapper,
+.router-tab-detail-page .router-filter-toolbar .router-ui-input.router-inline-input .ant-input,
+.router-tab-detail-page .router-filter-toolbar .router-ui-select.router-mini-dropdown,
+.router-tab-detail-page .router-filter-toolbar .router-ui-select.router-mini-dropdown .ant-select-selector,
+.router-tab-detail-page .router-filter-toolbar .router-ui-select.router-section-dropdown,
+.router-tab-detail-page .router-filter-toolbar .router-ui-select.router-section-dropdown .ant-select-selector {
+    min-height: var(--router-tab-toolbar-control-height) !important;
+    height: var(--router-tab-toolbar-control-height) !important;
+}
+
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-select.router-section-dropdown .ant-select-selector,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-select.router-mini-dropdown .ant-select-selector,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-select.router-section-dropdown .ant-select-selector,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-select.router-mini-dropdown .ant-select-selector,
+.router-tab-detail-page .router-filter-toolbar .router-ui-select.router-section-dropdown .ant-select-selector,
+.router-tab-detail-page .router-filter-toolbar .router-ui-select.router-mini-dropdown .ant-select-selector {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-select.router-section-dropdown .ant-select-selection-item,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-select.router-section-dropdown .ant-select-selection-placeholder,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-select.router-mini-dropdown .ant-select-selection-item,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-select.router-mini-dropdown .ant-select-selection-placeholder,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-select.router-section-dropdown .ant-select-selection-item,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-select.router-section-dropdown .ant-select-selection-placeholder,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-select.router-mini-dropdown .ant-select-selection-item,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-select.router-mini-dropdown .ant-select-selection-placeholder,
+.router-tab-detail-page .router-filter-toolbar .router-ui-select.router-section-dropdown .ant-select-selection-item,
+.router-tab-detail-page .router-filter-toolbar .router-ui-select.router-section-dropdown .ant-select-selection-placeholder,
+.router-tab-detail-page .router-filter-toolbar .router-ui-select.router-mini-dropdown .ant-select-selection-item,
+.router-tab-detail-page .router-filter-toolbar .router-ui-select.router-mini-dropdown .ant-select-selection-placeholder {
+    line-height: calc(var(--router-tab-toolbar-control-height) - 2px) !important;
+}
+
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-header-search,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-header-search.ant-input-affix-wrapper,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-header-search .ant-input,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-input,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-input.ant-input-affix-wrapper,
+.router-tab-detail-page .router-provider-detail-section-header .router-ui-input.router-section-input .ant-input,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-header-search,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-header-search.ant-input-affix-wrapper,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-header-search .ant-input,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-input,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-input.ant-input-affix-wrapper,
+.router-tab-detail-page .router-entity-detail-section-header .router-ui-input.router-section-input .ant-input,
+.router-tab-detail-page .router-filter-toolbar .router-ui-input.router-inline-input,
+.router-tab-detail-page .router-filter-toolbar .router-ui-input.router-inline-input.ant-input-affix-wrapper,
+.router-tab-detail-page .router-filter-toolbar .router-ui-input.router-inline-input .ant-input {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
 }
 
 .router-entity-detail-subsection-title {
@@ -2065,6 +2231,25 @@ body,
     align-items: center;
 }
 
+.router-topup-balance-actions {
+    display: grid;
+    align-items: center;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    margin-top: 12px;
+}
+
+.router-topup-balance-action-button {
+    width: 100% !important;
+}
+
+@media (max-width: 640px) {
+    .router-topup-balance-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
 .router-section-title-strong {
     margin: 0;
     font-weight: 700;
@@ -2161,6 +2346,12 @@ body,
     gap: 1rem;
 }
 
+.router-service-pricing-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
 .router-service-pricing-title {
     color: #111827;
     font-weight: 700;
@@ -2204,6 +2395,20 @@ body,
 .router-service-pricing-mode-body {
     color: #1f2937;
     line-height: 1.7;
+}
+
+.router-pricing-section-hint {
+    margin-bottom: 0.95rem;
+    line-height: 1.65;
+    color: rgba(31, 41, 55, 0.72);
+}
+
+.router-pricing-section-hint-package {
+    color: rgba(29, 78, 216, 0.78);
+}
+
+.router-pricing-section-hint-balance {
+    color: rgba(21, 128, 61, 0.78);
 }
 
 .router-package-purchase-price {
@@ -2420,6 +2625,7 @@ body,
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
+    min-width: 0;
 }
 
 .router-toolbar-start,
@@ -2428,6 +2634,7 @@ body,
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
+    min-width: 0;
 }
 
 .router-toolbar-start > .field,
@@ -2442,8 +2649,14 @@ body,
 .router-list-toolbar-actions {
     display: inline-flex;
     align-items: center;
-    flex-wrap: wrap;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
     gap: 8px;
+    max-width: 100%;
+}
+
+.router-list-toolbar-actions .router-ui-button {
+    white-space: nowrap;
 }
 
 .router-list-toolbar-query {
@@ -2474,8 +2687,8 @@ body,
     gap: 6px;
     margin-bottom: 6px;
     font-size: 0.92857143em;
-    font-weight: 700;
-    color: rgba(0, 0, 0, 0.87);
+    font-weight: 500;
+    color: rgba(31, 35, 41, 0.68);
 }
 
 .router-ui-field-control {
@@ -2518,35 +2731,105 @@ body,
 }
 
 .router-log-toolbar {
-    flex-wrap: nowrap;
+    --router-filter-toolbar-control-height: 36px;
+    --router-log-query-control-height: 36px;
+    display: flex;
+    flex-direction: column;
     align-items: stretch;
     gap: 8px;
-}
-
-.router-log-query-wrap {
-    flex: 1 1 460px;
-    min-width: 320px;
-    display: flex;
-    align-items: stretch;
-    flex-wrap: nowrap !important;
-    gap: 6px;
-}
-
-.router-log-toolbar-start {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: stretch;
-    gap: 6px;
-}
-
-.router-log-toolbar > .router-toolbar-end {
-    flex-wrap: nowrap !important;
     min-width: 0;
 }
 
-.router-log-toolbar .router-section-button {
-    min-height: 38px !important;
-    height: 38px !important;
+.router-filter-header-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+.router-filter-toolbar {
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.router-filter-toolbar-query {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.router-filter-toolbar-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+.router-log-query-wrap {
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-wrap: nowrap !important;
+}
+
+.router-filter-toolbar .router-ui-button.router-page-button,
+.router-filter-toolbar .router-ui-button.router-section-button {
+    min-height: var(--router-filter-toolbar-control-height) !important;
+    height: var(--router-filter-toolbar-control-height) !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+.router-filter-toolbar .router-ui-input.router-section-input,
+.router-filter-toolbar .router-ui-input.router-section-input.ant-input-affix-wrapper,
+.router-filter-toolbar .router-ui-input.router-section-input .ant-input,
+.router-filter-toolbar .router-ui-input-number.router-section-input,
+.router-filter-toolbar .router-ui-input-number.router-section-input .ant-input-number-input,
+.router-filter-toolbar .router-ui-select.router-section-dropdown,
+.router-filter-toolbar .router-ui-select.router-section-dropdown .ant-select-selector {
+    min-height: var(--router-filter-toolbar-control-height) !important;
+    height: var(--router-filter-toolbar-control-height) !important;
+}
+
+.router-filter-toolbar .router-ui-input.router-section-input,
+.router-filter-toolbar .router-ui-input.router-section-input.ant-input-affix-wrapper,
+.router-filter-toolbar .router-ui-input.router-section-input .ant-input {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.router-page-header-start {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+}
+
+.router-page-header-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+.router-page-header-breadcrumb {
+    min-width: 0;
+}
+
+.router-filter-toolbar .router-section-button,
+.router-filter-toolbar .router-page-button {
     white-space: nowrap;
 }
 
@@ -2570,17 +2853,18 @@ body,
 
 .router-log-query-box {
     width: 100%;
-    min-height: 38px;
+    min-height: var(--router-log-query-control-height);
+    height: var(--router-log-query-control-height);
     border: 1px solid rgba(34, 36, 38, 0.15);
     border-radius: 9px;
     background: #fff;
-    padding: 5px 8px;
+    padding: 3px 8px;
     display: flex;
     align-items: center;
 }
 
 .router-log-query-box-inline {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-width: 0;
 }
 
@@ -2596,13 +2880,16 @@ body,
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: thin;
+    width: 100%;
+    min-height: calc(var(--router-log-query-control-height) - 8px);
 }
 
 .router-log-filter-chip {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    min-height: 26px;
+    min-height: calc(var(--router-log-query-control-height) - 10px);
+    height: calc(var(--router-log-query-control-height) - 10px);
     padding: 3px 7px;
     border-radius: 7px;
     background: rgba(15, 23, 42, 0.05);
@@ -2617,7 +2904,7 @@ body,
 
 .router-log-filter-chip-label {
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 500;
     color: rgba(15, 23, 42, 0.72);
     white-space: nowrap;
 }
@@ -2639,6 +2926,7 @@ body,
     font-size: 13px;
     line-height: 1.35;
     min-width: 80px;
+    height: calc(var(--router-log-query-control-height) - 10px);
     color: #1f2937;
 }
 
@@ -2672,13 +2960,27 @@ body,
     display: inline-flex;
     align-items: center;
     min-width: 120px;
-    flex: 1 0 140px;
-    min-height: 28px;
+    flex: 0 0 180px;
+    min-height: calc(var(--router-log-query-control-height) - 10px);
+    height: calc(var(--router-log-query-control-height) - 10px);
 }
 
 .router-log-search-input input {
     width: 100%;
-    height: 28px;
+    height: calc(var(--router-log-query-control-height) - 10px);
+}
+
+.router-ui-table.router-log-table .ant-table-tbody > tr > td {
+    font-weight: 400 !important;
+}
+
+.router-ui-table.router-log-table .router-ui-tag.router-tag {
+    font-weight: 400 !important;
+}
+
+.router-ui-table.router-log-table code {
+    font-family: var(--router-font-family) !important;
+    font-weight: 400 !important;
 }
 
 .router-log-filter-editor {
@@ -3196,6 +3498,22 @@ body,
     width: 280px;
 }
 
+.router-channel-action-cell {
+    width: 170px !important;
+    max-width: 170px;
+}
+
+.router-channel-action-cell .router-action-group-tight {
+    gap: 3px;
+    row-gap: 3px;
+}
+
+.router-channel-action-cell .router-ui-button.router-inline-button {
+    min-height: 26px !important;
+    padding: 0.42em 0.58em !important;
+    font-size: 11px !important;
+}
+
 .router-ui-table.router-list-table .ant-table-thead > tr > th.router-package-name-cell,
 .router-ui-table.router-list-table .ant-table-tbody > tr > td.router-package-name-cell {
     width: 80px !important;
@@ -3515,7 +3833,7 @@ body,
 
 @media screen and (max-width: 768px) {
   :root {
-    --router-shell-horizontal-padding: 8px;
+    --router-shell-horizontal-padding: 12px;
   }
 
   body.header-fixed-active {
@@ -3538,11 +3856,61 @@ body,
   .router-admin-main {
     width: 100% !important;
     max-width: 100% !important;
+    padding: 12px !important;
   }
 
   .router-header-container {
     max-width: 100%;
-    padding: 0 10px;
+    padding: 0 var(--router-shell-horizontal-padding);
+  }
+
+  .router-ui-section-header {
+    align-items: stretch;
+  }
+
+  .router-ui-section-title,
+  .router-ui-section-extra {
+    flex: 1 1 100%;
+  }
+
+  .router-ui-section-extra {
+    justify-content: flex-start;
+  }
+
+  .router-log-toolbar,
+  .router-filter-toolbar,
+  .router-filter-toolbar-query,
+  .router-filter-toolbar-actions {
+    align-items: stretch;
+  }
+
+  .router-filter-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .router-filter-toolbar-query,
+  .router-filter-toolbar-actions {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .router-filter-toolbar-query,
+  .router-list-toolbar-actions,
+  .router-list-toolbar-query {
+    justify-content: flex-start;
+  }
+
+  .router-log-query-wrap {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
+    flex-wrap: wrap !important;
+  }
+
+  .router-list-toolbar-query-compact,
+  .router-search-form-xs,
+  .router-dropdown-min-170 {
+    width: 100%;
   }
 
   .router-settings-menu-column {
@@ -3564,7 +3932,7 @@ body,
     width: auto !important;
     max-width: none !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 12px !important;
   }
 
   .router-ui-table .ant-table {
@@ -3576,12 +3944,12 @@ body,
 /* 小屏笔记本 (13-14寸) */
 @media screen and (min-width: 769px) and (max-width: 1366px) {
   :root {
-    --router-shell-horizontal-padding: 12px;
+    --router-shell-horizontal-padding: 24px;
   }
 
   .router-header-container {
     max-width: 100%;
-    padding: 0 24px;
+    padding: 0 var(--router-shell-horizontal-padding);
   }
 
   .main-content {
@@ -3596,7 +3964,7 @@ body,
     width: auto !important;
     max-width: none !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 20px 24px 40px !important;
   }
 
   .router-ui-table .ant-table {
@@ -3607,12 +3975,12 @@ body,
 /* 大屏幕 */
 @media screen and (min-width: 1367px) {
   :root {
-    --router-shell-horizontal-padding: 12px;
+    --router-shell-horizontal-padding: 24px;
   }
 
   .router-header-container {
     max-width: 1200px;
-    padding: 0;
+    padding: 0 var(--router-shell-horizontal-padding);
   }
 
   .main-content {
@@ -3626,7 +3994,7 @@ body,
     width: auto !important;
     max-width: none !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 20px 24px 40px !important;
   }
 }
 

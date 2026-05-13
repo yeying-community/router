@@ -3,14 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
 import {
-  AppBreadcrumb,
   AppButton,
   AppFilterHeader,
   AppFormActions,
-  AppMenuDropdown,
   AppPagination,
   AppPopover,
-  AppSection,
   AppSelect,
   AppTable,
   AppTag,
@@ -835,59 +832,56 @@ const Task = () => {
 
   return (
     <div className='dashboard-container'>
-      <AppSection>
-          {returnPath !== '' ? (
-            <div className='router-entity-detail-breadcrumb router-block-gap-sm'>
-              <AppBreadcrumb
-                items={
-                  isChannelTestHistoryContext
-                    ? [
-                        {
-                          key: 'channel-list',
-                          label: t('header.channel'),
-                          onClick: (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            goToChannelList();
-                          },
-                        },
-                        {
-                          key: 'task-origin',
-                          label: contextLabel || returnLabel || '-',
-                          onClick: (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            goBackToOrigin();
-                          },
-                        },
-                        {
-                          key: 'task-current',
-                          label: pageTitle,
-                          active: true,
-                        },
-                      ]
-                    : [
-                        {
-                          key: 'task-origin',
-                          label: returnLabel || t('header.channel'),
-                          onClick: (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            goBackToOrigin();
-                          },
-                        },
-                        {
-                          key: 'task-current',
-                          label: pageTitle,
-                          active: true,
-                        },
-                      ]
-                }
-              />
-            </div>
-          ) : null}
-          <AppFilterHeader
-            title={!isChannelTestHistoryContext ? pageTitle : null}
+      {returnPath !== '' ? (
+        <AppFilterHeader
+          breadcrumbs={
+            isChannelTestHistoryContext
+              ? [
+                  {
+                    key: 'channel-list',
+                    label: t('header.channel'),
+                    onClick: (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      goToChannelList();
+                    },
+                  },
+                  {
+                    key: 'task-origin',
+                    label: contextLabel || returnLabel || '-',
+                    onClick: (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      goBackToOrigin();
+                    },
+                  },
+                  {
+                    key: 'task-current',
+                    label: pageTitle,
+                    active: true,
+                  },
+                ]
+              : [
+                  {
+                    key: 'task-origin',
+                    label: returnLabel || t('header.channel'),
+                    onClick: (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      goBackToOrigin();
+                    },
+                  },
+                  {
+                    key: 'task-current',
+                    label: pageTitle,
+                    active: true,
+                  },
+                ]
+          }
+        />
+      ) : null}
+      <AppFilterHeader
+            title={returnPath === '' ? pageTitle : undefined}
             titleClassName='router-ui-section-title'
             picker={
               <AppPopover
@@ -1042,9 +1036,9 @@ const Task = () => {
               </>
             }
             endClassName='router-log-query-wrap'
-          />
+      />
 
-          <AppTable
+      <AppTable
             className='router-list-table'
             pagination={false}
             rowKey={(item) => getTaskId(item)}
@@ -1186,33 +1180,26 @@ const Task = () => {
                       >
                         {t('common.download')}
                       </AppButton>
-                      <AppMenuDropdown
-                        items={[
-                          {
-                            key: 'retry',
-                            label: t('task.buttons.retry'),
-                            disabled: !canRetry,
-                            onClick: () => {
-                              handleRetryTask(taskId);
-                            },
-                          },
-                          {
-                            key: 'cancel',
-                            label: t('task.buttons.cancel'),
-                            disabled: !canCancel,
-                            onClick: () => {
-                              handleCancelTask(taskId);
-                            },
-                          },
-                        ]}
+                      <AppButton
+                        type='button'
+                        className='router-inline-button'
+                        disabled={!canRetry}
+                        onClick={() => {
+                          handleRetryTask(taskId);
+                        }}
                       >
-                        <AppButton
-                          type='button'
-                          className='router-inline-button'
-                        >
-                          {t('common.operation')}
-                        </AppButton>
-                      </AppMenuDropdown>
+                        {t('task.buttons.retry')}
+                      </AppButton>
+                      <AppButton
+                        type='button'
+                        className='router-inline-button'
+                        disabled={!canCancel}
+                        onClick={() => {
+                          handleCancelTask(taskId);
+                        }}
+                      >
+                        {t('task.buttons.cancel')}
+                      </AppButton>
                     </div>
                   );
                 },
@@ -1243,7 +1230,6 @@ const Task = () => {
               />
             )}
           />
-      </AppSection>
     </div>
   );
 };

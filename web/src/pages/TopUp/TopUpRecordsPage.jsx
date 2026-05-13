@@ -17,6 +17,7 @@ import {
   useTopUpWorkspace,
   renderTopupOrderStatus,
 } from './shared.jsx';
+import RedeemCodePage from './RedeemCodePage';
 
 const PAGE_SIZE = 10;
 
@@ -36,6 +37,7 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
   const [redemptionPage, setRedemptionPage] = useState(1);
   const [redemptionTotal, setRedemptionTotal] = useState(0);
   const [loadingRedemptionRecords, setLoadingRedemptionRecords] = useState(false);
+  const [redeemModalOpen, setRedeemModalOpen] = useState(false);
 
   const currentBusinessType = useMemo(() => {
     if (recordKey === 'package') {
@@ -272,7 +274,7 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
       case 'redeem':
         return {
           label: t('topup.record_nav.redeem'),
-          onClick: () => navigate('/workspace/topup?tab=balance'),
+          onClick: () => setRedeemModalOpen(true),
         };
       case 'topup':
       default:
@@ -375,49 +377,46 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
         title: t('topup.external_topup_orders.columns.action'),
         key: 'action',
         render: (_, order) => (
-          <AppToolbar
-            className='router-toolbar-compact'
-            startClassName='router-block-gap-xs'
-            start={
+          <div className='router-action-group-tight'>
+            <AppButton
+              className='router-inline-button'
+              onClick={(event) => {
+                event.stopPropagation();
+                manualRefreshOrder(order.id);
+              }}
+              loading={refreshingOrderID === order.id}
+              disabled={refreshingOrderID === order.id}
+            >
+              {t('topup.records.refresh_status')}
+            </AppButton>
+            {['created', 'pending'].includes(order.status) ? (
               <>
                 <AppButton
+                  className='router-inline-button'
+                  color='blue'
                   onClick={(event) => {
                     event.stopPropagation();
-                    manualRefreshOrder(order.id);
+                    continuePay(order);
                   }}
                   loading={refreshingOrderID === order.id}
                   disabled={refreshingOrderID === order.id}
                 >
-                  {t('topup.records.refresh_status')}
+                  {t('topup.records.continue_pay')}
                 </AppButton>
-                {['created', 'pending'].includes(order.status) ? (
-                  <>
-                    <AppButton
-                      color='blue'
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        continuePay(order);
-                      }}
-                      loading={refreshingOrderID === order.id}
-                      disabled={refreshingOrderID === order.id}
-                    >
-                      {t('topup.records.continue_pay')}
-                    </AppButton>
-                    <AppButton
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        cancelPay(order.id);
-                      }}
-                      loading={refreshingOrderID === order.id}
-                      disabled={refreshingOrderID === order.id}
-                    >
-                      {t('topup.records.cancel_pay')}
-                    </AppButton>
-                  </>
-                ) : null}
+                <AppButton
+                  className='router-inline-button'
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    cancelPay(order.id);
+                  }}
+                  loading={refreshingOrderID === order.id}
+                  disabled={refreshingOrderID === order.id}
+                >
+                  {t('topup.records.cancel_pay')}
+                </AppButton>
               </>
-            }
-          />
+            ) : null}
+          </div>
         ),
       },
     ],
@@ -434,87 +433,94 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
   );
 
   return (
-    <AppSection
-      title={
-        isRedemptionRecord
-          ? t('topup.redemption_records.title', '兑换记录')
-          : isPackageRecord
-            ? t('topup.records.package_title', '套餐订单')
-            : t('topup.records.title', '充值订单')
-      }
-      extra={
-        <>
-        <AppButton
-          color='blue'
-          className='router-section-button'
-          onClick={actionButton.onClick}
-        >
-          {actionButton.label}
-        </AppButton>
-        <AppButton
-          className='router-section-button'
-          onClick={refreshCurrent}
-          loading={loadingOrders || loadingRedemptionRecords}
-        >
-          {t('topup.records.refresh')}
-        </AppButton>
-        </>
-      }
-    >
-      {isRedemptionRecord ? (
+    <>
+      <AppSection
+        title={
+          isRedemptionRecord
+            ? t('topup.redemption_records.title', '兑换记录')
+            : isPackageRecord
+              ? t('topup.records.package_title', '套餐订单')
+              : t('topup.records.title', '充值订单')
+        }
+        extra={
           <>
-            <AppTable
-              className='router-list-table'
-              rowKey={(log) => log.id || log.trace_id || `${log.created_at}-${log.content}`}
-              pagination={false}
-              loading={loadingRedemptionRecords}
-              locale={{ emptyText: t('topup.redemption_records.empty') }}
-              dataSource={redemptionRecords}
-              columns={redemptionColumns}
-            />
-            {redemptionTotalPages > 1 ? (
-              <div className='router-pagination-wrap-md'>
-                <AppPagination
-                  className='router-section-pagination'
-                  activePage={redemptionPage}
-                  totalPages={redemptionTotalPages}
-                  onPageChange={(_, { activePage: nextActivePage }) => {
-                    setRedemptionPage(Number(nextActivePage) || 1);
-                  }}
-                />
-              </div>
-            ) : null}
+            <AppButton
+              color='blue'
+              className='router-section-button'
+              onClick={actionButton.onClick}
+            >
+              {actionButton.label}
+            </AppButton>
+            <AppButton
+              className='router-section-button'
+              onClick={refreshCurrent}
+              loading={loadingOrders || loadingRedemptionRecords}
+            >
+              {t('topup.records.refresh')}
+            </AppButton>
           </>
-      ) : (
-          <>
-            <AppTable
-              className='router-list-table'
-              rowKey='id'
-              pagination={false}
-              loading={loadingOrders}
-              locale={{ emptyText: t('topup.records.order_empty') }}
-              dataSource={orders}
-              columns={orderColumns}
-              onRow={(order) => ({
-                onClick: () => openOrderDetailPage(order),
-                style: { cursor: 'pointer' },
-              })}
-            />
-            {ordersTotalPages > 1 ? (
-              <div className='router-pagination-wrap-md'>
-                <AppPagination
-                  className='router-section-pagination'
-                  activePage={ordersPage}
-                  totalPages={ordersTotalPages}
-                  onPageChange={(_, { activePage: nextActivePage }) => {
-                    setOrdersPage(Number(nextActivePage) || 1);
-                  }}
-                />
-              </div>
-            ) : null}
-          </>
-      )}
-    </AppSection>
+        }
+      >
+        {isRedemptionRecord ? (
+            <>
+              <AppTable
+                className='router-list-table'
+                rowKey={(log) => log.id || log.trace_id || `${log.created_at}-${log.content}`}
+                pagination={false}
+                loading={loadingRedemptionRecords}
+                locale={{ emptyText: t('topup.redemption_records.empty') }}
+                dataSource={redemptionRecords}
+                columns={redemptionColumns}
+              />
+              {redemptionTotalPages > 1 ? (
+                <div className='router-pagination-wrap-md'>
+                  <AppPagination
+                    className='router-section-pagination'
+                    activePage={redemptionPage}
+                    totalPages={redemptionTotalPages}
+                    onPageChange={(_, { activePage: nextActivePage }) => {
+                      setRedemptionPage(Number(nextActivePage) || 1);
+                    }}
+                  />
+                </div>
+              ) : null}
+            </>
+        ) : (
+            <>
+              <AppTable
+                className='router-list-table'
+                rowKey='id'
+                pagination={false}
+                loading={loadingOrders}
+                locale={{ emptyText: t('topup.records.order_empty') }}
+                dataSource={orders}
+                columns={orderColumns}
+                onRow={(order) => ({
+                  onClick: () => openOrderDetailPage(order),
+                  style: { cursor: 'pointer' },
+                })}
+              />
+              {ordersTotalPages > 1 ? (
+                <div className='router-pagination-wrap-md'>
+                  <AppPagination
+                    className='router-section-pagination'
+                    activePage={ordersPage}
+                    totalPages={ordersTotalPages}
+                    onPageChange={(_, { activePage: nextActivePage }) => {
+                      setOrdersPage(Number(nextActivePage) || 1);
+                    }}
+                  />
+                </div>
+              ) : null}
+            </>
+        )}
+      </AppSection>
+      <RedeemCodePage
+        open={redeemModalOpen}
+        onClose={() => setRedeemModalOpen(false)}
+        onRedeemed={refreshCurrent}
+      />
+    </>
   );
 };
 

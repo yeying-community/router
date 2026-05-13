@@ -131,6 +131,11 @@ func SetApiRouter(engine *gin.Engine) {
 			// 模型列表对所有登录用户开放，方便前端展示供应商/模型
 			publicChannelRoute.GET("/models", middleware.UserAuth(), admin.DashboardListModels)
 		}
+
+		publicProviderRoute := publicRouter.Group("/providers")
+		{
+			publicProviderRoute.GET("/models", middleware.TokenAuth(), channel.GetPublicProviderModels)
+		}
 	}
 
 	publicModelsRouter := engine.Group("/api/v1/public/models")

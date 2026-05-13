@@ -3,7 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { API, showError, timestamp2string } from '../../helpers';
 import { renderDisplayAmount, YYC_SYMBOL } from '../../helpers/render';
-import { AppBreadcrumb, AppDetailSection, AppIcon, AppSection, AppTag } from '../../router-ui';
+import {
+  AppDetailSection,
+  AppFilterHeader,
+  AppIcon,
+  AppSection,
+  AppTag,
+} from '../../router-ui';
 
 function renderType(type, t) {
   switch (Number(type)) {
@@ -176,27 +182,29 @@ const LogDetail = () => {
 
   return (
     <div className='dashboard-container'>
+      <AppFilterHeader
+        breadcrumbs={[
+          {
+            key: 'workspace',
+            label: isAdminPage
+              ? t('header.admin_workspace')
+              : t('header.user_workspace'),
+          },
+          {
+            key: 'log-list',
+            label: t('header.log'),
+            onClick: () => navigate(listPath),
+          },
+          {
+            key: 'log-current',
+            label: renderText(log?.id || id),
+            active: true,
+          },
+        ]}
+        title={t('log.detail.title')}
+      />
       <AppSection>
         <div className='router-entity-detail-page'>
-            <div className='router-entity-detail-breadcrumb'>
-              <div className='router-provider-detail-breadcrumb'>
-                <AppBreadcrumb
-                  items={[
-                    {
-                      key: 'log-list',
-                      label: t('header.log'),
-                      onClick: () => navigate(listPath),
-                    },
-                    {
-                      key: 'log-current',
-                      label: renderText(log?.id || id),
-                      active: true,
-                    },
-                  ]}
-                />
-              </div>
-            </div>
-
             {loading ? (
               <div className='router-empty-cell'>{t('common.loading')}</div>
             ) : (

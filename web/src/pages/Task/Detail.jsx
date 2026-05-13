@@ -8,10 +8,10 @@ import {
 } from 'react-router-dom';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
 import {
-  AppBreadcrumb,
   AppButton,
   AppDetailSection,
   AppField,
+  AppFilterHeader,
   AppFormRow,
   AppInput,
   AppSection,
@@ -377,61 +377,66 @@ const TaskDetail = () => {
       : '';
   const isChannelTestHistoryContext =
     contextType === 'channel_test_history' && originPath !== '';
+  const breadcrumbItems = isChannelTestHistoryContext
+    ? [
+        {
+          key: 'workspace',
+          label: isAdminPage ? t('header.admin_workspace') : t('header.user_workspace'),
+        },
+        {
+          key: 'channel-list',
+          label: t('header.channel'),
+          onClick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            goToChannelList();
+          },
+        },
+        {
+          key: 'channel-origin',
+          label: originLabel || contextLabel || '-',
+          onClick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            goBackToOrigin();
+          },
+        },
+        {
+          key: 'task-list',
+          label: returnLabel || t('channel.edit.model_tester.history_tasks'),
+          onClick: backToList,
+        },
+        {
+          key: 'task-current',
+          label: task?.id || id,
+          active: true,
+        },
+      ]
+    : [
+        {
+          key: 'workspace',
+          label: isAdminPage ? t('header.admin_workspace') : t('header.user_workspace'),
+        },
+        {
+          key: 'task-list',
+          label: returnLabel || t('header.task'),
+          onClick: backToList,
+        },
+        {
+          key: 'task-current',
+          label: task?.id || id,
+          active: true,
+        },
+      ];
 
   return (
     <div className='dashboard-container'>
+      <AppFilterHeader
+        breadcrumbs={breadcrumbItems}
+        title={returnLabel || t('header.task')}
+      />
       <AppSection>
         <div className='router-entity-detail-page'>
-            <div className='router-entity-detail-breadcrumb'>
-              <AppBreadcrumb
-                items={
-                  isChannelTestHistoryContext
-                    ? [
-                        {
-                          key: 'channel-list',
-                          label: t('header.channel'),
-                          onClick: (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            goToChannelList();
-                          },
-                        },
-                        {
-                          key: 'channel-origin',
-                          label: originLabel || contextLabel || '-',
-                          onClick: (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            goBackToOrigin();
-                          },
-                        },
-                        {
-                          key: 'task-list',
-                          label: returnLabel || t('channel.edit.model_tester.history_tasks'),
-                          onClick: backToList,
-                        },
-                        {
-                          key: 'task-current',
-                          label: task?.id || id,
-                          active: true,
-                        },
-                      ]
-                    : [
-                        {
-                          key: 'task-list',
-                          label: returnLabel || t('header.task'),
-                          onClick: backToList,
-                        },
-                        {
-                          key: 'task-current',
-                          label: task?.id || id,
-                          active: true,
-                        },
-                      ]
-                }
-              />
-            </div>
-
             <AppDetailSection
               className='router-detail-section'
               title={t('common.basic_info')}

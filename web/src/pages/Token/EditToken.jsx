@@ -15,7 +15,6 @@ import {
 } from '../../helpers';
 import { renderAmountEquivalentPrompt } from '../../helpers/render';
 import {
-  AppBreadcrumb,
   AppButton,
   AppDetailSection,
   AppField,
@@ -433,6 +432,25 @@ const EditToken = () => {
 
   return (
     <div className='dashboard-container'>
+      {isDetailMode ? (
+        <AppFilterHeader
+          breadcrumbs={[
+            { key: 'workspace', label: t('header.user_workspace') },
+            { key: 'mine', label: t('header.mine') },
+            {
+              key: 'token-list',
+              label: t('header.token'),
+              onClick: handleBack,
+            },
+            {
+              key: 'token-current',
+              label: inputs.name || renderShortToken(inputs.key) || tokenId,
+              active: true,
+            },
+          ]}
+          title={t('token.detail.title')}
+        />
+      ) : null}
       <AppSection
         title={isCreateMode ? t('token.edit.title_create') : undefined}
       >
@@ -591,22 +609,6 @@ const EditToken = () => {
             </>
           ) : (
             <div className='router-entity-detail-page'>
-              <div className='router-entity-detail-breadcrumb'>
-                <AppBreadcrumb
-                  items={[
-                    {
-                      key: 'token-list',
-                      label: t('header.token'),
-                      onClick: handleBack,
-                    },
-                    {
-                      key: 'token-current',
-                      label: inputs.name || renderShortToken(inputs.key) || tokenId,
-                      active: true,
-                    },
-                  ]}
-                />
-              </div>
               <AppDetailSection
                 title={t('common.basic_info')}
                 headerStart={renderStatus(Number(inputs.status || 0))}

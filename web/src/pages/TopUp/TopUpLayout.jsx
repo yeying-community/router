@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import BalanceStatusPage from './BalanceStatusPage';
 import CurrentPackagePage from './CurrentPackagePage';
@@ -9,8 +10,10 @@ import {
   sanitizeTopUpSearchParams,
 } from './shared.jsx';
 import TopUpWorkspaceProvider from './provider.jsx';
+import { AppFilterHeader } from '../../router-ui';
 
 const TopUpLayout = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const searchParamsString = searchParams.toString();
@@ -62,9 +65,35 @@ const TopUpLayout = () => {
     }
   }, [activeKey, activeRecord]);
 
+  const activeTitle = useMemo(() => {
+    if (activeKey === 'package') {
+      return t('topup.mine.package');
+    }
+    if (activeKey === 'records') {
+      switch (activeRecord) {
+        case 'package':
+          return t('topup.records.package_title', '套餐订单');
+        case 'redeem':
+          return t('topup.redemption_records.title', '兑换记录');
+        case 'topup':
+        default:
+          return t('topup.records.title', '充值订单');
+      }
+    }
+    return t('topup.mine.balance');
+  }, [activeKey, activeRecord, t]);
+
   return (
     <TopUpWorkspaceProvider>
       <div className='dashboard-container'>
+        <AppFilterHeader
+          breadcrumbs={[
+            { key: 'workspace', label: t('header.user_workspace') },
+            { key: 'mine', label: t('header.mine') },
+            { key: 'topup', label: activeTitle, active: true },
+          ]}
+          title={activeTitle}
+        />
         {activeContent}
       </div>
     </TopUpWorkspaceProvider>

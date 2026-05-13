@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { timestamp2string } from '../../helpers';
@@ -56,6 +56,7 @@ const renderLotStatus = (status, t) => {
 const BalanceStatusPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [redeemModalOpen, setRedeemModalOpen] = useState(false);
   const {
     userBalanceYYC,
     topupBalanceYYC,
@@ -167,19 +168,28 @@ const BalanceStatusPage = () => {
               />
             </div>
           </div>
-          <div className='router-action-footer'>
+          <div className='router-action-footer router-topup-balance-actions'>
             <AppButton
               color='blue'
-              fluid
-              className='router-section-button'
+              className='router-section-button router-topup-balance-action-button'
               onClick={() => navigate('/workspace/service/pricing')}
             >
               {t('topup.record_nav.topup')}
             </AppButton>
+            <AppButton
+              className='router-section-button router-topup-balance-action-button'
+              onClick={() => setRedeemModalOpen(true)}
+            >
+              {t('topup.record_nav.redeem')}
+            </AppButton>
           </div>
         </div>
       </AppSection>
-      <RedeemCodePage />
+      <RedeemCodePage
+        open={redeemModalOpen}
+        onClose={() => setRedeemModalOpen(false)}
+        onRedeemed={() => loadBalanceLots()}
+      />
       <AppSection
         title={t('topup.balance_lots.title')}
         extra={

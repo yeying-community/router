@@ -15,7 +15,6 @@ import {
   useTopUpWorkspace,
 } from './shared.jsx';
 import {
-  AppBreadcrumb,
   AppButton,
   AppDescriptions,
   AppFilterHeader,
@@ -252,64 +251,58 @@ const TopUpOrderDetailInner = () => {
 
   return (
     <div className='dashboard-container'>
+      <AppFilterHeader
+        breadcrumbs={[
+          { key: 'workspace', label: t('header.user_workspace') },
+          { key: 'records', label: t('header.records') },
+          {
+            key: 'topup-order-list',
+            label: detailPathLabel,
+            onClick: () => navigate(listPath),
+          },
+          {
+            key: 'topup-order-current',
+            label: detailPathOrderID,
+            active: true,
+          },
+        ]}
+        title={detailTitle}
+        actions={
+          <>
+          <AppButton
+            className='router-section-button'
+            onClick={refreshOrderStatus}
+            loading={refreshing}
+            disabled={!order}
+          >
+            {t('topup.records.refresh_status')}
+          </AppButton>
+          {['created', 'pending'].includes(String(order?.status || '').trim()) ? (
+            <>
+              <AppButton
+                color='blue'
+                className='router-section-button'
+                onClick={continuePay}
+                loading={refreshing}
+                disabled={!order}
+              >
+                {t('topup.records.continue_pay')}
+              </AppButton>
+              <AppButton
+                className='router-section-button'
+                onClick={cancelPay}
+                loading={canceling}
+                disabled={!order}
+              >
+                {t('topup.records.cancel_pay')}
+              </AppButton>
+            </>
+          ) : null}
+          </>
+        }
+      />
       <AppSection>
         <div className='router-entity-detail-page'>
-            <div className='router-entity-detail-breadcrumb'>
-              <AppBreadcrumb
-                items={[
-                  {
-                    key: 'topup-order-list',
-                    label: detailPathLabel,
-                    onClick: () => navigate(listPath),
-                  },
-                  {
-                    key: 'topup-order-current',
-                    label: detailPathOrderID,
-                    active: true,
-                  },
-                ]}
-              />
-            </div>
-
-            <AppFilterHeader
-              title={detailTitle}
-              className='router-block-gap-sm'
-              titleClassName='router-detail-section-title'
-              actions={
-                <>
-                <AppButton
-                  className='router-section-button'
-                  onClick={refreshOrderStatus}
-                  loading={refreshing}
-                  disabled={!order}
-                >
-                  {t('topup.records.refresh_status')}
-                </AppButton>
-                {['created', 'pending'].includes(String(order?.status || '').trim()) ? (
-                  <>
-                    <AppButton
-                      color='blue'
-                      className='router-section-button'
-                      onClick={continuePay}
-                      loading={refreshing}
-                      disabled={!order}
-                    >
-                      {t('topup.records.continue_pay')}
-                    </AppButton>
-                    <AppButton
-                      className='router-section-button'
-                      onClick={cancelPay}
-                      loading={canceling}
-                      disabled={!order}
-                    >
-                      {t('topup.records.cancel_pay')}
-                    </AppButton>
-                  </>
-                  ) : null}
-                </>
-              }
-            />
-
             {loading ? (
               <div className='router-empty-cell'>{t('common.loading')}</div>
             ) : (

@@ -21,7 +21,6 @@ import {
   AppIcon,
   AppInput,
   AppInputNumber,
-  AppMenuDropdown,
   AppPagination,
   AppTable,
   AppTooltip,
@@ -497,8 +496,8 @@ const ChannelsTable = () => {
   const allPagedSelected =
     pagedChannelIds.length > 0 &&
     pagedChannelIds.every((id) => selectedChannelIds.includes(id));
-  const inBatchSelectMode = selectionMode !== selectionModeNone;
-  const actionBusy = batchDeleting || batchDisabling;
+  const inBatchSelectMode = false;
+  const actionBusy = loading;
 
   const toggleChannelSelection = (channelId, checked) => {
     setSelectedChannelIds((prev) => {
@@ -546,21 +545,7 @@ const ChannelsTable = () => {
     event.stopPropagation();
   };
 
-  const tableRowSelection = inBatchSelectMode
-    ? {
-        columnWidth: 56,
-        selectedRowKeys: selectedChannelIds,
-        onSelect: (record, selected) => {
-          toggleChannelSelection(record.id, selected);
-        },
-        onSelectAll: (selected) => {
-          togglePagedSelection(selected);
-        },
-        getTitleCheckboxProps: () => ({
-          checked: allPagedSelected,
-        }),
-      }
-    : undefined;
+  const tableRowSelection = undefined;
 
   const collectSelectedTargets = () => {
     return selectedChannelIds
@@ -714,70 +699,22 @@ const ChannelsTable = () => {
   return (
     <>
       <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'resource', label: t('header.resource') },
+          { key: 'channel', label: t('header.channel'), active: true },
+        ]}
         title={t('header.channel')}
-        meta={
-          inBatchSelectMode
-            ? `${t('common.selected')} ${selectedChannelIds.length}`
-            : `${visibleChannels.length} / ${totalChannels}`
-        }
         actions={
           <div className='router-list-toolbar-actions'>
-            {selectionMode === selectionModeNone ? (
-              <>
-                <AppButton
-                  className='router-page-button'
-                  color='blue'
-                  disabled={batchDeleting || batchDisabling}
-                  onClick={() => navigate('/channel/add')}
-                >
-                  {t('channel.buttons.add')}
-                </AppButton>
-                <AppMenuDropdown
-                  items={[
-                    {
-                      key: 'batch-disable',
-                      label: t('channel.buttons.batch_disable'),
-                      onClick: () => setSelectionMode(selectionModeDisable),
-                    },
-                    {
-                      key: 'batch-delete',
-                      label: t('channel.buttons.batch_delete'),
-                      danger: true,
-                      onClick: () => setSelectionMode(selectionModeDelete),
-                    },
-                  ]}
-                >
-                  <AppButton className='router-page-button' disabled={actionBusy}>
-                    {t('channel.buttons.batch_actions')}
-                  </AppButton>
-                </AppMenuDropdown>
-              </>
-            ) : (
-              <>
-                <AppButton
-                  className='router-page-button'
-                  color={selectionMode === selectionModeDelete ? 'red' : undefined}
-                  loading={batchDeleting || batchDisabling}
-                  disabled={batchDeleting || batchDisabling}
-                  onClick={() => {
-                    if (selectionMode === selectionModeDisable) {
-                      confirmBatchDisable();
-                      return;
-                    }
-                    confirmBatchDelete();
-                  }}
-                >
-                  {t('channel.buttons.confirm')}
-                </AppButton>
-                <AppButton
-                  className='router-page-button'
-                  disabled={batchDeleting || batchDisabling}
-                  onClick={cancelBatchSelection}
-                >
-                  {t('channel.buttons.cancel')}
-                </AppButton>
-              </>
-            )}
+            <AppButton
+              className='router-page-button'
+              color='blue'
+              disabled={actionBusy}
+              onClick={() => navigate('/channel/add')}
+            >
+              {t('channel.buttons.add')}
+            </AppButton>
             <AppButton
               className='router-page-button'
               onClick={refresh}
@@ -982,7 +919,7 @@ const ChannelsTable = () => {
           {
             title: t('channel.table.actions'),
             key: 'actions',
-            className: 'router-table-action-cell',
+            className: 'router-table-action-cell router-channel-action-cell',
             render: (_, channel, idx) => (
               <div
                 className='router-action-group-tight'
@@ -1009,27 +946,15 @@ const ChannelsTable = () => {
                 >
                   {t('channel.buttons.copy')}
                 </AppButton>
-                <AppMenuDropdown
-                  items={[
-                    {
-                      key: 'copy',
-                      label: t('channel.buttons.copy'),
-                      onClick: () => navigate(`/channel/add?copy_from=${channel.id}`),
-                    },
-                    {
-                      key: 'delete',
-                      label: t('channel.buttons.delete'),
-                      danger: true,
-                      onClick: () => {
-                        manageChannel(channel.id, 'delete', idx);
-                      },
-                    },
-                  ]}
+                <AppButton
+                  className='router-inline-button'
+                  color='red'
+                  onClick={() => {
+                    manageChannel(channel.id, 'delete', idx);
+                  }}
                 >
-                  <AppButton className='router-inline-button' type='button'>
-                    {t('common.operation')}
-                  </AppButton>
-                </AppMenuDropdown>
+                  {t('channel.buttons.delete')}
+                </AppButton>
               </div>
             ),
           },
@@ -1041,8 +966,8 @@ const ChannelsTable = () => {
           activePage={activePage}
           onPageChange={onPaginationChange}
           siblingRange={1}
-          totalPages={Math.max(1, Math.ceil(totalChannels / ITEMS_PER_PAGE))}
-        />
+        totalPages={Math.max(1, Math.ceil(totalChannels / ITEMS_PER_PAGE))}
+      />
       </div>
     </>
   );

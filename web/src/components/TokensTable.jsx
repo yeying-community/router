@@ -431,8 +431,12 @@ const TokensTable = () => {
   return (
     <>
       <AppFilterHeader
+        breadcrumbs={[
+          { key: 'workspace', label: t('header.user_workspace') },
+          { key: 'mine', label: t('header.mine') },
+          { key: 'token', label: t('header.token'), active: true },
+        ]}
         title={t('header.token')}
-        meta={`${tokens.filter((token) => !token?.deleted).length} / ${totalCount}`}
         actions={
           <div className='router-list-toolbar-actions'>
             <AppButton

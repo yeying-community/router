@@ -17,10 +17,10 @@ import {
 } from '../../helpers/render';
 import UnitDropdown from '../../components/UnitDropdown';
 import {
-  AppBreadcrumb,
   AppButton,
   AppDetailSection,
   AppField,
+  AppFilterHeader,
   AppFormRow,
   AppInput,
   AppInputNumber,
@@ -316,25 +316,25 @@ const RedemptionDetail = () => {
 
   return (
     <div className='dashboard-container'>
+      <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'business', label: t('header.business_operation') },
+          {
+            key: 'redemption-list',
+            label: t('header.redemption'),
+            onClick: handleBack,
+          },
+          {
+            key: 'redemption-current',
+            label: redemption?.name || redemption?.code || id,
+            active: true,
+          },
+        ]}
+        title={t('redemption.detail.title')}
+      />
       <AppSection>
         <div className='router-entity-detail-page'>
-            <div className='router-entity-detail-breadcrumb'>
-              <AppBreadcrumb
-                items={[
-                  {
-                    key: 'redemption-list',
-                    label: t('header.redemption'),
-                    onClick: handleBack,
-                  },
-                  {
-                    key: 'redemption-current',
-                    label: redemption?.name || redemption?.code || id,
-                    active: true,
-                  },
-                ]}
-              />
-            </div>
-
             <AppDetailSection
               title={t('common.basic_info')}
               headerStart={redemption ? renderStatus(redemption.status, t) : null}

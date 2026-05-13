@@ -22,9 +22,6 @@ function AppField({
         <label className='router-ui-field-label'>
           <span>{label}</span>
           {required ? <span className='router-ui-field-required'>*</span> : null}
-          {readOnly ? (
-            <span className='router-ui-field-state'>Read only</span>
-          ) : null}
         </label>
       ) : null}
       {extra ? <div className='router-ui-field-extra'>{extra}</div> : null}

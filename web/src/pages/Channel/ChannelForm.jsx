@@ -29,15 +29,14 @@ import ChannelModelEditorModal from './components/ChannelModelEditorModal';
 import ChannelEndpointPolicyEditorModal from './components/ChannelEndpointPolicyEditorModal';
 import {
   AppAlert,
-  AppBreadcrumb,
   AppButton,
   AppField,
+  AppFilterHeader,
   AppFormActions,
   AppFormRow,
   AppIcon,
   AppInput,
   AppModal,
-  AppSection,
   AppSelect,
   AppSpin,
   AppTabs,
@@ -4388,27 +4387,32 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         normalizeChannelModelType={normalizeChannelModelType}
         handleAppendModelToProvider={handleAppendModelToProvider}
       />
-      <AppSection>
-          {isDetailMode && (
-            <div className='router-entity-detail-breadcrumb router-block-gap-sm'>
-              <div className='router-provider-detail-breadcrumb'>
-                <AppBreadcrumb
-                  items={[
-                    {
-                      key: 'channel-list',
-                      label: t('header.channel'),
-                      onClick: handleBackToChannelList,
-                    },
-                    {
-                      key: 'channel-current',
-                      label: inputs.name || returnChannelLabel || channelId || '-',
-                      active: true,
-                    },
-                  ]}
-                />
-              </div>
-            </div>
-          )}
+      {isDetailMode ? (
+        <AppFilterHeader
+          breadcrumbs={[
+            { key: 'admin', label: t('header.admin_workspace') },
+            { key: 'resource', label: t('header.resource') },
+            {
+              key: 'channel-list',
+              label: t('header.channel'),
+              onClick: handleBackToChannelList,
+            },
+            {
+              key: 'channel-current',
+              label: inputs.name || returnChannelLabel || channelId || '-',
+              active: true,
+            },
+          ]}
+          title={inputs.name || t('channel.edit.title_detail')}
+        />
+      ) : null}
+      <div
+        className={
+          isDetailMode
+            ? 'router-tab-detail-page router-entity-detail-page'
+            : 'router-tab-detail-page'
+        }
+      >
           {isDetailMode && (
             <div className='router-entity-detail-tabs router-block-gap-sm'>
               <AppTabs
@@ -4584,7 +4588,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             )}
             </div>
           </AppSpin>
-      </AppSection>
+      </div>
     </div>
   );
 };

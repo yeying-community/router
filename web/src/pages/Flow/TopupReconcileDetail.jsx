@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { API, showError, timestamp2string } from '../../helpers';
 import {
-  AppBreadcrumb,
   AppButton,
   AppDetailSection,
+  AppFilterHeader,
   AppIcon,
   AppSection,
   AppTag,
@@ -208,25 +208,25 @@ const TopupReconcileDetail = () => {
 
   return (
     <div className='dashboard-container'>
+      <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'flow', label: t('header.business_flow') },
+          {
+            key: 'flow-topup-reconcile-list',
+            label: t('flow.topup_reconcile.title'),
+            onClick: () => navigate(listPath),
+          },
+          {
+            key: 'flow-topup-reconcile-current',
+            label: readOnlyText(order?.id || id),
+            active: true,
+          },
+        ]}
+        title={t('flow.topup_reconcile.title')}
+      />
       <AppSection>
         <div className='router-entity-detail-page'>
-            <div className='router-entity-detail-breadcrumb'>
-              <AppBreadcrumb
-                items={[
-                  {
-                    key: 'flow-topup-reconcile-list',
-                    label: t('flow.topup_reconcile.title'),
-                    onClick: () => navigate(listPath),
-                  },
-                  {
-                    key: 'flow-topup-reconcile-current',
-                    label: readOnlyText(order?.id || id),
-                    active: true,
-                  },
-                ]}
-              />
-            </div>
-
             <AppDetailSection
               className='router-detail-section'
               title={t('flow.topup_reconcile.detail.sections.basic')}

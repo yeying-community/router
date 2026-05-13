@@ -8,7 +8,7 @@ import PersonalSetting from '../../components/PersonalSetting';
 import OperationSetting from '../../components/OperationSetting';
 import ExchangeRateSetting from '../../components/ExchangeRateSetting';
 import CurrencySetting from '../../components/CurrencySetting';
-import { AppNavMenu, AppSection } from '../../router-ui';
+import { AppFilterHeader, AppNavMenu, AppSection } from '../../router-ui';
 
 const Setting = () => {
   const { t } = useTranslation();
@@ -144,6 +144,11 @@ const Setting = () => {
     sectionKeys.includes(requestedSection) && requestedSection !== ''
       ? requestedSection
       : sectionKeys[0] || '';
+  const pageTitle = activeGroup?.label || t('setting.title');
+  const singleGroupMode = visibleMenuGroups.length === 1;
+  const hideSettingsMenu =
+    singleGroupMode &&
+    Number(activeGroup?.sections?.length || 0) <= 1;
 
   const goToSection = (tab, section) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -184,15 +189,16 @@ const Setting = () => {
     return <div className='router-empty-cell'>{t('setting.empty_admin', '暂无可配置项')}</div>;
   };
 
-  const pageTitle = activeGroup?.label || t('setting.title');
-  const singleGroupMode = visibleMenuGroups.length === 1;
-  const hideSettingsMenu =
-    singleGroupMode &&
-    Number(activeGroup?.sections?.length || 0) <= 1;
-
   return (
     <div className='dashboard-container'>
-      <AppSection title={pageTitle}>
+      <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'setting', label: t('header.setting'), active: true },
+        ]}
+        title={pageTitle}
+      />
+      <AppSection>
         {visibleMenuGroups.length > 0 ? (
           hideSettingsMenu ? (
             renderContent()

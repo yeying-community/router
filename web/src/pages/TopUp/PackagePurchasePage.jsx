@@ -130,6 +130,9 @@ const PackagePurchasePage = () => {
       }
     >
         <div className='router-section-stack-spread'>
+          <div className='router-pricing-section-hint router-pricing-section-hint-package'>
+            {t('topup.pricing.package_hint')}
+          </div>
           <div className='router-package-purchase-content'>
             {loading ? (
               <div className='router-text-muted'>{t('common.loading')}</div>

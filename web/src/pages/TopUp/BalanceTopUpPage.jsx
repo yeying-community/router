@@ -55,6 +55,9 @@ const BalanceTopUpPage = () => {
       }
     >
       <div className='router-section-stack-spread'>
+        <div className='router-pricing-section-hint router-pricing-section-hint-balance'>
+          {t('topup.pricing.balance_hint')}
+        </div>
         <div className='router-grid-top-md router-balance-topup-panel'>
           <div className='router-balance-topup-grid'>
             {(Array.isArray(topupPlans) ? topupPlans : []).map((plan, index) => {

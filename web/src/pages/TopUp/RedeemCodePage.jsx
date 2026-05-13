@@ -1,16 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { showError, showInfo, timestamp2string } from '../../helpers';
 import { formatAmountWithUnit } from '../../helpers/render';
 import { useTopUpWorkspace } from './shared.jsx';
-import { AppButton, AppInput, AppSection, AppTable } from '../../router-ui';
+import { AppButton, AppInput, AppModal, AppTable } from '../../router-ui';
 
-const RedeemCodePage = () => {
+const RedeemCodePage = ({ open, onClose, onRedeemed }) => {
   const { t } = useTranslation();
   const { renderDisplayAmount, submitRedemption } = useTopUpWorkspace();
   const [redemptionCode, setRedemptionCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [recentResult, setRecentResult] = useState(null);
+
+  useEffect(() => {
+    if (!open) {
+      setRedemptionCode('');
+      setRecentResult(null);
+      setSubmitting(false);
+    }
+  }, [open]);
 
   const recentResultRows = recentResult
     ? [
@@ -75,6 +83,9 @@ const RedeemCodePage = () => {
       }
       setRecentResult(result);
       setRedemptionCode('');
+      if (onRedeemed) {
+        onRedeemed(result);
+      }
     } catch (error) {
       showError(error?.message || t('topup.redeem.request_failed'));
     } finally {
@@ -83,82 +94,67 @@ const RedeemCodePage = () => {
   };
 
   return (
-    <>
-      <AppSection
-        className='router-section-fill'
-        title={
-          <div className='router-title-accent-positive'>
-            {t('topup.redeem.title')}
-          </div>
-        }
-      >
-        <div className='router-section-stack-spread'>
-          <div className='router-text-muted'>{t('topup.redeem.description')}</div>
+    <AppModal
+      size='small'
+      open={open}
+      onClose={onClose}
+      closeOnDimmerClick={!submitting}
+      title={t('topup.redeem.title')}
+      footer={[
+        <AppButton
+          key='cancel'
+          className='router-section-button'
+          onClick={onClose}
+          disabled={submitting}
+        >
+          {t('common.cancel')}
+        </AppButton>,
+        <AppButton
+          key='submit'
+          className='router-section-button'
+          color='blue'
+          onClick={handleSubmit}
+          loading={submitting}
+          disabled={submitting}
+        >
+          {submitting ? t('topup.redeem.submitting') : t('common.confirm')}
+        </AppButton>,
+      ]}
+    >
+      <div className='router-section-stack'>
+        <div className='router-text-muted'>{t('topup.redeem.description')}</div>
 
-              <AppInput
-                className='router-section-input'
-                fluid
-                icon='key'
-                iconPosition='left'
-                placeholder={t('topup.redeem.placeholder')}
-                value={redemptionCode}
-                onChange={(event) => setRedemptionCode(event.target.value)}
-                onPaste={(event) => {
-                  event.preventDefault();
-                  const pastedText = event.clipboardData.getData('text');
-                  setRedemptionCode(pastedText.trim());
-                }}
-                action={
-                  <AppButton
-                    className='router-section-button'
-                    onClick={async () => {
-                      try {
-                        const text = await navigator.clipboard.readText();
-                        setRedemptionCode(text.trim());
-                      } catch (error) {
-                        showError(t('topup.redeem.paste_error'));
-                      }
-                    }}
-                  >
-                    {t('topup.redeem.paste')}
-                  </AppButton>
-                }
-              />
-
-          <div className='router-action-footer'>
-            <AppButton
-              className='router-section-button'
-              color='blue'
-              fluid
-              onClick={handleSubmit}
-              loading={submitting}
-              disabled={submitting}
-            >
-              {submitting ? t('topup.redeem.submitting') : t('topup.redeem.submit')}
-            </AppButton>
-          </div>
-        </div>
-      </AppSection>
+        <AppInput
+          className='router-section-input router-redeem-code-input'
+          fluid
+          icon='key'
+          iconPosition='left'
+          placeholder={t('topup.redeem.placeholder')}
+          value={redemptionCode}
+          onChange={(event) => setRedemptionCode(event.target.value)}
+          onPaste={(event) => {
+            event.preventDefault();
+            const pastedText = event.clipboardData.getData('text');
+            setRedemptionCode(pastedText.trim());
+          }}
+        />
+      </div>
 
       {recentResult ? (
-        <AppSection
-          className='router-topup-result-section'
-          title={
+        <div className='router-topup-result-section'>
+          <div className='router-toolbar router-toolbar-compact'>
             <div className='router-title-accent-warning'>
               {t('topup.redemption_result.title')}
             </div>
-          }
-          extra={
             <AppButton
-              className='router-section-button'
+              className='router-inline-button'
               basic
               size='small'
               onClick={() => setRecentResult(null)}
             >
               {t('topup.redemption_result.close')}
             </AppButton>
-          }
-        >
+          </div>
           <AppTable
             className='router-list-table'
             rowKey='key'
@@ -190,9 +186,9 @@ const RedeemCodePage = () => {
               },
             ]}
           />
-        </AppSection>
+        </div>
       ) : null}
-    </>
+    </AppModal>
   );
 };
 

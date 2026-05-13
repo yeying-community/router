@@ -1050,6 +1050,14 @@ const Dashboard = () => {
 
   return (
     <div className='dashboard-container'>
+      <AppFilterHeader
+        breadcrumbs={[
+          { key: 'workspace', label: t('header.user_workspace') },
+          { key: 'service', label: t('header.service') },
+          { key: 'dashboard', label: t('header.dashboard'), active: true },
+        ]}
+        title={t('header.dashboard')}
+      />
       <AppSection
         className='dashboard-spend-card'
         title={t('dashboard.spending.package_daily.title')}

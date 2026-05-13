@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { API, copy, isRoot, showError, showSuccess, timestamp2string } from '../helpers';
 import { useTranslation } from 'react-i18next';
 import UnitDropdown from './UnitDropdown';
@@ -21,7 +21,6 @@ import {
   AppFilterHeader,
   AppIcon,
   AppInput,
-  AppMenuDropdown,
   AppPagination,
   AppSelect,
   AppTable,
@@ -70,6 +69,8 @@ const formatFullNumber = (value) => {
 const UsersTable = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminScope = location.pathname.startsWith('/admin/');
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState(1);
@@ -295,8 +296,17 @@ const UsersTable = () => {
   return (
     <>
       <AppFilterHeader
+        breadcrumbs={[
+          {
+            key: 'workspace',
+            label: isAdminScope
+              ? t('header.admin_workspace')
+              : t('header.user_workspace'),
+          },
+          { key: 'business', label: t('header.business_operation') },
+          { key: 'user', label: t('header.user'), active: true },
+        ]}
         title={t('header.user')}
-        meta={`${users.filter((user) => !user?.deleted).length} / ${totalCount}`}
         actions={
           <div className='router-list-toolbar-actions'>
             <AppButton
@@ -555,26 +565,16 @@ const UsersTable = () => {
                       ? t('user.buttons.disable')
                       : t('user.buttons.enable')}
                   </AppButton>
-                  <AppMenuDropdown
+                  <AppButton
+                    className='router-inline-button'
+                    color='red'
                     disabled={!canManageAdminUser}
-                    items={[
-                      {
-                        key: 'delete',
-                        label: t('user.buttons.delete'),
-                        danger: true,
-                        onClick: () => {
-                          manageUser(user.username, 'delete', idx);
-                        },
-                      },
-                    ]}
+                    onClick={() => {
+                      manageUser(user.username, 'delete', idx);
+                    }}
                   >
-                    <AppButton
-                      className='router-inline-button'
-                      disabled={!canManageAdminUser}
-                    >
-                      {t('common.operation')}
-                    </AppButton>
-                  </AppMenuDropdown>
+                    {t('user.buttons.delete')}
+                  </AppButton>
                 </div>
               );
             },

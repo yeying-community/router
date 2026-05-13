@@ -715,8 +715,16 @@ const BusinessFlowTable = ({ kind }) => {
   return (
     <>
       <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'flow', label: t('header.business_flow') },
+          {
+            key: kind,
+            label: t(BUSINESS_FLOW_HEADER_KEY[kind] || 'header.business_flow'),
+            active: true,
+          },
+        ]}
         title={t(BUSINESS_FLOW_HEADER_KEY[kind] || 'header.business_flow')}
-        meta={`${items.length} / ${totalCount}`}
         actions={
           <div className='router-list-toolbar-actions'>
             <AppButton

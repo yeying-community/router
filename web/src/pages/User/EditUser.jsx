@@ -11,19 +11,19 @@ import {
 } from '../../helpers/billing';
 import UnitDropdown from '../../components/UnitDropdown';
 import {
-  AppBreadcrumb,
   AppButton,
   AppDetailSection,
   AppField,
   AppFilterHeader,
   AppFormActions,
   AppFormRow,
+  AppIcon,
   AppInput,
   AppInputNumber,
   AppModal,
-  AppSection,
   AppSelect,
   AppTable,
+  AppTabs,
   AppTag,
   AppToolbar,
 } from '../../router-ui';
@@ -341,6 +341,7 @@ const UserDetail = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [activeDetailTab, setActiveDetailTab] = useState('basic');
   const [editSection, setEditSection] = useState('');
   const [actionLoading, setActionLoading] = useState('');
   const [persistedUsername, setPersistedUsername] = useState('');
@@ -1119,27 +1120,54 @@ const UserDetail = () => {
     [],
   );
 
+  const detailTabItems = [
+    {
+      key: 'basic',
+      label: t('common.basic_info'),
+      disabled: editSection !== '' && activeDetailTab !== 'basic',
+    },
+    {
+      key: 'package',
+      label: t('user.detail.package_mode_title'),
+      disabled: editSection !== '' && activeDetailTab !== 'package',
+    },
+    {
+      key: 'balance',
+      label: t('user.detail.balance_mode_title'),
+      disabled: editSection !== '' && activeDetailTab !== 'balance',
+    },
+  ];
+
   return (
     <div className='dashboard-container'>
-      <AppSection>
-        <div className='router-entity-detail-page'>
-            <div className='router-entity-detail-breadcrumb'>
-              <AppBreadcrumb
-                items={[
-                  {
-                    key: 'user-list',
-                    label: t('header.user'),
-                    onClick: backToList,
-                  },
-                  {
-                    key: 'user-current',
-                    label: readOnlyValue(inputs.username || userId),
-                    active: true,
-                  },
-                ]}
-              />
-            </div>
-            <div className='router-page-stack'>
+      <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'business', label: t('header.business_operation') },
+          {
+            key: 'user-list',
+            label: t('header.user'),
+            onClick: backToList,
+          },
+          {
+            key: 'user-current',
+            label: readOnlyValue(inputs.username || userId),
+            active: true,
+          },
+        ]}
+        title={t('user.detail.title')}
+      />
+      <div className='router-tab-detail-page router-entity-detail-page'>
+        <div className='router-entity-detail-tabs router-block-gap-sm'>
+          <AppTabs
+            className='router-detail-tab-menu'
+            activeKey={activeDetailTab}
+            items={detailTabItems}
+            onChange={setActiveDetailTab}
+          />
+        </div>
+        <div className='router-page-stack'>
+              {activeDetailTab === 'basic' ? (
               <AppDetailSection
                 title={t('common.basic_info')}
                 headerStart={renderStatusLabel(inputs.status, t)}
@@ -1264,7 +1292,9 @@ const UserDetail = () => {
                   })}
                 </AppFormRow>
               </AppDetailSection>
+              ) : null}
 
+              {activeDetailTab === 'package' ? (
               <AppDetailSection
                 title={t('user.detail.package_mode_title')}
                 headerEnd={
@@ -1426,7 +1456,9 @@ const UserDetail = () => {
                   })}
                 </AppFormRow>
               </AppDetailSection>
+              ) : null}
 
+              {activeDetailTab === 'balance' ? (
               <AppDetailSection
                 title={t('user.detail.balance_mode_title')}
                 headerEnd={
@@ -1596,9 +1628,9 @@ const UserDetail = () => {
                   </div>
                 )}
               </AppDetailSection>
-            </div>
+              ) : null}
         </div>
-      </AppSection>
+      </div>
 
       <AppModal
         open={assignPackageOpen}

@@ -9,7 +9,6 @@ import {
 } from '../helpers';
 import { ITEMS_PER_PAGE } from '../constants';
 import {
-  AppBreadcrumb,
   AppButton,
   AppDetailSection,
   AppEmpty,
@@ -20,11 +19,11 @@ import {
   AppIcon,
   AppInput,
   AppInputNumber,
-  AppMenuDropdown,
   AppModal,
   AppPagination,
   AppSelect,
   AppTable,
+  AppTabs,
   AppTag,
   AppTextarea,
   AppToolbar,
@@ -675,6 +674,7 @@ const ProvidersManager = () => {
   const [createRow, setCreateRow] = useState(createEmptyRow());
   const [viewingProvider, setViewingProvider] = useState('');
   const [viewRow, setViewRow] = useState(null);
+  const [activeProviderDetailTab, setActiveProviderDetailTab] = useState('basic');
   const [viewModelSearchKeyword, setViewModelSearchKeyword] = useState('');
   const [viewModelPage, setViewModelPage] = useState(1);
   const [detailEditingSection, setDetailEditingSection] = useState('');
@@ -777,6 +777,7 @@ const ProvidersManager = () => {
     if (!normalized) return;
     setViewModelSearchKeyword('');
     setViewModelPage(1);
+    setActiveProviderDetailTab('basic');
     resetDetailEditingState();
     setViewingProvider(normalized);
     setViewRow(cloneEditableRow(row));
@@ -785,6 +786,7 @@ const ProvidersManager = () => {
   const closeViewer = () => {
     setViewModelSearchKeyword('');
     setViewModelPage(1);
+    setActiveProviderDetailTab('basic');
     setViewingProvider('');
     setViewRow(null);
     resetDetailEditingState();
@@ -2810,8 +2812,12 @@ const ProvidersManager = () => {
   const renderRows = () => (
     <div>
       <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'resource', label: t('header.resource') },
+          { key: 'providers', label: t('header.providers'), active: true },
+        ]}
         title={t('header.providers')}
-        meta={`${rows.length} / ${totalCount}`}
         actions={
           <div className='router-list-toolbar-actions'>
           <AppButton
@@ -2921,24 +2927,6 @@ const ProvidersManager = () => {
                 >
                   <AppIcon name='edit' />
                 </AppButton>
-                <AppMenuDropdown
-                  disabled={creating || saving}
-                  items={[
-                    {
-                      key: 'delete',
-                      label: t('common.delete'),
-                      icon: <AppIcon name='trash' />,
-                      danger: true,
-                      onClick: () => {
-                        openDeleteModal(row);
-                      },
-                    },
-                  ]}
-                >
-                  <AppButton type='button' className='router-inline-button'>
-                    {t('common.operation')}
-                  </AppButton>
-                </AppMenuDropdown>
               </div>
             ),
           },
@@ -2964,25 +2952,47 @@ const ProvidersManager = () => {
     const basicEditing = detailEditingSection === 'basic';
     const modelsEditing = detailEditingSection === 'models';
     const basicSourceRow = basicEditing ? detailBasicDraft : viewRow;
+    const providerDetailTabItems = [
+      {
+        key: 'basic',
+        label: t('channel.providers.dialog.detail_basic_title'),
+        disabled: modelsEditing,
+      },
+      {
+        key: 'models',
+        label: t('channel.providers.dialog.model_details'),
+        disabled: basicEditing,
+      },
+    ];
     return (
-      <div className='router-provider-detail-page'>
-        <div className='router-provider-detail-breadcrumb'>
-          <AppBreadcrumb
-            items={[
-              {
-                key: 'provider-list',
-                label: t('header.providers'),
-                onClick: closeViewer,
-              },
-              {
-                key: 'provider-current',
-                label: viewRow.name || viewRow.id || '-',
-                active: true,
-              },
-            ]}
-          />
-        </div>
-        <div className='router-provider-detail-sections'>
+      <>
+        <AppFilterHeader
+          breadcrumbs={[
+            { key: 'admin', label: t('header.admin_workspace') },
+            { key: 'resource', label: t('header.resource') },
+            {
+              key: 'provider-list',
+              label: t('header.providers'),
+              onClick: closeViewer,
+            },
+            {
+              key: 'provider-current',
+              label: viewRow.name || viewRow.id || '-',
+              active: true,
+            },
+          ]}
+          title={t('header.providers')}
+        />
+        <div className='router-tab-detail-page router-provider-detail-page'>
+          <div className='router-entity-detail-tabs router-block-gap-sm'>
+            <AppTabs
+              className='router-detail-tab-menu'
+              activeKey={activeProviderDetailTab}
+              items={providerDetailTabItems}
+              onChange={setActiveProviderDetailTab}
+            />
+          </div>
+          {activeProviderDetailTab === 'basic' ? (
           <AppDetailSection
             className='router-provider-detail-section'
             title={t('channel.providers.dialog.detail_basic_title')}
@@ -3154,6 +3164,8 @@ const ProvidersManager = () => {
                 </AppField>
               </AppFormRow>
           </AppDetailSection>
+          ) : null}
+          {activeProviderDetailTab === 'models' ? (
           <AppDetailSection
             className='router-provider-detail-section'
             title={t('channel.providers.dialog.model_details')}
@@ -3197,8 +3209,9 @@ const ProvidersManager = () => {
               actionsDisabled: basicEditing || modelsEditing,
             })}
           </AppDetailSection>
+          ) : null}
         </div>
-      </div>
+      </>
     );
   };
 

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API, showError, showInfo, showSuccess, timestamp2string } from '../helpers';
 import {
-  AppBreadcrumb,
   AppButton,
   AppDetailSection,
   AppField,
@@ -13,7 +12,6 @@ import {
   AppIcon,
   AppInput,
   AppInputNumber,
-  AppMenuDropdown,
   AppModal,
   AppSelect,
   AppSwitch,
@@ -1096,8 +1094,12 @@ const GroupsManager = ({ detailGroupId = '' }) => {
   const renderList = () => (
     <>
       <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'resource', label: t('header.resource') },
+          { key: 'group', label: t('header.group'), active: true },
+        ]}
         title={t('header.group')}
-        meta={`${visibleRows.length} / ${rows.length}`}
         actions={
           <div className='router-list-toolbar-actions'>
             <AppButton
@@ -1220,33 +1222,28 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                     ? t('group_manage.buttons.disable')
                     : t('group_manage.buttons.enable')}
                 </AppButton>
-                <AppMenuDropdown
+                <AppButton
+                  className='router-inline-button'
                   disabled={submitting || loading}
-                  items={[
-                    {
-                      key: 'edit',
-                      label: t('common.edit'),
-                      icon: <AppIcon name='edit' />,
-                      onClick: () => {
-                        openViewPanel(row);
-                        startEditPanel(row);
-                      },
-                    },
-                    {
-                      key: 'delete',
-                      label: t('group_manage.buttons.delete'),
-                      icon: <AppIcon name='trash' />,
-                      danger: true,
-                      onClick: () => {
-                        openDeleteModal(row);
-                      },
-                    },
-                  ]}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openViewPanel(row);
+                    startEditPanel(row);
+                  }}
                 >
-                  <AppButton className='router-inline-button'>
-                    {t('common.operation')}
-                  </AppButton>
-                </AppMenuDropdown>
+                  {t('common.edit')}
+                </AppButton>
+                <AppButton
+                  className='router-inline-button'
+                  color='red'
+                  disabled={submitting || loading}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openDeleteModal(row);
+                  }}
+                >
+                  {t('group_manage.buttons.delete')}
+                </AppButton>
               </div>
             ),
           },
@@ -1960,23 +1957,25 @@ const GroupsManager = ({ detailGroupId = '' }) => {
   const renderView = () => {
     if (!activeGroup) return null;
     return (
-      <div className='router-entity-detail-page'>
-        <div className='router-entity-detail-breadcrumb'>
-          <AppBreadcrumb
-            items={[
-              {
-                key: 'group-list',
-                label: t('header.group'),
-                onClick: backToList,
-              },
-              {
-                key: 'group-current',
-                label: activeGroup.name || activeGroup.id || '-',
-                active: true,
-              },
-            ]}
-          />
-        </div>
+      <>
+      <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'resource', label: t('header.resource') },
+          {
+            key: 'group-list',
+            label: t('header.group'),
+            onClick: backToList,
+          },
+          {
+            key: 'group-current',
+            label: activeGroup.name || activeGroup.id || '-',
+            active: true,
+          },
+        ]}
+        title={t('group_manage.detail.title')}
+      />
+      <div className='router-tab-detail-page router-entity-detail-page'>
         <div className='router-entity-detail-tabs router-block-gap-sm'>
           <AppTabs
             className='router-detail-tab-nav'
@@ -2196,6 +2195,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
           </AppDetailSection>
         )}
       </div>
+      </>
     );
   };
 

@@ -467,9 +467,15 @@ const AdminDashboard = () => {
     [formatUsd, t],
   );
 
-  const renderToolbar = () => (
+  const renderPageHeader = () => (
     <AppFilterHeader
       className='admin-dashboard-toolbar'
+      breadcrumbs={[
+        { key: 'admin', label: t('header.admin_workspace') },
+        { key: 'dashboard', label: t('header.system_overview') },
+        { key: activeSection, label: activeSectionTitle, active: true },
+      ]}
+      title={activeSectionTitle}
       meta={t('dashboard.admin.updated_at', {
         time: formatUpdatedAt(dashboard.generated_at),
       })}
@@ -510,8 +516,7 @@ const AdminDashboard = () => {
   }, []);
 
   const renderOverviewSection = () => (
-    <AppSection title={activeSectionTitle}>
-        {renderToolbar()}
+    <AppSection>
         <div className='admin-dashboard-kpi-grid'>
           <div className='admin-dashboard-kpi-item'>
             <div className='admin-dashboard-kpi-label'>
@@ -752,8 +757,7 @@ const AdminDashboard = () => {
   );
 
   const renderTrendSection = () => (
-    <AppSection className='admin-dashboard-section' title={activeSectionTitle}>
-        {renderToolbar()}
+    <AppSection className='admin-dashboard-section'>
         <AppToolbar
           className='admin-dashboard-trend-toolbar'
           start={
@@ -821,8 +825,7 @@ const AdminDashboard = () => {
   );
 
   const renderHealthSection = () => (
-    <AppSection className='admin-dashboard-section' title={activeSectionTitle}>
-        {renderToolbar()}
+    <AppSection className='admin-dashboard-section'>
         {channelHealthData.length === 0 ? (
           <div className='admin-dashboard-empty'>
             {t('dashboard.admin.empty.channels')}
@@ -1037,6 +1040,7 @@ const AdminDashboard = () => {
 
   return (
     <div className='dashboard-container admin-dashboard-container'>
+      {renderPageHeader()}
       {activeSection === 'overview' ? renderOverviewSection() : null}
       {activeSection === 'trend' ? renderTrendSection() : null}
       {activeSection === 'health' ? renderHealthSection() : null}

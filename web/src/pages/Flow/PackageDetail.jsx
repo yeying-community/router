@@ -3,7 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { API, showError, timestamp2string } from '../../helpers';
 import { formatAmountWithUnit } from '../../helpers/render';
-import { AppBreadcrumb, AppDetailSection, AppIcon, AppSection, AppTag } from '../../router-ui';
+import {
+  AppDetailSection,
+  AppFilterHeader,
+  AppIcon,
+  AppSection,
+  AppTag,
+} from '../../router-ui';
 
 const readOnlyText = (value) => {
   const normalized = (value || '').toString().trim();
@@ -119,25 +125,25 @@ const PackageDetail = () => {
 
   return (
     <div className='dashboard-container'>
+      <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'flow', label: t('header.business_flow') },
+          {
+            key: 'flow-package-list',
+            label: t('flow.package.title'),
+            onClick: () => navigate(listPath),
+          },
+          {
+            key: 'flow-package-current',
+            label: readOnlyText(record?.id || id),
+            active: true,
+          },
+        ]}
+        title={t('flow.package.title')}
+      />
       <AppSection>
         <div className='router-entity-detail-page'>
-            <div className='router-entity-detail-breadcrumb'>
-              <AppBreadcrumb
-                items={[
-                  {
-                    key: 'flow-package-list',
-                    label: t('flow.package.title'),
-                    onClick: () => navigate(listPath),
-                  },
-                  {
-                    key: 'flow-package-current',
-                    label: readOnlyText(record?.id || id),
-                    active: true,
-                  },
-                ]}
-              />
-            </div>
-
             <AppDetailSection
               className='router-detail-section'
               title={t('flow.package.title')}

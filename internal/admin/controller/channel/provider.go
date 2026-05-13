@@ -40,6 +40,22 @@ type providerCatalogListData struct {
 	PageSize int                   `json:"page_size"`
 }
 
+type publicProviderModelDetail struct {
+	Model              string   `json:"model"`
+	Type               string   `json:"type,omitempty"`
+	Status             string   `json:"status,omitempty"`
+	Description        string   `json:"description,omitempty"`
+	SupportedEndpoints []string `json:"supported_endpoints,omitempty"`
+}
+
+type publicProviderModelCatalogItem struct {
+	ID        string                      `json:"id"`
+	Name      string                      `json:"name,omitempty"`
+	Models    []publicProviderModelDetail `json:"models"`
+	SortOrder int                         `json:"sort_order,omitempty"`
+	UpdatedAt int64                       `json:"updated_at,omitempty"`
+}
+
 type appendProviderModelRequest struct {
 	Model              string   `json:"model"`
 	Type               string   `json:"type,omitempty"`
@@ -390,6 +406,40 @@ func listProviderCatalog(page int, pageSize int, keyword string) (providerCatalo
 	}, nil
 }
 
+func listPublicProviderModelCatalog() ([]publicProviderModelCatalogItem, error) {
+	rows := make([]model.Provider, 0)
+	if err := model.DB.Model(&model.Provider{}).
+		Order("sort_order asc, id asc").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	items, err := buildProviderCatalogItems(rows)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]publicProviderModelCatalogItem, 0, len(items))
+	for _, item := range items {
+		details := make([]publicProviderModelDetail, 0, len(item.ModelDetails))
+		for _, detail := range item.ModelDetails {
+			details = append(details, publicProviderModelDetail{
+				Model:              strings.TrimSpace(detail.Model),
+				Type:               strings.TrimSpace(detail.Type),
+				Status:             strings.TrimSpace(detail.Status),
+				Description:        strings.TrimSpace(detail.Description),
+				SupportedEndpoints: detail.SupportedEndpoints,
+			})
+		}
+		result = append(result, publicProviderModelCatalogItem{
+			ID:        item.ID,
+			Name:      item.Name,
+			Models:    details,
+			SortOrder: item.SortOrder,
+			UpdatedAt: item.UpdatedAt,
+		})
+	}
+	return result, nil
+}
+
 func getProviderCatalogItemByID(id string) (providerCatalogItem, error) {
 	provider := commonutils.NormalizeProvider(id)
 	if provider == "" {
@@ -679,6 +729,30 @@ func appendModelToProviderItem(id string, req appendProviderModelRequest) (provi
 	existing.ModelDetails = mergeProviderDetailInputs(append(existing.ModelDetails, detail), nil, now)
 	existing.UpdatedAt = now
 	return saveProviderCatalogItem(existing, false)
+}
+
+// GetPublicProviderModels godoc
+// @Summary Get provider model catalog for clients
+// @Tags public
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/public/providers/models [get]
+func GetPublicProviderModels(c *gin.Context) {
+	items, err := listPublicProviderModelCatalog()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "加载供应商模型目录失败: " + err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    items,
+	})
 }
 
 // GetProviders godoc

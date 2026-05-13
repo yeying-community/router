@@ -9,8 +9,8 @@ import {
 import { formatDecimalNumber } from '../../helpers/render';
 import UnitDropdown from '../../components/UnitDropdown';
 import {
-  AppBreadcrumb,
   AppField,
+  AppFilterHeader,
   AppFormRow,
   AppIcon,
   AppInput,
@@ -131,8 +131,20 @@ const PackageDetail = () => {
 
   return (
     <div className='dashboard-container'>
-      <AppSection
+      <AppFilterHeader
+        breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
+          { key: 'business', label: t('header.business_operation') },
+          {
+            key: 'package-list',
+            label: t('header.package'),
+            onClick: () => navigate('/admin/package'),
+          },
+          { key: 'package-current', label: normalizedId || '-', active: true },
+        ]}
         title={t('package_manage.dialog.detail_title')}
+      />
+      <AppSection
         extra={
           <UnitDropdown
             variant='section'
@@ -146,25 +158,6 @@ const PackageDetail = () => {
         }
       >
         <div className='router-entity-detail-page'>
-            <div className='router-entity-detail-breadcrumb'>
-              <div className='router-provider-detail-breadcrumb'>
-                <AppBreadcrumb
-                  items={[
-                    {
-                      key: 'package-list',
-                      label: t('header.package'),
-                      onClick: () => navigate('/admin/package'),
-                    },
-                    {
-                      key: 'package-current',
-                      label: normalizedId || '-',
-                      active: true,
-                    },
-                  ]}
-                />
-              </div>
-            </div>
-
             {loading ? (
               <div className='router-empty-cell'>{t('common.loading')}</div>
             ) : (
