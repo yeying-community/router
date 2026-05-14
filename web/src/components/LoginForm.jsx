@@ -139,7 +139,7 @@ const LoginForm = () => {
       <div className='router-login-floating-container'>
         <div className='router-login-top-banner'>
           <div className='router-login-top-banner-inner'>
-            <Image src={logo} className='router-login-top-banner-logo' />
+            <img src={logo} className='router-login-top-banner-logo' alt='' />
             <span>
               {loginBannerText}
               <a
