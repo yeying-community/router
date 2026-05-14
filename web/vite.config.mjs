@@ -23,6 +23,13 @@ export default defineConfig({
             return undefined;
           }
           if (
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('/scheduler/')
+          ) {
+            return 'react';
+          }
+          if (
             id.includes('/react-router/') ||
             id.includes('/react-router-dom/') ||
             id.includes('/history/')
