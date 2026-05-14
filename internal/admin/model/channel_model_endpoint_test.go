@@ -34,6 +34,11 @@ func TestDefaultProviderModelSupportedEndpointsByProvider(t *testing.T) {
 	if len(anthropic) != 1 || anthropic[0] != ChannelModelEndpointMessages {
 		t.Fatalf("anthropic default endpoints = %#v, want messages", anthropic)
 	}
+
+	embedding := DefaultProviderModelSupportedEndpoints("volcengine", ProviderModelTypeEmbedding, "Seed1.6-Embedding")
+	if len(embedding) != 1 || embedding[0] != ChannelModelEndpointEmbeddings {
+		t.Fatalf("embedding default endpoints = %#v, want embeddings", embedding)
+	}
 }
 
 func TestOpenAITextProviderModelEndpointCandidatesBackfillsChat(t *testing.T) {
@@ -240,6 +245,15 @@ func TestNormalizeRequestedChannelModelEndpointRealtimeMapsToRealtime(t *testing
 	}
 	if got := NormalizeRequestedChannelModelEndpoint("/api/v1/public/realtime"); got != ChannelModelEndpointRealtime {
 		t.Fatalf("NormalizeRequestedChannelModelEndpoint(/api/v1/public/realtime)=%q, want %q", got, ChannelModelEndpointRealtime)
+	}
+}
+
+func TestNormalizeRequestedChannelModelEndpointEmbeddingsMapsToEmbeddings(t *testing.T) {
+	if got := NormalizeRequestedChannelModelEndpoint("/v1/embeddings"); got != ChannelModelEndpointEmbeddings {
+		t.Fatalf("NormalizeRequestedChannelModelEndpoint(/v1/embeddings)=%q, want %q", got, ChannelModelEndpointEmbeddings)
+	}
+	if got := NormalizeRequestedChannelModelEndpoint("/api/v1/public/embeddings"); got != ChannelModelEndpointEmbeddings {
+		t.Fatalf("NormalizeRequestedChannelModelEndpoint(/api/v1/public/embeddings)=%q, want %q", got, ChannelModelEndpointEmbeddings)
 	}
 }
 

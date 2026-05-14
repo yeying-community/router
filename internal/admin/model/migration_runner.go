@@ -894,6 +894,76 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return syncDefaultProviderCatalogWithDB(tx)
 			},
 		},
+		{
+			Version:     "202605141130_refresh_default_provider_model_pricing",
+			Description: "refresh default provider catalog pricing for newly priced official models",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605141330_refresh_component_based_provider_model_pricing",
+			Description: "refresh default provider catalog to add component-based pricing for complex official models",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605141430_refresh_tiered_provider_model_pricing",
+			Description: "refresh default provider catalog to record tiered official pricing details",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605141530_refresh_google_multimodal_provider_model_pricing",
+			Description: "refresh default provider catalog to add google multimodal pricing components",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605141630_refresh_minimax_provider_model_pricing",
+			Description: "refresh default provider catalog to add newly verified minimax pricing",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605141730_refresh_zhipu_provider_model_pricing",
+			Description: "refresh default provider catalog to add newly verified zhipu pricing",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605141830_refresh_hunyuan_provider_model_pricing",
+			Description: "refresh default provider catalog to add newly verified hunyuan pricing",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605142030_add_volcengine_doubao_provider_catalog",
+			Description: "refresh default provider catalog to add volcengine doubao provider models and pricing",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605142130_refresh_volcengine_doubao_thinking_pricing",
+			Description: "refresh default provider catalog to add volcengine doubao thinking pricing rows",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605142230_add_embedding_model_type_and_volcengine_seed_embedding",
+			Description: "refresh default provider catalog to add embedding model type support and volcengine seed embedding model",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

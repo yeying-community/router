@@ -1136,15 +1136,16 @@ func cloneNormalizedChannelModelPrice(value *float64) *float64 {
 }
 
 const (
-	ChannelModelEndpointChat      = "/v1/chat/completions"
-	ChannelModelEndpointMessages  = "/v1/messages"
-	ChannelModelEndpointResponses = "/v1/responses"
-	ChannelModelEndpointRealtime  = "/v1/realtime"
-	ChannelModelEndpointBatches   = "/v1/batches"
-	ChannelModelEndpointImages    = "/v1/images/generations"
-	ChannelModelEndpointImageEdit = "/v1/images/edits"
-	ChannelModelEndpointAudio     = "/v1/audio/speech"
-	ChannelModelEndpointVideos    = "/v1/videos"
+	ChannelModelEndpointChat       = "/v1/chat/completions"
+	ChannelModelEndpointMessages   = "/v1/messages"
+	ChannelModelEndpointResponses  = "/v1/responses"
+	ChannelModelEndpointRealtime   = "/v1/realtime"
+	ChannelModelEndpointBatches    = "/v1/batches"
+	ChannelModelEndpointEmbeddings = "/v1/embeddings"
+	ChannelModelEndpointImages     = "/v1/images/generations"
+	ChannelModelEndpointImageEdit  = "/v1/images/edits"
+	ChannelModelEndpointAudio      = "/v1/audio/speech"
+	ChannelModelEndpointVideos     = "/v1/videos"
 )
 
 func channelModelEndpointSortRank(endpoint string) int {
@@ -1163,6 +1164,8 @@ func channelModelEndpointSortRank(endpoint string) int {
 		return 50
 	case ChannelModelEndpointBatches:
 		return 60
+	case ChannelModelEndpointEmbeddings:
+		return 65
 	case ChannelModelEndpointAudio:
 		return 70
 	case ChannelModelEndpointVideos:
@@ -1180,6 +1183,8 @@ func DefaultChannelModelEndpoint(modelType string) string {
 		return ChannelModelEndpointAudio
 	case ProviderModelTypeVideo:
 		return ChannelModelEndpointVideos
+	case ProviderModelTypeEmbedding:
+		return ChannelModelEndpointEmbeddings
 	default:
 		return ChannelModelEndpointResponses
 	}
@@ -1225,6 +1230,11 @@ func NormalizeChannelModelEndpoint(modelType string, endpoint string) string {
 			return ChannelModelEndpointVideos
 		}
 		return ChannelModelEndpointVideos
+	case ProviderModelTypeEmbedding:
+		if normalizedEndpoint == ChannelModelEndpointEmbeddings {
+			return ChannelModelEndpointEmbeddings
+		}
+		return ChannelModelEndpointEmbeddings
 	default:
 		switch normalizedEndpoint {
 		case ChannelModelEndpointChat:

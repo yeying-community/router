@@ -195,6 +195,7 @@ const normalizeChannelModelType = (value) => {
     case 'image':
     case 'audio':
     case 'video':
+    case 'embedding':
       return normalized;
     default:
       return 'text';
@@ -212,6 +213,8 @@ const defaultChannelModelEndpoint = (type, protocol) => {
       return '/v1/audio/speech';
     case 'video':
       return '/v1/videos';
+    case 'embedding':
+      return '/v1/embeddings';
     default:
       return normalizeChannelProtocol(protocol) === 'anthropic'
         ? '/v1/messages'
@@ -252,6 +255,14 @@ const normalizeChannelModelEndpoint = (type, value, protocol) => {
         return '/v1/realtime';
       case '/v1/audio/speech':
         return '/v1/audio/speech';
+      default:
+        return defaultChannelModelEndpoint(normalizedType, protocol);
+    }
+  }
+  if (normalizedType === 'embedding') {
+    switch (normalized) {
+      case '/v1/embeddings':
+        return '/v1/embeddings';
       default:
         return defaultChannelModelEndpoint(normalizedType, protocol);
     }
@@ -305,6 +316,7 @@ const CHANNEL_MODEL_TYPE_OPTIONS = [
   { key: 'image', value: 'image', text: 'image' },
   { key: 'audio', value: 'audio', text: 'audio' },
   { key: 'video', value: 'video', text: 'video' },
+  { key: 'embedding', value: 'embedding', text: 'embedding' },
 ];
 
 const TEXT_MODEL_ENDPOINT_OPTIONS = [
@@ -316,6 +328,10 @@ const TEXT_MODEL_ENDPOINT_OPTIONS = [
 const AUDIO_MODEL_ENDPOINT_OPTIONS = [
   { key: 'audio_speech', value: '/v1/audio/speech', text: '/v1/audio/speech' },
   { key: 'realtime', value: '/v1/realtime', text: '/v1/realtime' },
+];
+
+const EMBEDDING_MODEL_ENDPOINT_OPTIONS = [
+  { key: 'embeddings', value: '/v1/embeddings', text: '/v1/embeddings' },
 ];
 
 const IMAGE_MODEL_ENDPOINT_OPTIONS = [
@@ -336,6 +352,7 @@ const CHANNEL_ENDPOINT_SORT_ORDER = {
   '/v1/images/generations': 40,
   '/v1/images/edits': 50,
   '/v1/batches': 60,
+  '/v1/embeddings': 65,
   '/v1/audio/speech': 70,
   '/v1/realtime': 80,
   '/v1/videos': 90,
@@ -348,6 +365,9 @@ const endpointOptionsForModelType = (type) => {
   }
   if (normalizedType === 'audio') {
     return AUDIO_MODEL_ENDPOINT_OPTIONS;
+  }
+  if (normalizedType === 'embedding') {
+    return EMBEDDING_MODEL_ENDPOINT_OPTIONS;
   }
   if (normalizedType === 'text') {
     return TEXT_MODEL_ENDPOINT_OPTIONS;

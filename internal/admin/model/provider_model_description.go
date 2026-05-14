@@ -32,6 +32,8 @@ func defaultProviderModelDescription(provider string, modelName string, modelTyp
 		return stepFunProviderModelDescription(modelName)
 	case "zhipu":
 		return zhipuProviderModelDescription(modelName)
+	case "volcengine":
+		return volcengineProviderModelDescription(modelName)
 	default:
 		return ""
 	}
@@ -264,6 +266,23 @@ func xAIProviderModelDescription(modelName string) string {
 		return "Grok Code Fast 1 是面向代码理解、生成和修复的模型。"
 	case "grok-2-image-1212":
 		return ""
+	default:
+		return ""
+	}
+}
+
+func volcengineProviderModelDescription(modelName string) string {
+	switch modelName {
+	case "doubao-seed-1.6":
+		return "Doubao Seed 1.6 是火山方舟的通用高能力模型，适合复杂对话、推理和多模态任务。"
+	case "doubao-seed-1.6-thinking":
+		return "Doubao Seed 1.6 Thinking 是火山方舟的强制思考模型，适合更强调推理过程的复杂任务。"
+	case "doubao-seed-1.6-flash":
+		return "Doubao Seed 1.6 Flash 是更低延迟、更低成本的轻量版本，适合高并发常规交互。"
+	case "seed1.6-embedding":
+		return "Seed1.6-Embedding 是火山方舟的全模态向量化模型，支持文本、图像和视频混合模态检索。"
+	case "doubao-seed-code-preview-latest":
+		return "Doubao Seed Code 是火山方舟面向代码生成、补全和工程任务优化的编程模型。"
 	default:
 		return ""
 	}

@@ -37,6 +37,7 @@ const PROVIDER_ENDPOINT_SORT_ORDER = {
   '/v1/images/generations': 40,
   '/v1/images/edits': 50,
   '/v1/batches': 60,
+  '/v1/embeddings': 65,
   '/v1/audio/speech': 70,
   '/v1/realtime': 80,
   '/v1/videos': 90,
@@ -136,6 +137,12 @@ const inferModelType = (model) => {
   const lower = model.trim().toLowerCase();
   if (!lower) return 'text';
   if (
+    lower.includes('embedding') ||
+    lower.startsWith('text-embedding')
+  ) {
+    return 'embedding';
+  }
+  if (
     lower.startsWith('veo') ||
     lower.includes('text-to-video') ||
     lower.includes('video-generation') ||
@@ -204,7 +211,8 @@ function normalizeProviderModelType(value, model) {
     normalized === 'text' ||
     normalized === 'audio' ||
     normalized === 'image' ||
-    normalized === 'video'
+    normalized === 'video' ||
+    normalized === 'embedding'
   ) {
     return normalized;
   }
@@ -230,6 +238,9 @@ const normalizeProviderEndpoint = (endpoint) => {
   }
   if (normalized.startsWith('/v1/batches')) {
     return '/v1/batches';
+  }
+  if (normalized.startsWith('/v1/embeddings')) {
+    return '/v1/embeddings';
   }
   if (normalized.startsWith('/v1/audio/')) {
     return '/v1/audio/speech';
@@ -257,6 +268,8 @@ const isProviderEndpointAllowedForType = (type, endpoint) => {
       return endpoint === '/v1/audio/speech' || endpoint === '/v1/realtime';
     case 'video':
       return endpoint === '/v1/videos';
+    case 'embedding':
+      return endpoint === '/v1/embeddings';
     case 'text':
     default:
       return ['/v1/chat/completions', '/v1/responses', '/v1/messages'].includes(
@@ -502,6 +515,7 @@ const MODEL_TYPE_OPTIONS = [
   { key: 'image', value: 'image', text: 'image' },
   { key: 'audio', value: 'audio', text: 'audio' },
   { key: 'video', value: 'video', text: 'video' },
+  { key: 'embedding', value: 'embedding', text: 'embedding' },
 ];
 
 const PROVIDER_MODEL_STATUS_OPTIONS = [
@@ -528,6 +542,11 @@ const PROVIDER_ENDPOINT_OPTIONS = [
     text: '/v1/images/edits',
   },
   { key: '/v1/batches', value: '/v1/batches', text: '/v1/batches' },
+  {
+    key: '/v1/embeddings',
+    value: '/v1/embeddings',
+    text: '/v1/embeddings',
+  },
   {
     key: '/v1/audio/speech',
     value: '/v1/audio/speech',

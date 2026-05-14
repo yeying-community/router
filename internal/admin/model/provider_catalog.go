@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	ProviderModelTypeText  = "text"
-	ProviderModelTypeImage = "image"
-	ProviderModelTypeAudio = "audio"
-	ProviderModelTypeVideo = "video"
+	ProviderModelTypeText      = "text"
+	ProviderModelTypeImage     = "image"
+	ProviderModelTypeAudio     = "audio"
+	ProviderModelTypeVideo     = "video"
+	ProviderModelTypeEmbedding = "embedding"
 
 	ProviderPriceUnitPer1KTokens = "per_1k_tokens"
 	ProviderPriceUnitPer1KChars  = "per_1k_chars"
@@ -311,6 +312,8 @@ func IsChannelModelEndpointAllowedForType(modelType string, endpoint string) boo
 		return normalizedEndpoint == ChannelModelEndpointAudio || normalizedEndpoint == ChannelModelEndpointRealtime
 	case ProviderModelTypeVideo:
 		return normalizedEndpoint == ChannelModelEndpointVideos
+	case ProviderModelTypeEmbedding:
+		return normalizedEndpoint == ChannelModelEndpointEmbeddings
 	default:
 		switch normalizedEndpoint {
 		case ChannelModelEndpointChat, ChannelModelEndpointResponses, ChannelModelEndpointMessages:
@@ -396,12 +399,18 @@ func inferProviderByModel(modelName string, channelProtocol int, hasChannelProto
 func normalizeModelType(raw string, modelName string) string {
 	trimmed := strings.TrimSpace(strings.ToLower(raw))
 	switch trimmed {
-	case ProviderModelTypeText, ProviderModelTypeImage, ProviderModelTypeAudio, ProviderModelTypeVideo:
+	case ProviderModelTypeText, ProviderModelTypeImage, ProviderModelTypeAudio, ProviderModelTypeVideo, ProviderModelTypeEmbedding:
 		return trimmed
 	}
 	lower := strings.ToLower(strings.TrimSpace(modelName))
 	if lower == "" {
 		return ProviderModelTypeText
+	}
+	switch {
+	case strings.Contains(lower, "embedding"),
+		strings.HasPrefix(lower, "text-embedding"),
+		strings.HasPrefix(lower, "seed1.6-embedding"):
+		return ProviderModelTypeEmbedding
 	}
 	switch {
 	case strings.HasPrefix(lower, "veo"),
@@ -459,6 +468,8 @@ func defaultPriceUnitByType(modelType string, modelName string) string {
 		return ProviderPriceUnitPerImage
 	case ProviderModelTypeVideo:
 		return ProviderPriceUnitPerVideo
+	case ProviderModelTypeEmbedding:
+		return ProviderPriceUnitPer1KTokens
 	case ProviderModelTypeAudio:
 		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(modelName)), "tts-") {
 			return ProviderPriceUnitPer1KChars

@@ -40,6 +40,9 @@ func TestNormalizeChannelModelEndpoint(t *testing.T) {
 		if got := NormalizeChannelModelEndpoint(ProviderModelTypeVideo, ""); got != ChannelModelEndpointVideos {
 			t.Fatalf("NormalizeChannelModelEndpoint(video, empty) = %q, want %q", got, ChannelModelEndpointVideos)
 		}
+		if got := NormalizeChannelModelEndpoint(ProviderModelTypeEmbedding, ""); got != ChannelModelEndpointEmbeddings {
+			t.Fatalf("NormalizeChannelModelEndpoint(embedding, empty) = %q, want %q", got, ChannelModelEndpointEmbeddings)
+		}
 	})
 }
 
