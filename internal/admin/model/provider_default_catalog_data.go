@@ -42,7 +42,7 @@ var defaultProviderCatalogTemplates = normalizeDefaultProviderCatalogTemplates([
 			{
 				Model:              "gpt-image-2",
 				Type:               ProviderModelTypeImage,
-				SupportedEndpoints: []string{ChannelModelEndpointResponses},
+				SupportedEndpoints: []string{ChannelModelEndpointResponses, ChannelModelEndpointImages, ChannelModelEndpointImageEdit},
 				InputPrice:         0.008,
 				OutputPrice:        0.03,
 				PriceUnit:          ProviderPriceUnitPer1KTokens,

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -97,8 +98,13 @@ func TestBuildDefaultProviderCatalogSeeds_OpenAIIncludesGPTImage2Pricing(t *test
 			if detail.PriceUnit != ProviderPriceUnitPer1KTokens {
 				t.Fatalf("gpt-image-2 price_unit=%q, want %q", detail.PriceUnit, ProviderPriceUnitPer1KTokens)
 			}
-			if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointResponses {
-				t.Fatalf("gpt-image-2 supported_endpoints=%#v, want [%s]", detail.SupportedEndpoints, ChannelModelEndpointResponses)
+			if len(detail.SupportedEndpoints) != 3 {
+				t.Fatalf("gpt-image-2 supported_endpoints=%#v, want 3 endpoints", detail.SupportedEndpoints)
+			}
+			for _, endpoint := range []string{ChannelModelEndpointResponses, ChannelModelEndpointImages, ChannelModelEndpointImageEdit} {
+				if !slices.Contains(detail.SupportedEndpoints, endpoint) {
+					t.Fatalf("gpt-image-2 supported_endpoints=%#v, missing %s", detail.SupportedEndpoints, endpoint)
+				}
 			}
 			if len(detail.PriceComponents) != 2 {
 				t.Fatalf("gpt-image-2 price_components=%d, want 2", len(detail.PriceComponents))
@@ -135,7 +141,16 @@ func TestBuildDefaultProviderCatalogSeeds_TokenBasedImageModelsUseResponsesEndpo
 			if detail.PriceUnit != ProviderPriceUnitPer1KTokens {
 				t.Fatalf("%s price_unit=%q, want %q", detail.Model, detail.PriceUnit, ProviderPriceUnitPer1KTokens)
 			}
-			if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointResponses {
+			if detail.Model == "gpt-image-2" {
+				if len(detail.SupportedEndpoints) != 3 {
+					t.Fatalf("%s supported_endpoints=%#v, want 3 endpoints", detail.Model, detail.SupportedEndpoints)
+				}
+				for _, endpoint := range []string{ChannelModelEndpointResponses, ChannelModelEndpointImages, ChannelModelEndpointImageEdit} {
+					if !slices.Contains(detail.SupportedEndpoints, endpoint) {
+						t.Fatalf("%s supported_endpoints=%#v, missing %s", detail.Model, detail.SupportedEndpoints, endpoint)
+					}
+				}
+			} else if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointResponses {
 				t.Fatalf("%s supported_endpoints=%#v, want [%s]", detail.Model, detail.SupportedEndpoints, ChannelModelEndpointResponses)
 			}
 			found[detail.Model] = true
