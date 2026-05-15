@@ -5,8 +5,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/yeying-community/router/common/helper"
 	commonutils "github.com/yeying-community/router/common/utils"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type GroupModelConfigItem struct {
@@ -84,32 +86,141 @@ func ReplaceSingleGroupModelConfig(groupID string, modelName string, items []Gro
 		return fmt.Errorf("模型不能为空")
 	}
 	if err := DB.Transaction(func(tx *gorm.DB) error {
-		currentItems, err := listGroupModelConfigItemsWithDB(tx, groupCatalog.Id)
-		if err != nil {
-			return err
-		}
-		boundChannelIDs, err := listGroupBoundChannelIDsWithDB(tx, groupCatalog.Id)
-		if err != nil {
-			return err
-		}
-		nextItems := make([]GroupModelConfigItem, 0, len(currentItems)+len(items))
-		for _, item := range currentItems {
-			if strings.TrimSpace(item.Model) == normalizedModelName {
-				continue
-			}
-			nextItems = append(nextItems, item)
-		}
-		for _, item := range items {
-			next := item
-			next.Model = normalizedModelName
-			nextItems = append(nextItems, next)
-		}
-		return replaceGroupModelConfigsWithDB(tx, groupCatalog.Id, boundChannelIDs, nextItems, true)
+		return replaceSingleGroupModelConfigWithDB(tx, groupCatalog.Id, normalizedModelName, items)
 	}); err != nil {
 		return err
 	}
 	RefreshGroupModelRouteCachesForGroups(groupCatalog.Id)
 	return nil
+}
+
+func replaceSingleGroupModelConfigWithDB(db *gorm.DB, groupID string, modelName string, items []GroupModelConfigItem) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	groupCatalog, err := getGroupCatalogByIDWithDB(db, groupID)
+	if err != nil {
+		return err
+	}
+	groupID = groupCatalog.Id
+	modelName = strings.TrimSpace(modelName)
+	if modelName == "" {
+		return fmt.Errorf("模型不能为空")
+	}
+
+	modelItems := make([]GroupModelConfigItem, 0, len(items))
+	for _, item := range items {
+		next := item
+		next.Model = modelName
+		modelItems = append(modelItems, next)
+	}
+	normalizedItems, err := normalizeGroupModelConfigItems(modelItems)
+	if err != nil {
+		return err
+	}
+
+	boundChannelIDs, err := listGroupBoundChannelIDsWithDB(db, groupID)
+	if err != nil {
+		return err
+	}
+	allowedSet := make(map[string]struct{}, len(boundChannelIDs))
+	for _, channelID := range boundChannelIDs {
+		allowedSet[channelID] = struct{}{}
+	}
+	channelsByID, err := loadEnabledChannelsByIDWithDB(db, boundChannelIDs)
+	if err != nil {
+		return err
+	}
+	priorityByChannelID, err := listGroupChannelBindingPriorityByChannelWithDB(db, groupID)
+	if err != nil {
+		return err
+	}
+
+	groupCol := `"group"`
+	if err := db.Where(groupCol+" = ? AND model = ?", groupID, modelName).Delete(&GroupModelRoute{}).Error; err != nil {
+		return err
+	}
+	if len(normalizedItems) == 0 {
+		return db.Where(groupCol+" = ? AND model = ?", groupID, modelName).Delete(&GroupModel{}).Error
+	}
+
+	routes := make([]GroupModelRoute, 0, len(normalizedItems))
+	provider := ""
+	modelEnabled := false
+	seenChannels := make(map[string]struct{}, len(normalizedItems))
+	for _, item := range normalizedItems {
+		if item.Model != modelName {
+			return fmt.Errorf("模型不匹配: %s", item.Model)
+		}
+		if _, ok := allowedSet[item.ChannelId]; !ok {
+			return fmt.Errorf("渠道未绑定到当前分组: %s", item.ChannelId)
+		}
+		channel := channelsByID[item.ChannelId]
+		if channel == nil {
+			return fmt.Errorf("渠道不存在: %s", item.ChannelId)
+		}
+		if _, ok := seenChannels[item.ChannelId]; ok {
+			return fmt.Errorf("同一分组模型下的渠道不能重复: %s / %s", item.Model, item.ChannelId)
+		}
+		seenChannels[item.ChannelId] = struct{}{}
+
+		catalog := buildGroupModelConfigChannelCatalog(channel)
+		upstreamModel := catalog.ResolveUpstream(item)
+		if upstreamModel == "" {
+			target := item.UpstreamModel
+			if target == "" {
+				target = item.Model
+			}
+			return fmt.Errorf("渠道 %s 不支持模型 %s", item.ChannelId, target)
+		}
+		itemProvider := NormalizeGroupModelRouteProvider(catalog.ResolveProvider(item, upstreamModel))
+		if provider != "" && itemProvider != "" && provider != itemProvider {
+			return fmt.Errorf("同一分组模型仅允许一个供应商: %s (%s / %s)", item.Model, provider, itemProvider)
+		}
+		if provider == "" {
+			provider = itemProvider
+		}
+		enabled := channel.Status == ChannelStatusEnabled && resolveGroupModelConfigEnabled(item)
+		modelEnabled = modelEnabled || enabled
+		priority := priorityByChannelID[item.ChannelId]
+		if priority == nil {
+			priority = resolveGroupModelConfigPriority(item, channel)
+		}
+		routes = append(routes, GroupModelRoute{
+			Group:         groupID,
+			Model:         modelName,
+			ChannelId:     item.ChannelId,
+			UpstreamModel: NormalizeGroupModelRouteUpstreamModel(modelName, upstreamModel),
+			Provider:      itemProvider,
+			Enabled:       enabled,
+			Priority:      priority,
+		})
+	}
+
+	now := helper.GetTimestamp()
+	groupModel := GroupModel{
+		Group:     groupID,
+		Model:     modelName,
+		Provider:  provider,
+		Enabled:   modelEnabled,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "group"}, {Name: "model"}},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"provider",
+			"enabled",
+			"updated_at",
+		}),
+	}).Create(&groupModel).Error; err != nil {
+		return err
+	}
+	routes = normalizeGroupModelRouteRowsPreserveOrder(routes)
+	if len(routes) == 0 {
+		return nil
+	}
+	return db.Create(&routes).Error
 }
 
 func listGroupModelConfigItemsWithDB(db *gorm.DB, groupID string) ([]GroupModelConfigItem, error) {
@@ -476,7 +587,7 @@ func channelSelectedModelConfigs(channel *Channel) []ChannelModel {
 	}
 	selected := make([]ChannelModel, 0, len(rows))
 	for _, row := range rows {
-		if !row.Selected {
+		if row.Inactive || !row.Selected {
 			continue
 		}
 		selected = append(selected, row)

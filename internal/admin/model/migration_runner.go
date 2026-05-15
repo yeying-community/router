@@ -964,6 +964,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return syncDefaultProviderCatalogWithDB(tx)
 			},
 		},
+		{
+			Version:     "202605151030_refresh_gpt_image2_endpoint_candidates",
+			Description: "refresh default provider catalog to expose openai gpt-image-2 image endpoints",
+			Up: func(tx *gorm.DB) error {
+				return syncDefaultProviderCatalogWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
