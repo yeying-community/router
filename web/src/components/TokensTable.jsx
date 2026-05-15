@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import UnitDropdown from './UnitDropdown';
 import {
   API,
@@ -442,8 +442,13 @@ const TokensTable = () => {
             <AppButton
               className='router-page-button'
               color='blue'
-              as={Link}
-              to='/workspace/token/add'
+              onClick={() =>
+                navigate('/workspace/token/add', {
+                  state: {
+                    from: currentPagePath,
+                  },
+                })
+              }
             >
               {t('token.buttons.add')}
             </AppButton>
