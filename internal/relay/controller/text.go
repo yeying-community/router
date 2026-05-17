@@ -277,42 +277,6 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 		}
 		return c.Request.Body, nil
 	}
-	if upstreamMode == relaymode.Responses {
-		if textRequest.Input == nil && len(textRequest.Messages) > 0 {
-			textRequest.Input = textRequest.Messages
-			textRequest.Messages = nil
-		}
-		normalizeResponsesInput(textRequest)
-		jsonData, err := json.Marshal(textRequest)
-		if err != nil {
-			return nil, err
-		}
-		jsonData, err = normalizeRequestBodyForResponses(jsonData)
-		if err != nil {
-			return nil, err
-		}
-		jsonData, err = applyEndpointRequestPolicy(c, meta, jsonData)
-		if err != nil {
-			return nil, err
-		}
-		logger.Debugf(
-			c.Request.Context(),
-			"[responses_body] len=%d model=%s stream=%t",
-			len(jsonData),
-			strings.TrimSpace(meta.ActualModelName),
-			meta.IsStream,
-		)
-		if config.DebugEnabled {
-			logger.Debugf(
-				c.Request.Context(),
-				"[upstream_request_body] downstream=%s upstream=%s body=%s",
-				relayModeLabel(meta.Mode),
-				relayModeLabel(upstreamMode),
-				sanitizePayloadForRelayDebug(jsonData),
-			)
-		}
-		return bytes.NewBuffer(jsonData), nil
-	}
 	if !config.EnforceIncludeUsage &&
 		meta.APIType == apitype.OpenAI &&
 		meta.OriginModelName == meta.ActualModelName &&

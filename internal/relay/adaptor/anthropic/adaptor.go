@@ -114,9 +114,6 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Met
 		}
 		return relayMessagesResponse(c, resp)
 	}
-	if meta.Mode == relaymode.ChatCompletions && upstreamMode == relaymode.Messages && !meta.IsStream {
-		return relayMessagesStreamAsChatResponse(c, resp, meta.PromptTokens, meta.ActualModelName)
-	}
 	if upstreamMode != relaymode.Messages {
 		openaiAdaptor := &openai.Adaptor{}
 		openaiAdaptor.Init(meta)
