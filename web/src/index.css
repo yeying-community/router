@@ -3719,7 +3719,13 @@ body,
     overflow-wrap: anywhere;
 }
 
+.router-ui-table.router-package-list-table .ant-table {
+    min-width: 1214px;
+}
+
 .router-ui-table.router-package-list-table .ant-table-tbody > tr > td.router-package-name-cell,
+.router-ui-table.router-package-list-table .ant-table-tbody > tr > td.router-package-daily-quota-cell,
+.router-ui-table.router-package-list-table .ant-table-tbody > tr > td.router-package-emergency-quota-cell,
 .router-ui-table.router-package-list-table .ant-table-tbody > tr > td.router-package-sale-price-cell,
 .router-ui-table.router-package-list-table .ant-table-tbody > tr > td.router-package-created-at-cell,
 .router-ui-table.router-package-list-table .ant-table-tbody > tr > td.router-package-updated-at-cell {

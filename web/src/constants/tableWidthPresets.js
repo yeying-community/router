@@ -31,17 +31,29 @@ export const TOPUP_PLAN_LIST_COLUMN_WIDTHS = {
 };
 
 export const PACKAGE_LIST_COLUMN_WIDTHS = {
-  name: 220,
-  group: 180,
-  salePrice: 110,
-  dailyQuota: 160,
-  emergencyQuota: 160,
-  durationDays: 100,
+  name: 120,
+  group: 110,
+  salePrice: 80,
+  dailyQuota: 120,
+  emergencyQuota: 120,
+  durationDays: 80,
   status: 92,
   createdAt: 148,
   updatedAt: 148,
   actions: 176,
 };
+
+export const PACKAGE_LIST_TABLE_MIN_WIDTH =
+  PACKAGE_LIST_COLUMN_WIDTHS.name +
+  PACKAGE_LIST_COLUMN_WIDTHS.group +
+  PACKAGE_LIST_COLUMN_WIDTHS.salePrice +
+  PACKAGE_LIST_COLUMN_WIDTHS.dailyQuota +
+  PACKAGE_LIST_COLUMN_WIDTHS.emergencyQuota +
+  PACKAGE_LIST_COLUMN_WIDTHS.durationDays +
+  PACKAGE_LIST_COLUMN_WIDTHS.status +
+  PACKAGE_LIST_COLUMN_WIDTHS.createdAt +
+  PACKAGE_LIST_COLUMN_WIDTHS.updatedAt +
+  PACKAGE_LIST_COLUMN_WIDTHS.actions;
 
 export const CHANNEL_LIST_COLUMN_WIDTHS = {
   selection: 48,
