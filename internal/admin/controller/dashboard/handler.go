@@ -303,7 +303,7 @@ func calcChannelHealth(channel *model.Channel, nowTs int64) channelHealthMetrics
 		return metrics
 	}
 	selectedModels := make(map[string]struct{})
-	for _, row := range channel.GetModelConfigs() {
+	for _, row := range channel.GetChannelModels() {
 		if !row.Selected || row.Inactive || strings.TrimSpace(row.Model) == "" {
 			continue
 		}
@@ -409,7 +409,7 @@ func collectCapabilities(channel *model.Channel) []string {
 		return []string{}
 	}
 	selected := map[string]struct{}{}
-	for _, row := range channel.GetModelConfigs() {
+	for _, row := range channel.GetChannelModels() {
 		if !row.Selected || row.Inactive {
 			continue
 		}

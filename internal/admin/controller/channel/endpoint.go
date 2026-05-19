@@ -112,7 +112,7 @@ func GetChannelEndpoints(c *gin.Context) {
 			item.LastTestedAt = testRow.LastTestedAt
 			item.LastTestError = strings.TrimSpace(testRow.LastError)
 		}
-		selectedRow, ok := model.FindSelectedChannelModelConfig(channelRow.GetModelConfigs(), row.Model)
+		selectedRow, ok := model.FindSelectedChannelModelConfig(channelRow.GetChannelModels(), row.Model)
 		if ok && !row.Enabled {
 			reason, reasonErr := model.ExplainManualChannelEndpointEnableBlockWithDB(model.DB, channelID, selectedRow, row.Endpoint)
 			if reasonErr != nil {
@@ -191,7 +191,7 @@ func UpdateChannelEndpoint(c *gin.Context) {
 		})
 		return
 	}
-	selectedRow, ok := model.FindSelectedChannelModelConfig(channelRow.GetModelConfigs(), modelName)
+	selectedRow, ok := model.FindSelectedChannelModelConfig(channelRow.GetChannelModels(), modelName)
 	if !ok {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

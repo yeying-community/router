@@ -12,12 +12,8 @@ import {
   AppTooltip,
 } from '../../../router-ui';
 
-const resolveLatestStatusKey = (latestResult) =>
-  latestResult
-    ? latestResult.supported === true && latestResult.status === 'supported'
-      ? 'supported'
-      : latestResult.status || 'unsupported'
-    : 'untested';
+const resolveEndpointTestStatusKey = (row) =>
+  (row?.last_test_status || '').toString().trim() || 'untested';
 
 const ChannelDetailEndpointsTab = ({
   t,
@@ -27,7 +23,6 @@ const ChannelDetailEndpointsTab = ({
   channelEndpointsLoading,
   channelEndpointsError,
   buildChannelEndpointKey,
-  modelTestResultsByKey,
   endpointCapabilityReadonly,
   endpointMutatingKey,
   updateChannelEndpointCapability,
@@ -55,13 +50,9 @@ const ChannelDetailEndpointsTab = ({
         text: t('channel.edit.endpoint_capabilities.filters.all_test_status'),
       },
       ...[
-        'supported',
-        'unsupported',
+        'success',
+        'failed',
         'untested',
-        'stale',
-        'pending',
-        'running',
-        'skipped',
       ].map((status) => ({
         key: status,
         value: status,
@@ -77,16 +68,9 @@ const ChannelDetailEndpointsTab = ({
         if (testStatusFilter === 'all') {
           return true;
         }
-        const endpointKey = buildChannelEndpointKey(row.model, row.endpoint);
-        const latestResult = modelTestResultsByKey.get(endpointKey) || null;
-        return resolveLatestStatusKey(latestResult) === testStatusFilter;
+        return resolveEndpointTestStatusKey(row) === testStatusFilter;
       }),
-    [
-      buildChannelEndpointKey,
-      channelEndpoints,
-      modelTestResultsByKey,
-      testStatusFilter,
-    ],
+    [channelEndpoints, testStatusFilter],
   );
 
   const resolveBaseURLDraft = (row, endpointKey) => {
@@ -234,11 +218,18 @@ const ChannelDetailEndpointsTab = ({
               key: 'test_status',
               width: columnWidths[4],
               render: (_, row) => {
-                const latestStatusKey =
-                  (row.last_test_status || '').trim() || 'untested';
+                const latestStatusKey = resolveEndpointTestStatusKey(row);
                 const lastTestError = (row.last_test_error || '').trim();
                 const statusTag = (
-                  <AppTag color={latestStatusKey === 'supported' ? 'green' : 'grey'}>
+                  <AppTag
+                    color={
+                      latestStatusKey === 'success'
+                        ? 'green'
+                        : latestStatusKey === 'failed'
+                          ? 'red'
+                          : 'grey'
+                    }
+                  >
                     {t(`channel.edit.model_tester.status.${latestStatusKey}`)}
                   </AppTag>
                 );

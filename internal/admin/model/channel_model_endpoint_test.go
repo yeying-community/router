@@ -1,6 +1,11 @@
 package model
 
-import "testing"
+import (
+	"testing"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+)
 
 func TestNormalizeProviderModelSupportedEndpointsFiltersByModelType(t *testing.T) {
 	got := NormalizeProviderModelSupportedEndpoints(ProviderModelTypeText, []string{
@@ -269,5 +274,147 @@ func TestIsChannelModelRequestEndpointSupportedByEndpointMapNoBridgeCompatibilit
 	}
 	if supported, explicit := IsChannelModelRequestEndpointSupportedByEndpointMap(endpointMap, ChannelModelEndpointMessages); !explicit || supported {
 		t.Fatalf("messages request support via responses endpoint = (%t, %t), want (false, true)", supported, explicit)
+	}
+}
+
+func TestReplaceChannelModelsWithDBSyncsEndpointsFromStoredRows(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	if err := db.AutoMigrate(
+		&Channel{},
+		&ChannelModel{},
+		&ChannelModelEndpoint{},
+		&ChannelModelPriceComponent{},
+		&ProviderModel{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{
+		Id:       "channel-1",
+		Protocol: "openai",
+		Name:     "channel-1",
+	}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+
+	if err := db.Create(&ProviderModel{
+		Provider:           "openai",
+		Model:              "gpt-5.4",
+		Type:               ProviderModelTypeText,
+		Status:             ProviderModelStatusActive,
+		SupportedEndpoints: ChannelModelEndpointChat + "," + ChannelModelEndpointResponses,
+	}).Error; err != nil {
+		t.Fatalf("create provider model gpt-5.4: %v", err)
+	}
+	if err := db.Create(&ProviderModel{
+		Provider:           "openai",
+		Model:              "gpt-5.4-nano",
+		Type:               ProviderModelTypeText,
+		Status:             ProviderModelStatusActive,
+		SupportedEndpoints: ChannelModelEndpointChat + "," + ChannelModelEndpointResponses,
+	}).Error; err != nil {
+		t.Fatalf("create provider model gpt-5.4-nano: %v", err)
+	}
+
+	initialRows := []ChannelModel{
+		{
+			ChannelId:     "channel-1",
+			Model:         "gpt-5.4",
+			UpstreamModel: "gpt-5.4",
+			Provider:      "openai",
+			Type:          ProviderModelTypeText,
+			Selected:      true,
+			SortOrder:     1,
+		},
+		{
+			ChannelId:     "channel-1",
+			Model:         "gpt-5.4-nano",
+			UpstreamModel: "gpt-5.4-nano",
+			Provider:      "openai",
+			Type:          ProviderModelTypeText,
+			Selected:      true,
+			SortOrder:     2,
+		},
+	}
+	if err := db.Create(&initialRows).Error; err != nil {
+		t.Fatalf("create initial channel models: %v", err)
+	}
+	if err := db.Create(&[]ChannelModelEndpoint{
+		{
+			ChannelId: "channel-1",
+			Model:     "gpt-5.4",
+			Endpoint:  ChannelModelEndpointChat,
+			Enabled:   true,
+		},
+		{
+			ChannelId: "channel-1",
+			Model:     "gpt-5.4",
+			Endpoint:  ChannelModelEndpointResponses,
+		},
+		{
+			ChannelId: "channel-1",
+			Model:     "gpt-5.4-nano",
+			Endpoint:  ChannelModelEndpointChat,
+			Enabled:   true,
+		},
+		{
+			ChannelId: "channel-1",
+			Model:     "gpt-5.4-nano",
+			Endpoint:  ChannelModelEndpointResponses,
+			Enabled:   true,
+		},
+	}).Error; err != nil {
+		t.Fatalf("create initial channel endpoints: %v", err)
+	}
+	if err := db.Model(&ChannelModelEndpoint{}).
+		Where("channel_id = ? AND model = ? AND endpoint = ?", "channel-1", "gpt-5.4", ChannelModelEndpointResponses).
+		Update("enabled", false).Error; err != nil {
+		t.Fatalf("set initial disabled endpoint: %v", err)
+	}
+
+	updatedRows := []ChannelModel{
+		{
+			Model:         "gpt-5.4",
+			UpstreamModel: "gpt-5.4",
+			Provider:      "openai",
+			Type:          ProviderModelTypeText,
+			Selected:      true,
+			SortOrder:     1,
+		},
+		{
+			Model:         "gpt-5.4-nano",
+			UpstreamModel: "gpt-5.4-nano",
+			Provider:      "openai",
+			Type:          ProviderModelTypeText,
+			Selected:      false,
+			SortOrder:     2,
+		},
+	}
+	if err := ReplaceChannelModelsWithDB(db, "channel-1", updatedRows); err != nil {
+		t.Fatalf("ReplaceChannelModelsWithDB: %v", err)
+	}
+
+	endpointRows, err := listChannelModelEndpointRowsByChannelIDWithDB(db, "channel-1")
+	if err != nil {
+		t.Fatalf("listChannelModelEndpointRowsByChannelIDWithDB: %v", err)
+	}
+	if len(endpointRows) != 2 {
+		t.Fatalf("len(endpointRows)=%d, want 2 endpoints preserved for selected model only", len(endpointRows))
+	}
+
+	got := map[string]bool{}
+	for _, row := range endpointRows {
+		if row.Model != "gpt-5.4" {
+			t.Fatalf("unexpected endpoint row model=%q, want only gpt-5.4", row.Model)
+		}
+		got[row.Endpoint] = row.Enabled
+	}
+	if enabled, ok := got[ChannelModelEndpointChat]; !ok || !enabled {
+		t.Fatalf("chat endpoint = (%t, %t), want (true, true)", enabled, ok)
+	}
+	if enabled, ok := got[ChannelModelEndpointResponses]; !ok || enabled {
+		t.Fatalf("responses endpoint = (%t, %t), want (false, true)", enabled, ok)
 	}
 }

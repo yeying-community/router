@@ -26,9 +26,9 @@ const ChannelDetailModelsTab = ({
   activeRefreshModelsTask,
   detailModelMutating,
   handleFetchModels,
-  searchedModelConfigs,
-  visibleModelConfigs,
-  renderedModelConfigs,
+  searchedChannelModels,
+  visibleChannelModels,
+  renderedChannelModels,
   getComplexPricingDetailsForModel,
   openComplexPricingModal,
   detailModelsEditLocked,
@@ -83,7 +83,7 @@ const ChannelDetailModelsTab = ({
 
   const tableRowSelection = {
     columnWidth: columnWidths.selection,
-    selectedRowKeys: renderedModelConfigs
+    selectedRowKeys: renderedChannelModels
       .filter((row) => row?.selected)
       .map((row) => `${row.upstream_model}-${row.model}`),
     getTitleCheckboxProps: () => ({
@@ -220,14 +220,14 @@ const ChannelDetailModelsTab = ({
               <AppEmpty>
                 {modelSearchKeyword.trim() !== ''
                   ? t('channel.edit.model_selector.empty_search')
-                  : visibleModelConfigs.length > 0
+                  : visibleChannelModels.length > 0
                     ? t('channel.edit.model_selector.empty_filtered')
                     : t('channel.edit.model_selector.empty')}
               </AppEmpty>
             ),
           }}
           rowKey={(row) => `${row.upstream_model}-${row.model}`}
-          dataSource={searchedModelConfigs.length === 0 ? [] : renderedModelConfigs}
+          dataSource={searchedChannelModels.length === 0 ? [] : renderedChannelModels}
           columns={[
             {
               title: t('channel.edit.model_selector.table.name'),

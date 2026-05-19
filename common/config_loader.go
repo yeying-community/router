@@ -30,32 +30,32 @@ var (
 	RedisPassword   = ""
 )
 
-type RuntimeConfig struct {
-	Server    ServerRuntimeConfig    `yaml:"server"`
-	Database  DatabaseRuntimeConfig  `yaml:"database"`
-	Redis     RedisRuntimeConfig     `yaml:"redis"`
-	Node      NodeRuntimeConfig      `yaml:"node"`
-	Cache     CacheRuntimeConfig     `yaml:"cache"`
-	Auth      AuthRuntimeConfig      `yaml:"auth"`
-	CORS      CORSRuntimeConfig      `yaml:"cors"`
-	UCAN      UCANRuntimeConfig      `yaml:"ucan"`
-	Feature   FeatureRuntimeConfig   `yaml:"feature"`
-	Operation OperationRuntimeConfig `yaml:"operation"`
-	Relay     RelayRuntimeConfig     `yaml:"relay"`
-	RateLimit RateLimitRuntimeConfig `yaml:"rate_limit"`
-	Metrics   MetricsRuntimeConfig   `yaml:"metrics"`
-	Bootstrap BootstrapRuntimeConfig `yaml:"bootstrap"`
-	Logging   LoggingRuntimeConfig   `yaml:"logging"`
+type AppConfig struct {
+	Server    ServerConfig    `yaml:"server"`
+	Database  DatabaseConfig  `yaml:"database"`
+	Redis     RedisConfig     `yaml:"redis"`
+	Node      NodeConfig      `yaml:"node"`
+	Cache     CacheConfig     `yaml:"cache"`
+	Auth      AuthConfig      `yaml:"auth"`
+	CORS      CORSConfig      `yaml:"cors"`
+	UCAN      UCANConfig      `yaml:"ucan"`
+	Feature   FeatureConfig   `yaml:"feature"`
+	Operation OperationConfig `yaml:"operation"`
+	Relay     RelayConfig     `yaml:"relay"`
+	RateLimit RateLimitConfig `yaml:"rate_limit"`
+	Metrics   MetricsConfig   `yaml:"metrics"`
+	Bootstrap BootstrapConfig `yaml:"bootstrap"`
+	Logging   LoggingConfig   `yaml:"logging"`
 }
 
-type ServerRuntimeConfig struct {
+type ServerConfig struct {
 	Port    int    `yaml:"port"`
 	GinMode string `yaml:"gin_mode"`
 	LogDir  string `yaml:"log_dir"`
 	Address string `yaml:"address"`
 }
 
-type DatabaseRuntimeConfig struct {
+type DatabaseConfig struct {
 	SQLDSN             string `yaml:"sql_dsn"`
 	LogSQLDSN          string `yaml:"log_sql_dsn"`
 	MaxIdleConns       int    `yaml:"max_idle_conns"`
@@ -63,25 +63,25 @@ type DatabaseRuntimeConfig struct {
 	MaxLifetimeSeconds int    `yaml:"max_lifetime_seconds"`
 }
 
-type RedisRuntimeConfig struct {
+type RedisConfig struct {
 	ConnString string `yaml:"conn_string"`
 	MasterName string `yaml:"master_name"`
 	Password   string `yaml:"password"`
 }
 
-type NodeRuntimeConfig struct {
+type NodeConfig struct {
 	Type                   string `yaml:"type"`
 	PollingIntervalSeconds int    `yaml:"polling_interval_seconds"`
 }
 
-type CacheRuntimeConfig struct {
+type CacheConfig struct {
 	MemoryCacheEnabled         bool `yaml:"memory_cache_enabled"`
 	SyncFrequencySeconds       int  `yaml:"sync_frequency_seconds"`
 	BatchUpdateEnabled         bool `yaml:"batch_update_enabled"`
 	BatchUpdateIntervalSeconds int  `yaml:"batch_update_interval_seconds"`
 }
 
-type AuthRuntimeConfig struct {
+type AuthConfig struct {
 	CookieSecret            string   `yaml:"cookie_secret"`
 	PasswordLoginEnabled    bool     `yaml:"password_login_enabled"`
 	PasswordRegisterEnabled bool     `yaml:"password_register_enabled"`
@@ -97,25 +97,25 @@ type AuthRuntimeConfig struct {
 	RefreshCookieSameSite   string   `yaml:"refresh_cookie_samesite"`
 }
 
-type CORSRuntimeConfig struct {
+type CORSConfig struct {
 	AllowedOrigins []string `yaml:"allowed_origins"`
 }
 
-type UCANRuntimeConfig struct {
+type UCANConfig struct {
 	Aud               string   `yaml:"aud"`
 	Resource          string   `yaml:"resource"`
 	Action            string   `yaml:"action"`
 	TrustedIssuerDIDs []string `yaml:"trusted_issuer_dids"`
 }
 
-type FeatureRuntimeConfig struct {
+type FeatureConfig struct {
 	Debug               bool   `yaml:"debug"`
 	DebugSQL            bool   `yaml:"debug_sql"`
 	DisableOpenAICompat bool   `yaml:"disable_openai_compat"`
 	FrontendBaseURL     string `yaml:"frontend_base_url"`
 }
 
-type OperationRuntimeConfig struct {
+type OperationConfig struct {
 	TopUpMode              string `yaml:"top_up_mode"`
 	TopUpLink              string `yaml:"top_up_link"`
 	TopUpAPICreateURL      string `yaml:"top_up_api_create_url"`
@@ -128,7 +128,7 @@ type OperationRuntimeConfig struct {
 	ChatLink               string `yaml:"chat_link"`
 }
 
-type RelayRuntimeConfig struct {
+type RelayConfig struct {
 	TimeoutSeconds                         int      `yaml:"timeout_seconds"`
 	Proxy                                  string   `yaml:"proxy"`
 	UserContentRequestProxy                string   `yaml:"user_content_request_proxy"`
@@ -140,14 +140,14 @@ type RelayRuntimeConfig struct {
 	TestPrompt                             string   `yaml:"test_prompt"`
 }
 
-type RateLimitRuntimeConfig struct {
+type RateLimitConfig struct {
 	GlobalAPIRateLimit                int `yaml:"global_api_rate_limit"`
 	GlobalAPIRateLimitDurationSeconds int `yaml:"global_api_rate_limit_duration_seconds"`
 	GlobalWebRateLimit                int `yaml:"global_web_rate_limit"`
 	GlobalWebRateLimitDurationSeconds int `yaml:"global_web_rate_limit_duration_seconds"`
 }
 
-type MetricsRuntimeConfig struct {
+type MetricsConfig struct {
 	Enabled              bool    `yaml:"enabled"`
 	QueueSize            int     `yaml:"queue_size"`
 	SuccessRateThreshold float64 `yaml:"success_rate_threshold"`
@@ -155,11 +155,11 @@ type MetricsRuntimeConfig struct {
 	FailChanSize         int     `yaml:"fail_chan_size"`
 }
 
-type BootstrapRuntimeConfig struct {
+type BootstrapConfig struct {
 	RootWalletAddress string `yaml:"root_wallet_address"`
 }
 
-type LoggingRuntimeConfig struct {
+type LoggingConfig struct {
 	OnlyOneLogFile   bool `yaml:"only_one_log_file"`
 	RotateMaxSizeMB  int  `yaml:"rotate_max_size_mb"`
 	RotateMaxBackups int  `yaml:"rotate_max_backups"`
@@ -167,37 +167,37 @@ type LoggingRuntimeConfig struct {
 	RotateCompress   bool `yaml:"rotate_compress"`
 }
 
-func defaultRuntimeConfig() RuntimeConfig {
-	return RuntimeConfig{
-		Server: ServerRuntimeConfig{
+func defaultAppConfig() AppConfig {
+	return AppConfig{
+		Server: ServerConfig{
 			Port:    3011,
 			GinMode: "release",
 			LogDir:  "./logs",
 			Address: "",
 		},
-		Database: DatabaseRuntimeConfig{
+		Database: DatabaseConfig{
 			SQLDSN:             "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable",
 			LogSQLDSN:          "",
 			MaxIdleConns:       100,
 			MaxOpenConns:       1000,
 			MaxLifetimeSeconds: 60,
 		},
-		Redis: RedisRuntimeConfig{
+		Redis: RedisConfig{
 			ConnString: "",
 			MasterName: "",
 			Password:   "",
 		},
-		Node: NodeRuntimeConfig{
+		Node: NodeConfig{
 			Type:                   "master",
 			PollingIntervalSeconds: 0,
 		},
-		Cache: CacheRuntimeConfig{
+		Cache: CacheConfig{
 			MemoryCacheEnabled:         false,
 			SyncFrequencySeconds:       10 * 60,
 			BatchUpdateEnabled:         false,
 			BatchUpdateIntervalSeconds: 5,
 		},
-		Auth: AuthRuntimeConfig{
+		Auth: AuthConfig{
 			CookieSecret:            "",
 			PasswordLoginEnabled:    true,
 			PasswordRegisterEnabled: true,
@@ -212,22 +212,22 @@ func defaultRuntimeConfig() RuntimeConfig {
 			RefreshCookieSecure:     false,
 			RefreshCookieSameSite:   "lax",
 		},
-		CORS: CORSRuntimeConfig{
+		CORS: CORSConfig{
 			AllowedOrigins: []string{},
 		},
-		UCAN: UCANRuntimeConfig{
+		UCAN: UCANConfig{
 			Aud:               "",
 			Resource:          "",
 			Action:            config.DefaultUcanAction,
 			TrustedIssuerDIDs: []string{},
 		},
-		Feature: FeatureRuntimeConfig{
+		Feature: FeatureConfig{
 			Debug:               false,
 			DebugSQL:            false,
 			DisableOpenAICompat: false,
 			FrontendBaseURL:     "",
 		},
-		Operation: OperationRuntimeConfig{
+		Operation: OperationConfig{
 			TopUpMode:              "",
 			TopUpLink:              "",
 			TopUpAPICreateURL:      "",
@@ -239,7 +239,7 @@ func defaultRuntimeConfig() RuntimeConfig {
 			TopUpCallbackToken:     "",
 			ChatLink:               "",
 		},
-		Relay: RelayRuntimeConfig{
+		Relay: RelayConfig{
 			TimeoutSeconds:                         0,
 			Proxy:                                  "",
 			UserContentRequestProxy:                "",
@@ -250,23 +250,23 @@ func defaultRuntimeConfig() RuntimeConfig {
 			EnforceIncludeUsage:                    false,
 			TestPrompt:                             "Output only your specific model name with no additional text.",
 		},
-		RateLimit: RateLimitRuntimeConfig{
+		RateLimit: RateLimitConfig{
 			GlobalAPIRateLimit:                480,
 			GlobalAPIRateLimitDurationSeconds: 3 * 60,
 			GlobalWebRateLimit:                240,
 			GlobalWebRateLimitDurationSeconds: 3 * 60,
 		},
-		Metrics: MetricsRuntimeConfig{
+		Metrics: MetricsConfig{
 			Enabled:              false,
 			QueueSize:            10,
 			SuccessRateThreshold: 0.8,
 			SuccessChanSize:      1024,
 			FailChanSize:         128,
 		},
-		Bootstrap: BootstrapRuntimeConfig{
+		Bootstrap: BootstrapConfig{
 			RootWalletAddress: "",
 		},
-		Logging: LoggingRuntimeConfig{
+		Logging: LoggingConfig{
 			OnlyOneLogFile:   false,
 			RotateMaxSizeMB:  100,
 			RotateMaxBackups: 10,
@@ -276,7 +276,7 @@ func defaultRuntimeConfig() RuntimeConfig {
 	}
 }
 
-func LoadRuntimeConfig(path string) (*RuntimeConfig, error) {
+func LoadAppConfig(path string) (*AppConfig, error) {
 	configPath := strings.TrimSpace(path)
 	if configPath == "" {
 		configPath = "./config.yaml"
@@ -289,16 +289,16 @@ func LoadRuntimeConfig(path string) (*RuntimeConfig, error) {
 		return nil, fmt.Errorf("read config file %q failed: %w", configPath, err)
 	}
 
-	cfg := defaultRuntimeConfig()
+	cfg := defaultAppConfig()
 	if err = yaml.Unmarshal(content, &cfg); err != nil {
 		return nil, fmt.Errorf("parse config file %q failed: %w", configPath, err)
 	}
 	return &cfg, nil
 }
 
-func ApplyRuntimeConfig(cfg *RuntimeConfig, portFlagSet bool, logDirFlagSet bool) error {
+func ApplyAppConfig(cfg *AppConfig, portFlagSet bool, logDirFlagSet bool) error {
 	if cfg == nil {
-		return errors.New("runtime config is nil")
+		return errors.New("app config is nil")
 	}
 
 	if !portFlagSet {

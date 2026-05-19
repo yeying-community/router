@@ -41,6 +41,10 @@ func Update(channel *model.Channel) error {
 	return channelrepo.Update(channel)
 }
 
+func UpdateModels(id string, rows []model.ChannelModel) error {
+	return channelrepo.UpdateModels(id, rows)
+}
+
 func UpdateTestModelByID(id string, testModel string) error {
 	return channelrepo.UpdateTestModelByID(id, testModel)
 }

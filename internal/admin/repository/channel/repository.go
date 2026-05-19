@@ -16,6 +16,7 @@ func init() {
 		GetChannelById:               GetByID,
 		Insert:                       Insert,
 		Update:                       Update,
+		UpdateModels:                 UpdateModels,
 		UpdateResponseTime:           UpdateResponseTime,
 		UpdateBalance:                UpdateBalance,
 		Delete:                       Delete,
@@ -145,7 +146,7 @@ func prepareChannelForCreate(channel *model.Channel) error {
 		return err
 	}
 	channel.NormalizeProtocol()
-	channel.NormalizeModelConfigState()
+	channel.NormalizeChannelModelState()
 	if channel.CreatedTime == 0 {
 		channel.CreatedTime = helper.GetTimestamp()
 	}
@@ -187,10 +188,10 @@ func Insert(channel *model.Channel) error {
 		if err := tx.Create(channel).Error; err != nil {
 			return err
 		}
-		if err := model.ValidateManualChannelModelConfigsWithDB(tx, channel.Id, channel.GetModelConfigs()); err != nil {
+		if err := model.ValidateManualChannelModelsWithDB(tx, channel.Id, channel.GetChannelModels()); err != nil {
 			return err
 		}
-		if err := model.ReplaceChannelModelConfigsWithDB(tx, channel.Id, channel.GetModelConfigs()); err != nil {
+		if err := model.ReplaceChannelModelsWithDB(tx, channel.Id, channel.GetChannelModels()); err != nil {
 			return err
 		}
 		return model.EnsureChannelTestModelWithDB(tx, channel.Id)
@@ -216,7 +217,7 @@ func Update(channel *model.Channel) error {
 	if strings.TrimSpace(channel.Protocol) != "" {
 		channel.NormalizeProtocol()
 	}
-	channel.NormalizeModelConfigState()
+	channel.NormalizeChannelModelState()
 	err := model.DB.Transaction(func(tx *gorm.DB) error {
 		existing := model.Channel{}
 		if err := tx.First(&existing, "id = ?", channel.Id).Error; err != nil {
@@ -248,19 +249,26 @@ func Update(channel *model.Channel) error {
 		if err := tx.Model(&model.Channel{}).Where("id = ?", channel.Id).Omit("name").Updates(channel).Error; err != nil {
 			return err
 		}
-		if channel.ModelConfigsProvided {
-			if err := model.ValidateManualChannelModelConfigsWithDB(tx, channel.Id, channel.GetModelConfigs()); err != nil {
+		if channel.ChannelModelsProvided {
+			nextRows := channel.GetChannelModels()
+			if err := model.ValidateChannelModelDisableTransitionsWithDB(tx, channel.Id, existing.GetChannelModels(), nextRows); err != nil {
 				return err
 			}
-			if err := model.ReplaceChannelModelConfigsWithDB(tx, channel.Id, channel.GetModelConfigs()); err != nil {
+			if err := model.ValidateManualChannelModelsWithDB(tx, channel.Id, nextRows); err != nil {
+				return err
+			}
+			if err := model.ReplaceChannelModelsWithDB(tx, channel.Id, nextRows); err != nil {
 				return err
 			}
 			if err := model.EnsureChannelTestModelWithDB(tx, channel.Id); err != nil {
 				return err
 			}
 		} else if channel.ModelsProvided {
-			nextRows := previewChannelModelSelection(existing.GetModelConfigs(), channel.SelectedModelIDs())
-			if err := model.ValidateManualChannelModelConfigsWithDB(tx, channel.Id, nextRows); err != nil {
+			nextRows := previewChannelModelSelection(existing.GetChannelModels(), channel.SelectedModelIDs())
+			if err := model.ValidateChannelModelDisableTransitionsWithDB(tx, channel.Id, existing.GetChannelModels(), nextRows); err != nil {
+				return err
+			}
+			if err := model.ValidateManualChannelModelsWithDB(tx, channel.Id, nextRows); err != nil {
 				return err
 			}
 			if err := model.ReplaceChannelSelectedModelsWithDB(tx, channel.Id, channel.SelectedModelIDs()); err != nil {
@@ -276,6 +284,49 @@ func Update(channel *model.Channel) error {
 		return err
 	}
 	if err := model.DB.First(channel, "id = ?", channel.Id).Error; err != nil {
+		return err
+	}
+	if err := model.HydrateChannelWithModels(model.DB, channel); err != nil {
+		return err
+	}
+	if err := model.HydrateChannelWithTests(model.DB, channel); err != nil {
+		return err
+	}
+	return channel.UpdateGroupModelChannels()
+}
+
+func UpdateModels(channelID string, rows []model.ChannelModel) error {
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return errors.New("渠道 ID 不能为空")
+	}
+	channel := &model.Channel{Id: normalizedChannelID}
+	err := model.DB.Transaction(func(tx *gorm.DB) error {
+		existing := model.Channel{}
+		if err := tx.First(&existing, "id = ?", normalizedChannelID).Error; err != nil {
+			return err
+		}
+		if err := model.HydrateChannelWithModels(tx, &existing); err != nil {
+			return err
+		}
+		currentRows := existing.GetChannelModels()
+		existing.SetChannelModels(rows)
+		nextRows := existing.GetChannelModels()
+		if err := model.ValidateChannelModelDisableTransitionsWithDB(tx, normalizedChannelID, currentRows, nextRows); err != nil {
+			return err
+		}
+		if err := model.ValidateManualChannelModelsWithDB(tx, normalizedChannelID, nextRows); err != nil {
+			return err
+		}
+		if err := model.ReplaceChannelModelsWithDB(tx, normalizedChannelID, nextRows); err != nil {
+			return err
+		}
+		return model.EnsureChannelTestModelWithDB(tx, normalizedChannelID)
+	})
+	if err != nil {
+		return err
+	}
+	if err := model.DB.First(channel, "id = ?", normalizedChannelID).Error; err != nil {
 		return err
 	}
 	if err := model.HydrateChannelWithModels(model.DB, channel); err != nil {
@@ -317,7 +368,7 @@ func previewChannelModelSelection(existingRows []model.ChannelModel, selected []
 			Selected:      true,
 		})
 	}
-	return model.NormalizeChannelModelConfigsPreserveOrder(rows)
+	return model.NormalizeChannelModelsPreserveOrder(rows)
 }
 
 func UpdateResponseTime(channel *model.Channel, responseTime int64) {

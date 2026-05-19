@@ -259,13 +259,13 @@ func fetchChannelModelsDetailed(protocol, key, baseURL, providerFilter string) (
 	return modelRows, trace, nil
 }
 
-func loadChannelSyncState(protocol string, key string, baseURL string, channelID string, configRaw json.RawMessage, selectedModels []string, modelConfigs []model.ChannelModel, testModel string) (*model.Channel, string, error) {
+func loadChannelSyncState(protocol string, key string, baseURL string, channelID string, configRaw json.RawMessage, selectedModels []string, channelModels []model.ChannelModel, testModel string) (*model.Channel, string, error) {
 	normalizedProtocol := relaychannel.NormalizeProtocolName(protocol)
 	trimmedKey := strings.TrimSpace(key)
 	trimmedBaseURL := strings.TrimSpace(baseURL)
 	trimmedChannelID := strings.TrimSpace(channelID)
 	normalizedModels := model.NormalizeChannelModelIDsPreserveOrder(selectedModels)
-	normalizedModelConfigs := model.NormalizeChannelModelConfigsPreserveOrder(modelConfigs)
+	normalizedChannelModels := model.NormalizeChannelModelsPreserveOrder(channelModels)
 	keySource := "request"
 
 	resolvedChannel := &model.Channel{
@@ -289,7 +289,7 @@ func loadChannelSyncState(protocol string, key string, baseURL string, channelID
 		if trimmedBaseURL == "" {
 			trimmedBaseURL = strings.TrimSpace(savedChannel.ResolveAPIBaseURL(""))
 		}
-		if len(normalizedModelConfigs) == 0 && len(normalizedModels) == 0 {
+		if len(normalizedChannelModels) == 0 && len(normalizedModels) == 0 {
 			normalizedModels = savedChannel.SelectedModelIDs()
 		}
 		if strings.TrimSpace(testModel) == "" {
@@ -314,8 +314,8 @@ func loadChannelSyncState(protocol string, key string, baseURL string, channelID
 	if len(configRaw) > 0 && string(configRaw) != "null" {
 		resolvedChannel.Config = string(configRaw)
 	}
-	if len(normalizedModelConfigs) > 0 {
-		resolvedChannel.SetModelConfigs(normalizedModelConfigs)
+	if len(normalizedChannelModels) > 0 {
+		resolvedChannel.SetChannelModels(normalizedChannelModels)
 	} else if len(normalizedModels) > 0 {
 		resolvedChannel.SetSelectedModelIDs(normalizedModels)
 	}

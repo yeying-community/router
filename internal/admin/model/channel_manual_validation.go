@@ -15,12 +15,12 @@ type providerModelValidationRow struct {
 	SupportedEndpoints string `gorm:"column:supported_endpoints"`
 }
 
-func ValidateManualChannelModelConfigsWithDB(db *gorm.DB, channelID string, rows []ChannelModel) error {
+func ValidateManualChannelModelsWithDB(db *gorm.DB, channelID string, rows []ChannelModel) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")
 	}
 	normalizedChannelID := strings.TrimSpace(channelID)
-	normalizedRows := NormalizeChannelModelConfigsPreserveOrder(rows)
+	normalizedRows := NormalizeChannelModelsPreserveOrder(rows)
 	if normalizedChannelID == "" || len(normalizedRows) == 0 {
 		return nil
 	}

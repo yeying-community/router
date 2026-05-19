@@ -56,7 +56,7 @@ func NormalizeRequestedChannelModelEndpoint(path string) string {
 }
 
 func BuildChannelModelEndpointRowsWithProviderEndpoints(existing []ChannelModelEndpoint, rows []ChannelModel, providerEndpoints map[string][]string) []ChannelModelEndpoint {
-	normalizedRows := NormalizeChannelModelConfigsPreserveOrder(rows)
+	normalizedRows := NormalizeChannelModelsPreserveOrder(rows)
 	if len(normalizedRows) == 0 {
 		return []ChannelModelEndpoint{}
 	}
@@ -205,6 +205,30 @@ func ListChannelModelEndpointsByChannelIDWithDB(db *gorm.DB, channelID string, m
 	return filterChannelModelEndpointRows(rows, modelName, endpoint), nil
 }
 
+func ListEnabledChannelModelEndpointsByCandidatesWithDB(db *gorm.DB, channelID string, candidates ...string) ([]ChannelModelEndpoint, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	modelCandidates := NormalizeProviderLookupCandidates(candidates...)
+	if normalizedChannelID == "" || len(modelCandidates) == 0 {
+		return []ChannelModelEndpoint{}, nil
+	}
+	rows := make([]ChannelModelEndpoint, 0)
+	if err := db.
+		Where("channel_id = ? AND enabled = ? AND model IN ?", normalizedChannelID, true, modelCandidates).
+		Order("model asc, endpoint asc").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		rows[i].ChannelId = strings.TrimSpace(rows[i].ChannelId)
+		rows[i].Model = strings.TrimSpace(rows[i].Model)
+		rows[i].Endpoint = NormalizeRequestedChannelModelEndpoint(rows[i].Endpoint)
+	}
+	return rows, nil
+}
+
 func ListChannelModelEndpointCandidatesByChannelIDWithDB(db *gorm.DB, channelID string, modelName string, endpoint string) ([]ChannelModelEndpoint, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database handle is nil")
@@ -315,7 +339,7 @@ func loadProviderEndpointCandidatesForChannelModelsWithDB(db *gorm.DB, rows []Ch
 		return nil, fmt.Errorf("database handle is nil")
 	}
 	byProvider := make(map[string][]string)
-	for _, row := range NormalizeChannelModelConfigsPreserveOrder(rows) {
+	for _, row := range NormalizeChannelModelsPreserveOrder(rows) {
 		provider := NormalizeGroupModelProviderValue(row.Provider)
 		if provider == "" {
 			continue
@@ -566,7 +590,7 @@ func ResolveSelectedChannelModelConfig(rows []ChannelModel, modelName string) (C
 	if normalizedModelName == "" {
 		return ChannelModel{}, false
 	}
-	for _, row := range NormalizeChannelModelConfigsPreserveOrder(rows) {
+	for _, row := range NormalizeChannelModelsPreserveOrder(rows) {
 		if row.Inactive || !row.Selected {
 			continue
 		}

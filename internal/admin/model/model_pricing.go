@@ -457,7 +457,7 @@ func providerPriceComponentMatches(condition string, attrs map[string]string) bo
 }
 
 func findSelectedChannelModelPricingOverride(rows []ChannelModel, modelName string) (ChannelModel, bool) {
-	normalizedRows := NormalizeChannelModelConfigsPreserveOrder(rows)
+	normalizedRows := NormalizeChannelModelsPreserveOrder(rows)
 	normalizedModelName := normalizePricingLookupModelName(modelName)
 	for _, row := range normalizedRows {
 		if !row.Selected {

@@ -65,7 +65,7 @@ func TestCloneChannelWithPriorityDoesNotMutateOriginal(t *testing.T) {
 
 func TestChannelSelectedModelConfigsSkipsInactiveRows(t *testing.T) {
 	channel := &Channel{}
-	channel.SetModelConfigs([]ChannelModel{
+	channel.SetChannelModels([]ChannelModel{
 		{
 			Model:    "active-model",
 			Selected: true,
@@ -81,9 +81,9 @@ func TestChannelSelectedModelConfigsSkipsInactiveRows(t *testing.T) {
 		},
 	})
 
-	got := channelSelectedModelConfigs(channel)
+	got := channelSelectedModels(channel)
 	if len(got) != 1 {
-		t.Fatalf("channelSelectedModelConfigs returned %d rows, want 1", len(got))
+		t.Fatalf("channelSelectedModels returned %d rows, want 1", len(got))
 	}
 	if got[0].Model != "active-model" {
 		t.Fatalf("selected model = %q, want active-model", got[0].Model)

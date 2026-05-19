@@ -540,7 +540,7 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 		},
 		{
 			Version:     "202604151900_drop_channel_model_stream_only",
-			Description: "drop legacy is_stream_only column from channel model configs",
+			Description: "drop legacy is_stream_only column from channel models",
 			Up: func(tx *gorm.DB) error {
 				return dropChannelModelStreamOnlyWithDB(tx)
 			},

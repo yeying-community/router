@@ -69,10 +69,10 @@ func ReplaceChannelModelSyncResultsWithDB(db *gorm.DB, channelID string, existin
 			Returned:      returned || current.Returned,
 		}
 	}
-	for _, row := range NormalizeChannelModelConfigsPreserveOrder(existingRows) {
+	for _, row := range NormalizeChannelModelsPreserveOrder(existingRows) {
 		appendCandidate(row.Model, row.UpstreamModel, false)
 	}
-	for _, row := range NormalizeChannelModelConfigsPreserveOrder(fetchedRows) {
+	for _, row := range NormalizeChannelModelsPreserveOrder(fetchedRows) {
 		appendCandidate(row.Model, row.UpstreamModel, true)
 	}
 	rows := make([]ChannelModelSyncResult, 0, len(order))

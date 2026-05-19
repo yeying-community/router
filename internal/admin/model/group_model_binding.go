@@ -738,11 +738,11 @@ func helperInt64Pointer(value *int64) *int64 {
 	return &result
 }
 
-func channelSelectedModelConfigs(channel *Channel) []ChannelModel {
+func channelSelectedModels(channel *Channel) []ChannelModel {
 	if channel == nil {
 		return nil
 	}
-	rows := channel.GetModelConfigs()
+	rows := channel.GetChannelModels()
 	if len(rows) == 0 {
 		return nil
 	}
@@ -757,7 +757,7 @@ func channelSelectedModelConfigs(channel *Channel) []ChannelModel {
 }
 
 func buildGroupChannelModelOptions(channel *Channel) []GroupChannelModelOption {
-	selectedConfigs := channelSelectedModelConfigs(channel)
+	selectedConfigs := channelSelectedModels(channel)
 	if len(selectedConfigs) == 0 {
 		return []GroupChannelModelOption{}
 	}
@@ -792,7 +792,7 @@ func buildGroupChannelModelCatalog(channel *Channel) groupChannelModelCatalog {
 		aliasToProvider:  make(map[string]string),
 		upstreamProvider: make(map[string]string),
 	}
-	for _, row := range channelSelectedModelConfigs(channel) {
+	for _, row := range channelSelectedModels(channel) {
 		modelName := strings.TrimSpace(row.Model)
 		upstream := NormalizeGroupModelChannelUpstreamModel(modelName, row.UpstreamModel)
 		provider := commonutils.NormalizeProvider(row.Provider)

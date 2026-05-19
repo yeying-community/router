@@ -112,11 +112,11 @@ func normalizeChannelModelTestMode(raw string) string {
 	}
 }
 
-func selectedChannelModelConfigs(channel *model.Channel) []model.ChannelModel {
+func selectedChannelModels(channel *model.Channel) []model.ChannelModel {
 	if channel == nil {
 		return nil
 	}
-	rows := channel.GetModelConfigs()
+	rows := channel.GetChannelModels()
 	if len(rows) == 0 {
 		return nil
 	}
@@ -146,11 +146,11 @@ func resolveChannelTestTargetModels(channel *model.Channel, mode string, request
 	if channel == nil {
 		return nil
 	}
-	allRows := channel.GetModelConfigs()
+	allRows := channel.GetChannelModels()
 	if len(allRows) == 0 {
 		return nil
 	}
-	selectedRows := selectedChannelModelConfigs(channel)
+	selectedRows := selectedChannelModels(channel)
 
 	targets := model.NormalizeChannelModelIDsPreserveOrder(requestedModels)
 	if len(targets) == 0 && normalizeChannelModelTestMode(mode) == channelModelTestModeSingle {

@@ -24,34 +24,34 @@ const (
 var channelIdentifierPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 type Channel struct {
-	Id                   string         `json:"id" gorm:"type:char(36);primaryKey"`
-	Protocol             string         `json:"protocol" gorm:"type:varchar(64);default:'openai';index"`
-	Key                  string         `json:"key" gorm:"type:text"`
-	Status               int            `json:"status" gorm:"default:1"`
-	Name                 string         `json:"name" gorm:"type:varchar(64);not null;uniqueIndex"`
-	Weight               *uint          `json:"weight" gorm:"default:0"`
-	CreatedTime          int64          `json:"created_time" gorm:"bigint"`
-	UpdatedAt            int64          `json:"updated_at" gorm:"bigint;index"`
-	TestTime             int64          `json:"test_time" gorm:"bigint"`
-	ResponseTime         int            `json:"response_time"`
-	BaseURL              *string        `json:"base_url" gorm:"column:base_url;default:''"`
-	Other                *string        `json:"other"`
-	Balance              float64        `json:"balance"`
-	BalanceUpdatedTime   int64          `json:"balance_updated_time" gorm:"bigint"`
-	Models               string         `json:"models" gorm:"-"`
-	AvailableModels      []string       `json:"available_models,omitempty" gorm:"-"`
-	ModelConfigs         []ChannelModel `json:"model_configs,omitempty" gorm:"-"`
-	Tests                []ChannelTest  `json:"channel_tests,omitempty" gorm:"-"`
-	TestsLastTestedAt    int64          `json:"channel_tests_last_tested_at,omitempty" gorm:"-"`
-	UsedQuota            int64          `json:"used_quota" gorm:"bigint;default:0"`
-	Priority             *int64         `json:"priority" gorm:"bigint;default:0"`
-	Config               string         `json:"config"`
-	SystemPrompt         *string        `json:"system_prompt" gorm:"type:text"`
-	TestModel            string         `json:"test_model" gorm:"type:varchar(255);default:''"`
-	KeySet               bool           `json:"key_set" gorm:"-"`
-	ModelsProvided       bool           `json:"-" gorm:"-"`
-	ModelConfigsProvided bool           `json:"-" gorm:"-"`
-	NameProvided         bool           `json:"-" gorm:"-"`
+	Id                    string         `json:"id" gorm:"type:char(36);primaryKey"`
+	Protocol              string         `json:"protocol" gorm:"type:varchar(64);default:'openai';index"`
+	Key                   string         `json:"key" gorm:"type:text"`
+	Status                int            `json:"status" gorm:"default:1"`
+	Name                  string         `json:"name" gorm:"type:varchar(64);not null;uniqueIndex"`
+	Weight                *uint          `json:"weight" gorm:"default:0"`
+	CreatedTime           int64          `json:"created_time" gorm:"bigint"`
+	UpdatedAt             int64          `json:"updated_at" gorm:"bigint;index"`
+	TestTime              int64          `json:"test_time" gorm:"bigint"`
+	ResponseTime          int            `json:"response_time"`
+	BaseURL               *string        `json:"base_url" gorm:"column:base_url;default:''"`
+	Other                 *string        `json:"other"`
+	Balance               float64        `json:"balance"`
+	BalanceUpdatedTime    int64          `json:"balance_updated_time" gorm:"bigint"`
+	Models                string         `json:"models" gorm:"-"`
+	AvailableModels       []string       `json:"available_models,omitempty" gorm:"-"`
+	ChannelModels         []ChannelModel `json:"channel_models,omitempty" gorm:"-"`
+	Tests                 []ChannelTest  `json:"channel_tests,omitempty" gorm:"-"`
+	TestsLastTestedAt     int64          `json:"channel_tests_last_tested_at,omitempty" gorm:"-"`
+	UsedQuota             int64          `json:"used_quota" gorm:"bigint;default:0"`
+	Priority              *int64         `json:"priority" gorm:"bigint;default:0"`
+	Config                string         `json:"config"`
+	SystemPrompt          *string        `json:"system_prompt" gorm:"type:text"`
+	TestModel             string         `json:"test_model" gorm:"type:varchar(255);default:''"`
+	KeySet                bool           `json:"key_set" gorm:"-"`
+	ModelsProvided        bool           `json:"-" gorm:"-"`
+	ChannelModelsProvided bool           `json:"-" gorm:"-"`
+	NameProvided          bool           `json:"-" gorm:"-"`
 }
 
 type ChannelConfig struct {
@@ -233,7 +233,7 @@ func (channel *Channel) ResolveAccountBaseURL() string {
 }
 
 func (channel *Channel) GetModelMapping() map[string]string {
-	selected := channel.selectedModelConfigs()
+	selected := channel.selectedChannelModels()
 	if len(selected) == 0 {
 		return nil
 	}
@@ -250,12 +250,12 @@ func (channel *Channel) GetModelMapping() map[string]string {
 	return modelMapping
 }
 
-func (channel *Channel) GetModelConfigs() []ChannelModel {
+func (channel *Channel) GetChannelModels() []ChannelModel {
 	if channel == nil {
 		return nil
 	}
-	if len(channel.ModelConfigs) > 0 {
-		rows := NormalizeChannelModelConfigsPreserveOrder(channel.ModelConfigs)
+	if len(channel.ChannelModels) > 0 {
+		rows := NormalizeChannelModelsPreserveOrder(channel.ChannelModels)
 		for i := range rows {
 			completeChannelModelRowDefaults(&rows[i], channel.GetChannelProtocol())
 		}
@@ -265,16 +265,16 @@ func (channel *Channel) GetModelConfigs() []ChannelModel {
 	if len(selected) == 0 {
 		return []ChannelModel{}
 	}
-	return BuildDefaultChannelModelConfigsWithProtocol(selected, channel.GetChannelProtocol())
+	return BuildDefaultChannelModelsWithProtocol(selected, channel.GetChannelProtocol())
 }
 
 func (channel *Channel) SelectedModelIDs() []string {
 	if channel == nil {
 		return nil
 	}
-	if len(channel.ModelConfigs) > 0 {
-		modelIDs := make([]string, 0, len(channel.ModelConfigs))
-		for _, row := range channel.GetModelConfigs() {
+	if len(channel.ChannelModels) > 0 {
+		modelIDs := make([]string, 0, len(channel.ChannelModels))
+		for _, row := range channel.GetChannelModels() {
 			if row.Inactive || !row.Selected {
 				continue
 			}
@@ -291,12 +291,12 @@ func (channel *Channel) SetSelectedModelIDs(modelIDs []string) {
 	}
 	normalized := NormalizeChannelModelIDsPreserveOrder(modelIDs)
 	channel.Models = JoinChannelModelCSV(normalized)
-	if len(channel.ModelConfigs) == 0 {
+	if len(channel.ChannelModels) == 0 {
 		return
 	}
 
 	selectedSet := buildChannelModelSelectionSet(normalized)
-	existing := NormalizeChannelModelConfigsPreserveOrder(channel.ModelConfigs)
+	existing := NormalizeChannelModelsPreserveOrder(channel.ChannelModels)
 	next := make([]ChannelModel, 0, len(existing)+len(normalized))
 	seen := make(map[string]struct{}, len(existing)+len(normalized))
 	for _, row := range existing {
@@ -317,13 +317,13 @@ func (channel *Channel) SetSelectedModelIDs(modelIDs []string) {
 		if _, ok := seen[modelID]; ok {
 			continue
 		}
-		rows := BuildDefaultChannelModelConfigsWithProtocol([]string{modelID}, channel.GetChannelProtocol())
+		rows := BuildDefaultChannelModelsWithProtocol([]string{modelID}, channel.GetChannelProtocol())
 		if len(rows) == 0 {
 			continue
 		}
 		next = append(next, rows[0])
 	}
-	channel.SetModelConfigs(next)
+	channel.SetChannelModels(next)
 }
 
 func (channel *Channel) SetAvailableModelIDs(modelIDs []string) {
@@ -333,15 +333,15 @@ func (channel *Channel) SetAvailableModelIDs(modelIDs []string) {
 	channel.AvailableModels = NormalizeChannelModelIDsPreserveOrder(modelIDs)
 }
 
-func (channel *Channel) SetModelConfigs(configs []ChannelModel) {
+func (channel *Channel) SetChannelModels(configs []ChannelModel) {
 	if channel == nil {
 		return
 	}
-	normalized := NormalizeChannelModelConfigsPreserveOrder(configs)
+	normalized := NormalizeChannelModelsPreserveOrder(configs)
 	for i := range normalized {
 		completeChannelModelRowDefaults(&normalized[i], channel.GetChannelProtocol())
 	}
-	channel.ModelConfigs = normalized
+	channel.ChannelModels = normalized
 
 	available := make([]string, 0, len(normalized))
 	selected := make([]string, 0, len(normalized))
@@ -358,16 +358,16 @@ func (channel *Channel) SetModelConfigs(configs []ChannelModel) {
 	channel.Models = JoinChannelModelCSV(selected)
 }
 
-func (channel *Channel) NormalizeModelConfigState() {
+func (channel *Channel) NormalizeChannelModelState() {
 	if channel == nil {
 		return
 	}
-	if channel.ModelConfigsProvided {
-		channel.SetModelConfigs(channel.ModelConfigs)
+	if channel.ChannelModelsProvided {
+		channel.SetChannelModels(channel.ChannelModels)
 		return
 	}
-	if len(channel.ModelConfigs) > 0 {
-		channel.SetModelConfigs(channel.ModelConfigs)
+	if len(channel.ChannelModels) > 0 {
+		channel.SetChannelModels(channel.ChannelModels)
 		return
 	}
 	if channel.ModelsProvided {
@@ -435,8 +435,8 @@ func DeleteDisabledChannel() (int64, error) {
 	return mustChannelRepo().DeleteDisabledChannel()
 }
 
-func (channel *Channel) selectedModelConfigs() []ChannelModel {
-	configs := channel.GetModelConfigs()
+func (channel *Channel) selectedChannelModels() []ChannelModel {
+	configs := channel.GetChannelModels()
 	if len(configs) == 0 {
 		return nil
 	}
@@ -453,9 +453,9 @@ func (channel *Channel) selectedModelConfigs() []ChannelModel {
 	return selected
 }
 
-func (channel *Channel) GetSelectedModelConfigs() []ChannelModel {
+func (channel *Channel) GetSelectedChannelModels() []ChannelModel {
 	if channel == nil {
 		return nil
 	}
-	return channel.selectedModelConfigs()
+	return channel.selectedChannelModels()
 }

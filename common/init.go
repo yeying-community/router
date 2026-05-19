@@ -38,11 +38,11 @@ func Init() {
 		os.Exit(0)
 	}
 
-	runtimeConfig, err := LoadRuntimeConfig(*ConfigPath)
+	appConfig, err := LoadAppConfig(*ConfigPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err = ApplyRuntimeConfig(runtimeConfig, isFlagPassed("port"), isFlagPassed("log-dir")); err != nil {
+	if err = ApplyAppConfig(appConfig, isFlagPassed("port"), isFlagPassed("log-dir")); err != nil {
 		log.Fatal(err)
 	}
 

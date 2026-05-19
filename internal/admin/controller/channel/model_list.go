@@ -32,6 +32,10 @@ type channelModelListItem struct {
 	EnableBlockReason string `json:"enable_block_reason,omitempty"`
 }
 
+type updateChannelModelsRequest struct {
+	ChannelModels []model.ChannelModel `json:"channel_models"`
+}
+
 const (
 	defaultChannelModelPageSize = 10
 	maxChannelModelPageSize     = 100
@@ -111,7 +115,7 @@ func buildChannelModelListData(channelID string, page int, pageSize int, keyword
 		}
 		items = append(items, item)
 	}
-	allRows := channelRow.GetModelConfigs()
+	allRows := channelRow.GetChannelModels()
 	selectedCount := 0
 	activeCount := 0
 	inactiveCount := 0
@@ -173,6 +177,43 @@ func GetChannelModels(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": data})
+}
+
+// UpdateChannelModels godoc
+// @Summary Update channel models (admin)
+// @Tags admin
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Channel ID"
+// @Success 200 {object} docs.StandardResponse
+// @Failure 401 {object} docs.ErrorResponse
+// @Router /api/v1/admin/channel/{id}/models [put]
+func UpdateChannelModels(c *gin.Context) {
+	channelID := strings.TrimSpace(c.Param("id"))
+	if channelID == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "渠道 ID 无效"})
+		return
+	}
+	req := updateChannelModelsRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		logChannelAdminWarn(c, "update_models", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	if err := channelsvc.UpdateModels(channelID, req.ChannelModels); err != nil {
+		logChannelAdminWarn(c, "update_models", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	logChannelAdminInfo(c, "update_models", stringField("channel_id", channelID), intField("model_count", len(model.NormalizeChannelModelsPreserveOrder(req.ChannelModels))))
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"channel_id": channelID,
+		},
+	})
 }
 
 // GetChannelTests godoc

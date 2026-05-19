@@ -35,6 +35,11 @@ require (
 )
 
 require (
+	github.com/mattn/go-sqlite3 v1.14.22 // indirect
+	gorm.io/driver/sqlite v1.5.7 // indirect
+)
+
+require (
 	cloud.google.com/go/auth v0.6.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.2 // indirect
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect

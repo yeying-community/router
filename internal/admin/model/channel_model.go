@@ -41,7 +41,7 @@ func NormalizeChannelModelIDsPreserveOrder(modelIDs []string) []string {
 	return normalizeTrimmedValuesPreserveOrder(modelIDs)
 }
 
-func NormalizeChannelModelConfigsPreserveOrder(rows []ChannelModel) []ChannelModel {
+func NormalizeChannelModelsPreserveOrder(rows []ChannelModel) []ChannelModel {
 	if len(rows) == 0 {
 		return []ChannelModel{}
 	}
@@ -62,11 +62,11 @@ func NormalizeChannelModelConfigsPreserveOrder(rows []ChannelModel) []ChannelMod
 	return result
 }
 
-func BuildDefaultChannelModelConfigs(modelIDs []string) []ChannelModel {
-	return BuildDefaultChannelModelConfigsWithProtocol(modelIDs, 0)
+func BuildDefaultChannelModels(modelIDs []string) []ChannelModel {
+	return BuildDefaultChannelModelsWithProtocol(modelIDs, 0)
 }
 
-func BuildDefaultChannelModelConfigsWithProtocol(modelIDs []string, channelProtocol int) []ChannelModel {
+func BuildDefaultChannelModelsWithProtocol(modelIDs []string, channelProtocol int) []ChannelModel {
 	normalized := NormalizeChannelModelIDsPreserveOrder(modelIDs)
 	rows := make([]ChannelModel, 0, len(normalized))
 	for idx, modelID := range normalized {
@@ -142,6 +142,74 @@ func FormatChannelModelUsageReferences(usages []ChannelModelUsageReference) stri
 	return strings.Join(parts, ", ")
 }
 
+func formatChannelModelEnabledEndpoints(rows []ChannelModelEndpoint) string {
+	if len(rows) == 0 {
+		return ""
+	}
+	endpoints := make([]string, 0, len(rows))
+	seen := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		endpoint := NormalizeRequestedChannelModelEndpoint(row.Endpoint)
+		if endpoint == "" {
+			continue
+		}
+		if _, ok := seen[endpoint]; ok {
+			continue
+		}
+		seen[endpoint] = struct{}{}
+		endpoints = append(endpoints, endpoint)
+	}
+	sort.Strings(endpoints)
+	return strings.Join(endpoints, ", ")
+}
+
+func ValidateChannelModelDisableTransitionsWithDB(db *gorm.DB, channelID string, existingRows []ChannelModel, nextRows []ChannelModel) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return nil
+	}
+	existingByModel := make(map[string]ChannelModel)
+	for _, row := range NormalizeChannelModelsPreserveOrder(existingRows) {
+		modelName := strings.TrimSpace(row.Model)
+		if modelName == "" {
+			continue
+		}
+		existingByModel[modelName] = row
+	}
+	nextByModel := make(map[string]ChannelModel)
+	for _, row := range NormalizeChannelModelsPreserveOrder(nextRows) {
+		modelName := strings.TrimSpace(row.Model)
+		if modelName == "" {
+			continue
+		}
+		nextByModel[modelName] = row
+	}
+	for modelName, existingRow := range existingByModel {
+		if existingRow.Inactive || !existingRow.Selected {
+			continue
+		}
+		nextRow, ok := nextByModel[modelName]
+		if !ok {
+			continue
+		}
+		if !nextRow.Inactive && nextRow.Selected {
+			continue
+		}
+		enabledEndpointRows, err := ListEnabledChannelModelEndpointsByCandidatesWithDB(db, normalizedChannelID, existingRow.Model, existingRow.UpstreamModel)
+		if err != nil {
+			return err
+		}
+		if len(enabledEndpointRows) == 0 {
+			continue
+		}
+		return fmt.Errorf("模型 %s 仍有已启用端点，无法关闭：%s", displayChannelModelName(existingRow), formatChannelModelEnabledEndpoints(enabledEndpointRows))
+	}
+	return nil
+}
+
 func DeleteChannelModelWithDB(db *gorm.DB, channelID string, modelName string, upstreamModel string) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")
@@ -157,6 +225,20 @@ func DeleteChannelModelWithDB(db *gorm.DB, channelID string, modelName string, u
 		Order("sort_order asc, model asc").
 		First(&targetRow).Error; err != nil {
 		return err
+	}
+	returned, err := HasReturnedChannelModelSyncResultWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
+	if err != nil {
+		return err
+	}
+	if returned {
+		return fmt.Errorf("模型 %s 最近一次上游返回仍包含，无法删除", displayChannelModelName(targetRow))
+	}
+	enabledEndpointRows, err := ListEnabledChannelModelEndpointsByCandidatesWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
+	if err != nil {
+		return err
+	}
+	if len(enabledEndpointRows) > 0 {
+		return fmt.Errorf("模型 %s 仍有已启用端点，无法删除：%s", displayChannelModelName(targetRow), formatChannelModelEnabledEndpoints(enabledEndpointRows))
 	}
 	usages, err := ListChannelModelUsageReferencesWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
 	if err != nil {
@@ -223,7 +305,7 @@ func HydrateChannelsWithModels(db *gorm.DB, channels []*Channel) error {
 		if channel.Id == "" {
 			channel.SetSelectedModelIDs(nil)
 			channel.SetAvailableModelIDs(nil)
-			channel.SetModelConfigs(nil)
+			channel.SetChannelModels(nil)
 			continue
 		}
 		channelIDs = append(channelIDs, channel.Id)
@@ -276,7 +358,7 @@ func ListAvailableChannelModelIDsByChannelIDWithDB(db *gorm.DB, channelID string
 	return NormalizeChannelModelIDsPreserveOrder(modelIDs), nil
 }
 
-func SyncFetchedChannelModelsWithDB(db *gorm.DB, channelID string, modelIDs []string) error {
+func SyncFetchedChannelModelIDsWithDB(db *gorm.DB, channelID string, modelIDs []string) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")
 	}
@@ -293,11 +375,11 @@ func SyncFetchedChannelModelsWithDB(db *gorm.DB, channelID string, modelIDs []st
 	if err != nil {
 		return err
 	}
-	rows := BuildFetchedChannelModelConfigs(existingRows, BuildDefaultChannelModelConfigsWithProtocol(normalizedModelIDs, channelProtocol), channelProtocol, true)
-	return ReplaceChannelModelConfigsWithDB(db, normalizedChannelID, rows)
+	rows := BuildFetchedChannelModels(existingRows, BuildDefaultChannelModelsWithProtocol(normalizedModelIDs, channelProtocol), channelProtocol, true)
+	return ReplaceChannelModelsWithDB(db, normalizedChannelID, rows)
 }
 
-func SyncFetchedChannelModelConfigsWithDB(db *gorm.DB, channelID string, fetchedRows []ChannelModel) error {
+func SyncFetchedChannelModelsWithDB(db *gorm.DB, channelID string, fetchedRows []ChannelModel) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")
 	}
@@ -313,11 +395,11 @@ func SyncFetchedChannelModelConfigsWithDB(db *gorm.DB, channelID string, fetched
 	if err != nil {
 		return err
 	}
-	rows := BuildFetchedChannelModelConfigs(existingRows, fetchedRows, channelProtocol, false)
-	return ReplaceChannelModelConfigsWithDB(db, normalizedChannelID, rows)
+	rows := BuildFetchedChannelModels(existingRows, fetchedRows, channelProtocol, false)
+	return ReplaceChannelModelsWithDB(db, normalizedChannelID, rows)
 }
 
-func SyncFetchedChannelModelConfigsFromBaseWithDB(db *gorm.DB, channelID string, baseRows []ChannelModel, fetchedRows []ChannelModel) error {
+func SyncFetchedChannelModelsFromBaseWithDB(db *gorm.DB, channelID string, baseRows []ChannelModel, fetchedRows []ChannelModel) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")
 	}
@@ -329,8 +411,8 @@ func SyncFetchedChannelModelConfigsFromBaseWithDB(db *gorm.DB, channelID string,
 	if err != nil {
 		return err
 	}
-	rows := BuildFetchedChannelModelConfigs(baseRows, fetchedRows, channelProtocol, false)
-	return ReplaceChannelModelConfigsWithDB(db, normalizedChannelID, rows)
+	rows := BuildFetchedChannelModels(baseRows, fetchedRows, channelProtocol, false)
+	return ReplaceChannelModelsWithDB(db, normalizedChannelID, rows)
 }
 
 func ReplaceChannelSelectedModelsWithDB(db *gorm.DB, channelID string, selected []string) error {
@@ -372,19 +454,24 @@ func ReplaceChannelSelectedModelsWithDB(db *gorm.DB, channelID string, selected 
 		rows = append(rows, row)
 	}
 	if len(rows) == 0 {
-		return ReplaceChannelModelConfigsWithDB(db, channelID, nil)
+		return ReplaceChannelModelsWithDB(db, channelID, nil)
 	}
 	for idx := range rows {
 		rows[idx].SortOrder = idx + 1
 	}
-	return ReplaceChannelModelConfigsWithDB(db, channelID, rows)
+	return ReplaceChannelModelsWithDB(db, channelID, rows)
 }
 
-func ReplaceChannelModelConfigsWithDB(db *gorm.DB, channelID string, rows []ChannelModel) error {
-	if err := replaceChannelModelRowsWithDB(db, channelID, rows); err != nil {
+func ReplaceChannelModelsWithDB(db *gorm.DB, channelID string, rows []ChannelModel) error {
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if err := replaceChannelModelRowsWithDB(db, normalizedChannelID, rows); err != nil {
 		return err
 	}
-	return SyncChannelModelEndpointsWithDB(db, channelID, rows)
+	storedRows, err := listChannelModelRowsByChannelIDWithDB(db, normalizedChannelID)
+	if err != nil {
+		return err
+	}
+	return SyncChannelModelEndpointsWithDB(db, normalizedChannelID, storedRows)
 }
 
 func DisableChannelModelCapability(channelID string, modelName string) (bool, error) {
@@ -400,11 +487,11 @@ func DisableChannelModelCapability(channelID string, modelName string) (bool, er
 		if err != nil {
 			return err
 		}
-		nextRows, disabled := buildDisabledChannelModelConfigs(rows, normalizedModelName)
+		nextRows, disabled := buildDisabledChannelModels(rows, normalizedModelName)
 		if !disabled {
 			return nil
 		}
-		if err := ReplaceChannelModelConfigsWithDB(tx, normalizedChannelID, nextRows); err != nil {
+		if err := ReplaceChannelModelsWithDB(tx, normalizedChannelID, nextRows); err != nil {
 			return err
 		}
 		if err := EnsureChannelTestModelWithDB(tx, normalizedChannelID); err != nil {
@@ -731,11 +818,11 @@ func applyChannelModelRows(channel *Channel, rows []ChannelModel) {
 	if channel == nil {
 		return
 	}
-	normalized := NormalizeChannelModelConfigsPreserveOrder(rows)
+	normalized := NormalizeChannelModelsPreserveOrder(rows)
 	for i := range normalized {
 		completeChannelModelRowDefaults(&normalized[i], channel.GetChannelProtocol())
 	}
-	channel.SetModelConfigs(normalized)
+	channel.SetChannelModels(normalized)
 }
 
 func buildChannelModelSelectionSet(modelIDs []string) map[string]struct{} {
@@ -747,8 +834,8 @@ func buildChannelModelSelectionSet(modelIDs []string) map[string]struct{} {
 	return set
 }
 
-func buildDisabledChannelModelConfigs(rows []ChannelModel, modelName string) ([]ChannelModel, bool) {
-	normalizedRows := NormalizeChannelModelConfigsPreserveOrder(rows)
+func buildDisabledChannelModels(rows []ChannelModel, modelName string) ([]ChannelModel, bool) {
+	normalizedRows := NormalizeChannelModelsPreserveOrder(rows)
 	normalizedModelName := strings.TrimSpace(modelName)
 	if normalizedModelName == "" || len(normalizedRows) == 0 {
 		return normalizedRows, false
@@ -776,7 +863,7 @@ func replaceChannelModelRowsWithDB(db *gorm.DB, channelID string, rows []Channel
 	if normalizedChannelID == "" {
 		return nil
 	}
-	normalizedRows := NormalizeChannelModelConfigsPreserveOrder(rows)
+	normalizedRows := NormalizeChannelModelsPreserveOrder(rows)
 	channelProtocol, err := loadChannelProtocolByChannelIDWithDB(db, normalizedChannelID)
 	if err != nil {
 		return err
@@ -875,9 +962,9 @@ func lockChannelRowForUpdateWithDB(db *gorm.DB, channelID string) error {
 		Take(&row).Error
 }
 
-func BuildFetchedChannelModelConfigs(existingRows []ChannelModel, fetchedRows []ChannelModel, channelProtocol int, selectAll bool) []ChannelModel {
-	normalizedFetchedRows := NormalizeChannelModelConfigsPreserveOrder(fetchedRows)
-	normalizedExisting := NormalizeChannelModelConfigsPreserveOrder(existingRows)
+func BuildFetchedChannelModels(existingRows []ChannelModel, fetchedRows []ChannelModel, channelProtocol int, selectAll bool) []ChannelModel {
+	normalizedFetchedRows := NormalizeChannelModelsPreserveOrder(fetchedRows)
+	normalizedExisting := NormalizeChannelModelsPreserveOrder(existingRows)
 	existingByUpstream := make(map[string]ChannelModel, len(normalizedExisting))
 	for _, row := range normalizedExisting {
 		upstream := strings.TrimSpace(row.UpstreamModel)
@@ -951,11 +1038,11 @@ func BuildFetchedChannelModelConfigs(existingRows []ChannelModel, fetchedRows []
 		completeChannelModelRowDefaults(&row, channelProtocol)
 		rows = append(rows, row)
 	}
-	return NormalizeChannelModelConfigsPreserveOrder(rows)
+	return NormalizeChannelModelsPreserveOrder(rows)
 }
 
 func FindSelectedChannelModelConfig(rows []ChannelModel, candidates ...string) (ChannelModel, bool) {
-	normalizedRows := NormalizeChannelModelConfigsPreserveOrder(rows)
+	normalizedRows := NormalizeChannelModelsPreserveOrder(rows)
 	if len(normalizedRows) == 0 {
 		return ChannelModel{}, false
 	}

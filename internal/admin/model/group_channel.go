@@ -369,7 +369,7 @@ func BuildGroupModelChannelsForChannel(groupID string, channel *Channel, groupMo
 			Priority:      priority,
 		})
 	}
-	for _, row := range channelSelectedModelConfigs(channel) {
+	for _, row := range channelSelectedModels(channel) {
 		modelName := strings.TrimSpace(row.Model)
 		if modelName == "" {
 			continue

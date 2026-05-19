@@ -67,7 +67,7 @@ func sanitizeChannelForResponse(channel *model.Channel) {
 	channel.TestModel = strings.TrimSpace(channel.TestModel)
 	channel.Models = strings.TrimSpace(channel.Models)
 	channel.AvailableModels = model.NormalizeChannelModelIDsPreserveOrder(channel.AvailableModels)
-	channel.ModelConfigs = model.NormalizeChannelModelConfigsPreserveOrder(channel.ModelConfigs)
+	channel.ChannelModels = model.NormalizeChannelModelsPreserveOrder(channel.ChannelModels)
 	channel.SetChannelTests(channel.Tests)
 	channel.KeySet = strings.TrimSpace(channel.Key) != ""
 	channel.Key = ""
@@ -112,7 +112,7 @@ func collectChannelCapabilities(channel *model.Channel) []string {
 		return []string{}
 	}
 	selectedTypes := map[string]struct{}{}
-	for _, row := range channel.GetModelConfigs() {
+	for _, row := range channel.GetChannelModels() {
 		if !row.Selected || row.Inactive {
 			continue
 		}
@@ -297,7 +297,7 @@ func AddChannel(c *gin.Context) {
 		})
 		return
 	}
-	channel.NormalizeModelConfigState()
+	channel.NormalizeChannelModelState()
 	channel.CreatedTime = helper.GetTimestamp()
 	channel.UpdatedAt = channel.CreatedTime
 	channel.NormalizeIdentity()
@@ -424,8 +424,8 @@ func UpdateChannel(c *gin.Context) {
 	}
 	_, channel.NameProvided = rawFields["name"]
 	_, channel.ModelsProvided = rawFields["models"]
-	_, channel.ModelConfigsProvided = rawFields["model_configs"]
-	channel.NormalizeModelConfigState()
+	_, channel.ChannelModelsProvided = rawFields["channel_models"]
+	channel.NormalizeChannelModelState()
 	err = channelsvc.Update(&channel)
 	if err != nil {
 		var blockedErr *model.ChannelDisableBlockedError

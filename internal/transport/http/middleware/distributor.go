@@ -96,7 +96,7 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 	c.Set(ctxkey.Channel, channelProtocol)
 	c.Set(ctxkey.ChannelId, channel.Id)
 	c.Set(ctxkey.ChannelName, channel.DisplayName())
-	c.Set(ctxkey.ChannelModelConfigs, channel.GetSelectedModelConfigs())
+	c.Set(ctxkey.ChannelModelConfigs, channel.GetSelectedChannelModels())
 	mapping := channel.GetModelMapping()
 	if groupID := c.GetString(ctxkey.Group); groupID != "" {
 		if override := model.CacheGetGroupModelMapping(groupID, modelName, channel.Id); len(override) > 0 {

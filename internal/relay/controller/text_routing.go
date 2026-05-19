@@ -159,7 +159,7 @@ func resolveSelectedModelDirectTextEndpointSupport(meta *meta.Meta, row adminmod
 }
 
 func hasSelectedTextChannelModelConfigs(rows []adminmodel.ChannelModel) bool {
-	for _, row := range adminmodel.NormalizeChannelModelConfigsPreserveOrder(rows) {
+	for _, row := range adminmodel.NormalizeChannelModelsPreserveOrder(rows) {
 		if !row.Selected || row.Inactive {
 			continue
 		}
