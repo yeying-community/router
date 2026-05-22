@@ -2,6 +2,7 @@ package ali
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -263,4 +264,56 @@ func Handler(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *
 	c.Writer.WriteHeader(resp.StatusCode)
 	_, err = c.Writer.Write(jsonResponse)
 	return nil, &fullTextResponse.Usage
+}
+
+type compatibleEmbeddingUsage struct {
+	PromptTokens int `json:"prompt_tokens"`
+	TotalTokens  int `json:"total_tokens"`
+}
+
+type compatibleEmbeddingEnvelope struct {
+	Usage compatibleEmbeddingUsage `json:"usage"`
+	Error model.Error              `json:"error"`
+}
+
+func relayCompatibleEmbeddingResponse(c *gin.Context, resp *http.Response) (*model.ErrorWithStatusCode, *model.Usage) {
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
+	}
+	if err := resp.Body.Close(); err != nil {
+		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
+	}
+
+	var envelope compatibleEmbeddingEnvelope
+	if err := json.Unmarshal(responseBody, &envelope); err != nil {
+		return openai.ErrorWrapper(err, "unmarshal_response_body_failed", http.StatusInternalServerError), nil
+	}
+	if envelope.Error.Type != "" {
+		return &model.ErrorWithStatusCode{
+			Error:      envelope.Error,
+			StatusCode: resp.StatusCode,
+		}, nil
+	}
+
+	resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
+	for k, v := range resp.Header {
+		c.Writer.Header().Set(k, v[0])
+	}
+	c.Writer.WriteHeader(resp.StatusCode)
+	if _, err := io.Copy(c.Writer, resp.Body); err != nil {
+		return openai.ErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError), nil
+	}
+	if err := resp.Body.Close(); err != nil {
+		return openai.ErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
+	}
+
+	usage := &model.Usage{
+		PromptTokens: envelope.Usage.PromptTokens,
+		TotalTokens:  envelope.Usage.TotalTokens,
+	}
+	if usage.TotalTokens >= usage.PromptTokens {
+		usage.CompletionTokens = usage.TotalTokens - usage.PromptTokens
+	}
+	return nil, usage
 }

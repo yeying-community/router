@@ -50,7 +50,7 @@ const (
 	Replicate
 	BaiduV2
 	XunfeiV2
-	AliBailian
+	ReservedProtocol49
 	OpenAICompatible
 	GeminiOpenAICompatible
 	Dummy
@@ -108,7 +108,7 @@ var ChannelProtocolNames = []string{
 	"replicate",
 	"baidu-v2",
 	"xunfei-v2",
-	"ali-bailian",
+	"",
 	"",
 	"gemini-openai-compatible",
 }

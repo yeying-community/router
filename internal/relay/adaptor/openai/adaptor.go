@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/yeying-community/router/internal/relay/adaptor"
-	"github.com/yeying-community/router/internal/relay/adaptor/alibailian"
 	"github.com/yeying-community/router/internal/relay/adaptor/baiduv2"
 	"github.com/yeying-community/router/internal/relay/adaptor/doubao"
 	"github.com/yeying-community/router/internal/relay/adaptor/geminiv2"
@@ -63,8 +62,6 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 		return novita.GetRequestURL(meta)
 	case relaychannel.BaiduV2:
 		return baiduv2.GetRequestURL(meta)
-	case relaychannel.AliBailian:
-		return alibailian.GetRequestURL(meta)
 	case relaychannel.GeminiOpenAICompatible:
 		return geminiv2.GetRequestURL(meta)
 	default:

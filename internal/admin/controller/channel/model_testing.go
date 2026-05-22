@@ -580,6 +580,9 @@ func executeChannelTextModelTest(ctx context.Context, channel *model.Channel, pa
 	}
 	baseURL := channel.ResolveAPIBaseURLForModel(path, request.Model)
 	requestURL := resolveChannelEndpointURL(baseURL, path)
+	if resolvedRequestURL, urlErr := adaptor.GetRequestURL(relayMeta); urlErr == nil && strings.TrimSpace(resolvedRequestURL) != "" {
+		requestURL = resolvedRequestURL
+	}
 	execution.BaseURL = baseURL
 	execution.RequestURL = requestURL
 	requestHeader := http.Header{}
@@ -693,6 +696,9 @@ func executeChannelTextModelTestRawBody(ctx context.Context, channel *model.Chan
 	}
 	baseURL := channel.ResolveAPIBaseURLForModel(path, requestedModel, actualModel)
 	requestURL := resolveChannelEndpointURL(baseURL, path)
+	if resolvedRequestURL, urlErr := adaptor.GetRequestURL(relayMeta); urlErr == nil && strings.TrimSpace(resolvedRequestURL) != "" {
+		requestURL = resolvedRequestURL
+	}
 	execution.BaseURL = baseURL
 	execution.RequestURL = requestURL
 	requestHeader := http.Header{}

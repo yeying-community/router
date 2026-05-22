@@ -8,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/internal/relay/adaptor"
+	openaiadaptor "github.com/yeying-community/router/internal/relay/adaptor/openai"
+	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 	"github.com/yeying-community/router/internal/relay/meta"
 	"github.com/yeying-community/router/internal/relay/model"
 	"github.com/yeying-community/router/internal/relay/relaymode"
@@ -25,11 +27,17 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 	fullRequestURL := ""
 	switch meta.Mode {
 	case relaymode.Embeddings:
-		fullRequestURL = fmt.Sprintf("%s/api/v1/services/embeddings/text-embedding/text-embedding", meta.BaseURL)
+		fullRequestURL = fmt.Sprintf("%s/compatible-mode/v1/embeddings", meta.BaseURL)
+	case relaymode.Responses:
+		fullRequestURL = fmt.Sprintf("%s/api/v2/apps/protocols/compatible-mode/v1/responses", meta.BaseURL)
+	case relaymode.AudioSpeech, relaymode.AudioTranslation, relaymode.AudioTranscription, relaymode.Realtime, relaymode.Videos:
+		fullRequestURL = openaiadaptor.GetFullRequestURL(meta.BaseURL, meta.RequestURLPath, relaychannel.OpenAI)
 	case relaymode.ImagesGenerations:
 		fullRequestURL = fmt.Sprintf("%s/api/v1/services/aigc/text2image/image-synthesis", meta.BaseURL)
+	case relaymode.Completions:
+		fullRequestURL = fmt.Sprintf("%s/compatible-mode/v1/completions", meta.BaseURL)
 	default:
-		fullRequestURL = fmt.Sprintf("%s/api/v1/services/aigc/text-generation/generation", meta.BaseURL)
+		fullRequestURL = fmt.Sprintf("%s/compatible-mode/v1/chat/completions", meta.BaseURL)
 	}
 
 	return fullRequestURL, nil
@@ -57,12 +65,12 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, relayMode int, request *model.G
 		return nil, errors.New("request is nil")
 	}
 	switch relayMode {
-	case relaymode.Embeddings:
-		aliEmbeddingRequest := ConvertEmbeddingRequest(*request)
-		return aliEmbeddingRequest, nil
-	default:
+	case relaymode.ImagesGenerations:
 		aliRequest := ConvertRequest(*request)
 		return aliRequest, nil
+	default:
+		compatibleAdaptor := openaiadaptor.Adaptor{}
+		return compatibleAdaptor.ConvertRequest(c, relayMode, request)
 	}
 }
 
@@ -80,15 +88,18 @@ func (a *Adaptor) DoRequest(c *gin.Context, meta *meta.Meta, requestBody io.Read
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Meta) (usage *model.Usage, err *model.ErrorWithStatusCode) {
-	if meta.IsStream {
-		err, usage = StreamHandler(c, resp)
-	} else {
-		switch meta.Mode {
-		case relaymode.Embeddings:
-			err, usage = EmbeddingHandler(c, resp)
-		case relaymode.ImagesGenerations:
-			err, usage = ImageHandler(c, resp)
-		default:
+	switch meta.Mode {
+	case relaymode.ImagesGenerations:
+		err, usage = ImageHandler(c, resp)
+	case relaymode.Embeddings:
+		err, usage = relayCompatibleEmbeddingResponse(c, resp)
+	case relaymode.Responses, relaymode.ChatCompletions, relaymode.Completions:
+		compatibleAdaptor := openaiadaptor.Adaptor{}
+		return compatibleAdaptor.DoResponse(c, resp, meta)
+	default:
+		if meta.IsStream {
+			err, usage = StreamHandler(c, resp)
+		} else {
 			err, usage = Handler(c, resp)
 		}
 	}

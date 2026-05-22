@@ -502,7 +502,7 @@ const OFFICIAL_PROVIDER_BASE_URLS = {
   cohere: 'https://api.cohere.com/compatibility/v1',
   deepseek: 'https://api.deepseek.com',
   baidu: 'https://qianfan.baidubce.com/v2',
-  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  qwen: 'https://dashscope.aliyuncs.com',
   zhipu: 'https://open.bigmodel.cn/api/paas/v4',
   hunyuan: 'https://api.hunyuan.cloud.tencent.com/v1',
   minimax: 'https://api.minimax.io/v1',

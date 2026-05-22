@@ -367,7 +367,7 @@ var defaultProviderTemplates = normalizeDefaultProviderTemplates([]ProviderSeed{
 	{
 		Provider:    "qwen",
 		Name:        "Qwen",
-		BaseURL:     "https://dashscope.aliyuncs.com/compatible-mode/v1",
+			BaseURL:     "https://dashscope.aliyuncs.com",
 		OfficialURL: "https://help.aliyun.com/zh/model-studio/models",
 		SortOrder:   135,
 		ModelDetails: []ProviderModelDetail{

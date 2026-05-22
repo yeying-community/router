@@ -40,9 +40,8 @@ export const CHANNEL_PROTOCOL_OPTIONS = [
     text: '阿里通义千问',
     value: 'ali',
     color: 'orange',
-    tip: '如需使用阿里云百炼，请使用<strong>阿里云百炼</strong>渠道',
+    tip: '阿里兼容模式与原生接口统一使用该渠道',
   },
-  {key: 'ali-bailian', text: '阿里云百炼', value: 'ali-bailian', color: 'orange'},
   {
     key: 'xunfei',
     text: '讯飞星火认知',

@@ -193,7 +193,7 @@ func isLikelySSEPayload(resp string) bool {
 		return false
 	}
 	lower := strings.ToLower(trimmed)
-	return strings.HasPrefix(lower, "event:") || strings.HasPrefix(lower, "data:")
+	return strings.HasPrefix(lower, "event:") || strings.HasPrefix(lower, "data:") || strings.HasPrefix(lower, "id:")
 }
 
 func parseTextModelTestStreamResponse(resp string) (string, error) {

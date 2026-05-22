@@ -2,7 +2,6 @@ package openai
 
 import (
 	"github.com/yeying-community/router/internal/relay/adaptor/ai360"
-	"github.com/yeying-community/router/internal/relay/adaptor/alibailian"
 	"github.com/yeying-community/router/internal/relay/adaptor/baichuan"
 	"github.com/yeying-community/router/internal/relay/adaptor/baiduv2"
 	"github.com/yeying-community/router/internal/relay/adaptor/deepseek"
@@ -81,8 +80,6 @@ func GetCompatibleChannelMeta(channelProtocol int) (string, []string) {
 		return "xunfeiv2", xunfeiv2.ModelList
 	case relaychannel.OpenRouter:
 		return "openrouter", openrouter.ModelList
-	case relaychannel.AliBailian:
-		return "alibailian", alibailian.ModelList
 	case relaychannel.GeminiOpenAICompatible:
 		return "geminiv2", geminiv2.ModelList
 	default:

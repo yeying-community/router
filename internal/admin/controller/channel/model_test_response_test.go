@@ -110,6 +110,28 @@ func TestParseTextModelTestResponse_ResponsesSSE(t *testing.T) {
 	}
 }
 
+func TestParseTextModelTestResponse_ResponsesSSEStartsWithID(t *testing.T) {
+	resp := strings.Join([]string{
+		"id: 1",
+		"event: response.output_text.delta",
+		`data: {"type":"response.output_text.delta","delta":"Hello"}`,
+		"",
+		"id: 2",
+		"event: response.completed",
+		`data: {"type":"response.completed","output_text":"Hello"}`,
+		"",
+		"data: [DONE]",
+	}, "\n")
+
+	got, err := parseTextModelTestResponseByEndpoint(adminmodel.ChannelModelEndpointResponses, resp)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got != "Hello" {
+		t.Fatalf("unexpected parsed text: %q", got)
+	}
+}
+
 func TestParseTextModelTestResponse_ResponsesSSECompletedContainsFullText(t *testing.T) {
 	resp := strings.Join([]string{
 		"event: response.output_text.delta",
