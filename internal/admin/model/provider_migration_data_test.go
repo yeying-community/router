@@ -4,10 +4,31 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
-func TestBuildDefaultProviderSeeds_OpenAIIncludesDALLE3(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func mustLoadProviderMigrationSeeds(t *testing.T) []ProviderSeed {
+	t.Helper()
+	seeds, err := LoadProviderMigrationSeeds(1700000000)
+	if err != nil {
+		t.Fatalf("LoadProviderMigrationSeeds failed: %v", err)
+	}
+	return seeds
+}
+
+func newProviderMigrationTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	return db
+}
+
+func TestBuildProviderMigrationSeeds_OpenAIIncludesDALLE3(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	for _, seed := range seeds {
 		if seed.Provider != "openai" {
 			continue
@@ -41,8 +62,166 @@ func TestBuildDefaultProviderSeeds_OpenAIIncludesDALLE3(t *testing.T) {
 	t.Fatalf("expected openai provider to exist")
 }
 
-func TestBuildDefaultProviderSeeds_OpenAIIncludesGPTImage1ComplexPricing(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestUpsertProviderMigrationProvidersPrunesStaleMigrationModelsOnlyForTargetProvider(t *testing.T) {
+	db := newProviderMigrationTestDB(t)
+	if err := upsertProviderMigrationProvidersWithDB(db, "openai", "anthropic"); err != nil {
+		t.Fatalf("seed provider catalogs: %v", err)
+	}
+	staleModel := ProviderModel{
+		Provider:  "openai",
+		Model:     "stale-model",
+		Type:      ProviderModelTypeText,
+		Status:    ProviderModelStatusActive,
+		Source:    "migration",
+		UpdatedAt: 1,
+	}
+	if err := db.Create(&staleModel).Error; err != nil {
+		t.Fatalf("create stale model: %v", err)
+	}
+	if err := db.Create(&ProviderModelPriceComponent{
+		Provider:  "openai",
+		Model:     "stale-model",
+		Component: ProviderModelPriceComponentText,
+		Source:    "migration",
+		UpdatedAt: 1,
+	}).Error; err != nil {
+		t.Fatalf("create stale component: %v", err)
+	}
+	if err := upsertProviderMigrationProvidersWithDB(db, "openai"); err != nil {
+		t.Fatalf("refresh openai provider: %v", err)
+	}
+	count := int64(0)
+	if err := db.Model(&ProviderModel{}).
+		Where("provider = ? AND model = ?", "openai", "stale-model").
+		Count(&count).Error; err != nil {
+		t.Fatalf("count stale openai model: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("stale openai model count=%d, want 0", count)
+	}
+	if err := db.Model(&ProviderModel{}).
+		Where("provider = ?", "anthropic").
+		Count(&count).Error; err != nil {
+		t.Fatalf("count anthropic models: %v", err)
+	}
+	if count == 0 {
+		t.Fatal("expected anthropic models to remain after openai-only refresh")
+	}
+}
+
+func TestNormalizeProviderMigrationLegacySourcesWithDB(t *testing.T) {
+	db := newProviderMigrationTestDB(t)
+	if err := db.AutoMigrate(&Provider{}, &ProviderModel{}, &ProviderModelPriceComponent{}); err != nil {
+		t.Fatalf("auto migrate provider tables: %v", err)
+	}
+	if err := db.Create(&Provider{
+		Id:     "openai",
+		Source: "default",
+	}).Error; err != nil {
+		t.Fatalf("create provider: %v", err)
+	}
+	if err := db.Create(&ProviderModel{
+		Provider: "openai",
+		Model:    "gpt-4.1",
+		Source:   "default",
+	}).Error; err != nil {
+		t.Fatalf("create provider model: %v", err)
+	}
+	if err := db.Create(&ProviderModelPriceComponent{
+		Provider:  "openai",
+		Model:     "gpt-4.1",
+		Component: ProviderModelPriceComponentText,
+		Source:    "default",
+	}).Error; err != nil {
+		t.Fatalf("create provider model price component: %v", err)
+	}
+	if err := db.Create(&Provider{
+		Id:     "manual-provider",
+		Source: "manual",
+	}).Error; err != nil {
+		t.Fatalf("create manual provider: %v", err)
+	}
+	if err := normalizeProviderMigrationLegacySourcesWithDB(db); err != nil {
+		t.Fatalf("normalize provider migration legacy sources: %v", err)
+	}
+	provider := Provider{}
+	if err := db.First(&provider, "id = ?", "openai").Error; err != nil {
+		t.Fatalf("query provider: %v", err)
+	}
+	if provider.Source != "migration" {
+		t.Fatalf("provider source=%q, want migration", provider.Source)
+	}
+	providerModel := ProviderModel{}
+	if err := db.First(&providerModel, "provider = ? AND model = ?", "openai", "gpt-4.1").Error; err != nil {
+		t.Fatalf("query provider model: %v", err)
+	}
+	if providerModel.Source != "migration" {
+		t.Fatalf("provider model source=%q, want migration", providerModel.Source)
+	}
+	component := ProviderModelPriceComponent{}
+	if err := db.First(&component, "provider = ? AND model = ? AND component = ?", "openai", "gpt-4.1", ProviderModelPriceComponentText).Error; err != nil {
+		t.Fatalf("query provider model price component: %v", err)
+	}
+	if component.Source != "migration" {
+		t.Fatalf("provider model price component source=%q, want migration", component.Source)
+	}
+	manualProvider := Provider{}
+	if err := db.First(&manualProvider, "id = ?", "manual-provider").Error; err != nil {
+		t.Fatalf("query manual provider: %v", err)
+	}
+	if manualProvider.Source != "manual" {
+		t.Fatalf("manual provider source=%q, want manual", manualProvider.Source)
+	}
+}
+
+func TestNormalizeProviderPricingLegacySourcesWithDB(t *testing.T) {
+	db := newProviderMigrationTestDB(t)
+	if err := db.AutoMigrate(&Log{}); err != nil {
+		t.Fatalf("auto migrate logs: %v", err)
+	}
+	if err := db.Create(&Log{
+		Id:                   "log-1",
+		BillingPricingSource: "provider_default",
+	}).Error; err != nil {
+		t.Fatalf("create provider default log: %v", err)
+	}
+	if err := db.Create(&Log{
+		Id:                   "log-2",
+		BillingPricingSource: "channel_override",
+	}).Error; err != nil {
+		t.Fatalf("create channel override log: %v", err)
+	}
+	if err := normalizeProviderPricingLegacySourcesWithDB(db); err != nil {
+		t.Fatalf("normalize provider pricing legacy sources: %v", err)
+	}
+	defaultLog := Log{}
+	if err := db.First(&defaultLog, "id = ?", "log-1").Error; err != nil {
+		t.Fatalf("query provider default log: %v", err)
+	}
+	if defaultLog.BillingPricingSource != "provider_migration" {
+		t.Fatalf("billing pricing source=%q, want provider_migration", defaultLog.BillingPricingSource)
+	}
+	channelOverrideLog := Log{}
+	if err := db.First(&channelOverrideLog, "id = ?", "log-2").Error; err != nil {
+		t.Fatalf("query channel override log: %v", err)
+	}
+	if channelOverrideLog.BillingPricingSource != "channel_override" {
+		t.Fatalf("channel override source=%q, want channel_override", channelOverrideLog.BillingPricingSource)
+	}
+}
+
+func TestLoadProviderMigrationSeedsFromSnapshot(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	if len(seeds) == 0 {
+		t.Fatal("expected non-empty provider migration seeds from snapshot")
+	}
+	if seeds[0].Provider == "" {
+		t.Fatal("expected first provider seed to include provider id")
+	}
+}
+
+func TestBuildProviderMigrationSeeds_OpenAIIncludesGPTImage1ComplexPricing(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	for _, seed := range seeds {
 		if seed.Provider != "openai" {
 			continue
@@ -76,8 +255,8 @@ func TestBuildDefaultProviderSeeds_OpenAIIncludesGPTImage1ComplexPricing(t *test
 	t.Fatalf("expected openai provider to exist")
 }
 
-func TestBuildDefaultProviderSeeds_OpenAIIncludesGPTImage2Pricing(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_OpenAIIncludesGPTImage2Pricing(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	for _, seed := range seeds {
 		if seed.Provider != "openai" {
 			continue
@@ -116,13 +295,11 @@ func TestBuildDefaultProviderSeeds_OpenAIIncludesGPTImage2Pricing(t *testing.T) 
 	t.Fatalf("expected openai provider to exist")
 }
 
-func TestBuildDefaultProviderSeeds_TokenBasedImageModelsUseResponsesEndpoint(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_TokenBasedImageModelsUseResponsesEndpoint(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	expected := map[string]string{
 		"gpt-image-2":              "openai",
 		"ernie-4.5-vl-32k-preview": "baidu",
-		"qwen-vl-max-latest":       "qwen",
-		"qvq-max-latest":           "qwen",
 		"step-1o-turbo-vision":     "stepfun",
 		"glm-4v-plus-0111":         "zhipu",
 		"pixtral-large-latest":     "mistral",
@@ -158,13 +335,62 @@ func TestBuildDefaultProviderSeeds_TokenBasedImageModelsUseResponsesEndpoint(t *
 	}
 	for modelName := range expected {
 		if !found[modelName] {
-			t.Fatalf("expected default providers to include %s", modelName)
+			t.Fatalf("expected provider migration seeds to include %s", modelName)
 		}
 	}
 }
 
-func TestBuildDefaultProviderSeeds_OpenAIIncludesGPT5xPricing(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_QwenUsesExplicitEndpointTruthTable(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	for _, seed := range seeds {
+		if seed.Provider != "qwen" {
+			continue
+		}
+		found := map[string]bool{}
+		for _, detail := range seed.ModelDetails {
+			switch detail.Model {
+			case "qwen-vl-max-latest", "qvq-max-latest":
+				if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointChat {
+					t.Fatalf("%s supported_endpoints=%#v, want [chat]", detail.Model, detail.SupportedEndpoints)
+				}
+				found[detail.Model] = true
+			case "qwen-omni-turbo-latest":
+				if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointChat {
+					t.Fatalf("%s supported_endpoints=%#v, want [chat]", detail.Model, detail.SupportedEndpoints)
+				}
+				found[detail.Model] = true
+			case "qwen-tts-latest":
+				if len(detail.SupportedEndpoints) != 0 {
+					t.Fatalf("%s supported_endpoints=%#v, want []", detail.Model, detail.SupportedEndpoints)
+				}
+				found[detail.Model] = true
+			case "qwen-max-latest", "qwen-plus-latest", "qwen-turbo-latest":
+				if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointChat {
+					t.Fatalf("%s supported_endpoints=%#v, want [chat]", detail.Model, detail.SupportedEndpoints)
+				}
+				found[detail.Model] = true
+			}
+		}
+		for _, modelName := range []string{
+			"qwen-max-latest",
+			"qwen-plus-latest",
+			"qwen-turbo-latest",
+			"qwen-vl-max-latest",
+			"qvq-max-latest",
+			"qwen-tts-latest",
+			"qwen-omni-turbo-latest",
+		} {
+			if !found[modelName] {
+				t.Fatalf("expected qwen seed to include %s", modelName)
+			}
+		}
+		return
+	}
+	t.Fatalf("expected qwen provider to exist")
+}
+
+func TestBuildProviderMigrationSeeds_OpenAIIncludesGPT5xPricing(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	expected := map[string]struct {
 		input  float64
 		output float64
@@ -213,8 +439,8 @@ func TestBuildDefaultProviderSeeds_OpenAIIncludesGPT5xPricing(t *testing.T) {
 	t.Fatalf("expected openai provider to exist")
 }
 
-func TestBuildDefaultProviderSeeds_OpenAIIncludesGPT55Pricing(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_OpenAIIncludesGPT55Pricing(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	for _, seed := range seeds {
 		if seed.Provider != "openai" {
 			continue
@@ -245,8 +471,8 @@ func TestBuildDefaultProviderSeeds_OpenAIIncludesGPT55Pricing(t *testing.T) {
 	t.Fatalf("expected openai provider to exist")
 }
 
-func TestBuildDefaultProviderSeeds_OpenAIIncludesNewOfficialModels(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_OpenAIIncludesNewOfficialModels(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	expected := map[string]struct {
 		modelType string
 	}{
@@ -288,8 +514,8 @@ func TestBuildDefaultProviderSeeds_OpenAIIncludesNewOfficialModels(t *testing.T)
 	t.Fatalf("expected openai provider to exist")
 }
 
-func TestBuildDefaultProviderSeeds_XAIIncludesNewOfficialModels(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_XAIIncludesNewOfficialModels(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	expected := map[string]bool{
 		"grok-4.20": false,
 		"grok-4.3":  false,
@@ -318,8 +544,8 @@ func TestBuildDefaultProviderSeeds_XAIIncludesNewOfficialModels(t *testing.T) {
 	t.Fatalf("expected xai provider to exist")
 }
 
-func TestBuildDefaultProviderSeeds_UnknownOrLegacyDescriptionsStayEmpty(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_UnknownOrLegacyDescriptionsStayEmpty(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	checks := map[string]map[string]bool{
 		"anthropic": {
 			"claude-3-5-haiku-20241022": false,
@@ -366,8 +592,8 @@ func TestBuildDefaultProviderSeeds_UnknownOrLegacyDescriptionsStayEmpty(t *testi
 	}
 }
 
-func TestBuildDefaultProviderSeeds_DeprecatedStatusApplied(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_DeprecatedStatusApplied(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	checks := map[string]map[string]bool{
 		"openai": {
 			"codex-mini-latest": false,
@@ -409,8 +635,8 @@ func TestBuildDefaultProviderSeeds_DeprecatedStatusApplied(t *testing.T) {
 	}
 }
 
-func TestBuildDefaultProviderSeeds_AllDescriptionsReviewed(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_AllDescriptionsReviewed(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	allowedEmpty := map[string]map[string]struct{}{
 		"anthropic": {
 			"claude-3-5-haiku-20241022": {},
@@ -445,8 +671,8 @@ func TestBuildDefaultProviderSeeds_AllDescriptionsReviewed(t *testing.T) {
 	}
 }
 
-func TestBuildDefaultProviderSeeds_OpenAIIncludesRealtime15And2Pricing(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_OpenAIIncludesRealtime15And2Pricing(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	expected := map[string]struct {
 		input  float64
 		output float64
@@ -495,8 +721,8 @@ func TestBuildDefaultProviderSeeds_OpenAIIncludesRealtime15And2Pricing(t *testin
 	t.Fatalf("expected openai provider to exist")
 }
 
-func TestBuildDefaultProviderSeeds_OfficialPricingBackfillForPreviouslyUnpricedModels(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_OfficialPricingBackfillForPreviouslyUnpricedModels(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	expected := map[string]map[string]struct {
 		modelType string
 		input     float64
@@ -588,8 +814,8 @@ func TestBuildDefaultProviderSeeds_OfficialPricingBackfillForPreviouslyUnpricedM
 	}
 }
 
-func TestBuildDefaultProviderSeeds_ComplexPricingComponentsForLiveAndOmniModels(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_ComplexPricingComponentsForLiveAndOmniModels(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	checks := map[string]map[string]struct {
 		componentCount int
 	}{
@@ -674,8 +900,8 @@ func TestInferModelType_RecognizesGPTImageModels(t *testing.T) {
 	}
 }
 
-func TestBuildDefaultProviderSeeds_AnthropicIncludesClaude47AndLegacyPricing(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_AnthropicIncludesClaude47AndLegacyPricing(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	expected := map[string]struct {
 		input  float64
 		output float64
@@ -727,8 +953,8 @@ func TestBuildDefaultProviderSeeds_AnthropicIncludesClaude47AndLegacyPricing(t *
 	t.Fatalf("expected anthropic provider to exist")
 }
 
-func TestBuildDefaultProviderSeeds_ModelDetailsMeta(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_ModelDetailsMeta(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	if len(seeds) == 0 {
 		t.Fatalf("expected non-empty provider seeds")
 	}
@@ -795,8 +1021,8 @@ func TestBuildDefaultProviderSeeds_ModelDetailsMeta(t *testing.T) {
 	}
 }
 
-func TestBuildDefaultProviderSeeds_AssignsSortOrder(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_AssignsSortOrder(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	if len(seeds) == 0 {
 		t.Fatalf("expected non-empty provider seeds")
 	}
@@ -812,8 +1038,8 @@ func TestBuildDefaultProviderSeeds_AssignsSortOrder(t *testing.T) {
 	}
 }
 
-func TestBuildDefaultProviderSeeds_RemainingUnpricedModelsAreExplicitlyTracked(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_RemainingUnpricedModelsAreExplicitlyTracked(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	expected := map[string]map[string]bool{
 		"baidu": {
 			"ernie-4.5-vl-32k-preview": false,
@@ -875,8 +1101,8 @@ func TestInferModelTypeAndPriceUnitForVideo(t *testing.T) {
 	}
 }
 
-func TestBuildDefaultProviderSeeds_IncludesVolcengineEmbeddingModel(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_IncludesVolcengineEmbeddingModel(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	for _, seed := range seeds {
 		if seed.Provider != "volcengine" {
 			continue
@@ -904,8 +1130,8 @@ func TestBuildDefaultProviderSeeds_IncludesVolcengineEmbeddingModel(t *testing.T
 	t.Fatalf("expected volcengine provider to exist")
 }
 
-func TestBuildDefaultProviderSeeds_HasUniqueCanonicalProviders(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_HasUniqueCanonicalProviders(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	seen := make(map[string]struct{}, len(seeds))
 	for _, seed := range seeds {
 		if _, ok := seen[seed.Provider]; ok {
@@ -936,8 +1162,8 @@ func TestBuildDefaultProviderSeeds_HasUniqueCanonicalProviders(t *testing.T) {
 	}
 }
 
-func TestBuildDefaultProviderSeeds_StripsSelfPrefixes(t *testing.T) {
-	seeds := BuildDefaultProviderSeeds(1700000000)
+func TestBuildProviderMigrationSeeds_StripsSelfPrefixes(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
 	for _, seed := range seeds {
 		for _, detail := range seed.ModelDetails {
 			if !strings.Contains(detail.Model, "/") {

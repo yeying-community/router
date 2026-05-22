@@ -44,6 +44,55 @@ func TestDefaultProviderModelSupportedEndpointsByProvider(t *testing.T) {
 	if len(embedding) != 1 || embedding[0] != ChannelModelEndpointEmbeddings {
 		t.Fatalf("embedding default endpoints = %#v, want embeddings", embedding)
 	}
+
+	qwenVL := DefaultProviderModelSupportedEndpoints("qwen", ProviderModelTypeImage, "qwen-vl-max-latest")
+	if len(qwenVL) != 1 || qwenVL[0] != ChannelModelEndpointChat {
+		t.Fatalf("qwen vl default endpoints = %#v, want chat", qwenVL)
+	}
+
+	qwenOmni := DefaultProviderModelSupportedEndpoints("qwen", ProviderModelTypeAudio, "qwen-omni-turbo-latest")
+	if len(qwenOmni) != 1 || qwenOmni[0] != ChannelModelEndpointChat {
+		t.Fatalf("qwen omni default endpoints = %#v, want chat", qwenOmni)
+	}
+
+	qwenRealtime := DefaultProviderModelSupportedEndpoints("qwen", ProviderModelTypeAudio, "qwen3-omni-flash-realtime")
+	if len(qwenRealtime) != 1 || qwenRealtime[0] != ChannelModelEndpointRealtime {
+		t.Fatalf("qwen realtime default endpoints = %#v, want realtime", qwenRealtime)
+	}
+
+	qwenTTS := DefaultProviderModelSupportedEndpoints("qwen", ProviderModelTypeAudio, "qwen-tts-latest")
+	if len(qwenTTS) != 0 {
+		t.Fatalf("qwen tts default endpoints = %#v, want empty", qwenTTS)
+	}
+}
+
+func TestNormalizeProviderModelSupportedEndpointsForQwenSpecialModels(t *testing.T) {
+	qwenVL := NormalizeProviderModelSupportedEndpointsForModel(
+		ProviderModelTypeImage,
+		"qwen-vl-max-latest",
+		[]string{ChannelModelEndpointResponses, ChannelModelEndpointChat},
+	)
+	if len(qwenVL) != 1 || qwenVL[0] != ChannelModelEndpointChat {
+		t.Fatalf("qwen vl normalized endpoints = %#v, want chat", qwenVL)
+	}
+
+	qwenOmni := NormalizeProviderModelSupportedEndpointsForModel(
+		ProviderModelTypeAudio,
+		"qwen-omni-turbo-latest",
+		[]string{ChannelModelEndpointAudio, ChannelModelEndpointChat},
+	)
+	if len(qwenOmni) != 1 || qwenOmni[0] != ChannelModelEndpointChat {
+		t.Fatalf("qwen omni normalized endpoints = %#v, want chat", qwenOmni)
+	}
+
+	qwenTTS := NormalizeProviderModelSupportedEndpointsForModel(
+		ProviderModelTypeAudio,
+		"qwen-tts-latest",
+		[]string{ChannelModelEndpointAudio, ChannelModelEndpointChat},
+	)
+	if len(qwenTTS) != 0 {
+		t.Fatalf("qwen tts normalized endpoints = %#v, want empty", qwenTTS)
+	}
 }
 
 func TestOpenAITextProviderModelEndpointCandidatesBackfillsChat(t *testing.T) {

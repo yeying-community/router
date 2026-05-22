@@ -234,7 +234,7 @@ func TestResolveChannelModelPricingCarriesPriceComponents(t *testing.T) {
 							InputPrice: 0.08,
 							PriceUnit:  ProviderPriceUnitPerImage,
 							Currency:   ProviderPriceCurrencyUSD,
-							Source:     "default",
+							Source:     "migration",
 						},
 					},
 				},
@@ -257,7 +257,7 @@ func TestResolveChannelModelPricingCarriesPriceComponents(t *testing.T) {
 								InputPrice: 0.08,
 								PriceUnit:  ProviderPriceUnitPerImage,
 								Currency:   ProviderPriceCurrencyUSD,
-								Source:     "default",
+								Source:     "migration",
 							},
 						},
 					},
@@ -330,7 +330,7 @@ func TestResolveImageRequestPricingMatchesComponent(t *testing.T) {
 		InputPrice: 0.04,
 		PriceUnit:  ProviderPriceUnitPerImage,
 		Currency:   ProviderPriceCurrencyUSD,
-		Source:     "provider_default",
+		Source:     "provider_migration",
 		PriceComponents: []ProviderModelPriceComponentDetail{
 			{
 				Component:  ProviderModelPriceComponentImageGeneration,
@@ -338,7 +338,7 @@ func TestResolveImageRequestPricingMatchesComponent(t *testing.T) {
 				InputPrice: 0.08,
 				PriceUnit:  ProviderPriceUnitPerImage,
 				Currency:   ProviderPriceCurrencyUSD,
-				Source:     "default",
+				Source:     "migration",
 			},
 		},
 	}, "1024x1024", "hd")
@@ -362,7 +362,7 @@ func TestResolveImageRequestPricingFallsBackWhenNoComponentMatches(t *testing.T)
 		InputPrice: 0.04,
 		PriceUnit:  ProviderPriceUnitPerImage,
 		Currency:   ProviderPriceCurrencyUSD,
-		Source:     "provider_default",
+		Source:     "provider_migration",
 		PriceComponents: []ProviderModelPriceComponentDetail{
 			{
 				Component:  ProviderModelPriceComponentImageGeneration,
@@ -370,13 +370,13 @@ func TestResolveImageRequestPricingFallsBackWhenNoComponentMatches(t *testing.T)
 				InputPrice: 0.08,
 				PriceUnit:  ProviderPriceUnitPerImage,
 				Currency:   ProviderPriceCurrencyUSD,
-				Source:     "default",
+				Source:     "migration",
 			},
 		},
 	}, "1792x1024", "standard")
 
-	if pricing.Source != "provider_default" {
-		t.Fatalf("expected source provider_default, got %q", pricing.Source)
+	if pricing.Source != "provider_migration" {
+		t.Fatalf("expected source provider_migration, got %q", pricing.Source)
 	}
 	if pricing.InputPrice != 0.04 {
 		t.Fatalf("expected base input price 0.04, got %f", pricing.InputPrice)
@@ -395,7 +395,7 @@ func TestResolveTextRequestPricingMatchesEndpointComponent(t *testing.T) {
 		OutputPrice: 0.002,
 		PriceUnit:   ProviderPriceUnitPer1KTokens,
 		Currency:    ProviderPriceCurrencyUSD,
-		Source:      "provider_default",
+		Source:      "provider_migration",
 		PriceComponents: []ProviderModelPriceComponentDetail{
 			{
 				Component:   ProviderModelPriceComponentText,
@@ -432,7 +432,7 @@ func TestResolveTextRequestPricingFallsBackWhenNoEndpointMatch(t *testing.T) {
 		OutputPrice: 0.002,
 		PriceUnit:   ProviderPriceUnitPer1KTokens,
 		Currency:    ProviderPriceCurrencyUSD,
-		Source:      "provider_default",
+		Source:      "provider_migration",
 		PriceComponents: []ProviderModelPriceComponentDetail{
 			{
 				Component:   ProviderModelPriceComponentText,
@@ -446,8 +446,8 @@ func TestResolveTextRequestPricingFallsBackWhenNoEndpointMatch(t *testing.T) {
 		},
 	}, "/v1/chat/completions")
 
-	if pricing.Source != "provider_default" {
-		t.Fatalf("expected source provider_default, got %q", pricing.Source)
+	if pricing.Source != "provider_migration" {
+		t.Fatalf("expected source provider_migration, got %q", pricing.Source)
 	}
 	if pricing.MatchedCondition != "" || pricing.MatchedComponent != "" {
 		t.Fatalf("expected no matched component, got component=%q condition=%q", pricing.MatchedComponent, pricing.MatchedCondition)
@@ -465,7 +465,7 @@ func TestResolveAudioRequestPricingMatchesAudioOutputComponent(t *testing.T) {
 		InputPrice: 0.015,
 		PriceUnit:  ProviderPriceUnitPer1KChars,
 		Currency:   ProviderPriceCurrencyUSD,
-		Source:     "provider_default",
+		Source:     "provider_migration",
 		PriceComponents: []ProviderModelPriceComponentDetail{
 			{
 				Component:  ProviderModelPriceComponentAudioOutput,
@@ -496,7 +496,7 @@ func TestResolveAudioRequestPricingMatchesAudioInputComponent(t *testing.T) {
 		InputPrice: 0.006,
 		PriceUnit:  ProviderPriceUnitPerMinute,
 		Currency:   ProviderPriceCurrencyUSD,
-		Source:     "provider_default",
+		Source:     "provider_migration",
 		PriceComponents: []ProviderModelPriceComponentDetail{
 			{
 				Component:  ProviderModelPriceComponentAudioInput,
@@ -527,7 +527,7 @@ func TestResolveVideoRequestPricingMatchesComponent(t *testing.T) {
 		InputPrice: 0.5,
 		PriceUnit:  ProviderPriceUnitPerSecond,
 		Currency:   ProviderPriceCurrencyUSD,
-		Source:     "provider_default",
+		Source:     "provider_migration",
 		PriceComponents: []ProviderModelPriceComponentDetail{
 			{
 				Component:  ProviderModelPriceComponentVideoGeneration,
@@ -564,7 +564,7 @@ func TestResolveVideoRequestPricingFallsBackWhenNoComponentMatches(t *testing.T)
 		InputPrice: 0.5,
 		PriceUnit:  ProviderPriceUnitPerSecond,
 		Currency:   ProviderPriceCurrencyUSD,
-		Source:     "provider_default",
+		Source:     "provider_migration",
 		PriceComponents: []ProviderModelPriceComponentDetail{
 			{
 				Component:  ProviderModelPriceComponentVideoGeneration,
@@ -579,8 +579,8 @@ func TestResolveVideoRequestPricingFallsBackWhenNoComponentMatches(t *testing.T)
 		"resolution": "1080p",
 	})
 
-	if pricing.Source != "provider_default" {
-		t.Fatalf("expected source provider_default, got %q", pricing.Source)
+	if pricing.Source != "provider_migration" {
+		t.Fatalf("expected source provider_migration, got %q", pricing.Source)
 	}
 	if pricing.MatchedComponent != "" || pricing.MatchedCondition != "" {
 		t.Fatalf("expected no matched component, got component=%q condition=%q", pricing.MatchedComponent, pricing.MatchedCondition)

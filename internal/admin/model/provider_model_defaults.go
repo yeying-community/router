@@ -109,7 +109,7 @@ func NormalizeProviderModelDetails(details []ProviderModelDetail) []ProviderMode
 			Status:             status,
 			Description:        strings.TrimSpace(detail.Description),
 			IsDeleted:          detail.IsDeleted,
-			SupportedEndpoints: NormalizeProviderModelSupportedEndpoints(t, detail.SupportedEndpoints),
+			SupportedEndpoints: NormalizeProviderModelSupportedEndpointsForModel(t, modelName, detail.SupportedEndpoints),
 			InputPrice:         inputPrice,
 			OutputPrice:        outputPrice,
 			PriceUnit:          priceUnit,
@@ -144,13 +144,11 @@ func NormalizeProviderModelDetails(details []ProviderModelDetail) []ProviderMode
 			if existing.OutputPrice <= 0 && entry.OutputPrice > 0 {
 				existing.OutputPrice = entry.OutputPrice
 			}
-			if entry.Source != "default" {
-				existing.Source = entry.Source
-			}
+			existing.Source = entry.Source
 			if entry.UpdatedAt > existing.UpdatedAt {
 				existing.UpdatedAt = entry.UpdatedAt
 			}
-			existing.SupportedEndpoints = NormalizeProviderModelSupportedEndpoints(existing.Type, append(existing.SupportedEndpoints, entry.SupportedEndpoints...))
+			existing.SupportedEndpoints = NormalizeProviderModelSupportedEndpointsForModel(existing.Type, existing.Model, append(existing.SupportedEndpoints, entry.SupportedEndpoints...))
 			existing.PriceComponents = NormalizeProviderModelPriceComponents(append(existing.PriceComponents, entry.PriceComponents...))
 			normalized[idx] = existing
 			continue
@@ -238,9 +236,7 @@ func NormalizeProviderModelPriceComponents(details []ProviderModelPriceComponent
 			if existing.Currency == "" {
 				existing.Currency = entry.Currency
 			}
-			if existing.Source == "" || existing.Source == "default" {
-				existing.Source = entry.Source
-			}
+			existing.Source = entry.Source
 			if existing.SourceURL == "" {
 				existing.SourceURL = entry.SourceURL
 			}
@@ -275,12 +271,16 @@ func NormalizeProviderModelPriceComponents(details []ProviderModelPriceComponent
 }
 
 func NormalizeProviderModelSupportedEndpoints(modelType string, endpoints []string) []string {
+	return NormalizeProviderModelSupportedEndpointsForModel(modelType, "", endpoints)
+}
+
+func NormalizeProviderModelSupportedEndpointsForModel(modelType string, modelName string, endpoints []string) []string {
 	normalizedType := normalizeModelType(modelType, "")
 	seen := make(map[string]struct{}, len(endpoints))
 	result := make([]string, 0, len(endpoints))
 	for _, endpoint := range endpoints {
 		normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(endpoint)
-		if normalizedEndpoint == "" || !IsChannelModelEndpointAllowedForType(normalizedType, normalizedEndpoint) {
+		if normalizedEndpoint == "" || !IsChannelModelEndpointAllowedForModel(normalizedType, modelName, normalizedEndpoint) {
 			continue
 		}
 		if _, exists := seen[normalizedEndpoint]; exists {
@@ -296,8 +296,24 @@ func NormalizeProviderModelSupportedEndpoints(modelType string, endpoints []stri
 }
 
 func IsChannelModelEndpointAllowedForType(modelType string, endpoint string) bool {
+	return IsChannelModelEndpointAllowedForModel(modelType, "", endpoint)
+}
+
+func IsChannelModelEndpointAllowedForModel(modelType string, modelName string, endpoint string) bool {
 	normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(endpoint)
 	if normalizedEndpoint == "" {
+		return false
+	}
+	lowerModelName := strings.ToLower(strings.TrimSpace(modelName))
+	switch {
+	case strings.HasPrefix(lowerModelName, "qwen-vl"),
+		strings.HasPrefix(lowerModelName, "qvq-"),
+		strings.Contains(lowerModelName, "omni"),
+		strings.Contains(lowerModelName, "asr"):
+		return normalizedEndpoint == ChannelModelEndpointChat ||
+			normalizedEndpoint == ChannelModelEndpointRealtime
+	case strings.Contains(lowerModelName, "tts"),
+		strings.HasPrefix(lowerModelName, "qwen-image"):
 		return false
 	}
 	switch normalizeModelType(modelType, "") {

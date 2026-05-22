@@ -258,9 +258,18 @@ func resolvedModelPricingFromProviderEntry(modelName string, entry providerModel
 		OutputPrice:     entry.Detail.OutputPrice,
 		PriceUnit:       entry.Detail.PriceUnit,
 		Currency:        entry.Detail.Currency,
-		Source:          "provider_default",
+		Source:          "provider_migration",
 		PriceComponents: NormalizeProviderModelPriceComponents(entry.Detail.PriceComponents),
 	}
+}
+
+func normalizeProviderPricingLegacySourcesWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	return db.Model(&Log{}).
+		Where("billing_pricing_source = ?", "provider_default").
+		Update("billing_pricing_source", "provider_migration").Error
 }
 
 func ResolveImageRequestPricing(pricing ResolvedModelPricing, size string, quality string) ResolvedModelPricing {
@@ -415,7 +424,7 @@ func mergeChannelModelPriceComponentOverrides(providerComponents []ProviderModel
 		if component.Component == "" {
 			continue
 		}
-		if component.Source == "" || component.Source == "manual" || component.Source == "default" {
+		if component.Source == "" || component.Source == "manual" {
 			component.Source = "channel_override"
 		}
 		key := component.Component + "\x00" + component.Condition

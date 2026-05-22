@@ -163,6 +163,18 @@ func TestResolveChannelModelTestEndpointForRow_AllowsRealtimeForAudioModel(t *te
 	}
 }
 
+func TestResolveChannelModelTestKind_UsesEndpointBeforeQwenModelType(t *testing.T) {
+	if got := resolveChannelModelTestKind(adminmodel.ProviderModelTypeImage, adminmodel.ChannelModelEndpointChat); got != channelModelTestKindText {
+		t.Fatalf("image+chat test kind = %q, want %q", got, channelModelTestKindText)
+	}
+	if got := resolveChannelModelTestKind(adminmodel.ProviderModelTypeAudio, adminmodel.ChannelModelEndpointChat); got != channelModelTestKindText {
+		t.Fatalf("audio+chat test kind = %q, want %q", got, channelModelTestKindText)
+	}
+	if got := resolveChannelModelTestKind(adminmodel.ProviderModelTypeImage, adminmodel.ChannelModelEndpointResponses); got != channelModelTestKindImageResponses {
+		t.Fatalf("image+responses test kind = %q, want %q", got, channelModelTestKindImageResponses)
+	}
+}
+
 func TestWrapRealtimeHandshakeError(t *testing.T) {
 	err := wrapRealtimeHandshakeError(errors.New("http status code: 401, error message: invalid token"))
 	if err == nil {

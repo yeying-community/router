@@ -16,6 +16,27 @@ const (
 	migrationScopeLog  = "log"
 )
 
+var (
+	allProviderMigrationCatalogProviders = []string{
+		"anthropic",
+		"baidu",
+		"cohere",
+		"deepseek",
+		"google",
+		"hunyuan",
+		"minimax",
+		"mistral",
+		"openai",
+		"qwen",
+		"stepfun",
+		"volcengine",
+		"xai",
+		"zhipu",
+	}
+	openAIAndXAIProviderMigrationCatalogProviders  = []string{"openai", "xai"}
+	googleAndQwenProviderMigrationCatalogProviders = []string{"google", "qwen"}
+)
+
 // SchemaMigration records Flyway-style versioned migrations.
 type SchemaMigration struct {
 	Scope       string `gorm:"primaryKey;type:varchar(32)"`
@@ -45,9 +66,9 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 		},
 		{
 			Version:     "202603131030_openai_gpt51_provider_catalog",
-			Description: "sync default provider data to add openai gpt-5.1 and gpt-5.1-codex pricing rows",
+			Description: "upsert openai provider migration rows for gpt-5.1 and gpt-5.1-codex pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "openai")
 			},
 		},
 		{
@@ -477,23 +498,23 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 		},
 		{
 			Version:     "202604071030_anthropic_claude46_provider_catalog",
-			Description: "sync default provider data to add anthropic claude 4.6/4.5/3.5 pricing rows",
+			Description: "upsert anthropic provider migration rows for claude 4.6/4.5/3.5 pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "anthropic")
 			},
 		},
 		{
 			Version:     "202604301100_anthropic_claude47_provider_catalog",
-			Description: "sync default provider data to add anthropic claude opus 4.7 pricing row",
+			Description: "upsert anthropic provider migration rows for claude opus 4.7 pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "anthropic")
 			},
 		},
 		{
 			Version:     "202604301230_openai_gpt54mini_provider_catalog",
-			Description: "sync default provider data to add openai gpt-5.4-mini pricing row",
+			Description: "upsert openai provider migration rows for gpt-5.4-mini pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "openai")
 			},
 		},
 		{
@@ -604,30 +625,30 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 		},
 		{
 			Version:     "202604251130_openai_gpt55_provider_catalog",
-			Description: "sync default provider data to add openai gpt-5.5 pricing rows",
+			Description: "upsert openai provider migration rows for gpt-5.5 pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "openai")
 			},
 		},
 		{
 			Version:     "202605051230_openai_gpt_image_2_provider_catalog",
-			Description: "sync default provider data to add openai gpt-image-2 pricing rows",
+			Description: "upsert openai provider migration rows for gpt-image-2 pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "openai")
 			},
 		},
 		{
 			Version:     "202605091200_openai_realtime_2_provider_catalog",
-			Description: "sync default provider data to add openai gpt-realtime-2 and gpt-realtime-1.5 pricing rows",
+			Description: "upsert openai provider migration rows for gpt-realtime-2 and gpt-realtime-1.5 pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "openai")
 			},
 		},
 		{
 			Version:     "202605091330_openai_realtime_endpoint_candidates",
-			Description: "sync default provider data to expose openai realtime models with /v1/realtime endpoint candidates",
+			Description: "upsert openai realtime provider endpoint candidates",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "openai")
 			},
 		},
 		{
@@ -648,7 +669,7 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			Version:     "202605041030_provider_model_supported_endpoints",
 			Description: "add provider model supported endpoints as channel endpoint candidates",
 			Up: func(tx *gorm.DB) error {
-				if err := syncDefaultProvidersWithDB(tx); err != nil {
+				if err := upsertProviderMigrationProvidersWithDB(tx, allProviderMigrationCatalogProviders...); err != nil {
 					return err
 				}
 				channelIDs := make([]string, 0)
@@ -671,7 +692,7 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			Version:     "202605051030_openai_text_model_endpoint_candidates",
 			Description: "backfill openai text provider models with responses and chat completion endpoint candidates",
 			Up: func(tx *gorm.DB) error {
-				if err := syncDefaultProvidersWithDB(tx); err != nil {
+				if err := upsertProviderMigrationProvidersWithDB(tx, "openai"); err != nil {
 					return err
 				}
 				return backfillOpenAITextProviderModelEndpointCandidatesWithDB(tx)
@@ -878,128 +899,128 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 		},
 		{
 			Version:     "202605102100_provider_model_descriptions",
-			Description: "add provider model descriptions and resync default provider data",
+			Description: "upsert provider model descriptions from migration data",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, allProviderMigrationCatalogProviders...)
 			},
 		},
 		{
 			Version:     "202605111030_refresh_provider_model_descriptions_and_defaults",
-			Description: "refresh provider model descriptions from official model catalogs and add newly tracked default models",
+			Description: "refresh provider model descriptions from official model catalogs and add newly tracked migration models",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, allProviderMigrationCatalogProviders...)
 			},
 		},
 		{
 			Version:     "202605111130_refresh_openai_and_xai_official_models",
 			Description: "refresh openai and xai official model descriptions and add newly tracked openai video models",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, openAIAndXAIProviderMigrationCatalogProviders...)
 			},
 		},
 		{
 			Version:     "202605111210_refresh_retired_anthropic_model_descriptions",
 			Description: "clear descriptions for retired anthropic models while keeping catalog rows for backward compatibility",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "anthropic")
 			},
 		},
 		{
 			Version:     "202605111330_refresh_retired_google_and_qwen_model_descriptions",
 			Description: "clear descriptions for retired or stopped-updating google and qwen models while keeping catalog rows for backward compatibility",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, googleAndQwenProviderMigrationCatalogProviders...)
 			},
 		},
 		{
 			Version:     "202605111430_provider_model_soft_delete_flag",
-			Description: "add provider model soft delete flag and mark upstream-retired default models",
+			Description: "add provider model soft delete flag and mark upstream-retired migration models",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, allProviderMigrationCatalogProviders...)
 			},
 		},
 		{
 			Version:     "202605111530_provider_model_official_status",
-			Description: "add provider model official status and mark deprecated default models",
+			Description: "add provider model official status and mark deprecated migration models",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, allProviderMigrationCatalogProviders...)
 			},
 		},
 		{
 			Version:     "202605141130_refresh_default_provider_model_pricing",
-			Description: "refresh default provider data pricing for newly priced official models",
+			Description: "upsert provider migration pricing for newly priced official models",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, allProviderMigrationCatalogProviders...)
 			},
 		},
 		{
 			Version:     "202605141330_refresh_component_based_provider_model_pricing",
-			Description: "refresh default provider data to add component-based pricing for complex official models",
+			Description: "upsert component-based provider migration pricing for complex official models",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, allProviderMigrationCatalogProviders...)
 			},
 		},
 		{
 			Version:     "202605141430_refresh_tiered_provider_model_pricing",
-			Description: "refresh default provider data to record tiered official pricing details",
+			Description: "upsert tiered provider migration pricing details",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, allProviderMigrationCatalogProviders...)
 			},
 		},
 		{
 			Version:     "202605141530_refresh_google_multimodal_provider_model_pricing",
-			Description: "refresh default provider data to add google multimodal pricing components",
+			Description: "upsert google multimodal provider migration pricing components",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "google")
 			},
 		},
 		{
 			Version:     "202605141630_refresh_minimax_provider_model_pricing",
-			Description: "refresh default provider data to add newly verified minimax pricing",
+			Description: "upsert minimax provider migration pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "minimax")
 			},
 		},
 		{
 			Version:     "202605141730_refresh_zhipu_provider_model_pricing",
-			Description: "refresh default provider data to add newly verified zhipu pricing",
+			Description: "upsert zhipu provider migration pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "zhipu")
 			},
 		},
 		{
 			Version:     "202605141830_refresh_hunyuan_provider_model_pricing",
-			Description: "refresh default provider data to add newly verified hunyuan pricing",
+			Description: "upsert hunyuan provider migration pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "hunyuan")
 			},
 		},
 		{
 			Version:     "202605142030_add_volcengine_doubao_provider_catalog",
-			Description: "refresh default provider data to add volcengine doubao provider models and pricing",
+			Description: "upsert volcengine doubao provider migration models and pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "volcengine")
 			},
 		},
 		{
 			Version:     "202605142130_refresh_volcengine_doubao_thinking_pricing",
-			Description: "refresh default provider data to add volcengine doubao thinking pricing rows",
+			Description: "upsert volcengine doubao thinking provider migration pricing",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "volcengine")
 			},
 		},
 		{
 			Version:     "202605142230_add_embedding_model_type_and_volcengine_seed_embedding",
-			Description: "refresh default provider data to add embedding model type support and volcengine seed embedding model",
+			Description: "upsert embedding model type support and volcengine seed embedding model",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "volcengine")
 			},
 		},
 		{
 			Version:     "202605151030_refresh_gpt_image2_endpoint_candidates",
-			Description: "refresh default provider data to expose openai gpt-image-2 image endpoints",
+			Description: "upsert openai gpt-image-2 provider endpoint candidates",
 			Up: func(tx *gorm.DB) error {
-				return syncDefaultProvidersWithDB(tx)
+				return upsertProviderMigrationProvidersWithDB(tx, "openai")
 			},
 		},
 		{
@@ -1185,6 +1206,20 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&ChannelBillingProfile{})
 			},
 		},
+		{
+			Version:     "202605231030_normalize_provider_migration_sources",
+			Description: "rewrite legacy provider catalog source default rows to migration",
+			Up: func(tx *gorm.DB) error {
+				return normalizeProviderMigrationLegacySourcesWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605231130_normalize_provider_pricing_sources",
+			Description: "rewrite legacy provider pricing source provider_default rows to provider_migration",
+			Up: func(tx *gorm.DB) error {
+				return normalizeProviderPricingLegacySourcesWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -1271,6 +1306,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 			Description: "add billing observability fields to consume logs",
 			Up: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202605231130_log_normalize_provider_pricing_sources",
+			Description: "rewrite legacy provider pricing source provider_default rows to provider_migration in log database",
+			Up: func(tx *gorm.DB) error {
+				return normalizeProviderPricingLegacySourcesWithDB(tx)
 			},
 		},
 	}

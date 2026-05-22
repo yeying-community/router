@@ -85,7 +85,7 @@ func TestBuildProviderModelRows_CanonicalizeAndMergeDuplicates(t *testing.T) {
 			OutputPrice: 0,
 			PriceUnit:   ProviderPriceUnitPer1KTokens,
 			Currency:    ProviderPriceCurrencyUSD,
-			Source:      "default",
+			Source:      "migration",
 			UpdatedAt:   200,
 		},
 	}, 300)
@@ -128,7 +128,7 @@ func TestBuildProviderModelStoreRows_IncludesPriceComponents(t *testing.T) {
 					InputPrice: 0.04,
 					PriceUnit:  ProviderPriceUnitPerImage,
 					Currency:   ProviderPriceCurrencyUSD,
-					Source:     "default",
+					Source:     "migration",
 					SourceURL:  "https://platform.openai.com/docs/pricing",
 					SortOrder:  10,
 				},

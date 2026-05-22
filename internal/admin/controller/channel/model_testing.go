@@ -22,6 +22,7 @@ import (
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/relay"
+	relayadaptor "github.com/yeying-community/router/internal/relay/adaptor"
 	openaiadaptor "github.com/yeying-community/router/internal/relay/adaptor/openai"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 	"github.com/yeying-community/router/internal/relay/meta"
@@ -229,6 +230,57 @@ func runSingleChannelModelTestWithContext(ctx context.Context, channel *model.Ch
 	return runSingleChannelModelTestWithContextAndStream(ctx, channel, row, nil, "")
 }
 
+func resolveChannelModelTestRequestURL(baseURL string, path string, adaptor relayadaptor.Adaptor, relayMeta *meta.Meta) string {
+	requestURL := resolveChannelEndpointURL(baseURL, path)
+	if adaptor == nil || relayMeta == nil {
+		return requestURL
+	}
+	if resolvedRequestURL, err := adaptor.GetRequestURL(relayMeta); err == nil && strings.TrimSpace(resolvedRequestURL) != "" {
+		return resolvedRequestURL
+	}
+	return requestURL
+}
+
+type channelModelTestKind string
+
+const (
+	channelModelTestKindText           channelModelTestKind = "text"
+	channelModelTestKindTextResponses  channelModelTestKind = "text_responses"
+	channelModelTestKindImage          channelModelTestKind = "image"
+	channelModelTestKindImageResponses channelModelTestKind = "image_responses"
+	channelModelTestKindImageEdit      channelModelTestKind = "image_edit"
+	channelModelTestKindBatch          channelModelTestKind = "batch"
+	channelModelTestKindAudio          channelModelTestKind = "audio"
+	channelModelTestKindRealtime       channelModelTestKind = "realtime"
+	channelModelTestKindVideo          channelModelTestKind = "video"
+)
+
+func resolveChannelModelTestKind(modelType string, endpoint string) channelModelTestKind {
+	switch model.NormalizeRequestedChannelModelEndpoint(endpoint) {
+	case model.ChannelModelEndpointChat, model.ChannelModelEndpointMessages:
+		return channelModelTestKindText
+	case model.ChannelModelEndpointResponses:
+		if strings.EqualFold(strings.TrimSpace(modelType), model.ProviderModelTypeImage) {
+			return channelModelTestKindImageResponses
+		}
+		return channelModelTestKindTextResponses
+	case model.ChannelModelEndpointImageEdit:
+		return channelModelTestKindImageEdit
+	case model.ChannelModelEndpointBatches:
+		return channelModelTestKindBatch
+	case model.ChannelModelEndpointImages:
+		return channelModelTestKindImage
+	case model.ChannelModelEndpointAudio:
+		return channelModelTestKindAudio
+	case model.ChannelModelEndpointRealtime:
+		return channelModelTestKindRealtime
+	case model.ChannelModelEndpointVideos:
+		return channelModelTestKindVideo
+	default:
+		return channelModelTestKindText
+	}
+}
+
 func isChannelModelTestEndpointAllowed(modelType string, endpoint string) bool {
 	normalizedEndpoint := model.NormalizeRequestedChannelModelEndpoint(endpoint)
 	if normalizedEndpoint == "" {
@@ -302,72 +354,27 @@ func runSingleChannelModelTestWithContextAndStream(ctx context.Context, channel 
 		}, execution), execution
 	}
 
-	switch modelType {
-	case model.ProviderModelTypeImage:
-		var execution channelModelTestExecution
-		switch endpoint {
-		case model.ChannelModelEndpointResponses:
-			execution = executeChannelImageResponsesModelTest(ctx, channel, row.Model)
-		case model.ChannelModelEndpointImageEdit:
-			execution = executeChannelImageEditModelTest(ctx, channel, row.Model)
-		case model.ChannelModelEndpointBatches:
-			execution = channelModelTestExecution{
-				Message:       "Batch API 需要先上传 JSONL 文件，暂不自动探测",
-				Err:           fmt.Errorf("Batch API 需要先上传 JSONL 文件，暂不自动探测"),
-				OutputPayload: marshalJSONForLog(map[string]any{"error": "Batch API 需要先上传 JSONL 文件，暂不自动探测"}),
-			}
-		default:
-			execution = executeChannelImageModelTest(ctx, channel, row.Model)
+	switch resolveChannelModelTestKind(modelType, endpoint) {
+	case channelModelTestKindText:
+		stream := false
+		if requestedStream != nil {
+			stream = *requestedStream
 		}
+		execution := executeChannelTextModelTest(ctx, channel, endpoint, &relaymodel.GeneralOpenAIRequest{
+			Model: row.Model,
+			Messages: []relaymodel.Message{{
+				Role:    "user",
+				Content: config.TestPrompt,
+			}},
+			Stream: stream,
+		})
 		return buildChannelModelTestResult(model.ChannelModel{
 			Model:         row.Model,
 			UpstreamModel: row.UpstreamModel,
 			Type:          modelType,
 			Endpoint:      endpoint,
 		}, execution), execution
-	case model.ProviderModelTypeAudio:
-		var execution channelModelTestExecution
-		switch endpoint {
-		case model.ChannelModelEndpointRealtime:
-			execution = executeChannelRealtimeModelTest(ctx, channel, row.Model)
-		default:
-			execution = executeChannelAudioModelTest(ctx, channel, row.Model, requestedAudioLanguage)
-		}
-		return buildChannelModelTestResult(model.ChannelModel{
-			Model:         row.Model,
-			UpstreamModel: row.UpstreamModel,
-			Type:          modelType,
-			Endpoint:      endpoint,
-		}, execution), execution
-	case model.ProviderModelTypeVideo:
-		execution := executeChannelVideoModelTest(ctx, channel, row.Model)
-		return buildChannelModelTestResult(model.ChannelModel{
-			Model:         row.Model,
-			UpstreamModel: row.UpstreamModel,
-			Type:          modelType,
-			Endpoint:      model.ChannelModelEndpointVideos,
-		}, execution), execution
-	default:
-		if endpoint == model.ChannelModelEndpointChat || endpoint == model.ChannelModelEndpointMessages {
-			stream := false
-			if requestedStream != nil {
-				stream = *requestedStream
-			}
-			execution := executeChannelTextModelTest(ctx, channel, endpoint, &relaymodel.GeneralOpenAIRequest{
-				Model: row.Model,
-				Messages: []relaymodel.Message{{
-					Role:    "user",
-					Content: config.TestPrompt,
-				}},
-				Stream: stream,
-			})
-			return buildChannelModelTestResult(model.ChannelModel{
-				Model:         row.Model,
-				UpstreamModel: row.UpstreamModel,
-				Type:          modelType,
-				Endpoint:      endpoint,
-			}, execution), execution
-		}
+	case channelModelTestKindTextResponses:
 		stream := false
 		if requestedStream != nil {
 			stream = *requestedStream
@@ -381,6 +388,77 @@ func runSingleChannelModelTestWithContextAndStream(ctx context.Context, channel 
 			row.Model,
 			channelModelTestRetryMax,
 		)
+		return buildChannelModelTestResult(model.ChannelModel{
+			Model:         row.Model,
+			UpstreamModel: row.UpstreamModel,
+			Type:          modelType,
+			Endpoint:      endpoint,
+		}, execution), execution
+	case channelModelTestKindImageResponses:
+		execution := executeChannelImageResponsesModelTest(ctx, channel, row.Model)
+		return buildChannelModelTestResult(model.ChannelModel{
+			Model:         row.Model,
+			UpstreamModel: row.UpstreamModel,
+			Type:          modelType,
+			Endpoint:      endpoint,
+		}, execution), execution
+	case channelModelTestKindImageEdit:
+		execution := executeChannelImageEditModelTest(ctx, channel, row.Model)
+		return buildChannelModelTestResult(model.ChannelModel{
+			Model:         row.Model,
+			UpstreamModel: row.UpstreamModel,
+			Type:          modelType,
+			Endpoint:      endpoint,
+		}, execution), execution
+	case channelModelTestKindBatch:
+		execution := channelModelTestExecution{
+			Message:       "Batch API 需要先上传 JSONL 文件，暂不自动探测",
+			Err:           fmt.Errorf("Batch API 需要先上传 JSONL 文件，暂不自动探测"),
+			OutputPayload: marshalJSONForLog(map[string]any{"error": "Batch API 需要先上传 JSONL 文件，暂不自动探测"}),
+		}
+		return buildChannelModelTestResult(model.ChannelModel{
+			Model:         row.Model,
+			UpstreamModel: row.UpstreamModel,
+			Type:          modelType,
+			Endpoint:      endpoint,
+		}, execution), execution
+	case channelModelTestKindImage:
+		execution := executeChannelImageModelTest(ctx, channel, row.Model)
+		return buildChannelModelTestResult(model.ChannelModel{
+			Model:         row.Model,
+			UpstreamModel: row.UpstreamModel,
+			Type:          modelType,
+			Endpoint:      endpoint,
+		}, execution), execution
+	case channelModelTestKindAudio:
+		execution := executeChannelAudioModelTest(ctx, channel, row.Model, requestedAudioLanguage)
+		return buildChannelModelTestResult(model.ChannelModel{
+			Model:         row.Model,
+			UpstreamModel: row.UpstreamModel,
+			Type:          modelType,
+			Endpoint:      endpoint,
+		}, execution), execution
+	case channelModelTestKindRealtime:
+		execution := executeChannelRealtimeModelTest(ctx, channel, row.Model)
+		return buildChannelModelTestResult(model.ChannelModel{
+			Model:         row.Model,
+			UpstreamModel: row.UpstreamModel,
+			Type:          modelType,
+			Endpoint:      endpoint,
+		}, execution), execution
+	case channelModelTestKindVideo:
+		execution := executeChannelVideoModelTest(ctx, channel, row.Model)
+		return buildChannelModelTestResult(model.ChannelModel{
+			Model:         row.Model,
+			UpstreamModel: row.UpstreamModel,
+			Type:          modelType,
+			Endpoint:      model.ChannelModelEndpointVideos,
+		}, execution), execution
+	default:
+		execution := channelModelTestExecution{
+			Err:           fmt.Errorf("模型测试端点不支持自动探测: %s", endpoint),
+			OutputPayload: marshalJSONForLog(map[string]any{"error": fmt.Sprintf("模型测试端点不支持自动探测: %s", endpoint)}),
+		}
 		return buildChannelModelTestResult(model.ChannelModel{
 			Model:         row.Model,
 			UpstreamModel: row.UpstreamModel,
@@ -908,7 +986,7 @@ func executeChannelImageResponsesModelTest(ctx context.Context, channel *model.C
 		return execution
 	}
 	baseURL := channel.ResolveAPIBaseURLForModel(model.ChannelModelEndpointResponses, modelName, actualModelName)
-	requestURL := resolveChannelEndpointURL(baseURL, model.ChannelModelEndpointResponses)
+	requestURL := resolveChannelModelTestRequestURL(baseURL, model.ChannelModelEndpointResponses, adaptor, relayMeta)
 	execution.BaseURL = baseURL
 	execution.RequestURL = requestURL
 	requestHeader := http.Header{}
@@ -992,7 +1070,7 @@ func executeChannelImageModelTest(ctx context.Context, channel *model.Channel, m
 		return execution
 	}
 	baseURL := channel.ResolveAPIBaseURLForModel("/v1/images/generations", modelName, actualModelName)
-	requestURL := resolveChannelEndpointURL(baseURL, "/v1/images/generations")
+	requestURL := resolveChannelModelTestRequestURL(baseURL, "/v1/images/generations", adaptor, relayMeta)
 	execution.BaseURL = baseURL
 	execution.RequestURL = requestURL
 	requestHeader := http.Header{}
@@ -1168,7 +1246,7 @@ func executeChannelAudioModelTest(ctx context.Context, channel *model.Channel, m
 		return execution
 	}
 	baseURL := channel.ResolveAPIBaseURLForModel("/v1/audio/speech", modelName, actualModelName)
-	requestURL := resolveChannelEndpointURL(baseURL, "/v1/audio/speech")
+	requestURL := resolveChannelModelTestRequestURL(baseURL, "/v1/audio/speech", adaptor, relayMeta)
 	execution.BaseURL = baseURL
 	execution.RequestURL = requestURL
 	requestHeader := http.Header{}

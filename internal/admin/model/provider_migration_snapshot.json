@@ -1,0 +1,2604 @@
+[
+  {
+    "Provider": "openai",
+    "Name": "OpenAI",
+    "BaseURL": "https://api.openai.com",
+    "OfficialURL": "https://platform.openai.com/docs/pricing",
+    "SortOrder": 100,
+    "ModelDetails": [
+      {
+        "model": "codex-mini-latest",
+        "type": "text",
+        "status": "deprecated",
+        "description": "Codex Mini 是 OpenAI 的轻量代码模型，当前已标记为 deprecated。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.0015,
+        "output_price": 0.006,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "dall-e-3",
+        "type": "image",
+        "status": "active",
+        "description": "DALL·E 3 是 OpenAI 的图像生成模型，适合根据提示词生成高质量图像。",
+        "supported_endpoints": [
+          "/v1/images/generations"
+        ],
+        "input_price": 0.04,
+        "price_unit": "per_image",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "image_generation",
+            "condition": "quality=standard;size=1024x1024",
+            "input_price": 0.04,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 10
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=standard;size=1024x1792",
+            "input_price": 0.08,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 20
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=standard;size=1792x1024",
+            "input_price": 0.08,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 30
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=hd;size=1024x1024",
+            "input_price": 0.08,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 40
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=hd;size=1024x1792",
+            "input_price": 0.12,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 50
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=hd;size=1792x1024",
+            "input_price": 0.12,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 60
+          }
+        ]
+      },
+      {
+        "model": "gpt-4.1",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-4.1 是 OpenAI 的通用模型，适合复杂指令遵循与生产级文本任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.002,
+        "output_price": 0.008,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-4.1-mini",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-4.1 Mini 是 GPT-4.1 的轻量版本，适合延迟和成本更敏感的场景。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.0004,
+        "output_price": 0.0016,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-4.1-nano",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-4.1 Nano 是 GPT-4.1 的超轻量版本，适合简单高并发任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.0001,
+        "output_price": 0.0004,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-4o",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-4o 是 OpenAI 的原生多模态模型，适合文本、图像和语音交互。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.0025,
+        "output_price": 0.01,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-4o-mini",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-4o Mini 是低成本多模态模型，适合大规模常规任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00015,
+        "output_price": 0.0006,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-4o-mini-tts",
+        "type": "audio",
+        "status": "active",
+        "description": "GPT-4o Mini TTS 是文本转语音模型，适合以较低成本生成自然语音。",
+        "input_price": 0.0006,
+        "price_unit": "per_1k_chars",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5 是 OpenAI 面向复杂问题求解、编码和代理任务的旗舰模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00125,
+        "output_price": 0.01,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5-codex",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5 Codex 是 GPT-5 系列中面向代码理解、生成和代理执行的模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00125,
+        "output_price": 0.01,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5-mini",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5 Mini 是 GPT-5 的小型版本，适合日常对话、摘要和批量处理。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00025,
+        "output_price": 0.002,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5-nano",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5 Nano 是 GPT-5 的超轻量版本，适合简单分类、抽取和高吞吐任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00005,
+        "output_price": 0.0004,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5-pro",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5 Pro 是 GPT-5 的高算力版本，适合更复杂、更高精度的推理任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.015,
+        "output_price": 0.12,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.1",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.1 是 GPT-5 系列中的通用高能力模型，适合复杂推理和生产任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00125,
+        "output_price": 0.01,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.1-codex",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.1 Codex 是面向代码生成、修改和工程代理任务优化的模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00125,
+        "output_price": 0.01,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.1-codex-max",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.1 Codex Max 是更偏高能力的 Codex 版本，适合复杂代码工作流。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00125,
+        "output_price": 0.01,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.1-codex-mini",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.1 Codex Mini 是更轻量的代码模型，适合成本敏感的工程任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00025,
+        "output_price": 0.002,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.2",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.2 是 GPT-5 系列中的高能力通用模型，适合复杂推理和多步骤任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00175,
+        "output_price": 0.014,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.2-codex",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.2 Codex 是 GPT-5.2 的代码版本，适合代码理解、生成和修复。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00175,
+        "output_price": 0.014,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.3-codex",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.3 Codex 是面向编程代理、代码生成与重构的 Codex 模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00175,
+        "output_price": 0.014,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.4",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.4 是 GPT-5 系列中的高能力模型，适合复杂推理和高质量生成。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.0025,
+        "output_price": 0.015,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.4-mini",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.4 Mini 是 GPT-5.4 的轻量版本，兼顾速度与成本。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.00075,
+        "output_price": 0.0045,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.4-nano",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.4 Nano 是 GPT-5.4 系列中的超轻量版本，适合高并发简单任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.0001,
+        "output_price": 0.000625,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.4-pro",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.4 Pro 是面向高难度专业任务的 GPT-5.4 版本。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.015,
+        "output_price": 0.09,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.5",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.5 是 OpenAI 当前更高能力的通用模型，适合复杂推理和生产场景。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.005,
+        "output_price": 0.03,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-5.5-pro",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.5 Pro 是 GPT-5.5 的高能力版本，适合高难度专业任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.015,
+        "output_price": 0.09,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-audio",
+        "type": "audio",
+        "status": "active",
+        "description": "GPT Audio 是支持音频输入输出的模型，可用于 Chat Completions 音频场景。",
+        "supported_endpoints": [
+          "/v1/audio/speech"
+        ],
+        "input_price": 0.032,
+        "output_price": 0.064,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-audio-mini",
+        "type": "audio",
+        "status": "active",
+        "description": "GPT Audio Mini 是更低成本的 GPT Audio 版本，支持音频输入输出。",
+        "supported_endpoints": [
+          "/v1/audio/speech"
+        ],
+        "input_price": 0.01,
+        "output_price": 0.02,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-image-1",
+        "type": "image",
+        "status": "active",
+        "description": "GPT Image 1 是 OpenAI 的图像生成与编辑模型，适合多种图片工作流。",
+        "supported_endpoints": [
+          "/v1/responses",
+          "/v1/images/generations",
+          "/v1/images/edits"
+        ],
+        "input_price": 0.011,
+        "price_unit": "per_image",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "image_generation",
+            "condition": "quality=low;size=1024x1024",
+            "input_price": 0.011,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 10
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=low;size=1024x1536",
+            "input_price": 0.016,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 20
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=low;size=1536x1024",
+            "input_price": 0.016,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 30
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=medium;size=1024x1024",
+            "input_price": 0.042,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 40
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=medium;size=1024x1536",
+            "input_price": 0.063,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 50
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=medium;size=1536x1024",
+            "input_price": 0.063,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 60
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=high;size=1024x1024",
+            "input_price": 0.167,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 70
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=high;size=1024x1536",
+            "input_price": 0.25,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 80
+          },
+          {
+            "component": "image_generation",
+            "condition": "quality=high;size=1536x1024",
+            "input_price": 0.25,
+            "price_unit": "per_image",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.openai.com/docs/pricing",
+            "sort_order": 90
+          }
+        ]
+      },
+      {
+        "model": "gpt-image-1-mini",
+        "type": "image",
+        "status": "active",
+        "description": "GPT Image 1 Mini 是更低成本的图像生成模型，适合成本敏感场景。",
+        "supported_endpoints": [
+          "/v1/responses",
+          "/v1/images/generations",
+          "/v1/images/edits"
+        ],
+        "input_price": 0.0025,
+        "output_price": 0.008,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "input_price": 0.002,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://openai.com/api/pricing/",
+            "sort_order": 10
+          },
+          {
+            "component": "image_generation",
+            "input_price": 0.0025,
+            "output_price": 0.008,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://openai.com/api/pricing/",
+            "sort_order": 20
+          }
+        ]
+      },
+      {
+        "model": "gpt-image-1.5",
+        "type": "image",
+        "status": "active",
+        "description": "GPT Image 1.5 是更具性价比的图像生成模型，适合图像生成与编辑。",
+        "supported_endpoints": [
+          "/v1/responses",
+          "/v1/images/generations",
+          "/v1/images/edits"
+        ],
+        "input_price": 0.008,
+        "output_price": 0.032,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "input_price": 0.005,
+            "output_price": 0.01,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://openai.com/api/pricing/",
+            "sort_order": 10
+          },
+          {
+            "component": "image_generation",
+            "input_price": 0.008,
+            "output_price": 0.032,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://openai.com/api/pricing/",
+            "sort_order": 20
+          }
+        ]
+      },
+      {
+        "model": "gpt-image-2",
+        "type": "image",
+        "status": "active",
+        "description": "GPT Image 2 是 OpenAI 的图像生成模型，适合高质量图片生成。",
+        "supported_endpoints": [
+          "/v1/responses",
+          "/v1/images/generations",
+          "/v1/images/edits"
+        ],
+        "input_price": 0.008,
+        "output_price": 0.03,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "input_price": 0.005,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://openai.com/api/pricing/",
+            "sort_order": 10
+          },
+          {
+            "component": "image_generation",
+            "input_price": 0.008,
+            "output_price": 0.03,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://openai.com/api/pricing/",
+            "sort_order": 20
+          }
+        ]
+      },
+      {
+        "model": "gpt-realtime",
+        "type": "audio",
+        "status": "active",
+        "description": "GPT Realtime 是 OpenAI 的实时多模态会话模型，适合低延迟语音与文本交互。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "input_price": 0.004,
+        "output_price": 0.016,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-realtime-1.5",
+        "type": "audio",
+        "status": "active",
+        "description": "GPT Realtime 1.5 是较轻量的实时模型，适合延迟敏感的会话场景。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "input_price": 0.0006,
+        "output_price": 0.0024,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-realtime-2",
+        "type": "audio",
+        "status": "active",
+        "description": "GPT Realtime 2 是更高能力的实时多模态模型，适合实时语音与文本对话。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "input_price": 0.004,
+        "output_price": 0.024,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-realtime-mini",
+        "type": "audio",
+        "status": "active",
+        "description": "GPT Realtime Mini 是低成本实时模型，适合高并发语音和文本交互。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "input_price": 0.0006,
+        "output_price": 0.0024,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gpt-realtime-translate",
+        "type": "audio",
+        "status": "active",
+        "description": "GPT Realtime Translate 是实时翻译模型，适合低延迟语音翻译场景。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "input_price": 0.0015,
+        "output_price": 0.006,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "o3",
+        "type": "text",
+        "status": "active",
+        "description": "o3 是 OpenAI 的推理模型，适合数学、代码和多步骤问题求解。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.002,
+        "output_price": 0.008,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "o4-mini",
+        "type": "text",
+        "status": "active",
+        "description": "o4-mini 是轻量推理模型，适合兼顾速度和推理质量的任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.0011,
+        "output_price": 0.0044,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "sora-2",
+        "type": "video",
+        "status": "active",
+        "description": "Sora 2 是 OpenAI 的视频生成模型，适合根据文本或多模态输入生成视频。",
+        "supported_endpoints": [
+          "/v1/videos"
+        ],
+        "input_price": 0.1,
+        "price_unit": "per_second",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "sora-2-pro",
+        "type": "video",
+        "status": "active",
+        "description": "Sora 2 Pro 是更高能力的视频生成模型，适合更复杂的视频生成任务。",
+        "supported_endpoints": [
+          "/v1/videos"
+        ],
+        "input_price": 0.3,
+        "price_unit": "per_second",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "tts-1",
+        "type": "audio",
+        "status": "active",
+        "description": "TTS-1 是 OpenAI 的文本转语音模型，适合快速语音生成。",
+        "input_price": 0.015,
+        "price_unit": "per_1k_chars",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "tts-1-hd",
+        "type": "audio",
+        "status": "active",
+        "description": "TTS-1-HD 是更高音质的文本转语音模型。",
+        "input_price": 0.03,
+        "price_unit": "per_1k_chars",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "whisper-1",
+        "type": "audio",
+        "status": "active",
+        "description": "Whisper-1 是 OpenAI 的语音识别模型，适合转写和翻译。",
+        "supported_endpoints": [
+          "/v1/audio/speech"
+        ],
+        "input_price": 0.006,
+        "price_unit": "per_minute",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "baidu",
+    "Name": "Baidu",
+    "BaseURL": "https://qianfan.baidubce.com/v2",
+    "OfficialURL": "https://cloud.baidu.com/product-s/qianfan_modelbuilder",
+    "SortOrder": 105,
+    "ModelDetails": [
+      {
+        "model": "ernie-4.5-turbo-128k",
+        "type": "text",
+        "status": "active",
+        "description": "ERNIE 4.5 Turbo 128K 是百度千帆的长上下文通用模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0008,
+        "output_price": 0.0032,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "ernie-4.5-vl-32k-preview",
+        "type": "image",
+        "status": "active",
+        "description": "ERNIE 4.5 VL 32K Preview 是百度千帆的视觉语言模型。",
+        "supported_endpoints": [
+          "/v1/responses"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "ernie-x1.1-preview",
+        "type": "text",
+        "status": "active",
+        "description": "ERNIE X1.1 Preview 是百度千帆的推理模型预览版。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.001,
+        "output_price": 0.004,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "anthropic",
+    "Name": "Anthropic",
+    "BaseURL": "https://api.anthropic.com",
+    "OfficialURL": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "SortOrder": 110,
+    "ModelDetails": [
+      {
+        "model": "claude-3-5-haiku-20241022",
+        "type": "text",
+        "status": "deprecated",
+        "is_deleted": true,
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.0008,
+        "output_price": 0.004,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-haiku-4-5",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Haiku 4.5 是轻量快速 Claude 模型，适合低延迟与高吞吐任务。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.001,
+        "output_price": 0.005,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-haiku-4-5-20251001",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Haiku 4.5 是轻量快速 Claude 模型，适合低延迟与高吞吐任务。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.001,
+        "output_price": 0.005,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-opus-4-1",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Opus 4.1 是 Anthropic 的高能力模型，适合高复杂度分析和代码任务。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.015,
+        "output_price": 0.075,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-opus-4-1-20250805",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Opus 4.1 是 Anthropic 的高能力模型，适合高复杂度分析和代码任务。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.015,
+        "output_price": 0.075,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-opus-4-5",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Opus 4.5 是 Anthropic 的高能力 Claude 模型，适合复杂分析与代码任务。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.005,
+        "output_price": 0.025,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-opus-4-5-20251101",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Opus 4.5 是 Anthropic 的高能力 Claude 模型，适合复杂分析与代码任务。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.005,
+        "output_price": 0.025,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-opus-4-6",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Opus 4.6 是 Anthropic 的高能力 Claude 模型，适合复杂任务与长上下文分析。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.005,
+        "output_price": 0.025,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-opus-4-6-thinking",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Opus 4.6 Thinking 是带更强推理特性的 Claude Opus 版本。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.005,
+        "output_price": 0.025,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-opus-4-7",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Opus 4.7 是 Anthropic 的高能力 Claude 模型，适合复杂分析与代码任务。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.005,
+        "output_price": 0.025,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-sonnet-4-5",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Sonnet 4.5 是均衡型 Claude 模型，适合大多数生产任务。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.003,
+        "output_price": 0.015,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-sonnet-4-5-20250929",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Sonnet 4.5 是均衡型 Claude 模型，适合大多数生产任务。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.003,
+        "output_price": 0.015,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "claude-sonnet-4-6",
+        "type": "text",
+        "status": "active",
+        "description": "Claude Sonnet 4.6 是均衡型 Claude 模型，适合大多数生产场景。",
+        "supported_endpoints": [
+          "/v1/messages"
+        ],
+        "input_price": 0.003,
+        "output_price": 0.015,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "deepseek",
+    "Name": "DeepSeek",
+    "BaseURL": "https://api.deepseek.com",
+    "OfficialURL": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "SortOrder": 115,
+    "ModelDetails": [
+      {
+        "model": "deepseek-chat",
+        "type": "text",
+        "status": "active",
+        "description": "DeepSeek Chat 是 DeepSeek 的通用对话模型别名，适合日常生成与编码任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.00028,
+        "output_price": 0.00042,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "deepseek-reasoner",
+        "type": "text",
+        "status": "active",
+        "description": "DeepSeek Reasoner 是 DeepSeek 的推理模型别名，适合数学、代码和复杂问题求解。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.00028,
+        "output_price": 0.00042,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "deepseek-v3.1",
+        "type": "text",
+        "status": "active",
+        "description": "DeepSeek V3.1 是 DeepSeek 的通用模型，适合对话、生成与编程任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.00056,
+        "output_price": 0.00168,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "google",
+    "Name": "Google",
+    "BaseURL": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "OfficialURL": "https://ai.google.dev/gemini-api/docs/pricing",
+    "SortOrder": 120,
+    "ModelDetails": [
+      {
+        "model": "gemini-2.5-flash",
+        "type": "text",
+        "status": "active",
+        "description": "Gemini 2.5 Flash 是低延迟多模态模型，适合高性价比交互场景。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0003,
+        "output_price": 0.0025,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "mode=standard;input_type=text_image_video",
+            "input_price": 0.0003,
+            "output_price": 0.0025,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 10
+          },
+          {
+            "component": "audio_input",
+            "condition": "mode=standard",
+            "input_price": 0.001,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 20
+          },
+          {
+            "component": "context_cache",
+            "condition": "mode=standard;input_type=text_image_video",
+            "input_price": 0.00003,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 30
+          },
+          {
+            "component": "context_cache",
+            "condition": "mode=standard;input_type=audio",
+            "input_price": 0.0001,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 40
+          },
+          {
+            "component": "context_cache_storage",
+            "condition": "mode=standard",
+            "input_price": 1,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 50
+          },
+          {
+            "component": "text",
+            "condition": "mode=batch;input_type=text_image_video",
+            "input_price": 0.00015,
+            "output_price": 0.00125,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 60
+          },
+          {
+            "component": "audio_input",
+            "condition": "mode=batch",
+            "input_price": 0.0005,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 70
+          },
+          {
+            "component": "context_cache",
+            "condition": "mode=batch;input_type=text_image_video",
+            "input_price": 0.00003,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 80
+          },
+          {
+            "component": "context_cache",
+            "condition": "mode=batch;input_type=audio",
+            "input_price": 0.0001,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 90
+          },
+          {
+            "component": "context_cache_storage",
+            "condition": "mode=batch",
+            "input_price": 1,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 100
+          }
+        ]
+      },
+      {
+        "model": "gemini-2.5-flash-image-preview",
+        "type": "image",
+        "status": "active",
+        "description": "Gemini 2.5 Flash Image Preview 是支持图像生成与理解的多模态模型。",
+        "supported_endpoints": [
+          "/v1/images/generations"
+        ],
+        "input_price": 0.039,
+        "price_unit": "per_image",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "gemini-2.5-flash-lite",
+        "type": "text",
+        "status": "active",
+        "description": "Gemini 2.5 Flash-Lite 是更轻量的 Flash 版本，适合低成本高并发任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0001,
+        "output_price": 0.0004,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "mode=standard;input_type=text_image_video",
+            "input_price": 0.0001,
+            "output_price": 0.0004,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 10
+          },
+          {
+            "component": "audio_input",
+            "condition": "mode=standard",
+            "input_price": 0.0003,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 20
+          },
+          {
+            "component": "context_cache",
+            "condition": "mode=standard;input_type=text_image_video",
+            "input_price": 0.00001,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 30
+          },
+          {
+            "component": "context_cache",
+            "condition": "mode=standard;input_type=audio",
+            "input_price": 0.00003,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 40
+          },
+          {
+            "component": "context_cache_storage",
+            "condition": "mode=standard",
+            "input_price": 1,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 50
+          },
+          {
+            "component": "text",
+            "condition": "mode=batch;input_type=text_image_video",
+            "input_price": 0.00005,
+            "output_price": 0.0002,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 60
+          },
+          {
+            "component": "audio_input",
+            "condition": "mode=batch",
+            "input_price": 0.00015,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 70
+          },
+          {
+            "component": "context_cache",
+            "condition": "mode=batch;input_type=text_image_video",
+            "input_price": 0.00001,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 80
+          },
+          {
+            "component": "context_cache",
+            "condition": "mode=batch;input_type=audio",
+            "input_price": 0.00003,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 90
+          },
+          {
+            "component": "context_cache_storage",
+            "condition": "mode=batch",
+            "input_price": 1,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 100
+          }
+        ]
+      },
+      {
+        "model": "gemini-2.5-pro",
+        "type": "text",
+        "status": "active",
+        "description": "Gemini 2.5 Pro 是 Google 的高能力多模态模型，适合复杂推理和长上下文任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.00125,
+        "output_price": 0.01,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "mode=standard;prompt_tokens_lte=200000",
+            "input_price": 0.00125,
+            "output_price": 0.01,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "mode=standard;prompt_tokens_gt=200000",
+            "input_price": 0.0025,
+            "output_price": 0.015,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 20
+          },
+          {
+            "component": "text",
+            "condition": "mode=batch;prompt_tokens_lte=200000",
+            "input_price": 0.000625,
+            "output_price": 0.005,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 30
+          },
+          {
+            "component": "text",
+            "condition": "mode=batch;prompt_tokens_gt=200000",
+            "input_price": 0.00125,
+            "output_price": 0.0075,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 40
+          },
+          {
+            "component": "context_cache",
+            "condition": "mode=standard;prompt_tokens_lte=200000",
+            "input_price": 0.000125,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 50
+          },
+          {
+            "component": "context_cache",
+            "condition": "mode=standard;prompt_tokens_gt=200000",
+            "input_price": 0.00025,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+            "sort_order": 60
+          }
+        ]
+      },
+      {
+        "model": "gemini-live-2.5-flash-preview",
+        "type": "audio",
+        "status": "deprecated",
+        "is_deleted": true,
+        "supported_endpoints": [
+          "/v1/audio/speech"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "input_mode=text_only",
+            "input_price": 0.0005,
+            "output_price": 0.002,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/pricing",
+            "sort_order": 10
+          },
+          {
+            "component": "audio_input",
+            "input_price": 0.003,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/pricing",
+            "sort_order": 20
+          },
+          {
+            "component": "image_input",
+            "input_price": 0.003,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/pricing",
+            "sort_order": 30
+          },
+          {
+            "component": "video_input",
+            "input_price": 0.003,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/pricing",
+            "sort_order": 40
+          },
+          {
+            "component": "audio_output",
+            "output_price": 0.012,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://ai.google.dev/pricing",
+            "sort_order": 50
+          }
+        ]
+      },
+      {
+        "model": "imagen-4.0-generate-preview-06-06",
+        "type": "image",
+        "status": "active",
+        "description": "Imagen 4 是 Google 的图像生成模型，适合高质量图片生成。",
+        "supported_endpoints": [
+          "/v1/images/generations"
+        ],
+        "input_price": 0.04,
+        "price_unit": "per_image",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "veo-3.0-generate-preview",
+        "type": "video",
+        "status": "active",
+        "description": "Veo 3 是 Google 的视频生成模型，适合根据文本生成视频。",
+        "supported_endpoints": [
+          "/v1/videos"
+        ],
+        "input_price": 0.4,
+        "price_unit": "per_second",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "hunyuan",
+    "Name": "Tencent Hunyuan",
+    "BaseURL": "https://api.hunyuan.cloud.tencent.com/v1",
+    "OfficialURL": "https://cloud.tencent.com/document/product/1729/97731",
+    "SortOrder": 125,
+    "ModelDetails": [
+      {
+        "model": "Hunyuan-Image",
+        "type": "image",
+        "status": "active",
+        "description": "Hunyuan Image 是腾讯混元的图像生成模型。",
+        "supported_endpoints": [
+          "/v1/images/generations"
+        ],
+        "input_price": 0.2,
+        "price_unit": "per_image",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "Hunyuan-T1",
+        "type": "text",
+        "status": "active",
+        "description": "Hunyuan T1 是腾讯混元的通用推理模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.001,
+        "output_price": 0.004,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "Hunyuan-T1-latest",
+        "type": "text",
+        "status": "active",
+        "description": "Hunyuan T1 是腾讯混元的通用推理模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.001,
+        "output_price": 0.004,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "Hunyuan-TurboS",
+        "type": "text",
+        "status": "active",
+        "description": "Hunyuan TurboS 是腾讯混元的高速通用模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0008,
+        "output_price": 0.002,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "Hunyuan-TurboS-latest",
+        "type": "text",
+        "status": "active",
+        "description": "Hunyuan TurboS 是腾讯混元的高速通用模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0008,
+        "output_price": 0.002,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "Hunyuan-Video",
+        "type": "video",
+        "status": "active",
+        "description": "Hunyuan Video 是腾讯混元的视频生成模型。",
+        "supported_endpoints": [
+          "/v1/videos"
+        ],
+        "price_unit": "per_second",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "volcengine",
+    "Name": "Volcengine Ark",
+    "BaseURL": "https://ark.cn-beijing.volces.com/api/v3",
+    "OfficialURL": "https://www.volcengine.com/docs/82379/1544106?lang=zh",
+    "SortOrder": 126,
+    "ModelDetails": [
+      {
+        "model": "Seed1.6-Embedding",
+        "type": "embedding",
+        "status": "active",
+        "description": "Seed1.6-Embedding 是火山方舟的全模态向量化模型，支持文本、图像和视频混合模态检索。",
+        "supported_endpoints": [
+          "/v1/embeddings"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "doubao-seed-1.6",
+        "type": "text",
+        "status": "active",
+        "description": "Doubao Seed 1.6 是火山方舟的通用高能力模型，适合复杂对话、推理和多模态任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0008,
+        "output_price": 0.008,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "prompt_tokens_lte=32000",
+            "input_price": 0.0008,
+            "output_price": 0.008,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://developer.volcengine.com/articles/7517188354925199414",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
+            "input_price": 0.0012,
+            "output_price": 0.016,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://developer.volcengine.com/articles/7517188354925199414",
+            "sort_order": 20
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
+            "input_price": 0.0024,
+            "output_price": 0.024,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://developer.volcengine.com/articles/7517188354925199414",
+            "sort_order": 30
+          }
+        ]
+      },
+      {
+        "model": "doubao-seed-1.6-flash",
+        "type": "text",
+        "status": "active",
+        "description": "Doubao Seed 1.6 Flash 是更低延迟、更低成本的轻量版本，适合高并发常规交互。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.00015,
+        "output_price": 0.0015,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "doubao-seed-1.6-thinking",
+        "type": "text",
+        "status": "active",
+        "description": "Doubao Seed 1.6 Thinking 是火山方舟的强制思考模型，适合更强调推理过程的复杂任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0008,
+        "output_price": 0.008,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "prompt_tokens_lte=32000",
+            "input_price": 0.0008,
+            "output_price": 0.008,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://developer.volcengine.com/articles/7516755904465731593",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
+            "input_price": 0.0012,
+            "output_price": 0.016,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://developer.volcengine.com/articles/7516755904465731593",
+            "sort_order": 20
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
+            "input_price": 0.0024,
+            "output_price": 0.024,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://developer.volcengine.com/articles/7516755904465731593",
+            "sort_order": 30
+          }
+        ]
+      },
+      {
+        "model": "doubao-seed-code-preview-latest",
+        "type": "text",
+        "status": "active",
+        "description": "Doubao Seed Code 是火山方舟面向代码生成、补全和工程任务优化的编程模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0012,
+        "output_price": 0.008,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "prompt_tokens_lte=32000",
+            "input_price": 0.0012,
+            "output_price": 0.008,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://developer.volcengine.com/articles/7573909942734684166",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
+            "input_price": 0.0024,
+            "output_price": 0.016,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://www.volcengine.com/docs/82379/1544106?lang=zh",
+            "sort_order": 20
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
+            "input_price": 0.0048,
+            "output_price": 0.032,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://www.volcengine.com/docs/82379/1544106?lang=zh",
+            "sort_order": 30
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Provider": "minimax",
+    "Name": "MiniMax",
+    "BaseURL": "https://api.minimax.io/v1",
+    "OfficialURL": "https://www.minimax.io/pricing",
+    "SortOrder": 127,
+    "ModelDetails": [
+      {
+        "model": "MiniMax-M2",
+        "type": "text",
+        "status": "active",
+        "description": "MiniMax M2 是 MiniMax 的通用模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0003,
+        "output_price": 0.0012,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "MiniMax-M2.1",
+        "type": "text",
+        "status": "active",
+        "description": "MiniMax M2.1 是 MiniMax 的通用模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0003,
+        "output_price": 0.0012,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "MiniMax-M2.1-highspeed",
+        "type": "text",
+        "status": "active",
+        "description": "MiniMax M2.1 Highspeed 是更快的通用模型版本。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0003,
+        "output_price": 0.0024,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "image-01",
+        "type": "image",
+        "status": "active",
+        "description": "Image-01 是 MiniMax 的图像生成模型。",
+        "supported_endpoints": [
+          "/v1/images/generations"
+        ],
+        "input_price": 0.0035,
+        "price_unit": "per_image",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "speech-2.5-hd-preview",
+        "type": "audio",
+        "status": "active",
+        "description": "Speech 2.5 HD Preview 是 MiniMax 的高音质语音生成模型。",
+        "supported_endpoints": [
+          "/v1/audio/speech"
+        ],
+        "input_price": 0.1,
+        "price_unit": "per_1k_chars",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "video-01",
+        "type": "video",
+        "status": "active",
+        "description": "Video-01 是 MiniMax 的视频生成模型。",
+        "supported_endpoints": [
+          "/v1/videos"
+        ],
+        "price_unit": "per_second",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "xai",
+    "Name": "xAI",
+    "BaseURL": "https://api.x.ai",
+    "OfficialURL": "https://docs.x.ai/docs/models",
+    "SortOrder": 130,
+    "ModelDetails": [
+      {
+        "model": "grok-2-image-1212",
+        "type": "image",
+        "status": "deprecated",
+        "is_deleted": true,
+        "supported_endpoints": [
+          "/v1/images/generations"
+        ],
+        "input_price": 0.07,
+        "price_unit": "per_image",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "grok-4",
+        "type": "text",
+        "status": "active",
+        "description": "Grok 4 是 xAI 的通用推理模型，适合复杂分析和生成任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.003,
+        "output_price": 0.015,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "grok-4-1-fast-non-reasoning",
+        "type": "text",
+        "status": "active",
+        "description": "Grok 4.1 Fast Non-Reasoning 是低延迟通用模型，官方已标注退役计划。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0002,
+        "output_price": 0.0005,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "grok-4-1-fast-reasoning",
+        "type": "text",
+        "status": "active",
+        "description": "Grok 4.1 Fast Reasoning 是低延迟推理模型，官方已标注退役计划。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0002,
+        "output_price": 0.0005,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "grok-4-fast-non-reasoning",
+        "type": "text",
+        "status": "active",
+        "description": "Grok 4 Fast Non-Reasoning 是更低延迟的 Grok 4 版本，适合快速响应任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0002,
+        "output_price": 0.0005,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "grok-4-fast-reasoning",
+        "type": "text",
+        "status": "active",
+        "description": "Grok 4 Fast Reasoning 是更低延迟的 Grok 4 推理版本。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0002,
+        "output_price": 0.0005,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "grok-4.20",
+        "type": "text",
+        "status": "active",
+        "description": "Grok 4.20 是 xAI 当前更新的旗舰推理模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.00125,
+        "output_price": 0.0025,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "grok-4.3",
+        "type": "text",
+        "status": "active",
+        "description": "Grok 4.3 是 xAI 的高能力通用推理模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.00125,
+        "output_price": 0.0025,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "grok-code-fast-1",
+        "type": "text",
+        "status": "active",
+        "description": "Grok Code Fast 1 是面向代码理解、生成和修复的模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0002,
+        "output_price": 0.0015,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "qwen",
+    "Name": "Qwen",
+    "BaseURL": "https://dashscope.aliyuncs.com",
+    "OfficialURL": "https://help.aliyun.com/zh/model-studio/models",
+    "SortOrder": 135,
+    "ModelDetails": [
+      {
+        "model": "qvq-max-latest",
+        "type": "image",
+        "status": "active",
+        "description": "QVQ-Max 是偏视觉推理的多模态模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.008,
+        "output_price": 0.032,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen-max-latest",
+        "type": "text",
+        "status": "active",
+        "description": "Qwen-Max 是阿里云百炼的高能力通用模型，适合复杂中文和多轮任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.011743,
+        "output_price": 0.046971,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen-omni-turbo-latest",
+        "type": "audio",
+        "status": "deprecated",
+        "is_deleted": true,
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "input_mode=text_only",
+            "input_price": 0.000514,
+            "output_price": 0.001982,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "sort_order": 10
+          },
+          {
+            "component": "audio_input",
+            "input_price": 0.032586,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "sort_order": 20
+          },
+          {
+            "component": "image_input",
+            "input_price": 0.001541,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "sort_order": 30
+          },
+          {
+            "component": "video_input",
+            "input_price": 0.001541,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "sort_order": 40
+          },
+          {
+            "component": "text",
+            "condition": "input_mode=multimodal",
+            "output_price": 0.004624,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "sort_order": 50
+          },
+          {
+            "component": "audio_output",
+            "condition": "input_mode=audio_only",
+            "output_price": 0.065246,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "sort_order": 60
+          }
+        ]
+      },
+      {
+        "model": "qwen-plus-latest",
+        "type": "text",
+        "status": "active",
+        "description": "Qwen-Plus 是均衡型通用模型，适合多数生产场景。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.002936,
+        "output_price": 0.008807,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen-tts-latest",
+        "type": "audio",
+        "status": "active",
+        "description": "Qwen-TTS 是文本转语音模型。",
+        "input_price": 0.0016,
+        "output_price": 0.01,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen-turbo-latest",
+        "type": "text",
+        "status": "active",
+        "description": "Qwen-Turbo 是更快更低成本的通用模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.000367,
+        "output_price": 0.001468,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen-vl-max-latest",
+        "type": "image",
+        "status": "active",
+        "description": "Qwen-VL-Max 是视觉语言模型，适合图文理解与多模态任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0016,
+        "output_price": 0.004,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "mistral",
+    "Name": "Mistral",
+    "BaseURL": "https://api.mistral.ai",
+    "OfficialURL": "https://docs.mistral.ai/getting-started/models/models_overview/",
+    "SortOrder": 140,
+    "ModelDetails": [
+      {
+        "model": "mistral-large-latest",
+        "type": "text",
+        "status": "active",
+        "description": "Mistral Large 是 Mistral 的高能力通用模型，适合复杂推理和文本生成。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.002,
+        "output_price": 0.006,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "mistral-medium-latest",
+        "type": "text",
+        "status": "active",
+        "description": "Mistral Medium 是均衡型通用模型，适合多数生产场景。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0004,
+        "output_price": 0.002,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "pixtral-large-latest",
+        "type": "image",
+        "status": "active",
+        "description": "Pixtral Large 是 Mistral 的视觉语言模型，适合图文理解和多模态任务。",
+        "supported_endpoints": [
+          "/v1/responses"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "voxtral-mini-latest",
+        "type": "audio",
+        "status": "active",
+        "description": "Voxtral Mini 是 Mistral 的语音模型，适合音频理解与交互。",
+        "supported_endpoints": [
+          "/v1/audio/speech"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "stepfun",
+    "Name": "StepFun",
+    "BaseURL": "https://api.stepfun.com/v1",
+    "OfficialURL": "https://platform.stepfun.com/docs/pricing/details",
+    "SortOrder": 145,
+    "ModelDetails": [
+      {
+        "model": "step-1o-audio",
+        "type": "audio",
+        "status": "active",
+        "description": "Step-1o-Audio 是语音与音频交互模型。",
+        "supported_endpoints": [
+          "/v1/audio/speech"
+        ],
+        "input_price": 0.025,
+        "output_price": 0.06,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "step-1o-turbo-vision",
+        "type": "image",
+        "status": "active",
+        "description": "Step-1o-Turbo-Vision 是多模态视觉模型。",
+        "supported_endpoints": [
+          "/v1/responses"
+        ],
+        "input_price": 0.0025,
+        "output_price": 0.008,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "step-1x-medium",
+        "type": "image",
+        "status": "active",
+        "description": "Step-1x-Medium 是图像生成模型。",
+        "supported_endpoints": [
+          "/v1/images/generations"
+        ],
+        "input_price": 0.1,
+        "price_unit": "per_image",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "step-2-mini",
+        "type": "text",
+        "status": "active",
+        "description": "Step-2-Mini 是轻量通用模型，适合成本敏感场景。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.001,
+        "output_price": 0.002,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "step-3.5-flash",
+        "type": "text",
+        "status": "active",
+        "description": "Step-3.5-Flash 是阶跃星辰的快速通用模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0007,
+        "output_price": 0.0021,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "cohere",
+    "Name": "Cohere",
+    "BaseURL": "https://api.cohere.com/compatibility/v1",
+    "OfficialURL": "https://docs.cohere.com/docs/how-does-cohere-pricing-work",
+    "SortOrder": 150,
+    "ModelDetails": [
+      {
+        "model": "command-a-03-2025",
+        "type": "text",
+        "status": "active",
+        "description": "Command A 是 Cohere 面向企业代理、工具调用和检索增强场景的模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0025,
+        "output_price": 0.01,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "command-r7b-12-2024",
+        "type": "text",
+        "status": "active",
+        "description": "Command R7B 是更轻量的检索增强与工具调用模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0000375,
+        "output_price": 0.00015,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  },
+  {
+    "Provider": "zhipu",
+    "Name": "Zhipu",
+    "BaseURL": "https://open.bigmodel.cn/api/paas/v4",
+    "OfficialURL": "https://docs.bigmodel.cn/cn/guide/models/text/glm-4.5",
+    "SortOrder": 155,
+    "ModelDetails": [
+      {
+        "model": "cogvideox-flash",
+        "type": "video",
+        "status": "active",
+        "description": "CogVideoX Flash 是智谱的视频生成模型。",
+        "supported_endpoints": [
+          "/v1/videos"
+        ],
+        "price_unit": "per_second",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "cogview-4-250304",
+        "type": "image",
+        "status": "active",
+        "description": "CogView 4 是智谱的图像生成模型。",
+        "supported_endpoints": [
+          "/v1/images/generations"
+        ],
+        "input_price": 0.06,
+        "price_unit": "per_image",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "glm-4-voice",
+        "type": "audio",
+        "status": "active",
+        "description": "GLM-4-Voice 是智谱的语音模型。",
+        "supported_endpoints": [
+          "/v1/audio/speech"
+        ],
+        "input_price": 0.08,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "glm-4.5-air",
+        "type": "text",
+        "status": "active",
+        "description": "GLM-4.5-Air 是智谱的通用模型，适合对话和生成任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0008,
+        "output_price": 0.002,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "glm-4v-plus-0111",
+        "type": "image",
+        "status": "active",
+        "description": "GLM-4V-Plus 是智谱的视觉语言模型。",
+        "supported_endpoints": [
+          "/v1/responses"
+        ],
+        "input_price": 0.004,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      }
+    ]
+  }
+]

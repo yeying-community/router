@@ -56,7 +56,7 @@ func TestExtractVideoResponseSummary_ArrayFieldsAndRequestIDOverride(t *testing.
 
 func TestAppendVideoSummaryToLogContent(t *testing.T) {
 	content := appendVideoSummaryToLogContent(
-		"计费: source=provider_default",
+		"计费: source=provider_migration",
 		videoResponseSummary{
 			TaskID:    "video_123",
 			Status:    "queued",
@@ -65,7 +65,7 @@ func TestAppendVideoSummaryToLogContent(t *testing.T) {
 		},
 	)
 	for _, expected := range []string{
-		"计费: source=provider_default",
+		"计费: source=provider_migration",
 		"video_task_id=video_123",
 		"video_status=queued",
 		"video_result_url=https://example.com/result.mp4",

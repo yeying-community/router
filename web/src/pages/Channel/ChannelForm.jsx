@@ -292,6 +292,45 @@ const normalizeChannelModelEndpoints = (type, endpoints, endpoint, protocol) => 
   return result;
 };
 
+const normalizeExplicitChannelModelEndpoint = (type, value, protocol) => {
+  if ((value || '').toString().trim() === '') {
+    return '';
+  }
+  return normalizeChannelModelEndpoint(type, value, protocol);
+};
+
+const normalizeExplicitChannelModelEndpoints = (
+  type,
+  endpoints,
+  endpoint,
+  protocol,
+) => {
+  const candidates = [];
+  if (Array.isArray(endpoints)) {
+    endpoints.forEach((item) => {
+      candidates.push(item);
+    });
+  }
+  if ((endpoint || '').toString().trim() !== '') {
+    candidates.push(endpoint);
+  }
+  const seen = new Set();
+  const result = [];
+  candidates.forEach((item) => {
+    const normalized = normalizeExplicitChannelModelEndpoint(
+      type,
+      item,
+      protocol,
+    );
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    result.push(normalized);
+  });
+  return result;
+};
+
 const DETAIL_TAB_KEYS = [
   'overview',
   'models',
@@ -2182,7 +2221,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const providerId = resolvePreferredProviderForModel(row);
       const providerDetails = providerModelDetailsIndex[providerId] || {};
       const candidates = [];
-      normalizeChannelModelEndpoints(
+      normalizeExplicitChannelModelEndpoints(
         row?.type,
         row?.endpoints || row?.endpoint_list || [],
         row?.endpoint,
@@ -2190,9 +2229,14 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       ).forEach((endpoint) => {
         candidates.push(endpoint);
       });
+      let matchedProviderDetail = false;
       buildProviderLookupKeys(row).forEach((key) => {
         const detail = providerDetails[key];
-        if (!detail || !Array.isArray(detail.supported_endpoints)) {
+        if (!detail) {
+          return;
+        }
+        matchedProviderDetail = true;
+        if (!Array.isArray(detail.supported_endpoints)) {
           return;
         }
         detail.supported_endpoints.forEach((endpoint) => {
@@ -2213,6 +2257,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         seen.add(normalized);
         result.push(normalized);
       });
+      if (matchedProviderDetail && result.length === 0) {
+        return [];
+      }
       return result;
     },
     [inputs.protocol, providerModelDetailsIndex, resolvePreferredProviderForModel],
@@ -2220,6 +2267,21 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const getEndpointOptionsForModel = useCallback(
     (row) => {
       const providerEndpoints = getProviderCandidateEndpointsForModel(row);
+      if (providerEndpoints.length === 0) {
+        const explicitCurrent = normalizeExplicitChannelModelEndpoint(
+          row?.type,
+          row?.endpoint,
+          inputs.protocol,
+        );
+        if (explicitCurrent === '') {
+          return [];
+        }
+        return buildEndpointOptionsFromValues(
+          row?.type,
+          [explicitCurrent],
+          inputs.protocol,
+        );
+      }
       return buildEndpointOptionsFromValues(
         row?.type,
         providerEndpoints,
@@ -2230,7 +2292,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   );
   const getEffectiveModelEndpoint = useCallback(
     (row) => {
-      const normalizedCurrent = normalizeChannelModelEndpoint(
+      const normalizedCurrent = normalizeExplicitChannelModelEndpoint(
         row?.type,
         row?.endpoint,
         inputs.protocol,
@@ -2239,7 +2301,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       if (normalizedCurrent !== '') {
         return normalizedCurrent;
       }
-      return providerEndpoints[0] || normalizedCurrent;
+      return providerEndpoints[0] || '';
     },
     [getProviderCandidateEndpointsForModel, inputs.protocol],
   );
