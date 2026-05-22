@@ -3855,9 +3855,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           : row?.enabled === true;
       const baseURL = normalizeBaseURL(nextValues.base_url ?? row?.base_url);
       const endpointKey = buildChannelEndpointKey(modelName, endpoint);
-      const latestResult = modelTestResultsByKey.get(endpointKey) || null;
-      const hasSuccessfulTest =
-        latestResult?.status === 'supported' && latestResult?.supported === true;
+      const latestStatusKey = (row?.last_test_status || '').toString().trim();
+      const hasSuccessfulTest = latestStatusKey === 'success';
       if (enabled && !skipConfirm && !hasSuccessfulTest) {
         setPendingEndpointEnableRow(row);
         setEndpointEnableConfirmOpen(true);
