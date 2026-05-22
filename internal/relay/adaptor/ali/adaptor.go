@@ -29,7 +29,7 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 	case relaymode.Embeddings:
 		fullRequestURL = fmt.Sprintf("%s/compatible-mode/v1/embeddings", meta.BaseURL)
 	case relaymode.Responses:
-		fullRequestURL = fmt.Sprintf("%s/api/v2/apps/protocols/compatible-mode/v1/responses", meta.BaseURL)
+		fullRequestURL = fmt.Sprintf("%s/compatible-mode/v1/responses", meta.BaseURL)
 	case relaymode.AudioSpeech, relaymode.AudioTranslation, relaymode.AudioTranscription, relaymode.Realtime, relaymode.Videos:
 		fullRequestURL = openaiadaptor.GetFullRequestURL(meta.BaseURL, meta.RequestURLPath, relaychannel.OpenAI)
 	case relaymode.ImagesGenerations:

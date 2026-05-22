@@ -39,7 +39,7 @@ func TestGetRequestURL_ResponsesUsesAliCompatibleResponsesPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRequestURL() error = %v", err)
 	}
-	want := "https://dashscope.aliyuncs.com/api/v2/apps/protocols/compatible-mode/v1/responses"
+	want := "https://dashscope.aliyuncs.com/compatible-mode/v1/responses"
 	if got != want {
 		t.Fatalf("GetRequestURL() = %q, want %q", got, want)
 	}
