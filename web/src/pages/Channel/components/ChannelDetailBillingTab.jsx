@@ -136,13 +136,6 @@ const ChannelDetailBillingTab = ({
               readOnly
             />
           </AppField>
-          <AppField label={t('channel.edit.billing.portal')} readOnly>
-            <AppInput
-              className='router-section-input'
-              value={billingSummary?.billing_portal_url || '-'}
-              readOnly
-            />
-          </AppField>
         </AppFormRow>
         <div className='router-block-gap-sm'>
           {capabilityItems.length > 0 ? (

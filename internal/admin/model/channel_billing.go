@@ -686,7 +686,7 @@ func BuildChannelBillingProfileFromChannelConfig(channel *Channel) (ChannelBilli
 	if mode == ChannelBillingModeUnsupported {
 		return ChannelBillingProfile{
 			ChannelId:          strings.TrimSpace(channel.Id),
-			Enabled:            false,
+			Enabled:            true,
 			BillingMode:        ChannelBillingModeUnsupported,
 			ActionCapabilities: marshalJSONString([]string{ChannelBillingCapabilityManualUpdateSnapshot}),
 		}, true

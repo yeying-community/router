@@ -6,7 +6,6 @@ import {
   AppFormRow,
   AppInput,
   AppSelect,
-  AppSwitch,
 } from '../../../router-ui';
 
 const billingModeOptions = (t) => [
@@ -54,6 +53,12 @@ const ChannelDetailOverviewTab = ({
   onSaveBillingProfile,
 }) => {
   const billingReadonly = !detailBillingEditing || billingSubmitting;
+  const activeBillingMode = (
+    detailBillingEditing
+      ? detailBillingDraft?.billing_mode
+      : billingProfile?.billing_mode
+  ) || 'unsupported';
+  const showCDKBillingConfig = activeBillingMode === 'builtin_cdk';
 
   return (
     <>
@@ -205,21 +210,6 @@ const ChannelDetailOverviewTab = ({
         }
       >
         <AppFormRow>
-          <AppField label={t('channel.edit.billing.profile_enabled')}>
-            <AppSwitch
-              checked={
-                detailBillingEditing
-                  ? detailBillingDraft?.enabled === true
-                  : billingProfile?.enabled === true
-              }
-              disabled={billingReadonly}
-              onChange={(e, { checked }) =>
-                onUpdateBillingProfileDraft({
-                  enabled: checked === true,
-                })
-              }
-            />
-          </AppField>
           <AppField label={t('channel.edit.billing.billing_mode')}>
             {detailBillingEditing ? (
               <AppSelect
@@ -265,6 +255,50 @@ const ChannelDetailOverviewTab = ({
             />
           </AppField>
         </AppFormRow>
+        {showCDKBillingConfig && (
+          <AppFormRow>
+            <AppField label={t('channel.edit.billing.cdk')}>
+              <AppInput
+                className='router-section-input'
+                value={
+                  detailBillingEditing
+                    ? detailBillingDraft?.cdk || ''
+                    : billingProfile?.cdk || '-'
+                }
+                onChange={(e, { value }) =>
+                  onUpdateBillingProfileDraft({
+                    cdk: (value || '').toString(),
+                  })
+                }
+                readOnly={billingReadonly}
+              />
+            </AppField>
+            <AppField label={t('channel.edit.billing.currency')}>
+              {detailBillingEditing ? (
+                <AppSelect
+                  className='router-section-input'
+                  options={[
+                    { value: 'USD', label: 'USD' },
+                    { value: 'CNY', label: 'CNY' },
+                  ]}
+                  value={detailBillingDraft?.currency || 'USD'}
+                  onChange={(e, { value }) =>
+                    onUpdateBillingProfileDraft({
+                      currency: (value || 'USD').toString(),
+                    })
+                  }
+                  disabled={billingSubmitting}
+                />
+              ) : (
+                <AppInput
+                  className='router-section-input'
+                  value={billingProfile?.currency || '-'}
+                  readOnly
+                />
+              )}
+            </AppField>
+          </AppFormRow>
+        )}
       </AppDetailSection>
     </>
   );

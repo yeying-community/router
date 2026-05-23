@@ -519,6 +519,8 @@ const normalizeChannelBillingProfile = (item) => {
     enabled: item.enabled === true,
     billing_mode: (item.billing_mode || '').toString().trim(),
     billing_api_base_url: (item.billing_api_base_url || '').toString().trim(),
+    cdk: (item.cdk || '').toString().trim(),
+    currency: (item.currency || '').toString().trim(),
     action_capabilities: Array.isArray(item.action_capabilities)
       ? item.action_capabilities
       : [],
@@ -3237,6 +3239,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         enabled: true,
         billing_mode: 'unsupported',
         billing_api_base_url: '',
+        cdk: '',
+        currency: 'USD',
         action_capabilities: [],
         billing_portal_url: '',
       }),
@@ -3259,13 +3263,14 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const res = await API.put(
         `/api/v1/admin/channel/${targetChannelId}/billing/profile`,
         {
-          enabled: detailBillingDraft.enabled === true,
           billing_mode: (detailBillingDraft.billing_mode || '')
             .toString()
             .trim(),
           billing_api_base_url: normalizeBaseURL(
             detailBillingDraft.billing_api_base_url,
           ),
+          cdk: (detailBillingDraft.cdk || '').toString().trim(),
+          currency: (detailBillingDraft.currency || 'USD').toString().trim(),
         },
       );
       const { success, message, data } = res.data || {};
@@ -4863,21 +4868,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 className='router-section-input'
                 name='other'
                 placeholder={t('channel.edit.knowledge_id_placeholder')}
-                onChange={handleInputChange}
-                value={inputs.other}
-                autoComplete='new-password'
-                {...inputReadonlyProps}
-              />
-            </AppField>
-          </AppFormRow>
-        )}
-        {inputs.protocol === 'ali' && (
-          <AppFormRow>
-            <AppField label={t('channel.edit.plugin_param')}>
-              <AppInput
-                className='router-section-input'
-                name='other'
-                placeholder={t('channel.edit.plugin_param_placeholder')}
                 onChange={handleInputChange}
                 value={inputs.other}
                 autoComplete='new-password'
