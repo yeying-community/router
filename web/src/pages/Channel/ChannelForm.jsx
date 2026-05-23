@@ -1209,17 +1209,37 @@ const buildNextInputsWithChannelModels = (previousInputs, channelModels, protoco
 const getChannelModelsFromInputs = (inputs) =>
   normalizeChannelModels(inputs?.channel_models, inputs?.protocol);
 
-const getBlockedSelectedChannelModels = (rows, protocol) => {
+const getChangedSelectedChannelModels = (rows, previousRows, protocol) => {
+  const previousByModel = new Map(
+    normalizeChannelModels(previousRows, protocol).map((row) => [
+      row.model,
+      row,
+    ]),
+  );
   return normalizeChannelModels(rows, protocol).filter((row) => {
     if (row.inactive === true || row.selected !== true) {
       return false;
     }
-    return ((row.enable_block_reason || '').toString().trim()) !== '';
+    const previous = previousByModel.get(row.model);
+    if (!previous || previous.inactive === true || previous.selected !== true) {
+      return true;
+    }
+    return (
+      previous.upstream_model !== row.upstream_model ||
+      previous.provider !== row.provider ||
+      previous.type !== row.type
+    );
   });
 };
 
-const buildBlockedSelectedModelsMessage = (rows, protocol, t) => {
-  const blockedRows = getBlockedSelectedChannelModels(rows, protocol);
+const buildBlockedSelectedModelsMessage = (rows, previousRows, protocol, t) => {
+  const blockedRows = getChangedSelectedChannelModels(
+    rows,
+    previousRows,
+    protocol,
+  ).filter(
+    (row) => ((row.enable_block_reason || '').toString().trim()) !== '',
+  );
   if (blockedRows.length === 0) {
     return '';
   }
@@ -2639,6 +2659,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       const blockedMessage = buildBlockedSelectedModelsMessage(
         nextChannelModels,
+        inputs.channel_models,
         inputs.protocol,
         t,
       );
@@ -2715,6 +2736,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       if (includeModelState) {
         const blockedMessage = buildBlockedSelectedModelsMessage(
+          inputs.channel_models,
           inputs.channel_models,
           inputs.protocol,
           t,

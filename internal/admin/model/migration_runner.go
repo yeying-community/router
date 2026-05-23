@@ -1207,17 +1207,19 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			},
 		},
 		{
-			Version:     "202605231030_normalize_provider_migration_sources",
-			Description: "rewrite legacy provider catalog source default rows to migration",
+			Version:     "202605231230_provider_migration_owned_qwen_data",
+			Description: "normalize provider migration sources and upsert current qwen provider data",
 			Up: func(tx *gorm.DB) error {
-				return normalizeProviderMigrationLegacySourcesWithDB(tx)
-			},
-		},
-		{
-			Version:     "202605231130_normalize_provider_pricing_sources",
-			Description: "rewrite legacy provider pricing source provider_default rows to provider_migration",
-			Up: func(tx *gorm.DB) error {
-				return normalizeProviderPricingLegacySourcesWithDB(tx)
+				if err := normalizeProviderMigrationLegacySourcesWithDB(tx); err != nil {
+					return err
+				}
+				if err := normalizeProviderPricingLegacySourcesWithDB(tx); err != nil {
+					return err
+				}
+				if err := upsertProviderMigrationProvidersWithDB(tx, "qwen"); err != nil {
+					return err
+				}
+				return nil
 			},
 		},
 	}

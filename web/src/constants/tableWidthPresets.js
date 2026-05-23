@@ -99,9 +99,9 @@ export const CHANNEL_LIST_TABLE_MIN_WIDTH =
   CHANNEL_LIST_COLUMN_WIDTHS.actions;
 
 export const GROUP_LIST_COLUMN_WIDTHS = {
-  name: 160,
+  name: 120,
   description: 220,
-  channels: 220,
+  channels: 260,
   billingRatio: 96,
   status: 92,
   createdAt: 148,

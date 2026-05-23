@@ -2174,129 +2174,89 @@
     "SortOrder": 135,
     "ModelDetails": [
       {
-        "model": "qvq-max-latest",
-        "type": "image",
-        "status": "active",
-        "description": "QVQ-Max 是偏视觉推理的多模态模型。",
-        "supported_endpoints": [
-          "/v1/chat/completions"
-        ],
-        "input_price": 0.008,
-        "output_price": 0.032,
-        "price_unit": "per_1k_tokens",
-        "currency": "CNY",
-        "source": "migration",
-        "updated_at": 1700000000
-      },
-      {
-        "model": "qwen-max-latest",
+        "model": "qwen3.7-max",
         "type": "text",
         "status": "active",
-        "description": "Qwen-Max 是阿里云百炼的高能力通用模型，适合复杂中文和多轮任务。",
+        "description": "Qwen3.7-Max 是 Qwen 当前高能力通用模型，适合复杂推理、代码和多轮任务。",
         "supported_endpoints": [
           "/v1/chat/completions"
         ],
-        "input_price": 0.011743,
-        "output_price": 0.046971,
+        "input_price": 0.012,
+        "output_price": 0.036,
         "price_unit": "per_1k_tokens",
         "currency": "CNY",
         "source": "migration",
         "updated_at": 1700000000
       },
       {
-        "model": "qwen-omni-turbo-latest",
-        "type": "audio",
-        "status": "deprecated",
-        "is_deleted": true,
-        "supported_endpoints": [
-          "/v1/chat/completions"
-        ],
-        "price_unit": "per_1k_tokens",
-        "currency": "CNY",
-        "source": "migration",
-        "updated_at": 1700000000,
-        "price_components": [
-          {
-            "component": "text",
-            "condition": "input_mode=text_only",
-            "input_price": 0.000514,
-            "output_price": 0.001982,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
-            "sort_order": 10
-          },
-          {
-            "component": "audio_input",
-            "input_price": 0.032586,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
-            "sort_order": 20
-          },
-          {
-            "component": "image_input",
-            "input_price": 0.001541,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
-            "sort_order": 30
-          },
-          {
-            "component": "video_input",
-            "input_price": 0.001541,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
-            "sort_order": 40
-          },
-          {
-            "component": "text",
-            "condition": "input_mode=multimodal",
-            "output_price": 0.004624,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
-            "sort_order": 50
-          },
-          {
-            "component": "audio_output",
-            "condition": "input_mode=audio_only",
-            "output_price": 0.065246,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
-            "sort_order": 60
-          }
-        ]
-      },
-      {
-        "model": "qwen-plus-latest",
+        "model": "qwen3.6-plus",
         "type": "text",
         "status": "active",
-        "description": "Qwen-Plus 是均衡型通用模型，适合多数生产场景。",
+        "description": "Qwen3.6-Plus 是均衡型通用模型，适合多数生产场景。",
         "supported_endpoints": [
           "/v1/chat/completions"
         ],
-        "input_price": 0.002936,
-        "output_price": 0.008807,
+        "input_price": 0.002,
+        "output_price": 0.012,
         "price_unit": "per_1k_tokens",
         "currency": "CNY",
         "source": "migration",
         "updated_at": 1700000000
       },
       {
-        "model": "qwen-tts-latest",
-        "type": "audio",
+        "model": "qwen3.6-flash",
+        "type": "text",
         "status": "active",
-        "description": "Qwen-TTS 是文本转语音模型。",
-        "input_price": 0.0016,
+        "description": "Qwen3.6-Flash 是低延迟低成本通用模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0012,
+        "output_price": 0.0072,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen3.5-plus",
+        "type": "text",
+        "status": "active",
+        "description": "Qwen3.5-Plus 是上一代均衡型通用模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0008,
+        "output_price": 0.0048,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen3.5-flash",
+        "type": "text",
+        "status": "active",
+        "description": "Qwen3.5-Flash 是上一代低成本通用模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0002,
+        "output_price": 0.002,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen3-max",
+        "type": "text",
+        "status": "active",
+        "description": "Qwen3-Max 是高能力通用模型，适合复杂任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions"
+        ],
+        "input_price": 0.0025,
         "output_price": 0.01,
         "price_unit": "per_1k_tokens",
         "currency": "CNY",
@@ -2304,31 +2264,23 @@
         "updated_at": 1700000000
       },
       {
-        "model": "qwen-turbo-latest",
-        "type": "text",
+        "model": "qwen-image-2.0",
+        "type": "image",
         "status": "active",
-        "description": "Qwen-Turbo 是更快更低成本的通用模型。",
-        "supported_endpoints": [
-          "/v1/chat/completions"
-        ],
-        "input_price": 0.000367,
-        "output_price": 0.001468,
-        "price_unit": "per_1k_tokens",
+        "description": "Qwen-Image 2.0 是图像生成模型。",
+        "input_price": 0.15,
+        "price_unit": "per_image",
         "currency": "CNY",
         "source": "migration",
         "updated_at": 1700000000
       },
       {
-        "model": "qwen-vl-max-latest",
+        "model": "qwen-image-2.0-pro",
         "type": "image",
         "status": "active",
-        "description": "Qwen-VL-Max 是视觉语言模型，适合图文理解与多模态任务。",
-        "supported_endpoints": [
-          "/v1/chat/completions"
-        ],
-        "input_price": 0.0016,
-        "output_price": 0.004,
-        "price_unit": "per_1k_tokens",
+        "description": "Qwen-Image 2.0 Pro 是更高质量的图像生成模型。",
+        "input_price": 0.2,
+        "price_unit": "per_image",
         "currency": "CNY",
         "source": "migration",
         "updated_at": 1700000000

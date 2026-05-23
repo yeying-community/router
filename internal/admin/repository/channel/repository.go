@@ -253,7 +253,7 @@ func Update(channel *model.Channel) error {
 			if err := model.ValidateChannelModelDisableTransitionsWithDB(tx, channel.Id, existing.GetChannelModels(), nextRows); err != nil {
 				return err
 			}
-			if err := model.ValidateManualChannelModelsWithDB(tx, channel.Id, nextRows); err != nil {
+			if err := model.ValidateManualChannelModelChangesWithDB(tx, channel.Id, existing.GetChannelModels(), nextRows); err != nil {
 				return err
 			}
 			if err := model.ReplaceChannelModelsWithDB(tx, channel.Id, nextRows); err != nil {
@@ -267,7 +267,7 @@ func Update(channel *model.Channel) error {
 			if err := model.ValidateChannelModelDisableTransitionsWithDB(tx, channel.Id, existing.GetChannelModels(), nextRows); err != nil {
 				return err
 			}
-			if err := model.ValidateManualChannelModelsWithDB(tx, channel.Id, nextRows); err != nil {
+			if err := model.ValidateManualChannelModelChangesWithDB(tx, channel.Id, existing.GetChannelModels(), nextRows); err != nil {
 				return err
 			}
 			if err := model.ReplaceChannelSelectedModelsWithDB(tx, channel.Id, channel.SelectedModelIDs()); err != nil {
@@ -314,7 +314,7 @@ func UpdateModels(channelID string, rows []model.ChannelModel) error {
 		if err := model.ValidateChannelModelDisableTransitionsWithDB(tx, normalizedChannelID, currentRows, nextRows); err != nil {
 			return err
 		}
-		if err := model.ValidateManualChannelModelsWithDB(tx, normalizedChannelID, nextRows); err != nil {
+		if err := model.ValidateManualChannelModelChangesWithDB(tx, normalizedChannelID, currentRows, nextRows); err != nil {
 			return err
 		}
 		if err := model.ReplaceChannelModelsWithDB(tx, normalizedChannelID, nextRows); err != nil {

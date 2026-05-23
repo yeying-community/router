@@ -349,39 +349,46 @@ func TestBuildProviderMigrationSeeds_QwenUsesExplicitEndpointTruthTable(t *testi
 		found := map[string]bool{}
 		for _, detail := range seed.ModelDetails {
 			switch detail.Model {
-			case "qwen-vl-max-latest", "qvq-max-latest":
+			case "qwen3.7-max", "qwen3.6-plus", "qwen3.6-flash", "qwen3.5-plus", "qwen3.5-flash", "qwen3-max":
 				if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointChat {
 					t.Fatalf("%s supported_endpoints=%#v, want [chat]", detail.Model, detail.SupportedEndpoints)
 				}
 				found[detail.Model] = true
-			case "qwen-omni-turbo-latest":
-				if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointChat {
-					t.Fatalf("%s supported_endpoints=%#v, want [chat]", detail.Model, detail.SupportedEndpoints)
-				}
-				found[detail.Model] = true
-			case "qwen-tts-latest":
+			case "qwen-image-2.0", "qwen-image-2.0-pro":
 				if len(detail.SupportedEndpoints) != 0 {
 					t.Fatalf("%s supported_endpoints=%#v, want []", detail.Model, detail.SupportedEndpoints)
-				}
-				found[detail.Model] = true
-			case "qwen-max-latest", "qwen-plus-latest", "qwen-turbo-latest":
-				if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointChat {
-					t.Fatalf("%s supported_endpoints=%#v, want [chat]", detail.Model, detail.SupportedEndpoints)
 				}
 				found[detail.Model] = true
 			}
 		}
 		for _, modelName := range []string{
-			"qwen-max-latest",
-			"qwen-plus-latest",
-			"qwen-turbo-latest",
-			"qwen-vl-max-latest",
-			"qvq-max-latest",
-			"qwen-tts-latest",
-			"qwen-omni-turbo-latest",
+			"qwen3.7-max",
+			"qwen3.6-plus",
+			"qwen3.6-flash",
+			"qwen3.5-plus",
+			"qwen3.5-flash",
+			"qwen3-max",
+			"qwen-image-2.0",
+			"qwen-image-2.0-pro",
 		} {
 			if !found[modelName] {
 				t.Fatalf("expected qwen seed to include %s", modelName)
+			}
+		}
+		return
+	}
+	t.Fatalf("expected qwen provider to exist")
+}
+
+func TestBuildProviderMigrationSeeds_QwenUsesConcreteModelVersions(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	for _, seed := range seeds {
+		if seed.Provider != "qwen" {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			if strings.HasSuffix(detail.Model, "-latest") {
+				t.Fatalf("qwen provider model %s uses floating latest alias", detail.Model)
 			}
 		}
 		return
@@ -553,9 +560,6 @@ func TestBuildProviderMigrationSeeds_UnknownOrLegacyDescriptionsStayEmpty(t *tes
 		"google": {
 			"gemini-live-2.5-flash-preview": false,
 		},
-		"qwen": {
-			"qwen-omni-turbo-latest": false,
-		},
 		"xai": {
 			"grok-2-image-1212": false,
 		},
@@ -604,9 +608,6 @@ func TestBuildProviderMigrationSeeds_DeprecatedStatusApplied(t *testing.T) {
 		"google": {
 			"gemini-live-2.5-flash-preview": false,
 		},
-		"qwen": {
-			"qwen-omni-turbo-latest": false,
-		},
 		"xai": {
 			"grok-2-image-1212": false,
 		},
@@ -643,9 +644,6 @@ func TestBuildProviderMigrationSeeds_AllDescriptionsReviewed(t *testing.T) {
 		},
 		"google": {
 			"gemini-live-2.5-flash-preview": {},
-		},
-		"qwen": {
-			"qwen-omni-turbo-latest": {},
 		},
 		"xai": {
 			"grok-2-image-1212": {},
@@ -754,9 +752,14 @@ func TestBuildProviderMigrationSeeds_OfficialPricingBackfillForPreviouslyUnprice
 			"step-1x-medium":       {modelType: ProviderModelTypeImage, input: 0.1, priceUnit: ProviderPriceUnitPerImage, currency: "CNY"},
 		},
 		"qwen": {
-			"qwen-vl-max-latest": {modelType: ProviderModelTypeImage, input: 0.0016, output: 0.004, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"qvq-max-latest":     {modelType: ProviderModelTypeImage, input: 0.008, output: 0.032, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"qwen-tts-latest":    {modelType: ProviderModelTypeAudio, input: 0.0016, output: 0.01, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"qwen3.7-max":        {modelType: ProviderModelTypeText, input: 0.012, output: 0.036, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"qwen3.6-plus":       {modelType: ProviderModelTypeText, input: 0.002, output: 0.012, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"qwen3.6-flash":      {modelType: ProviderModelTypeText, input: 0.0012, output: 0.0072, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"qwen3.5-plus":       {modelType: ProviderModelTypeText, input: 0.0008, output: 0.0048, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"qwen3.5-flash":      {modelType: ProviderModelTypeText, input: 0.0002, output: 0.002, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"qwen3-max":          {modelType: ProviderModelTypeText, input: 0.0025, output: 0.01, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"qwen-image-2.0":     {modelType: ProviderModelTypeImage, input: 0.15, priceUnit: ProviderPriceUnitPerImage, currency: "CNY"},
+			"qwen-image-2.0-pro": {modelType: ProviderModelTypeImage, input: 0.2, priceUnit: ProviderPriceUnitPerImage, currency: "CNY"},
 		},
 		"minimax": {
 			"speech-2.5-hd-preview": {modelType: ProviderModelTypeAudio, input: 0.1, priceUnit: ProviderPriceUnitPer1KChars, currency: ProviderPriceCurrencyUSD},
@@ -824,9 +827,6 @@ func TestBuildProviderMigrationSeeds_ComplexPricingComponentsForLiveAndOmniModel
 			"gemini-2.5-flash":              {componentCount: 10},
 			"gemini-2.5-flash-lite":         {componentCount: 10},
 			"gemini-live-2.5-flash-preview": {componentCount: 5},
-		},
-		"qwen": {
-			"qwen-omni-turbo-latest": {componentCount: 6},
 		},
 		"volcengine": {
 			"doubao-seed-1.6":                 {componentCount: 3},

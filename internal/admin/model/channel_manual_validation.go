@@ -39,6 +39,60 @@ func ValidateManualChannelModelsWithDB(db *gorm.DB, channelID string, rows []Cha
 	return nil
 }
 
+func ValidateManualChannelModelChangesWithDB(db *gorm.DB, channelID string, currentRows []ChannelModel, nextRows []ChannelModel) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	normalizedRows := NormalizeChannelModelsPreserveOrder(nextRows)
+	if normalizedChannelID == "" || len(normalizedRows) == 0 {
+		return nil
+	}
+	currentByModel := make(map[string]ChannelModel)
+	for _, row := range NormalizeChannelModelsPreserveOrder(currentRows) {
+		modelName := strings.TrimSpace(row.Model)
+		if modelName == "" {
+			continue
+		}
+		currentByModel[modelName] = row
+	}
+	for _, row := range normalizedRows {
+		if !shouldValidateManualChannelModelChange(currentByModel[row.Model], row) {
+			continue
+		}
+		reason, err := ExplainManualChannelModelEnableBlockWithDB(db, normalizedChannelID, row)
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(reason) != "" {
+			return fmt.Errorf("%s", reason)
+		}
+	}
+	return nil
+}
+
+func shouldValidateManualChannelModelChange(current ChannelModel, next ChannelModel) bool {
+	if next.Inactive || !next.Selected {
+		return false
+	}
+	if strings.TrimSpace(current.Model) == "" {
+		return true
+	}
+	if current.Inactive || !current.Selected {
+		return true
+	}
+	if strings.TrimSpace(current.UpstreamModel) != strings.TrimSpace(next.UpstreamModel) {
+		return true
+	}
+	if strings.TrimSpace(strings.ToLower(current.Provider)) != strings.TrimSpace(strings.ToLower(next.Provider)) {
+		return true
+	}
+	if normalizeExplicitChannelModelType(current.Type) != normalizeExplicitChannelModelType(next.Type) {
+		return true
+	}
+	return false
+}
+
 func ValidateManualChannelEndpointEnableWithDB(db *gorm.DB, channelID string, row ChannelModel, endpoint string) error {
 	reason, err := ExplainManualChannelEndpointEnableBlockWithDB(db, channelID, row, endpoint)
 	if err != nil {
