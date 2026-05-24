@@ -41,6 +41,7 @@ type AppConfig struct {
 	UCAN      UCANConfig      `yaml:"ucan"`
 	Feature   FeatureConfig   `yaml:"feature"`
 	Operation OperationConfig `yaml:"operation"`
+	Notify    NotifyConfig    `yaml:"notify"`
 	Relay     RelayConfig     `yaml:"relay"`
 	RateLimit RateLimitConfig `yaml:"rate_limit"`
 	Metrics   MetricsConfig   `yaml:"metrics"`
@@ -126,6 +127,13 @@ type OperationConfig struct {
 	TopUpSignSecret        string `yaml:"top_up_sign_secret"`
 	TopUpCallbackToken     string `yaml:"top_up_callback_token"`
 	ChatLink               string `yaml:"chat_link"`
+}
+
+type NotifyConfig struct {
+	Provider   string `yaml:"provider"`
+	WebhookURL string `yaml:"webhook_url"`
+	Secret     string `yaml:"secret"`
+	Token      string `yaml:"token"`
 }
 
 type RelayConfig struct {
@@ -239,6 +247,12 @@ func defaultAppConfig() AppConfig {
 			TopUpCallbackToken:     "",
 			ChatLink:               "",
 		},
+		Notify: NotifyConfig{
+			Provider:   "",
+			WebhookURL: "",
+			Secret:     "",
+			Token:      "",
+		},
 		Relay: RelayConfig{
 			TimeoutSeconds:                         0,
 			Proxy:                                  "",
@@ -330,6 +344,10 @@ func ApplyAppConfig(cfg *AppConfig, portFlagSet bool, logDirFlagSet bool) error 
 	config.TopUpSignSecret = strings.TrimSpace(cfg.Operation.TopUpSignSecret)
 	config.TopUpCallbackToken = strings.TrimSpace(cfg.Operation.TopUpCallbackToken)
 	config.ChatLink = strings.TrimSpace(cfg.Operation.ChatLink)
+	config.NotifyProvider = strings.ToLower(strings.TrimSpace(cfg.Notify.Provider))
+	config.NotifyWebhookURL = strings.TrimSpace(cfg.Notify.WebhookURL)
+	config.NotifySecret = strings.TrimSpace(cfg.Notify.Secret)
+	config.NotifyToken = strings.TrimSpace(cfg.Notify.Token)
 
 	SQLDSN = strings.TrimSpace(cfg.Database.SQLDSN)
 	LogSQLDSN = strings.TrimSpace(cfg.Database.LogSQLDSN)

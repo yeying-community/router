@@ -130,8 +130,10 @@ var UcanTrustedIssuerDIDs []string
 // CORS allowlist (comma-separated env CORS_ALLOWED_ORIGINS)
 var CorsAllowedOrigins []string
 
-var MessagePusherAddress = ""
-var MessagePusherToken = ""
+var NotifyProvider = ""
+var NotifyWebhookURL = ""
+var NotifySecret = ""
+var NotifyToken = ""
 
 var TurnstileSiteKey = ""
 var TurnstileSecretKey = ""

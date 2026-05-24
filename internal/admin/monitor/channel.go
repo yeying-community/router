@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/logger"
@@ -10,7 +11,7 @@ import (
 )
 
 func notifyRootUser(subject string, content string) {
-	if config.MessagePusherAddress != "" {
+	if strings.TrimSpace(config.NotifyProvider) != "" && strings.TrimSpace(config.NotifyWebhookURL) != "" {
 		err := message.SendMessage(subject, content, content)
 		if err != nil {
 			logger.SysError(fmt.Sprintf("failed to send message: %s", err.Error()))

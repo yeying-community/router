@@ -166,6 +166,22 @@ operation:
   # 用户工作区“聊天”入口 URL；留空则不展示该菜单。
   chat_link: ""
 
+notify:
+  # 通知通道：
+  # - dingtalk：钉钉机器人 WebHook
+  # - lark：飞书机器人 WebHook
+  # - message_pusher：Router 旧的中转推送服务
+  provider: ""
+  # 机器人 WebHook 地址或 message_pusher 地址。
+  webhook_url: ""
+  # 机器人签名密钥：
+  # - dingtalk：机器人加签密钥（SEC...）
+  # - lark：机器人签名密钥
+  # - message_pusher：留空
+  secret: ""
+  # 仅 message_pusher 使用的鉴权 token。
+  token: ""
+
 relay:
   # 上游请求总超时（秒）；0 表示使用默认策略。
   timeout_seconds: 0
