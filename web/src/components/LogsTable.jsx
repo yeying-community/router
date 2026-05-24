@@ -247,8 +247,8 @@ const LogsTable = () => {
   const [activePage, setActivePage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [tableSorter, setTableSorter] = useState({
-    columnKey: null,
-    order: null,
+    columnKey: 'created_at',
+    order: 'descend',
   });
   const [searchKeyword, setSearchKeyword] = useState('');
   const [logType, setLogType] = useState(0);

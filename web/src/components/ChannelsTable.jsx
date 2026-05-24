@@ -157,8 +157,8 @@ const ChannelsTable = () => {
   const currentPagePath = `${location.pathname}${location.search}${location.hash}`;
   const [billingRefreshTasks, setBillingRefreshTasks] = useState({});
   const [tableSorter, setTableSorter] = useState({
-    columnKey: null,
-    order: null,
+    columnKey: 'created_time',
+    order: 'descend',
   });
   const [protocolMap, setProtocolMap] = useState(() =>
     buildProtocolMap(getChannelProtocolOptions(), t)

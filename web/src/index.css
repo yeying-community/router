@@ -736,22 +736,6 @@ body,
     min-width: 14px;
 }
 
-.router-ui-select.router-page-dropdown,
-.router-ui-select.router-section-input-unit-dropdown,
-.router-ui-select.router-inline-dropdown,
-.router-ui-select.router-mini-dropdown,
-.router-ui-select.router-table-header-dropdown {
-    font-family: var(--router-font-family) !important;
-}
-
-.router-ui-select.router-page-dropdown .ant-select-selector,
-.router-ui-select.router-section-input-unit-dropdown .ant-select-selector,
-.router-ui-select.router-inline-dropdown .ant-select-selector,
-.router-ui-select.router-mini-dropdown .ant-select-selector,
-.router-ui-select.router-table-header-dropdown .ant-select-selector {
-    font-family: var(--router-font-family) !important;
-}
-
 .router-ui-button.router-auth-button {
     font-size: 14px !important;
     font-weight: 600 !important;
@@ -3787,7 +3771,11 @@ body,
 .router-table-header-with-control {
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0.35rem;
+}
+
+.router-table-header-with-control > span:first-child {
+    white-space: nowrap;
 }
 
 .router-ui-select.router-table-header-dropdown,
@@ -3801,19 +3789,20 @@ body,
 }
 
 .router-ui-select.router-table-header-dropdown {
-    min-width: 42px !important;
-    width: 42px !important;
+    min-width: auto !important;
+    width: auto !important;
+    max-width: 72px !important;
     margin: 0 !important;
 }
 
 .router-ui-select.router-table-header-dropdown .ant-select-selector {
-    min-width: 42px !important;
-    width: 42px !important;
-    min-height: 24px !important;
-    height: 24px !important;
-    padding: 0 18px 0 6px !important;
+    min-width: auto !important;
+    width: auto !important;
+    min-height: 20px !important;
+    height: 20px !important;
+    padding: 0 14px 0 2px !important;
     border: none !important;
-    border-radius: 6px !important;
+    border-radius: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
     display: flex !important;
@@ -3823,8 +3812,27 @@ body,
 .router-ui-select.router-table-header-dropdown .ant-select-selection-item,
 .router-ui-select.router-table-header-dropdown .ant-select-selection-placeholder {
     width: 100%;
-    text-align: center;
-    line-height: 22px !important;
+    text-align: left;
+    line-height: 20px !important;
+    color: rgba(0, 0, 0, 0.48) !important;
+    padding-inline-end: 0 !important;
+}
+
+.router-ui-select.router-table-header-dropdown .ant-select-arrow {
+    inset-inline-end: 0 !important;
+    color: rgba(0, 0, 0, 0.36) !important;
+    font-size: 10px !important;
+}
+
+.router-ui-select.router-table-header-dropdown:hover .ant-select-selection-item,
+.router-ui-select.router-table-header-dropdown.ant-select-focused .ant-select-selection-item,
+.router-ui-select.router-table-header-dropdown:hover .ant-select-arrow,
+.router-ui-select.router-table-header-dropdown.ant-select-focused .ant-select-arrow {
+    color: rgba(0, 0, 0, 0.62) !important;
+}
+
+.router-ui-select.router-table-header-dropdown .ant-select-selector::after {
+    line-height: 20px !important;
 }
 
 .router-token-action-menu {

@@ -41,6 +41,9 @@ const formatDateTime = (value) => {
   return timestamp2string(numericValue);
 };
 
+const compareNumberValue = (left, right) =>
+  Number(left || 0) - Number(right || 0);
+
 const normalizeTopupStatus = (value) =>
   (value || '').toString().trim().toLowerCase();
 
@@ -121,6 +124,10 @@ const BusinessFlowTable = ({ kind }) => {
   const [keyword, setKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [refreshingRowID, setRefreshingRowID] = useState('');
+  const [tableSorter, setTableSorter] = useState({
+    columnKey: null,
+    order: null,
+  });
   const [displayUnit, setDisplayUnit] = useState('USD');
   const [currencyIndex, setCurrencyIndex] = useState(
     buildBillingCurrencyIndex([], { activeOnly: true })
@@ -285,6 +292,7 @@ const BusinessFlowTable = ({ kind }) => {
             label: t('user.table.created_at'),
             width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
             cellClassName: 'router-table-col-datetime',
+            sortValue: (row) => Number(row?.created_at || 0),
             render: (row) => formatDateTime(row.created_at),
           },
           {
@@ -292,9 +300,14 @@ const BusinessFlowTable = ({ kind }) => {
             label: t('user.table.updated_at'),
             width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
             cellClassName: 'router-table-col-datetime',
+            sortValue: (row) => Number(row?.updated_at || 0),
             render: (row) => formatDateTime(row.updated_at),
           },
         ],
+        defaultSorter: {
+          columnKey: 'created_at',
+          order: 'descend',
+        },
       };
     }
 
@@ -392,6 +405,7 @@ const BusinessFlowTable = ({ kind }) => {
             label: t('user.table.updated_at'),
             width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
             cellClassName: 'router-table-col-datetime',
+            sortValue: (row) => Number(row?.updated_at || 0),
             render: (row) => formatDateTime(row.updated_at),
           },
           {
@@ -416,6 +430,10 @@ const BusinessFlowTable = ({ kind }) => {
             ),
           },
         ],
+        defaultSorter: {
+          columnKey: 'updated_at',
+          order: 'descend',
+        },
       };
     }
 
@@ -538,6 +556,7 @@ const BusinessFlowTable = ({ kind }) => {
             label: t('user.detail.package_started_at'),
             width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
             cellClassName: 'router-table-col-datetime',
+            sortValue: (row) => Number(row?.started_at || 0),
             render: (row) => formatDateTime(row.started_at),
           },
           {
@@ -545,6 +564,7 @@ const BusinessFlowTable = ({ kind }) => {
             label: t('user.detail.package_expires_at'),
             width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
             cellClassName: 'router-table-col-datetime',
+            sortValue: (row) => Number(row?.expires_at || 0),
             render: (row) => (
               Number(row.expires_at || 0) > 0 ? formatDateTime(row.expires_at) : t('common.unlimited')
             ),
@@ -554,9 +574,14 @@ const BusinessFlowTable = ({ kind }) => {
             label: t('user.table.updated_at'),
             width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
             cellClassName: 'router-table-col-datetime',
+            sortValue: (row) => Number(row?.updated_at || 0),
             render: (row) => formatDateTime(row.updated_at),
           },
         ],
+        defaultSorter: {
+          columnKey: 'updated_at',
+          order: 'descend',
+        },
       };
     }
 
@@ -630,6 +655,7 @@ const BusinessFlowTable = ({ kind }) => {
           label: t('redemption.table.redeemed_time'),
           width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
           cellClassName: 'router-table-col-datetime',
+          sortValue: (row) => Number(row?.redeemed_time || 0),
           render: (row) => formatDateTime(row.redeemed_time),
         },
         {
@@ -637,11 +663,39 @@ const BusinessFlowTable = ({ kind }) => {
           label: t('redemption.table.created_time'),
           width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
           cellClassName: 'router-table-col-datetime',
+          sortValue: (row) => Number(row?.created_time || 0),
           render: (row) => formatDateTime(row.created_time),
         },
       ],
+      defaultSorter: {
+        columnKey: 'created_time',
+        order: 'descend',
+      },
     };
   }, [currencyIndex, currentPagePath, displayUnit, displayUnitOptions, kind, navigate, refreshingRowID, t]);
+
+  useEffect(() => {
+    setTableSorter(config.defaultSorter || { columnKey: null, order: null });
+  }, [config.defaultSorter]);
+
+  const sortedItems = useMemo(() => {
+    if (!tableSorter.columnKey || !tableSorter.order) {
+      return items;
+    }
+    const targetColumn = (config.columns || []).find(
+      (column) => column.key === tableSorter.columnKey,
+    );
+    if (!targetColumn || typeof targetColumn.sortValue !== 'function') {
+      return items;
+    }
+    const nextItems = [...items].sort((left, right) =>
+      compareNumberValue(targetColumn.sortValue(left), targetColumn.sortValue(right)),
+    );
+    if (tableSorter.order === 'descend') {
+      nextItems.reverse();
+    }
+    return nextItems;
+  }, [config.columns, items, tableSorter]);
 
   const statusDropdownOptions = useMemo(
     () =>
@@ -830,7 +884,17 @@ const BusinessFlowTable = ({ kind }) => {
           pagination={false}
           scroll={{ x: BUSINESS_FLOW_TABLE_MIN_WIDTH }}
           rowKey={(row) => row.id || row.transaction_id || row.package_id}
-          dataSource={items}
+          onChange={(_, __, sorter) => {
+            if (!sorter || Array.isArray(sorter) || !sorter.columnKey || !sorter.order) {
+              setTableSorter(config.defaultSorter || { columnKey: null, order: null });
+              return;
+            }
+            setTableSorter({
+              columnKey: sorter.columnKey,
+              order: sorter.order,
+            });
+          }}
+          dataSource={sortedItems}
           locale={{ emptyText: config.emptyText }}
           onRow={(row) => ({
             onClick:
@@ -847,6 +911,10 @@ const BusinessFlowTable = ({ kind }) => {
             key: column.key,
             className: column.cellClassName || '',
             width: column.width,
+            sorter: typeof column.sortValue === 'function',
+            sortDirections: typeof column.sortValue === 'function' ? ['ascend', 'descend'] : undefined,
+            sortOrder:
+              tableSorter.columnKey === column.key ? tableSorter.order : null,
             onHeaderCell: () => ({
               className: column.headerClassName || '',
             }),

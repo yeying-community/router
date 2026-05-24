@@ -143,8 +143,8 @@ const RedemptionsTable = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searching, setSearching] = useState(false);
   const [tableSorter, setTableSorter] = useState({
-    columnKey: null,
-    order: null,
+    columnKey: 'created_time',
+    order: 'descend',
   });
   const [displayUnit, setDisplayUnit] = useState('USD');
   const [currencyIndex, setCurrencyIndex] = useState(

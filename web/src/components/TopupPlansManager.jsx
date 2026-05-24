@@ -1,10 +1,17 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { API, showError, showSuccess } from '../helpers';
+import { API, showError, showSuccess, timestamp2string } from '../helpers';
 import {
   TOPUP_PLAN_LIST_COLUMN_WIDTHS,
   TOPUP_PLAN_LIST_TABLE_MIN_WIDTH,
 } from '../constants/tableWidthPresets';
+import UnitDropdown from './UnitDropdown';
+import {
+  billingInputValueToYYC,
+  buildBillingCurrencyIndex,
+  buildDisplayUnitOptions,
+  formatDisplayAmountFromYYC,
+} from '../helpers/billing';
 import {
   AppButton,
   AppField,
@@ -65,6 +72,15 @@ const TopupPlansManager = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activeRow, setActiveRow] = useState(null);
   const [form, setForm] = useState(createEmptyPlan());
+  const [displayUnit, setDisplayUnit] = useState('USD');
+  const [currencyIndex, setCurrencyIndex] = useState(
+    buildBillingCurrencyIndex([], { activeOnly: true })
+  );
+
+  const displayUnitOptions = useMemo(
+    () => buildDisplayUnitOptions(currencyIndex, { order: 'yyc-first' }),
+    [currencyIndex]
+  );
 
   const loadPlans = useCallback(async () => {
     setLoading(true);
@@ -129,6 +145,40 @@ const TopupPlansManager = () => {
   useEffect(() => {
     loadGroups().then();
   }, [loadGroups]);
+
+  const loadDisplayUnits = useCallback(async () => {
+    try {
+      const res = await API.get('/api/v1/admin/billing/currencies');
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('topup.manage.load_failed'));
+        return;
+      }
+      const next = buildBillingCurrencyIndex(Array.isArray(data) ? data : [], {
+        activeOnly: true,
+      });
+      setCurrencyIndex(next);
+      setDisplayUnit((current) => {
+        const normalizedCurrent = (current || '').toString().trim().toUpperCase();
+        if (normalizedCurrent && next[normalizedCurrent]) {
+          return normalizedCurrent;
+        }
+        if (next.USD) {
+          return 'USD';
+        }
+        const fallbackUnit = Object.keys(next)
+          .filter((code) => code)
+          .sort((a, b) => a.localeCompare(b))[0];
+        return fallbackUnit || 'YYC';
+      });
+    } catch (error) {
+      showError(error?.message || error);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    loadDisplayUnits().then();
+  }, [loadDisplayUnits]);
 
   const openCreate = () => {
     setIsCreating(true);
@@ -264,6 +314,43 @@ const TopupPlansManager = () => {
     }
   };
 
+  const toggleEnabled = async (row, checked) => {
+    const id = (row?.id || '').toString().trim();
+    if (!id) {
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        id,
+        name: row?.name || '',
+        group_id: row?.group_id || '',
+        amount: Number(row?.amount || 0),
+        amount_currency: row?.amount_currency || 'CNY',
+        quota_amount: Number(row?.quota_amount || 0),
+        quota_currency: row?.quota_currency || 'USD',
+        validity_days: Number(row?.validity_days || 0),
+        enabled: Boolean(checked),
+        public_visible: row?.public_visible !== false,
+        sort_order: Number(row?.sort_order || 0),
+      };
+      const res = await API.put('/api/v1/admin/topup/plan', payload);
+      const { success, message, data } = res?.data || {};
+      if (!success) {
+        showError(message || t('topup.manage.save_failed'));
+        return;
+      }
+      setPlans((current) =>
+        current.map((item) => (((item?.id || '') === (data?.id || '')) ? data : item)),
+      );
+      showSuccess(t('topup.manage.save_success'));
+    } catch (error) {
+      showError(error?.message || t('topup.manage.save_failed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <>
       <AppFilterHeader
@@ -330,20 +417,47 @@ const TopupPlansManager = () => {
               render: (_, row) => `${row.amount} ${row.amount_currency}`,
             },
             {
-              title: t('topup.manage.columns.credited_amount'),
+              title: (
+                <div className='router-table-header-with-control'>
+                  <span>{t('topup.manage.columns.credited_amount')}</span>
+                  <UnitDropdown
+                    variant='header'
+                    compact
+                    options={displayUnitOptions}
+                    value={displayUnit}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onChange={(_, { value }) => {
+                      setDisplayUnit((value || '').toString());
+                    }}
+                  />
+                </div>
+              ),
               dataIndex: 'quota_amount',
               key: 'quota_amount',
               className: 'router-topup-plan-quota-cell',
               width: TOPUP_PLAN_LIST_COLUMN_WIDTHS.creditedAmount,
-              render: (_, row) => `${row.quota_amount} ${row.quota_currency}`,
-            },
-            {
-              title: t('package_manage.form.sort_order'),
-              dataIndex: 'sort_order',
-              key: 'sort_order',
-              className: 'router-table-col-status-narrow',
-              width: TOPUP_PLAN_LIST_COLUMN_WIDTHS.sortOrder,
-              render: (value) => Number(value || 0),
+              render: (_, row) => {
+                const storedYYC = billingInputValueToYYC(
+                  row?.quota_amount || 0,
+                  row?.quota_currency || 'USD',
+                  currencyIndex,
+                );
+                if (!Number.isFinite(storedYYC)) {
+                  return '-';
+                }
+                return formatDisplayAmountFromYYC(
+                  storedYYC,
+                  displayUnit,
+                  currencyIndex,
+                  {
+                    fractionDigits: 6,
+                    includeSymbol: false,
+                    yycMode: 'fixed',
+                  },
+                );
+              },
             },
             {
               title: t('topup.manage.columns.enabled'),
@@ -351,8 +465,12 @@ const TopupPlansManager = () => {
               key: 'enabled',
               className: 'router-table-col-status-narrow',
               width: TOPUP_PLAN_LIST_COLUMN_WIDTHS.enabled,
-              render: (value) => (
-                <AppSwitch checked={Boolean(value)} disabled size='small' />
+              render: (_, row) => (
+                <AppSwitch
+                  checked={Boolean(row.enabled)}
+                  disabled={saving}
+                  onChange={(_, { checked }) => toggleEnabled(row, Boolean(checked))}
+                />
               ),
             },
             {
@@ -379,6 +497,25 @@ const TopupPlansManager = () => {
                 Number(value || 0) > 0
                   ? `${Number(value || 0)} ${t('common.day')}`
                   : t('common.never'),
+            },
+            {
+              title: t('topup.manage.columns.created_at', t('common.created_at', '创建时间')),
+              dataIndex: 'created_at',
+              key: 'created_at',
+              className: 'router-table-col-datetime',
+              width: TOPUP_PLAN_LIST_COLUMN_WIDTHS.createdAt,
+              sorter: (a, b) => Number(a.created_at || 0) - Number(b.created_at || 0),
+              defaultSortOrder: 'descend',
+              render: (value) => (value ? timestamp2string(value) : '-'),
+            },
+            {
+              title: t('topup.manage.columns.updated_at', t('common.updated_at', '更新时间')),
+              dataIndex: 'updated_at',
+              key: 'updated_at',
+              className: 'router-table-col-datetime',
+              width: TOPUP_PLAN_LIST_COLUMN_WIDTHS.updatedAt,
+              sorter: (a, b) => Number(a.updated_at || 0) - Number(b.updated_at || 0),
+              render: (value) => (value ? timestamp2string(value) : '-'),
             },
             {
               title: t('common.operation'),

@@ -140,7 +140,9 @@
         "credited_amount": "Credited Amount",
         "enabled": "Status",
         "public_visible": "Public Visible",
-        "validity_days": "Validity (Days)"
+        "validity_days": "Validity (Days)",
+        "created_at": "Created At",
+        "updated_at": "Updated At"
       },
       "visibility": {
         "visible": "Visible",

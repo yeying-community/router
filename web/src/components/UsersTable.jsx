@@ -96,8 +96,8 @@ const UsersTable = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searching, setSearching] = useState(false);
   const [tableSorter, setTableSorter] = useState({
-    columnKey: null,
-    order: null,
+    columnKey: 'created_at',
+    order: 'descend',
   });
   const [currencyIndex, setCurrencyIndex] = useState(() =>
     buildPublicDisplayCurrencyIndex([]),

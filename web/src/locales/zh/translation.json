@@ -140,7 +140,9 @@
         "credited_amount": "到账额度",
         "enabled": "状态",
         "public_visible": "对外展示",
-        "validity_days": "有效期（天）"
+        "validity_days": "有效期（天）",
+        "created_at": "创建时间",
+        "updated_at": "更新时间"
       },
       "visibility": {
         "visible": "展示",

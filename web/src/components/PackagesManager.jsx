@@ -794,6 +794,8 @@ const PackagesManager = () => {
               key: 'created_at',
               className: 'router-table-col-datetime router-package-created-at-cell',
               width: PACKAGE_LIST_COLUMN_WIDTHS.createdAt,
+              sorter: (a, b) => Number(a.created_at || 0) - Number(b.created_at || 0),
+              defaultSortOrder: 'descend',
               render: (value) => (value ? timestamp2string(value) : '-'),
             },
             {
@@ -802,6 +804,7 @@ const PackagesManager = () => {
               key: 'updated_at',
               className: 'router-table-col-datetime router-package-updated-at-cell',
               width: PACKAGE_LIST_COLUMN_WIDTHS.updatedAt,
+              sorter: (a, b) => Number(a.updated_at || 0) - Number(b.updated_at || 0),
               render: (value) => (value ? timestamp2string(value) : '-'),
             },
             {

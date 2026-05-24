@@ -128,8 +128,8 @@ const TokensTable = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searching, setSearching] = useState(false);
   const [tableSorter, setTableSorter] = useState({
-    columnKey: null,
-    order: null,
+    columnKey: 'createdTime',
+    order: 'descend',
   });
   const [currencyIndex, setCurrencyIndex] = useState(() =>
     buildPublicDisplayCurrencyIndex([]),

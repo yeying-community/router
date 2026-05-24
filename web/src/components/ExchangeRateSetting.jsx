@@ -271,6 +271,8 @@ const ExchangeRateSetting = ({ section = '' }) => {
                 dataIndex: 'created_at',
                 key: 'created_at',
                 width: createdAtColumnStyle.width,
+                sorter: (a, b) => Number(a.created_at || 0) - Number(b.created_at || 0),
+                defaultSortOrder: 'descend',
                 render: (value) => (value ? timestamp2string(value) : '-'),
               },
               {
@@ -278,6 +280,7 @@ const ExchangeRateSetting = ({ section = '' }) => {
                 dataIndex: 'updated_at',
                 key: 'updated_at',
                 width: updatedAtColumnStyle.width,
+                sorter: (a, b) => Number(a.updated_at || 0) - Number(b.updated_at || 0),
                 render: (value) => (value ? timestamp2string(value) : '-'),
               },
               {

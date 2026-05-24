@@ -2970,6 +2970,8 @@ const ProvidersManager = () => {
             key: 'created_at',
             className: 'router-table-col-datetime',
             width: PROVIDER_LIST_COLUMN_WIDTHS.createdAt,
+            sorter: (a, b) => Number(a.created_at || 0) - Number(b.created_at || 0),
+            defaultSortOrder: 'descend',
             render: (value) => (value ? timestamp2string(value) : '-'),
           },
           {
@@ -2978,6 +2980,7 @@ const ProvidersManager = () => {
             key: 'updated_at',
             className: 'router-table-col-datetime',
             width: PROVIDER_LIST_COLUMN_WIDTHS.updatedAt,
+            sorter: (a, b) => Number(a.updated_at || 0) - Number(b.updated_at || 0),
             render: (value) => (value ? timestamp2string(value) : '-'),
           },
           {

@@ -51,6 +51,7 @@ export default function UnitDropdown({
     <AppSelect
       className={combinedClassName}
       options={normalizedOptions}
+      bordered={variant === 'header' ? false : rest.bordered}
       {...rest}
     />
   );
