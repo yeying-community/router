@@ -38,7 +38,6 @@ const createEmptyForm = () => ({
   name: '',
   description: '',
   billing_ratio: 1,
-  sort_order: 0,
 });
 
 const createEmptyModelConfig = () => ({
@@ -80,22 +79,11 @@ const sortGroupModelRows = (items) =>
     return (a?.channel_id || '').localeCompare(b?.channel_id || '');
   });
 
-const sortCatalogRows = (items) =>
-  [...items].sort((a, b) => {
-    const aOrder = Number(a.sort_order || 0);
-    const bOrder = Number(b.sort_order || 0);
-    if (aOrder !== bOrder) {
-      return aOrder - bOrder;
-    }
-    return (a.name || '').localeCompare(b.name || '');
-  });
-
 const buildFormFromRow = (row) => ({
   id: row?.id || '',
   name: row?.name || '',
   description: row?.description || '',
   billing_ratio: Number(row?.billing_ratio ?? 1),
-  sort_order: Number(row?.sort_order || 0),
 });
 
 const toChannelOptions = (items) =>
@@ -379,7 +367,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     setLoading(true);
     try {
       const items = await fetchAllGroups();
-      setRows(sortCatalogRows(Array.isArray(items) ? items : []));
+      setRows(Array.isArray(items) ? items : []);
     } catch (error) {
       showError(error);
     } finally {
@@ -773,7 +761,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
         name,
         description: (form.description || '').trim(),
         billing_ratio: billingRatio,
-        sort_order: Number(form.sort_order || 0),
+        sort_order: Number(activeGroup?.sort_order || 0),
         channel_ids: formChannelIDs,
         models: normalizedModels,
       });
@@ -1038,7 +1026,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
         name,
         description: (form.description || '').trim(),
         billing_ratio: billingRatio,
-        sort_order: Number(form.sort_order || 0),
+        sort_order: Number(activeGroup?.sort_order || 0),
         enabled: !!activeGroup?.enabled,
       });
       const { success, message } = res.data || {};
@@ -1053,7 +1041,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     } finally {
       setSubmitting(false);
     }
-  }, [activeGroup, form.billing_ratio, form.description, form.name, form.sort_order, refreshGroupDetailState, t]);
+  }, [activeGroup, form.billing_ratio, form.description, form.name, refreshGroupDetailState, t]);
 
   const submitDetailChannels = useCallback(async (channelRows = detailChannelRows) => {
     const id = (activeGroup?.id || '').toString().trim();
@@ -2404,26 +2392,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
               </AppFormRow>
               <AppFormRow>
                 <AppField
-                  label={t('group_manage.form.sort_order')}
-                  readOnly={!detailBasicEditing}
-                >
-                  <AppInputNumber
-                    className='router-section-input'
-                    precision={0}
-                    fluid
-                    value={
-                      detailBasicEditing ? form.sort_order : activeGroup.sort_order || 0
-                    }
-                    readOnly={!detailBasicEditing}
-                    onChange={(e, { value }) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        sort_order: Number(value || 0),
-                      }))
-                    }
-                  />
-                </AppField>
-                <AppField
                   label={t('group_manage.table.created_at')}
                   readOnly
                 >
@@ -2555,20 +2523,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
               }
             />
           </AppField>
-          <AppField label={t('group_manage.form.sort_order')}>
-            <AppInputNumber
-              className='router-section-input'
-              precision={0}
-              fluid
-              value={form.sort_order}
-              onChange={(e, { value }) =>
-                setForm((prev) => ({
-                  ...prev,
-                  sort_order: Number(value || 0),
-                }))
-              }
-            />
-          </AppField>
+          <AppField />
         </AppFormRow>
         <AppFormRow>
           <AppField label={t('group_manage.form.channels')}>

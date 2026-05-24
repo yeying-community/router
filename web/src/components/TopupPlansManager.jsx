@@ -38,7 +38,6 @@ const createEmptyPlan = () => ({
   validity_days: 0,
   enabled: true,
   public_visible: true,
-  sort_order: 0,
 });
 
 const appendGroupOptionIfMissing = (options, groupID, groupName) => {
@@ -187,7 +186,7 @@ const TopupPlansManager = () => {
     setEditOpen(true);
   };
 
-  const openEdit = (row, index = 0) => {
+  const openEdit = (row) => {
     setIsCreating(false);
     setActiveRow(row || null);
     setGroupOptions((current) =>
@@ -205,7 +204,6 @@ const TopupPlansManager = () => {
       validity_days: Number(row?.validity_days || 0),
       enabled: Boolean(row?.enabled),
       public_visible: row?.public_visible !== false,
-      sort_order: Number(row?.sort_order || index + 1),
     });
     setEditOpen(true);
   };
@@ -224,7 +222,7 @@ const TopupPlansManager = () => {
         validity_days: Number(form.validity_days || 0),
         enabled: Boolean(form.enabled),
         public_visible: Boolean(form.public_visible),
-        sort_order: Number(form.sort_order || 0),
+        sort_order: Number(activeRow?.sort_order || 0),
       };
       const res = isCreating
         ? await API.post('/api/v1/admin/topup/plan', payload)
@@ -235,7 +233,7 @@ const TopupPlansManager = () => {
         return;
       }
       if (isCreating) {
-        setPlans((current) => [...current, data].sort((a, b) => Number(a?.sort_order || 0) - Number(b?.sort_order || 0)));
+        setPlans((current) => [...current, data]);
       } else {
         setPlans((current) =>
           current.map((item) => (((item?.id || '') === (data?.id || '')) ? data : item)),
@@ -379,15 +377,7 @@ const TopupPlansManager = () => {
           className='router-table router-list-table router-table-fit-page router-topup-plan-table'
           dataSource={plans}
           scroll={{ x: TOPUP_PLAN_LIST_TABLE_MIN_WIDTH }}
-          rowKey={(row) =>
-            row?.id ||
-            [
-              row?.group_id || 'group',
-              row?.name || 'plan',
-              row?.sort_order || 0,
-              row?.amount || 0,
-            ].join('-')
-          }
+          rowKey={(row) => row?.id || [row?.group_id || 'group', row?.name || 'plan', row?.amount || 0].join('-')}
           pagination={false}
           locale={{ emptyText: t('common.no_data', '暂无数据') }}
           columns={[
@@ -522,12 +512,12 @@ const TopupPlansManager = () => {
               key: 'action',
               className: 'router-table-col-actions-compact router-topup-plan-action-cell',
               width: TOPUP_PLAN_LIST_COLUMN_WIDTHS.actions,
-              render: (_, row, index) => (
+              render: (_, row) => (
                 <div className='router-action-group-tight router-table-actions-compact'>
                   <AppButton
                     className='router-inline-button'
                     type='button'
-                    onClick={() => openEdit(row, index)}
+                    onClick={() => openEdit(row)}
                   >
                     {t('common.edit')}
                   </AppButton>
@@ -619,21 +609,6 @@ const TopupPlansManager = () => {
             </AppField>
           </AppFormRow>
           <AppFormRow>
-            <AppField label={t('package_manage.form.sort_order')}>
-              <AppInputNumber
-                min={0}
-                step={1}
-                precision={0}
-                fluid
-                value={form.sort_order}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({
-                    ...current,
-                    sort_order: Number(value || 0),
-                  }))
-                }
-              />
-            </AppField>
             <AppField label={t('topup.manage.columns.validity_days')}>
               <AppInputNumber
                 min={0}
@@ -649,6 +624,7 @@ const TopupPlansManager = () => {
                 }
               />
             </AppField>
+            <AppField />
           </AppFormRow>
           <AppFormRow>
             <AppField label={t('topup.manage.columns.enabled')}>
