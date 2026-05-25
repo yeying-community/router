@@ -63,14 +63,14 @@ const WorkspaceStart = () => {
             {t('workspace_start.steps.call.description')}
           </div>
           <div className='router-workspace-start-option-list'>
-            <div className='router-workspace-start-option-item'>
-              <div className='router-workspace-start-option-title'>
-                {t('workspace_start.steps.call.chat.title')}
-              </div>
-              <div className='router-workspace-start-option-description'>
-                {t('workspace_start.steps.call.chat.description')}
-              </div>
-              {chatLink !== '' ? (
+            {chatLink !== '' ? (
+              <div className='router-workspace-start-option-item'>
+                <div className='router-workspace-start-option-title'>
+                  {t('workspace_start.steps.call.chat.title')}
+                </div>
+                <div className='router-workspace-start-option-description'>
+                  {t('workspace_start.steps.call.chat.description')}
+                </div>
                 <AppButton
                   type='button'
                   className='router-inline-button'
@@ -78,12 +78,8 @@ const WorkspaceStart = () => {
                 >
                   {t('workspace_start.actions.open_chat')}
                 </AppButton>
-              ) : (
-                <div className='router-section-message'>
-                  {t('workspace_start.steps.call.chat.unconfigured')}
-                </div>
-              )}
-            </div>
+              </div>
+            ) : null}
 
             <div className='router-workspace-start-option-item'>
               <div className='router-workspace-start-option-title'>

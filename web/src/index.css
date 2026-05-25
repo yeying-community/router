@@ -484,9 +484,23 @@ body,
 
 .router-header-quick-action {
     border: none;
+    box-shadow: none !important;
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
+    transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.router-ui-button.router-header-quick-action,
+.router-ui-button.router-header-quick-action:hover,
+.router-ui-button.router-header-quick-action:focus,
+.router-ui-button.router-header-quick-action:active,
+.router-ui-button.router-header-quick-action.ant-btn-default,
+.router-ui-button.router-header-quick-action.ant-btn-default:hover,
+.router-ui-button.router-header-quick-action.ant-btn-default:focus,
+.router-ui-button.router-header-quick-action.ant-btn-default:active {
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .router-header-toolbar-chip,

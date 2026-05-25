@@ -58,7 +58,11 @@ func Relay(c *gin.Context) {
 	relayMode := getEffectiveRelayMode(c)
 	if config.DebugEnabled {
 		requestBody, _ := common.GetRequestBody(c)
-		logger.Debugf(ctx, "request body: %s", string(requestBody))
+		logger.Debugf(
+			ctx,
+			"request body summary: %s",
+			common.MarshalPayloadLogFields(requestBody, c.ContentType()),
+		)
 	}
 	channelId := c.GetString(ctxkey.ChannelId)
 	userId := c.GetString(ctxkey.Id)

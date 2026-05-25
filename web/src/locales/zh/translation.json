@@ -1623,8 +1623,7 @@
         "description": "你可以直接进入 Chat Web 使用，也可以按说明把 Router 接到 Terminal 工具或你自己的应用。",
         "chat": {
           "title": "Chat Web 应用",
-          "description": "如果平台已经配置聊天页面链接，可以直接跳转到 Chat 页面开始使用。",
-          "unconfigured": "当前还没有配置聊天页面链接。"
+          "description": "直接进入 Chat 页面开始使用。"
         },
         "terminal": {
           "title": "Terminal 工具",

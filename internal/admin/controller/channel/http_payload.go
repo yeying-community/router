@@ -1,11 +1,9 @@
 package channel
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"strings"
-	"unicode/utf8"
 )
 
 func maskSecretValue(value string) string {
@@ -48,33 +46,13 @@ func marshalJSONForLog(value any) string {
 	return string(raw)
 }
 
-func encodeHTTPBodyForLog(body []byte) map[string]any {
-	if len(body) == 0 {
-		return map[string]any{
-			"body":     "",
-			"encoding": "text",
-		}
-	}
-	if utf8.Valid(body) {
-		return map[string]any{
-			"body":     string(body),
-			"encoding": "text",
-		}
-	}
-	return map[string]any{
-		"body":       base64.StdEncoding.EncodeToString(body),
-		"encoding":   "base64",
-		"body_bytes": len(body),
-	}
-}
-
 func buildHTTPRequestPayloadForLog(method string, url string, header http.Header, body []byte) string {
 	payload := map[string]any{
 		"method":  strings.TrimSpace(method),
 		"url":     strings.TrimSpace(url),
 		"headers": sanitizeHTTPHeadersForLog(header),
 	}
-	for key, value := range encodeHTTPBodyForLog(body) {
+	for key, value := range encodeHTTPBodyForLog(body, header.Get("Content-Type")) {
 		payload[key] = value
 	}
 	return marshalJSONForLog(payload)
@@ -85,7 +63,7 @@ func buildHTTPResponsePayloadForLog(statusCode int, header http.Header, body []b
 		"status_code": statusCode,
 		"headers":     sanitizeHTTPHeadersForLog(header),
 	}
-	for key, value := range encodeHTTPBodyForLog(body) {
+	for key, value := range encodeHTTPBodyForLog(body, header.Get("Content-Type")) {
 		payload[key] = value
 	}
 	return marshalJSONForLog(payload)

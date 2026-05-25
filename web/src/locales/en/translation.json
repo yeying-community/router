@@ -1623,8 +1623,7 @@
         "description": "You can either enter the Chat Web app directly or connect Router to a terminal tool or your own client by following the guide.",
         "chat": {
           "title": "Chat Web App",
-          "description": "If a chat page link is configured for the platform, you can jump there directly and start using it.",
-          "unconfigured": "No chat page link has been configured yet."
+          "description": "Open the Chat page and start using it directly."
         },
         "terminal": {
           "title": "Terminal Tool",
