@@ -315,7 +315,7 @@ const UsersTable = () => {
             <AppButton
               className='router-page-button'
               color='blue'
-              onClick={() => navigate('/user/add')}
+              onClick={() => navigate('/admin/user/add')}
             >
               {t('user.buttons.add')}
             </AppButton>
@@ -362,7 +362,7 @@ const UsersTable = () => {
             .filter((user) => !user?.deleted)}
           onRow={(user, idx) => ({
             className: 'router-row-clickable',
-            onClick: () => navigate(`/user/detail/${user.id}`),
+            onClick: () => navigate(`/admin/user/detail/${user.id}`),
           })}
           columns={[
           {

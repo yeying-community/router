@@ -37,7 +37,7 @@ const AddUser = () => {
     if (success) {
       showSuccess(t('user.messages.create_success'));
       setInputs(originInputs);
-      navigate('/user');
+      navigate('/admin/user');
     } else {
       showError(message);
     }

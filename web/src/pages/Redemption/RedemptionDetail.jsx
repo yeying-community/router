@@ -311,7 +311,7 @@ const RedemptionDetail = () => {
       navigate(-1);
       return;
     }
-    navigate('/redemption');
+    navigate('/admin/redemption');
   };
 
   return (

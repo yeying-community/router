@@ -1535,22 +1535,28 @@ const GroupsManager = ({ detailGroupId = '' }) => {
   const renderDetailModelConfigTable = (options = {}) => {
     return (
       <div className={options.hideTitle ? '' : 'router-block-top-sm'}>
-        <AppFilterHeader
-          className={options.hideTitle ? '' : 'router-block-gap-xs'}
-          title={
-            options.hideTitle
-              ? t('group_manage.detail.supported_models')
-              : t('group_manage.edit.models')
+        <AppToolbar
+          className={options.hideTitle ? 'router-block-gap-sm' : 'router-block-gap-xs'}
+          start={
+            options.hideTitle ? (
+              <h3 className='router-entity-detail-section-title'>
+                {t('group_manage.detail.supported_models')}
+              </h3>
+            ) : (
+              <div className='router-toolbar-title'>
+                {t('group_manage.edit.models')}
+              </div>
+            )
           }
-          titleTag={options.hideTitle ? 'h3' : 'div'}
-          titleClassName={
-            options.hideTitle
-              ? 'router-entity-detail-section-title'
-              : 'router-toolbar-title'
-          }
-          endClassName='router-block-gap-sm router-group-model-toolbar-end'
-          actions={
+          endClassName='router-group-model-toolbar-end'
+          end={
             <>
+              <AppInput
+                className='router-inline-input router-search-form-sm router-group-model-search'
+                placeholder={t('group_manage.edit.model_search_placeholder')}
+                value={detailModelSearchKeyword}
+                onChange={(e, { value }) => setDetailModelSearchKeyword(value || '')}
+              />
               <AppButton
                 type='button'
                 className='router-inline-button'
@@ -1559,12 +1565,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
               >
                 {t('group_manage.buttons.add_model')}
               </AppButton>
-              <AppInput
-                className='router-inline-input router-search-form-sm router-group-model-search'
-                placeholder={t('group_manage.edit.model_search_placeholder')}
-                value={detailModelSearchKeyword}
-                onChange={(e, { value }) => setDetailModelSearchKeyword(value || '')}
-              />
             </>
           }
         />
@@ -2448,15 +2448,15 @@ const GroupsManager = ({ detailGroupId = '' }) => {
         )}
         {activeDetailTab === 'models' && (
           <AppDetailSection>
+            {renderDetailModelConfigTable({
+              hideTitle: true,
+            })}
             <AppAlert
               type='info'
               showIcon
               className='router-section-message'
               title={t('group_manage.detail.models_hint')}
             />
-            {renderDetailModelConfigTable({
-              hideTitle: true,
-            })}
           </AppDetailSection>
         )}
       </div>
