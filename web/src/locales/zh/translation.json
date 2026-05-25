@@ -1878,7 +1878,10 @@
     "admin": {
       "title": "管理员总览",
       "nav": {
-        "overview": "经营大盘"
+        "spending": "收支",
+        "channels": "渠道",
+        "users": "用户",
+        "models": "模型"
       },
       "period": {
         "label": "统计周期"
@@ -1933,9 +1936,90 @@
         "tasks_failed": "失败任务"
       },
       "sections": {
-        "trend": "趋势分析",
-        "channels": "渠道健康",
-        "tasks": "近期系统任务"
+        "spending": "收支",
+        "channels": "渠道",
+        "users": "用户",
+        "models": "模型"
+      },
+      "channels": {
+        "insights": {
+          "retest": "待重测渠道",
+          "retest_hint": "已选模型未覆盖测试，或通过率、覆盖率尚未达到 100% 的渠道。",
+          "risk": "风险渠道",
+          "risk_hint": "健康度已落入风险，或当前测试通过率低于 80% 的渠道。",
+          "latency": "延迟异常渠道",
+          "latency_hint": "当前平均延迟达到 8 秒及以上的渠道。"
+        }
+      },
+      "spending": {
+        "insights": {
+          "net_positive": "净流入为正",
+          "net_positive_hint": "当前周期内充值大于消费，收支保持正向。",
+          "net_negative": "净流入为负",
+          "net_negative_hint": "当前周期内消费大于充值，需要关注余额和充值承接。",
+          "peak_spend": "消费峰值",
+          "peak_topup": "充值峰值",
+          "peak_active_users": "活跃峰值",
+          "trend_hint": "支持按消费、充值、请求数、活跃用户切换趋势视角。"
+        }
+      },
+      "users": {
+        "summary": {
+          "user_count": "命中用户数",
+          "request_count": "命中请求数",
+          "total_tokens": "命中总 Tokens",
+          "total_spend": "命中总消费（美元）"
+        },
+        "insights": {
+          "title": "当前命中榜单观察",
+          "high_spend": "高消费用户",
+          "high_spend_hint": "榜单内消费占比达到 10% 及以上的用户。",
+          "active": "高活跃用户",
+          "active_hint": "榜单内请求数高于当前榜单平均值的用户。",
+          "long_tail": "长尾用户",
+          "long_tail_hint": "榜单内消费占比低于 3%，且 Tokens 不高于平均值的用户。",
+          "footnote": "以上分层仅基于当前筛选条件命中的榜单样本，不代表全站全量用户画像。"
+        },
+        "share_chart": {
+          "title": "榜单用户消费占比"
+        }
+      },
+      "models": {
+        "title": "模型概览",
+        "description": "按当前统计周期聚合模型请求、消费与测试健康数据。",
+        "summary": {
+          "selected_model_count": "已启用模型数",
+          "tested_model_count": "已测试模型数",
+          "healthy_model_count": "健康模型数",
+          "warning_model_count": "预警模型数",
+          "critical_model_count": "风险模型数",
+          "request_count": "周期请求数",
+          "total_tokens": "周期 Tokens",
+          "total_spend": "周期消费（美元）",
+          "avg_pass_rate": "平均通过率",
+          "avg_latency": "平均延迟"
+        },
+        "sort": {
+          "spend": "按消费",
+          "requests": "按请求",
+          "health": "按健康度",
+          "latency": "按延迟"
+        },
+        "chart": {
+          "leaderboard": "模型排行榜",
+          "distribution": "健康分布",
+          "distribution_hint": "健康分布基于当前周期内的渠道覆盖、测试通过率与平均延迟综合计算。"
+        },
+        "card": {
+          "requests": "请求数",
+          "tokens": "Tokens",
+          "spend": "消费",
+          "channels": "覆盖渠道",
+          "supported_endpoints": "支持端点",
+          "pass_rate": "通过率",
+          "avg_latency": "平均延迟",
+          "last_tested": "最近测试"
+        }
       },
       "trend": {
         "metrics": {
@@ -2015,7 +2099,8 @@
         "trend": "暂无趋势数据",
         "channels": "暂无渠道数据",
         "tasks": "暂无任务数据",
-        "usage_rank": "当前周期暂无用户消费数据"
+        "usage_rank": "当前周期暂无用户消费数据",
+        "models": "当前周期暂无模型数据"
       }
     }
   },

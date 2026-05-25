@@ -26,6 +26,7 @@ import {
   AppSegmented,
   AppSection,
   AppSelect,
+  AppTag,
   AppTable,
   AppToolbar,
 } from '../../router-ui';
@@ -51,12 +52,20 @@ const TREND_METRIC_OPTIONS = [
   'active_user_count',
 ];
 
-const DASHBOARD_SECTIONS = ['overview', 'trend', 'health'];
+const DASHBOARD_SECTIONS = ['spending', 'channels', 'users', 'models'];
 const DASHBOARD_SECTION_TITLES = {
-  overview: 'dashboard.admin.nav.overview',
-  trend: 'dashboard.admin.sections.trend',
-  health: 'dashboard.admin.sections.channels',
+  spending: 'dashboard.admin.nav.spending',
+  channels: 'dashboard.admin.nav.channels',
+  users: 'dashboard.admin.nav.users',
+  models: 'dashboard.admin.nav.models',
 };
+
+const MODEL_SORT_OPTIONS = [
+  'spend',
+  'requests',
+  'health',
+  'latency',
+];
 
 const EMPTY_SUMMARY = {
   spend_amount: 0,
@@ -96,6 +105,19 @@ const EMPTY_DASHBOARD = {
     spend_yyc: 0,
   },
   usage_rank: [],
+  model_summary: {
+    selected_model_count: 0,
+    tested_model_count: 0,
+    healthy_model_count: 0,
+    warning_model_count: 0,
+    critical_model_count: 0,
+    request_count: 0,
+    total_tokens: 0,
+    spend_yyc: 0,
+    avg_pass_rate: 0,
+    avg_latency_ms: 0,
+  },
+  top_models: [],
   generated_at: 0,
 };
 
@@ -121,6 +143,8 @@ const normalizeAdminDashboardPayload = (payload) => {
   const usageSummary = payload?.usage_summary || {};
   const usageTotals = payload?.usage_totals || {};
   const usageRank = Array.isArray(payload?.usage_rank) ? payload.usage_rank : [];
+  const modelSummary = payload?.model_summary || {};
+  const topModels = Array.isArray(payload?.top_models) ? payload.top_models : [];
   return {
     ...EMPTY_DASHBOARD,
     ...(payload || {}),
@@ -162,6 +186,35 @@ const normalizeAdminDashboardPayload = (payload) => {
       share_rate: Number(item?.share_rate || 0),
       last_used_at: Number(item?.last_used_at || 0),
     })),
+    model_summary: {
+      selected_model_count: Number(modelSummary?.selected_model_count || 0),
+      tested_model_count: Number(modelSummary?.tested_model_count || 0),
+      healthy_model_count: Number(modelSummary?.healthy_model_count || 0),
+      warning_model_count: Number(modelSummary?.warning_model_count || 0),
+      critical_model_count: Number(modelSummary?.critical_model_count || 0),
+      request_count: Number(modelSummary?.request_count || 0),
+      total_tokens: Number(modelSummary?.total_tokens || 0),
+      spend_yyc: Number(modelSummary?.spend_yyc ?? modelSummary?.spend_quota ?? 0),
+      avg_pass_rate: Number(modelSummary?.avg_pass_rate || 0),
+      avg_latency_ms: Number(modelSummary?.avg_latency_ms || 0),
+    },
+    top_models: topModels.map((item) => ({
+      ...item,
+      request_count: Number(item?.request_count || 0),
+      total_tokens: Number(item?.total_tokens || 0),
+      spend_yyc: Number(item?.spend_yyc ?? item?.spend_quota ?? 0),
+      channel_count: Number(item?.channel_count || 0),
+      tested_channel_count: Number(item?.tested_channel_count || 0),
+      tested_endpoint_count: Number(item?.tested_endpoint_count || 0),
+      supported_count: Number(item?.supported_count || 0),
+      unsupported_count: Number(item?.unsupported_count || 0),
+      supported_endpoint_count: Number(item?.supported_endpoint_count || 0),
+      pass_rate: Number(item?.pass_rate || 0),
+      avg_latency_ms: Number(item?.avg_latency_ms || 0),
+      health_score: Number(item?.health_score || 0),
+      last_tested_at: Number(item?.last_tested_at || 0),
+      tags: Array.isArray(item?.tags) ? item.tags : [],
+    })),
   };
 };
 
@@ -184,6 +237,7 @@ const AdminDashboard = () => {
   const [period, setPeriod] = useState('last_7_days');
   const [loading, setLoading] = useState(false);
   const [trendMetric, setTrendMetric] = useState('spend_amount');
+  const [modelSort, setModelSort] = useState('spend');
   const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD);
   const [usageKeywordInput, setUsageKeywordInput] = useState('');
   const [usageKeyword, setUsageKeyword] = useState('');
@@ -191,7 +245,13 @@ const AdminDashboard = () => {
   const activeSection = useMemo(() => {
     const params = new URLSearchParams(location.search || '');
     const rawSection = (params.get('section') || '').trim().toLowerCase();
-    return DASHBOARD_SECTIONS.includes(rawSection) ? rawSection : 'overview';
+    if (rawSection === 'overview' || rawSection === 'trend') {
+      return 'spending';
+    }
+    if (rawSection === 'health') {
+      return 'channels';
+    }
+    return DASHBOARD_SECTIONS.includes(rawSection) ? rawSection : 'spending';
   }, [location.search]);
 
   const activeSectionTitle = t(DASHBOARD_SECTION_TITLES[activeSection]);
@@ -246,7 +306,7 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       const params = { period, section: activeSection };
-      if (activeSection === 'overview' && usageKeyword.trim() !== '') {
+      if (activeSection === 'users' && usageKeyword.trim() !== '') {
         params.user_keyword = usageKeyword.trim();
       }
       const res = await API.get('/api/v1/admin/dashboard/', {
@@ -386,6 +446,67 @@ const AdminDashboard = () => {
     return formatCount(value);
   };
 
+  const modelSortOptions = useMemo(
+    () =>
+      MODEL_SORT_OPTIONS.map((value) => ({
+        value,
+        label: t(`dashboard.admin.models.sort.${value}`),
+      })),
+    [t],
+  );
+
+  const sortedModels = useMemo(() => {
+    const items = Array.isArray(dashboard.top_models) ? [...dashboard.top_models] : [];
+    items.sort((left, right) => {
+      if (modelSort === 'requests') {
+        if (left.request_count !== right.request_count) {
+          return right.request_count - left.request_count;
+        }
+      } else if (modelSort === 'health') {
+        if (left.health_score !== right.health_score) {
+          return right.health_score - left.health_score;
+        }
+      } else if (modelSort === 'latency') {
+        const leftLatency = Number(left.avg_latency_ms || 0);
+        const rightLatency = Number(right.avg_latency_ms || 0);
+        if (leftLatency !== rightLatency) {
+          if (leftLatency <= 0) return 1;
+          if (rightLatency <= 0) return -1;
+          return leftLatency - rightLatency;
+        }
+      } else if (left.spend_yyc !== right.spend_yyc) {
+        return right.spend_yyc - left.spend_yyc;
+      }
+      if (left.request_count !== right.request_count) {
+        return right.request_count - left.request_count;
+      }
+      return String(left.model || '').localeCompare(String(right.model || ''));
+    });
+    return items;
+  }, [dashboard.top_models, modelSort]);
+
+  const renderHealthTag = useCallback(
+    (level) => {
+      const normalized = (level || 'unknown').toString().trim().toLowerCase();
+      const color =
+        normalized === 'healthy'
+          ? 'green'
+          : normalized === 'warning'
+            ? 'orange'
+            : normalized === 'critical'
+              ? 'red'
+              : 'grey';
+      return (
+        <AppTag color={color} className='router-tag'>
+          {t(`dashboard.admin.health.level.${normalized}`, {
+            defaultValue: t('dashboard.admin.health.level.unknown'),
+          })}
+        </AppTag>
+      );
+    },
+    [t],
+  );
+
   const usageRankColumns = useMemo(
     () => [
       {
@@ -467,6 +588,208 @@ const AdminDashboard = () => {
     [formatUsd, t],
   );
 
+  const modelHealthDistribution = useMemo(
+    () => [
+      {
+        key: 'healthy',
+        label: t('dashboard.admin.health.level.healthy'),
+        count: Number(dashboard.model_summary.healthy_model_count || 0),
+        color: HEALTH_LEVEL_COLORS.healthy,
+      },
+      {
+        key: 'warning',
+        label: t('dashboard.admin.health.level.warning'),
+        count: Number(dashboard.model_summary.warning_model_count || 0),
+        color: HEALTH_LEVEL_COLORS.warning,
+      },
+      {
+        key: 'critical',
+        label: t('dashboard.admin.health.level.critical'),
+        count: Number(dashboard.model_summary.critical_model_count || 0),
+        color: HEALTH_LEVEL_COLORS.critical,
+      },
+    ],
+    [dashboard.model_summary, t],
+  );
+
+  const modelLeaderboardData = useMemo(() => {
+    return sortedModels.slice(0, 8).map((item) => {
+      let value = Number(item.spend_yyc || 0);
+      let displayValue = formatUsd(item.spend_yyc);
+      let metricLabel = t('dashboard.admin.models.sort.spend');
+      if (modelSort === 'requests') {
+        value = Number(item.request_count || 0);
+        displayValue = formatCount(item.request_count);
+        metricLabel = t('dashboard.admin.models.sort.requests');
+      } else if (modelSort === 'health') {
+        value = Number(item.health_score || 0);
+        displayValue = `${Number(item.health_score || 0).toFixed(0)}`;
+        metricLabel = t('dashboard.admin.models.sort.health');
+      } else if (modelSort === 'latency') {
+        const latency = Number(item.avg_latency_ms || 0);
+        value = latency > 0 ? latency : 0;
+        displayValue = latency > 0 ? `${latency} ms` : '-';
+        metricLabel = t('dashboard.admin.models.sort.latency');
+      }
+      return {
+        model: item.model || '-',
+        short_model: String(item.model || '-').slice(0, 20),
+        value,
+        display_value: displayValue,
+        metric_label: metricLabel,
+        health_level: item.health_level || 'unknown',
+      };
+    });
+  }, [formatCount, formatUsd, modelSort, sortedModels, t]);
+
+  const usageInsightData = useMemo(() => {
+    const rows = Array.isArray(dashboard.usage_rank) ? dashboard.usage_rank : [];
+    if (rows.length === 0) {
+      return {
+        distribution: [],
+        shareChart: [],
+      };
+    }
+    const requestAvg =
+      rows.reduce((sum, item) => sum + Number(item.request_count || 0), 0) /
+      rows.length;
+    const tokenAvg =
+      rows.reduce((sum, item) => sum + Number(item.total_tokens || 0), 0) /
+      rows.length;
+    const highSpendCount = rows.filter((item) => toPercent(item.share_rate) >= 10).length;
+    const activeCount = rows.filter(
+      (item) => Number(item.request_count || 0) >= requestAvg,
+    ).length;
+    const longTailCount = rows.filter(
+      (item) =>
+        toPercent(item.share_rate) < 3 &&
+        Number(item.total_tokens || 0) <= tokenAvg,
+    ).length;
+    return {
+      distribution: [
+        {
+          key: 'high_spend',
+          label: t('dashboard.admin.users.insights.high_spend'),
+          count: highSpendCount,
+          hint: t('dashboard.admin.users.insights.high_spend_hint'),
+          color: '#dc2626',
+        },
+        {
+          key: 'active',
+          label: t('dashboard.admin.users.insights.active'),
+          count: activeCount,
+          hint: t('dashboard.admin.users.insights.active_hint'),
+          color: '#2563eb',
+        },
+        {
+          key: 'long_tail',
+          label: t('dashboard.admin.users.insights.long_tail'),
+          count: longTailCount,
+          hint: t('dashboard.admin.users.insights.long_tail_hint'),
+          color: '#64748b',
+        },
+      ],
+      shareChart: rows.slice(0, 8).map((item) => ({
+        user: item.username || item.user_id || '-',
+        short_user: String(item.username || item.user_id || '-').slice(0, 16),
+        share_percent: Number(toPercent(item.share_rate).toFixed(1)),
+      })),
+    };
+  }, [dashboard.usage_rank, t]);
+
+  const channelInsightData = useMemo(() => {
+    const rows = Array.isArray(channelHealthData) ? channelHealthData : [];
+    const retestCount = rows.filter(
+      (item) =>
+        item.selected_model_count > 0 &&
+        (!item.has_test_data ||
+          item.coverage_rate_percent < 100 ||
+          item.pass_rate_percent < 100),
+    ).length;
+    const riskyCount = rows.filter(
+      (item) =>
+        item.health_level === 'critical' ||
+        (item.has_test_data && item.pass_rate_percent < 80),
+    ).length;
+    const latencyCount = rows.filter(
+      (item) => Number(item.avg_latency_ms || 0) >= 8000,
+    ).length;
+    return [
+      {
+        key: 'retest',
+        label: t('dashboard.admin.channels.insights.retest'),
+        hint: t('dashboard.admin.channels.insights.retest_hint'),
+        count: retestCount,
+        color: '#2563eb',
+      },
+      {
+        key: 'risk',
+        label: t('dashboard.admin.channels.insights.risk'),
+        hint: t('dashboard.admin.channels.insights.risk_hint'),
+        count: riskyCount,
+        color: '#dc2626',
+      },
+      {
+        key: 'latency',
+        label: t('dashboard.admin.channels.insights.latency'),
+        hint: t('dashboard.admin.channels.insights.latency_hint'),
+        count: latencyCount,
+        color: '#f59e0b',
+      },
+    ];
+  }, [channelHealthData, t]);
+
+  const spendingInsightData = useMemo(() => {
+    const trendRows = Array.isArray(dashboard.trend) ? dashboard.trend : [];
+    const peakSpend = trendRows.reduce(
+      (best, item) =>
+        Number(item.spend_amount || 0) > Number(best?.spend_amount || 0) ? item : best,
+      null,
+    );
+    const peakTopup = trendRows.reduce(
+      (best, item) =>
+        Number(item.topup_amount || 0) > Number(best?.topup_amount || 0) ? item : best,
+      null,
+    );
+    const peakActiveUsers = trendRows.reduce(
+      (best, item) =>
+        Number(item.active_user_count || 0) > Number(best?.active_user_count || 0)
+          ? item
+          : best,
+      null,
+    );
+    const netAmount = Number(dashboard.summary.net_amount || 0);
+    return {
+      net: {
+        label:
+          netAmount >= 0
+            ? t('dashboard.admin.spending.insights.net_positive')
+            : t('dashboard.admin.spending.insights.net_negative'),
+        value: formatUsd(Math.abs(netAmount)),
+        hint:
+          netAmount >= 0
+            ? t('dashboard.admin.spending.insights.net_positive_hint')
+            : t('dashboard.admin.spending.insights.net_negative_hint'),
+        tone: netAmount >= 0 ? 'green' : 'red',
+      },
+      peakSpend: {
+        label: t('dashboard.admin.spending.insights.peak_spend'),
+        value: peakSpend ? formatUsd(peakSpend.spend_amount) : '-',
+        hint: peakSpend?.bucket || '-',
+      },
+      peakTopup: {
+        label: t('dashboard.admin.spending.insights.peak_topup'),
+        value: peakTopup ? formatUsd(peakTopup.topup_amount) : '-',
+        hint: peakTopup?.bucket || '-',
+      },
+      activeUsers: {
+        label: t('dashboard.admin.spending.insights.peak_active_users'),
+        value: peakActiveUsers ? formatCount(peakActiveUsers.active_user_count) : '-',
+        hint: peakActiveUsers?.bucket || '-',
+      },
+    };
+  }, [dashboard.summary.net_amount, dashboard.trend, formatUsd, t]);
+
   const renderPageHeader = () => (
     <AppFilterHeader
       className='admin-dashboard-toolbar'
@@ -515,260 +838,120 @@ const AdminDashboard = () => {
     setUsageKeyword('');
   }, []);
 
-  const renderOverviewSection = () => (
+  const renderSpendingSection = () => (
     <AppSection>
-        <div className='admin-dashboard-kpi-grid'>
-          <div className='admin-dashboard-kpi-item'>
-            <div className='admin-dashboard-kpi-label'>
-              {t('dashboard.admin.metrics.consume')}
+      <div className='admin-dashboard-kpi-grid'>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.metrics.consume')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatUsd(dashboard.summary.spend_amount)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.metrics.topup')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatUsd(dashboard.summary.topup_amount)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.metrics.net')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatUsd(dashboard.summary.net_amount)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.metrics.request_count')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.summary.request_count)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.metrics.active_user_count')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.summary.active_user_count)}
+          </div>
+        </div>
+      </div>
+      <div className='admin-dashboard-usage-rank'>
+        <div className='admin-dashboard-spending-overview-grid'>
+          <div className='admin-dashboard-spending-panel admin-dashboard-spending-panel-emphasis'>
+            <div className='admin-dashboard-spending-panel-label'>
+              {spendingInsightData.net.label}
             </div>
-            <div className='admin-dashboard-kpi-value'>
-              {formatUsd(dashboard.summary.spend_amount)}
+            <div
+              className={`admin-dashboard-spending-panel-value admin-dashboard-spending-panel-value-${spendingInsightData.net.tone}`}
+            >
+              {spendingInsightData.net.value}
+            </div>
+            <div className='admin-dashboard-spending-panel-hint'>
+              {spendingInsightData.net.hint}
             </div>
           </div>
-          <div className='admin-dashboard-kpi-item'>
-            <div className='admin-dashboard-kpi-label'>
-              {t('dashboard.admin.metrics.topup')}
+          <div className='admin-dashboard-spending-panel'>
+            <div className='admin-dashboard-spending-panel-label'>
+              {spendingInsightData.peakSpend.label}
             </div>
-            <div className='admin-dashboard-kpi-value'>
-              {formatUsd(dashboard.summary.topup_amount)}
+            <div className='admin-dashboard-spending-panel-value'>
+              {spendingInsightData.peakSpend.value}
             </div>
-          </div>
-          <div className='admin-dashboard-kpi-item'>
-            <div className='admin-dashboard-kpi-label'>
-              {t('dashboard.admin.metrics.net')}
-            </div>
-            <div className='admin-dashboard-kpi-value'>
-              {formatUsd(dashboard.summary.net_amount)}
+            <div className='admin-dashboard-spending-panel-hint'>
+              {spendingInsightData.peakSpend.hint}
             </div>
           </div>
-          <div className='admin-dashboard-kpi-item'>
-            <div className='admin-dashboard-kpi-label'>
-              {t('dashboard.admin.metrics.request_count')}
+          <div className='admin-dashboard-spending-panel'>
+            <div className='admin-dashboard-spending-panel-label'>
+              {spendingInsightData.peakTopup.label}
             </div>
-            <div className='admin-dashboard-kpi-value'>
-              {formatCount(dashboard.summary.request_count)}
+            <div className='admin-dashboard-spending-panel-value'>
+              {spendingInsightData.peakTopup.value}
             </div>
-          </div>
-          <div className='admin-dashboard-kpi-item'>
-            <div className='admin-dashboard-kpi-label'>
-              {t('dashboard.admin.metrics.active_user_count')}
-            </div>
-            <div className='admin-dashboard-kpi-value'>
-              {formatCount(dashboard.summary.active_user_count)}
+            <div className='admin-dashboard-spending-panel-hint'>
+              {spendingInsightData.peakTopup.hint}
             </div>
           </div>
-          <div className='admin-dashboard-kpi-item'>
-            <div className='admin-dashboard-kpi-label'>
-              {t('dashboard.admin.metrics.channels')}
+          <div className='admin-dashboard-spending-panel'>
+            <div className='admin-dashboard-spending-panel-label'>
+              {spendingInsightData.activeUsers.label}
             </div>
-            <div className='admin-dashboard-kpi-value'>
-              {dashboard.summary.channel_enabled} / {dashboard.summary.channel_total}
+            <div className='admin-dashboard-spending-panel-value'>
+              {spendingInsightData.activeUsers.value}
             </div>
-          </div>
-          <div className='admin-dashboard-kpi-item'>
-            <div className='admin-dashboard-kpi-label'>
-              {t('dashboard.admin.metrics.channel_disabled')}
-            </div>
-            <div className='admin-dashboard-kpi-value'>
-              {formatCount(dashboard.summary.channel_disabled)}
-            </div>
-          </div>
-          <div className='admin-dashboard-kpi-item'>
-            <div className='admin-dashboard-kpi-label'>
-              {t('dashboard.admin.metrics.groups')}
-            </div>
-            <div className='admin-dashboard-kpi-value'>
-              {formatCount(dashboard.summary.group_total)}
-            </div>
-          </div>
-          <div className='admin-dashboard-kpi-item'>
-            <div className='admin-dashboard-kpi-label'>
-              {t('dashboard.admin.metrics.providers')}
-            </div>
-            <div className='admin-dashboard-kpi-value'>
-              {formatCount(dashboard.summary.provider_total)}
-            </div>
-          </div>
-          <div className='admin-dashboard-kpi-item'>
-            <div className='admin-dashboard-kpi-label'>
-              {t('dashboard.admin.metrics.tasks_active')}
-            </div>
-            <div className='admin-dashboard-kpi-value'>
-              {formatCount(dashboard.summary.task_active_total)}
-            </div>
-          </div>
-          <div className='admin-dashboard-kpi-item'>
-            <div className='admin-dashboard-kpi-label'>
-              {t('dashboard.admin.metrics.tasks_failed')}
-            </div>
-            <div className='admin-dashboard-kpi-value'>
-              {formatCount(dashboard.summary.task_failed_total)}
+            <div className='admin-dashboard-spending-panel-hint'>
+              {spendingInsightData.activeUsers.hint}
             </div>
           </div>
         </div>
-        <div className='admin-dashboard-usage-rank'>
-          <div className='admin-dashboard-subsection-header'>
-            <div className='admin-dashboard-subsection-header-main'>
-              <div className='admin-dashboard-subsection-title admin-dashboard-subsection-title-strong'>
-                {t('dashboard.admin.usage_rank.title')}
-              </div>
-              <div className='admin-dashboard-subsection-description'>
-                {t('dashboard.admin.usage_rank.description')}
-              </div>
+        <div className='admin-dashboard-subsection-header'>
+          <div className='admin-dashboard-subsection-header-main'>
+            <div className='admin-dashboard-subsection-title admin-dashboard-subsection-title-strong'>
+              {t('dashboard.admin.sections.spending')}
             </div>
-            <AppToolbar
-              className='admin-dashboard-usage-rank-toolbar'
-              end={
-                <>
-                  <AppSegmented
-                    className='admin-dashboard-segmented'
-                    options={usageRankPeriodOptions}
-                    value={period}
-                    onChange={(e, { value }) => setPeriod(value)}
-                  />
-                  <div className='router-list-toolbar-query router-list-toolbar-query-compact'>
-                    <AppInput
-                      className='admin-dashboard-usage-rank-search'
-                      value={usageKeywordInput}
-                      placeholder={t('dashboard.admin.usage_rank.search.placeholder')}
-                      onChange={(e, { value }) => setUsageKeywordInput(value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          applyUsageKeyword();
-                        }
-                      }}
-                    />
-                    <AppButton color='blue' type='button' onClick={applyUsageKeyword}>
-                      {t('dashboard.admin.usage_rank.search.submit')}
-                    </AppButton>
-                    {usageKeyword ? (
-                      <AppButton
-                        type='button'
-                        className='router-inline-button'
-                        onClick={clearUsageKeyword}
-                      >
-                        {t('dashboard.admin.usage_rank.search.reset')}
-                      </AppButton>
-                    ) : null}
-                  </div>
-                </>
-              }
-            />
+            <div className='admin-dashboard-subsection-description'>
+              {t('dashboard.admin.spending.insights.trend_hint')}
+            </div>
           </div>
-          {dashboard.usage_rank.length === 0 ? (
-            <div className='admin-dashboard-empty'>
-              {t('dashboard.admin.empty.usage_rank')}
-            </div>
-          ) : (
-            <>
-              <div className='admin-dashboard-usage-rank-section-title'>
-                {t('dashboard.admin.usage_rank.summary.title')}
-              </div>
-              <div className='admin-dashboard-usage-rank-summary-grid'>
-                <div className='admin-dashboard-kpi-item'>
-                  <div className='admin-dashboard-kpi-label'>
-                    {t('dashboard.admin.usage_rank.summary.top_user')}
-                  </div>
-                  <div
-                    className='admin-dashboard-kpi-value admin-dashboard-usage-rank-top-user'
-                    title={dashboard.usage_summary.top_username || '-'}
-                  >
-                    {dashboard.usage_summary.top_username || '-'}
-                  </div>
-                </div>
-                <div className='admin-dashboard-kpi-item'>
-                  <div className='admin-dashboard-kpi-label'>
-                    {t('dashboard.admin.usage_rank.summary.top_share')}
-                  </div>
-                  <div className='admin-dashboard-kpi-value'>
-                    {formatPercent(dashboard.usage_summary.top_user_share)}
-                  </div>
-                </div>
-                <div className='admin-dashboard-kpi-item'>
-                  <div className='admin-dashboard-kpi-label'>
-                    {t('dashboard.admin.usage_rank.summary.user_count')}
-                  </div>
-                  <div className='admin-dashboard-kpi-value'>
-                    {formatCount(dashboard.usage_summary.user_count)}
-                  </div>
-                </div>
-                <div className='admin-dashboard-kpi-item'>
-                  <div className='admin-dashboard-kpi-label'>
-                    {t('dashboard.admin.usage_rank.summary.total_tokens')}
-                  </div>
-                  <div className='admin-dashboard-kpi-value'>
-                    {formatCount(dashboard.usage_summary.total_tokens)}
-                  </div>
-                </div>
-              </div>
-              <div className='admin-dashboard-usage-rank-section-title'>
-                {t('dashboard.admin.usage_rank.totals.title')}
-              </div>
-              <div className='admin-dashboard-usage-rank-summary-grid'>
-                <div className='admin-dashboard-kpi-item'>
-                  <div className='admin-dashboard-kpi-label'>
-                    {t('dashboard.admin.usage_rank.totals.user_count')}
-                  </div>
-                  <div className='admin-dashboard-kpi-value'>
-                    {formatCount(dashboard.usage_totals.user_count)}
-                  </div>
-                </div>
-                <div className='admin-dashboard-kpi-item'>
-                  <div className='admin-dashboard-kpi-label'>
-                    {t('dashboard.admin.usage_rank.totals.request_count')}
-                  </div>
-                  <div className='admin-dashboard-kpi-value'>
-                    {formatCount(dashboard.usage_totals.request_count)}
-                  </div>
-                </div>
-                <div className='admin-dashboard-kpi-item'>
-                  <div className='admin-dashboard-kpi-label'>
-                    {t('dashboard.admin.usage_rank.totals.total_tokens')}
-                  </div>
-                  <div className='admin-dashboard-kpi-value'>
-                    {formatCount(dashboard.usage_totals.total_tokens)}
-                  </div>
-                </div>
-                <div className='admin-dashboard-kpi-item'>
-                  <div className='admin-dashboard-kpi-label'>
-                    {t('dashboard.admin.usage_rank.totals.total_spend')}
-                  </div>
-                  <div className='admin-dashboard-kpi-value'>
-                    {formatUsd(dashboard.usage_totals.spend_yyc)}
-                  </div>
-                </div>
-              </div>
-              <AppTable
-                className='admin-dashboard-rank-table'
-                columns={usageRankColumns}
-                dataSource={dashboard.usage_rank}
-                pagination={false}
-                rowKey={(record) =>
-                  record.user_id ||
-                  `${record.username || 'unknown'}-${record.last_used_at || 0}`
-                }
-                scroll={{ x: 980 }}
+          <AppToolbar
+            className='admin-dashboard-trend-toolbar'
+            end={
+              <AppSegmented
+                className='admin-dashboard-segmented'
+                options={trendMetricOptions}
+                value={trendMetric}
+                onChange={(e, { value }) => setTrendMetric(value)}
               />
-            </>
-          )}
+            }
+          />
         </div>
-    </AppSection>
-  );
-
-  const renderTrendSection = () => (
-    <AppSection className='admin-dashboard-section'>
-        <AppToolbar
-          className='admin-dashboard-trend-toolbar'
-          start={
-            <AppSegmented
-              className='admin-dashboard-segmented'
-              options={trendMetricOptions}
-              value={trendMetric}
-              onChange={(e, { value }) => setTrendMetric(value)}
-            />
-          }
-        />
         {dashboard.trend.length === 0 ? (
           <div className='admin-dashboard-empty'>
             {t('dashboard.admin.empty.trend')}
@@ -821,17 +1004,79 @@ const AdminDashboard = () => {
             </ResponsiveContainer>
           </div>
         )}
+      </div>
     </AppSection>
   );
 
-  const renderHealthSection = () => (
+  const renderChannelsSection = () => (
     <AppSection className='admin-dashboard-section'>
+      <div className='admin-dashboard-kpi-grid admin-dashboard-kpi-grid-compact'>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.metrics.channels')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.summary.channel_enabled)} / {formatCount(dashboard.summary.channel_total)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.metrics.channel_disabled')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.summary.channel_disabled)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.metrics.groups')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.summary.group_total)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.metrics.providers')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.summary.provider_total)}
+          </div>
+        </div>
+      </div>
+      <div className='admin-dashboard-usage-rank'>
         {channelHealthData.length === 0 ? (
           <div className='admin-dashboard-empty'>
             {t('dashboard.admin.empty.channels')}
           </div>
         ) : (
           <>
+            <div className='admin-dashboard-channel-overview-grid'>
+              {channelInsightData.map((item) => (
+                <div
+                  key={item.key}
+                  className='admin-dashboard-channel-panel'
+                >
+                  <div className='admin-dashboard-channel-panel-main'>
+                    <div className='admin-dashboard-channel-panel-label-row'>
+                      <span
+                        className='admin-dashboard-channel-panel-dot'
+                        style={{ background: item.color }}
+                      />
+                      <span className='admin-dashboard-channel-panel-label'>
+                        {item.label}
+                      </span>
+                    </div>
+                    <div className='admin-dashboard-channel-panel-hint'>
+                      {item.hint}
+                    </div>
+                  </div>
+                  <div className='admin-dashboard-channel-panel-value'>
+                    {formatCount(item.count)}
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className='admin-dashboard-health-summary-grid'>
               <div className='admin-dashboard-kpi-item'>
                 <div className='admin-dashboard-kpi-label'>
@@ -1035,15 +1280,556 @@ const AdminDashboard = () => {
             </div>
           </>
         )}
+      </div>
+    </AppSection>
+  );
+
+  const renderUsersSection = () => (
+    <AppSection className='admin-dashboard-section'>
+      <div className='admin-dashboard-subsection-header'>
+        <div className='admin-dashboard-subsection-header-main'>
+          <div className='admin-dashboard-subsection-title admin-dashboard-subsection-title-strong'>
+            {t('dashboard.admin.usage_rank.title')}
+          </div>
+          <div className='admin-dashboard-subsection-description'>
+            {t('dashboard.admin.usage_rank.description')}
+          </div>
+        </div>
+        <AppToolbar
+          className='admin-dashboard-usage-rank-toolbar'
+          end={
+            <>
+              <AppSegmented
+                className='admin-dashboard-segmented'
+                options={usageRankPeriodOptions}
+                value={period}
+                onChange={(e, { value }) => setPeriod(value)}
+              />
+              <div className='router-list-toolbar-query router-list-toolbar-query-compact'>
+                <AppInput
+                  className='admin-dashboard-usage-rank-search'
+                  value={usageKeywordInput}
+                  placeholder={t('dashboard.admin.usage_rank.search.placeholder')}
+                  onChange={(e, { value }) => setUsageKeywordInput(value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      applyUsageKeyword();
+                    }
+                  }}
+                />
+                <AppButton color='blue' type='button' onClick={applyUsageKeyword}>
+                  {t('dashboard.admin.usage_rank.search.submit')}
+                </AppButton>
+                {usageKeyword ? (
+                  <AppButton
+                    type='button'
+                    className='router-inline-button'
+                    onClick={clearUsageKeyword}
+                  >
+                    {t('dashboard.admin.usage_rank.search.reset')}
+                  </AppButton>
+                ) : null}
+              </div>
+            </>
+          }
+        />
+      </div>
+      {dashboard.usage_rank.length === 0 ? (
+        <div className='admin-dashboard-empty'>
+          {t('dashboard.admin.empty.usage_rank')}
+        </div>
+      ) : (
+        <>
+          <div className='admin-dashboard-user-overview-grid'>
+            <div className='admin-dashboard-user-panel'>
+              <div className='admin-dashboard-card-title'>
+                {t('dashboard.admin.users.insights.title')}
+              </div>
+              <div className='admin-dashboard-user-distribution-list'>
+                {usageInsightData.distribution.map((item) => (
+                  <div
+                    key={item.key}
+                    className='admin-dashboard-user-distribution-item'
+                  >
+                    <div className='admin-dashboard-user-distribution-main'>
+                      <span
+                        className='admin-dashboard-user-distribution-dot'
+                        style={{ background: item.color }}
+                      />
+                      <div className='admin-dashboard-user-distribution-copy'>
+                        <div className='admin-dashboard-user-distribution-label'>
+                          {item.label}
+                        </div>
+                        <div className='admin-dashboard-user-distribution-hint'>
+                          {item.hint}
+                        </div>
+                      </div>
+                    </div>
+                    <div className='admin-dashboard-user-distribution-value'>
+                      {formatCount(item.count)}
+                    </div>
+                  </div>
+                ))}
+                <div className='admin-dashboard-user-distribution-footnote'>
+                  {t('dashboard.admin.users.insights.footnote')}
+                </div>
+              </div>
+            </div>
+            <div className='admin-dashboard-user-panel'>
+              <div className='admin-dashboard-card-title'>
+                {t('dashboard.admin.users.share_chart.title')}
+              </div>
+              <div className='admin-dashboard-user-chart'>
+                <ResponsiveContainer width='100%' height={240}>
+                  <BarChart
+                    data={usageInsightData.shareChart}
+                    layout='vertical'
+                    margin={{ top: 0, right: 12, left: 12, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray='3 3'
+                      horizontal={false}
+                      opacity={0.08}
+                    />
+                    <XAxis
+                      type='number'
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#94a3b8' }}
+                    />
+                    <YAxis
+                      type='category'
+                      dataKey='short_user'
+                      width={110}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#475569' }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      }}
+                      formatter={(value) => [`${Number(value || 0).toFixed(1)}%`, t('dashboard.admin.usage_rank.columns.share')]}
+                      labelFormatter={(_, payload) =>
+                        payload?.[0]?.payload?.user || '-'
+                      }
+                    />
+                    <Bar
+                      dataKey='share_percent'
+                      fill='#2563eb'
+                      radius={[0, 4, 4, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+          <div className='admin-dashboard-usage-rank-summary-grid'>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.users.summary.user_count')}
+              </div>
+              <div className='admin-dashboard-kpi-value'>
+                {formatCount(dashboard.usage_totals.user_count)}
+              </div>
+            </div>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.users.summary.request_count')}
+              </div>
+              <div className='admin-dashboard-kpi-value'>
+                {formatCount(dashboard.usage_totals.request_count)}
+              </div>
+            </div>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.users.summary.total_tokens')}
+              </div>
+              <div className='admin-dashboard-kpi-value'>
+                {formatCount(dashboard.usage_totals.total_tokens)}
+              </div>
+            </div>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.users.summary.total_spend')}
+              </div>
+              <div className='admin-dashboard-kpi-value'>
+                {formatUsd(dashboard.usage_totals.spend_yyc)}
+              </div>
+            </div>
+          </div>
+          <div className='admin-dashboard-usage-rank-section-title'>
+            {t('dashboard.admin.usage_rank.summary.title')}
+          </div>
+          <div className='admin-dashboard-usage-rank-summary-grid'>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.usage_rank.summary.top_user')}
+              </div>
+              <div
+                className='admin-dashboard-kpi-value admin-dashboard-usage-rank-top-user'
+                title={dashboard.usage_summary.top_username || '-'}
+              >
+                {dashboard.usage_summary.top_username || '-'}
+              </div>
+            </div>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.usage_rank.summary.top_share')}
+              </div>
+              <div className='admin-dashboard-kpi-value'>
+                {formatPercent(dashboard.usage_summary.top_user_share)}
+              </div>
+            </div>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.usage_rank.summary.user_count')}
+              </div>
+              <div className='admin-dashboard-kpi-value'>
+                {formatCount(dashboard.usage_summary.user_count)}
+              </div>
+            </div>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.usage_rank.summary.total_tokens')}
+              </div>
+              <div className='admin-dashboard-kpi-value'>
+                {formatCount(dashboard.usage_summary.total_tokens)}
+              </div>
+            </div>
+          </div>
+          <AppTable
+            className='admin-dashboard-rank-table'
+            columns={usageRankColumns}
+            dataSource={dashboard.usage_rank}
+            pagination={false}
+            rowKey={(record) =>
+              record.user_id ||
+              `${record.username || 'unknown'}-${record.last_used_at || 0}`
+            }
+            scroll={{ x: 980 }}
+          />
+        </>
+      )}
+    </AppSection>
+  );
+
+  const renderModelsSection = () => (
+    <AppSection className='admin-dashboard-section'>
+      <div className='admin-dashboard-subsection-header'>
+        <div className='admin-dashboard-subsection-header-main'>
+          <div className='admin-dashboard-subsection-title admin-dashboard-subsection-title-strong'>
+            {t('dashboard.admin.models.title')}
+          </div>
+          <div className='admin-dashboard-subsection-description'>
+            {t('dashboard.admin.models.description')}
+          </div>
+        </div>
+        <AppToolbar
+          className='admin-dashboard-trend-toolbar'
+          end={
+            <AppSegmented
+              className='admin-dashboard-segmented'
+              options={modelSortOptions}
+              value={modelSort}
+              onChange={(e, { value }) => setModelSort(value)}
+            />
+          }
+        />
+      </div>
+      <div className='admin-dashboard-kpi-grid admin-dashboard-kpi-grid-compact'>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.models.summary.selected_model_count')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.model_summary.selected_model_count)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.models.summary.tested_model_count')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.model_summary.tested_model_count)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.models.summary.healthy_model_count')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.model_summary.healthy_model_count)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.models.summary.warning_model_count')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.model_summary.warning_model_count)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.models.summary.critical_model_count')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.model_summary.critical_model_count)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.models.summary.request_count')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatCount(dashboard.model_summary.request_count)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.models.summary.total_spend')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatUsd(dashboard.model_summary.spend_yyc)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.models.summary.avg_pass_rate')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {formatPercent(dashboard.model_summary.avg_pass_rate)}
+          </div>
+        </div>
+        <div className='admin-dashboard-kpi-item'>
+          <div className='admin-dashboard-kpi-label'>
+            {t('dashboard.admin.models.summary.avg_latency')}
+          </div>
+          <div className='admin-dashboard-kpi-value'>
+            {dashboard.model_summary.avg_latency_ms > 0
+              ? `${dashboard.model_summary.avg_latency_ms} ms`
+              : '-'}
+          </div>
+        </div>
+      </div>
+      <div className='admin-dashboard-usage-rank'>
+        {sortedModels.length === 0 ? (
+          <div className='admin-dashboard-empty'>
+            {t('dashboard.admin.empty.models')}
+          </div>
+        ) : (
+          <>
+            <div className='admin-dashboard-model-overview-grid'>
+              <div className='admin-dashboard-model-panel'>
+                <div className='admin-dashboard-card-title'>
+                  {t('dashboard.admin.models.chart.leaderboard')}
+                </div>
+                <div className='admin-dashboard-model-chart'>
+                  <ResponsiveContainer width='100%' height={260}>
+                    <BarChart
+                      data={modelLeaderboardData}
+                      layout='vertical'
+                      margin={{ top: 0, right: 12, left: 12, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray='3 3'
+                        horizontal={false}
+                        opacity={0.08}
+                      />
+                      <XAxis
+                        type='number'
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: '#94a3b8' }}
+                      />
+                      <YAxis
+                        type='category'
+                        dataKey='short_model'
+                        width={128}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: '#475569' }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        }}
+                        formatter={(value, _, payload) => [
+                          payload?.payload?.display_value || value,
+                          payload?.payload?.metric_label || '',
+                        ]}
+                        labelFormatter={(_, payload) =>
+                          payload?.[0]?.payload?.model || '-'
+                        }
+                      />
+                      <Bar dataKey='value' radius={[0, 4, 4, 0]}>
+                        {modelLeaderboardData.map((item) => (
+                          <Cell
+                            key={`${item.model}-leaderboard`}
+                            fill={
+                              HEALTH_LEVEL_COLORS[item.health_level] ||
+                              HEALTH_LEVEL_COLORS.unknown
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className='admin-dashboard-model-panel'>
+                <div className='admin-dashboard-card-title'>
+                  {t('dashboard.admin.models.chart.distribution')}
+                </div>
+                <div className='admin-dashboard-model-distribution-list'>
+                  {modelHealthDistribution.map((item) => (
+                    <div
+                      key={item.key}
+                      className='admin-dashboard-model-distribution-item'
+                    >
+                      <div className='admin-dashboard-model-distribution-main'>
+                        <span
+                          className='admin-dashboard-model-distribution-dot'
+                          style={{ background: item.color }}
+                        />
+                        <span className='admin-dashboard-model-distribution-label'>
+                          {item.label}
+                        </span>
+                      </div>
+                      <div className='admin-dashboard-model-distribution-value'>
+                        {formatCount(item.count)}
+                      </div>
+                    </div>
+                  ))}
+                  <div className='admin-dashboard-model-distribution-footnote'>
+                    {t('dashboard.admin.models.chart.distribution_hint')}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className='admin-dashboard-model-grid'>
+              {sortedModels.map((item) => (
+                <div
+                  key={`${item.provider || 'unknown'}-${item.model}`}
+                  className='admin-dashboard-model-card'
+                >
+                  <div className='admin-dashboard-model-card-header'>
+                    <div className='admin-dashboard-model-card-main'>
+                      <div
+                        className='admin-dashboard-model-card-title'
+                        title={item.model || '-'}
+                      >
+                        {item.model || '-'}
+                      </div>
+                      <div className='admin-dashboard-model-card-subtitle'>
+                        <span>{item.provider || '-'}</span>
+                        {Array.isArray(item.tags) && item.tags.length > 0 ? (
+                          <div className='router-tag-group'>
+                            {item.tags.map((tag) => (
+                              <AppTag
+                                key={`${item.model}-${tag}`}
+                                className='router-tag'
+                              >
+                                {tag}
+                              </AppTag>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className='admin-dashboard-model-card-status'>
+                      {renderHealthTag(item.health_level)}
+                    </div>
+                  </div>
+                  <div className='admin-dashboard-model-card-metrics'>
+                    <div className='admin-dashboard-model-metric'>
+                      <div className='admin-dashboard-model-metric-label'>
+                        {t('dashboard.admin.models.card.requests')}
+                      </div>
+                      <div className='admin-dashboard-model-metric-value'>
+                        {formatCount(item.request_count)}
+                      </div>
+                    </div>
+                    <div className='admin-dashboard-model-metric'>
+                      <div className='admin-dashboard-model-metric-label'>
+                        {t('dashboard.admin.models.card.tokens')}
+                      </div>
+                      <div className='admin-dashboard-model-metric-value'>
+                        {formatCount(item.total_tokens)}
+                      </div>
+                    </div>
+                    <div className='admin-dashboard-model-metric'>
+                      <div className='admin-dashboard-model-metric-label'>
+                        {t('dashboard.admin.models.card.spend')}
+                      </div>
+                      <div className='admin-dashboard-model-metric-value'>
+                        {formatUsd(item.spend_yyc)}
+                      </div>
+                    </div>
+                    <div className='admin-dashboard-model-metric'>
+                      <div className='admin-dashboard-model-metric-label'>
+                        {t('dashboard.admin.models.card.channels')}
+                      </div>
+                      <div className='admin-dashboard-model-metric-value'>
+                        {formatCount(item.channel_count)}
+                      </div>
+                    </div>
+                    <div className='admin-dashboard-model-metric'>
+                      <div className='admin-dashboard-model-metric-label'>
+                        {t('dashboard.admin.models.card.supported_endpoints')}
+                      </div>
+                      <div className='admin-dashboard-model-metric-value'>
+                        {formatCount(item.supported_endpoint_count)}
+                      </div>
+                    </div>
+                    <div className='admin-dashboard-model-metric'>
+                      <div className='admin-dashboard-model-metric-label'>
+                        {t('dashboard.admin.models.card.pass_rate')}
+                      </div>
+                      <div className='admin-dashboard-model-metric-value'>
+                        {formatPercent(item.pass_rate)}
+                      </div>
+                    </div>
+                    <div className='admin-dashboard-model-metric'>
+                      <div className='admin-dashboard-model-metric-label'>
+                        {t('dashboard.admin.models.card.avg_latency')}
+                      </div>
+                      <div className='admin-dashboard-model-metric-value'>
+                        {item.avg_latency_ms > 0 ? `${item.avg_latency_ms} ms` : '-'}
+                      </div>
+                    </div>
+                    <div className='admin-dashboard-model-metric'>
+                      <div className='admin-dashboard-model-metric-label'>
+                        {t('dashboard.admin.models.card.last_tested')}
+                      </div>
+                      <div className='admin-dashboard-model-metric-value'>
+                        {formatUpdatedAt(item.last_tested_at)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </AppSection>
   );
 
   return (
     <div className='dashboard-container admin-dashboard-container'>
       {renderPageHeader()}
-      {activeSection === 'overview' ? renderOverviewSection() : null}
-      {activeSection === 'trend' ? renderTrendSection() : null}
-      {activeSection === 'health' ? renderHealthSection() : null}
+      {activeSection === 'spending' ? renderSpendingSection() : null}
+      {activeSection === 'channels' ? renderChannelsSection() : null}
+      {activeSection === 'users' ? renderUsersSection() : null}
+      {activeSection === 'models' ? renderModelsSection() : null}
     </div>
   );
 };

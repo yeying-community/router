@@ -39,6 +39,10 @@
   gap: 8px;
 }
 
+.admin-dashboard-kpi-grid-compact {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
 .admin-dashboard-kpi-item {
   background: #f9fafb;
   border: 1px solid rgba(0, 0, 0, 0.06);
@@ -88,6 +92,107 @@
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.admin-dashboard-spending-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.1fr) repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-dashboard-spending-panel {
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-dashboard-spending-panel-emphasis {
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.admin-dashboard-spending-panel-label {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.admin-dashboard-spending-panel-value {
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.admin-dashboard-spending-panel-value-green {
+  color: #15803d;
+}
+
+.admin-dashboard-spending-panel-value-red {
+  color: #dc2626;
+}
+
+.admin-dashboard-spending-panel-hint {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-dashboard-channel-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-dashboard-channel-panel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-dashboard-channel-panel-main {
+  min-width: 0;
+}
+
+.admin-dashboard-channel-panel-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-dashboard-channel-panel-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.admin-dashboard-channel-panel-label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-dashboard-channel-panel-hint {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-dashboard-channel-panel-value {
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .admin-dashboard-health-chart {
@@ -140,13 +245,31 @@
 
 .admin-dashboard-usage-rank-toolbar {
   width: 100%;
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 6px;
   margin-left: auto;
+  flex-wrap: nowrap;
+}
+
+.admin-dashboard-usage-rank-toolbar .router-list-toolbar-query {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+}
+
+.admin-dashboard-usage-rank-toolbar .router-list-toolbar-query .router-ui-button,
+.admin-dashboard-usage-rank-toolbar .router-ui-segmented {
+  flex-shrink: 0;
 }
 
 .admin-dashboard-usage-rank-search {
-  width: 100%;
+  width: 260px;
+  min-width: 220px;
 }
 
 .admin-dashboard-usage-rank-summary-grid {
@@ -154,6 +277,80 @@
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.admin-dashboard-user-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-dashboard-user-panel {
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-dashboard-user-distribution-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.admin-dashboard-user-distribution-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.admin-dashboard-user-distribution-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-dashboard-user-distribution-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.admin-dashboard-user-distribution-copy {
+  min-width: 0;
+}
+
+.admin-dashboard-user-distribution-label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-dashboard-user-distribution-hint,
+.admin-dashboard-user-distribution-footnote {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-dashboard-user-distribution-value {
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-dashboard-user-chart {
+  margin-top: 6px;
 }
 
 .admin-dashboard-usage-rank-section-title {
@@ -231,6 +428,151 @@
   vertical-align: middle;
 }
 
+.admin-dashboard-model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.admin-dashboard-model-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-dashboard-model-panel {
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-dashboard-model-chart {
+  margin-top: 6px;
+}
+
+.admin-dashboard-model-distribution-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.admin-dashboard-model-distribution-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.admin-dashboard-model-distribution-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-dashboard-model-distribution-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.admin-dashboard-model-distribution-label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.admin-dashboard-model-distribution-value {
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-dashboard-model-distribution-footnote {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-dashboard-model-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 220px;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-dashboard-model-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-dashboard-model-card-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-dashboard-model-card-title {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.admin-dashboard-model-card-subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.admin-dashboard-model-card-status {
+  flex-shrink: 0;
+}
+
+.admin-dashboard-model-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-dashboard-model-metric {
+  min-width: 0;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.admin-dashboard-model-metric-label {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.admin-dashboard-model-metric-value {
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
 @media (max-width: 768px) {
   .admin-dashboard-toolbar.router-log-toolbar {
     align-items: stretch;
@@ -243,10 +585,32 @@
   }
 
   .admin-dashboard-usage-rank-toolbar {
+    flex-wrap: wrap;
     justify-content: flex-start;
   }
 
   .admin-dashboard-usage-rank-toolbar .router-list-toolbar-query {
     width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-dashboard-usage-rank-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-dashboard-model-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-dashboard-spending-overview-grid,
+  .admin-dashboard-channel-overview-grid,
+  .admin-dashboard-user-overview-grid,
+  .admin-dashboard-model-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-dashboard-model-card-metrics {
+    grid-template-columns: 1fr;
   }
 }

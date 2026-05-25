@@ -5,19 +5,24 @@ export const ADMIN_MENU_GROUPS = [
     icon: 'chart bar',
     items: [
       {
-        name: 'dashboard.admin.nav.overview',
-        to: '/admin/dashboard?section=overview',
+        name: 'dashboard.admin.nav.spending',
+        to: '/admin/dashboard?section=spending',
         icon: 'chart pie',
       },
       {
-        name: 'dashboard.admin.sections.trend',
-        to: '/admin/dashboard?section=trend',
-        icon: 'chart line',
+        name: 'dashboard.admin.nav.channels',
+        to: '/admin/dashboard?section=channels',
+        icon: 'heartbeat',
       },
       {
-        name: 'dashboard.admin.sections.channels',
-        to: '/admin/dashboard?section=health',
-        icon: 'heartbeat',
+        name: 'dashboard.admin.nav.users',
+        to: '/admin/dashboard?section=users',
+        icon: 'users',
+      },
+      {
+        name: 'dashboard.admin.nav.models',
+        to: '/admin/dashboard?section=models',
+        icon: 'cube',
       },
     ],
   },
@@ -215,7 +220,7 @@ export const isAdminRouteActive = (location, to) => {
   }
   const targetSection = (targetParams.get('section') || '').trim().toLowerCase();
   if (path === '/admin/dashboard' && targetSection !== '') {
-    const currentSection = (currentParams.get('section') || 'overview')
+    const currentSection = (currentParams.get('section') || 'spending')
       .trim()
       .toLowerCase();
     if (currentSection !== targetSection) {

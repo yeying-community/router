@@ -15,10 +15,12 @@ import (
 const (
 	channelTopLimit    = 8
 	taskRecentLimit    = 8
+	modelTopLimit      = 12
 	sectionAll         = "all"
-	sectionOverview    = "overview"
-	sectionTrend       = "trend"
-	sectionHealth      = "health"
+	sectionSpending    = "spending"
+	sectionChannels    = "channels"
+	sectionUsers       = "users"
+	sectionModels      = "models"
 	periodToday        = "today"
 	periodLast7Days    = "last_7_days"
 	periodLast30Days   = "last_30_days"
@@ -121,6 +123,41 @@ type usageTotalSummary struct {
 	SpendYYC     int64 `json:"spend_yyc"`
 }
 
+type modelHealthItem struct {
+	Model                string   `json:"model"`
+	Provider             string   `json:"provider"`
+	Tags                 []string `json:"tags"`
+	RequestCount         int64    `json:"request_count"`
+	TotalTokens          int64    `json:"total_tokens"`
+	SpendQuota           int64    `json:"spend_quota"`
+	SpendYYC             int64    `json:"spend_yyc"`
+	ChannelCount         int      `json:"channel_count"`
+	TestedChannelCount   int      `json:"tested_channel_count"`
+	TestedEndpointCount  int      `json:"tested_endpoint_count"`
+	SupportedCount       int      `json:"supported_count"`
+	UnsupportedCount     int      `json:"unsupported_count"`
+	SupportedEndpointCnt int      `json:"supported_endpoint_count"`
+	PassRate             float64  `json:"pass_rate"`
+	AvgLatencyMs         int64    `json:"avg_latency_ms"`
+	LastTestedAt         int64    `json:"last_tested_at"`
+	HealthScore          int      `json:"health_score"`
+	HealthLevel          string   `json:"health_level"`
+}
+
+type modelSummaryData struct {
+	SelectedModelCount int64   `json:"selected_model_count"`
+	TestedModelCount   int64   `json:"tested_model_count"`
+	HealthyModelCount  int64   `json:"healthy_model_count"`
+	WarningModelCount  int64   `json:"warning_model_count"`
+	CriticalModelCount int64   `json:"critical_model_count"`
+	RequestCount       int64   `json:"request_count"`
+	TotalTokens        int64   `json:"total_tokens"`
+	SpendQuota         int64   `json:"spend_quota"`
+	SpendYYC           int64   `json:"spend_yyc"`
+	AvgPassRate        float64 `json:"avg_pass_rate"`
+	AvgLatencyMs       int64   `json:"avg_latency_ms"`
+}
+
 type dashboardPayload struct {
 	Section      string              `json:"section"`
 	Period       string              `json:"period"`
@@ -133,6 +170,8 @@ type dashboardPayload struct {
 	UsageSummary usageRankSummary    `json:"usage_summary"`
 	UsageTotals  usageTotalSummary   `json:"usage_totals"`
 	UsageRank    []usageRankingItem  `json:"usage_rank"`
+	ModelSummary modelSummaryData    `json:"model_summary"`
+	TopModels    []modelHealthItem   `json:"top_models"`
 	RecentTasks  []model.AsyncTask   `json:"recent_tasks"`
 	GeneratedAt  int64               `json:"generated_at"`
 }
@@ -149,8 +188,12 @@ type usageRankingRow struct {
 
 func normalizeSection(raw string) string {
 	switch strings.TrimSpace(strings.ToLower(raw)) {
-	case sectionOverview, sectionTrend, sectionHealth:
+	case sectionSpending, sectionChannels, sectionUsers, sectionModels:
 		return strings.TrimSpace(strings.ToLower(raw))
+	case "overview", "trend":
+		return sectionSpending
+	case "health":
+		return sectionChannels
 	default:
 		return sectionAll
 	}
@@ -784,6 +827,320 @@ func resolveAllTimeRange(now time.Time) (time.Time, time.Time, error) {
 	return start, end, nil
 }
 
+type modelUsageRow struct {
+	ModelName        string `gorm:"column:model_name"`
+	RequestCount     int64  `gorm:"column:request_count"`
+	PromptTokens     int64  `gorm:"column:prompt_tokens"`
+	CompletionTokens int64  `gorm:"column:completion_tokens"`
+	SpendQuota       int64  `gorm:"column:spend_quota"`
+	LastUsedAt       int64  `gorm:"column:last_used_at"`
+}
+
+type modelDashboardAggregate struct {
+	item               modelHealthItem
+	channelIDs         map[string]struct{}
+	testedChannelIDs   map[string]struct{}
+	testedEndpoints    map[string]struct{}
+	supportedEndpoints map[string]struct{}
+	latencyTotal       int64
+	latencyCount       int64
+}
+
+func newModelDashboardAggregate(modelName string) *modelDashboardAggregate {
+	return &modelDashboardAggregate{
+		item: modelHealthItem{
+			Model:       strings.TrimSpace(modelName),
+			HealthLevel: channelHealthLevelUnknown,
+			Tags:        []string{},
+		},
+		channelIDs:         make(map[string]struct{}),
+		testedChannelIDs:   make(map[string]struct{}),
+		testedEndpoints:    make(map[string]struct{}),
+		supportedEndpoints: make(map[string]struct{}),
+	}
+}
+
+func calcModelHealth(item *modelHealthItem) {
+	if item == nil {
+		return
+	}
+	score := 100.0
+	if item.ChannelCount > 0 {
+		coverageRate := float64(item.TestedChannelCount) / float64(item.ChannelCount)
+		score -= (1 - clamp01(coverageRate)) * 30
+	} else {
+		score -= 25
+	}
+	assertCount := item.SupportedCount + item.UnsupportedCount
+	if assertCount > 0 {
+		score -= (1 - clamp01(item.PassRate)) * 30
+	} else {
+		score -= 20
+	}
+	switch {
+	case item.AvgLatencyMs >= 30000:
+		score -= 20
+	case item.AvgLatencyMs >= 15000:
+		score -= 14
+	case item.AvgLatencyMs >= 8000:
+		score -= 8
+	case item.AvgLatencyMs >= 3000:
+		score -= 4
+	default:
+		if item.AvgLatencyMs <= 0 {
+			score -= 6
+		}
+	}
+	if item.LastTestedAt <= 0 {
+		score -= 12
+	}
+	score = math.Max(0, math.Min(100, score))
+	item.HealthScore = int(math.Round(score))
+	item.HealthLevel = channelHealthLevelByScore(item.HealthScore)
+}
+
+func buildModelDashboard(startAt int64, endAt int64, limit int) (modelSummaryData, []modelHealthItem, error) {
+	summary := modelSummaryData{}
+
+	selectedRows := make([]model.ChannelModel, 0)
+	if err := model.DB.Model(&model.ChannelModel{}).
+		Where("selected = ? AND inactive = ?", true, false).
+		Find(&selectedRows).Error; err != nil {
+		return summary, nil, err
+	}
+
+	aggs := make(map[string]*modelDashboardAggregate, len(selectedRows))
+	modelNames := make([]string, 0, len(selectedRows))
+	providerCandidates := make(map[string]map[string]struct{}, len(selectedRows))
+	channelIDs := make([]string, 0, len(selectedRows))
+	channelSeen := make(map[string]struct{}, len(selectedRows))
+
+	for _, row := range selectedRows {
+		modelName := strings.TrimSpace(row.Model)
+		if modelName == "" {
+			modelName = strings.TrimSpace(row.UpstreamModel)
+		}
+		if modelName == "" {
+			continue
+		}
+		agg, ok := aggs[modelName]
+		if !ok {
+			agg = newModelDashboardAggregate(modelName)
+			aggs[modelName] = agg
+			modelNames = append(modelNames, modelName)
+		}
+		channelID := strings.TrimSpace(row.ChannelId)
+		if channelID != "" {
+			agg.channelIDs[channelID] = struct{}{}
+			if _, exists := channelSeen[channelID]; !exists {
+				channelSeen[channelID] = struct{}{}
+				channelIDs = append(channelIDs, channelID)
+			}
+		}
+		provider := model.NormalizeGroupModelProviderValue(row.Provider)
+		if provider != "" {
+			if _, ok := providerCandidates[modelName]; !ok {
+				providerCandidates[modelName] = make(map[string]struct{}, 1)
+			}
+			providerCandidates[modelName][provider] = struct{}{}
+		}
+	}
+
+	if len(modelNames) == 0 {
+		return summary, []modelHealthItem{}, nil
+	}
+
+	providerByModel, err := model.LoadUniqueProviderMapByModelsWithDB(model.DB, modelNames)
+	if err != nil {
+		return summary, nil, err
+	}
+	for modelName, candidates := range providerCandidates {
+		if len(candidates) != 1 {
+			continue
+		}
+		for provider := range candidates {
+			providerByModel[modelName] = provider
+		}
+	}
+
+	tagMap, err := model.LoadProviderModelTagMapByModelsWithDB(model.DB, providerByModel, modelNames)
+	if err != nil {
+		return summary, nil, err
+	}
+	modelNamesByProvider := make(map[string][]string)
+	for _, modelName := range modelNames {
+		provider := model.ResolveProviderFromModelMap(providerByModel, modelName)
+		if provider == "" {
+			continue
+		}
+		modelNamesByProvider[provider] = append(modelNamesByProvider[provider], modelName)
+	}
+	endpointMap := make(map[string][]string, len(modelNames))
+	for provider, names := range modelNamesByProvider {
+		next, loadErr := model.LoadProviderModelEndpointMapByModelsWithDB(model.DB, provider, names)
+		if loadErr != nil {
+			return summary, nil, loadErr
+		}
+		for modelName, endpoints := range next {
+			endpointMap[modelName] = endpoints
+		}
+	}
+
+	if len(channelIDs) > 0 {
+		testRows := make([]model.ChannelTest, 0)
+		if err := model.DB.Model(&model.ChannelTest{}).
+			Where("channel_id IN ? AND model IN ?", channelIDs, modelNames).
+			Find(&testRows).Error; err != nil {
+			return summary, nil, err
+		}
+		for _, row := range model.NormalizeChannelTestRows(testRows) {
+			modelName := strings.TrimSpace(row.Model)
+			agg, ok := aggs[modelName]
+			if !ok {
+				continue
+			}
+			channelID := strings.TrimSpace(row.ChannelId)
+			if channelID != "" {
+				agg.testedChannelIDs[channelID] = struct{}{}
+			}
+			endpoint := strings.TrimSpace(row.Endpoint)
+			if endpoint != "" {
+				agg.testedEndpoints[endpoint] = struct{}{}
+			}
+			agg.item.TestedEndpointCount++
+			if row.TestedAt > agg.item.LastTestedAt {
+				agg.item.LastTestedAt = row.TestedAt
+			}
+			switch model.NormalizeChannelTestStatus(row.Status) {
+			case model.ChannelTestStatusSupported:
+				if row.Supported {
+					agg.item.SupportedCount++
+				}
+			case model.ChannelTestStatusUnsupported:
+				agg.item.UnsupportedCount++
+			}
+			if row.LatencyMs > 0 {
+				agg.latencyTotal += row.LatencyMs
+				agg.latencyCount++
+			}
+		}
+	}
+
+	usageRows := make([]modelUsageRow, 0, len(modelNames))
+	if startAt > 0 && endAt > 0 && endAt >= startAt {
+		err = model.LOG_DB.Table(model.EventLogsTableName).
+			Select(`
+				COALESCE(NULLIF(TRIM(model_name), ''), '-') AS model_name,
+				COUNT(1) AS request_count,
+				COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
+				COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
+				COALESCE(SUM(quota), 0) AS spend_quota,
+				COALESCE(MAX(created_at), 0) AS last_used_at
+			`).
+			Where("type = ? AND created_at BETWEEN ? AND ? AND COALESCE(NULLIF(TRIM(model_name), ''), '') <> ''", model.LogTypeConsume, startAt, endAt).
+			Group("model_name").
+			Scan(&usageRows).Error
+		if err != nil {
+			return summary, nil, err
+		}
+	}
+
+	for _, row := range usageRows {
+		modelName := strings.TrimSpace(row.ModelName)
+		if modelName == "" || modelName == "-" {
+			continue
+		}
+		agg, ok := aggs[modelName]
+		if !ok {
+			continue
+		}
+		agg.item.RequestCount = row.RequestCount
+		agg.item.TotalTokens = row.PromptTokens + row.CompletionTokens
+		agg.item.SpendQuota = row.SpendQuota
+		agg.item.SpendYYC = row.SpendQuota
+		if row.LastUsedAt > agg.item.LastTestedAt {
+			// keep usage recency separate from test recency; test time remains authoritative for health
+		}
+	}
+
+	items := make([]modelHealthItem, 0, len(aggs))
+	for _, modelName := range modelNames {
+		agg := aggs[modelName]
+		if agg == nil {
+			continue
+		}
+		agg.item.Provider = model.ResolveProviderFromModelMap(providerByModel, modelName)
+		agg.item.Tags = tagMap[modelName]
+		for _, endpoint := range endpointMap[modelName] {
+			normalized := strings.TrimSpace(endpoint)
+			if normalized == "" {
+				continue
+			}
+			agg.supportedEndpoints[normalized] = struct{}{}
+		}
+		agg.item.ChannelCount = len(agg.channelIDs)
+		agg.item.TestedChannelCount = len(agg.testedChannelIDs)
+		agg.item.SupportedEndpointCnt = len(agg.supportedEndpoints)
+		if agg.item.SupportedCount+agg.item.UnsupportedCount > 0 {
+			agg.item.PassRate = clamp01(float64(agg.item.SupportedCount) / float64(agg.item.SupportedCount+agg.item.UnsupportedCount))
+		}
+		if agg.latencyCount > 0 {
+			agg.item.AvgLatencyMs = agg.latencyTotal / agg.latencyCount
+		}
+		calcModelHealth(&agg.item)
+		items = append(items, agg.item)
+	}
+
+	summary.SelectedModelCount = int64(len(aggs))
+	latencyItems := int64(0)
+	for _, item := range items {
+		if item.TestedChannelCount > 0 {
+			summary.TestedModelCount++
+		}
+		summary.RequestCount += item.RequestCount
+		summary.TotalTokens += item.TotalTokens
+		summary.SpendQuota += item.SpendQuota
+		summary.SpendYYC += item.SpendYYC
+		summary.AvgPassRate += item.PassRate
+		if item.AvgLatencyMs > 0 {
+			summary.AvgLatencyMs += item.AvgLatencyMs
+			latencyItems++
+		}
+		switch item.HealthLevel {
+		case channelHealthLevelHealthy:
+			summary.HealthyModelCount++
+		case channelHealthLevelWarning:
+			summary.WarningModelCount++
+		case channelHealthLevelCritical:
+			summary.CriticalModelCount++
+		}
+	}
+	if len(items) > 0 {
+		summary.AvgPassRate = summary.AvgPassRate / float64(len(items))
+	}
+	if latencyItems > 0 {
+		summary.AvgLatencyMs = summary.AvgLatencyMs / latencyItems
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].SpendYYC != items[j].SpendYYC {
+			return items[i].SpendYYC > items[j].SpendYYC
+		}
+		if items[i].RequestCount != items[j].RequestCount {
+			return items[i].RequestCount > items[j].RequestCount
+		}
+		if items[i].HealthScore != items[j].HealthScore {
+			return items[i].HealthScore > items[j].HealthScore
+		}
+		return items[i].Model < items[j].Model
+	})
+	if limit > 0 && len(items) > limit {
+		items = items[:limit]
+	}
+
+	return summary, items, nil
+}
+
 func GetDashboard(c *gin.Context) {
 	period := normalizePeriod(c.DefaultQuery("period", periodLast7Days))
 	section := normalizeSection(c.Query("section"))
@@ -811,7 +1168,7 @@ func GetDashboard(c *gin.Context) {
 		GeneratedAt: helper.GetTimestamp(),
 	}
 
-	if section == sectionAll || section == sectionOverview {
+	if section == sectionAll || section == sectionSpending || section == sectionChannels || section == sectionUsers {
 		consumeQuota, err := sumQuotaByType(model.LogTypeConsume, startAt, endAt)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
@@ -882,22 +1239,24 @@ func GetDashboard(c *gin.Context) {
 			TaskActiveTotal: taskActiveTotal,
 			TaskFailedTotal: taskFailedTotal,
 		}
-		usageTotals, err := summarizeUsageTotals(startAt, endAt, userKeyword)
-		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-			return
+		if section == sectionAll || section == sectionUsers {
+			usageTotals, err := summarizeUsageTotals(startAt, endAt, userKeyword)
+			if err != nil {
+				c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+				return
+			}
+			usageRank, err := buildUsageRankingWithKeyword(startAt, endAt, usageTotals.SpendQuota, 10, userKeyword)
+			if err != nil {
+				c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+				return
+			}
+			payload.UsageSummary = summarizeUsageRanking(usageRank)
+			payload.UsageTotals = usageTotals
+			payload.UsageRank = usageRank
 		}
-		usageRank, err := buildUsageRankingWithKeyword(startAt, endAt, usageTotals.SpendQuota, 10, userKeyword)
-		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-			return
-		}
-		payload.UsageSummary = summarizeUsageRanking(usageRank)
-		payload.UsageTotals = usageTotals
-		payload.UsageRank = usageRank
 	}
 
-	if section == sectionAll || section == sectionTrend {
+	if section == sectionAll || section == sectionSpending {
 		trend, err := buildTrend(startAt, endAt, granularity)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
@@ -906,13 +1265,23 @@ func GetDashboard(c *gin.Context) {
 		payload.Trend = trend
 	}
 
-	if section == sectionAll || section == sectionHealth {
+	if section == sectionAll || section == sectionChannels {
 		topChannels, _, _, _, err := listTopChannels()
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 			return
 		}
 		payload.TopChannels = topChannels
+	}
+
+	if section == sectionAll || section == sectionModels {
+		modelSummary, topModels, err := buildModelDashboard(startAt, endAt, modelTopLimit)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		payload.ModelSummary = modelSummary
+		payload.TopModels = topModels
 	}
 
 	c.JSON(http.StatusOK, gin.H{

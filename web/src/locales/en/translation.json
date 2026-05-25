@@ -1878,7 +1878,10 @@
     "admin": {
       "title": "Admin Overview",
       "nav": {
-        "overview": "Business Overview"
+        "spending": "Spending",
+        "channels": "Channels",
+        "users": "Users",
+        "models": "Models"
       },
       "period": {
         "label": "Period"
@@ -1933,9 +1936,90 @@
         "tasks_failed": "Failed Tasks"
       },
       "sections": {
-        "trend": "Trend Analysis",
-        "channels": "Channel Health",
-        "tasks": "Recent System Tasks"
+        "spending": "Spending",
+        "channels": "Channels",
+        "users": "Users",
+        "models": "Models"
+      },
+      "channels": {
+        "insights": {
+          "retest": "Channels Pending Retest",
+          "retest_hint": "Channels whose selected models are not fully covered by tests, or whose pass rate or coverage has not reached 100%.",
+          "risk": "Risky Channels",
+          "risk_hint": "Channels already in critical health, or whose current test pass rate is below 80%.",
+          "latency": "High-Latency Channels",
+          "latency_hint": "Channels whose current average latency is 8 seconds or higher."
+        }
+      },
+      "spending": {
+        "insights": {
+          "net_positive": "Positive Net Inflow",
+          "net_positive_hint": "Top-up exceeds spend in the selected period, keeping cashflow positive.",
+          "net_negative": "Negative Net Inflow",
+          "net_negative_hint": "Spend exceeds top-up in the selected period; balance and recharge follow-up need attention.",
+          "peak_spend": "Peak Spend",
+          "peak_topup": "Peak Top-up",
+          "peak_active_users": "Peak Active Users",
+          "trend_hint": "Switch the trend view across spend, top-up, requests, and active users."
+        }
+      },
+      "users": {
+        "summary": {
+          "user_count": "Matched Users",
+          "request_count": "Matched Requests",
+          "total_tokens": "Matched Tokens",
+          "total_spend": "Matched Spend (USD)"
+        },
+        "insights": {
+          "title": "Matched Rank Observations",
+          "high_spend": "High-Spend Users",
+          "high_spend_hint": "Users whose spend share reaches 10% or more within the current rank.",
+          "active": "Highly Active Users",
+          "active_hint": "Users whose request count is above the current rank average.",
+          "long_tail": "Long-Tail Users",
+          "long_tail_hint": "Users whose spend share is below 3% and token usage does not exceed the current average.",
+          "footnote": "These segments are derived only from the matched ranking sample under the current filters, not the full-site user population."
+        },
+        "share_chart": {
+          "title": "Spend Share in Rank"
+        }
+      },
+      "models": {
+        "title": "Model Overview",
+        "description": "Aggregate model requests, spend, and test health for the selected period.",
+        "summary": {
+          "selected_model_count": "Selected Models",
+          "tested_model_count": "Tested Models",
+          "healthy_model_count": "Healthy Models",
+          "warning_model_count": "Warning Models",
+          "critical_model_count": "Critical Models",
+          "request_count": "Requests",
+          "total_tokens": "Tokens",
+          "total_spend": "Spend (USD)",
+          "avg_pass_rate": "Average Pass Rate",
+          "avg_latency": "Average Latency"
+        },
+        "sort": {
+          "spend": "By Spend",
+          "requests": "By Requests",
+          "health": "By Health",
+          "latency": "By Latency"
+        },
+        "chart": {
+          "leaderboard": "Model Leaderboard",
+          "distribution": "Health Distribution",
+          "distribution_hint": "Health distribution is computed from channel coverage, test pass rate, and average latency in the selected period."
+        },
+        "card": {
+          "requests": "Requests",
+          "tokens": "Tokens",
+          "spend": "Spend",
+          "channels": "Channels",
+          "supported_endpoints": "Endpoints",
+          "pass_rate": "Pass Rate",
+          "avg_latency": "Average Latency",
+          "last_tested": "Last Tested"
+        }
       },
       "trend": {
         "metrics": {
@@ -2015,7 +2099,8 @@
         "trend": "No trend data",
         "channels": "No channel data",
         "tasks": "No task data",
-        "usage_rank": "No user usage data in the current period"
+        "usage_rank": "No user usage data in the current period",
+        "models": "No model data in the current period"
       }
     }
   },
