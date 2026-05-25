@@ -12,7 +12,7 @@ import (
 
 func isFileManagedOptionKey(key string) bool {
 	switch strings.TrimSpace(key) {
-	case "ServerAddress", "TopUpLink", "TopUpSignSecret", "TopUpCallbackToken", "ChatLink":
+	case "ServerAddress", "TopUpLink", "TopUpSignSecret", "TopUpCallbackToken":
 		return true
 	default:
 		return false

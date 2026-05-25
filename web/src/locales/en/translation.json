@@ -1606,7 +1606,8 @@
     "actions": {
       "view_pricing": "View pricing",
       "view_guide": "Usage guide",
-      "create_token": "Create token"
+      "create_token": "Create token",
+      "open_chat": "Open Chat"
     },
     "steps": {
       "pricing": {
@@ -1619,7 +1620,16 @@
       },
       "call": {
         "title": "Send the first request",
-        "description": "Follow the usage guide, choose a model, and send the first request."
+        "description": "You can either enter the Chat Web app directly or connect Router to a terminal tool or your own client by following the guide.",
+        "chat": {
+          "title": "Chat Web App",
+          "description": "If a chat page link is configured for the platform, you can jump there directly and start using it.",
+          "unconfigured": "No chat page link has been configured yet."
+        },
+        "terminal": {
+          "title": "Terminal Tool",
+          "description": "Follow the usage guide, choose a model, and send the first request from a terminal tool or client."
+        }
       }
     }
   },

@@ -6,6 +6,7 @@ import { AppButton, AppFilterHeader, AppSection } from '../../router-ui';
 const WorkspaceStart = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const chatLink = String(localStorage.getItem('chat_link') || '').trim();
 
   return (
     <div className='dashboard-container router-workspace-start-page'>
@@ -61,13 +62,45 @@ const WorkspaceStart = () => {
           <div className='router-workspace-start-card-body'>
             {t('workspace_start.steps.call.description')}
           </div>
-          <AppButton
-            type='button'
-            className='router-inline-button'
-            onClick={() => navigate('/workspace/service/help')}
-          >
-            {t('workspace_start.actions.view_guide')}
-          </AppButton>
+          <div className='router-workspace-start-option-list'>
+            <div className='router-workspace-start-option-item'>
+              <div className='router-workspace-start-option-title'>
+                {t('workspace_start.steps.call.chat.title')}
+              </div>
+              <div className='router-workspace-start-option-description'>
+                {t('workspace_start.steps.call.chat.description')}
+              </div>
+              {chatLink !== '' ? (
+                <AppButton
+                  type='button'
+                  className='router-inline-button'
+                  onClick={() => window.open(chatLink, '_blank', 'noopener,noreferrer')}
+                >
+                  {t('workspace_start.actions.open_chat')}
+                </AppButton>
+              ) : (
+                <div className='router-section-message'>
+                  {t('workspace_start.steps.call.chat.unconfigured')}
+                </div>
+              )}
+            </div>
+
+            <div className='router-workspace-start-option-item'>
+              <div className='router-workspace-start-option-title'>
+                {t('workspace_start.steps.call.terminal.title')}
+              </div>
+              <div className='router-workspace-start-option-description'>
+                {t('workspace_start.steps.call.terminal.description')}
+              </div>
+              <AppButton
+                type='button'
+                className='router-inline-button'
+                onClick={() => navigate('/workspace/service/help')}
+              >
+                {t('workspace_start.actions.view_guide')}
+              </AppButton>
+            </div>
+          </div>
         </AppSection>
       </div>
     </div>

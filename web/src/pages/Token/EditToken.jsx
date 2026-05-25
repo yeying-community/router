@@ -465,7 +465,7 @@ const EditToken = () => {
             },
             {
               key: 'token-create',
-              label: t('token.buttons.add'),
+              label: t('common.add'),
               active: true,
             },
           ]}

@@ -406,6 +406,13 @@ const OperationSetting = ({ section = '' }) => {
         break;
       case 'general':
         {
+          const chatLink = normalizeOptionValue(inputs.ChatLink, '').trim();
+          if (
+            normalizeOptionValue(originInputs.ChatLink, '').trim() !==
+            chatLink
+          ) {
+            await updateOption('ChatLink', chatLink);
+          }
           const billingRefreshInterval = Math.trunc(
             Number(inputs.ChannelBillingAutoRefreshIntervalSeconds || 0)
           );
@@ -803,6 +810,17 @@ const OperationSetting = ({ section = '' }) => {
                 titleClassName='router-ui-section-title'
                 className='router-toolbar-compact'
               />
+              <AppFormRow>
+                <AppField label={t('setting.operation.general.chat_link')}>
+                  <AppInput
+                    className='router-section-input'
+                    name='ChatLink'
+                    value={inputs.ChatLink || ''}
+                    onChange={handleInputChange}
+                    placeholder={t('setting.operation.general.chat_link_placeholder')}
+                  />
+                </AppField>
+              </AppFormRow>
               <AppFormRow>
                 <AppField
                   label={t(

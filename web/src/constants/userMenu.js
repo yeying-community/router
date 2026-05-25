@@ -19,7 +19,7 @@ export const isUserRouteActive = (location, to) => {
   return true;
 };
 
-export const buildUserWorkspaceMenuItems = ({ includeChat = false } = {}) => {
+export const buildUserWorkspaceMenuItems = () => {
   const items = [
     {
       key: 'service',
@@ -45,14 +45,6 @@ export const buildUserWorkspaceMenuItems = ({ includeChat = false } = {}) => {
       ],
     },
   ];
-
-  if (includeChat) {
-    items.push({
-      name: 'header.chat',
-      to: '/workspace/chat',
-      icon: 'comments',
-    });
-  }
 
   items.push(
     {

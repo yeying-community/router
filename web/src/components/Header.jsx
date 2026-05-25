@@ -36,15 +36,11 @@ const Header = ({ workspace = 'user', hideNavButtons = false }) => {
   const shouldFixHeader = Boolean(userState?.user);
   const currentWorkspace = workspace === 'admin' ? 'admin' : 'user';
   const hasAdminAccess = isAdmin();
-  const includeChat = Boolean(localStorage.getItem('chat_link'));
   const adminFlatButtons = useMemo(
     () => ADMIN_MENU_GROUPS.flatMap((group) => group.items),
     [],
   );
-  const userButtons = useMemo(
-    () => buildUserWorkspaceMenuItems({ includeChat }),
-    [includeChat],
-  );
+  const userButtons = useMemo(() => buildUserWorkspaceMenuItems(), []);
   const headerContainerClass = [
     'router-header-container',
     hideNavButtons ? 'router-header-container-full' : '',

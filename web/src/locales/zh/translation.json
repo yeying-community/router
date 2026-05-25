@@ -1606,7 +1606,8 @@
     "actions": {
       "view_pricing": "查看报价",
       "view_guide": "使用说明",
-      "create_token": "创建令牌"
+      "create_token": "创建令牌",
+      "open_chat": "打开 Chat"
     },
     "steps": {
       "pricing": {
@@ -1619,7 +1620,16 @@
       },
       "call": {
         "title": "最后发起调用",
-        "description": "按使用说明完成接入，选择模型后即可发起第一条请求。"
+        "description": "你可以直接进入 Chat Web 使用，也可以按说明把 Router 接到 Terminal 工具或你自己的应用。",
+        "chat": {
+          "title": "Chat Web 应用",
+          "description": "如果平台已经配置聊天页面链接，可以直接跳转到 Chat 页面开始使用。",
+          "unconfigured": "当前还没有配置聊天页面链接。"
+        },
+        "terminal": {
+          "title": "Terminal 工具",
+          "description": "按使用说明完成接入，选择模型后即可从 Terminal 或客户端发起第一条请求。"
+        }
       }
     }
   },

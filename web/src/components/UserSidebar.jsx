@@ -13,11 +13,7 @@ const UserSidebar = ({ compact = false }) => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const includeChat = Boolean(localStorage.getItem('chat_link'));
-  const menuItems = useMemo(
-    () => buildUserWorkspaceMenuItems({ includeChat }),
-    [includeChat],
-  );
+  const menuItems = useMemo(() => buildUserWorkspaceMenuItems(), []);
 
   const groupedKeys = useMemo(
     () => menuItems.filter((item) => item.type === 'group').map((item) => item.key),

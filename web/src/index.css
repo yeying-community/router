@@ -2572,6 +2572,29 @@ body,
     min-height: 68px;
 }
 
+.router-workspace-start-option-list {
+    display: grid;
+    gap: 12px;
+}
+
+.router-workspace-start-option-item {
+    display: grid;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.router-workspace-start-option-title {
+    color: #111827;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.router-workspace-start-option-description {
+    color: #4b5563;
+    line-height: 1.6;
+}
+
 .router-service-pricing-page {
     display: flex;
     flex-direction: column;

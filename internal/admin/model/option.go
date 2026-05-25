@@ -60,6 +60,7 @@ func InitOptionMap() {
 	config.OptionMap["Footer"] = config.Footer
 	config.OptionMap["SystemName"] = config.SystemName
 	config.OptionMap["Logo"] = config.Logo
+	config.OptionMap["ChatLink"] = config.ChatLink
 	config.OptionMap["NewUserRewardTopupPlanID"] = config.NewUserRewardTopupPlanID
 	config.OptionMap["DefaultUserGroup"] = config.DefaultUserGroup
 	config.OptionMap["InviterRewardTopupPlanID"] = config.InviterRewardTopupPlanID
@@ -119,7 +120,7 @@ func UpdateOptionMap(key string, value string) (err error) {
 	defer config.OptionMapRWMutex.Unlock()
 	switch key {
 	case "WalletLoginEnabled", "WalletAutoRegisterEnabled", "WalletAllowedChains", "AutoRegisterEnabled", "Theme",
-		"ServerAddress", "TopUpLink", "TopUpSignSecret", "TopUpCallbackToken", "ChatLink":
+		"ServerAddress", "TopUpLink", "TopUpSignSecret", "TopUpCallbackToken":
 		delete(config.OptionMap, key)
 		return nil
 	}
@@ -167,6 +168,9 @@ func UpdateOptionMap(key string, value string) (err error) {
 		config.SystemName = value
 	case "Logo":
 		config.Logo = value
+	case "ChatLink":
+		config.ChatLink = strings.TrimSpace(value)
+		config.OptionMap[key] = config.ChatLink
 	case "NewUserRewardTopupPlanID":
 		config.NewUserRewardTopupPlanID = strings.TrimSpace(value)
 	case "DefaultUserGroup":
