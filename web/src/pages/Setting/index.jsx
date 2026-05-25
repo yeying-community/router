@@ -26,9 +26,7 @@ const Setting = () => {
           ]}
           title={t('header.account')}
         />
-        <AppSection>
-          <PersonalSetting />
-        </AppSection>
+        <PersonalSetting />
       </div>
     );
   }

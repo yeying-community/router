@@ -32,7 +32,7 @@
     "chat": "Chat",
     "admin_workspace": "Admin Workspace",
     "user_workspace": "User Workspace",
-    "get_started": "Get Started",
+    "get_started": "Activate Service",
     "login": "Login",
     "logout": "Logout",
     "register": "Register"
@@ -1602,7 +1602,7 @@
     }
   },
   "workspace_start": {
-    "title": "Get Started",
+    "title": "Activate Service",
     "actions": {
       "view_pricing": "View pricing",
       "view_guide": "Usage guide",

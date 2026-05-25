@@ -32,7 +32,7 @@
     "chat": "聊天",
     "admin_workspace": "管理工作区",
     "user_workspace": "用户工作区",
-    "get_started": "开始使用",
+    "get_started": "开通服务",
     "login": "登录",
     "logout": "退出",
     "register": "注册"
@@ -1602,7 +1602,7 @@
     }
   },
   "workspace_start": {
-    "title": "开始使用",
+    "title": "开通服务",
     "actions": {
       "view_pricing": "查看报价",
       "view_guide": "使用说明",

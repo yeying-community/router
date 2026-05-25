@@ -453,43 +453,44 @@ const EditToken = () => {
           ]}
           title={t('token.detail.title')}
         />
-      ) : null}
+      ) : (
+        <AppFilterHeader
+          breadcrumbs={[
+            { key: 'workspace', label: t('header.user_workspace') },
+            { key: 'mine', label: t('header.mine') },
+            {
+              key: 'token-list',
+              label: t('header.token'),
+              onClick: handleCancel,
+            },
+            {
+              key: 'token-create',
+              label: t('token.buttons.add'),
+              active: true,
+            },
+          ]}
+          title={t('token.edit.title_create')}
+          className='router-block-gap-sm'
+          actions={
+            <AppButton
+              className='router-page-button'
+              onClick={handleCancel}
+            >
+              {t('token.edit.buttons.cancel')}
+            </AppButton>
+          }
+          end={
+            <AppButton className='router-page-button' color='blue' onClick={submit}>
+              {t('token.edit.buttons.submit')}
+            </AppButton>
+          }
+        />
+      )}
       <AppSection
         title={isCreateMode ? t('token.edit.title_create') : undefined}
       >
           {isCreateMode ? (
-            <>
-              <AppFilterHeader
-                breadcrumbs={[
-                  { key: 'workspace', label: t('header.user_workspace') },
-                  { key: 'mine', label: t('header.mine') },
-                  {
-                    key: 'token-list',
-                    label: t('header.token'),
-                    onClick: handleCancel,
-                  },
-                  {
-                    key: 'token-create',
-                    label: t('token.edit.title_create'),
-                    active: true,
-                  },
-                ]}
-                className='router-block-gap-sm'
-                actions={
-                  <AppButton
-                    className='router-page-button'
-                    onClick={handleCancel}
-                  >
-                    {t('token.edit.buttons.cancel')}
-                  </AppButton>
-                }
-                end={
-                  <AppButton className='router-page-button' color='blue' onClick={submit}>
-                    {t('token.edit.buttons.submit')}
-                  </AppButton>
-                }
-              />
-              <div className='router-block-top-sm router-page-stack'>
+            <div className='router-page-stack'>
                 <AppFormRow>
                   <AppField label={t('token.edit.name')} required={isCreateMode}>
                     <AppInput
@@ -623,7 +624,6 @@ const EditToken = () => {
                   </AppField>
                 </AppFormRow>
               </div>
-            </>
           ) : (
             <div className='router-entity-detail-page'>
               <AppDetailSection
