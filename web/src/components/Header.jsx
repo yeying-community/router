@@ -72,7 +72,7 @@ const Header = ({ workspace = 'user', hideNavButtons = false }) => {
     if (targetWorkspace === 'admin') {
       navigate('/admin/dashboard');
     } else {
-      navigate('/workspace/service/pricing');
+      navigate('/workspace/entry');
     }
     setShowSidebar(false);
   };
@@ -258,6 +258,17 @@ const Header = ({ workspace = 'user', hideNavButtons = false }) => {
         >
           <div className='router-header-mobile-list'>
             {renderMobileButtons()}
+            {currentWorkspace === 'user' && userState.user && (
+              <AppButton
+                className='router-page-button router-header-mobile-actions'
+                onClick={() => {
+                  setShowSidebar(false);
+                  navigate('/workspace/start');
+                }}
+              >
+                {t('workspace_start.title')}
+              </AppButton>
+            )}
             {hasAdminAccess && (
               <div className='router-header-mobile-workspace-switch'>
                 <AppButton
@@ -359,6 +370,15 @@ const Header = ({ workspace = 'user', hideNavButtons = false }) => {
           </div>
         ) : null}
         <div className='router-header-actions'>
+          {currentWorkspace === 'user' && userState.user ? (
+            <AppButton
+              type='button'
+              className='router-header-quick-action'
+              onClick={() => navigate('/workspace/start')}
+            >
+              {t('workspace_start.title')}
+            </AppButton>
+          ) : null}
           {hasAdminAccess && (
             <div className='router-header-dropdown router-header-trigger'>
               <AppMenuDropdown

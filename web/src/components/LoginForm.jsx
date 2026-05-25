@@ -45,7 +45,7 @@ const LoginForm = () => {
   const [showPasswordLogin, setShowPasswordLogin] =
     useState(walletLoginDisabled && passwordLoginEnabled);
   const resolveLandingPath = (role) =>
-    Number(role) >= 10 ? '/admin/dashboard' : '/workspace/service/pricing';
+    Number(role) >= 10 ? '/admin/dashboard' : '/workspace/entry';
 
   useEffect(() => {
     const expiredMarker = searchParams.get('expired');

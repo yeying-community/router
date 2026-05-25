@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useCallback, useContext, useEffect } from 'react';
+import React, { Suspense, lazy, useCallback, useContext, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Loading from './components/Loading';
 import { PrivateRoute } from './components/PrivateRoute';
@@ -54,12 +54,13 @@ const PackageFlowDetail = lazy(() => import('./pages/Flow/PackageDetail'));
 const RedemptionFlowDetail = lazy(() => import('./pages/Flow/RedemptionDetail'));
 const ServicePricing = lazy(() => import('./pages/ServicePricing'));
 const HelpDoc = lazy(() => import('./pages/HelpDoc'));
+const WorkspaceStart = lazy(() => import('./pages/WorkspaceStart'));
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || '';
 
 function AdminOnlyRoute({ children }) {
   if (!isAdmin()) {
-    return <Navigate to='/workspace/service/pricing' replace />;
+    return <Navigate to='/workspace/entry' replace />;
   }
   return children;
 }
@@ -67,7 +68,7 @@ function AdminOnlyRoute({ children }) {
 function RootRedirect() {
   return (
     <Navigate
-      to={isAdmin() ? '/admin/dashboard' : '/workspace/service/pricing'}
+      to={isAdmin() ? '/admin/dashboard' : '/workspace/entry'}
       replace
     />
   );
@@ -76,10 +77,59 @@ function RootRedirect() {
 function DashboardRedirect() {
   return (
     <Navigate
-      to={isAdmin() ? '/admin/dashboard' : '/workspace/service/pricing'}
+      to={isAdmin() ? '/admin/dashboard' : '/workspace/entry'}
       replace
     />
   );
+}
+
+function UserWorkspaceEntryRedirect() {
+  const [targetPath, setTargetPath] = useState('');
+
+  useEffect(() => {
+    let active = true;
+
+    const resolveTargetPath = async () => {
+      try {
+        const [packageResponse, balanceResponse] = await Promise.all([
+          API.get('/api/v1/public/user/package/subscription'),
+          API.get('/api/v1/public/user/topup/balance/summary'),
+        ]);
+        const packageData = packageResponse?.data?.success
+          ? packageResponse?.data?.data || null
+          : null;
+        const balanceData = balanceResponse?.data?.success
+          ? balanceResponse?.data?.data || null
+          : null;
+        const hasActivePackage = String(packageData?.package_id || '').trim() !== '';
+        const totalBalance = Number(
+          balanceData?.total_yyc_balance ?? balanceData?.yyc_balance ?? balanceData?.quota ?? 0,
+        );
+        const hasBalance = Number.isFinite(totalBalance) && totalBalance > 0;
+        if (!active) {
+          return;
+        }
+        setTargetPath(hasActivePackage || hasBalance ? '/workspace/dashboard' : '/workspace/start');
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        setTargetPath('/workspace/start');
+      }
+    };
+
+    resolveTargetPath().then();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (targetPath === '') {
+    return <Loading />;
+  }
+
+  return <Navigate to={targetPath} replace />;
 }
 
 function SettingRedirect() {
@@ -259,7 +309,7 @@ function App() {
       <Route path='/' element={<RootRedirect />} />
       <Route
         path='/workspace'
-        element={<Navigate to='/workspace/service/pricing' replace />}
+        element={<Navigate to='/workspace/entry' replace />}
       />
       <Route
         path='/admin'
@@ -302,7 +352,7 @@ function App() {
         />
         <Route
           path='/workspace/about'
-          element={<Navigate to='/workspace/service/pricing' replace />}
+          element={<Navigate to='/workspace/entry' replace />}
         />
       </Route>
 
@@ -313,6 +363,15 @@ function App() {
           </PrivateRoute>
         }
       >
+        <Route path='/workspace/entry' element={<UserWorkspaceEntryRedirect />} />
+        <Route
+          path='/workspace/start'
+          element={
+            <Suspense fallback={<Loading />}>
+              <WorkspaceStart />
+            </Suspense>
+          }
+        />
         <Route
           path='/workspace/chat'
           element={
@@ -736,7 +795,7 @@ function App() {
 
       <Route
         path='/about'
-        element={<Navigate to='/workspace/service/pricing' replace />}
+        element={<Navigate to='/workspace/entry' replace />}
       />
       <Route path='/chat' element={<Navigate to='/workspace/chat' replace />} />
       <Route path='/dashboard' element={<DashboardRedirect />} />

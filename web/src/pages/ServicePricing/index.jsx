@@ -7,6 +7,7 @@ import { AppFilterHeader } from '../../router-ui';
 
 const ServicePricing = () => {
   const { t } = useTranslation();
+
   return (
     <TopUpWorkspaceProvider>
       <div className='dashboard-container router-service-pricing-page'>
@@ -18,8 +19,12 @@ const ServicePricing = () => {
           ]}
           title={t('topup.pricing.page_title')}
         />
-        <PackagePurchasePage />
-        <BalanceTopUpPage showCurrentBalance={false} />
+        <div id='pricing-package-section'>
+          <PackagePurchasePage />
+        </div>
+        <div id='pricing-balance-section'>
+          <BalanceTopUpPage showCurrentBalance={false} />
+        </div>
       </div>
     </TopUpWorkspaceProvider>
   );

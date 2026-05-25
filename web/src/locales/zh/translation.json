@@ -32,6 +32,7 @@
     "chat": "聊天",
     "admin_workspace": "管理工作区",
     "user_workspace": "用户工作区",
+    "get_started": "开始使用",
     "login": "登录",
     "logout": "退出",
     "register": "注册"
@@ -1600,6 +1601,30 @@
       "download_unavailable": "当前任务没有可下载产物"
     }
   },
+  "workspace_start": {
+    "badge": "首次进入",
+    "title": "开始使用",
+    "description": "当前还没有可用套餐或余额。先查看报价并获取额度，再创建令牌开始调用。",
+    "actions": {
+      "view_pricing": "查看报价",
+      "view_guide": "使用说明",
+      "create_token": "创建令牌"
+    },
+    "steps": {
+      "pricing": {
+        "title": "先获取额度",
+        "description": "套餐适合稳定使用，余额适合先试后扩。购买动作统一在报价页面完成。"
+      },
+      "token": {
+        "title": "再创建令牌",
+        "description": "有了额度后，创建令牌，把 Router 接到你的应用、脚本或客户端。"
+      },
+      "call": {
+        "title": "最后发起调用",
+        "description": "按使用说明完成接入，选择模型后即可发起第一条请求。"
+      }
+    }
+  },
   "user": {
     "title": "用户管理",
     "detail": {
@@ -1795,6 +1820,67 @@
       }
     },
     "spending": {
+      "workspace": {
+        "title": "工作区状态",
+        "status": {
+          "acquire_quota": "当前未配置额度",
+          "create_token": "当前可创建令牌",
+          "first_call": "当前可发起请求",
+          "active": "当前使用中"
+        },
+        "hero": {
+          "acquire_quota": {
+            "title": "当前还没有可用额度"
+          },
+          "create_token": {
+            "title": "额度已就绪，可以创建令牌"
+          },
+          "first_call": {
+            "title": "令牌已就绪，可以发起请求"
+          },
+          "active": {
+            "title": "工作区运行正常"
+          }
+        },
+        "actions": {
+          "view_pricing": "查看报价",
+          "create_token": "创建令牌",
+          "view_tokens": "查看令牌",
+          "view_guide": "使用说明",
+          "view_logs": "查看日志",
+          "copy_example": "复制示例请求"
+        },
+        "stats": {
+          "package": "当前套餐",
+          "package_active": "已生效",
+          "package_empty": "未购买"
+        },
+        "steps": {
+          "quota": {
+            "title": "额度"
+          },
+          "token": {
+            "title": "令牌"
+          },
+          "request": {
+            "title": "请求"
+          }
+        },
+        "checklist": {
+          "done": "已完成",
+          "pending": "待完成"
+        },
+        "access": {
+          "title": "接入信息",
+          "base_url": "Base URL",
+          "available_models": "可用模型数",
+          "example_request": "聊天接口示例"
+        },
+        "messages": {
+          "copy_success": "复制成功",
+          "copy_failed": "复制失败"
+        }
+      },
       "overview": {
         "title": "花费总览",
         "today_cost": "今日花费（美元）",

@@ -464,7 +464,8 @@ body,
 
 .router-header-user-link,
 .router-header-toolbar-chip,
-.router-header-toolbar-icon {
+.router-header-toolbar-icon,
+.router-header-quick-action {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -481,6 +482,13 @@ body,
     padding: 0;
 }
 
+.router-header-quick-action {
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+}
+
 .router-header-toolbar-chip,
 .router-header-user-link {
     max-width: 180px;
@@ -491,7 +499,8 @@ body,
 
 .router-header-user-link:hover,
 .router-header-toolbar-chip:hover,
-.router-header-toolbar-icon:hover {
+.router-header-toolbar-icon:hover,
+.router-header-quick-action:hover {
     background: rgba(15, 23, 42, 0.08);
     color: #1677ff !important;
 }
@@ -2519,60 +2528,89 @@ body,
     line-height: 1.6;
 }
 
-.router-service-pricing-hero {
+.router-workspace-start-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.router-workspace-start-hero {
     display: grid;
-    gap: 1rem;
+    gap: 12px;
+}
+
+.router-workspace-start-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.router-workspace-start-title {
+    color: #111827;
+    font-weight: 700;
+    font-size: 1.35rem;
+}
+
+.router-workspace-start-description {
+    color: #4b5563;
+    line-height: 1.7;
+    max-width: 760px;
+}
+
+.router-workspace-start-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.router-workspace-start-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.router-workspace-start-card {
+    height: 100%;
+}
+
+.router-workspace-start-card-index {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #e5e7eb;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.router-workspace-start-card-title {
+    margin-top: 12px;
+    color: #111827;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.router-workspace-start-card-body {
+    margin-top: 8px;
+    margin-bottom: 14px;
+    color: #4b5563;
+    line-height: 1.65;
+    min-height: 68px;
 }
 
 .router-service-pricing-page {
     display: flex;
     flex-direction: column;
     gap: 16px;
-}
-
-.router-service-pricing-title {
-    color: #111827;
-    font-weight: 700;
-}
-
-.router-service-pricing-mode-grid {
-    display: grid;
-    gap: 0.85rem;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-
-.router-service-pricing-mode-card {
-    border-radius: 14px;
-    padding: 1rem 1.1rem;
-}
-
-.router-service-pricing-mode-card-package {
-    border: 1px solid #dbeafe;
-    background: #eff6ff;
-}
-
-.router-service-pricing-mode-card-balance {
-    border: 1px solid #dcfce7;
-    background: #f0fdf4;
-}
-
-.router-service-pricing-mode-title {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.4rem;
-}
-
-.router-service-pricing-mode-title-package {
-    color: #1d4ed8;
-}
-
-.router-service-pricing-mode-title-balance {
-    color: #15803d;
-}
-
-.router-service-pricing-mode-body {
-    color: #1f2937;
-    line-height: 1.7;
 }
 
 .router-pricing-section-hint {
@@ -3926,6 +3964,10 @@ body,
 @media screen and (max-width: 768px) {
   :root {
     --router-shell-horizontal-padding: 12px;
+  }
+
+  .router-workspace-start-grid {
+    grid-template-columns: 1fr;
   }
 
   body.header-fixed-active {

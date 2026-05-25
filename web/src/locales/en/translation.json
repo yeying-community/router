@@ -32,6 +32,7 @@
     "chat": "Chat",
     "admin_workspace": "Admin Workspace",
     "user_workspace": "User Workspace",
+    "get_started": "Get Started",
     "login": "Login",
     "logout": "Logout",
     "register": "Register"
@@ -1600,6 +1601,30 @@
       "download_unavailable": "No downloadable artifact is available for this task"
     }
   },
+  "workspace_start": {
+    "badge": "First visit",
+    "title": "Get Started",
+    "description": "There is no available package or balance yet. View pricing first, get quota, then create a token and start calling.",
+    "actions": {
+      "view_pricing": "View pricing",
+      "view_guide": "Usage guide",
+      "create_token": "Create token"
+    },
+    "steps": {
+      "pricing": {
+        "title": "Get quota first",
+        "description": "Packages fit stable usage, while balance fits trial-first usage. All purchase actions happen on the pricing page."
+      },
+      "token": {
+        "title": "Create a token next",
+        "description": "Once quota is ready, create a token and connect Router to your app, scripts, or client."
+      },
+      "call": {
+        "title": "Send the first request",
+        "description": "Follow the usage guide, choose a model, and send the first request."
+      }
+    }
+  },
   "user": {
     "title": "User Management",
     "detail": {
@@ -1795,6 +1820,67 @@
       }
     },
     "spending": {
+      "workspace": {
+        "title": "Workspace Status",
+        "status": {
+          "acquire_quota": "No quota configured",
+          "create_token": "Token can be created",
+          "first_call": "Ready to send requests",
+          "active": "In use"
+        },
+        "hero": {
+          "acquire_quota": {
+            "title": "There is no available quota yet"
+          },
+          "create_token": {
+            "title": "Quota is ready. Create a token"
+          },
+          "first_call": {
+            "title": "Token is ready. Send a request"
+          },
+          "active": {
+            "title": "Workspace is running normally"
+          }
+        },
+        "actions": {
+          "view_pricing": "View pricing",
+          "create_token": "Create token",
+          "view_tokens": "View tokens",
+          "view_guide": "Usage guide",
+          "view_logs": "View logs",
+          "copy_example": "Copy example request"
+        },
+        "stats": {
+          "package": "Current package",
+          "package_active": "Active",
+          "package_empty": "None"
+        },
+        "steps": {
+          "quota": {
+            "title": "Quota"
+          },
+          "token": {
+            "title": "Token"
+          },
+          "request": {
+            "title": "Request"
+          }
+        },
+        "checklist": {
+          "done": "Done",
+          "pending": "Pending"
+        },
+        "access": {
+          "title": "Access info",
+          "base_url": "Base URL",
+          "available_models": "Available models",
+          "example_request": "Chat request example"
+        },
+        "messages": {
+          "copy_success": "Copied",
+          "copy_failed": "Copy failed"
+        }
+      },
       "overview": {
         "title": "Spending Overview",
         "today_cost": "Today's Cost (USD)",
