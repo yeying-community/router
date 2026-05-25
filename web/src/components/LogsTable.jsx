@@ -1017,7 +1017,7 @@ const LogsTable = () => {
                   render: (_, log) =>
                     log.channel ? (
                       <Link
-                        to={`/channel/detail/${log.channel}`}
+                        to={`/admin/channel/detail/${log.channel}`}
                         state={{ from: currentPagePath }}
                         onClick={(e) => e.stopPropagation()}
                       >

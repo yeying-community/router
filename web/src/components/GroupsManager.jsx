@@ -651,7 +651,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       if (normalizedChannelID === '') {
         return;
       }
-      navigate(`/channel/detail/${normalizedChannelID}`, {
+      navigate(`/admin/channel/detail/${normalizedChannelID}`, {
         state: {
           from: currentPagePath,
         },

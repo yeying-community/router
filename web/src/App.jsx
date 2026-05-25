@@ -16,42 +16,42 @@ import { StatusContext } from './context/Status';
 import AdminLayout from './layouts/AdminLayout';
 import UserLayout from './layouts/UserLayout';
 import UserWorkspaceLayout from './layouts/UserWorkspaceLayout';
+import Channel from './pages/Channel';
+import EditChannel from './pages/Channel/EditChannel';
+import AddChannel from './pages/Channel/AddChannel';
+import User from './pages/User';
+import UserDetail from './pages/User/EditUser';
+import AddUser from './pages/User/AddUser';
+import Log from './pages/Log';
+import LogDetail from './pages/Log/Detail';
+import Group from './pages/Group';
+import Package from './pages/Package';
+import PackageDetail from './pages/Package/Detail';
+import Setting from './pages/Setting';
+import Redemption from './pages/Redemption';
+import EditRedemption from './pages/Redemption/EditRedemption';
+import RedemptionDetail from './pages/Redemption/RedemptionDetail';
+import AdminTopup from './pages/AdminTopup';
+import Task from './pages/Task';
+import TaskDetail from './pages/Task/Detail';
+import FlowPage from './pages/Flow';
+import TopupReconcileDetail from './pages/Flow/TopupReconcileDetail';
+import TopupDetail from './pages/Flow/TopupDetail';
+import PackageFlowDetail from './pages/Flow/PackageDetail';
+import RedemptionFlowDetail from './pages/Flow/RedemptionDetail';
+import AdminDashboard from './pages/AdminDashboard';
+import Providers from './pages/Providers';
 
-const User = lazy(() => import('./pages/User'));
 const RegisterForm = lazy(() => import('./components/RegisterForm'));
 const LoginForm = lazy(() => import('./components/LoginForm'));
-const Setting = lazy(() => import('./pages/Setting'));
-const UserDetail = lazy(() => import('./pages/User/EditUser'));
-const AddUser = lazy(() => import('./pages/User/AddUser'));
 const PasswordResetForm = lazy(() => import('./components/PasswordResetForm'));
 const PasswordResetConfirm = lazy(() => import('./components/PasswordResetConfirm'));
-const Channel = lazy(() => import('./pages/Channel'));
 const Token = lazy(() => import('./pages/Token'));
 const EditToken = lazy(() => import('./pages/Token/EditToken'));
-const EditChannel = lazy(() => import('./pages/Channel/EditChannel'));
-const AddChannel = lazy(() => import('./pages/Channel/AddChannel'));
-const Redemption = lazy(() => import('./pages/Redemption'));
-const EditRedemption = lazy(() => import('./pages/Redemption/EditRedemption'));
-const RedemptionDetail = lazy(() => import('./pages/Redemption/RedemptionDetail'));
 const TopUp = lazy(() => import('./pages/TopUp'));
 const TopUpOrderDetail = lazy(() => import('./pages/TopUp/TopUpOrderDetail'));
-const Log = lazy(() => import('./pages/Log'));
-const LogDetail = lazy(() => import('./pages/Log/Detail'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-const Providers = lazy(() => import('./pages/Providers'));
-const Group = lazy(() => import('./pages/Group'));
-const Package = lazy(() => import('./pages/Package'));
-const PackageDetail = lazy(() => import('./pages/Package/Detail'));
-const AdminTopup = lazy(() => import('./pages/AdminTopup'));
-const Task = lazy(() => import('./pages/Task'));
-const TaskDetail = lazy(() => import('./pages/Task/Detail'));
-const FlowPage = lazy(() => import('./pages/Flow'));
-const TopupReconcileDetail = lazy(() => import('./pages/Flow/TopupReconcileDetail'));
-const TopupDetail = lazy(() => import('./pages/Flow/TopupDetail'));
-const PackageFlowDetail = lazy(() => import('./pages/Flow/PackageDetail'));
-const RedemptionFlowDetail = lazy(() => import('./pages/Flow/RedemptionDetail'));
 const ServicePricing = lazy(() => import('./pages/ServicePricing'));
 const HelpDoc = lazy(() => import('./pages/HelpDoc'));
 const WorkspaceStart = lazy(() => import('./pages/WorkspaceStart'));
@@ -494,11 +494,7 @@ function App() {
         />
         <Route
           path='/workspace/setting'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Setting />
-            </Suspense>
-          }
+          element={<Setting />}
         />
       </Route>
 
@@ -513,283 +509,143 @@ function App() {
       >
         <Route
           path='/admin/channel'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Channel />
-            </Suspense>
-          }
+          element={<Channel />}
         />
         <Route
           path='/admin/channel/tasks'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Task />
-            </Suspense>
-          }
+          element={<Task />}
         />
         <Route
           path='/admin/channel/tasks/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <TaskDetail />
-            </Suspense>
-          }
+          element={<TaskDetail />}
         />
         <Route
           path='/admin/channel/edit/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <ChannelEditRedirect />
-            </Suspense>
-          }
+          element={<ChannelEditRedirect />}
         />
         <Route
           path='/admin/channel/detail/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <EditChannel />
-            </Suspense>
-          }
+          element={<EditChannel />}
         />
         <Route
           path='/admin/channel/add'
-          element={
-            <Suspense fallback={<Loading />}>
-              <AddChannel />
-            </Suspense>
-          }
+          element={<AddChannel />}
         />
         <Route
           path='/admin/provider'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Providers />
-            </Suspense>
-          }
+          element={<Providers />}
         />
         <Route
           path='/admin/group'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Group />
-            </Suspense>
-          }
+          element={<Group />}
         />
         <Route
           path='/admin/group/detail/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Group />
-            </Suspense>
-          }
+          element={<Group />}
         />
         <Route
           path='/admin/package'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Package />
-            </Suspense>
-          }
+          element={<Package />}
         />
         <Route
           path='/admin/package/detail/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <PackageDetail />
-            </Suspense>
-          }
+          element={<PackageDetail />}
         />
         <Route
           path='/admin/topup'
-          element={
-            <Suspense fallback={<Loading />}>
-              <AdminTopup />
-            </Suspense>
-          }
+          element={<AdminTopup />}
         />
         <Route
           path='/admin/flow/topup'
-          element={
-            <Suspense fallback={<Loading />}>
-              <FlowPage kind='topup' />
-            </Suspense>
-          }
+          element={<FlowPage kind='topup' />}
         />
         <Route
           path='/admin/flow/topup/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <TopupDetail />
-            </Suspense>
-          }
+          element={<TopupDetail />}
         />
         <Route
           path='/admin/flow/topup-reconcile'
-          element={
-            <Suspense fallback={<Loading />}>
-              <FlowPage kind='topup-reconcile' />
-            </Suspense>
-          }
+          element={<FlowPage kind='topup-reconcile' />}
         />
         <Route
           path='/admin/flow/topup-reconcile/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <TopupReconcileDetail />
-            </Suspense>
-          }
+          element={<TopupReconcileDetail />}
         />
         <Route
           path='/admin/flow/package'
-          element={
-            <Suspense fallback={<Loading />}>
-              <FlowPage kind='package' />
-            </Suspense>
-          }
+          element={<FlowPage kind='package' />}
         />
         <Route
           path='/admin/flow/package/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <PackageFlowDetail />
-            </Suspense>
-          }
+          element={<PackageFlowDetail />}
         />
         <Route
           path='/admin/flow/redemption'
-          element={
-            <Suspense fallback={<Loading />}>
-              <FlowPage kind='redemption' />
-            </Suspense>
-          }
+          element={<FlowPage kind='redemption' />}
         />
         <Route
           path='/admin/flow/redemption/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <RedemptionFlowDetail />
-            </Suspense>
-          }
+          element={<RedemptionFlowDetail />}
         />
         <Route
           path='/admin/redemption'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Redemption />
-            </Suspense>
-          }
+          element={<Redemption />}
         />
         <Route
           path='/admin/redemption/edit/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <RedemptionEditRedirect />
-            </Suspense>
-          }
+          element={<RedemptionEditRedirect />}
         />
         <Route
           path='/admin/redemption/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <RedemptionDetail />
-            </Suspense>
-          }
+          element={<RedemptionDetail />}
         />
         <Route
           path='/admin/redemption/add'
-          element={
-            <Suspense fallback={<Loading />}>
-              <EditRedemption />
-            </Suspense>
-          }
+          element={<EditRedemption />}
         />
         <Route
           path='/admin/user'
-          element={
-            <Suspense fallback={<Loading />}>
-              <User />
-            </Suspense>
-          }
+          element={<User />}
         />
         <Route
           path='/admin/user/detail/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <UserDetail />
-            </Suspense>
-          }
+          element={<UserDetail />}
         />
         <Route
           path='/admin/user/edit'
-          element={
-            <Suspense fallback={<Loading />}>
-              <UserEditRedirect />
-            </Suspense>
-          }
+          element={<UserEditRedirect />}
         />
         <Route
           path='/admin/user/edit/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <UserEditRedirect />
-            </Suspense>
-          }
+          element={<UserEditRedirect />}
         />
         <Route
           path='/admin/user/add'
-          element={
-            <Suspense fallback={<Loading />}>
-              <AddUser />
-            </Suspense>
-          }
+          element={<AddUser />}
         />
         <Route
           path='/admin/dashboard'
-          element={
-            <Suspense fallback={<Loading />}>
-              <AdminDashboard />
-            </Suspense>
-          }
+          element={<AdminDashboard />}
         />
         <Route
           path='/admin/log'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Log />
-            </Suspense>
-          }
+          element={<Log />}
         />
         <Route
           path='/admin/log/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <LogDetail />
-            </Suspense>
-          }
+          element={<LogDetail />}
         />
         <Route
           path='/admin/task'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Task />
-            </Suspense>
-          }
+          element={<Task />}
         />
         <Route
           path='/admin/task/:id'
-          element={
-            <Suspense fallback={<Loading />}>
-              <TaskDetail />
-            </Suspense>
-          }
+          element={<TaskDetail />}
         />
         <Route
           path='/admin/setting'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Setting />
-            </Suspense>
-          }
+          element={<Setting />}
         />
       </Route>
 

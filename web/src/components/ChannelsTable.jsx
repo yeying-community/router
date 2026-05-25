@@ -5,7 +5,6 @@ import {
   API,
   showError,
   showInfo,
-  showSuccess,
   timestamp2string,
 } from '../helpers';
 
@@ -21,7 +20,6 @@ import {
 import {
   AppButton,
   AppFilterHeader,
-  AppIcon,
   AppInput,
   AppInputNumber,
   AppFormActions,
@@ -42,33 +40,6 @@ const compareArrayValue = (left, right) =>
     Array.isArray(left) ? left.join(',') : left,
     Array.isArray(right) ? right.join(',') : right,
   );
-
-const normalizeAsyncTaskStatus = (value) => {
-  const normalized = (value || '').toString().trim().toLowerCase();
-  switch (normalized) {
-    case 'pending':
-    case 'running':
-    case 'succeeded':
-    case 'failed':
-    case 'canceled':
-      return normalized;
-    default:
-      return 'pending';
-  }
-};
-
-async function fetchTaskById(taskId) {
-  const normalizedTaskId = (taskId || '').toString().trim();
-  if (normalizedTaskId === '') {
-    throw new Error('fetch task failed');
-  }
-  const res = await API.get(`/api/v1/admin/tasks/${normalizedTaskId}`);
-  const { success, message, data } = res.data || {};
-  if (!success) {
-    throw new Error(message || 'fetch task failed');
-  }
-  return data || null;
-}
 
 function renderTimestamp(timestamp) {
   return <>{timestamp2string(timestamp)}</>;
@@ -127,14 +98,6 @@ function renderChannelName(channel, t) {
   return <span>{displayName || t('channel.table.no_name')}</span>;
 }
 
-function renderBillingSummary(channel, t) {
-  const summary = (channel?.billing_summary || '').toString().trim();
-  if (summary === '') {
-    return <span>{t('channel.table.billing_not_available')}</span>;
-  }
-  return <span>{summary}</span>;
-}
-
 const selectionModeNone = '';
 const selectionModeDelete = 'delete';
 const selectionModeDisable = 'disable';
@@ -155,7 +118,6 @@ const ChannelsTable = () => {
   const [selectedChannelIds, setSelectedChannelIds] = useState([]);
   const [disableBlockedImpact, setDisableBlockedImpact] = useState(null);
   const currentPagePath = `${location.pathname}${location.search}${location.hash}`;
-  const [billingRefreshTasks, setBillingRefreshTasks] = useState({});
   const [tableSorter, setTableSorter] = useState({
     columnKey: 'created_time',
     order: 'descend',
@@ -244,76 +206,6 @@ const ChannelsTable = () => {
     const validIds = new Set(channels.map((channel) => channel.id));
     setSelectedChannelIds((prev) => prev.filter((id) => validIds.has(id)));
   }, [selectionMode, channels]);
-
-  useEffect(() => {
-    const taskEntries = Object.entries(billingRefreshTasks || {});
-    if (taskEntries.length === 0) {
-      return undefined;
-    }
-    const hasActiveTasks = taskEntries.some(([, task]) =>
-      ['pending', 'running'].includes(normalizeAsyncTaskStatus(task?.status))
-    );
-    if (!hasActiveTasks) {
-      return undefined;
-    }
-    const timer = window.setInterval(async () => {
-      const updates = await Promise.all(
-        taskEntries.map(async ([channelId, task]) => {
-          const status = normalizeAsyncTaskStatus(task?.status);
-          if (!['pending', 'running'].includes(status)) {
-            return { channelId, task };
-          }
-          try {
-            const latestTask = await fetchTaskById(task.id);
-            return { channelId, task: latestTask || task };
-          } catch {
-            return { channelId, task };
-          }
-        })
-      );
-      const nextTaskMap = {};
-      const finishedTasks = [];
-      updates.forEach(({ channelId, task }) => {
-        const status = normalizeAsyncTaskStatus(task?.status);
-        if (['pending', 'running'].includes(status)) {
-          nextTaskMap[channelId] = task;
-        } else {
-          finishedTasks.push({ channelId, task });
-        }
-      });
-      setBillingRefreshTasks(nextTaskMap);
-      if (finishedTasks.length === 0) {
-        return;
-      }
-      const succeeded = finishedTasks.filter(
-        ({ task }) => normalizeAsyncTaskStatus(task?.status) === 'succeeded'
-      );
-      if (succeeded.length > 0) {
-        setLoading(true);
-        await loadChannels({ page: activePage, keyword: searchKeyword });
-      }
-      finishedTasks.forEach(({ channelId, task }) => {
-        const targetChannel = channels.find((item) => item.id === channelId);
-        const channelName = getChannelDisplayName(targetChannel);
-        if (normalizeAsyncTaskStatus(task?.status) === 'succeeded') {
-          showSuccess(t('channel.messages.billing_update_success', { name: channelName }));
-          return;
-        }
-        showError(
-          task?.error_message ||
-            t('channel.messages.billing_update_failed', { name: channelName })
-        );
-      });
-    }, 1500);
-    return () => window.clearInterval(timer);
-  }, [
-    activePage,
-    billingRefreshTasks,
-    channels,
-    loadChannels,
-    searchKeyword,
-    t,
-  ]);
 
   const manageChannel = async (id, action, idx, value) => {
     const normalizedID = (id || '').toString().trim();
@@ -435,37 +327,6 @@ const ChannelsTable = () => {
     setSearching(false);
   };
 
-  const refreshChannelBilling = async (id, name, idx) => {
-    try {
-      const res = await API.post(`/api/v1/admin/channel/${id}/refresh`, {
-        action: 'billing',
-      });
-      const { success, message, data, meta } = res.data || {};
-      if (!success) {
-        showError(message);
-        return;
-      }
-      const task = data?.task;
-      if (!task?.id) {
-        showError(t('channel.messages.billing_update_submit_failed'));
-        return;
-      }
-      setBillingRefreshTasks((prev) => ({
-        ...prev,
-        [id]: task,
-      }));
-      showSuccess(
-        meta?.reused
-          ? t('channel.messages.billing_update_reused', { name })
-          : t('channel.messages.billing_update_submitted', { name })
-      );
-    } catch (error) {
-      showError(
-        error?.message || t('channel.messages.billing_update_submit_failed')
-      );
-    }
-  };
-
   const handleKeywordChange = async (e, { value }) => {
     setSearchKeyword(value.trim());
   };
@@ -527,7 +388,7 @@ const ChannelsTable = () => {
     if (!channel || !channel.id || inBatchSelectMode) {
       return;
     }
-    navigate(`/channel/detail/${channel.id}`, {
+    navigate(`/admin/channel/detail/${channel.id}`, {
       state: {
         from: currentPagePath,
         channelLabel: getChannelDisplayName(channel),
@@ -714,7 +575,7 @@ const ChannelsTable = () => {
               className='router-page-button'
               color='blue'
               disabled={actionBusy}
-              onClick={() => navigate('/channel/add')}
+              onClick={() => navigate('/admin/channel/add')}
             >
               {t('channel.buttons.add')}
             </AppButton>
@@ -829,53 +690,6 @@ const ChannelsTable = () => {
             render: (value) => renderCapabilities(value, t),
           },
           {
-            title: t('channel.table.billing'),
-            dataIndex: 'billing_summary',
-            key: 'billing_summary',
-            width: CHANNEL_LIST_COLUMN_WIDTHS.balance,
-            sorter: (a, b) =>
-              compareTextValue(a.billing_summary, b.billing_summary),
-            sortDirections: ['ascend', 'descend'],
-            sortOrder:
-              tableSorter.columnKey === 'billing_summary'
-                ? tableSorter.order
-                : null,
-            render: (_, channel, idx) => (
-              <div onClick={stopRowClick}>
-                <AppTooltip
-                  title={
-                    channel.billing_snapshot_at
-                      ? `${t('channel.table.click_to_update')} · ${timestamp2string(channel.billing_snapshot_at)}`
-                      : t('channel.table.click_to_update')
-                  }
-                >
-                  <span
-                    onClick={() => {
-                      if (billingRefreshTasks[channel.id]) {
-                        return;
-                      }
-                      refreshChannelBilling(
-                        channel.id,
-                        getChannelDisplayName(channel),
-                        idx,
-                      );
-                    }}
-                    className='router-row-clickable'
-                  >
-                    {billingRefreshTasks[channel.id] ? (
-                      <>
-                        <AppIcon name='spinner' className='router-spin-icon' />
-                        {renderBillingSummary(channel, t)}
-                      </>
-                    ) : (
-                      renderBillingSummary(channel, t)
-                    )}
-                  </span>
-                </AppTooltip>
-              </div>
-            ),
-          },
-          {
             title: t('channel.table.priority'),
             dataIndex: 'priority',
             key: 'priority',
@@ -931,7 +745,9 @@ const ChannelsTable = () => {
                 </AppButton>
                 <AppButton
                   className='router-inline-button'
-                  onClick={() => navigate(`/channel/add?copy_from=${channel.id}`)}
+                  onClick={() =>
+                    navigate(`/admin/channel/add?copy_from=${channel.id}`)
+                  }
                 >
                   {t('channel.buttons.copy')}
                 </AppButton>
