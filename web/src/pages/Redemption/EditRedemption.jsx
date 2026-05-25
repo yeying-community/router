@@ -122,7 +122,7 @@ const EditRedemption = () => {
   }, [t]);
 
   const handleCancel = () => {
-    navigate('/redemption');
+    navigate('/admin/redemption');
   };
 
   const handleInputChange = (e, { name, value }) => {
@@ -185,7 +185,7 @@ const EditRedemption = () => {
           downloadTextAsFile(text, `${inputs.name}.txt`);
         }
         setInputs(originInputs);
-        navigate('/redemption');
+        navigate('/admin/redemption');
       } else {
         showError(message);
       }

@@ -323,8 +323,6 @@ const ChannelDetailTestsTab = ({
         />
         <AppFilterHeader
           className='router-toolbar-compact'
-          startClassName='router-block-gap-sm'
-          endClassName='router-block-gap-sm'
           picker={
             <>
             <AppSelect

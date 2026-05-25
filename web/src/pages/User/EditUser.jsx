@@ -407,7 +407,7 @@ const UserDetail = () => {
 
   const loadUser = useCallback(async () => {
     if (!userId) {
-      navigate('/user', { replace: true });
+      navigate('/admin/user', { replace: true });
       return;
     }
     setLoading(true);

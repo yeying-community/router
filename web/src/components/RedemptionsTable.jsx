@@ -339,7 +339,7 @@ const RedemptionsTable = () => {
             <AppButton
               className='router-page-button'
               color='blue'
-              onClick={() => navigate('/redemption/add')}
+              onClick={() => navigate('/admin/redemption/add')}
             >
               {t('redemption.buttons.add')}
             </AppButton>
@@ -380,7 +380,7 @@ const RedemptionsTable = () => {
           onRow={(redemption) => ({
             className: 'router-row-clickable',
             onClick: () => {
-              navigate(`/redemption/${redemption.id}`, {
+              navigate(`/admin/redemption/${redemption.id}`, {
                 state: {
                   from: currentPagePath,
                 },
