@@ -586,7 +586,7 @@
       },
       "billing": {
         "title": "账务",
-        "hint": "这里展示的是渠道额度状态，不是套餐余额。额度按条目维护，例如日额度、周额度、总额度，以及各自截止时间；采购记录主要用于登记渠道采购支出及对应的额度变化。",
+        "hint": "这里展示的是渠道账务权益项，不是上游原始字段。系统统一按权益项维护额度、余额、信用额度、套餐有效期等信息，并基于这些标准字段做刷新、告警和后续自动化动作。",
         "load_failed": "加载渠道账务信息失败",
         "profile_title": "账务配置",
         "profile_enabled": "启用账务",
@@ -594,22 +594,24 @@
         "profile_update_success": "账务配置保存成功",
         "profile_update_failed": "账务配置保存失败",
         "refresh_now": "刷新",
-        "current_quotas_title": "额度状态",
+        "current_quotas_title": "权益项状态",
         "billing_mode": "账务方式",
         "updated_at": "更新时间",
         "portal": "账务入口",
         "activate_title": "激活",
+        "activate_input": "激活凭证",
         "cdk": "CDK",
         "cdk_required": "请先输入 CDK",
         "open_activate_page": "打开激活页",
         "open_activate_success": "已生成激活页链接",
         "open_activate_failed": "生成激活页链接失败",
         "manual_update_title": "新增采购记录",
-        "manual_snapshot_invalid": "请至少填写一条有效额度",
+        "manual_snapshot_invalid": "请至少填写一条有效权益项",
         "manual_snapshot_success": "采购记录保存成功",
         "manual_snapshot_failed": "采购记录保存失败",
         "confirm_manual_snapshot": "保存",
         "add_purchase_record": "新增",
+        "manual_resource_type": "权益类型",
         "manual_quota_type": "额度类型",
         "manual_quota_label": "额度名称",
         "manual_quota_amount": "额度数值",
@@ -620,6 +622,7 @@
         "currency": "币种",
         "message": "备注",
         "snapshots_title": "采购记录",
+        "alerts_title": "告警记录",
         "actions_title": "操作记录",
         "no_capabilities": "暂无账务能力",
         "no_quota_items": "暂无账务额度记录",
@@ -651,10 +654,24 @@
           "total": "总额度",
           "custom": "自定义"
         },
+        "resource_types": {
+          "quota": "额度",
+          "balance": "余额",
+          "credit": "信用额度",
+          "plan": "套餐"
+        },
         "quota_table": {
+          "resource_type": "权益类型",
           "quota_label": "额度项",
-          "amount": "数值",
-          "expires_at": "截止时间"
+          "amount": "剩余/总量",
+          "remaining_ratio": "剩余比例",
+          "reset_at": "重置时间",
+          "expires_at": "到期时间",
+          "status": "状态",
+          "status_active": "正常",
+          "status_low": "偏低",
+          "status_depleted": "耗尽",
+          "status_expired": "已到期"
         },
         "snapshot_table": {
           "created_at": "时间",
@@ -667,6 +684,21 @@
           "action_type": "动作",
           "status": "状态",
           "message": "结果"
+        },
+        "alert_table": {
+          "created_at": "时间",
+          "event_type": "告警类型",
+          "quota_label": "额度项",
+          "amount": "剩余/总量",
+          "remaining_ratio": "剩余比例",
+          "expires_at": "到期时间",
+          "status": "发送状态",
+          "title": "标题",
+          "empty": "当前没有告警记录",
+          "event_expiring_soon": "即将到期",
+          "event_low_remaining": "余额偏低",
+          "status_sent": "已发送",
+          "status_failed": "发送失败"
         }
       },
       "endpoint_capabilities": {

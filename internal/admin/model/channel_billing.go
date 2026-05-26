@@ -20,6 +20,7 @@ const (
 	ChannelBillingSnapshotsTableName     = "channel_billing_snapshots"
 	ChannelBillingSnapshotItemsTableName = "channel_billing_snapshot_items"
 	ChannelBillingActionsTableName       = "channel_billing_actions"
+	ChannelBillingAlertEventsTableName   = "channel_billing_alert_events"
 
 	ChannelBillingModeUnsupported        = "unsupported"
 	ChannelBillingModeManual             = "manual"
@@ -48,6 +49,22 @@ const (
 	ChannelBillingActionStatusPending = "pending"
 	ChannelBillingActionStatusDone    = "done"
 	ChannelBillingActionStatusFailed  = "failed"
+
+	ChannelBillingResourceTypeQuota   = "quota"
+	ChannelBillingResourceTypeBalance = "balance"
+	ChannelBillingResourceTypeCredit  = "credit"
+	ChannelBillingResourceTypePlan    = "plan"
+
+	ChannelBillingItemStatusActive   = "active"
+	ChannelBillingItemStatusLow      = "low"
+	ChannelBillingItemStatusDepleted = "depleted"
+	ChannelBillingItemStatusExpired  = "expired"
+
+	ChannelBillingAlertTypeExpiringSoon = "expiring_soon"
+	ChannelBillingAlertTypeLowRemaining = "low_remaining"
+
+	ChannelBillingAlertStatusSent   = "sent"
+	ChannelBillingAlertStatusFailed = "failed"
 )
 
 type ChannelBillingProfile struct {
@@ -87,20 +104,48 @@ func (ChannelBillingSnapshot) TableName() string {
 }
 
 type ChannelBillingSnapshotItem struct {
-	Id         string  `json:"id" gorm:"type:char(36);primaryKey"`
-	SnapshotId string  `json:"snapshot_id" gorm:"type:char(36);not null;index"`
-	ChannelId  string  `json:"channel_id" gorm:"type:char(36);not null;index"`
-	QuotaType  string  `json:"quota_type" gorm:"type:varchar(32);not null;default:'custom'"`
-	QuotaLabel string  `json:"quota_label" gorm:"type:varchar(64);not null;default:''"`
-	Amount     float64 `json:"amount" gorm:"not null;default:0"`
-	Currency   string  `json:"currency" gorm:"type:varchar(16);not null;default:''"`
-	ExpiresAt  int64   `json:"expires_at" gorm:"bigint;not null;default:0;index"`
-	SortOrder  int     `json:"sort_order" gorm:"type:int;not null;default:0"`
-	CreatedAt  int64   `json:"created_at" gorm:"bigint;index"`
+	Id              string  `json:"id" gorm:"type:char(36);primaryKey"`
+	SnapshotId      string  `json:"snapshot_id" gorm:"type:char(36);not null;index"`
+	ChannelId       string  `json:"channel_id" gorm:"type:char(36);not null;index"`
+	ResourceType    string  `json:"resource_type" gorm:"type:varchar(32);not null;default:'quota'"`
+	QuotaType       string  `json:"quota_type" gorm:"type:varchar(32);not null;default:'custom'"`
+	QuotaLabel      string  `json:"quota_label" gorm:"type:varchar(64);not null;default:''"`
+	Amount          float64 `json:"amount" gorm:"not null;default:0"`
+	LimitAmount     float64 `json:"limit_amount" gorm:"not null;default:0"`
+	UsedAmount      float64 `json:"used_amount" gorm:"not null;default:0"`
+	RemainingAmount float64 `json:"remaining_amount" gorm:"not null;default:0"`
+	Currency        string  `json:"currency" gorm:"type:varchar(16);not null;default:''"`
+	ResetAt         int64   `json:"reset_at" gorm:"bigint;not null;default:0;index"`
+	ExpiresAt       int64   `json:"expires_at" gorm:"bigint;not null;default:0;index"`
+	Status          string  `json:"status" gorm:"type:varchar(32);not null;default:'active';index"`
+	SourceRef       string  `json:"source_ref" gorm:"type:varchar(128);not null;default:''"`
+	Metadata        string  `json:"metadata" gorm:"type:text"`
+	SortOrder       int     `json:"sort_order" gorm:"type:int;not null;default:0"`
+	CreatedAt       int64   `json:"created_at" gorm:"bigint;index"`
 }
 
 func (ChannelBillingSnapshotItem) TableName() string {
 	return ChannelBillingSnapshotItemsTableName
+}
+
+type ChannelBillingAlertEvent struct {
+	Id         string `json:"id" gorm:"type:char(36);primaryKey"`
+	ChannelId  string `json:"channel_id" gorm:"type:char(36);not null;index:idx_channel_billing_alert_dedupe,priority:1"`
+	SnapshotId string `json:"snapshot_id" gorm:"type:char(36);not null;default:'';index"`
+	EventType  string `json:"event_type" gorm:"type:varchar(64);not null;index:idx_channel_billing_alert_dedupe,priority:2"`
+	AlertKey   string `json:"alert_key" gorm:"type:varchar(191);not null;index:idx_channel_billing_alert_dedupe,priority:3"`
+	NotifyDate string `json:"notify_date" gorm:"type:varchar(16);not null;index:idx_channel_billing_alert_dedupe,priority:4"`
+	Severity   string `json:"severity" gorm:"type:varchar(32);not null;default:''"`
+	Status     string `json:"status" gorm:"type:varchar(32);not null;default:'sent';index"`
+	Title      string `json:"title" gorm:"type:varchar(191);not null;default:''"`
+	Content    string `json:"content" gorm:"type:text"`
+	Payload    string `json:"payload" gorm:"type:text"`
+	CreatedAt  int64  `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt  int64  `json:"updated_at" gorm:"bigint;index"`
+}
+
+func (ChannelBillingAlertEvent) TableName() string {
+	return ChannelBillingAlertEventsTableName
 }
 
 type ChannelBillingAction struct {
@@ -230,12 +275,21 @@ func NormalizeChannelBillingSnapshotItems(items []ChannelBillingSnapshotItem) []
 		nextItem.Id = strings.TrimSpace(nextItem.Id)
 		nextItem.SnapshotId = strings.TrimSpace(nextItem.SnapshotId)
 		nextItem.ChannelId = strings.TrimSpace(nextItem.ChannelId)
+		nextItem.ResourceType = strings.TrimSpace(strings.ToLower(nextItem.ResourceType))
+		if nextItem.ResourceType == "" {
+			nextItem.ResourceType = ChannelBillingResourceTypeQuota
+		}
 		nextItem.QuotaType = strings.TrimSpace(strings.ToLower(nextItem.QuotaType))
 		if nextItem.QuotaType == "" {
 			nextItem.QuotaType = "custom"
 		}
 		nextItem.QuotaLabel = strings.TrimSpace(nextItem.QuotaLabel)
 		nextItem.Currency = strings.TrimSpace(strings.ToUpper(nextItem.Currency))
+		nextItem.Status = strings.TrimSpace(strings.ToLower(nextItem.Status))
+		if nextItem.Status == "" {
+			nextItem.Status = ChannelBillingItemStatusActive
+		}
+		nextItem.SourceRef = strings.TrimSpace(nextItem.SourceRef)
 		if nextItem.SortOrder == 0 && len(items) > 1 {
 			nextItem.SortOrder = index + 1
 		}
@@ -390,6 +444,27 @@ func ListChannelBillingActionsByChannelIDWithDB(db *gorm.DB, channelID string, l
 	return rows, nil
 }
 
+func ListChannelBillingAlertEventsByChannelIDWithDB(db *gorm.DB, channelID string, limit int) ([]ChannelBillingAlertEvent, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return []ChannelBillingAlertEvent{}, nil
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	rows := make([]ChannelBillingAlertEvent, 0, limit)
+	if err := db.Where("channel_id = ?", normalizedChannelID).
+		Order("created_at desc").
+		Limit(limit).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
 func GetChannelBillingProfileByChannelIDWithDB(db *gorm.DB, channelID string) (ChannelBillingProfile, error) {
 	if db == nil {
 		return ChannelBillingProfile{}, fmt.Errorf("database handle is nil")
@@ -461,6 +536,67 @@ func CreateChannelBillingActionWithDB(db *gorm.DB, row ChannelBillingAction) (Ch
 	}
 	normalized.UpdatedAt = now
 	return normalized, db.Create(&normalized).Error
+}
+
+func GetChannelBillingAlertEventByDedupeKeyWithDB(db *gorm.DB, channelID string, eventType string, alertKey string, notifyDate string) (ChannelBillingAlertEvent, error) {
+	if db == nil {
+		return ChannelBillingAlertEvent{}, fmt.Errorf("database handle is nil")
+	}
+	row := ChannelBillingAlertEvent{}
+	err := db.Where(
+		"channel_id = ? AND event_type = ? AND alert_key = ? AND notify_date = ?",
+		strings.TrimSpace(channelID),
+		strings.TrimSpace(eventType),
+		strings.TrimSpace(alertKey),
+		strings.TrimSpace(notifyDate),
+	).Take(&row).Error
+	return row, err
+}
+
+func SaveChannelBillingAlertEventWithDB(db *gorm.DB, row ChannelBillingAlertEvent) (ChannelBillingAlertEvent, error) {
+	if db == nil {
+		return ChannelBillingAlertEvent{}, fmt.Errorf("database handle is nil")
+	}
+	normalized := row
+	normalized.ChannelId = strings.TrimSpace(normalized.ChannelId)
+	normalized.SnapshotId = strings.TrimSpace(normalized.SnapshotId)
+	normalized.EventType = strings.TrimSpace(normalized.EventType)
+	normalized.AlertKey = strings.TrimSpace(normalized.AlertKey)
+	normalized.NotifyDate = strings.TrimSpace(normalized.NotifyDate)
+	normalized.Severity = strings.TrimSpace(normalized.Severity)
+	normalized.Status = strings.TrimSpace(normalized.Status)
+	if normalized.ChannelId == "" || normalized.EventType == "" || normalized.AlertKey == "" || normalized.NotifyDate == "" {
+		return ChannelBillingAlertEvent{}, fmt.Errorf("渠道账务告警事件无效")
+	}
+	if normalized.Status == "" {
+		normalized.Status = ChannelBillingAlertStatusSent
+	}
+	now := helper.GetTimestamp()
+	if normalized.Id == "" {
+		normalized.Id = random.GetUUID()
+	}
+	if normalized.CreatedAt == 0 {
+		normalized.CreatedAt = now
+	}
+	normalized.UpdatedAt = now
+	if err := db.Where(
+		"channel_id = ? AND event_type = ? AND alert_key = ? AND notify_date = ?",
+		normalized.ChannelId,
+		normalized.EventType,
+		normalized.AlertKey,
+		normalized.NotifyDate,
+	).Assign(map[string]any{
+		"snapshot_id": normalized.SnapshotId,
+		"severity":    normalized.Severity,
+		"status":      normalized.Status,
+		"title":       normalized.Title,
+		"content":     normalized.Content,
+		"payload":     normalized.Payload,
+		"updated_at":  normalized.UpdatedAt,
+	}).FirstOrCreate(&normalized).Error; err != nil {
+		return ChannelBillingAlertEvent{}, err
+	}
+	return normalized, nil
 }
 
 func CreateChannelBillingSnapshotWithDB(db *gorm.DB, row ChannelBillingSnapshot) (ChannelBillingSnapshot, error) {
@@ -537,6 +673,11 @@ type channelBillingConfig struct {
 	Currency   string `json:"currency,omitempty"`
 }
 
+type ChannelBillingNotifyConfig struct {
+	ExpiryNoticeDays  int     `json:"expiry_notice_days,omitempty"`
+	LowRemainingRatio float64 `json:"low_remaining_ratio,omitempty"`
+}
+
 func inferBuiltinChannelBillingMode(channel *Channel) string {
 	if channel == nil {
 		return ChannelBillingModeUnsupported
@@ -572,6 +713,37 @@ func (row ChannelBillingProfile) ParseBillingConfig() channelBillingConfig {
 		CDK:        strings.TrimSpace(fmt.Sprintf("%v", configMap["cdk"])),
 		Currency:   strings.TrimSpace(strings.ToUpper(fmt.Sprintf("%v", configMap["currency"]))),
 	}
+}
+
+func (row ChannelBillingProfile) ParseNotifyConfig() ChannelBillingNotifyConfig {
+	configMap := parseJSONObjectString(row.NotifyConfig)
+	result := ChannelBillingNotifyConfig{
+		ExpiryNoticeDays:  7,
+		LowRemainingRatio: 0.2,
+	}
+	if value, ok := configMap["expiry_notice_days"]; ok {
+		switch typed := value.(type) {
+		case float64:
+			result.ExpiryNoticeDays = int(typed)
+		case int:
+			result.ExpiryNoticeDays = typed
+		}
+	}
+	if value, ok := configMap["low_remaining_ratio"]; ok {
+		switch typed := value.(type) {
+		case float64:
+			result.LowRemainingRatio = typed
+		case int:
+			result.LowRemainingRatio = float64(typed)
+		}
+	}
+	if result.ExpiryNoticeDays <= 0 {
+		result.ExpiryNoticeDays = 7
+	}
+	if result.LowRemainingRatio <= 0 || result.LowRemainingRatio >= 1 {
+		result.LowRemainingRatio = 0.2
+	}
+	return result
 }
 
 var activateCDKPattern = regexp.MustCompile(`cdk=[^&]*`)

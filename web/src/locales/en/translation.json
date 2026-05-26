@@ -586,7 +586,7 @@
       },
       "billing": {
         "title": "Billing",
-        "hint": "This section shows channel quota status, not package balances. Quotas are tracked as structured items such as daily, weekly, and total quotas with their own expiration times; purchase records mainly track channel spending and the corresponding quota changes.",
+        "hint": "This section shows standardized channel billing entitlements, not upstream-specific raw fields. The system tracks quotas, balances, credits, and plan validity as structured entitlement items, and uses those normalized fields for refresh, alerts, and future automation.",
         "load_failed": "Failed to load channel billing data",
         "profile_title": "Billing Profile",
         "profile_enabled": "Billing Enabled",
@@ -594,22 +594,24 @@
         "profile_update_success": "Billing profile updated",
         "profile_update_failed": "Failed to update billing profile",
         "refresh_now": "Refresh",
-        "current_quotas_title": "Quota Status",
+        "current_quotas_title": "Entitlement Status",
         "billing_mode": "Billing Mode",
         "updated_at": "Updated At",
         "portal": "Billing Portal",
         "activate_title": "Activate",
+        "activate_input": "Activation Credential",
         "cdk": "CDK",
         "cdk_required": "Please enter a CDK first",
         "open_activate_page": "Open Activate Page",
         "open_activate_success": "Activate page link generated",
         "open_activate_failed": "Failed to generate activate page link",
         "manual_update_title": "Add Purchase Record",
-        "manual_snapshot_invalid": "Please provide at least one valid quota item",
+        "manual_snapshot_invalid": "Please provide at least one valid entitlement item",
         "manual_snapshot_success": "Purchase record saved",
         "manual_snapshot_failed": "Failed to save purchase record",
         "confirm_manual_snapshot": "Save",
         "add_purchase_record": "Add",
+        "manual_resource_type": "Entitlement Type",
         "manual_quota_type": "Quota Type",
         "manual_quota_label": "Quota Name",
         "manual_quota_amount": "Quota Amount",
@@ -620,6 +622,7 @@
         "currency": "Currency",
         "message": "Message",
         "snapshots_title": "Purchase Records",
+        "alerts_title": "Alert History",
         "actions_title": "Action History",
         "no_capabilities": "No billing capabilities",
         "no_quota_items": "No billing quota items",
@@ -651,10 +654,24 @@
           "total": "Total Quota",
           "custom": "Custom"
         },
+        "resource_types": {
+          "quota": "Quota",
+          "balance": "Balance",
+          "credit": "Credit",
+          "plan": "Plan"
+        },
         "quota_table": {
+          "resource_type": "Entitlement Type",
           "quota_label": "Quota Item",
-          "amount": "Amount",
-          "expires_at": "Expires At"
+          "amount": "Remaining / Limit",
+          "remaining_ratio": "Remaining Ratio",
+          "reset_at": "Reset At",
+          "expires_at": "Expires At",
+          "status": "Status",
+          "status_active": "Active",
+          "status_low": "Low",
+          "status_depleted": "Depleted",
+          "status_expired": "Expired"
         },
         "snapshot_table": {
           "created_at": "Time",
@@ -667,6 +684,21 @@
           "action_type": "Action",
           "status": "Status",
           "message": "Result"
+        },
+        "alert_table": {
+          "created_at": "Time",
+          "event_type": "Alert Type",
+          "quota_label": "Quota Item",
+          "amount": "Remaining / Limit",
+          "remaining_ratio": "Remaining Ratio",
+          "expires_at": "Expires At",
+          "status": "Delivery Status",
+          "title": "Title",
+          "empty": "No alert records",
+          "event_expiring_soon": "Expiring Soon",
+          "event_low_remaining": "Low Remaining",
+          "status_sent": "Sent",
+          "status_failed": "Failed"
         }
       },
       "endpoint_capabilities": {

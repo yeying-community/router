@@ -1568,7 +1568,7 @@ body,
     --router-tab-toolbar-control-height: 32px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     min-width: 0;
 }
 
@@ -1635,6 +1635,11 @@ body,
 .router-entity-detail-section.ant-card:hover,
 .router-ui-section.ant-card:hover {
     border-color: rgba(22, 119, 255, 0.18);
+}
+
+.router-provider-detail-section-body > .router-provider-detail-section + .router-provider-detail-section,
+.router-entity-detail-section-body > .router-entity-detail-section + .router-entity-detail-section {
+    margin-top: 12px;
 }
 
 .router-provider-detail-section-header,

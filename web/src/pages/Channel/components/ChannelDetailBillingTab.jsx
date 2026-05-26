@@ -14,12 +14,20 @@ import {
 } from '../../../router-ui';
 
 const buildManualQuotaItem = () => ({
+  resource_type: 'quota',
   quota_type: 'total',
   quota_label: '',
   amount: null,
   currency: 'USD',
   expires_at_input: '',
 });
+
+const resourceTypeOptions = (t) => [
+  { value: 'quota', label: t('channel.edit.billing.resource_types.quota') },
+  { value: 'balance', label: t('channel.edit.billing.resource_types.balance') },
+  { value: 'credit', label: t('channel.edit.billing.resource_types.credit') },
+  { value: 'plan', label: t('channel.edit.billing.resource_types.plan') },
+];
 
 const quotaTypeOptions = (t) => [
   { value: 'daily', label: t('channel.edit.billing.quota_types.daily') },
@@ -38,12 +46,145 @@ const formatAmountText = (item) => {
   return `${amount}`;
 };
 
+const formatResourceTypeText = (item, t) => {
+  const resourceType = (item?.resource_type || '').toString().trim().toLowerCase();
+  switch (resourceType) {
+    case 'balance':
+      return t('channel.edit.billing.resource_types.balance');
+    case 'credit':
+      return t('channel.edit.billing.resource_types.credit');
+    case 'plan':
+      return t('channel.edit.billing.resource_types.plan');
+    case 'quota':
+    default:
+      return t('channel.edit.billing.resource_types.quota');
+  }
+};
+
 const formatExpiresAtText = (item, timestamp2string, t) => {
   const expiresAt = Number(item?.expires_at || 0);
   if (expiresAt <= 0) {
     return t('channel.edit.billing.no_expire');
   }
   return timestamp2string(expiresAt);
+};
+
+const formatResetAtText = (item, timestamp2string, t) => {
+  const resetAt = Number(item?.reset_at || 0);
+  if (resetAt <= 0) {
+    return '-';
+  }
+  return timestamp2string(resetAt);
+};
+
+const formatUsageText = (item) => {
+  const remaining = Number(item?.remaining_amount || 0);
+  const limit = Number(item?.limit_amount || 0);
+  const currency = (item?.currency || '').toString().trim();
+  if (limit > 0) {
+    return `${remaining} / ${limit}${currency ? ` ${currency}` : ''}`;
+  }
+  return formatAmountText({
+    amount: remaining || item?.amount || 0,
+    currency,
+  });
+};
+
+const formatRemainingRatioText = (item) => {
+  const limit = Number(item?.limit_amount || 0);
+  const remaining = Number(item?.remaining_amount || 0);
+  if (!(limit > 0)) {
+    return '-';
+  }
+  return `${((remaining / limit) * 100).toFixed(2)}%`;
+};
+
+const formatItemStatusText = (item, t) => {
+  const status = (item?.status || '').toString().trim().toLowerCase();
+  switch (status) {
+    case 'low':
+      return t('channel.edit.billing.quota_table.status_low');
+    case 'depleted':
+      return t('channel.edit.billing.quota_table.status_depleted');
+    case 'expired':
+      return t('channel.edit.billing.quota_table.status_expired');
+    case 'active':
+    default:
+      return t('channel.edit.billing.quota_table.status_active');
+  }
+};
+
+const formatAlertTypeText = (row, t) => {
+  const eventType = (row?.event_type || '').toString().trim().toLowerCase();
+  switch (eventType) {
+    case 'expiring_soon':
+      return t('channel.edit.billing.alert_table.event_expiring_soon');
+    case 'low_remaining':
+      return t('channel.edit.billing.alert_table.event_low_remaining');
+    default:
+      return eventType || '-';
+  }
+};
+
+const formatAlertStatusText = (row, t) => {
+  const status = (row?.status || '').toString().trim().toLowerCase();
+  switch (status) {
+    case 'failed':
+      return t('channel.edit.billing.alert_table.status_failed');
+    case 'sent':
+    default:
+      return t('channel.edit.billing.alert_table.status_sent');
+  }
+};
+
+const formatAlertQuotaLabelText = (row, t) => {
+  const payload = row?.payload || {};
+  const quotaLabel = (payload?.quota_label || '').toString().trim();
+  if (quotaLabel !== '') {
+    return quotaLabel;
+  }
+  const quotaType = (payload?.quota_type || '').toString().trim().toLowerCase();
+  if (quotaType !== '') {
+    return t(`channel.edit.billing.quota_types.${quotaType}`, {
+      defaultValue: quotaType,
+    });
+  }
+  return '-';
+};
+
+const formatAlertQuotaValueText = (row) => {
+  const payload = row?.payload || {};
+  const remaining = Number(payload?.remaining_amount || 0);
+  const limit = Number(payload?.limit_amount || 0);
+  const currency = (payload?.currency || '').toString().trim();
+  if (limit > 0) {
+    return `${remaining} / ${limit}${currency ? ` ${currency}` : ''}`;
+  }
+  if (remaining > 0) {
+    return `${remaining}${currency ? ` ${currency}` : ''}`;
+  }
+  return '-';
+};
+
+const formatAlertRatioText = (row) => {
+  const payload = row?.payload || {};
+  const remaining = Number(payload?.remaining_amount || 0);
+  const limit = Number(payload?.limit_amount || 0);
+  if (!(limit > 0)) {
+    return '-';
+  }
+  return `${((remaining / limit) * 100).toFixed(2)}%`;
+};
+
+const formatAlertExpiresAtText = (row, timestamp2string, t) => {
+  const payload = row?.payload || {};
+  return formatExpiresAtText(
+    {
+      expires_at: Number(payload?.expires_at || 0),
+    },
+    timestamp2string,
+    t,
+  );
 };
 
 const toUnixTimestamp = (value) => {
@@ -65,6 +206,7 @@ const ChannelDetailBillingTab = ({
   billingLoading,
   billingError,
   billingSnapshots,
+  billingAlerts,
   billingReadonly,
   billingSubmitting,
   onRefreshBilling,
@@ -72,7 +214,7 @@ const ChannelDetailBillingTab = ({
   onManualSnapshotUpdate,
   timestamp2string,
 }) => {
-  const [cdk, setCDK] = useState('');
+  const [activateCredential, setActivateCredential] = useState('');
   const [manualMessage, setManualMessage] = useState('');
   const [manualItems, setManualItems] = useState([buildManualQuotaItem()]);
   const [manualModalOpen, setManualModalOpen] = useState(false);
@@ -87,6 +229,7 @@ const ChannelDetailBillingTab = ({
   const quotaItems = Array.isArray(billingSummary?.quota_items)
     ? billingSummary.quota_items
     : [];
+  const alertRecords = Array.isArray(billingAlerts) ? billingAlerts : [];
 
   const appendManualItem = () => {
     setManualItems((prev) => [...prev, buildManualQuotaItem()]);
@@ -123,6 +266,7 @@ const ChannelDetailBillingTab = ({
   const submitManualSnapshot = async () => {
     const saved = await onManualSnapshotUpdate({
       items: manualItems.map((manualItem) => ({
+        resource_type: manualItem.resource_type,
         quota_type: manualItem.quota_type,
         quota_label: manualItem.quota_label,
         amount: manualItem.amount,
@@ -142,6 +286,19 @@ const ChannelDetailBillingTab = ({
     <div>
       {manualItems.map((item, index) => (
         <AppFormRow key={`manual-quota-${index}`}>
+          <AppField label={t('channel.edit.billing.manual_resource_type')} required>
+            <AppSelect
+              className='router-section-input'
+              options={resourceTypeOptions(t)}
+              value={item.resource_type}
+              onChange={(e, { value }) =>
+                updateManualItem(index, {
+                  resource_type: (value || '').toString(),
+                })
+              }
+              disabled={billingReadonly || billingSubmitting}
+            />
+          </AppField>
           <AppField label={t('channel.edit.billing.manual_quota_type')}>
             <AppSelect
               className='router-section-input'
@@ -264,9 +421,9 @@ const ChannelDetailBillingTab = ({
           headerEnd={
             <div className='router-billing-quota-status-actions'>
               <span className='router-billing-snapshot-time'>
-                {billingSummary?.latest_snapshot_at
-                  ? timestamp2string(billingSummary.latest_snapshot_at)
-                  : '-'}
+                  {billingSummary?.latest_snapshot_at
+                    ? timestamp2string(billingSummary.latest_snapshot_at)
+                    : '-'}
               </span>
               {billingSummary?.refresh_supported ? (
                 <AppButton
@@ -291,6 +448,13 @@ const ChannelDetailBillingTab = ({
             rowKey={(row, index) => `${row?.quota_label || row?.quota_type || 'quota'}-${index}`}
             columns={[
               {
+                title: t('channel.edit.billing.quota_table.resource_type'),
+                dataIndex: 'resource_type',
+                key: 'resource_type',
+                width: 120,
+                render: (_, row) => formatResourceTypeText(row, t),
+              },
+              {
                 title: t('channel.edit.billing.quota_table.quota_label'),
                 dataIndex: 'quota_label',
                 key: 'quota_label',
@@ -303,16 +467,38 @@ const ChannelDetailBillingTab = ({
               },
               {
                 title: t('channel.edit.billing.quota_table.amount'),
-                dataIndex: 'amount',
-                key: 'amount',
+                dataIndex: 'remaining_amount',
+                key: 'remaining_amount',
                 width: 180,
-                render: (_, row) => formatAmountText(row),
+                render: (_, row) => formatUsageText(row),
+              },
+              {
+                title: t('channel.edit.billing.quota_table.remaining_ratio'),
+                dataIndex: 'limit_amount',
+                key: 'remaining_ratio',
+                width: 120,
+                render: (_, row) => formatRemainingRatioText(row),
+              },
+              {
+                title: t('channel.edit.billing.quota_table.reset_at'),
+                dataIndex: 'reset_at',
+                key: 'reset_at',
+                width: 180,
+                render: (_, row) => formatResetAtText(row, timestamp2string, t),
               },
               {
                 title: t('channel.edit.billing.quota_table.expires_at'),
                 dataIndex: 'expires_at',
                 key: 'expires_at',
+                width: 180,
                 render: (_, row) => formatExpiresAtText(row, timestamp2string, t),
+              },
+              {
+                title: t('channel.edit.billing.quota_table.status'),
+                dataIndex: 'status',
+                key: 'status',
+                width: 120,
+                render: (_, row) => formatItemStatusText(row, t),
               },
             ]}
             locale={{
@@ -326,12 +512,16 @@ const ChannelDetailBillingTab = ({
             titleTag='span'
           >
             <AppFormRow>
-              <AppField label={t('channel.edit.billing.cdk')} required>
+              <AppField label={t('channel.edit.billing.activate_input')} required>
                 <AppInput
                   className='router-section-input'
-                  value={cdk}
-                  onChange={(e, { value }) => setCDK((value || '').toString())}
+                  type='password'
+                  value={activateCredential}
+                  onChange={(e, { value }) =>
+                    setActivateCredential((value || '').toString())
+                  }
                   readOnly={billingReadonly || billingSubmitting}
+                  autoComplete='new-password'
                 />
               </AppField>
             </AppFormRow>
@@ -341,7 +531,7 @@ const ChannelDetailBillingTab = ({
               color='blue'
               loading={billingSubmitting}
               disabled={billingReadonly || billingSubmitting}
-              onClick={() => onOpenActivatePage(cdk)}
+              onClick={() => onOpenActivatePage(activateCredential)}
             >
               {t('channel.edit.billing.open_activate_page')}
             </AppButton>
@@ -384,7 +574,12 @@ const ChannelDetailBillingTab = ({
                 key: 'items',
                 render: (items) =>
                   Array.isArray(items) && items.length > 0
-                    ? items.map((row) => `${row.quota_label || row.quota_type}: ${formatAmountText(row)}`).join(' / ')
+                    ? items
+                        .map(
+                          (row) =>
+                            `${row.quota_label || row.quota_type}: ${formatUsageText(row)}`,
+                        )
+                        .join(' / ')
                     : '-',
               },
               {
@@ -394,6 +589,79 @@ const ChannelDetailBillingTab = ({
                 render: (value) => value || '-',
               },
             ]}
+          />
+        </AppDetailSection>
+        <AppDetailSection
+          title={t('channel.edit.billing.alerts_title')}
+          titleTag='span'
+        >
+          <AppTable
+            className='router-detail-table'
+            pagination={false}
+            loading={billingLoading}
+            dataSource={alertRecords}
+            rowKey={(row) => row.id}
+            columns={[
+              {
+                title: t('channel.edit.billing.alert_table.created_at'),
+                dataIndex: 'created_at',
+                key: 'created_at',
+                width: 180,
+                render: (value) => (value ? timestamp2string(value) : '-'),
+              },
+              {
+                title: t('channel.edit.billing.alert_table.event_type'),
+                dataIndex: 'event_type',
+                key: 'event_type',
+                width: 160,
+                render: (_, row) => formatAlertTypeText(row, t),
+              },
+              {
+                title: t('channel.edit.billing.alert_table.quota_label'),
+                dataIndex: 'payload',
+                key: 'quota_label',
+                width: 140,
+                render: (_, row) => formatAlertQuotaLabelText(row, t),
+              },
+              {
+                title: t('channel.edit.billing.alert_table.amount'),
+                dataIndex: 'payload',
+                key: 'amount',
+                width: 180,
+                render: (_, row) => formatAlertQuotaValueText(row),
+              },
+              {
+                title: t('channel.edit.billing.alert_table.remaining_ratio'),
+                dataIndex: 'payload',
+                key: 'remaining_ratio',
+                width: 120,
+                render: (_, row) => formatAlertRatioText(row),
+              },
+              {
+                title: t('channel.edit.billing.alert_table.expires_at'),
+                dataIndex: 'payload',
+                key: 'expires_at',
+                width: 180,
+                render: (_, row) =>
+                  formatAlertExpiresAtText(row, timestamp2string, t),
+              },
+              {
+                title: t('channel.edit.billing.alert_table.status'),
+                dataIndex: 'status',
+                key: 'status',
+                width: 120,
+                render: (_, row) => formatAlertStatusText(row, t),
+              },
+              {
+                title: t('channel.edit.billing.alert_table.title'),
+                dataIndex: 'title',
+                key: 'title',
+                render: (value) => value || '-',
+              },
+            ]}
+            locale={{
+              emptyText: t('channel.edit.billing.alert_table.empty'),
+            }}
           />
         </AppDetailSection>
         <AppModal

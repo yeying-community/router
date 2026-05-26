@@ -16,7 +16,6 @@ import (
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/admin/model"
-	"github.com/yeying-community/router/internal/admin/monitor"
 	channelsvc "github.com/yeying-community/router/internal/admin/service/channel"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 
@@ -140,6 +139,42 @@ type CDKUsageStatsResponse struct {
 		TotalConsumed   float64 `json:"totalConsumed"`
 		TotalRemaining  float64 `json:"totalRemaining"`
 		TotalLimit      float64 `json:"totalLimit"`
+	} `json:"data"`
+}
+
+type CDKCardInfoResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		OK                             bool    `json:"ok"`
+		Status                         string  `json:"status"`
+		CanRenew                       bool    `json:"canRenew"`
+		MaskedCDK                      string  `json:"maskedCdk"`
+		ProductName                    string  `json:"productName"`
+		CategoryName                   string  `json:"categoryName"`
+		CategoryPool                   string  `json:"categoryPool"`
+		BillingMode                    string  `json:"billingMode"`
+		ExpiresAt                      string  `json:"expiresAt"`
+		ExpireTime                     string  `json:"expireTime"`
+		ExpireDays                     int     `json:"expireDays"`
+		DailyQuota                     float64 `json:"dailyQuota"`
+		AllowRefundRequest             bool    `json:"allowRefundRequest"`
+		AllowDailyLimitReset           bool    `json:"allowDailyLimitReset"`
+		CanResetDailyLimit             bool    `json:"canResetDailyLimit"`
+		DailyLimitResetMaxTimes        int     `json:"dailyLimitResetMaxTimes"`
+		DailyLimitResetRemainingTimes  int     `json:"dailyLimitResetRemainingTimes"`
+		DailyLimitResetCostDays        int     `json:"dailyLimitResetCostDays"`
+		AllowWeeklyLimitReset          bool    `json:"allowWeeklyLimitReset"`
+		CanResetWeeklyLimit            bool    `json:"canResetWeeklyLimit"`
+		WeeklyLimitResetMaxTimes       int     `json:"weeklyLimitResetMaxTimes"`
+		WeeklyLimitResetRemainingTimes int     `json:"weeklyLimitResetRemainingTimes"`
+		WeeklyLimitResetCostDays       int     `json:"weeklyLimitResetCostDays"`
+		LimitConcurrentSessions        int     `json:"limitConcurrentSessions"`
+		Key                            string  `json:"key"`
+		Nickname                       string  `json:"nickname"`
+		UpstreamUserName               string  `json:"upstreamUserName"`
+		CanConvertToUsage              bool    `json:"canConvertToUsage"`
+		CanPlanConvert                 bool    `json:"canPlanConvert"`
 	} `json:"data"`
 }
 
@@ -403,6 +438,30 @@ func fetchChannelCDKBillingStats(channel *model.Channel, profile model.ChannelBi
 	return &response, nil
 }
 
+func fetchChannelCDKCardInfo(channel *model.Channel, profile model.ChannelBillingProfile) (*CDKCardInfoResponse, error) {
+	baseURL := resolveChannelBillingAPIBaseURL(channel, profile)
+	if baseURL == "" {
+		return nil, errors.New("渠道账务未配置 CDK API 地址")
+	}
+	cdkKey := resolveChannelCDKKey(channel, profile)
+	if cdkKey == "" {
+		return nil, errors.New("渠道未配置 CDK 密钥")
+	}
+	cardInfoURL := fmt.Sprintf("%s/api/public/card-info?cdk=%s", baseURL, cdkKey)
+	body, err := fetchChannelBillingResponseBody("GET", cardInfoURL, channel, http.Header{})
+	if err != nil {
+		return nil, err
+	}
+	response := CDKCardInfoResponse{}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+	if response.Code != 0 {
+		return nil, fmt.Errorf("CDK 套餐信息查询失败: %s", response.Message)
+	}
+	return &response, nil
+}
+
 func buildCDKBillingSnapshotItems(stats *CDKUsageStatsResponse, currency string) []model.ChannelBillingSnapshotItem {
 	data := stats.Data
 	items := make([]model.ChannelBillingSnapshotItem, 0, 3)
@@ -444,11 +503,18 @@ func buildCDKBillingSnapshotItems(stats *CDKUsageStatsResponse, currency string)
 
 func resolveChannelCDKBillingRequestURL(channel *model.Channel, profile model.ChannelBillingProfile) string {
 	baseURL := resolveChannelBillingAPIBaseURL(channel, profile)
-	cdkKey := resolveChannelCDKKey(channel, profile)
-	if baseURL == "" || cdkKey == "" {
+	if baseURL == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s/api/public/usage/stats?cdk=%s", baseURL, cdkKey)
+	return fmt.Sprintf("%s/api/public/usage/stats?cdk=***", baseURL)
+}
+
+func resolveChannelCDKCardInfoRequestURL(channel *model.Channel, profile model.ChannelBillingProfile) string {
+	baseURL := resolveChannelBillingAPIBaseURL(channel, profile)
+	if baseURL == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/api/public/card-info?cdk=***", baseURL)
 }
 
 func refreshAndPersistChannelCDKBilling(channel *model.Channel, profile model.ChannelBillingProfile, message string) (float64, error) {
@@ -687,24 +753,9 @@ func refreshAllChannelsBilling() error {
 			continue
 		}
 		profile, _ := model.GetChannelBillingProfileByChannelIDWithDB(model.DB, channel.Id)
-		if strings.TrimSpace(profile.BillingMode) == model.ChannelBillingModeBuiltinCDK {
-			primaryAmount, err := refreshAndPersistChannelCDKBilling(channel, profile, "批量自动刷新账务")
-			if err == nil && primaryAmount <= 0 {
-				monitor.DisableChannelForInsufficientBalance(channel.Id, channel.DisplayName(), primaryAmount)
-			}
+		if _, err := refreshAndPersistChannelBillingEntitlements(channel, profile, "批量自动刷新账务"); err != nil {
 			time.Sleep(config.RequestInterval)
 			continue
-		}
-		primaryAmount, err := refreshChannelBillingAmount(channel)
-		if err != nil {
-			continue
-		} else {
-			if err := persistChannelAutoBillingSnapshot(channel, primaryAmount, "批量自动刷新账务"); err != nil {
-				continue
-			}
-			if primaryAmount <= 0 {
-				monitor.DisableChannelForInsufficientBalance(channel.Id, channel.DisplayName(), primaryAmount)
-			}
 		}
 		time.Sleep(config.RequestInterval)
 	}

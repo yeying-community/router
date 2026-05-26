@@ -370,30 +370,13 @@ func executeChannelRefreshBillingTask(task *model.AsyncTask) (string, error) {
 		return "", err
 	}
 	profile, _ := model.GetChannelBillingProfileByChannelIDWithDB(model.DB, channelID)
-	if strings.TrimSpace(profile.BillingMode) == model.ChannelBillingModeBuiltinCDK {
-		primaryAmount, err := refreshAndPersistChannelCDKBilling(channelRow, profile, "自动刷新账务")
-		if err != nil {
-			return "", err
-		}
-		disableChannelForScheduledBillingInsufficientBalance(task, channelRow, primaryAmount)
-		return marshalJSONForLog(map[string]any{
-			"channel_id":           channelID,
-			"billing_mode":         model.ChannelBillingModeBuiltinCDK,
-			"billing_api_base_url": resolveChannelBillingAPIBaseURL(channelRow, profile),
-			"billing_request_url":  resolveChannelCDKBillingRequestURL(channelRow, profile),
-			"primary_amount":       primaryAmount,
-		}), nil
-	}
-	primaryAmount, err := refreshChannelBillingAmount(channelRow)
+	primaryAmount, err := refreshAndPersistChannelBillingEntitlements(channelRow, profile, "自动刷新账务")
 	if err != nil {
 		return "", err
 	}
-	if err := persistChannelAutoBillingSnapshot(channelRow, primaryAmount, "自动刷新账务"); err != nil {
-		return "", err
-	}
-	disableChannelForScheduledBillingInsufficientBalance(task, channelRow, primaryAmount)
 	return marshalJSONForLog(map[string]any{
 		"channel_id":           channelID,
+		"billing_mode":         strings.TrimSpace(profile.BillingMode),
 		"billing_api_base_url": resolveChannelBillingAPIBaseURL(channelRow, profile),
 		"account_portal_url":   channelRow.ResolveAccountBaseURL(),
 		"billing_request_urls": resolveChannelBillingRequestURLs(channelRow),

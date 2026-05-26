@@ -54,11 +54,24 @@ type channelBillingManualSnapshotRequest struct {
 }
 
 type channelBillingManualQuotaItemRequest struct {
-	QuotaType  string  `json:"quota_type"`
-	QuotaLabel string  `json:"quota_label"`
-	Amount     float64 `json:"amount"`
-	Currency   string  `json:"currency"`
-	ExpiresAt  int64   `json:"expires_at"`
+	ResourceType string  `json:"resource_type"`
+	QuotaType    string  `json:"quota_type"`
+	QuotaLabel   string  `json:"quota_label"`
+	Amount       float64 `json:"amount"`
+	Currency     string  `json:"currency"`
+	ExpiresAt    int64   `json:"expires_at"`
+}
+
+func isSupportedBillingResourceType(value string) bool {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case model.ChannelBillingResourceTypeQuota,
+		model.ChannelBillingResourceTypeBalance,
+		model.ChannelBillingResourceTypeCredit,
+		model.ChannelBillingResourceTypePlan:
+		return true
+	default:
+		return false
+	}
 }
 
 type channelBillingProfileUpdateRequest struct {
@@ -196,6 +209,21 @@ func GetChannelBillingActions(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": channelBillingListData[model.ChannelBillingAction]{Items: rows, Total: len(rows)}})
+}
+
+func GetChannelBillingAlerts(c *gin.Context) {
+	channelID := strings.TrimSpace(c.Param("id"))
+	if channelID == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "渠道 ID 无效"})
+		return
+	}
+	rows, err := model.ListChannelBillingAlertEventsByChannelIDWithDB(model.DB, channelID, 50)
+	if err != nil {
+		logChannelAdminWarn(c, "list_billing_alerts", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": channelBillingListData[model.ChannelBillingAlertEvent]{Items: rows, Total: len(rows)}})
 }
 
 func UpdateChannelBillingProfile(c *gin.Context) {
@@ -367,6 +395,11 @@ func CreateChannelBillingSnapshot(c *gin.Context) {
 	}
 	quotaItems := make([]model.ChannelBillingSnapshotItem, 0, len(req.Items))
 	for index, item := range req.Items {
+		resourceType := strings.TrimSpace(strings.ToLower(item.ResourceType))
+		if !isSupportedBillingResourceType(resourceType) {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("第 %d 条权益类型无效", index+1)})
+			return
+		}
 		quotaLabel := strings.TrimSpace(item.QuotaLabel)
 		if quotaLabel == "" {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("第 %d 条额度名称不能为空", index+1)})
@@ -377,16 +410,20 @@ func CreateChannelBillingSnapshot(c *gin.Context) {
 			return
 		}
 		quotaItems = append(quotaItems, model.ChannelBillingSnapshotItem{
-			QuotaType:  strings.TrimSpace(item.QuotaType),
-			QuotaLabel: quotaLabel,
-			Amount:     item.Amount,
-			Currency:   strings.TrimSpace(item.Currency),
-			ExpiresAt:  item.ExpiresAt,
-			SortOrder:  index + 1,
+			ResourceType:    resourceType,
+			QuotaType:       strings.TrimSpace(item.QuotaType),
+			QuotaLabel:      quotaLabel,
+			Amount:          item.Amount,
+			LimitAmount:     item.Amount,
+			RemainingAmount: item.Amount,
+			Currency:        strings.TrimSpace(item.Currency),
+			ExpiresAt:       item.ExpiresAt,
+			SourceRef:       "manual",
+			SortOrder:       index + 1,
 		})
 	}
 	if len(quotaItems) == 0 {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请至少填写一条额度"})
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请至少填写一条权益项"})
 		return
 	}
 	channelRow, profile, err := getEffectiveChannelBillingProfile(channelID)

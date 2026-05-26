@@ -10,13 +10,13 @@ import (
 	"github.com/yeying-community/router/internal/admin/model"
 )
 
-func notifyRootUser(subject string, content string) {
+func notifyRootUser(subject string, content string) error {
 	if strings.TrimSpace(config.NotifyProvider) != "" && strings.TrimSpace(config.NotifyWebhookURL) != "" {
 		err := message.SendMessage(subject, content, content)
 		if err != nil {
 			logger.SysError(fmt.Sprintf("failed to send message: %s", err.Error()))
 		} else {
-			return
+			return nil
 		}
 	}
 	if config.RootUserEmail == "" {
@@ -26,6 +26,11 @@ func notifyRootUser(subject string, content string) {
 	if err != nil {
 		logger.SysError(fmt.Sprintf("failed to send email: %s", err.Error()))
 	}
+	return err
+}
+
+func NotifyRootUser(subject string, content string) error {
+	return notifyRootUser(subject, content)
 }
 
 // DisableChannel disable & notify
@@ -42,7 +47,7 @@ func DisableChannel(channelId string, channelName string, reason string) {
 			<p style="background-color: #f8f8f8; padding: 10px; border-radius: 4px;">%s</p>
 		`, channelName, channelId, reason),
 	)
-	notifyRootUser(subject, content)
+	_ = notifyRootUser(subject, content)
 }
 
 func DisableChannelForInsufficientBalance(channelId string, channelName string, balance float64) {
@@ -59,7 +64,7 @@ func DisableChannelForInsufficientBalance(channelId string, channelName string, 
 			<p>请及时检查上游账户余额或补充采购记录。</p>
 		`, channelName, channelId, balance),
 	)
-	notifyRootUser(subject, content)
+	_ = notifyRootUser(subject, content)
 }
 
 func MetricDisableChannel(channelId string, successRate float64) {
@@ -75,7 +80,7 @@ func MetricDisableChannel(channelId string, successRate float64) {
 			<p style="background-color: #f8f8f8; padding: 10px; border-radius: 4px;">该渠道在最近 %d 次调用中成功率为 <strong>%.2f%%</strong>，低于系统阈值 <strong>%.2f%%</strong>。</p>
 		`, channelId, config.MetricQueueSize, successRate*100, config.MetricSuccessRateThreshold*100),
 	)
-	notifyRootUser(subject, content)
+	_ = notifyRootUser(subject, content)
 }
 
 // EnableChannel enable & notify
@@ -91,5 +96,5 @@ func EnableChannel(channelId string, channelName string) {
 			<p>您现在可以继续使用该渠道了。</p>
 		`, channelName, channelId),
 	)
-	notifyRootUser(subject, content)
+	_ = notifyRootUser(subject, content)
 }

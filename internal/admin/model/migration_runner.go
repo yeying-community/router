@@ -1262,6 +1262,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 					}).Error
 			},
 		},
+		{
+			Version:     "202605261030_channel_billing_entitlement_framework",
+			Description: "upgrade channel billing items to standard entitlement fields and add alert events",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelBillingSnapshotItem{}, &ChannelBillingAlertEvent{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

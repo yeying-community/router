@@ -23,6 +23,19 @@ const billingModeOptions = (t) => [
   { value: 'builtin_cdk', label: t('channel.edit.billing.modes.builtin_cdk') },
 ];
 
+const maskSecret = (value) => {
+  const normalizedValue = typeof value === 'string' ? value.trim() : '';
+  if (!normalizedValue) {
+    return '-';
+  }
+  if (normalizedValue.length <= 6) {
+    return '*'.repeat(normalizedValue.length);
+  }
+  return `${normalizedValue.slice(0, 3)}${'*'.repeat(
+    normalizedValue.length - 6,
+  )}${normalizedValue.slice(-3)}`;
+};
+
 const ChannelDetailOverviewTab = ({
   t,
   inputs,
@@ -260,10 +273,11 @@ const ChannelDetailOverviewTab = ({
             <AppField label={t('channel.edit.billing.cdk')}>
               <AppInput
                 className='router-section-input'
+                type={detailBillingEditing ? 'password' : undefined}
                 value={
                   detailBillingEditing
                     ? detailBillingDraft?.cdk || ''
-                    : billingProfile?.cdk || '-'
+                    : maskSecret(billingProfile?.cdk)
                 }
                 onChange={(e, { value }) =>
                   onUpdateBillingProfileDraft({
@@ -271,6 +285,7 @@ const ChannelDetailOverviewTab = ({
                   })
                 }
                 readOnly={billingReadonly}
+                autoComplete='new-password'
               />
             </AppField>
             <AppField label={t('channel.edit.billing.currency')}>
