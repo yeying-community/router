@@ -799,14 +799,8 @@ const AdminDashboard = () => {
         { key: activeSection, label: activeSectionTitle, active: true },
       ]}
       title={activeSectionTitle}
-      meta={t('dashboard.admin.updated_at', {
-        time: formatUpdatedAt(dashboard.generated_at),
-      })}
       picker={
         <div className='admin-dashboard-period'>
-          <span className='admin-dashboard-period-label'>
-            {t('dashboard.admin.period.label')}
-          </span>
           <AppSelect
             className='router-section-dropdown'
             options={periodOptions}
@@ -816,14 +810,19 @@ const AdminDashboard = () => {
         </div>
       }
       actions={
-        <AppButton
-          className='router-inline-button'
-          type='button'
-          loading={loading}
-          onClick={loadData}
-        >
-          {t('dashboard.admin.buttons.refresh')}
-        </AppButton>
+        <>
+          <span className='admin-dashboard-generated-at'>
+            {formatUpdatedAt(dashboard.generated_at)}
+          </span>
+          <AppButton
+            className='router-inline-button'
+            type='button'
+            loading={loading}
+            onClick={loadData}
+          >
+            {t('dashboard.admin.buttons.refresh')}
+          </AppButton>
+        </>
       }
       endClassName='admin-dashboard-toolbar-end'
     />

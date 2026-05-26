@@ -20,8 +20,7 @@
 }
 
 .admin-dashboard-toolbar .router-toolbar-meta {
-  color: #6b7280;
-  font-size: 12px;
+  display: none;
 }
 
 .admin-dashboard-toolbar .router-filter-toolbar {
@@ -32,13 +31,7 @@
 .admin-dashboard-period {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-}
-
-.admin-dashboard-period-label {
-  color: #6b7280;
-  font-size: 12px;
-  white-space: nowrap;
+  height: 32px;
 }
 
 .admin-dashboard-toolbar-end {
@@ -48,9 +41,33 @@
   flex-wrap: wrap;
 }
 
-.admin-dashboard-updated {
-  font-size: 12px;
+.admin-dashboard-generated-at {
   color: #6b7280;
+  font-size: 12px;
+  line-height: 32px;
+  white-space: nowrap;
+}
+
+.admin-dashboard-toolbar .router-ui-select.router-section-dropdown,
+.admin-dashboard-toolbar .router-ui-select.router-section-dropdown .ant-select-selector,
+.admin-dashboard-toolbar .router-ui-button.router-inline-button {
+  min-height: 32px !important;
+  height: 32px !important;
+}
+
+.admin-dashboard-toolbar .router-ui-select.router-section-dropdown {
+  min-width: 132px;
+}
+
+.admin-dashboard-toolbar .router-ui-select.router-section-dropdown .ant-select-selector {
+  align-items: center;
+}
+
+.admin-dashboard-toolbar .router-ui-button.router-inline-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 .admin-dashboard-kpi-grid {

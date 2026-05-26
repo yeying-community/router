@@ -1241,7 +1241,7 @@ const UserDetail = () => {
                     </AppField>
                   )}
                   <AppField label={t('user.table.role_text')}>
-                    <div>{roleControl}</div>
+                    {roleControl}
                   </AppField>
                 </AppFormRow>
 
