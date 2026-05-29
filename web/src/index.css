@@ -3755,7 +3755,7 @@ body,
 }
 
 .router-ui-table.router-billing-currency-table .ant-table {
-    min-width: 980px;
+    min-width: 1048px;
 }
 
 .router-ui-table.router-billing-currency-table .ant-table-thead > tr > th,
@@ -3765,29 +3765,30 @@ body,
 
 .router-ui-table.router-billing-currency-table .ant-table-thead > tr > th.router-billing-code-cell,
 .router-ui-table.router-billing-currency-table .ant-table-tbody > tr > td.router-billing-code-cell {
-    width: 56px !important;
-    max-width: 56px;
+    width: 96px !important;
+    max-width: 96px;
 }
 
 .router-ui-table.router-billing-currency-table .ant-table-thead > tr > th.router-billing-symbol-cell,
 .router-ui-table.router-billing-currency-table .ant-table-tbody > tr > td.router-billing-symbol-cell {
-    width: 36px !important;
-    max-width: 36px;
+    width: 88px !important;
+    max-width: 88px;
 }
 
-.router-ui-input.router-billing-code-input .ant-input {
-    width: 48px !important;
-    min-width: 48px !important;
+.router-ui-input.router-billing-code-input {
+    width: 72px !important;
+    min-width: 72px !important;
 }
 
-.router-ui-input.router-billing-symbol-input .ant-input {
-    width: 28px !important;
-    min-width: 28px !important;
+.router-ui-input.router-billing-symbol-input {
+    width: 64px !important;
+    min-width: 64px !important;
+    text-align: center;
 }
 
 .router-billing-action-cell {
-    width: 180px !important;
-    max-width: 180px;
+    width: 148px !important;
+    max-width: 148px;
 }
 
 .router-billing-snapshot-time {

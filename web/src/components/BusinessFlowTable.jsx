@@ -5,7 +5,6 @@ import { API, showError, timestamp2string } from '../helpers';
 import { ITEMS_PER_PAGE } from '../constants';
 import {
   BUSINESS_FLOW_COLUMN_WIDTHS,
-  BUSINESS_FLOW_TABLE_MIN_WIDTH,
 } from '../constants/tableWidthPresets';
 import UnitDropdown from './UnitDropdown';
 import { buildBillingCurrencyIndex, buildDisplayUnitOptions, formatDisplayAmountFromYYC } from '../helpers/billing';
@@ -26,6 +25,7 @@ const BUSINESS_FLOW_HEADER_KEY = {
   topup: 'header.topup',
   'topup-reconcile': 'flow.topup_reconcile.title',
   package: 'header.package',
+  redemption: 'flow.redemption.title',
 };
 
 const readOnlyText = (value) => {
@@ -697,6 +697,18 @@ const BusinessFlowTable = ({ kind }) => {
     return nextItems;
   }, [config.columns, items, tableSorter]);
 
+  const tableMinWidth = useMemo(
+    () =>
+      Math.max(
+        (config.columns || []).reduce(
+          (total, column) => total + Number(column?.width || 0),
+          0,
+        ),
+        640,
+      ),
+    [config.columns],
+  );
+
   const statusDropdownOptions = useMemo(
     () =>
       (Array.isArray(config.statusOptions) ? config.statusOptions : []).map((option) => {
@@ -882,7 +894,7 @@ const BusinessFlowTable = ({ kind }) => {
         <AppTable
           className='router-hover-table router-list-table router-table-fit-page'
           pagination={false}
-          scroll={{ x: BUSINESS_FLOW_TABLE_MIN_WIDTH }}
+          scroll={{ x: tableMinWidth }}
           rowKey={(row) => row.id || row.transaction_id || row.package_id}
           onChange={(_, __, sorter) => {
             if (!sorter || Array.isArray(sorter) || !sorter.columnKey || !sorter.order) {
