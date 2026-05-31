@@ -26,6 +26,8 @@ import {
   AppModal,
   AppSelect,
   AppSwitch,
+  AppTable,
+  AppTabs,
   AppTextarea,
 } from '../../router-ui';
 
@@ -59,10 +61,22 @@ const toUserOption = (item) => {
   const id = (item?.id || '').toString().trim();
   const username = (item?.username || '').toString().trim();
   const displayName = (item?.display_name || '').toString().trim();
+  const walletAddress = (item?.wallet_address || '').toString().trim();
+  const normalizedUsername = username.toLowerCase();
+  const normalizedDisplayName = displayName.toLowerCase();
+  const primaryName = displayName || username;
+  const secondaryName =
+    primaryName &&
+    normalizedUsername &&
+    normalizedDisplayName &&
+    normalizedUsername !== normalizedDisplayName
+      ? (primaryName === displayName ? username : displayName)
+      : '';
   return {
     key: id,
     value: id,
-    text: [username, displayName].filter(Boolean).join(' / ') || id,
+    text: [primaryName, secondaryName].filter(Boolean).join(' / ') || id,
+    wallet_address: walletAddress,
   };
 };
 
@@ -101,6 +115,40 @@ const appendUserOptionsIfMissing = (options, users) => {
     nextOptions.push(option);
   });
   return nextOptions;
+};
+
+const resolveDisplayUserName = (username, displayName, fallbackID = '') => {
+  const normalizedUsername = (username || '').toString().trim();
+  const normalizedDisplayName = (displayName || '').toString().trim();
+  return normalizedDisplayName || normalizedUsername || fallbackID;
+};
+
+const resolveSelectedUserListFromOptions = (userIDs, options) => {
+  const optionMap = new Map(
+    (Array.isArray(options) ? options : [])
+      .map((item) => [
+        (item?.value || '').toString().trim(),
+        {
+          label: (item?.text || '').toString().trim(),
+          walletAddress: (item?.wallet_address || '').toString().trim(),
+        },
+      ])
+      .filter(([key]) => key !== ''),
+  );
+  return (Array.isArray(userIDs) ? userIDs : [])
+    .map((item) => {
+      const id = (item || '').toString().trim();
+      if (!id) {
+        return null;
+      }
+      const matched = optionMap.get(id);
+      return {
+        key: id,
+        label: matched?.label || id,
+        walletAddress: matched?.walletAddress || '',
+      };
+    })
+    .filter(Boolean);
 };
 
 const formatByCurrencyMinorUnit = (amount, currency) => {
@@ -151,11 +199,17 @@ const PackageDetail = () => {
   );
   const [editOpen, setEditOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [visibilitySubmitting, setVisibilitySubmitting] = useState(false);
   const [form, setForm] = useState(createEmptyForm('USD'));
+  const [visibilityScope, setVisibilityScope] = useState('all');
+  const [visibilityUserIDs, setVisibilityUserIDs] = useState([]);
   const [groupOptions, setGroupOptions] = useState([]);
   const [groupLoading, setGroupLoading] = useState(false);
   const [userOptions, setUserOptions] = useState([]);
   const [userLoading, setUserLoading] = useState(false);
+  const [activeTabKey, setActiveTabKey] = useState('basic');
+  const [visibilityPickerOpen, setVisibilityPickerOpen] = useState(false);
+  const [visibilityPickerValue, setVisibilityPickerValue] = useState([]);
 
   const normalizedId = useMemo(() => (id || '').toString().trim(), [id]);
 
@@ -168,6 +222,32 @@ const PackageDetail = () => {
     () => buildBillingUnitOptions(currencyIndex),
     [currencyIndex],
   );
+
+  const selectedVisibleUsers = useMemo(
+    () => resolveSelectedUserListFromOptions(visibilityUserIDs, userOptions),
+    [visibilityUserIDs, userOptions],
+  );
+
+  const visibilityTableRows = useMemo(
+    () =>
+      selectedVisibleUsers.map((item) => ({
+        key: item.key,
+        id: item.key,
+        name: item.label,
+        walletAddress: item.walletAddress || item.key,
+      })),
+    [selectedVisibleUsers],
+  );
+
+  useEffect(() => {
+    setVisibilityScope((detail?.visibility_scope || 'all').toString().trim() || 'all');
+    setVisibilityUserIDs(
+      Array.isArray(detail?.visible_user_ids)
+        ? detail.visible_user_ids.map((item) => (item || '').toString().trim()).filter(Boolean)
+        : [],
+    );
+    setUserOptions((current) => appendUserOptionsIfMissing(current, detail?.visible_users));
+  }, [detail]);
 
   const loadGroups = useCallback(async () => {
     setGroupLoading(true);
@@ -454,6 +534,104 @@ const PackageDetail = () => {
     }
   };
 
+  const persistVisibility = async (nextScope, nextUserIDs) => {
+    if (!detail?.id) {
+      showInfo(t('package_manage.messages.id_required'));
+      return false;
+    }
+    const normalizedScope = (nextScope || 'all').toString().trim() || 'all';
+    const normalizedUserIDs =
+      normalizedScope === 'partial_users'
+        ? [...new Set(
+            (Array.isArray(nextUserIDs) ? nextUserIDs : [])
+              .map((item) => (item || '').toString().trim())
+              .filter(Boolean),
+          )]
+        : [];
+    if (normalizedScope === 'partial_users' && normalizedUserIDs.length === 0) {
+      showInfo(t('package_manage.messages.visible_users_required'));
+      return false;
+    }
+    setVisibilitySubmitting(true);
+    try {
+      const res = await API.put('/api/v1/admin/package/', {
+        id: detail.id,
+        name: detail.name || '',
+        description: detail.description || '',
+        group_id: detail.group_id || '',
+        visibility_scope: normalizedScope,
+        visible_user_ids: normalizedUserIDs,
+        sale_price: Number(detail.sale_price || 0),
+        sale_currency: detail.sale_currency || 'CNY',
+        daily_quota_limit: Math.trunc(Number(detail.daily_quota_limit || 0)),
+        package_emergency_quota_limit: Math.trunc(
+          Number(detail.package_emergency_quota_limit || 0),
+        ),
+        duration_days: Math.trunc(Number(detail.duration_days || 0)),
+        quota_reset_timezone: detail.quota_reset_timezone || 'Asia/Shanghai',
+        enabled: Boolean(detail.enabled),
+        sort_order: Math.trunc(Number(detail.sort_order || 0)),
+        source: detail.source || 'manual',
+      });
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('package_manage.messages.update_failed'));
+        return false;
+      }
+      setVisibilityScope(normalizedScope);
+      setVisibilityUserIDs(normalizedUserIDs);
+      setDetail(data || null);
+      showSuccess(t('package_manage.messages.update_success'));
+      return true;
+    } catch (error) {
+      showError(error?.message || error);
+      return false;
+    } finally {
+      setVisibilitySubmitting(false);
+    }
+  };
+
+  const openVisibilityPicker = async () => {
+    if (userOptions.length === 0) {
+      await loadInitialUsers();
+    }
+    setVisibilityPickerValue([]);
+    setVisibilityPickerOpen(true);
+  };
+
+  const closeVisibilityPicker = () => {
+    if (userLoading) return;
+    setVisibilityPickerOpen(false);
+    setVisibilityPickerValue([]);
+  };
+
+  const confirmVisibilityPicker = () => {
+    const nextIDs = Array.isArray(visibilityPickerValue)
+      ? visibilityPickerValue.map((item) => (item || '').toString().trim()).filter(Boolean)
+      : [];
+    if (nextIDs.length === 0) {
+      closeVisibilityPicker();
+      return;
+    }
+    const mergedUserIDs = [...new Set([...(visibilityUserIDs || []), ...nextIDs])];
+    persistVisibility(visibilityScope, mergedUserIDs).then((saved) => {
+      if (saved) {
+        closeVisibilityPicker();
+      }
+    });
+  };
+
+  const removeVisibleUser = (userID) => {
+    const normalizedUserID = (userID || '').toString().trim();
+    if (!normalizedUserID) {
+      return;
+    }
+    const nextUserIDs = (Array.isArray(visibilityUserIDs) ? visibilityUserIDs : []).filter(
+      (item) => (item || '').toString().trim() !== normalizedUserID,
+    );
+    persistVisibility(visibilityScope, nextUserIDs).then();
+  };
+
   const renderEditForm = () => (
     <div>
       <AppFormRow>
@@ -475,67 +653,6 @@ const PackageDetail = () => {
             search
             onChange={(e, { value }) =>
               setForm((prev) => ({ ...prev, group_id: (value || '').toString() }))
-            }
-          />
-        </AppField>
-      </AppFormRow>
-
-      <AppFormRow>
-        <AppField label={t('package_manage.form.visibility_scope')}>
-          <AppSelect
-            className='router-section-dropdown'
-            options={[
-              {
-                key: 'all',
-                value: 'all',
-                text: t('package_manage.form.visibility_scope_all'),
-              },
-              {
-                key: 'partial_users',
-                value: 'partial_users',
-                text: t('package_manage.form.visibility_scope_partial_users'),
-              },
-            ]}
-            value={form.visibility_scope}
-            onChange={(e, { value }) =>
-              setForm((prev) => ({
-                ...prev,
-                visibility_scope: (value || 'all').toString(),
-                visible_user_ids:
-                  (value || 'all').toString() === 'partial_users'
-                    ? prev.visible_user_ids
-                    : [],
-              }))
-            }
-            onClick={() => {
-              if (userOptions.length === 0) {
-                loadInitialUsers().then();
-              }
-            }}
-          />
-        </AppField>
-        <AppField label={t('package_manage.form.visible_users')}>
-          <AppSelect
-            className='router-section-input'
-            placeholder={t('package_manage.form.visible_users_placeholder')}
-            options={userOptions}
-            value={form.visible_user_ids}
-            loading={userLoading}
-            multiple
-            search
-            clearable
-            disabled={form.visibility_scope !== 'partial_users'}
-            onClick={() => {
-              if (userOptions.length === 0) {
-                loadInitialUsers().then();
-              }
-            }}
-            onSearch={searchUsers}
-            onChange={(e, { value }) =>
-              setForm((prev) => ({
-                ...prev,
-                visible_user_ids: Array.isArray(value) ? value : [],
-              }))
             }
           />
         </AppField>
@@ -580,77 +697,77 @@ const PackageDetail = () => {
 
       <AppFormRow>
         <AppField label={t('package_manage.form.daily_quota_limit')}>
-          <AppInputNumber
-            className='router-section-input'
-            value={form.daily_amount}
-            step={resolveBillingInputStep(form.daily_amount_unit, currencyIndex)}
-            min={0}
-            precision={6}
-            fluid
-            addonAfter={
-              <UnitDropdown
-                variant='inputUnit'
-                bordered={false}
-                options={billingUnitOptions}
-                value={form.daily_amount_unit}
-                onChange={(_, { value }) => {
-                  const nextUnit = (value || 'YYC').toString().trim().toUpperCase();
-                  setForm((prev) => ({
-                    ...prev,
-                    daily_amount: convertBillingInputValueUnit(
-                      prev.daily_amount,
-                      prev.daily_amount_unit,
-                      nextUnit,
-                      currencyIndex,
-                    ),
-                    daily_amount_unit: nextUnit,
-                  }));
-                }}
-                aria-label={t('package_manage.form.daily_quota_limit')}
-              />
-            }
-            onChange={(e, { value }) =>
-              setForm((prev) => ({ ...prev, daily_amount: value ?? '0' }))
-            }
-          />
+          <div className='router-section-input-with-unit'>
+            <AppInputNumber
+              className='router-section-input router-section-input-with-unit-field'
+              value={form.daily_amount}
+              step={resolveBillingInputStep(form.daily_amount_unit, currencyIndex)}
+              min={0}
+              precision={6}
+              fluid
+              onChange={(e, { value }) =>
+                setForm((prev) => ({ ...prev, daily_amount: value ?? '0' }))
+              }
+            />
+            <UnitDropdown
+              variant='inputUnit'
+              bordered={false}
+              options={billingUnitOptions}
+              value={form.daily_amount_unit}
+              onChange={(_, { value }) => {
+                const nextUnit = (value || 'YYC').toString().trim().toUpperCase();
+                setForm((prev) => ({
+                  ...prev,
+                  daily_amount: convertBillingInputValueUnit(
+                    prev.daily_amount,
+                    prev.daily_amount_unit,
+                    nextUnit,
+                    currencyIndex,
+                  ),
+                  daily_amount_unit: nextUnit,
+                }));
+              }}
+              aria-label={t('package_manage.form.daily_quota_limit')}
+            />
+          </div>
         </AppField>
         <AppField label={t('package_manage.form.package_emergency_quota_limit')}>
-          <AppInputNumber
-            className='router-section-input'
-            value={form.emergency_amount}
-            step={resolveBillingInputStep(form.emergency_amount_unit, currencyIndex)}
-            min={0}
-            precision={6}
-            fluid
-            addonAfter={
-              <UnitDropdown
-                variant='inputUnit'
-                bordered={false}
-                options={billingUnitOptions}
-                value={form.emergency_amount_unit}
-                onChange={(_, { value }) => {
-                  const nextUnit = (value || 'YYC').toString().trim().toUpperCase();
-                  setForm((prev) => ({
-                    ...prev,
-                    emergency_amount: convertBillingInputValueUnit(
-                      prev.emergency_amount,
-                      prev.emergency_amount_unit,
-                      nextUnit,
-                      currencyIndex,
-                    ),
-                    emergency_amount_unit: nextUnit,
-                  }));
-                }}
-                aria-label={t('package_manage.form.package_emergency_quota_limit')}
-              />
-            }
-            onChange={(e, { value }) =>
-              setForm((prev) => ({
-                ...prev,
-                emergency_amount: value ?? '0',
-              }))
-            }
-          />
+          <div className='router-section-input-with-unit'>
+            <AppInputNumber
+              className='router-section-input router-section-input-with-unit-field'
+              value={form.emergency_amount}
+              step={resolveBillingInputStep(form.emergency_amount_unit, currencyIndex)}
+              min={0}
+              precision={6}
+              fluid
+              onChange={(e, { value }) =>
+                setForm((prev) => ({
+                  ...prev,
+                  emergency_amount: value ?? '0',
+                }))
+              }
+            />
+            <UnitDropdown
+              variant='inputUnit'
+              bordered={false}
+              options={billingUnitOptions}
+              value={form.emergency_amount_unit}
+              onChange={(_, { value }) => {
+                const nextUnit = (value || 'YYC').toString().trim().toUpperCase();
+                setForm((prev) => ({
+                  ...prev,
+                  emergency_amount: convertBillingInputValueUnit(
+                    prev.emergency_amount,
+                    prev.emergency_amount_unit,
+                    nextUnit,
+                    currencyIndex,
+                  ),
+                  emergency_amount_unit: nextUnit,
+                }));
+              }}
+              aria-label={t('package_manage.form.package_emergency_quota_limit')}
+            />
+          </div>
         </AppField>
       </AppFormRow>
 
@@ -715,177 +832,319 @@ const PackageDetail = () => {
           { key: 'package-current', label: normalizedId || '-', active: true },
         ]}
         title={t('package_manage.dialog.detail_title')}
-        actions={
-          <AppButton
-            type='button'
-            className='router-page-button'
-            color='blue'
-            disabled={loading || !detail}
-            onClick={openEditModal}
-          >
-            {t('package_manage.buttons.edit')}
-          </AppButton>
-        }
       />
-      <div className='router-entity-detail-page'>
-        <AppDetailSection title={t('common.basic_info')} bodyClassName='router-page-stack'>
-            {loading ? (
-              <div className='router-empty-cell'>{t('common.loading')}</div>
-            ) : (
-              <>
-                <AppFormRow>
-                  <AppField label={t('package_manage.form.id')} readOnly>
-                    <AppInput
-                      className='router-section-input'
-                      value={detail?.id || '-'}
-                      readOnly
-                    />
-                  </AppField>
-                  <AppField label={t('package_manage.table.name')} readOnly>
-                    <AppInput
-                      className='router-section-input'
-                      value={detail?.name || '-'}
-                      readOnly
-                    />
-                  </AppField>
-                  <AppField label={t('package_manage.table.group')} readOnly>
-                    <AppInput
-                      className='router-section-input'
-                      value={detail?.group_name || detail?.group_id || '-'}
-                      readOnly
-                    />
-                  </AppField>
-                </AppFormRow>
-
-                <AppFormRow>
-                  <AppField label={t('package_manage.form.description')} readOnly>
-                    <AppTextarea
-                      className='router-section-input'
-                      value={detail?.description || '-'}
-                      readOnly
-                      rows={3}
-                    />
-                  </AppField>
-                </AppFormRow>
-
-                <AppFormRow>
-                  <AppField label={t('package_manage.form.sale_price')} readOnly>
-                    <AppInput
-                      className='router-section-input'
-                      value={`${detail?.sale_currency || 'CNY'} ${detail?.sale_price ?? 0}`}
-                      readOnly
-                    />
-                  </AppField>
-                  <AppField label={t('package_manage.form.sale_currency')} readOnly>
-                    <AppInput
-                      className='router-section-input'
-                      value={detail?.sale_currency || 'CNY'}
-                      readOnly
-                    />
-                  </AppField>
-                </AppFormRow>
-
-                <AppFormRow>
-                  <AppField label={t('package_manage.table.daily_quota_limit')} readOnly>
-                    <div className='router-section-input-with-unit'>
-                      <AppInput
-                        className='router-section-input router-section-input-with-unit-field'
-                        value={renderPackageAmountValue(
-                          resolvePackageYYCAmount(detail, 'daily'),
-                          dailyDisplayUnit,
-                          currencyIndex,
-                        )}
-                        readOnly
-                      />
-                      <UnitDropdown
-                        variant='inputUnit'
-                        options={displayUnitOptions}
-                        value={dailyDisplayUnit}
-                        onChange={(_, { value }) =>
-                          setDailyDisplayUnit((value || '').toString().trim().toUpperCase())
-                        }
-                        aria-label={t('package_manage.table.daily_quota_limit')}
-                      />
-                    </div>
-                  </AppField>
-                  <AppField
-                    label={t('package_manage.table.package_emergency_quota_limit')}
-                    readOnly
+      <div className='router-entity-detail-page router-tab-detail-page'>
+        <div className='router-entity-detail-tabs router-block-gap-sm'>
+          <AppTabs
+            activeKey={activeTabKey}
+            onChange={(key) => {
+              setActiveTabKey((key || 'basic').toString());
+              if ((key || 'basic').toString() === 'visibility' && userOptions.length === 0) {
+                loadInitialUsers().then();
+              }
+            }}
+            items={[
+              {
+                key: 'basic',
+                label: t('common.basic_info'),
+                children: (
+                  <AppDetailSection
+                    title={t('common.basic_info')}
+                    bodyClassName='router-page-stack'
+                    headerEnd={
+                      <AppButton
+                        type='button'
+                        className='router-page-button'
+                        color='blue'
+                        disabled={loading || !detail}
+                        onClick={openEditModal}
+                      >
+                        {t('package_manage.buttons.edit')}
+                      </AppButton>
+                    }
                   >
-                    <div className='router-section-input-with-unit'>
-                      <AppInput
-                        className='router-section-input router-section-input-with-unit-field'
-                        value={renderPackageAmountValue(
-                          resolvePackageYYCAmount(detail, 'emergency'),
-                          emergencyDisplayUnit,
-                          currencyIndex,
-                        )}
-                        readOnly
-                      />
-                      <UnitDropdown
-                        variant='inputUnit'
-                        options={displayUnitOptions}
-                        value={emergencyDisplayUnit}
-                        onChange={(_, { value }) =>
-                          setEmergencyDisplayUnit((value || '').toString().trim().toUpperCase())
-                        }
-                        aria-label={t('package_manage.table.package_emergency_quota_limit')}
-                      />
-                    </div>
-                  </AppField>
-                </AppFormRow>
-
-                <AppFormRow>
-                  <AppField label={t('package_manage.table.duration_days')} readOnly>
-                    <AppInput
-                      className='router-section-input'
-                      value={Number(detail?.duration_days || 0) || '-'}
-                      readOnly
-                    />
-                  </AppField>
-                  <AppField label={t('package_manage.table.status')} readOnly>
-                    <AppInput
-                      className='router-section-input'
-                      value={
-                        detail?.enabled
-                          ? t('package_manage.status.enabled')
-                          : t('package_manage.status.disabled')
-                      }
-                      readOnly
-                    />
-                  </AppField>
-                </AppFormRow>
-
-                <AppFormRow>
-                  <AppField label={t('package_manage.form.quota_reset_timezone')} readOnly>
-                    <AppInput
-                      className='router-section-input'
-                      value={detail?.quota_reset_timezone || '-'}
-                      readOnly
-                    />
-                  </AppField>
-                  <AppField label={t('package_manage.table.created_at')} readOnly>
-                    <AppInput
-                      className='router-section-input'
-                      value={detail?.created_at ? timestamp2string(detail.created_at) : '-'}
-                      readOnly
-                    />
-                  </AppField>
-                </AppFormRow>
-
-                <AppFormRow>
-                  <AppField label={t('package_manage.table.updated_at')} readOnly>
-                    <AppInput
-                      className='router-section-input'
-                      value={detail?.updated_at ? timestamp2string(detail.updated_at) : '-'}
-                      readOnly
-                    />
-                  </AppField>
-                </AppFormRow>
-              </>
-            )}
-        </AppDetailSection>
+                    {loading ? (
+                      <div className='router-empty-cell'>{t('common.loading')}</div>
+                    ) : (
+                      <>
+                        <AppFormRow>
+                          <AppField label={t('package_manage.form.id')} readOnly>
+                            <AppInput className='router-section-input' value={detail?.id || '-'} readOnly />
+                          </AppField>
+                          <AppField label={t('package_manage.table.name')} readOnly>
+                            <AppInput className='router-section-input' value={detail?.name || '-'} readOnly />
+                          </AppField>
+                          <AppField label={t('package_manage.table.group')} readOnly>
+                            <AppInput
+                              className='router-section-input'
+                              value={detail?.group_name || detail?.group_id || '-'}
+                              readOnly
+                            />
+                          </AppField>
+                        </AppFormRow>
+                        <AppFormRow>
+                          <AppField label={t('package_manage.form.description')} readOnly>
+                            <AppTextarea
+                              className='router-section-input'
+                              value={detail?.description || '-'}
+                              readOnly
+                              rows={3}
+                            />
+                          </AppField>
+                        </AppFormRow>
+                        <AppFormRow>
+                          <AppField label={t('package_manage.form.sale_price')} readOnly>
+                            <AppInput
+                              className='router-section-input'
+                              value={`${detail?.sale_currency || 'CNY'} ${detail?.sale_price ?? 0}`}
+                              readOnly
+                            />
+                          </AppField>
+                          <AppField label={t('package_manage.form.sale_currency')} readOnly>
+                            <AppInput className='router-section-input' value={detail?.sale_currency || 'CNY'} readOnly />
+                          </AppField>
+                        </AppFormRow>
+                        <AppFormRow>
+                          <AppField label={t('package_manage.table.daily_quota_limit')} readOnly>
+                            <div className='router-section-input-with-unit'>
+                              <AppInput
+                                className='router-section-input router-section-input-with-unit-field'
+                                value={renderPackageAmountValue(
+                                  resolvePackageYYCAmount(detail, 'daily'),
+                                  dailyDisplayUnit,
+                                  currencyIndex,
+                                )}
+                                readOnly
+                              />
+                              <UnitDropdown
+                                variant='inputUnit'
+                                options={displayUnitOptions}
+                                value={dailyDisplayUnit}
+                                onChange={(_, { value }) =>
+                                  setDailyDisplayUnit((value || '').toString().trim().toUpperCase())
+                                }
+                                aria-label={t('package_manage.table.daily_quota_limit')}
+                              />
+                            </div>
+                          </AppField>
+                          <AppField label={t('package_manage.table.package_emergency_quota_limit')} readOnly>
+                            <div className='router-section-input-with-unit'>
+                              <AppInput
+                                className='router-section-input router-section-input-with-unit-field'
+                                value={renderPackageAmountValue(
+                                  resolvePackageYYCAmount(detail, 'emergency'),
+                                  emergencyDisplayUnit,
+                                  currencyIndex,
+                                )}
+                                readOnly
+                              />
+                              <UnitDropdown
+                                variant='inputUnit'
+                                options={displayUnitOptions}
+                                value={emergencyDisplayUnit}
+                                onChange={(_, { value }) =>
+                                  setEmergencyDisplayUnit((value || '').toString().trim().toUpperCase())
+                                }
+                                aria-label={t('package_manage.table.package_emergency_quota_limit')}
+                              />
+                            </div>
+                          </AppField>
+                        </AppFormRow>
+                        <AppFormRow>
+                          <AppField label={t('package_manage.table.duration_days')} readOnly>
+                            <AppInput className='router-section-input' value={Number(detail?.duration_days || 0) || '-'} readOnly />
+                          </AppField>
+                          <AppField label={t('package_manage.table.status')} readOnly>
+                            <AppInput
+                              className='router-section-input'
+                              value={detail?.enabled ? t('package_manage.status.enabled') : t('package_manage.status.disabled')}
+                              readOnly
+                            />
+                          </AppField>
+                        </AppFormRow>
+                        <AppFormRow>
+                          <AppField label={t('package_manage.form.quota_reset_timezone')} readOnly>
+                            <AppInput className='router-section-input' value={detail?.quota_reset_timezone || '-'} readOnly />
+                          </AppField>
+                          <AppField label={t('package_manage.table.created_at')} readOnly>
+                            <AppInput
+                              className='router-section-input'
+                              value={detail?.created_at ? timestamp2string(detail.created_at) : '-'}
+                              readOnly
+                            />
+                          </AppField>
+                        </AppFormRow>
+                        <AppFormRow>
+                          <AppField label={t('package_manage.table.updated_at')} readOnly>
+                            <AppInput
+                              className='router-section-input'
+                              value={detail?.updated_at ? timestamp2string(detail.updated_at) : '-'}
+                              readOnly
+                            />
+                          </AppField>
+                        </AppFormRow>
+                      </>
+                    )}
+                  </AppDetailSection>
+                ),
+              },
+              {
+                key: 'visibility',
+                label: t('package_manage.form.visibility_scope'),
+                children: (
+                  <AppDetailSection
+                    title={t('package_manage.form.visibility_scope')}
+                    bodyClassName='router-page-stack'
+                  >
+                    {loading ? (
+                      <div className='router-empty-cell'>{t('common.loading')}</div>
+                    ) : (
+                      <>
+                        <AppFormRow>
+                          <AppField label={t('package_manage.form.visibility_scope')}>
+                            <AppSelect
+                              className='router-section-dropdown'
+                              options={[
+                                {
+                                  key: 'all',
+                                  value: 'all',
+                                  text: t('package_manage.form.visibility_scope_all'),
+                                },
+                                {
+                                  key: 'partial_users',
+                                  value: 'partial_users',
+                                  text: t('package_manage.form.visibility_scope_partial_users'),
+                                },
+                              ]}
+                              value={visibilityScope}
+                              onChange={(_, { value }) => {
+                                const nextScope = (value || 'all').toString();
+                                const nextUserIDs =
+                                  nextScope === 'partial_users' ? visibilityUserIDs : [];
+                                persistVisibility(nextScope, nextUserIDs).then();
+                              }}
+                              onClick={() => {
+                                if (userOptions.length === 0) {
+                                  loadInitialUsers().then();
+                                }
+                              }}
+                              disabled={visibilitySubmitting}
+                            />
+                          </AppField>
+                        </AppFormRow>
+                        <AppFormRow>
+                          <AppField label={t('package_manage.form.visible_users')}>
+                            <div className='router-page-stack'>
+                              {visibilityScope === 'partial_users' ? (
+                                <>
+                                  <div className='router-inline-actions'>
+                                    <AppButton
+                                      type='button'
+                                      className='router-page-button'
+                                      onClick={openVisibilityPicker}
+                                      disabled={userLoading || visibilitySubmitting}
+                                    >
+                                      {t('common.add')}
+                                    </AppButton>
+                                  </div>
+                                  {visibilityTableRows.length > 0 ? (
+                                    <AppTable
+                                      className='router-list-table router-table-fit-page'
+                                      pagination={false}
+                                      rowKey='id'
+                                      dataSource={visibilityTableRows}
+                                      columns={[
+                                        {
+                                          title: t('user.table.username'),
+                                          dataIndex: 'name',
+                                          key: 'name',
+                                          render: (value) => value || '-',
+                                        },
+                                        {
+                                          title: t('user.table.wallet'),
+                                          dataIndex: 'walletAddress',
+                                          key: 'walletAddress',
+                                          render: (value) => (
+                                            <span className='router-monospace-value'>
+                                              {value || '-'}
+                                            </span>
+                                          ),
+                                        },
+                                        {
+                                          title: t('redemption.table.actions'),
+                                          key: 'actions',
+                                          className: 'router-table-col-actions-compact',
+                                          width: 96,
+                                          render: (_, row) => (
+                                            <AppButton
+                                              type='button'
+                                              className='router-inline-button'
+                                              color='red'
+                                              disabled={visibilitySubmitting}
+                                              onClick={() => removeVisibleUser(row.id)}
+                                            >
+                                              {t('common.delete')}
+                                            </AppButton>
+                                          ),
+                                        },
+                                      ]}
+                                    />
+                                  ) : (
+                                    <div className='router-text-muted'>-</div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className='router-text-muted'>-</div>
+                              )}
+                            </div>
+                          </AppField>
+                        </AppFormRow>
+                      </>
+                    )}
+                  </AppDetailSection>
+                ),
+              },
+            ]}
+          />
+        </div>
       </div>
+      <AppModal
+        open={visibilityPickerOpen}
+        onClose={closeVisibilityPicker}
+        size='small'
+        title={t('common.add')}
+        footer={null}
+      >
+        <div className='router-page-stack'>
+          <AppSelect
+            className='router-section-input'
+            placeholder={t('package_manage.form.visible_users_placeholder')}
+            options={userOptions}
+            value={visibilityPickerValue}
+            loading={userLoading}
+            multiple
+            search
+            clearable
+            onClick={() => {
+              if (userOptions.length === 0) {
+                loadInitialUsers().then();
+              }
+            }}
+            onSearch={searchUsers}
+            onChange={(e, { value }) =>
+              setVisibilityPickerValue(Array.isArray(value) ? value : [])
+            }
+          />
+          <AppFormActions>
+            <AppButton type='button' onClick={closeVisibilityPicker}>
+              {t('common.cancel')}
+            </AppButton>
+            <AppButton type='button' color='blue' onClick={confirmVisibilityPicker}>
+              {t('common.confirm')}
+            </AppButton>
+          </AppFormActions>
+        </div>
+      </AppModal>
       <AppModal
         open={editOpen}
         onClose={closeEditModal}

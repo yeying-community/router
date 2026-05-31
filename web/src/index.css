@@ -2872,6 +2872,37 @@ body,
     color: #1f2937;
 }
 
+.router-field-display-list {
+    display: block;
+    padding: 12px;
+}
+
+.router-entity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.router-entity-list-item {
+    padding: 10px 12px;
+    border: 1px solid rgba(34, 36, 38, 0.08);
+    border-radius: 8px;
+    background: #fafbfc;
+}
+
+.router-entity-list-title {
+    color: #111827;
+    line-height: 1.4;
+}
+
+.router-entity-list-subtitle {
+    margin-top: 4px;
+    color: rgba(0, 0, 0, 0.5);
+    font-size: 12px;
+    line-height: 1.4;
+    word-break: break-all;
+}
+
 .router-break-all {
     word-break: break-all;
 }

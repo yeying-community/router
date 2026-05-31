@@ -58,7 +58,6 @@ export const PACKAGE_LIST_COLUMN_WIDTHS = {
   emergencyQuota: 120,
   durationDays: 80,
   status: 100,
-  publicVisible: 100,
   createdAt: 148,
   updatedAt: 148,
   actions: 176,
@@ -72,7 +71,6 @@ export const PACKAGE_LIST_TABLE_MIN_WIDTH =
   PACKAGE_LIST_COLUMN_WIDTHS.emergencyQuota +
   PACKAGE_LIST_COLUMN_WIDTHS.durationDays +
   PACKAGE_LIST_COLUMN_WIDTHS.status +
-  PACKAGE_LIST_COLUMN_WIDTHS.publicVisible +
   PACKAGE_LIST_COLUMN_WIDTHS.createdAt +
   PACKAGE_LIST_COLUMN_WIDTHS.updatedAt +
   PACKAGE_LIST_COLUMN_WIDTHS.actions;

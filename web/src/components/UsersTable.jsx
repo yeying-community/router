@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API, copy, isRoot, showError, showSuccess, timestamp2string } from '../helpers';
 import { useTranslation } from 'react-i18next';
@@ -99,6 +99,7 @@ const UsersTable = () => {
     columnKey: 'created_at',
     order: 'descend',
   });
+  const initializedSearchRef = useRef(false);
   const [currencyIndex, setCurrencyIndex] = useState(() =>
     buildPublicDisplayCurrencyIndex([]),
   );
@@ -263,6 +264,21 @@ const UsersTable = () => {
   const handleKeywordChange = async (e, { value }) => {
     setSearchKeyword(value.trim());
   };
+
+  useEffect(() => {
+    if (!initializedSearchRef.current) {
+      initializedSearchRef.current = true;
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      searchUsers().catch((error) => {
+        showError(error?.message || error);
+      });
+    }, 250);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [searchKeyword]);
 
   const stopRowClick = (event) => {
     event.stopPropagation();

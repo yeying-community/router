@@ -56,9 +56,10 @@ func (ServicePackageVisibleUser) TableName() string {
 }
 
 type ServicePackageVisibleUserSummary struct {
-	ID          string `json:"id"`
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
+	ID            string `json:"id"`
+	Username      string `json:"username"`
+	DisplayName   string `json:"display_name"`
+	WalletAddress string `json:"wallet_address"`
 }
 
 func (item *ServicePackage) EnsureID() {
@@ -181,13 +182,14 @@ func resolveServicePackageVisibleUsersWithDB(db *gorm.DB, userIDs []string) ([]S
 		return nil, nil
 	}
 	type visibleUserRow struct {
-		ID          string
-		Username    string
-		DisplayName string
+		ID            string
+		Username      string
+		DisplayName   string
+		WalletAddress string
 	}
 	rows := make([]visibleUserRow, 0, len(userIDs))
 	if err := db.Model(&User{}).
-		Select("id", "username", "display_name").
+		Select("id", "username", "display_name", "wallet_address").
 		Where("status != ? AND id IN ?", UserStatusDeleted, userIDs).
 		Find(&rows).Error; err != nil {
 		return nil, err
@@ -206,9 +208,10 @@ func resolveServicePackageVisibleUsersWithDB(db *gorm.DB, userIDs []string) ([]S
 			return nil, fmt.Errorf("部分可见用户不存在")
 		}
 		result = append(result, ServicePackageVisibleUserSummary{
-			ID:          strings.TrimSpace(row.ID),
-			Username:    strings.TrimSpace(row.Username),
-			DisplayName: strings.TrimSpace(row.DisplayName),
+			ID:            strings.TrimSpace(row.ID),
+			Username:      strings.TrimSpace(row.Username),
+			DisplayName:   strings.TrimSpace(row.DisplayName),
+			WalletAddress: strings.TrimSpace(row.WalletAddress),
 		})
 	}
 	return result, nil
@@ -243,13 +246,14 @@ func resolveServicePackageVisibleUsersByPackageIDWithDB(db *gorm.DB, packageID s
 		return nil, nil
 	}
 	type visibleUserRow struct {
-		UserID      string
-		Username    string
-		DisplayName string
+		UserID        string
+		Username      string
+		DisplayName   string
+		WalletAddress string
 	}
 	rows := make([]visibleUserRow, 0)
 	if err := db.Table(ServicePackageVisibleUsersTableName+" AS spu").
-		Select("spu.user_id", "u.username", "u.display_name").
+		Select("spu.user_id", "u.username", "u.display_name", "u.wallet_address").
 		Joins("LEFT JOIN users u ON u.id = spu.user_id").
 		Where("spu.package_id = ?", normalizedPackageID).
 		Order("spu.created_at ASC, spu.user_id ASC").
@@ -263,9 +267,10 @@ func resolveServicePackageVisibleUsersByPackageIDWithDB(db *gorm.DB, packageID s
 			continue
 		}
 		result = append(result, ServicePackageVisibleUserSummary{
-			ID:          userID,
-			Username:    strings.TrimSpace(row.Username),
-			DisplayName: strings.TrimSpace(row.DisplayName),
+			ID:            userID,
+			Username:      strings.TrimSpace(row.Username),
+			DisplayName:   strings.TrimSpace(row.DisplayName),
+			WalletAddress: strings.TrimSpace(row.WalletAddress),
 		})
 	}
 	return result, nil
@@ -292,14 +297,15 @@ func hydrateServicePackageVisibilityWithDB(db *gorm.DB, rows []ServicePackage) e
 		return nil
 	}
 	type visibleUserRow struct {
-		PackageID   string
-		UserID      string
-		Username    string
-		DisplayName string
+		PackageID     string
+		UserID        string
+		Username      string
+		DisplayName   string
+		WalletAddress string
 	}
 	visibleRows := make([]visibleUserRow, 0)
 	if err := db.Table(ServicePackageVisibleUsersTableName+" AS spu").
-		Select("spu.package_id", "spu.user_id", "u.username", "u.display_name").
+		Select("spu.package_id", "spu.user_id", "u.username", "u.display_name", "u.wallet_address").
 		Joins("LEFT JOIN users u ON u.id = spu.user_id").
 		Where("spu.package_id IN ?", packageIDs).
 		Order("spu.created_at ASC, spu.user_id ASC").
@@ -316,9 +322,10 @@ func hydrateServicePackageVisibilityWithDB(db *gorm.DB, rows []ServicePackage) e
 		}
 		idsByPackage[packageID] = append(idsByPackage[packageID], userID)
 		usersByPackage[packageID] = append(usersByPackage[packageID], ServicePackageVisibleUserSummary{
-			ID:          userID,
-			Username:    strings.TrimSpace(row.Username),
-			DisplayName: strings.TrimSpace(row.DisplayName),
+			ID:            userID,
+			Username:      strings.TrimSpace(row.Username),
+			DisplayName:   strings.TrimSpace(row.DisplayName),
+			WalletAddress: strings.TrimSpace(row.WalletAddress),
 		})
 	}
 	for index := range rows {
