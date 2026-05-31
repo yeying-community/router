@@ -97,7 +97,7 @@ func Search(keyword string) ([]*model.User, error) {
 		return users, nil
 	}
 
-	likeKeyword := trimmedKeyword + "%"
+	likeKeyword := "%" + trimmedKeyword + "%"
 	query := model.DB.Omit("password").Where("status != ?", model.UserStatusDeleted)
 
 	err := query.Where(
