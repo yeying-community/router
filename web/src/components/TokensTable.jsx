@@ -31,10 +31,13 @@ import {
   AppMenuDropdown,
   AppPagination,
   AppPopconfirm,
+  AppSwitch,
   AppTable,
-  AppTag,
+  AppTooltip,
   AppToolbar,
 } from '../router-ui';
+
+const DEFAULT_CHAT_LINK = 'https://chat.yeying.pub';
 
 const compareTextValue = (left, right) =>
   String(left || '').localeCompare(String(right || ''));
@@ -60,38 +63,18 @@ function renderTimestamp(timestamp) {
   return <>{timestamp2string(timestamp)}</>;
 }
 
-function renderStatus(status, t) {
+function tokenStatusTooltip(status, t) {
   switch (status) {
     case 1:
-      return (
-        <AppTag color='green' className='router-tag'>
-          {t('token.table.status_enabled')}
-        </AppTag>
-      );
+      return t('token.table.status_enabled');
     case 2:
-      return (
-        <AppTag color='red' className='router-tag'>
-          {t('token.table.status_disabled')}
-        </AppTag>
-      );
+      return t('token.table.status_disabled');
     case 3:
-      return (
-        <AppTag color='yellow' className='router-tag'>
-          {t('token.table.status_expired')}
-        </AppTag>
-      );
+      return t('token.table.status_expired');
     case 4:
-      return (
-        <AppTag color='grey' className='router-tag'>
-          {t('token.table.status_depleted')}
-        </AppTag>
-      );
+      return t('token.table.status_depleted');
     default:
-      return (
-        <AppTag color='black' className='router-tag'>
-          {t('token.table.status_unknown')}
-        </AppTag>
-      );
+      return t('token.table.status_unknown');
   }
 }
 
@@ -137,6 +120,7 @@ const TokensTable = () => {
   const [displayUnit, setDisplayUnit] = useState(() =>
     resolvePreferredDisplayCurrency(buildPublicDisplayCurrencyIndex([]), 'USD'),
   );
+  const [statusMutatingTokenId, setStatusMutatingTokenId] = useState('');
 
   const loadTokens = useCallback(
     async (page) => {
@@ -206,7 +190,7 @@ const TokensTable = () => {
       nextUrl =
         nextLink + `/#/?settings={"key":"sk-${key}","url":"${serverAddress}"}`;
     } else {
-      nextUrl = `https://app.nextchat.dev/#/?settings={"key":"sk-${key}","url":"${serverAddress}"}`;
+      nextUrl = `${DEFAULT_CHAT_LINK}/#/?settings={"key":"sk-${key}","url":"${serverAddress}"}`;
     }
 
     let url;
@@ -254,7 +238,7 @@ const TokensTable = () => {
       defaultUrl =
         chatLink + `/#/?settings={"key":"sk-${key}","url":"${serverAddress}"}`;
     } else {
-      defaultUrl = `https://app.nextchat.dev/#/?settings={"key":"sk-${key}","url":"${serverAddress}"}`;
+      defaultUrl = `${DEFAULT_CHAT_LINK}/#/?settings={"key":"sk-${key}","url":"${serverAddress}"}`;
     }
     let url;
     switch (type) {
@@ -309,39 +293,72 @@ const TokensTable = () => {
   }, []);
 
   const manageToken = async (id, action, idx) => {
+    const normalizedId = Number(id);
+    const isStatusAction = action === 'enable' || action === 'disable';
+    if (isStatusAction) {
+      setStatusMutatingTokenId(`${normalizedId}`);
+    }
     let data = { id };
     let res;
-    switch (action) {
-      case 'delete':
-        res = await API.delete(`/api/v1/public/token/${id}/`);
-        break;
-      case 'enable':
-        data.status = 1;
-        res = await API.put('/api/v1/public/token/?status_only=true', data);
-        break;
-      case 'disable':
-        data.status = 2;
-        res = await API.put('/api/v1/public/token/?status_only=true', data);
-        break;
-      default:
-        return;
-    }
-    const { success, message } = res.data;
-    if (success) {
-      showSuccess(t('token.messages.operation_success'));
-      let token = res.data.data;
-      let newTokens = [...tokens];
-      let realIdx = (activePage - 1) * ITEMS_PER_PAGE + idx;
-      if (action === 'delete') {
-        newTokens[realIdx].deleted = true;
-        setTotalCount((prev) => Math.max(prev - 1, 0));
-      } else {
-        newTokens[realIdx].status = token.status;
+    try {
+      switch (action) {
+        case 'delete':
+          res = await API.delete(`/api/v1/public/token/${id}/`);
+          break;
+        case 'enable':
+          data.status = 1;
+          res = await API.put('/api/v1/public/token/?status_only=true', data);
+          break;
+        case 'disable':
+          data.status = 2;
+          res = await API.put('/api/v1/public/token/?status_only=true', data);
+          break;
+        default:
+          return;
       }
-      setTokens(newTokens);
-    } else {
-      showError(message);
+      const { success, message } = res.data;
+      if (success) {
+        showSuccess(t('token.messages.operation_success'));
+        let token = res.data.data;
+        let newTokens = [...tokens];
+        let realIdx = (activePage - 1) * ITEMS_PER_PAGE + idx;
+        if (action === 'delete') {
+          newTokens[realIdx].deleted = true;
+          setTotalCount((prev) => Math.max(prev - 1, 0));
+        } else {
+          newTokens[realIdx].status = token.status;
+        }
+        setTokens(newTokens);
+      } else {
+        showError(message);
+      }
+    } finally {
+      if (isStatusAction) {
+        setStatusMutatingTokenId('');
+      }
     }
+  };
+
+  const renderStatusSwitch = (token, idx) => {
+    const status = Number(token?.status || 0);
+    return (
+      <div
+        className='router-token-status-switch'
+        onClick={(event) => stopRowClick(event)}
+      >
+        <AppTooltip title={tokenStatusTooltip(status, t)}>
+          <AppSwitch
+            size='small'
+            checked={status === 1}
+            loading={statusMutatingTokenId === `${token.id}`}
+            aria-label={t('token.table.status')}
+            onChange={(event, { checked }) => {
+              manageToken(token.id, checked ? 'enable' : 'disable', idx);
+            }}
+          />
+        </AppTooltip>
+      </div>
+    );
   };
 
   const searchTokens = async () => {
@@ -497,7 +514,10 @@ const TokensTable = () => {
             sorter: (a, b) => compareNumberValue(a.status, b.status),
             sortDirections: ['ascend', 'descend'],
             sortOrder: tableSorter.columnKey === 'status' ? tableSorter.order : null,
-            render: (value) => renderStatus(value, t),
+            render: (_, token) => {
+              const realIdx = tokens.findIndex((item) => item?.id === token?.id);
+              return renderStatusSwitch(token, realIdx);
+            },
           },
           {
             title: t('token.table.token'),
@@ -512,7 +532,7 @@ const TokensTable = () => {
                 <span
                   role='button'
                   tabIndex={0}
-                  className='router-text-link'
+                  className='router-text-link router-token-key-link'
                   onClick={() =>
                     navigate(`/token/${token.id}`, {
                       state: {
@@ -685,21 +705,6 @@ const TokensTable = () => {
                       {t('token.buttons.delete')}
                     </AppButton>
                   </AppPopconfirm>
-                  <AppButton
-                    className='router-inline-button'
-                    type='button'
-                    onClick={() => {
-                      manageToken(
-                        token.id,
-                        token.status === 1 ? 'disable' : 'enable',
-                        realIdx,
-                      );
-                    }}
-                  >
-                    {token.status === 1
-                      ? t('token.buttons.disable')
-                      : t('token.buttons.enable')}
-                  </AppButton>
                 </div>
               );
             },

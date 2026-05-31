@@ -928,17 +928,6 @@ const PackagesManager = () => {
                     e.stopPropagation();
                   }}
                 >
-                <AppButton
-                  type='button'
-                  className='router-inline-button'
-                  color='blue'
-                  disabled={submitting}
-                  onClick={() => {
-                    openEditModal(row);
-                  }}
-                  >
-                  {t('package_manage.buttons.edit')}
-                </AppButton>
                   <AppButton
                     type='button'
                     className='router-inline-button'
@@ -1100,78 +1089,80 @@ const PackagesManager = () => {
 
       <AppFormRow>
         <AppField label={t('package_manage.form.daily_quota_limit')}>
-          <div className='router-section-input-with-unit'>
-            <AppInputNumber
-              className='router-section-input router-section-input-with-unit-field'
-              value={form.daily_amount}
-              step={resolveBillingInputStep(form.daily_amount_unit, currencyIndex)}
-              min={0}
-              precision={6}
-              fluid
-              onChange={(e, { value }) =>
-                setForm((prev) => ({ ...prev, daily_amount: value ?? '0' }))
-              }
-            />
-            <UnitDropdown
-              variant='inputUnit'
-              options={billingUnitOptions}
-              value={form.daily_amount_unit}
-              onChange={(_, { value }) => {
-                const nextUnit = (value || 'YYC').toString().trim().toUpperCase();
-                setForm((prev) => ({
-                  ...prev,
-                  daily_amount: convertBillingInputValueUnit(
-                    prev.daily_amount,
-                    prev.daily_amount_unit,
-                    nextUnit,
-                    currencyIndex
-                  ),
-                  daily_amount_unit: nextUnit,
-                }));
-              }}
-              aria-label={t('package_manage.form.daily_quota_limit')}
-            />
-          </div>
+          <AppInputNumber
+            className='router-section-input'
+            value={form.daily_amount}
+            step={resolveBillingInputStep(form.daily_amount_unit, currencyIndex)}
+            min={0}
+            precision={6}
+            fluid
+            addonAfter={
+              <UnitDropdown
+                variant='inputUnit'
+                bordered={false}
+                options={billingUnitOptions}
+                value={form.daily_amount_unit}
+                onChange={(_, { value }) => {
+                  const nextUnit = (value || 'YYC').toString().trim().toUpperCase();
+                  setForm((prev) => ({
+                    ...prev,
+                    daily_amount: convertBillingInputValueUnit(
+                      prev.daily_amount,
+                      prev.daily_amount_unit,
+                      nextUnit,
+                      currencyIndex
+                    ),
+                    daily_amount_unit: nextUnit,
+                  }));
+                }}
+                aria-label={t('package_manage.form.daily_quota_limit')}
+              />
+            }
+            onChange={(e, { value }) =>
+              setForm((prev) => ({ ...prev, daily_amount: value ?? '0' }))
+            }
+          />
         </AppField>
         <AppField label={t('package_manage.form.package_emergency_quota_limit')}>
-          <div className='router-section-input-with-unit'>
-            <AppInputNumber
-              className='router-section-input router-section-input-with-unit-field'
-              value={form.emergency_amount}
-              step={resolveBillingInputStep(
-                form.emergency_amount_unit,
-                currencyIndex
-              )}
-              min={0}
-              precision={6}
-              fluid
-              onChange={(e, { value }) =>
-                setForm((prev) => ({
-                  ...prev,
-                  emergency_amount: value ?? '0',
-                }))
-              }
-            />
-            <UnitDropdown
-              variant='inputUnit'
-              options={billingUnitOptions}
-              value={form.emergency_amount_unit}
-              onChange={(_, { value }) => {
-                const nextUnit = (value || 'YYC').toString().trim().toUpperCase();
-                setForm((prev) => ({
-                  ...prev,
-                  emergency_amount: convertBillingInputValueUnit(
-                    prev.emergency_amount,
-                    prev.emergency_amount_unit,
-                    nextUnit,
-                    currencyIndex
-                  ),
-                  emergency_amount_unit: nextUnit,
-                }));
-              }}
-              aria-label={t('package_manage.form.package_emergency_quota_limit')}
-            />
-          </div>
+          <AppInputNumber
+            className='router-section-input'
+            value={form.emergency_amount}
+            step={resolveBillingInputStep(
+              form.emergency_amount_unit,
+              currencyIndex
+            )}
+            min={0}
+            precision={6}
+            fluid
+            addonAfter={
+              <UnitDropdown
+                variant='inputUnit'
+                bordered={false}
+                options={billingUnitOptions}
+                value={form.emergency_amount_unit}
+                onChange={(_, { value }) => {
+                  const nextUnit = (value || 'YYC').toString().trim().toUpperCase();
+                  setForm((prev) => ({
+                    ...prev,
+                    emergency_amount: convertBillingInputValueUnit(
+                      prev.emergency_amount,
+                      prev.emergency_amount_unit,
+                      nextUnit,
+                      currencyIndex
+                    ),
+                    emergency_amount_unit: nextUnit,
+                  }));
+                }}
+                aria-label={t('package_manage.form.package_emergency_quota_limit')}
+              />
+            }
+            onChange={(e, { value }) =>
+              setForm((prev) => ({
+                ...prev,
+                emergency_amount: value ?? '0',
+              }))
+            }
+          />
         </AppField>
       </AppFormRow>
 

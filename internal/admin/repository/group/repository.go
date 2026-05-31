@@ -71,7 +71,7 @@ func ListSatisfiedChannels(group string, modelName string) ([]*model.Channel, er
 		if channel == nil {
 			continue
 		}
-		if channel.Status != model.ChannelStatusEnabled {
+		if channel.Status != model.ChannelStatusEnabled && channel.Status != model.ChannelStatusHalfOpen {
 			continue
 		}
 		channelByID[strings.TrimSpace(channel.Id)] = channel
@@ -80,7 +80,11 @@ func ListSatisfiedChannels(group string, modelName string) ([]*model.Channel, er
 	for _, row := range rows {
 		channelID := strings.TrimSpace(row.ChannelId)
 		if channel := channelByID[channelID]; channel != nil {
-			result = append(result, model.CloneChannelWithPriority(channel, row.GetPriority()))
+			priority := row.GetPriority()
+			if channel.Status == model.ChannelStatusHalfOpen {
+				priority = model.ChannelHalfOpenPriority
+			}
+			result = append(result, model.CloneChannelWithPriority(channel, priority))
 		}
 	}
 	return result, nil
@@ -226,10 +230,13 @@ func GetTopChannelByModel(group string, modelName string) (*model.Channel, error
 	if err := model.HydrateChannelWithModels(model.DB, &channel); err != nil {
 		return nil, err
 	}
-	if channel.Status != model.ChannelStatusEnabled {
+	if channel.Status != model.ChannelStatusEnabled && channel.Status != model.ChannelStatusHalfOpen {
 		return nil, gorm.ErrRecordNotFound
 	}
 	priority := row.GetPriority()
+	if channel.Status == model.ChannelStatusHalfOpen {
+		priority = model.ChannelHalfOpenPriority
+	}
 	channel.Priority = &priority
 	return &channel, nil
 }

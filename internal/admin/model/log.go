@@ -24,6 +24,8 @@ type Log struct {
 	BillingPricingSource         string  `json:"billing_pricing_source" gorm:"type:varchar(64);default:''"`
 	BillingUsageSource           string  `json:"billing_usage_source" gorm:"type:varchar(64);default:''"`
 	BillingEstimateSource        string  `json:"billing_estimate_source" gorm:"type:varchar(64);default:''"`
+	BillingEstimateEstimator     string  `json:"billing_estimate_estimator" gorm:"type:varchar(64);default:''"`
+	BillingEstimatePrecision     string  `json:"billing_estimate_precision" gorm:"type:varchar(32);default:''"`
 	BillingSettlementMode        string  `json:"billing_settlement_mode" gorm:"type:varchar(64);default:''"`
 	BillingGroupRatio            float64 `json:"billing_group_ratio" gorm:"type:double precision;default:0"`
 	BillingYYCRate               float64 `json:"billing_yyc_rate" gorm:"type:double precision;default:0"`
@@ -37,6 +39,7 @@ type Log struct {
 	BillingImageToolOutputTokens int     `json:"billing_image_tool_output_tokens" gorm:"default:0"`
 	BillingImageToolAmount       float64 `json:"billing_image_tool_amount" gorm:"type:double precision;default:0"`
 	BillingImageToolYYCAmount    int64   `json:"billing_image_tool_yyc_amount" gorm:"bigint;default:0"`
+	EstimatedPromptTokens        int     `json:"estimated_prompt_tokens" gorm:"default:0"`
 	PromptTokens                 int     `json:"prompt_tokens" gorm:"default:0"`
 	CompletionTokens             int     `json:"completion_tokens" gorm:"default:0"`
 	ChannelId                    string  `json:"channel" gorm:"type:varchar(64);index"`

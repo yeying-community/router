@@ -112,7 +112,7 @@ const RedemptionDetail = () => {
                     <div className='router-detail-label'>
                       {t('redemption.table.id')}
                     </div>
-                    <pre className='router-detail-value'>
+                    <pre className='router-detail-value router-monospace-value'>
                       {readOnlyText(record?.id || id)}
                     </pre>
                   </div>

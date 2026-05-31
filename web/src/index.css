@@ -996,6 +996,17 @@ body,
     text-align: center;
 }
 
+.router-ui-input-number.router-section-input .ant-input-number-group-addon {
+    padding: 0 !important;
+    background: var(--router-surface-subtle) !important;
+}
+
+.router-ui-input-number.router-section-input .ant-input-number-group-addon .router-ui-select.router-section-input-unit-dropdown,
+.router-ui-input-number.router-section-input .ant-input-number-group-addon .router-ui-select.router-section-input-unit-dropdown .ant-select-selector {
+    border-radius: 0 10px 10px 0 !important;
+    box-shadow: none !important;
+}
+
 .router-ui-textarea.router-section-textarea .ant-input {
     font-size: 14px !important;
     line-height: 1.5 !important;
@@ -2201,6 +2212,45 @@ body,
     min-height: 26px !important;
     padding: 0.42em 0.62em !important;
     font-size: 11px !important;
+}
+
+.router-channel-status-switch,
+.router-group-status-switch,
+.router-token-status-switch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.router-token-key-link {
+    display: inline-block;
+    width: 17ch;
+    font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace !important;
+    font-variant-ligatures: none;
+    white-space: nowrap;
+}
+
+.router-monospace-value {
+    font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace !important;
+    font-variant-ligatures: none;
+    letter-spacing: 0;
+}
+
+.router-monospace-truncate {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
+.router-ui-input.router-machine-input .ant-input,
+.router-ui-input.router-machine-input input {
+    font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace !important;
+    font-variant-ligatures: none;
+    letter-spacing: 0;
 }
 
 .router-ui-table.router-provider-model-detail-table .ant-table {
@@ -3755,7 +3805,7 @@ body,
 }
 
 .router-ui-table.router-billing-currency-table .ant-table {
-    min-width: 980px;
+    min-width: 1048px;
 }
 
 .router-ui-table.router-billing-currency-table .ant-table-thead > tr > th,
@@ -3765,29 +3815,30 @@ body,
 
 .router-ui-table.router-billing-currency-table .ant-table-thead > tr > th.router-billing-code-cell,
 .router-ui-table.router-billing-currency-table .ant-table-tbody > tr > td.router-billing-code-cell {
-    width: 56px !important;
-    max-width: 56px;
+    width: 96px !important;
+    max-width: 96px;
 }
 
 .router-ui-table.router-billing-currency-table .ant-table-thead > tr > th.router-billing-symbol-cell,
 .router-ui-table.router-billing-currency-table .ant-table-tbody > tr > td.router-billing-symbol-cell {
-    width: 36px !important;
-    max-width: 36px;
+    width: 88px !important;
+    max-width: 88px;
 }
 
-.router-ui-input.router-billing-code-input .ant-input {
-    width: 48px !important;
-    min-width: 48px !important;
+.router-ui-input.router-billing-code-input {
+    width: 72px !important;
+    min-width: 72px !important;
 }
 
-.router-ui-input.router-billing-symbol-input .ant-input {
-    width: 28px !important;
-    min-width: 28px !important;
+.router-ui-input.router-billing-symbol-input {
+    width: 64px !important;
+    min-width: 64px !important;
+    text-align: center;
 }
 
 .router-billing-action-cell {
-    width: 180px !important;
-    max-width: 180px;
+    width: 148px !important;
+    max-width: 148px;
 }
 
 .router-billing-snapshot-time {
@@ -3803,6 +3854,20 @@ body,
     justify-content: flex-end;
     gap: 10px;
     white-space: nowrap;
+}
+
+.router-billing-mode-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    color: var(--router-text-secondary, rgba(0, 0, 0, 0.66));
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.router-billing-mode-summary > span:last-child {
+    min-width: 0;
 }
 
 .router-row-clickable {

@@ -31,6 +31,9 @@ type ChannelModel struct {
 	PriceComponents []ProviderModelPriceComponentDetail `json:"price_components,omitempty" gorm:"-"`
 	SortOrder       int                                 `json:"sort_order" gorm:"default:0"`
 	UpdatedAt       int64                               `json:"updated_at" gorm:"bigint"`
+	DisabledReason  string                              `json:"disabled_reason,omitempty" gorm:"type:text"`
+	DisabledAt      int64                               `json:"disabled_at,omitempty" gorm:"bigint;index"`
+	DisabledBy      string                              `json:"disabled_by,omitempty" gorm:"type:varchar(64);default:'';index"`
 }
 
 func (ChannelModel) TableName() string {
@@ -541,6 +544,10 @@ func ReplaceChannelModelsWithDB(db *gorm.DB, channelID string, rows []ChannelMod
 }
 
 func DisableChannelModelCapability(channelID string, modelName string) (bool, error) {
+	return DisableChannelModelCapabilityWithReason(channelID, modelName, "", "")
+}
+
+func DisableChannelModelCapabilityWithReason(channelID string, modelName string, reason string, disabledBy string) (bool, error) {
 	normalizedChannelID := strings.TrimSpace(channelID)
 	normalizedModelName := strings.TrimSpace(modelName)
 	if normalizedChannelID == "" || normalizedModelName == "" {
@@ -553,7 +560,7 @@ func DisableChannelModelCapability(channelID string, modelName string) (bool, er
 		if err != nil {
 			return err
 		}
-		nextRows, disabled := buildDisabledChannelModels(rows, normalizedModelName)
+		nextRows, disabled := buildDisabledChannelModels(rows, normalizedModelName, reason, disabledBy)
 		if !disabled {
 			return nil
 		}
@@ -846,6 +853,8 @@ func normalizeChannelModelRow(row *ChannelModel) {
 	row.Model = strings.TrimSpace(row.Model)
 	row.UpstreamModel = strings.TrimSpace(row.UpstreamModel)
 	row.Provider = strings.TrimSpace(strings.ToLower(row.Provider))
+	row.DisabledReason = strings.TrimSpace(row.DisabledReason)
+	row.DisabledBy = strings.TrimSpace(row.DisabledBy)
 	if row.Model == "" && row.UpstreamModel != "" {
 		row.Model = row.UpstreamModel
 	}
@@ -900,22 +909,34 @@ func buildChannelModelSelectionSet(modelIDs []string) map[string]struct{} {
 	return set
 }
 
-func buildDisabledChannelModels(rows []ChannelModel, modelName string) ([]ChannelModel, bool) {
+func buildDisabledChannelModels(rows []ChannelModel, modelName string, reason string, disabledBy string) ([]ChannelModel, bool) {
 	normalizedRows := NormalizeChannelModelsPreserveOrder(rows)
 	normalizedModelName := strings.TrimSpace(modelName)
 	if normalizedModelName == "" || len(normalizedRows) == 0 {
 		return normalizedRows, false
+	}
+	now := helper.GetTimestamp()
+	normalizedReason := strings.TrimSpace(reason)
+	normalizedDisabledBy := strings.TrimSpace(disabledBy)
+	if normalizedDisabledBy == "" {
+		normalizedDisabledBy = "runtime"
 	}
 	changed := false
 	for idx := range normalizedRows {
 		if strings.TrimSpace(normalizedRows[idx].Model) != normalizedModelName {
 			continue
 		}
-		if normalizedRows[idx].Inactive && !normalizedRows[idx].Selected {
+		if normalizedRows[idx].Inactive && !normalizedRows[idx].Selected &&
+			strings.TrimSpace(normalizedRows[idx].DisabledReason) == normalizedReason &&
+			strings.TrimSpace(normalizedRows[idx].DisabledBy) == normalizedDisabledBy &&
+			normalizedRows[idx].DisabledAt > 0 {
 			return normalizedRows, changed
 		}
 		normalizedRows[idx].Inactive = true
 		normalizedRows[idx].Selected = false
+		normalizedRows[idx].DisabledReason = normalizedReason
+		normalizedRows[idx].DisabledAt = now
+		normalizedRows[idx].DisabledBy = normalizedDisabledBy
 		changed = true
 	}
 	return normalizedRows, changed
@@ -947,6 +968,11 @@ func replaceChannelModelRowsWithDB(db *gorm.DB, channelID string, rows []Channel
 		row.UpdatedAt = now
 		normalizeChannelModelRow(&row)
 		completeChannelModelRowDefaults(&row, channelProtocol)
+		if row.Selected && !row.Inactive {
+			row.DisabledReason = ""
+			row.DisabledAt = 0
+			row.DisabledBy = ""
+		}
 		if strings.TrimSpace(row.Provider) == "" {
 			row.Provider = ResolveProviderFromModelMap(providerByModel, row.UpstreamModel, row.Model)
 		}

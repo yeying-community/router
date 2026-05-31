@@ -91,14 +91,14 @@ func normalizeTopupOrderClientType(value string) string {
 func buildExternalPayCreateURL() (string, error) {
 	baseURL := strings.TrimSpace(config.ResolvedTopUpAPICreateURL())
 	if baseURL == "" {
-		return "", fmt.Errorf("超级管理员未设置支付 API 地址")
+		return "", NewTopupFlowError(TopupErrorPaymentConfigMissing, "超级管理员未设置支付 API 地址", nil)
 	}
 	parsed, err := url.Parse(baseURL)
 	if err != nil {
-		return "", fmt.Errorf("支付 API 地址配置无效")
+		return "", NewTopupFlowError(TopupErrorPaymentConfigInvalid, "支付 API 地址配置无效", err)
 	}
 	if parsed.Scheme == "" || parsed.Host == "" {
-		return "", fmt.Errorf("支付 API 地址配置无效")
+		return "", NewTopupFlowError(TopupErrorPaymentConfigInvalid, "支付 API 地址配置无效", nil)
 	}
 	query := parsed.Query()
 	query.Set("uniacid", strconv.Itoa(config.TopUpAPIUniacidValue()))
@@ -109,14 +109,14 @@ func buildExternalPayCreateURL() (string, error) {
 func buildExternalPayQueryURL() (string, error) {
 	baseURL := strings.TrimSpace(config.ResolvedTopUpAPIQueryURL())
 	if baseURL == "" {
-		return "", fmt.Errorf("超级管理员未设置支付状态查询 API 地址")
+		return "", NewTopupFlowError(TopupErrorPaymentConfigMissing, "超级管理员未设置支付状态查询 API 地址", nil)
 	}
 	parsed, err := url.Parse(baseURL)
 	if err != nil {
-		return "", fmt.Errorf("支付状态查询 API 地址配置无效")
+		return "", NewTopupFlowError(TopupErrorPaymentConfigInvalid, "支付状态查询 API 地址配置无效", err)
 	}
 	if parsed.Scheme == "" || parsed.Host == "" {
-		return "", fmt.Errorf("支付状态查询 API 地址配置无效")
+		return "", NewTopupFlowError(TopupErrorPaymentConfigInvalid, "支付状态查询 API 地址配置无效", nil)
 	}
 	query := parsed.Query()
 	query.Set("uniacid", strconv.Itoa(config.TopUpAPIUniacidValue()))
@@ -301,11 +301,11 @@ func createTopupOrderByExternalPayAPI(order TopupOrder, clientType string) (topu
 	payload := buildExternalPayCreatePayload(order, clientType)
 	bodyBytes, err := json.Marshal(payload)
 	if err != nil {
-		return topupExternalPayCreateResult{}, fmt.Errorf("构造支付请求失败")
+		return topupExternalPayCreateResult{}, NewTopupFlowError(TopupErrorPaymentRequestBuildFailed, "构造支付请求失败", err)
 	}
 	request, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return topupExternalPayCreateResult{}, fmt.Errorf("构造支付请求失败")
+		return topupExternalPayCreateResult{}, NewTopupFlowError(TopupErrorPaymentRequestBuildFailed, "构造支付请求失败", err)
 	}
 	request.Header.Set("Content-Type", "application/json")
 
@@ -315,28 +315,28 @@ func createTopupOrderByExternalPayAPI(order TopupOrder, clientType string) (topu
 	response, err := httpClient.Do(request)
 	if err != nil {
 		logExternalPayCreateFailure(order, requestURL, payload, 0, 0, "", nil, err)
-		return topupExternalPayCreateResult{}, fmt.Errorf("调用支付 API 失败: %w", err)
+		return topupExternalPayCreateResult{}, NewTopupFlowError(TopupErrorPaymentCreateFailed, fmt.Sprintf("调用支付 API 失败: %s", err.Error()), err)
 	}
 	defer response.Body.Close()
 
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		logExternalPayCreateFailure(order, requestURL, payload, response.StatusCode, 0, "read_body_failed", nil, err)
-		return topupExternalPayCreateResult{}, fmt.Errorf("读取支付 API 响应失败")
+		return topupExternalPayCreateResult{}, NewTopupFlowError(TopupErrorPaymentResponseInvalid, "读取支付 API 响应失败", err)
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		logExternalPayCreateFailure(order, requestURL, payload, response.StatusCode, 0, "", responseBody, nil)
-		return topupExternalPayCreateResult{}, fmt.Errorf(
+		return topupExternalPayCreateResult{}, NewTopupFlowError(TopupErrorPaymentCreateHTTPFailed, fmt.Sprintf(
 			"支付 API 请求失败: status=%d body=%s",
 			response.StatusCode,
 			previewExternalPayResponse(responseBody),
-		)
+		), nil)
 	}
 
 	var payloadResponse externalPayCreateResponse
 	if err := json.Unmarshal(responseBody, &payloadResponse); err != nil {
 		logExternalPayCreateFailure(order, requestURL, payload, response.StatusCode, 0, "invalid_json", responseBody, err)
-		return topupExternalPayCreateResult{}, fmt.Errorf("解析支付 API 响应失败: %s", previewExternalPayResponse(responseBody))
+		return topupExternalPayCreateResult{}, NewTopupFlowError(TopupErrorPaymentResponseInvalid, fmt.Sprintf("解析支付 API 响应失败: %s", previewExternalPayResponse(responseBody)), err)
 	}
 	if payloadResponse.Code != 1 {
 		message := strings.TrimSpace(payloadResponse.Msg)
@@ -344,18 +344,18 @@ func createTopupOrderByExternalPayAPI(order TopupOrder, clientType string) (topu
 			message = "支付 API 返回失败"
 		}
 		logExternalPayCreateFailure(order, requestURL, payload, response.StatusCode, payloadResponse.Code, message, responseBody, nil)
-		return topupExternalPayCreateResult{}, fmt.Errorf(message)
+		return topupExternalPayCreateResult{}, NewTopupFlowError(TopupErrorPaymentCreateUpstreamFailed, message, nil)
 	}
 
 	redirectURL := strings.TrimSpace(payloadResponse.Data.CashierURL)
 	if redirectURL == "" {
 		logExternalPayCreateFailure(order, requestURL, payload, response.StatusCode, payloadResponse.Code, "missing_cashier_url", responseBody, nil)
-		return topupExternalPayCreateResult{}, fmt.Errorf("支付 API 未返回 cashier_url")
+		return topupExternalPayCreateResult{}, NewTopupFlowError(TopupErrorPaymentResponseInvalid, "支付 API 未返回 cashier_url", nil)
 	}
 	providerOrderID := strings.TrimSpace(payloadResponse.Data.TradeNo)
 	if providerOrderID == "" {
 		logExternalPayCreateFailure(order, requestURL, payload, response.StatusCode, payloadResponse.Code, "missing_trade_no", responseBody, nil)
-		return topupExternalPayCreateResult{}, fmt.Errorf("支付 API 未返回 trade_no")
+		return topupExternalPayCreateResult{}, NewTopupFlowError(TopupErrorPaymentResponseInvalid, "支付 API 未返回 trade_no", nil)
 	}
 
 	providerName := strings.TrimSpace(payloadResponse.Data.ProviderName)
@@ -378,11 +378,11 @@ func queryTopupOrderByExternalPayAPI(order TopupOrder) (topupExternalPayQueryRes
 	payload := buildExternalPayQueryPayload(order)
 	bodyBytes, err := json.Marshal(payload)
 	if err != nil {
-		return topupExternalPayQueryResult{}, fmt.Errorf("构造支付状态查询请求失败")
+		return topupExternalPayQueryResult{}, NewTopupFlowError(TopupErrorPaymentRequestBuildFailed, "构造支付状态查询请求失败", err)
 	}
 	request, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return topupExternalPayQueryResult{}, fmt.Errorf("构造支付状态查询请求失败")
+		return topupExternalPayQueryResult{}, NewTopupFlowError(TopupErrorPaymentRequestBuildFailed, "构造支付状态查询请求失败", err)
 	}
 	request.Header.Set("Content-Type", "application/json")
 
@@ -392,28 +392,28 @@ func queryTopupOrderByExternalPayAPI(order TopupOrder) (topupExternalPayQueryRes
 	response, err := httpClient.Do(request)
 	if err != nil {
 		logExternalPayQueryFailure(order, requestURL, payload, 0, 0, "", nil, err)
-		return topupExternalPayQueryResult{}, fmt.Errorf("调用支付状态查询 API 失败: %w", err)
+		return topupExternalPayQueryResult{}, NewTopupFlowError(TopupErrorPaymentQueryFailed, fmt.Sprintf("调用支付状态查询 API 失败: %s", err.Error()), err)
 	}
 	defer response.Body.Close()
 
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		logExternalPayQueryFailure(order, requestURL, payload, response.StatusCode, 0, "read_body_failed", nil, err)
-		return topupExternalPayQueryResult{}, fmt.Errorf("读取支付状态查询 API 响应失败")
+		return topupExternalPayQueryResult{}, NewTopupFlowError(TopupErrorPaymentResponseInvalid, "读取支付状态查询 API 响应失败", err)
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		logExternalPayQueryFailure(order, requestURL, payload, response.StatusCode, 0, "", responseBody, nil)
-		return topupExternalPayQueryResult{}, fmt.Errorf(
+		return topupExternalPayQueryResult{}, NewTopupFlowError(TopupErrorPaymentQueryHTTPFailed, fmt.Sprintf(
 			"支付状态查询 API 请求失败: status=%d body=%s",
 			response.StatusCode,
 			previewExternalPayResponse(responseBody),
-		)
+		), nil)
 	}
 
 	var payloadResponse externalPayQueryResponse
 	if err := json.Unmarshal(responseBody, &payloadResponse); err != nil {
 		logExternalPayQueryFailure(order, requestURL, payload, response.StatusCode, 0, "invalid_json", responseBody, err)
-		return topupExternalPayQueryResult{}, fmt.Errorf("解析支付状态查询 API 响应失败: %s", previewExternalPayResponse(responseBody))
+		return topupExternalPayQueryResult{}, NewTopupFlowError(TopupErrorPaymentResponseInvalid, fmt.Sprintf("解析支付状态查询 API 响应失败: %s", previewExternalPayResponse(responseBody)), err)
 	}
 	if payloadResponse.Code != 1 {
 		message := strings.TrimSpace(payloadResponse.Msg)
@@ -421,7 +421,7 @@ func queryTopupOrderByExternalPayAPI(order TopupOrder) (topupExternalPayQueryRes
 			message = "支付状态查询 API 返回失败"
 		}
 		logExternalPayQueryFailure(order, requestURL, payload, response.StatusCode, payloadResponse.Code, message, responseBody, nil)
-		return topupExternalPayQueryResult{}, fmt.Errorf(message)
+		return topupExternalPayQueryResult{}, NewTopupFlowError(TopupErrorPaymentQueryUpstreamFailed, message, nil)
 	}
 
 	return topupExternalPayQueryResult{

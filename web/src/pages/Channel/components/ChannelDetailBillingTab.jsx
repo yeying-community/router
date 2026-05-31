@@ -11,6 +11,7 @@ import {
   AppModal,
   AppSelect,
   AppTable,
+  AppTag,
 } from '../../../router-ui';
 
 const buildManualQuotaItem = () => ({
@@ -46,19 +47,77 @@ const formatAmountText = (item) => {
   return `${amount}`;
 };
 
-const formatResourceTypeText = (item, t) => {
-  const resourceType = (item?.resource_type || '').toString().trim().toLowerCase();
-  switch (resourceType) {
-    case 'balance':
-      return t('channel.edit.billing.resource_types.balance');
-    case 'credit':
-      return t('channel.edit.billing.resource_types.credit');
-    case 'plan':
-      return t('channel.edit.billing.resource_types.plan');
-    case 'quota':
-    default:
-      return t('channel.edit.billing.resource_types.quota');
+const normalizeBillingValue = (value) => (value || '').toString().trim().toLowerCase();
+
+const isPeriodicQuotaType = (quotaType) =>
+  ['daily', 'weekly', 'monthly'].includes(normalizeBillingValue(quotaType));
+
+const isPlanEntitlement = (item) => normalizeBillingValue(item?.resource_type) === 'plan';
+
+const classifyEntitlementItem = (item, t) => {
+  const resourceType = normalizeBillingValue(item?.resource_type);
+  const quotaType = normalizeBillingValue(item?.quota_type);
+  if (resourceType === 'plan') {
+    return {
+      key: 'plan',
+      color: 'purple',
+      label: t('channel.edit.billing.entitlement_kinds.package'),
+    };
   }
+  if (isPeriodicQuotaType(quotaType)) {
+    return {
+      key: 'periodic',
+      color: 'blue',
+      label: t(`channel.edit.billing.quota_types.${quotaType}`, {
+        defaultValue: quotaType,
+      }),
+    };
+  }
+  if (resourceType === 'balance' || resourceType === 'credit' || quotaType === 'total') {
+    return {
+      key: 'metered',
+      color: 'cyan',
+      label: t('channel.edit.billing.entitlement_kinds.metered'),
+    };
+  }
+  return {
+    key: 'custom',
+    color: 'default',
+    label: t('channel.edit.billing.entitlement_kinds.custom'),
+  };
+};
+
+const summarizeEntitlementMode = (items, t) => {
+  const rows = Array.isArray(items) ? items : [];
+  const hasPlan = rows.some((row) => normalizeBillingValue(row?.resource_type) === 'plan');
+  const hasPeriodic = rows.some((row) => isPeriodicQuotaType(row?.quota_type));
+  const hasMetered = rows.some((row) => {
+    const resourceType = normalizeBillingValue(row?.resource_type);
+    const quotaType = normalizeBillingValue(row?.quota_type);
+    return resourceType === 'balance' || resourceType === 'credit' || quotaType === 'total';
+  });
+  if (hasPlan || hasPeriodic) {
+    return {
+      kind: 'package',
+      color: 'blue',
+      label: t('channel.edit.billing.mode_summary.package_title'),
+      description: t('channel.edit.billing.mode_summary.package_description'),
+    };
+  }
+  if (hasMetered) {
+    return {
+      kind: 'metered',
+      color: 'cyan',
+      label: t('channel.edit.billing.mode_summary.metered_title'),
+      description: t('channel.edit.billing.mode_summary.metered_description'),
+    };
+  }
+  return {
+    kind: 'unknown',
+    color: 'default',
+    label: t('channel.edit.billing.mode_summary.unknown_title'),
+    description: t('channel.edit.billing.mode_summary.unknown_description'),
+  };
 };
 
 const formatExpiresAtText = (item, timestamp2string, t) => {
@@ -69,12 +128,22 @@ const formatExpiresAtText = (item, timestamp2string, t) => {
   return timestamp2string(expiresAt);
 };
 
-const formatResetAtText = (item, timestamp2string, t) => {
+const formatValidityText = (item, timestamp2string, t) => {
+  const expiresAt = Number(item?.expires_at || 0);
   const resetAt = Number(item?.reset_at || 0);
-  if (resetAt <= 0) {
-    return '-';
+  const parts = [];
+  if (expiresAt > 0) {
+    parts.push(
+      `${t('channel.edit.billing.quota_table.valid_until')}: ${timestamp2string(expiresAt)}`,
+    );
   }
-  return timestamp2string(resetAt);
+  if (resetAt > 0) {
+    parts.push(`${t('channel.edit.billing.quota_table.next_reset')}: ${timestamp2string(resetAt)}`);
+  }
+  if (parts.length === 0) {
+    return t('channel.edit.billing.no_expire');
+  }
+  return parts.join(' / ');
 };
 
 const formatUsageText = (item) => {
@@ -90,7 +159,29 @@ const formatUsageText = (item) => {
   });
 };
 
+const formatEntitlementUsageText = (item, t) => {
+  if (isPlanEntitlement(item)) {
+    return formatItemStatusText(item, t);
+  }
+  return formatUsageText(item);
+};
+
+const formatUsedText = (item) => {
+  if (isPlanEntitlement(item)) {
+    return '-';
+  }
+  const used = Number(item?.used_amount || 0);
+  const currency = (item?.currency || '').toString().trim();
+  if (used <= 0) {
+    return '-';
+  }
+  return `${used}${currency ? ` ${currency}` : ''}`;
+};
+
 const formatRemainingRatioText = (item) => {
+  if (isPlanEntitlement(item)) {
+    return '-';
+  }
   const limit = Number(item?.limit_amount || 0);
   const remaining = Number(item?.remaining_amount || 0);
   if (!(limit > 0)) {
@@ -114,6 +205,38 @@ const formatItemStatusText = (item, t) => {
   }
 };
 
+const statusColor = (item) => {
+  const status = normalizeBillingValue(item?.status);
+  switch (status) {
+    case 'low':
+      return 'orange';
+    case 'depleted':
+    case 'expired':
+      return 'red';
+    case 'active':
+    default:
+      return 'green';
+  }
+};
+
+const renderEntitlementKind = (row, t) => {
+  const kind = classifyEntitlementItem(row, t);
+  return <AppTag color={kind.color}>{kind.label}</AppTag>;
+};
+
+const renderQuotaLabel = (value, row, t) => {
+  return (
+    value ||
+    t(`channel.edit.billing.quota_types.${row?.quota_type || 'custom'}`, {
+      defaultValue: row?.quota_type || '-',
+    })
+  );
+};
+
+const renderStatus = (row, t) => (
+  <AppTag color={statusColor(row)}>{formatItemStatusText(row, t)}</AppTag>
+);
+
 const formatAlertTypeText = (row, t) => {
   const eventType = (row?.event_type || '').toString().trim().toLowerCase();
   switch (eventType) {
@@ -121,6 +244,12 @@ const formatAlertTypeText = (row, t) => {
       return t('channel.edit.billing.alert_table.event_expiring_soon');
     case 'low_remaining':
       return t('channel.edit.billing.alert_table.event_low_remaining');
+    case 'plan_expired':
+      return t('channel.edit.billing.alert_table.event_plan_expired');
+    case 'refresh_failed':
+      return t('channel.edit.billing.alert_table.event_refresh_failed');
+    case 'response_error':
+      return t('channel.edit.billing.alert_table.event_response_error');
     default:
       return eventType || '-';
   }
@@ -229,7 +358,14 @@ const ChannelDetailBillingTab = ({
   const quotaItems = Array.isArray(billingSummary?.quota_items)
     ? billingSummary.quota_items
     : [];
+  const latestSnapshotStatus = normalizeBillingValue(
+    billingSummary?.latest_snapshot_status,
+  );
+  const latestSnapshotMessage = (billingSummary?.latest_snapshot_message || '')
+    .toString()
+    .trim();
   const alertRecords = Array.isArray(billingAlerts) ? billingAlerts : [];
+  const entitlementModeSummary = summarizeEntitlementMode(quotaItems, t);
 
   const appendManualItem = () => {
     setManualItems((prev) => [...prev, buildManualQuotaItem()]);
@@ -440,6 +576,24 @@ const ChannelDetailBillingTab = ({
             </div>
           }
         >
+          <div className='router-billing-mode-summary'>
+            <AppTag color={entitlementModeSummary.color}>
+              {entitlementModeSummary.label}
+            </AppTag>
+            <span>{entitlementModeSummary.description}</span>
+          </div>
+          {latestSnapshotStatus === 'failed' ? (
+            <AppAlert
+              type='warning'
+              showIcon
+              className='router-section-message'
+              title={t('channel.edit.billing.latest_refresh_failed', {
+                message:
+                  latestSnapshotMessage ||
+                  t('channel.edit.billing.latest_refresh_failed_unknown'),
+              })}
+            />
+          ) : null}
           <AppTable
             className='router-detail-table'
             pagination={false}
@@ -448,29 +602,32 @@ const ChannelDetailBillingTab = ({
             rowKey={(row, index) => `${row?.quota_label || row?.quota_type || 'quota'}-${index}`}
             columns={[
               {
-                title: t('channel.edit.billing.quota_table.resource_type'),
+                title: t('channel.edit.billing.quota_table.entitlement_kind'),
                 dataIndex: 'resource_type',
-                key: 'resource_type',
-                width: 120,
-                render: (_, row) => formatResourceTypeText(row, t),
+                key: 'entitlement_kind',
+                width: 170,
+                render: (_, row) => renderEntitlementKind(row, t),
               },
               {
                 title: t('channel.edit.billing.quota_table.quota_label'),
                 dataIndex: 'quota_label',
                 key: 'quota_label',
                 width: 180,
-                render: (value, row) =>
-                  value ||
-                  t(`channel.edit.billing.quota_types.${row?.quota_type || 'custom'}`, {
-                    defaultValue: row?.quota_type || '-',
-                  }),
+                render: (value, row) => renderQuotaLabel(value, row, t),
               },
               {
                 title: t('channel.edit.billing.quota_table.amount'),
                 dataIndex: 'remaining_amount',
                 key: 'remaining_amount',
                 width: 180,
-                render: (_, row) => formatUsageText(row),
+                render: (_, row) => formatEntitlementUsageText(row, t),
+              },
+              {
+                title: t('channel.edit.billing.quota_table.used_amount'),
+                dataIndex: 'used_amount',
+                key: 'used_amount',
+                width: 120,
+                render: (_, row) => formatUsedText(row),
               },
               {
                 title: t('channel.edit.billing.quota_table.remaining_ratio'),
@@ -480,25 +637,18 @@ const ChannelDetailBillingTab = ({
                 render: (_, row) => formatRemainingRatioText(row),
               },
               {
-                title: t('channel.edit.billing.quota_table.reset_at'),
-                dataIndex: 'reset_at',
-                key: 'reset_at',
-                width: 180,
-                render: (_, row) => formatResetAtText(row, timestamp2string, t),
-              },
-              {
-                title: t('channel.edit.billing.quota_table.expires_at'),
+                title: t('channel.edit.billing.quota_table.validity'),
                 dataIndex: 'expires_at',
-                key: 'expires_at',
-                width: 180,
-                render: (_, row) => formatExpiresAtText(row, timestamp2string, t),
+                key: 'validity',
+                width: 260,
+                render: (_, row) => formatValidityText(row, timestamp2string, t),
               },
               {
                 title: t('channel.edit.billing.quota_table.status'),
                 dataIndex: 'status',
                 key: 'status',
-                width: 120,
-                render: (_, row) => formatItemStatusText(row, t),
+                width: 100,
+                render: (_, row) => renderStatus(row, t),
               },
             ]}
             locale={{

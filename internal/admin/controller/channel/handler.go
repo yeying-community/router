@@ -20,23 +20,38 @@ import (
 const maxChannelListPageSize = 100
 
 type channelListItem struct {
-	ID                    string   `json:"id"`
-	Protocol              string   `json:"protocol"`
-	Status                int      `json:"status"`
-	Name                  string   `json:"name"`
-	Weight                *uint    `json:"weight,omitempty"`
-	CreatedTime           int64    `json:"created_time"`
-	UpdatedAt             int64    `json:"updated_at"`
-	TestTime              int64    `json:"test_time"`
-	Capabilities          []string `json:"capabilities"`
-	BaseURL               string   `json:"base_url,omitempty"`
-	Other                 string   `json:"other,omitempty"`
-	BillingSummary        string   `json:"billing_summary"`
-	BillingSnapshotAt     int64    `json:"billing_snapshot_at"`
-	BillingQuotaItemCount int      `json:"billing_quota_item_count"`
-	UsedQuota             int64    `json:"used_quota"`
-	YYCUsed               int64    `json:"yyc_used"`
-	Priority              int64    `json:"priority"`
+	ID                    string                         `json:"id"`
+	Protocol              string                         `json:"protocol"`
+	Status                int                            `json:"status"`
+	Name                  string                         `json:"name"`
+	Weight                *uint                          `json:"weight,omitempty"`
+	CreatedTime           int64                          `json:"created_time"`
+	UpdatedAt             int64                          `json:"updated_at"`
+	TestTime              int64                          `json:"test_time"`
+	Capabilities          []string                       `json:"capabilities"`
+	BaseURL               string                         `json:"base_url,omitempty"`
+	Other                 string                         `json:"other,omitempty"`
+	BillingSummary        string                         `json:"billing_summary"`
+	BillingSnapshotAt     int64                          `json:"billing_snapshot_at"`
+	BillingQuotaItemCount int                            `json:"billing_quota_item_count"`
+	UsedQuota             int64                          `json:"used_quota"`
+	YYCUsed               int64                          `json:"yyc_used"`
+	Priority              int64                          `json:"priority"`
+	CircuitBreaker        *channelCircuitBreakerListItem `json:"circuit_breaker,omitempty"`
+}
+
+type channelCircuitBreakerListItem struct {
+	State        string  `json:"state"`
+	Reason       string  `json:"reason"`
+	SuccessRate  float64 `json:"success_rate"`
+	DisabledAt   int64   `json:"disabled_at"`
+	RecoverAfter int64   `json:"recover_after"`
+	RecoveredAt  int64   `json:"recovered_at"`
+	UpdatedAt    int64   `json:"updated_at"`
+}
+
+type channelCircuitBreakerEventsData struct {
+	Items []model.ChannelCircuitBreakerEvent `json:"items"`
 }
 
 type channelListPageData struct {
@@ -104,6 +119,21 @@ func buildChannelListItem(channel *model.Channel) channelListItem {
 		UsedQuota:    channel.UsedQuota,
 		YYCUsed:      channel.UsedQuota,
 		Priority:     channel.GetPriority(),
+	}
+}
+
+func buildChannelCircuitBreakerListItem(row model.ChannelCircuitBreakerState) *channelCircuitBreakerListItem {
+	if strings.TrimSpace(row.ChannelId) == "" {
+		return nil
+	}
+	return &channelCircuitBreakerListItem{
+		State:        strings.TrimSpace(row.State),
+		Reason:       strings.TrimSpace(row.Reason),
+		SuccessRate:  row.SuccessRate,
+		DisabledAt:   row.DisabledAt,
+		RecoverAfter: row.RecoverAfter,
+		RecoveredAt:  row.RecoveredAt,
+		UpdatedAt:    row.UpdatedAt,
 	}
 }
 
@@ -206,12 +236,23 @@ func listChannelsPage(page int, pageSize int, keyword string) (channelListPageDa
 	for _, snapshot := range latestSnapshots {
 		latestSnapshotMap[strings.TrimSpace(snapshot.ChannelId)] = snapshot
 	}
+	circuitRows, err := model.ListChannelCircuitBreakerStatesByChannelIDsWithDB(model.DB, channelIDs)
+	if err != nil {
+		return channelListPageData{}, err
+	}
+	circuitByChannelID := make(map[string]model.ChannelCircuitBreakerState, len(circuitRows))
+	for _, row := range circuitRows {
+		circuitByChannelID[strings.TrimSpace(row.ChannelId)] = row
+	}
 	for _, row := range rows {
 		item := buildChannelListItem(row)
 		if snapshot, ok := latestSnapshotMap[strings.TrimSpace(row.Id)]; ok {
 			item.BillingSummary, item.BillingSnapshotAt, item.BillingQuotaItemCount = summarizeChannelBillingSnapshot(snapshot)
 		} else {
 			item.BillingSummary = "-"
+		}
+		if circuitRow, ok := circuitByChannelID[strings.TrimSpace(row.Id)]; ok {
+			item.CircuitBreaker = buildChannelCircuitBreakerListItem(circuitRow)
 		}
 		items = append(items, item)
 	}
@@ -272,6 +313,31 @@ func GetChannels(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data":    data,
+	})
+}
+
+func GetChannelCircuitBreakerEvents(c *gin.Context) {
+	channelID := strings.TrimSpace(c.Param("id"))
+	limit := 20
+	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	rows, err := model.ListChannelCircuitBreakerEventsWithDB(model.DB, channelID, limit)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": channelCircuitBreakerEventsData{
+			Items: rows,
+		},
 	})
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/admin/monitor"
 	channelsvc "github.com/yeying-community/router/internal/admin/service/channel"
 )
 
@@ -24,6 +25,9 @@ type channelEndpointItem struct {
 	BaseURL           string `json:"base_url,omitempty"`
 	Enabled           bool   `json:"enabled"`
 	UpdatedAt         int64  `json:"updated_at"`
+	DisabledReason    string `json:"disabled_reason,omitempty"`
+	DisabledAt        int64  `json:"disabled_at,omitempty"`
+	DisabledBy        string `json:"disabled_by,omitempty"`
 	LastTestStatus    string `json:"last_test_status,omitempty"`
 	LastTestedAt      int64  `json:"last_tested_at,omitempty"`
 	LastTestError     string `json:"last_test_error,omitempty"`
@@ -89,12 +93,15 @@ func GetChannelEndpoints(c *gin.Context) {
 	items := make([]channelEndpointItem, 0, len(mergedRows))
 	for _, row := range mergedRows {
 		item := channelEndpointItem{
-			ChannelId: row.ChannelId,
-			Model:     row.Model,
-			Endpoint:  row.Endpoint,
-			BaseURL:   row.BaseURL,
-			Enabled:   row.Enabled,
-			UpdatedAt: row.UpdatedAt,
+			ChannelId:      row.ChannelId,
+			Model:          row.Model,
+			Endpoint:       row.Endpoint,
+			BaseURL:        row.BaseURL,
+			Enabled:        row.Enabled,
+			UpdatedAt:      row.UpdatedAt,
+			DisabledReason: row.DisabledReason,
+			DisabledAt:     row.DisabledAt,
+			DisabledBy:     row.DisabledBy,
 		}
 		if testRow, ok := testResultByKey[strings.TrimSpace(row.Model)+"::"+model.NormalizeRequestedChannelModelEndpoint(row.Endpoint)]; ok {
 			item.LastTestStatus = strings.TrimSpace(testRow.LastTestStatus)
@@ -219,6 +226,7 @@ func UpdateChannelEndpoint(c *gin.Context) {
 			return
 		}
 	}
+	restoredEndpoint := enabled && isChannelModelEndpointRuntimeDisabled(mergedRows, modelName, endpoint)
 	row := model.ChannelModelEndpoint{
 		ChannelId: channelRow.Id,
 		Model:     modelName,
@@ -235,6 +243,9 @@ func UpdateChannelEndpoint(c *gin.Context) {
 		return
 	}
 	logChannelAdminInfo(c, "update_endpoint", stringField("channel_id", channelID), stringField("model", modelName), stringField("endpoint", endpoint), stringField("enabled", map[bool]string{true: "true", false: "false"}[enabled]))
+	if restoredEndpoint {
+		monitor.NotifyChannelModelEndpointCapabilityRestored(channelID, channelRow.DisplayName(), modelName, endpoint, channelAdminOperator(c))
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -284,4 +295,25 @@ func mergeUpdatedChannelEndpointRows(rows []model.ChannelModelEndpoint, updated 
 		result = append(result, normalizedUpdated)
 	}
 	return result
+}
+
+func isChannelModelEndpointRuntimeDisabled(rows []model.ChannelModelEndpoint, modelName string, endpoint string) bool {
+	normalizedModel := strings.TrimSpace(modelName)
+	normalizedEndpoint := model.NormalizeRequestedChannelModelEndpoint(endpoint)
+	if normalizedModel == "" || normalizedEndpoint == "" {
+		return false
+	}
+	for _, row := range rows {
+		if strings.TrimSpace(row.Model) != normalizedModel {
+			continue
+		}
+		if model.NormalizeRequestedChannelModelEndpoint(row.Endpoint) != normalizedEndpoint {
+			continue
+		}
+		return !row.Enabled &&
+			(row.DisabledAt > 0 ||
+				strings.TrimSpace(row.DisabledReason) != "" ||
+				strings.TrimSpace(row.DisabledBy) != "")
+	}
+	return false
 }

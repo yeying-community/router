@@ -313,7 +313,8 @@
         "canceled": "已取消"
       },
       "actions": {
-        "refresh": "立即查单"
+        "refresh": "立即查单",
+        "fulfill": "补发放"
       },
       "detail": {
         "sections": {
@@ -373,6 +374,7 @@
       "updated_at": "更新时间",
       "response_time": "响应时间",
       "capabilities": "能力",
+      "circuit_breaker": "熔断",
       "billing": "账务",
       "balance": "余额",
       "priority": "优先级",
@@ -381,10 +383,21 @@
       "status_enabled": "已启用",
       "status_disabled": "已禁用",
       "status_auto_disabled": "已禁用",
+      "status_half_open": "探测中",
       "status_creating": "创建中",
       "status_disabled_tip": "本渠道被手动禁用",
       "status_auto_disabled_tip": "本渠道被程序自动禁用",
+      "status_half_open_tip": "本渠道正处于自动熔断恢复后的半开探测状态",
       "status_unknown": "未知状态",
+      "circuit_state_open": "熔断中",
+      "circuit_state_half_open": "探测中",
+      "circuit_state_recovered": "已恢复",
+      "circuit_state_canceled": "已取消",
+      "circuit_reason": "原因",
+      "circuit_success_rate": "触发成功率",
+      "circuit_disabled_at": "熔断时间",
+      "circuit_recover_after": "预计恢复",
+      "circuit_recovered_at": "最近恢复",
       "not_tested": "未测试",
       "priority_tip": "渠道选择优先级，越高越优先",
       "click_to_update": "点击更新",
@@ -594,6 +607,8 @@
         "profile_update_success": "账务配置保存成功",
         "profile_update_failed": "账务配置保存失败",
         "refresh_now": "刷新",
+        "latest_refresh_failed": "最近一次账务刷新失败：{{message}}",
+        "latest_refresh_failed_unknown": "上游账务接口返回异常",
         "current_quotas_title": "权益项状态",
         "billing_mode": "账务方式",
         "updated_at": "更新时间",
@@ -660,11 +675,31 @@
           "credit": "信用额度",
           "plan": "套餐"
         },
+        "entitlement_kinds": {
+          "metered": "按量",
+          "periodic": "周期额度",
+          "package": "套餐",
+          "plan": "套餐有效期",
+          "custom": "自定义"
+        },
+        "mode_summary": {
+          "package_title": "套餐渠道",
+          "package_description": "该渠道存在套餐有效期或周期额度，运营判断可用性时优先看有效期、日/周/月剩余额度和重置时间。",
+          "metered_title": "按量渠道",
+          "metered_description": "该渠道主要按余额或总额度扣减，余额耗尽后会影响自动禁用判断。",
+          "unknown_title": "未识别",
+          "unknown_description": "当前快照没有可识别的按量或套餐权益项。"
+        },
         "quota_table": {
+          "entitlement_kind": "计费形态",
           "resource_type": "权益类型",
           "quota_label": "额度项",
-          "amount": "剩余/总量",
+          "amount": "剩余/状态",
+          "used_amount": "已使用",
           "remaining_ratio": "剩余比例",
+          "validity": "有效期/重置",
+          "valid_until": "有效至",
+          "next_reset": "下次重置",
           "reset_at": "重置时间",
           "expires_at": "到期时间",
           "status": "状态",
@@ -697,6 +732,9 @@
           "empty": "当前没有告警记录",
           "event_expiring_soon": "即将到期",
           "event_low_remaining": "余额偏低",
+          "event_plan_expired": "套餐到期",
+          "event_refresh_failed": "刷新失败",
+          "event_response_error": "响应异常",
           "status_sent": "已发送",
           "status_failed": "发送失败"
         }
@@ -713,10 +751,6 @@
         "enable_success": "打开端点能力成功",
         "disable_success": "关闭端点能力成功",
         "update_failed": "更新端点能力失败",
-        "enable_confirm_title": "确认打开端点",
-        "enable_confirm_content": "当前端点没有成功测试记录，或最新测试结果不是成功，不建议直接打开。继续后，该端点可能被对外暴露并接收真实请求。",
-        "enable_confirm_target": "模型：{{model}}，端点：{{endpoint}}",
-        "enable_confirm_action": "继续打开",
         "filters": {
           "test_status": "测试状态",
           "all_test_status": "全部测试状态"
@@ -731,6 +765,19 @@
           "test_status": "测试状态",
           "enable_block_reason": "不能启用原因",
           "updated_at": "更新时间"
+        }
+      },
+      "circuit_breaker": {
+        "title": "熔断事件",
+        "hint": "这里记录渠道低成功率熔断、半开探测、自动恢复和取消恢复的历史事件，用于排查渠道为什么被摘除或恢复。",
+        "empty": "当前没有熔断事件。",
+        "load_failed": "加载熔断事件失败",
+        "columns": {
+          "event": "事件",
+          "reason": "原因",
+          "success_rate": "成功率",
+          "recover_after": "预计恢复",
+          "created_at": "时间"
         }
       },
       "endpoint_policies": {
@@ -915,6 +962,11 @@
           "source": "来源",
           "source_url": "来源链接"
         }
+      },
+      "capability_disable": {
+        "by": "摘除来源：{{value}}",
+        "at": "摘除时间：{{value}}",
+        "reason": "摘除原因：{{value}}"
       },
       "model_tester": {
         "title": "模型测试",
@@ -1333,7 +1385,7 @@
       "raw": "复制原始令牌",
       "ama": "复制 AMA 链接",
       "opencat": "复制 OpenCat 链接",
-      "next": "复制 NextChat 链接",
+      "next": "复制 Chat 链接",
       "lobe": "复制 LobeChat 链接"
     },
     "messages": {
@@ -1530,6 +1582,9 @@
         "billing_pricing_source": "价格来源",
         "billing_usage_source": "Usage 来源",
         "billing_estimate_source": "估算来源",
+        "billing_estimate_estimator": "估算器",
+        "billing_estimate_precision": "估算精度",
+        "estimated_prompt_tokens": "预估提示词消耗",
         "billing_settlement_mode": "结算模式",
         "billing_group_ratio": "业务倍率",
         "billing_yyc_rate": "折算比率",
@@ -2488,7 +2543,7 @@
         "topup_link": "充值链接",
         "topup_link_placeholder": "例如发卡网站的购买链接",
         "chat_link": "聊天页面链接",
-        "chat_link_placeholder": "例如 ChatGPT Next Web 的部署地址",
+        "chat_link_placeholder": "例如 Chat Web 的部署地址",
         "quota_per_unit": "USD -> YYC 折算比率",
         "quota_per_unit_placeholder": "1 USD 折算为多少 YYC",
         "channel_billing_auto_refresh": {

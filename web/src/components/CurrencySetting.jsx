@@ -28,12 +28,23 @@ const createEmptyCurrency = () => ({
   _isNew: true,
 });
 
-const codeColumnStyle = { width: '34px', minWidth: '34px' };
-const nameColumnStyle = { width: '120px', minWidth: '120px' };
-const symbolColumnStyle = { width: '22px', minWidth: '22px' };
-const createdAtColumnStyle = { width: '160px', minWidth: '160px' };
-const updatedAtColumnStyle = { width: '160px', minWidth: '160px' };
-const actionColumnStyle = { width: '120px', minWidth: '120px' };
+const codeColumnWidth = 96;
+const nameColumnWidth = 180;
+const symbolColumnWidth = 88;
+const minorUnitColumnWidth = 108;
+const statusColumnWidth = 124;
+const createdAtColumnWidth = 148;
+const updatedAtColumnWidth = 148;
+const actionColumnWidth = 148;
+const currencyTableMinWidth =
+  codeColumnWidth +
+  nameColumnWidth +
+  symbolColumnWidth +
+  minorUnitColumnWidth +
+  statusColumnWidth +
+  createdAtColumnWidth +
+  updatedAtColumnWidth +
+  actionColumnWidth;
 
 const CurrencySetting = ({ section = '' }) => {
   const { t } = useTranslation();
@@ -208,7 +219,7 @@ const CurrencySetting = ({ section = '' }) => {
         />
         <div className='router-table-scroll-x'>
           <AppTable
-            className='router-detail-table'
+            className='router-detail-table router-billing-currency-table'
             dataSource={currencies.map((row, index) => ({
               ...row,
               _rowKey: row.code || `new-${index}`,
@@ -216,7 +227,7 @@ const CurrencySetting = ({ section = '' }) => {
             }))}
             rowKey='_rowKey'
             pagination={false}
-            scroll={{ x: 980 }}
+            scroll={{ x: currencyTableMinWidth }}
             locale={{
               emptyText: loading
                 ? t('common.loading')
@@ -227,17 +238,17 @@ const CurrencySetting = ({ section = '' }) => {
                 title: t('setting.currency.catalog.columns.code'),
                 dataIndex: 'code',
                 key: 'code',
-                width: codeColumnStyle.width,
+                width: codeColumnWidth,
+                className: 'router-billing-code-cell',
                 render: (_, row) => (
                   <AppInput
-                    className='router-section-input'
+                    className='router-section-input router-billing-code-input'
                     value={row.code || ''}
                     onChange={(e, { value }) =>
                       updateCurrencyField(row._rowIndex, 'code', value)
                     }
                     readOnly={!row._isNew}
                     placeholder='USD'
-                    style={codeColumnStyle}
                   />
                 ),
               },
@@ -245,7 +256,7 @@ const CurrencySetting = ({ section = '' }) => {
                 title: t('setting.currency.catalog.columns.name'),
                 dataIndex: 'name',
                 key: 'name',
-                width: nameColumnStyle.width,
+                width: nameColumnWidth,
                 render: (_, row) => (
                   <AppInput
                     className='router-section-input'
@@ -254,7 +265,6 @@ const CurrencySetting = ({ section = '' }) => {
                       updateCurrencyField(row._rowIndex, 'name', value)
                     }
                     placeholder={t('setting.currency.catalog.placeholders.name')}
-                    style={nameColumnStyle}
                   />
                 ),
               },
@@ -262,16 +272,16 @@ const CurrencySetting = ({ section = '' }) => {
                 title: t('setting.currency.catalog.columns.symbol'),
                 dataIndex: 'symbol',
                 key: 'symbol',
-                width: symbolColumnStyle.width,
+                width: symbolColumnWidth,
+                className: 'router-billing-symbol-cell',
                 render: (_, row) => (
                   <AppInput
-                    className='router-section-input'
+                    className='router-section-input router-billing-symbol-input'
                     value={row.symbol || ''}
                     onChange={(e, { value }) =>
                       updateCurrencyField(row._rowIndex, 'symbol', value)
                     }
                     placeholder='$'
-                    style={symbolColumnStyle}
                   />
                 ),
               },
@@ -279,7 +289,7 @@ const CurrencySetting = ({ section = '' }) => {
                 title: t('setting.currency.catalog.columns.minor_unit'),
                 dataIndex: 'minor_unit',
                 key: 'minor_unit',
-                width: 120,
+                width: minorUnitColumnWidth,
                 render: (_, row) => (
                   <AppInputNumber
                     className='router-section-input'
@@ -299,7 +309,7 @@ const CurrencySetting = ({ section = '' }) => {
                 title: t('setting.currency.catalog.columns.status'),
                 dataIndex: 'status',
                 key: 'status',
-                width: 140,
+                width: statusColumnWidth,
                 render: (_, row) => (
                   <AppSelect
                     className='router-section-input'
@@ -315,7 +325,7 @@ const CurrencySetting = ({ section = '' }) => {
                 title: t('setting.currency.catalog.columns.created_at'),
                 dataIndex: 'created_at',
                 key: 'created_at',
-                width: createdAtColumnStyle.width,
+                width: createdAtColumnWidth,
                 sorter: (a, b) => Number(a.created_at || 0) - Number(b.created_at || 0),
                 defaultSortOrder: 'descend',
                 render: (value) => (value ? timestamp2string(value) : '-'),
@@ -324,14 +334,15 @@ const CurrencySetting = ({ section = '' }) => {
                 title: t('setting.currency.catalog.columns.updated_at'),
                 dataIndex: 'updated_at',
                 key: 'updated_at',
-                width: updatedAtColumnStyle.width,
+                width: updatedAtColumnWidth,
                 sorter: (a, b) => Number(a.updated_at || 0) - Number(b.updated_at || 0),
                 render: (value) => (value ? timestamp2string(value) : '-'),
               },
               {
                 title: t('setting.currency.catalog.columns.action'),
                 key: 'action',
-                width: actionColumnStyle.width,
+                width: actionColumnWidth,
+                className: 'router-billing-action-cell',
                 render: (_, row) => {
                   const currentSavingKey = row._isNew
                     ? `new-${row._rowIndex}`

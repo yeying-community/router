@@ -16,7 +16,7 @@ func estimateByProvider(req EstimateRequest, model string) (EstimateResult, erro
 		}
 		return estimateAnthropicFromRaw(req, model)
 	case familyGemini:
-		return estimateHeuristicFromRequest(req, familyGemini, "local_gemini_heuristic", "gemini_heuristic")
+		return estimateGeminiFromRequest(req, model)
 	default:
 		return estimateHeuristicFromRequest(req, familyUnknown, "local_unknown_heuristic", "unknown_heuristic")
 	}

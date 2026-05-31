@@ -24,6 +24,7 @@ import ChannelDetailBillingTab from './components/ChannelDetailBillingTab';
 import ChannelDetailModelsTab from './components/ChannelDetailModelsTab';
 import ChannelDetailOverviewTab from './components/ChannelDetailOverviewTab';
 import ChannelDetailTestsTab from './components/ChannelDetailTestsTab';
+import ChannelCircuitBreakerEventsSection from './components/ChannelCircuitBreakerEventsSection';
 import ChannelAppendProviderModal from './components/ChannelAppendProviderModal';
 import ChannelComplexPricingModal from './components/ChannelComplexPricingModal';
 import ChannelModelEditorModal from './components/ChannelModelEditorModal';
@@ -37,7 +38,6 @@ import {
   AppFormRow,
   AppIcon,
   AppInput,
-  AppModal,
   AppSelect,
   AppSpin,
   AppTabs,
@@ -503,6 +503,9 @@ const normalizeChannelEndpointRows = (items) => {
       base_url: normalizeBaseURL(item.base_url),
       enabled: item.enabled === true,
       updated_at: Number(item.updated_at || 0),
+      disabled_reason: (item.disabled_reason || '').toString().trim(),
+      disabled_at: Number(item.disabled_at || 0),
+      disabled_by: (item.disabled_by || '').toString().trim(),
       last_test_status: (item.last_test_status || '').toString().trim(),
       last_tested_at: Number(item.last_tested_at || 0),
       last_test_error: (item.last_test_error || '').toString().trim(),
@@ -542,6 +545,8 @@ const normalizeChannelBillingSummary = (item) => {
     manual_update_supported: item.manual_update_supported === true,
     refresh_supported: item.refresh_supported === true,
     latest_snapshot_at: Number(item.latest_snapshot_at || 0),
+    latest_snapshot_status: (item.latest_snapshot_status || '').toString().trim(),
+    latest_snapshot_message: (item.latest_snapshot_message || '').toString().trim(),
     quota_items: Array.isArray(item.quota_items)
       ? item.quota_items.map((quotaItem) => ({
           resource_type: (quotaItem?.resource_type || '').toString().trim(),
@@ -1190,6 +1195,9 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
     endpoints: normalizedEndpoints,
     inactive: row.inactive === true,
     selected: row.selected === true,
+    disabled_reason: (row.disabled_reason || '').toString().trim(),
+    disabled_at: Number(row.disabled_at || 0),
+    disabled_by: (row.disabled_by || '').toString().trim(),
     is_stream: resolveModelTestStreamEnabled(row),
     input_price: normalizePriceOverrideValue(row.input_price),
     output_price: normalizePriceOverrideValue(row.output_price),
@@ -1544,6 +1552,21 @@ const fetchChannelBillingAlerts = async (channelId) => {
   return normalizeChannelBillingAlerts(data?.items);
 };
 
+const fetchChannelCircuitBreakerEvents = async (channelId) => {
+  const normalizedChannelId = (channelId || '').toString().trim();
+  if (normalizedChannelId === '') {
+    return [];
+  }
+  const res = await API.get(
+    `/api/v1/admin/channel/${normalizedChannelId}/circuit-breaker/events`,
+  );
+  const { success, message, data } = res.data || {};
+  if (!success) {
+    throw new Error(message || 'fetch channel circuit breaker events failed');
+  }
+  return Array.isArray(data?.items) ? data.items : [];
+};
+
 const fetchTaskById = async (taskId) => {
   const normalizedTaskId = (taskId || '').toString().trim();
   if (normalizedTaskId === '') {
@@ -1818,14 +1841,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     }
     return raw.trim();
   }, [location.state]);
-  const copyFromId = useMemo(() => {
-    if (hasChannelID) return '';
-    const query = new URLSearchParams(location.search);
-    return (query.get('copy_from') || '').trim();
-  }, [hasChannelID, location.search]);
-  const [loading, setLoading] = useState(
-    hasChannelID || copyFromId !== '',
-  );
+  const [loading, setLoading] = useState(hasChannelID);
   const activeDetailTab = useMemo(() => {
     if (!isDetailMode) {
       return 'overview';
@@ -1895,11 +1911,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     useState(false);
   const [channelEndpointPoliciesError, setChannelEndpointPoliciesError] =
     useState('');
-  const [endpointEnableConfirmOpen, setEndpointEnableConfirmOpen] =
-    useState(false);
-  const [endpointEnableConfirmLoading, setEndpointEnableConfirmLoading] =
-    useState(false);
-  const [pendingEndpointEnableRow, setPendingEndpointEnableRow] = useState(null);
   const [policyEditorOpen, setPolicyEditorOpen] = useState(false);
   const [policyEditorSaving, setPolicyEditorSaving] = useState(false);
   const [selectedPolicyTemplate, setSelectedPolicyTemplate] = useState('');
@@ -1912,6 +1923,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const [channelBillingSnapshots, setChannelBillingSnapshots] = useState([]);
   const [channelBillingActions, setChannelBillingActions] = useState([]);
   const [channelBillingAlerts, setChannelBillingAlerts] = useState([]);
+  const [channelCircuitBreakerEvents, setChannelCircuitBreakerEvents] =
+    useState([]);
+  const [channelCircuitBreakerEventsLoading, setChannelCircuitBreakerEventsLoading] =
+    useState(false);
+  const [channelCircuitBreakerEventsError, setChannelCircuitBreakerEventsError] =
+    useState('');
   const [channelBillingLoading, setChannelBillingLoading] = useState(false);
   const [channelBillingError, setChannelBillingError] = useState('');
   const [channelBillingSubmitting, setChannelBillingSubmitting] =
@@ -3154,6 +3171,19 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     [t],
   );
 
+  const loadChannelCircuitBreakerEventsFromServer = useCallback(
+    async (targetChannelId) => {
+      try {
+        return await fetchChannelCircuitBreakerEvents(targetChannelId);
+      } catch (error) {
+        throw new Error(
+          error?.message || t('channel.edit.circuit_breaker.load_failed'),
+        );
+      }
+    },
+    [t],
+  );
+
   const refreshChannelBillingState = useCallback(
     async (targetChannelId) => {
       const normalizedChannelId = (targetChannelId || '').toString().trim();
@@ -3503,7 +3533,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   ]);
 
   const loadChannelById = useCallback(
-    async (targetId, forCopy = false, fromCreating = false) => {
+    async (targetId, fromCreating = false) => {
       try {
         let res = await API.get(`/api/v1/admin/channel/${targetId}`);
         const { success, message, data } = res.data;
@@ -3517,33 +3547,23 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             billingSnapshotsData,
             billingActionsData,
             billingAlertsData,
+            circuitBreakerEventsData,
           ] =
             await Promise.all([
               loadChannelModelsFromServer(
                 data.id || targetId,
                 resolveProtocolFromChannelPayload(data),
               ),
-              forCopy
-                ? Promise.resolve({ items: [], lastTestedAt: 0 })
-                : loadChannelTestsFromServer(data.id || targetId),
-              forCopy
-                ? Promise.resolve([])
-                : loadChannelTasksFromServer(data.id || targetId),
-              forCopy
-                ? Promise.resolve(null)
-                : loadChannelBillingSummaryFromServer(data.id || targetId),
-              forCopy
-                ? Promise.resolve(null)
-                : loadChannelBillingProfileFromServer(data.id || targetId),
-              forCopy
-                ? Promise.resolve([])
-                : loadChannelBillingSnapshotsFromServer(data.id || targetId),
-              forCopy
-                ? Promise.resolve([])
-                : loadChannelBillingActionsFromServer(data.id || targetId),
+              loadChannelTestsFromServer(data.id || targetId),
+              loadChannelTasksFromServer(data.id || targetId),
+              loadChannelBillingSummaryFromServer(data.id || targetId),
+              loadChannelBillingProfileFromServer(data.id || targetId),
+              loadChannelBillingSnapshotsFromServer(data.id || targetId),
+              loadChannelBillingActionsFromServer(data.id || targetId),
               activeDetailTab !== 'billing'
                 ? Promise.resolve([])
                 : loadChannelBillingAlertsFromServer(data.id || targetId),
+              loadChannelCircuitBreakerEventsFromServer(data.id || targetId),
             ]);
           const storedModelTestResults = normalizeModelTestResults(
             channelTestsData.items,
@@ -3570,71 +3590,43 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             channelModels: modelState.channelModels,
           });
 
-          if (forCopy) {
-            pendingRefreshTaskIdRef.current = '';
-            pendingRefreshSignatureRef.current = '';
-            setInputs({
-              id: '',
-              name: '',
-              protocol: normalizedProtocol,
-              key: '',
-              base_url: data.base_url || '',
-              other: data.other || '',
-              channel_models: modelState.channelModels,
-              models: modelState.selectedModels,
-              test_model: data.test_model || modelState.selectedModels[0] || '',
-              created_time: 0,
-              updated_at: 0,
-            });
-            setModelTestResults([]);
-            setModelTestError('');
-            setModelTestedAt(0);
-            setModelTestedSignature('');
-            setModelTestTargetModels([]);
-            setChannelTasks([]);
-            setChannelBillingSummary(null);
-            setChannelBillingProfile(null);
-            setDetailBillingDraft(null);
-            setChannelBillingSnapshots([]);
-            setChannelBillingActions([]);
-            setChannelBillingError('');
-          } else {
-            pendingRefreshTaskIdRef.current = '';
-            pendingRefreshSignatureRef.current = '';
-            setInputs({
-              id: data.id,
-              name: data.name || '',
-              protocol: normalizedProtocol,
-              key: '',
-              base_url: data.base_url || '',
-              other: data.other || '',
-              channel_models: modelState.channelModels,
-              models: modelState.selectedModels,
-              test_model: data.test_model || modelState.selectedModels[0] || '',
-              status: data.status,
-              weight: data.weight,
-              priority: data.priority,
-              created_time: Number(data.created_time || 0),
-              updated_at: Number(data.updated_at || 0),
-            });
-            setModelTestResults(storedModelTestResults);
-            setModelTestError('');
-            setModelTestedAt(storedModelTestedAt);
-            setModelTestedSignature(
-              storedModelTestResults.length > 0 && storedModelTestedAt > 0
-                ? loadedModelTestSignature
-                : '',
-            );
-            setModelTestTargetModels([]);
-            setChannelTasks(normalizeAsyncTasks(activeTasks));
-            setChannelBillingSummary(billingSummaryData);
-            setChannelBillingProfile(billingProfileData);
-            setDetailBillingDraft(billingProfileData);
-            setChannelBillingSnapshots(billingSnapshotsData);
-            setChannelBillingActions(billingActionsData);
-            setChannelBillingAlerts(billingAlertsData);
-            setChannelBillingError('');
-          }
+          pendingRefreshTaskIdRef.current = '';
+          pendingRefreshSignatureRef.current = '';
+          setInputs({
+            id: data.id,
+            name: data.name || '',
+            protocol: normalizedProtocol,
+            key: '',
+            base_url: data.base_url || '',
+            other: data.other || '',
+            channel_models: modelState.channelModels,
+            models: modelState.selectedModels,
+            test_model: data.test_model || modelState.selectedModels[0] || '',
+            status: data.status,
+            weight: data.weight,
+            priority: data.priority,
+            created_time: Number(data.created_time || 0),
+            updated_at: Number(data.updated_at || 0),
+          });
+          setModelTestResults(storedModelTestResults);
+          setModelTestError('');
+          setModelTestedAt(storedModelTestedAt);
+          setModelTestedSignature(
+            storedModelTestResults.length > 0 && storedModelTestedAt > 0
+              ? loadedModelTestSignature
+              : '',
+          );
+          setModelTestTargetModels([]);
+          setChannelTasks(normalizeAsyncTasks(activeTasks));
+          setChannelBillingSummary(billingSummaryData);
+          setChannelBillingProfile(billingProfileData);
+          setDetailBillingDraft(billingProfileData);
+          setChannelBillingSnapshots(billingSnapshotsData);
+          setChannelBillingActions(billingActionsData);
+          setChannelBillingAlerts(billingAlertsData);
+          setChannelCircuitBreakerEvents(circuitBreakerEventsData);
+          setChannelCircuitBreakerEventsError('');
+          setChannelBillingError('');
           setConfig({
             ...CHANNEL_DEFAULT_CONFIG,
             ...parsedConfig,
@@ -3657,6 +3649,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       hasChannelID,
       loadChannelBillingActionsFromServer,
       loadChannelBillingAlertsFromServer,
+      loadChannelCircuitBreakerEventsFromServer,
       loadChannelBillingProfileFromServer,
       loadChannelBillingSnapshotsFromServer,
       loadChannelBillingSummaryFromServer,
@@ -4237,8 +4230,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   );
 
   const updateChannelEndpointCapability = useCallback(
-    async (row, nextValues = {}, options = {}) => {
-      const { skipConfirm = false } = options;
+    async (row, nextValues = {}) => {
       if (!isDetailMode || endpointCapabilityReadonly) {
         return;
       }
@@ -4256,13 +4248,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           : row?.enabled === true;
       const baseURL = normalizeBaseURL(nextValues.base_url ?? row?.base_url);
       const endpointKey = buildChannelEndpointKey(modelName, endpoint);
-      const latestStatusKey = (row?.last_test_status || '').toString().trim();
-      const hasSuccessfulTest = latestStatusKey === 'success';
-      if (enabled && !skipConfirm && !hasSuccessfulTest) {
-        setPendingEndpointEnableRow(row);
-        setEndpointEnableConfirmOpen(true);
-        return;
-      }
       setEndpointMutatingKey(endpointKey);
       try {
         const res = await API.put(
@@ -4305,39 +4290,10 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       channelId,
       endpointCapabilityReadonly,
       isDetailMode,
-      modelTestResultsByKey,
       loadChannelEndpointsFromServer,
       t,
     ],
   );
-
-  const closeEndpointEnableConfirm = useCallback(() => {
-    if (endpointEnableConfirmLoading) {
-      return;
-    }
-    setEndpointEnableConfirmOpen(false);
-    setPendingEndpointEnableRow(null);
-  }, [endpointEnableConfirmLoading]);
-
-  const confirmEnableEndpointWithoutSuccessfulTest = useCallback(async () => {
-    if (!pendingEndpointEnableRow) {
-      return;
-    }
-    setEndpointEnableConfirmLoading(true);
-    try {
-      await updateChannelEndpointCapability(
-        pendingEndpointEnableRow,
-        { enabled: true },
-        {
-          skipConfirm: true,
-        },
-      );
-      setEndpointEnableConfirmOpen(false);
-      setPendingEndpointEnableRow(null);
-    } finally {
-      setEndpointEnableConfirmLoading(false);
-    }
-  }, [pendingEndpointEnableRow, updateChannelEndpointCapability]);
 
   const openEndpointPolicyEditor = useCallback(
     (row) => {
@@ -4703,12 +4659,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   useEffect(() => {
     if (hasChannelID) {
       setLoading(true);
-      loadChannelById(channelId, false, false).then();
-      return;
-    }
-    if (copyFromId !== '') {
-      setLoading(true);
-      loadChannelById(copyFromId, true, false).then();
+      loadChannelById(channelId, false).then();
       return;
     }
     setChannelKeySet(false);
@@ -4716,7 +4667,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     setLoading(false);
   }, [
     channelId,
-    copyFromId,
     hasChannelID,
     loadChannelById,
   ]);
@@ -4731,6 +4681,47 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     }
     refreshChannelBillingState(normalizedChannelId).then();
   }, [channelId, refreshChannelBillingState, showDetailBillingTab]);
+
+  useEffect(() => {
+    if (!showDetailOverviewTab || !channelId) {
+      setChannelCircuitBreakerEvents([]);
+      setChannelCircuitBreakerEventsError('');
+      setChannelCircuitBreakerEventsLoading(false);
+      return undefined;
+    }
+    let disposed = false;
+    setChannelCircuitBreakerEventsLoading(true);
+    loadChannelCircuitBreakerEventsFromServer(channelId)
+      .then((items) => {
+        if (disposed) {
+          return;
+        }
+        setChannelCircuitBreakerEvents(Array.isArray(items) ? items : []);
+        setChannelCircuitBreakerEventsError('');
+      })
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+        setChannelCircuitBreakerEvents([]);
+        setChannelCircuitBreakerEventsError(
+          error?.message || t('channel.edit.circuit_breaker.load_failed'),
+        );
+      })
+      .finally(() => {
+        if (!disposed) {
+          setChannelCircuitBreakerEventsLoading(false);
+        }
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [
+    channelId,
+    loadChannelCircuitBreakerEventsFromServer,
+    showDetailOverviewTab,
+    t,
+  ]);
 
   useEffect(() => {
     if (!isDetailMode || !channelId) {
@@ -5374,44 +5365,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         setPolicyDraft={setPolicyDraft}
         saveEndpointPolicy={saveEndpointPolicy}
       />
-      <AppModal
-        size='tiny'
-        open={endpointEnableConfirmOpen}
-        onClose={closeEndpointEnableConfirm}
-        title={t('channel.edit.endpoint_capabilities.enable_confirm_title')}
-        footer={
-          <AppFormActions>
-            <AppButton
-              type='button'
-              onClick={closeEndpointEnableConfirm}
-              disabled={endpointEnableConfirmLoading}
-            >
-              {t('common.cancel')}
-            </AppButton>
-            <AppButton
-              type='button'
-              color='blue'
-              loading={endpointEnableConfirmLoading}
-              disabled={endpointEnableConfirmLoading}
-              onClick={confirmEnableEndpointWithoutSuccessfulTest}
-            >
-              {t('channel.edit.endpoint_capabilities.enable_confirm_action')}
-            </AppButton>
-          </AppFormActions>
-        }
-      >
-        <div>
-          <p>{t('channel.edit.endpoint_capabilities.enable_confirm_content')}</p>
-          <p className='router-muted-text'>
-            {pendingEndpointEnableRow
-              ? t('channel.edit.endpoint_capabilities.enable_confirm_target', {
-                  model: pendingEndpointEnableRow.model || '-',
-                  endpoint: pendingEndpointEnableRow.endpoint || '-',
-                })
-              : ''}
-          </p>
-        </div>
-      </AppModal>
       <ChannelAppendProviderModal
         t={t}
         open={appendProviderModalOpen}
@@ -5516,6 +5469,15 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 onUpdateBillingProfileDraft={updateBillingProfileDraft}
                 onCancelBillingProfileEdit={cancelDetailBillingEdit}
                 onSaveBillingProfile={saveDetailBillingProfile}
+              />
+            )}
+            {showDetailOverviewTab && (
+              <ChannelCircuitBreakerEventsSection
+                t={t}
+                events={channelCircuitBreakerEvents}
+                loading={channelCircuitBreakerEventsLoading}
+                error={channelCircuitBreakerEventsError}
+                timestamp2string={timestamp2string}
               />
             )}
             {showStepTwo && inputs.protocol !== 'proxy' && (

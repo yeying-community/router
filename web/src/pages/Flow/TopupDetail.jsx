@@ -215,7 +215,7 @@ const TopupDetail = () => {
                     <div className='router-detail-label'>
                       {t('topup.external_topup_orders.columns.transaction_id')}
                     </div>
-                    <pre className='router-detail-value'>
+                    <pre className='router-detail-value router-monospace-value'>
                       {readOnlyText(record?.transaction_id)}
                     </pre>
                   </div>
@@ -223,7 +223,7 @@ const TopupDetail = () => {
                     <div className='router-detail-label'>
                       {t('topup.external_topup_orders.fields.provider_order_id')}
                     </div>
-                    <pre className='router-detail-value'>
+                    <pre className='router-detail-value router-monospace-value'>
                       {readOnlyText(record?.provider_order_id)}
                     </pre>
                   </div>

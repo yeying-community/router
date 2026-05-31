@@ -1283,6 +1283,34 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderMigrationProvidersWithDB(tx, "deepseek")
 			},
 		},
+		{
+			Version:     "202605271030_channel_capability_disable_observability",
+			Description: "add runtime disable metadata to channel model and endpoint capabilities",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelModel{}, &ChannelModelEndpoint{})
+			},
+		},
+		{
+			Version:     "202605271130_channel_circuit_breaker_state",
+			Description: "add persisted channel circuit breaker state for metric auto recovery",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelCircuitBreakerState{})
+			},
+		},
+		{
+			Version:     "202605291030_channel_circuit_breaker_events",
+			Description: "add channel circuit breaker event history",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelCircuitBreakerEvent{})
+			},
+		},
+		{
+			Version:     "202605291100_redemption_issue_audit_logs",
+			Description: "add redemption issue audit logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&RedemptionIssueAuditLog{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -1420,6 +1448,20 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 			Description: "rewrite legacy provider pricing source provider_default rows to provider_migration in log database",
 			Up: func(tx *gorm.DB) error {
 				return normalizeProviderPricingLegacySourcesWithDB(tx)
+			},
+		},
+		{
+			Version:     "202605281030_log_token_estimate_observability",
+			Description: "add token estimate observability fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202605300830_log_token_estimate_observability_columns",
+			Description: "add missing token estimate estimator fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
 			},
 		},
 	}

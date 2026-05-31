@@ -5,7 +5,6 @@ import { API, showError, timestamp2string } from '../helpers';
 import { ITEMS_PER_PAGE } from '../constants';
 import {
   BUSINESS_FLOW_COLUMN_WIDTHS,
-  BUSINESS_FLOW_TABLE_MIN_WIDTH,
 } from '../constants/tableWidthPresets';
 import UnitDropdown from './UnitDropdown';
 import { buildBillingCurrencyIndex, buildDisplayUnitOptions, formatDisplayAmountFromYYC } from '../helpers/billing';
@@ -26,6 +25,7 @@ const BUSINESS_FLOW_HEADER_KEY = {
   topup: 'header.topup',
   'topup-reconcile': 'flow.topup_reconcile.title',
   package: 'header.package',
+  redemption: 'flow.redemption.title',
 };
 
 const readOnlyText = (value) => {
@@ -124,6 +124,7 @@ const BusinessFlowTable = ({ kind }) => {
   const [keyword, setKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [refreshingRowID, setRefreshingRowID] = useState('');
+  const [fulfillingRowID, setFulfillingRowID] = useState('');
   const [tableSorter, setTableSorter] = useState({
     columnKey: null,
     order: null,
@@ -414,20 +415,40 @@ const BusinessFlowTable = ({ kind }) => {
             collapsing: true,
             width: BUSINESS_FLOW_COLUMN_WIDTHS.actions,
             cellClassName: 'router-table-col-actions-icon',
-            render: (row) => (
-              <AppButton
-                type='button'
-                className='router-inline-button'
-                loading={refreshingRowID === row.id}
-                disabled={refreshingRowID === row.id}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleRefreshReconcileRow(row?.id);
-                }}
-              >
-                {t('flow.topup_reconcile.actions.refresh')}
-              </AppButton>
-            ),
+            render: (row) => {
+              const isPaid = (row?.status || '').toString().trim() === 'paid';
+              return (
+                <span className='router-action-group'>
+                  <AppButton
+                    type='button'
+                    className='router-inline-button'
+                    loading={refreshingRowID === row.id}
+                    disabled={refreshingRowID === row.id || fulfillingRowID === row.id}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleRefreshReconcileRow(row?.id);
+                    }}
+                  >
+                    {t('flow.topup_reconcile.actions.refresh')}
+                  </AppButton>
+                  {isPaid && (
+                    <AppButton
+                      type='button'
+                      className='router-inline-button'
+                      color='blue'
+                      loading={fulfillingRowID === row.id}
+                      disabled={refreshingRowID === row.id || fulfillingRowID === row.id}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleFulfillReconcileRow(row?.id);
+                      }}
+                    >
+                      {t('flow.topup_reconcile.actions.fulfill')}
+                    </AppButton>
+                  )}
+                </span>
+              );
+            },
           },
         ],
         defaultSorter: {
@@ -672,7 +693,7 @@ const BusinessFlowTable = ({ kind }) => {
         order: 'descend',
       },
     };
-  }, [currencyIndex, currentPagePath, displayUnit, displayUnitOptions, kind, navigate, refreshingRowID, t]);
+  }, [currencyIndex, currentPagePath, displayUnit, displayUnitOptions, fulfillingRowID, kind, navigate, refreshingRowID, t]);
 
   useEffect(() => {
     setTableSorter(config.defaultSorter || { columnKey: null, order: null });
@@ -696,6 +717,18 @@ const BusinessFlowTable = ({ kind }) => {
     }
     return nextItems;
   }, [config.columns, items, tableSorter]);
+
+  const tableMinWidth = useMemo(
+    () =>
+      Math.max(
+        (config.columns || []).reduce(
+          (total, column) => total + Number(column?.width || 0),
+          0,
+        ),
+        640,
+      ),
+    [config.columns],
+  );
 
   const statusDropdownOptions = useMemo(
     () =>
@@ -816,6 +849,29 @@ const BusinessFlowTable = ({ kind }) => {
     }
   }
 
+  async function handleFulfillReconcileRow(rowID) {
+    const normalizedRowID = (rowID || '').toString().trim();
+    if (!normalizedRowID) {
+      return;
+    }
+    setFulfillingRowID(normalizedRowID);
+    try {
+      const res = await API.post(
+        `/api/v1/admin/flow/topup-reconcile-records/${encodeURIComponent(normalizedRowID)}/fulfill`,
+      );
+      const { success, message } = res.data || {};
+      if (!success) {
+        showError(message || t('flow.messages.load_failed'));
+        return;
+      }
+      loadItems(activePage, keyword, statusFilter).then();
+    } catch (error) {
+      showError(error?.message || error);
+    } finally {
+      setFulfillingRowID('');
+    }
+  }
+
   return (
     <>
       <AppFilterHeader
@@ -882,7 +938,7 @@ const BusinessFlowTable = ({ kind }) => {
         <AppTable
           className='router-hover-table router-list-table router-table-fit-page'
           pagination={false}
-          scroll={{ x: BUSINESS_FLOW_TABLE_MIN_WIDTH }}
+          scroll={{ x: tableMinWidth }}
           rowKey={(row) => row.id || row.transaction_id || row.package_id}
           onChange={(_, __, sorter) => {
             if (!sorter || Array.isArray(sorter) || !sorter.columnKey || !sorter.order) {

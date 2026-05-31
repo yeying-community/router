@@ -390,7 +390,7 @@ const RedemptionDetail = () => {
                   )}
                   <AppField label={t('redemption.detail.code')} readOnly>
                     <AppInput
-                      className='router-section-input'
+                      className='router-section-input router-machine-input'
                       value={redemption?.code || ''}
                       readOnly
                     />

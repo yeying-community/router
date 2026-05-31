@@ -1943,6 +1943,17 @@ type topUpBalanceLotListData struct {
 	PageSize int                    `json:"page_size"`
 }
 
+func writeTopUpError(c *gin.Context, err error) {
+	response := gin.H{
+		"success": false,
+		"message": err.Error(),
+	}
+	if code := model.TopupErrorCode(err); code != "" {
+		response["data"] = gin.H{"code": code}
+	}
+	c.JSON(http.StatusOK, response)
+}
+
 type topUpBalanceLotTransactionListData struct {
 	Items    []model.UserBalanceLotTransaction `json:"items"`
 	Total    int64                             `json:"total"`
@@ -2365,10 +2376,7 @@ func CreateTopUpOrder(c *gin.Context) {
 		ReturnURL:     req.ReturnURL,
 	})
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		writeTopUpError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -2423,10 +2431,7 @@ func RefreshTopUpOrder(c *gin.Context) {
 	orderID := strings.TrimSpace(c.Param("id"))
 	order, err := model.RefreshTopupOrderStatusWithDB(model.DB, orderID, userID)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		writeTopUpError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -2441,10 +2446,7 @@ func CancelTopUpOrder(c *gin.Context) {
 	orderID := strings.TrimSpace(c.Param("id"))
 	order, err := model.CancelTopupOrderWithDB(model.DB, orderID, userID)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		writeTopUpError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{

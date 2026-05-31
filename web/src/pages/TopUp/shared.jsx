@@ -262,26 +262,40 @@ const renderTopupAmountTrigger = (displayText) => {
   );
 };
 
+const formatTopupAmountWithFixedFraction = (amount, unit, fractionDigits = 2) => {
+  const normalizedUnit = (unit || '').toString().trim().toUpperCase();
+  const normalizedAmount = Number(amount);
+  if (!Number.isFinite(normalizedAmount)) {
+    return '-';
+  }
+  const display = new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(normalizedAmount);
+  return normalizedUnit ? `${display} ${normalizedUnit}` : display;
+};
+
 const buildTopupAmountDisplayTexts = ({
   yycAmount,
   displayCurrency,
   displayCurrencyIndex,
+  displayFractionDigits = 2,
   exactFractionDigits = 6,
 }) => {
   const normalizedYYCAmount = Number(yycAmount ?? 0);
   if (!Number.isFinite(normalizedYYCAmount)) {
     return {
-      integerText: '-',
+      displayText: '-',
       exactText: '-',
     };
   }
   const normalizedDisplayCurrency = normalizeDisplayCurrencyCode(displayCurrency);
   if (normalizedDisplayCurrency === YYC_DISPLAY_CODE) {
     return {
-      integerText: formatAmountWithUnit(
-        Math.round(normalizedYYCAmount),
+      displayText: formatTopupAmountWithFixedFraction(
+        normalizedYYCAmount,
         YYC_DISPLAY_CODE,
-        0,
+        displayFractionDigits,
       ),
       exactText: formatAmountWithUnit(
         normalizedYYCAmount,
@@ -297,15 +311,15 @@ const buildTopupAmountDisplayTexts = ({
   );
   if (!Number.isFinite(convertedAmount)) {
     return {
-      integerText: '-',
+      displayText: '-',
       exactText: '-',
     };
   }
   return {
-    integerText: formatAmountWithUnit(
-      Math.round(convertedAmount),
+    displayText: formatTopupAmountWithFixedFraction(
+      convertedAmount,
       normalizedDisplayCurrency,
-      0,
+      displayFractionDigits,
     ),
     exactText: formatAmountWithUnit(
       convertedAmount,
@@ -319,20 +333,22 @@ export const renderTopupIntegerAmountWithExactPopup = ({
   yycAmount,
   displayCurrency,
   displayCurrencyIndex,
+  displayFractionDigits = 2,
   exactFractionDigits = 6,
 }) => {
-  const { integerText, exactText } = buildTopupAmountDisplayTexts({
+  const { displayText, exactText } = buildTopupAmountDisplayTexts({
     yycAmount,
     displayCurrency,
     displayCurrencyIndex,
+    displayFractionDigits,
     exactFractionDigits,
   });
-  if (integerText === '-') {
+  if (displayText === '-') {
     return '-';
   }
   return (
     <AppTooltip title={exactText}>
-      {renderTopupAmountTrigger(integerText)}
+      {renderTopupAmountTrigger(displayText)}
     </AppTooltip>
   );
 };

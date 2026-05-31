@@ -8,7 +8,7 @@ const AppSwitch = forwardRef(function AppSwitch(
     disabled,
     loading,
     name,
-    size,
+    size = 'small',
     onChange,
     ...props
   },

@@ -146,3 +146,14 @@ func TestSelectRandomSatisfiedChannelUsesRoutePriorityOverride(t *testing.T) {
 		t.Fatalf("selected tier candidates = %d, want 2", stats.SelectedTierCandidates)
 	}
 }
+
+func TestResolveRuntimeChannelPriorityDemotesHalfOpen(t *testing.T) {
+	priority := resolveRuntimeChannelPriority(&Channel{Status: ChannelStatusHalfOpen}, 100)
+	if priority != ChannelHalfOpenPriority {
+		t.Fatalf("half-open priority = %d, want %d", priority, ChannelHalfOpenPriority)
+	}
+	enabledPriority := resolveRuntimeChannelPriority(&Channel{Status: ChannelStatusEnabled}, 100)
+	if enabledPriority != 100 {
+		t.Fatalf("enabled priority = %d, want 100", enabledPriority)
+	}
+}

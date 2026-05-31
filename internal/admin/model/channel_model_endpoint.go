@@ -15,12 +15,15 @@ const (
 )
 
 type ChannelModelEndpoint struct {
-	ChannelId string `json:"channel_id" gorm:"primaryKey;type:varchar(64);index"`
-	Model     string `json:"model" gorm:"primaryKey;type:varchar(255)"`
-	Endpoint  string `json:"endpoint" gorm:"primaryKey;type:varchar(255)"`
-	BaseURL   string `json:"base_url,omitempty" gorm:"column:base_url;type:text"`
-	Enabled   bool   `json:"enabled" gorm:"not null;default:true;index"`
-	UpdatedAt int64  `json:"updated_at" gorm:"bigint"`
+	ChannelId      string `json:"channel_id" gorm:"primaryKey;type:varchar(64);index"`
+	Model          string `json:"model" gorm:"primaryKey;type:varchar(255)"`
+	Endpoint       string `json:"endpoint" gorm:"primaryKey;type:varchar(255)"`
+	BaseURL        string `json:"base_url,omitempty" gorm:"column:base_url;type:text"`
+	Enabled        bool   `json:"enabled" gorm:"not null;default:true;index"`
+	UpdatedAt      int64  `json:"updated_at" gorm:"bigint"`
+	DisabledReason string `json:"disabled_reason,omitempty" gorm:"type:text"`
+	DisabledAt     int64  `json:"disabled_at,omitempty" gorm:"bigint;index"`
+	DisabledBy     string `json:"disabled_by,omitempty" gorm:"type:varchar(64);default:'';index"`
 }
 
 func (ChannelModelEndpoint) TableName() string {
@@ -63,12 +66,15 @@ func BuildChannelModelEndpointRowsWithProviderEndpoints(existing []ChannelModelE
 	existingByKey := make(map[string]ChannelModelEndpoint, len(existing))
 	for _, row := range existing {
 		normalized := ChannelModelEndpoint{
-			ChannelId: strings.TrimSpace(row.ChannelId),
-			Model:     strings.TrimSpace(row.Model),
-			Endpoint:  NormalizeRequestedChannelModelEndpoint(row.Endpoint),
-			BaseURL:   normalizeConfiguredBaseURL(row.BaseURL),
-			Enabled:   row.Enabled,
-			UpdatedAt: row.UpdatedAt,
+			ChannelId:      strings.TrimSpace(row.ChannelId),
+			Model:          strings.TrimSpace(row.Model),
+			Endpoint:       NormalizeRequestedChannelModelEndpoint(row.Endpoint),
+			BaseURL:        normalizeConfiguredBaseURL(row.BaseURL),
+			Enabled:        row.Enabled,
+			UpdatedAt:      row.UpdatedAt,
+			DisabledReason: strings.TrimSpace(row.DisabledReason),
+			DisabledAt:     row.DisabledAt,
+			DisabledBy:     strings.TrimSpace(row.DisabledBy),
 		}
 		if normalized.ChannelId == "" || normalized.Model == "" || normalized.Endpoint == "" {
 			continue
@@ -109,6 +115,14 @@ func BuildChannelModelEndpointRowsWithProviderEndpoints(existing []ChannelModelE
 				item.BaseURL = existingRow.BaseURL
 				item.Enabled = existingRow.Enabled && eligibleForEnable
 				item.UpdatedAt = existingRow.UpdatedAt
+				item.DisabledReason = existingRow.DisabledReason
+				item.DisabledAt = existingRow.DisabledAt
+				item.DisabledBy = existingRow.DisabledBy
+			}
+			if item.Enabled {
+				item.DisabledReason = ""
+				item.DisabledAt = 0
+				item.DisabledBy = ""
 			}
 			result = append(result, item)
 		}
@@ -120,12 +134,15 @@ func MergeChannelModelEndpointListRows(snapshotRows []ChannelModelEndpoint, expl
 	explicitByKey := make(map[string]ChannelModelEndpoint, len(explicitRows))
 	for _, row := range explicitRows {
 		normalized := ChannelModelEndpoint{
-			ChannelId: strings.TrimSpace(row.ChannelId),
-			Model:     strings.TrimSpace(row.Model),
-			Endpoint:  NormalizeRequestedChannelModelEndpoint(row.Endpoint),
-			BaseURL:   normalizeConfiguredBaseURL(row.BaseURL),
-			Enabled:   row.Enabled,
-			UpdatedAt: row.UpdatedAt,
+			ChannelId:      strings.TrimSpace(row.ChannelId),
+			Model:          strings.TrimSpace(row.Model),
+			Endpoint:       NormalizeRequestedChannelModelEndpoint(row.Endpoint),
+			BaseURL:        normalizeConfiguredBaseURL(row.BaseURL),
+			Enabled:        row.Enabled,
+			UpdatedAt:      row.UpdatedAt,
+			DisabledReason: strings.TrimSpace(row.DisabledReason),
+			DisabledAt:     row.DisabledAt,
+			DisabledBy:     strings.TrimSpace(row.DisabledBy),
 		}
 		if normalized.ChannelId == "" || normalized.Model == "" || normalized.Endpoint == "" {
 			continue
@@ -151,18 +168,29 @@ func MergeChannelModelEndpointListRows(snapshotRows []ChannelModelEndpoint, expl
 			normalized.BaseURL = explicitRow.BaseURL
 			normalized.Enabled = explicitRow.Enabled
 			normalized.UpdatedAt = explicitRow.UpdatedAt
+			normalized.DisabledReason = explicitRow.DisabledReason
+			normalized.DisabledAt = explicitRow.DisabledAt
+			normalized.DisabledBy = explicitRow.DisabledBy
+		}
+		if normalized.Enabled {
+			normalized.DisabledReason = ""
+			normalized.DisabledAt = 0
+			normalized.DisabledBy = ""
 		}
 		seen[key] = struct{}{}
 		items = append(items, normalized)
 	}
 	for _, row := range explicitRows {
 		normalized := ChannelModelEndpoint{
-			ChannelId: strings.TrimSpace(row.ChannelId),
-			Model:     strings.TrimSpace(row.Model),
-			Endpoint:  NormalizeRequestedChannelModelEndpoint(row.Endpoint),
-			BaseURL:   normalizeConfiguredBaseURL(row.BaseURL),
-			Enabled:   row.Enabled,
-			UpdatedAt: row.UpdatedAt,
+			ChannelId:      strings.TrimSpace(row.ChannelId),
+			Model:          strings.TrimSpace(row.Model),
+			Endpoint:       NormalizeRequestedChannelModelEndpoint(row.Endpoint),
+			BaseURL:        normalizeConfiguredBaseURL(row.BaseURL),
+			Enabled:        row.Enabled,
+			UpdatedAt:      row.UpdatedAt,
+			DisabledReason: strings.TrimSpace(row.DisabledReason),
+			DisabledAt:     row.DisabledAt,
+			DisabledBy:     strings.TrimSpace(row.DisabledBy),
 		}
 		if normalized.ChannelId == "" || normalized.Model == "" || normalized.Endpoint == "" {
 			continue
@@ -170,6 +198,11 @@ func MergeChannelModelEndpointListRows(snapshotRows []ChannelModelEndpoint, expl
 		key := normalized.ChannelId + "::" + normalized.Model + "::" + normalized.Endpoint
 		if _, ok := seen[key]; ok {
 			continue
+		}
+		if normalized.Enabled {
+			normalized.DisabledReason = ""
+			normalized.DisabledAt = 0
+			normalized.DisabledBy = ""
 		}
 		seen[key] = struct{}{}
 		items = append(items, normalized)
@@ -281,11 +314,15 @@ func SetChannelModelEndpointCapabilityWithDB(db *gorm.DB, channelID string, mode
 	replaced := false
 	for _, row := range rows {
 		normalized := ChannelModelEndpoint{
-			ChannelId: strings.TrimSpace(row.ChannelId),
-			Model:     strings.TrimSpace(row.Model),
-			Endpoint:  NormalizeRequestedChannelModelEndpoint(row.Endpoint),
-			Enabled:   row.Enabled,
-			UpdatedAt: row.UpdatedAt,
+			ChannelId:      strings.TrimSpace(row.ChannelId),
+			Model:          strings.TrimSpace(row.Model),
+			Endpoint:       NormalizeRequestedChannelModelEndpoint(row.Endpoint),
+			BaseURL:        normalizeConfiguredBaseURL(row.BaseURL),
+			Enabled:        row.Enabled,
+			UpdatedAt:      row.UpdatedAt,
+			DisabledReason: strings.TrimSpace(row.DisabledReason),
+			DisabledAt:     row.DisabledAt,
+			DisabledBy:     strings.TrimSpace(row.DisabledBy),
 		}
 		if normalized.ChannelId == "" || normalized.Model == "" || normalized.Endpoint == "" {
 			continue
@@ -364,6 +401,10 @@ func loadProviderEndpointCandidatesForChannelModelsWithDB(db *gorm.DB, rows []Ch
 }
 
 func DisableChannelModelRequestEndpointCapability(channelID string, modelName string, requestPath string) (bool, error) {
+	return DisableChannelModelRequestEndpointCapabilityWithReason(channelID, modelName, requestPath, "", "")
+}
+
+func DisableChannelModelRequestEndpointCapabilityWithReason(channelID string, modelName string, requestPath string, reason string, disabledBy string) (bool, error) {
 	normalizedChannelID := strings.TrimSpace(channelID)
 	normalizedModelName := strings.TrimSpace(modelName)
 	normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(requestPath)
@@ -377,7 +418,7 @@ func DisableChannelModelRequestEndpointCapability(channelID string, modelName st
 		if err != nil {
 			return err
 		}
-		nextRows, disabled := buildDisabledChannelModelEndpointRows(rows, normalizedChannelID, normalizedModelName, normalizedEndpoint)
+		nextRows, disabled := buildDisabledChannelModelEndpointRows(rows, normalizedChannelID, normalizedModelName, normalizedEndpoint, reason, disabledBy)
 		if !disabled {
 			return nil
 		}
@@ -500,15 +541,23 @@ func replaceChannelModelEndpointRowsWithDB(db *gorm.DB, channelID string, rows [
 	seen := make(map[string]struct{}, len(rows))
 	for _, row := range rows {
 		normalized := ChannelModelEndpoint{
-			ChannelId: normalizedChannelID,
-			Model:     strings.TrimSpace(row.Model),
-			Endpoint:  NormalizeRequestedChannelModelEndpoint(row.Endpoint),
-			BaseURL:   normalizeConfiguredBaseURL(row.BaseURL),
-			Enabled:   row.Enabled,
-			UpdatedAt: now,
+			ChannelId:      normalizedChannelID,
+			Model:          strings.TrimSpace(row.Model),
+			Endpoint:       NormalizeRequestedChannelModelEndpoint(row.Endpoint),
+			BaseURL:        normalizeConfiguredBaseURL(row.BaseURL),
+			Enabled:        row.Enabled,
+			UpdatedAt:      now,
+			DisabledReason: strings.TrimSpace(row.DisabledReason),
+			DisabledAt:     row.DisabledAt,
+			DisabledBy:     strings.TrimSpace(row.DisabledBy),
 		}
 		if normalized.Model == "" || normalized.Endpoint == "" {
 			continue
+		}
+		if normalized.Enabled {
+			normalized.DisabledReason = ""
+			normalized.DisabledAt = 0
+			normalized.DisabledBy = ""
 		}
 		key := normalized.Model + "::" + normalized.Endpoint
 		if _, ok := seen[key]; ok {
@@ -530,43 +579,61 @@ func replaceChannelModelEndpointRowsWithDB(db *gorm.DB, channelID string, rows [
 		payloads := make([]map[string]any, 0, len(normalizedRows))
 		for _, row := range normalizedRows {
 			payloads = append(payloads, map[string]any{
-				"channel_id": row.ChannelId,
-				"model":      row.Model,
-				"endpoint":   row.Endpoint,
-				"base_url":   row.BaseURL,
-				"enabled":    row.Enabled,
-				"updated_at": row.UpdatedAt,
+				"channel_id":      row.ChannelId,
+				"model":           row.Model,
+				"endpoint":        row.Endpoint,
+				"base_url":        row.BaseURL,
+				"enabled":         row.Enabled,
+				"updated_at":      row.UpdatedAt,
+				"disabled_reason": row.DisabledReason,
+				"disabled_at":     row.DisabledAt,
+				"disabled_by":     row.DisabledBy,
 			})
 		}
 		return tx.Table(ChannelModelEndpointsTableName).Create(&payloads).Error
 	})
 }
 
-func buildDisabledChannelModelEndpointRows(rows []ChannelModelEndpoint, channelID string, modelName string, endpoint string) ([]ChannelModelEndpoint, bool) {
+func buildDisabledChannelModelEndpointRows(rows []ChannelModelEndpoint, channelID string, modelName string, endpoint string, reason string, disabledBy string) ([]ChannelModelEndpoint, bool) {
 	normalizedChannelID := strings.TrimSpace(channelID)
 	normalizedModelName := strings.TrimSpace(modelName)
 	normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(endpoint)
 	if normalizedChannelID == "" || normalizedModelName == "" || normalizedEndpoint == "" {
 		return rows, false
 	}
+	now := helper.GetTimestamp()
+	normalizedReason := strings.TrimSpace(reason)
+	normalizedDisabledBy := strings.TrimSpace(disabledBy)
+	if normalizedDisabledBy == "" {
+		normalizedDisabledBy = "runtime"
+	}
 	result := make([]ChannelModelEndpoint, 0, len(rows)+1)
 	changed := false
 	found := false
 	for _, row := range rows {
 		normalized := ChannelModelEndpoint{
-			ChannelId: strings.TrimSpace(row.ChannelId),
-			Model:     strings.TrimSpace(row.Model),
-			Endpoint:  NormalizeRequestedChannelModelEndpoint(row.Endpoint),
-			BaseURL:   normalizeConfiguredBaseURL(row.BaseURL),
-			Enabled:   row.Enabled,
-			UpdatedAt: row.UpdatedAt,
+			ChannelId:      strings.TrimSpace(row.ChannelId),
+			Model:          strings.TrimSpace(row.Model),
+			Endpoint:       NormalizeRequestedChannelModelEndpoint(row.Endpoint),
+			BaseURL:        normalizeConfiguredBaseURL(row.BaseURL),
+			Enabled:        row.Enabled,
+			UpdatedAt:      row.UpdatedAt,
+			DisabledReason: strings.TrimSpace(row.DisabledReason),
+			DisabledAt:     row.DisabledAt,
+			DisabledBy:     strings.TrimSpace(row.DisabledBy),
 		}
 		if normalized.ChannelId == normalizedChannelID && normalized.Model == normalizedModelName && normalized.Endpoint == normalizedEndpoint {
 			found = true
-			if normalized.Enabled {
-				normalized.Enabled = false
+			if normalized.Enabled ||
+				strings.TrimSpace(normalized.DisabledReason) != normalizedReason ||
+				strings.TrimSpace(normalized.DisabledBy) != normalizedDisabledBy ||
+				normalized.DisabledAt == 0 {
 				changed = true
 			}
+			normalized.Enabled = false
+			normalized.DisabledReason = normalizedReason
+			normalized.DisabledAt = now
+			normalized.DisabledBy = normalizedDisabledBy
 		}
 		if normalized.ChannelId != "" && normalized.Model != "" && normalized.Endpoint != "" {
 			result = append(result, normalized)
@@ -574,11 +641,14 @@ func buildDisabledChannelModelEndpointRows(rows []ChannelModelEndpoint, channelI
 	}
 	if !found {
 		result = append(result, ChannelModelEndpoint{
-			ChannelId: normalizedChannelID,
-			Model:     normalizedModelName,
-			Endpoint:  normalizedEndpoint,
-			BaseURL:   "",
-			Enabled:   false,
+			ChannelId:      normalizedChannelID,
+			Model:          normalizedModelName,
+			Endpoint:       normalizedEndpoint,
+			BaseURL:        "",
+			Enabled:        false,
+			DisabledReason: normalizedReason,
+			DisabledAt:     now,
+			DisabledBy:     normalizedDisabledBy,
 		})
 		changed = true
 	}

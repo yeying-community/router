@@ -172,7 +172,7 @@ var channelSyncLock sync.RWMutex
 
 func InitChannelCache() {
 	var channels []*Channel
-	DB.Where("status = ?", ChannelStatusEnabled).Find(&channels)
+	DB.Where("status IN ?", []int{ChannelStatusEnabled, ChannelStatusHalfOpen}).Find(&channels)
 	if err := HydrateChannelsWithModels(DB, channels); err != nil {
 		logger.SysError("failed to hydrate channel models for cache: " + err.Error())
 	}
@@ -237,7 +237,7 @@ func InitChannelCache() {
 		}
 		newGroup2model2channels[groupName][modelName] = append(
 			newGroup2model2channels[groupName][modelName],
-			CloneChannelWithPriority(channel, row.GetPriority()),
+			CloneChannelWithPriority(channel, resolveRuntimeChannelPriority(channel, row.GetPriority())),
 		)
 		newGroup2model2channel2upstream[groupName][modelName][channelID] = NormalizeGroupModelChannelUpstreamModel(modelName, row.UpstreamModel)
 	}
@@ -265,6 +265,13 @@ func InitChannelCache() {
 	channel2model2endpointPolicy = newChannel2model2endpointPolicy
 	channelSyncLock.Unlock()
 	logger.SysLog("channels synced from database")
+}
+
+func resolveRuntimeChannelPriority(channel *Channel, priority int64) int64 {
+	if channel != nil && channel.Status == ChannelStatusHalfOpen {
+		return ChannelHalfOpenPriority
+	}
+	return priority
 }
 
 func CacheListSatisfiedChannels(group string, model string) ([]*Channel, error) {

@@ -17,6 +17,7 @@ import (
 	"github.com/yeying-community/router/common/logger"
 	task "github.com/yeying-community/router/internal/admin/controller/task"
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/admin/monitor"
 	_ "github.com/yeying-community/router/internal/admin/repository/bootstrap"
 	billingsvc "github.com/yeying-community/router/internal/admin/service/billing"
 	topupsvc "github.com/yeying-community/router/internal/admin/service/topup"
@@ -76,6 +77,7 @@ func Run() {
 	}
 	if config.EnableMetric {
 		logger.SysLog("metric enabled, will disable channel if too much request failed")
+		monitor.StartMetricMonitor()
 	}
 	if config.IsMasterNode {
 		task.StartAsyncTaskWorkers()
