@@ -175,6 +175,74 @@ func TestExtractAnthropicMetaRaw(t *testing.T) {
 	}
 }
 
+func TestExtractGeminiMetaRaw(t *testing.T) {
+	raw := []byte(`{
+		"systemInstruction": {
+			"parts": [{"text": "You are a concise assistant."}]
+		},
+		"contents": [
+			{
+				"role": "user",
+				"parts": [
+					{"text": "Summarize this incident"},
+					{"fileData": {"mimeType": "text/plain", "fileUri": "gs://bucket/incident.txt"}}
+				]
+			},
+			{
+				"role": "model",
+				"parts": [
+					{"functionCall": {"name": "search_docs", "args": {"query": "incident"}}}
+				]
+			}
+		],
+		"tools": [
+			{
+				"functionDeclarations": [
+					{
+						"name": "search_docs",
+						"description": "search docs",
+						"parameters": {
+							"type": "object",
+							"properties": {"query": {"type": "string"}}
+						}
+					}
+				]
+			}
+		],
+		"generationConfig": {"responseMimeType": "application/json"}
+	}`)
+
+	meta, err := extractGeminiMeta(raw)
+	if err != nil {
+		t.Fatalf("extractGeminiMeta returned error: %v", err)
+	}
+
+	wantTexts := []string{
+		"You are a concise assistant.",
+		"user",
+		"Summarize this incident",
+		"text/plain",
+		"gs://bucket/incident.txt",
+		"model",
+		"search_docs",
+		`{"query":"incident"}`,
+		"search docs",
+		`{"properties":{"query":{"type":"string"}},"type":"object"}`,
+		`{"responseMimeType":"application/json"}`,
+	}
+	for _, want := range wantTexts {
+		if !slices.Contains(meta.Texts, want) {
+			t.Fatalf("meta.Texts missing %q: %#v", want, meta.Texts)
+		}
+	}
+	if meta.MessagesCount != 2 {
+		t.Fatalf("MessagesCount = %d, want 2", meta.MessagesCount)
+	}
+	if meta.ToolsCount != 1 {
+		t.Fatalf("ToolsCount = %d, want 1", meta.ToolsCount)
+	}
+}
+
 func TestAppendAnyTextMapDeterministicJSON(t *testing.T) {
 	meta := EstimateMeta{}
 	value := map[string]any{

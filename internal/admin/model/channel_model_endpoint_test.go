@@ -295,7 +295,7 @@ func TestBuildDisabledChannelModelEndpointRowsMarksOnlyTargetEndpoint(t *testing
 		{ChannelId: "channel-1", Model: "gpt-5.4", Endpoint: ChannelModelEndpointResponses, Enabled: true},
 	}
 
-	got, changed := buildDisabledChannelModelEndpointRows(rows, "channel-1", "gpt-5.4", ChannelModelEndpointResponses)
+	got, changed := buildDisabledChannelModelEndpointRows(rows, "channel-1", "gpt-5.4", ChannelModelEndpointResponses, "unsupported endpoint", "runtime")
 	if !changed {
 		t.Fatalf("changed = false, want true")
 	}
@@ -307,6 +307,9 @@ func TestBuildDisabledChannelModelEndpointRowsMarksOnlyTargetEndpoint(t *testing
 	}
 	if got[1].Enabled {
 		t.Fatalf("responses endpoint enabled = true, want false")
+	}
+	if got[1].DisabledReason != "unsupported endpoint" || got[1].DisabledBy != "runtime" || got[1].DisabledAt == 0 {
+		t.Fatalf("responses endpoint disable metadata = reason:%q by:%q at:%d, want populated", got[1].DisabledReason, got[1].DisabledBy, got[1].DisabledAt)
 	}
 }
 

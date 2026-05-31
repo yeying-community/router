@@ -149,6 +149,26 @@ func TestNormalizeFinalRelayErrorKeepsUserQuotaExceeded(t *testing.T) {
 	}
 }
 
+func TestNormalizeFinalRelayErrorForCapabilityMismatch(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusBadRequest,
+		Error: relaymodel.Error{
+			Message: "channel model does not support /v1/responses",
+			Type:    "one_api_error",
+			Code:    "unsupported_channel_endpoint",
+		},
+	}
+
+	normalizeFinalRelayError(err)
+
+	if err.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("unexpected status code: got %d want %d", err.StatusCode, http.StatusServiceUnavailable)
+	}
+	if err.Message != "当前分组可用上游能力不匹配，请稍后再试" {
+		t.Fatalf("unexpected message: got %q", err.Message)
+	}
+}
+
 func TestShouldDisableChannelModelCapabilityForModelNotFoundCode(t *testing.T) {
 	err := &relaymodel.ErrorWithStatusCode{
 		StatusCode: http.StatusNotFound,
@@ -206,6 +226,46 @@ func TestShouldDisableChannelModelRequestEndpointCapabilityForUnsupportedEndpoin
 
 	if !shouldDisableChannelModelRequestEndpointCapability(err) {
 		t.Fatalf("shouldDisableChannelModelRequestEndpointCapability = false, want true")
+	}
+}
+
+func TestShouldRetryForUnsupportedEndpointCapabilityError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusBadRequest,
+		Error: relaymodel.Error{
+			Message: "channel model does not support /v1/responses",
+			Type:    "one_api_error",
+			Code:    "unsupported_channel_endpoint",
+		},
+	}
+
+	if !shouldRetry(ctx, err) {
+		t.Fatalf("shouldRetry() = false, want true for endpoint capability error")
+	}
+}
+
+func TestShouldRetryForModelNotFoundCapabilityError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusBadRequest,
+		Error: relaymodel.Error{
+			Message: "The model `gpt-x` does not exist",
+			Type:    "invalid_request_error",
+			Code:    "model_not_found",
+		},
+	}
+
+	if !shouldRetry(ctx, err) {
+		t.Fatalf("shouldRetry() = false, want true for model capability error")
 	}
 }
 

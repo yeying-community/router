@@ -47,7 +47,13 @@ const RedeemCodePage = ({ open, onClose, onRedeemed }) => {
           leftLabel: t('topup.redemption_result.fields.redemption_name'),
           leftValue: recentResult.redemption_name || '-',
           rightLabel: t('topup.redemption_result.fields.redemption_id'),
-          rightValue: recentResult.redemption_id || '-',
+          rightValue: recentResult.redemption_id ? (
+            <span className='router-monospace-value'>
+              {recentResult.redemption_id}
+            </span>
+          ) : (
+            '-'
+          ),
         },
         {
           key: 'row-4',
@@ -129,7 +135,7 @@ const RedeemCodePage = ({ open, onClose, onRedeemed }) => {
         <div className='router-text-muted'>{t('topup.redeem.description')}</div>
 
         <AppInput
-          className='router-section-input router-redeem-code-input'
+          className='router-section-input router-redeem-code-input router-machine-input'
           fluid
           icon='key'
           iconPosition='left'

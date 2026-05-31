@@ -156,11 +156,12 @@ type RateLimitConfig struct {
 }
 
 type MetricsConfig struct {
-	Enabled              bool    `yaml:"enabled"`
-	QueueSize            int     `yaml:"queue_size"`
-	SuccessRateThreshold float64 `yaml:"success_rate_threshold"`
-	SuccessChanSize      int     `yaml:"success_chan_size"`
-	FailChanSize         int     `yaml:"fail_chan_size"`
+	Enabled                 bool    `yaml:"enabled"`
+	QueueSize               int     `yaml:"queue_size"`
+	SuccessRateThreshold    float64 `yaml:"success_rate_threshold"`
+	SuccessChanSize         int     `yaml:"success_chan_size"`
+	FailChanSize            int     `yaml:"fail_chan_size"`
+	AutoRecoverAfterSeconds int     `yaml:"auto_recover_after_seconds"`
 }
 
 type BootstrapConfig struct {
@@ -271,11 +272,12 @@ func defaultAppConfig() AppConfig {
 			GlobalWebRateLimitDurationSeconds: 3 * 60,
 		},
 		Metrics: MetricsConfig{
-			Enabled:              false,
-			QueueSize:            10,
-			SuccessRateThreshold: 0.8,
-			SuccessChanSize:      1024,
-			FailChanSize:         128,
+			Enabled:                 false,
+			QueueSize:               10,
+			SuccessRateThreshold:    0.8,
+			SuccessChanSize:         1024,
+			FailChanSize:            128,
+			AutoRecoverAfterSeconds: 300,
 		},
 		Bootstrap: BootstrapConfig{
 			RootWalletAddress: "",
@@ -501,6 +503,11 @@ func ApplyAppConfig(cfg *AppConfig, portFlagSet bool, logDirFlagSet bool) error 
 	} else {
 		config.MetricFailChanSize = 128
 	}
+	if cfg.Metrics.AutoRecoverAfterSeconds > 0 {
+		config.MetricAutoRecoverAfterSeconds = cfg.Metrics.AutoRecoverAfterSeconds
+	} else {
+		config.MetricAutoRecoverAfterSeconds = 300
+	}
 
 	config.RootWalletAddress = strings.TrimSpace(cfg.Bootstrap.RootWalletAddress)
 	config.RootWalletAddresses = nil
@@ -652,6 +659,7 @@ func setCompatibilityEnvs() {
 	_ = os.Setenv("METRIC_SUCCESS_RATE_THRESHOLD", strconv.FormatFloat(config.MetricSuccessRateThreshold, 'f', -1, 64))
 	_ = os.Setenv("METRIC_SUCCESS_CHAN_SIZE", strconv.Itoa(config.MetricSuccessChanSize))
 	_ = os.Setenv("METRIC_FAIL_CHAN_SIZE", strconv.Itoa(config.MetricFailChanSize))
+	_ = os.Setenv("METRIC_AUTO_RECOVER_AFTER_SECONDS", strconv.Itoa(config.MetricAutoRecoverAfterSeconds))
 	_ = os.Setenv("ROOT_WALLET_ADDRESS", config.RootWalletAddress)
 	_ = os.Setenv("GEMINI_VERSION", config.GeminiVersion)
 	_ = os.Setenv("ONLY_ONE_LOG_FILE", strconv.FormatBool(config.OnlyOneLogFile))

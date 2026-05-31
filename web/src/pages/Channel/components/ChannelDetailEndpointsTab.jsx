@@ -15,6 +15,14 @@ import {
 const resolveEndpointTestStatusKey = (row) =>
   (row?.last_test_status || '').toString().trim() || 'untested';
 
+const formatDisableTime = (value) => {
+  const timestamp = Number(value || 0);
+  if (timestamp <= 0) {
+    return '';
+  }
+  return new Date(timestamp * 1000).toLocaleString();
+};
+
 const ChannelDetailEndpointsTab = ({
   t,
   columnWidths,
@@ -33,6 +41,23 @@ const ChannelDetailEndpointsTab = ({
   openEndpointPolicyEditor,
   timestamp2string,
 }) => {
+  const buildDisableInfo = (row) => {
+    const parts = [];
+    const disabledBy = (row?.disabled_by || '').toString().trim();
+    const disabledAt = formatDisableTime(row?.disabled_at);
+    const disabledReason = (row?.disabled_reason || '').toString().trim();
+    if (disabledBy) {
+      parts.push(t('channel.edit.capability_disable.by', { value: disabledBy }));
+    }
+    if (disabledAt) {
+      parts.push(t('channel.edit.capability_disable.at', { value: disabledAt }));
+    }
+    if (disabledReason) {
+      parts.push(t('channel.edit.capability_disable.reason', { value: disabledReason }));
+    }
+    return parts.join('\n');
+  };
+
   const policyByKey = new Map(
     channelEndpointPolicies.map((row) => [
       buildChannelEndpointKey(row.model, row.endpoint),
@@ -129,7 +154,10 @@ const ChannelDetailEndpointsTab = ({
               key: 'model',
               width: columnWidths[0],
               render: (value) => (
-                <span className='router-cell-truncate' title={value}>
+                <span
+                  className='router-cell-truncate router-monospace-value'
+                  title={value}
+                >
                   {value}
                 </span>
               ),
@@ -195,6 +223,7 @@ const ChannelDetailEndpointsTab = ({
                 const endpointKey = buildChannelEndpointKey(row.model, row.endpoint);
                 const isMutating = endpointMutatingKey === endpointKey;
                 const blockedReason = (row.enable_block_reason || '').trim();
+                const disableInfo = buildDisableInfo(row);
                 const disabled =
                   endpointCapabilityReadonly ||
                   isMutating ||
@@ -203,7 +232,7 @@ const ChannelDetailEndpointsTab = ({
                   <AppSwitch
                     checked={row.enabled === true}
                     disabled={disabled}
-                    title={blockedReason || undefined}
+                    title={blockedReason || disableInfo || undefined}
                     onChange={(_, { checked }) =>
                       updateChannelEndpointCapability(row, {
                         enabled: checked === true,

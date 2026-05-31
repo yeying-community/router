@@ -1840,7 +1840,7 @@ const ProvidersManager = () => {
               render: (_, { detail, index: detailIndex }) => (
                 <div>
                   <AppInput
-                    className='router-inline-input'
+                    className='router-inline-input router-machine-input'
                     value={detail.model || ''}
                     disabled={disabled}
                     onChange={(e, { value }) =>
@@ -2177,14 +2177,14 @@ const ProvidersManager = () => {
             emptyText: t('channel.providers.model_detail_table.empty'),
           }}
           columns={[
-            {
-              title: t('channel.providers.model_detail_table.model'),
-              dataIndex: ['detail', 'model'],
-              key: 'model',
-              width: 180,
-              render: (value, record) => (
+          {
+            title: t('channel.providers.model_detail_table.model'),
+            dataIndex: ['detail', 'model'],
+            key: 'model',
+            width: 180,
+            render: (value, record) => (
                 <div
-                  className='router-model-title'
+                  className='router-model-title router-monospace-value'
                   title={record?.detail?.description || value || '-'}
                 >
                   {value || '-'}
@@ -2369,7 +2369,7 @@ const ProvidersManager = () => {
                 required
               >
                 <AppInput
-                  className='router-section-input'
+                  className='router-section-input router-machine-input'
                   value={detail.model || ''}
                   onChange={(e, { value }) =>
                     setModelDetailField(
@@ -2951,7 +2951,14 @@ const ProvidersManager = () => {
             dataIndex: 'id',
             key: 'id',
             width: PROVIDER_LIST_COLUMN_WIDTHS.id,
-            render: (value) => value || '-',
+            render: (value) =>
+              value ? (
+                <span className='router-monospace-value router-monospace-truncate' title={value}>
+                  {value}
+                </span>
+              ) : (
+                '-'
+              ),
           },
           {
             title: t('channel.providers.table.name'),
@@ -3428,7 +3435,9 @@ const ProvidersManager = () => {
             start={
               <>
                 <AppTag className='router-tag'>
-                  {pricingDetailModel?.model || '-'}
+                  <span className='router-monospace-value'>
+                    {pricingDetailModel?.model || '-'}
+                  </span>
                 </AppTag>
                 <AppTag className='router-tag'>
                   {pricingDetailModel?.type || 'text'}

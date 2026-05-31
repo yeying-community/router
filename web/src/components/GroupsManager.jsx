@@ -260,6 +260,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [statusMutatingGroupId, setStatusMutatingGroupId] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
 
   const [activeGroup, setActiveGroup] = useState(null);
@@ -783,9 +784,11 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     }
   };
 
-  const toggleEnabled = async (row) => {
+  const toggleEnabled = async (row, nextEnabled = !row?.enabled) => {
     if (!row || submitting) return;
+    const normalizedGroupId = (row.id || '').toString().trim();
     setSubmitting(true);
+    setStatusMutatingGroupId(normalizedGroupId);
     try {
       const res = await API.put('/api/v1/admin/group/', {
         id: row.id,
@@ -793,7 +796,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
         description: row.description || '',
         billing_ratio: Number(row.billing_ratio ?? 1),
         sort_order: Number(row.sort_order || 0),
-        enabled: !row.enabled,
+        enabled: !!nextEnabled,
       });
       const { success, message, data } = res.data || {};
       if (!success) {
@@ -808,6 +811,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     } catch (error) {
       showError(error);
     } finally {
+      setStatusMutatingGroupId('');
       setSubmitting(false);
     }
   };
@@ -1186,6 +1190,30 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       </AppTag>
     );
 
+  const renderGroupStatusSwitch = (row) => (
+    <div
+      className='router-group-status-switch'
+      onClick={(event) => event.stopPropagation()}
+    >
+      <AppTooltip
+        title={
+          row.enabled
+            ? t('group_manage.status.enabled')
+            : t('group_manage.status.disabled')
+        }
+      >
+        <AppSwitch
+          size='small'
+          checked={!!row.enabled}
+          disabled={submitting || loading}
+          loading={statusMutatingGroupId === row.id}
+          aria-label={t('group_manage.table.status')}
+          onChange={(event, { checked }) => toggleEnabled(row, checked)}
+        />
+      </AppTooltip>
+    </div>
+  );
+
   const renderList = () => (
     <>
       <AppFilterHeader
@@ -1295,7 +1323,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
             key: 'enabled',
             className: 'router-table-col-status-compact',
             width: GROUP_LIST_COLUMN_WIDTHS.status,
-            render: (value) => renderGroupStatus(value),
+            render: (_, row) => renderGroupStatusSwitch(row),
           },
           {
             title: t('group_manage.table.created_at'),
@@ -1319,34 +1347,10 @@ const GroupsManager = ({ detailGroupId = '' }) => {
           {
             title: t('group_manage.table.actions'),
             key: 'actions',
-            className: 'router-table-col-actions-wide',
-            width: GROUP_LIST_COLUMN_WIDTHS.actions,
+            className: 'router-table-col-actions-icon',
+            width: 72,
             render: (_, row) => (
-              <div className='router-action-group-tight router-table-actions-wide'>
-                <AppButton
-                  className='router-inline-button'
-                  color={row.enabled ? undefined : 'blue'}
-                  disabled={submitting || loading}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleEnabled(row);
-                  }}
-                >
-                  {row.enabled
-                    ? t('group_manage.buttons.disable')
-                    : t('group_manage.buttons.enable')}
-                </AppButton>
-                <AppButton
-                  className='router-inline-button'
-                  disabled={submitting || loading}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openViewPanel(row);
-                    startEditPanel(row);
-                  }}
-                >
-                  {t('common.edit')}
-                </AppButton>
+              <div className='router-action-group-tight router-table-actions-icon-compact'>
                 <AppButton
                   className='router-inline-button'
                   color='red'

@@ -313,7 +313,8 @@
         "canceled": "Canceled"
       },
       "actions": {
-        "refresh": "Sync Now"
+        "refresh": "Sync Now",
+        "fulfill": "Fulfill"
       },
       "detail": {
         "sections": {
@@ -373,6 +374,7 @@
       "updated_at": "Updated At",
       "response_time": "Response Time",
       "capabilities": "Capabilities",
+      "circuit_breaker": "Circuit",
       "billing": "Billing",
       "balance": "Balance",
       "priority": "Priority",
@@ -381,10 +383,21 @@
       "status_enabled": "Enabled",
       "status_disabled": "Disabled",
       "status_auto_disabled": "Disabled",
+      "status_half_open": "Probing",
       "status_creating": "Creating",
       "status_disabled_tip": "This channel is manually disabled",
       "status_auto_disabled_tip": "This channel is automatically disabled",
+      "status_half_open_tip": "This channel is probing after automatic circuit recovery",
       "status_unknown": "Unknown Status",
+      "circuit_state_open": "Open",
+      "circuit_state_half_open": "Probing",
+      "circuit_state_recovered": "Recovered",
+      "circuit_state_canceled": "Canceled",
+      "circuit_reason": "Reason",
+      "circuit_success_rate": "Success rate",
+      "circuit_disabled_at": "Disabled at",
+      "circuit_recover_after": "Recover after",
+      "circuit_recovered_at": "Recovered at",
       "not_tested": "Not Tested",
       "priority_tip": "Channel selection priority, higher is preferred",
       "click_to_update": "Click to update",
@@ -594,6 +607,8 @@
         "profile_update_success": "Billing profile updated",
         "profile_update_failed": "Failed to update billing profile",
         "refresh_now": "Refresh",
+        "latest_refresh_failed": "Latest billing refresh failed: {{message}}",
+        "latest_refresh_failed_unknown": "Upstream billing API returned an error",
         "current_quotas_title": "Entitlement Status",
         "billing_mode": "Billing Mode",
         "updated_at": "Updated At",
@@ -660,11 +675,31 @@
           "credit": "Credit",
           "plan": "Plan"
         },
+        "entitlement_kinds": {
+          "metered": "Metered",
+          "periodic": "Periodic Quota",
+          "package": "Package",
+          "plan": "Plan Validity",
+          "custom": "Custom"
+        },
+        "mode_summary": {
+          "package_title": "Package Channel",
+          "package_description": "This channel has plan validity or periodic quota. Check expiration, daily/weekly/monthly remaining quota, and reset time before judging availability.",
+          "metered_title": "Metered Channel",
+          "metered_description": "This channel mainly deducts from balance or total credit. Exhausted credit can affect auto-disable decisions.",
+          "unknown_title": "Unknown",
+          "unknown_description": "The current snapshot has no recognizable metered or package entitlement items."
+        },
         "quota_table": {
+          "entitlement_kind": "Billing Type",
           "resource_type": "Entitlement Type",
           "quota_label": "Quota Item",
-          "amount": "Remaining / Limit",
+          "amount": "Remaining / Status",
+          "used_amount": "Used",
           "remaining_ratio": "Remaining Ratio",
+          "validity": "Validity / Reset",
+          "valid_until": "Valid Until",
+          "next_reset": "Next Reset",
           "reset_at": "Reset At",
           "expires_at": "Expires At",
           "status": "Status",
@@ -697,6 +732,9 @@
           "empty": "No alert records",
           "event_expiring_soon": "Expiring Soon",
           "event_low_remaining": "Low Remaining",
+          "event_plan_expired": "Plan Expired",
+          "event_refresh_failed": "Refresh Failed",
+          "event_response_error": "Response Error",
           "status_sent": "Sent",
           "status_failed": "Failed"
         }
@@ -713,10 +751,6 @@
         "enable_success": "Endpoint capability enabled",
         "disable_success": "Endpoint capability disabled",
         "update_failed": "Failed to update endpoint capability",
-        "enable_confirm_title": "Confirm Enable Endpoint",
-        "enable_confirm_content": "This endpoint has no successful test record, or the latest test result is not successful. Enabling it is not recommended because it may be exposed for real requests.",
-        "enable_confirm_target": "Model: {{model}}, endpoint: {{endpoint}}",
-        "enable_confirm_action": "Enable Anyway",
         "filters": {
           "test_status": "Test Status",
           "all_test_status": "All Test Statuses"
@@ -731,6 +765,19 @@
           "test_status": "Test Status",
           "enable_block_reason": "Blocked Reason",
           "updated_at": "Updated At"
+        }
+      },
+      "circuit_breaker": {
+        "title": "Circuit Events",
+        "hint": "This records low-success-rate circuit opens, half-open probes, automatic recovery, and canceled recovery events for channel troubleshooting.",
+        "empty": "No circuit events.",
+        "load_failed": "Failed to load circuit events",
+        "columns": {
+          "event": "Event",
+          "reason": "Reason",
+          "success_rate": "Success Rate",
+          "recover_after": "Recover After",
+          "created_at": "Time"
         }
       },
       "endpoint_policies": {
@@ -915,6 +962,11 @@
           "source": "Source",
           "source_url": "Source URL"
         }
+      },
+      "capability_disable": {
+        "by": "Disabled by: {{value}}",
+        "at": "Disabled at: {{value}}",
+        "reason": "Reason: {{value}}"
       },
       "model_tester": {
         "title": "Model Test",
@@ -1333,7 +1385,7 @@
       "raw": "Copy Raw Token",
       "ama": "Copy AMA Link",
       "opencat": "Copy OpenCat Link",
-      "next": "Copy NextChat Link",
+      "next": "Copy Chat Link",
       "lobe": "Copy LobeChat Link"
     },
     "messages": {
@@ -1530,6 +1582,9 @@
         "billing_pricing_source": "Pricing Source",
         "billing_usage_source": "Usage Source",
         "billing_estimate_source": "Estimate Source",
+        "billing_estimate_estimator": "Estimate Estimator",
+        "billing_estimate_precision": "Estimate Precision",
+        "estimated_prompt_tokens": "Estimated Prompt Tokens",
         "billing_settlement_mode": "Settlement Mode",
         "billing_group_ratio": "Business Ratio",
         "billing_yyc_rate": "Conversion Rate",
@@ -2490,7 +2545,7 @@
         "topup_link": "Top-up Link",
         "topup_link_placeholder": "e.g.: Card selling website purchase link",
         "chat_link": "Chat Page Link",
-        "chat_link_placeholder": "e.g.: ChatGPT Next Web deployment address",
+        "chat_link_placeholder": "e.g.: Chat Web deployment URL",
         "quota_per_unit": "USD -> YYC Conversion Rate",
         "quota_per_unit_placeholder": "How many YYC 1 USD converts to",
         "channel_billing_auto_refresh": {

@@ -11,7 +11,10 @@ import (
 	"github.com/yeying-community/router/common/random"
 	"github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/admin/presenter"
+	"gorm.io/gorm"
 )
+
+var generateRedemptionCode = random.GetUUID
 
 func GetAllRedemptions(c *gin.Context) {
 	page, _ := strconv.Atoi(c.Query("page"))
@@ -155,33 +158,22 @@ func AddRedemption(c *gin.Context) {
 		})
 		return
 	}
-	var codes []string
-	for i := 0; i < redemption.Count; i++ {
-		code := random.GetUUID()
-		createdAt := helper.GetTimestamp()
-		cleanRedemption := model.Redemption{
-			UserId:             c.GetString(ctxkey.Id),
-			Name:               redemption.Name,
-			GroupID:            redemption.GroupID,
-			Code:               code,
-			CreatedTime:        createdAt,
-			FaceValueAmount:    redemption.FaceValueAmount,
-			FaceValueUnit:      redemption.FaceValueUnit,
-			Quota:              redemption.Quota,
-			CodeValidityDays:   codeValidityDays,
-			CodeExpiresAt:      model.ResolveBalanceCreditExpiresAt(createdAt, codeValidityDays),
-			CreditValidityDays: creditValidityDays,
-		}
-		err = cleanRedemption.Insert()
+	codes := make([]string, 0, redemption.Count)
+	err = model.DB.Transaction(func(tx *gorm.DB) error {
+		generatedCodes, err := createRedemptionsWithDB(tx, redemption, c.GetString(ctxkey.Id), generateRedemptionCode)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": err.Error(),
-				"data":    codes,
-			})
-			return
+			return err
 		}
-		codes = append(codes, code)
+		codes = generatedCodes
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+			"data":    codes,
+		})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -189,6 +181,62 @@ func AddRedemption(c *gin.Context) {
 		"data":    codes,
 	})
 	return
+}
+
+func createRedemptionsWithDB(tx *gorm.DB, template model.Redemption, creatorID string, codeGenerator func() string) ([]string, error) {
+	if tx == nil {
+		return nil, gorm.ErrInvalidDB
+	}
+	if codeGenerator == nil {
+		codeGenerator = random.GetUUID
+	}
+	batchID := random.GetUUID()
+	codes := make([]string, 0, template.Count)
+	for i := 0; i < template.Count; i++ {
+		code := codeGenerator()
+		createdAt := helper.GetTimestamp()
+		cleanRedemption := model.Redemption{
+			Id:                 random.GetUUID(),
+			UserId:             creatorID,
+			Name:               template.Name,
+			GroupID:            template.GroupID,
+			Code:               code,
+			CreatedTime:        createdAt,
+			FaceValueAmount:    template.FaceValueAmount,
+			FaceValueUnit:      template.FaceValueUnit,
+			Quota:              template.Quota,
+			CodeValidityDays:   template.CodeValidityDays,
+			CodeExpiresAt:      model.ResolveBalanceCreditExpiresAt(createdAt, template.CodeValidityDays),
+			CreditValidityDays: template.CreditValidityDays,
+		}
+		if err := tx.Create(&cleanRedemption).Error; err != nil {
+			return nil, err
+		}
+		codes = append(codes, code)
+	}
+	firstCode := ""
+	lastCode := ""
+	if len(codes) > 0 {
+		firstCode = codes[0]
+		lastCode = codes[len(codes)-1]
+	}
+	if err := model.RecordRedemptionIssueAuditLogWithDB(tx, model.RedemptionIssueAuditLog{
+		BatchID:            batchID,
+		CreatedByUserID:    creatorID,
+		Name:               template.Name,
+		GroupID:            template.GroupID,
+		Count:              len(codes),
+		FaceValueAmount:    template.FaceValueAmount,
+		FaceValueUnit:      template.FaceValueUnit,
+		Quota:              template.Quota,
+		CodeValidityDays:   template.CodeValidityDays,
+		CreditValidityDays: template.CreditValidityDays,
+		FirstCode:          firstCode,
+		LastCode:           lastCode,
+	}); err != nil {
+		return nil, err
+	}
+	return codes, nil
 }
 
 func DeleteRedemption(c *gin.Context) {

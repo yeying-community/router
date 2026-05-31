@@ -141,7 +141,7 @@ func ExplainManualChannelEndpointEnableBlockWithDB(db *gorm.DB, channelID string
 	if !containsNormalizedEndpoint(officialEndpoints, normalizedEndpoint) {
 		return fmt.Sprintf("模型 %s 的供应商官方端点范围不包含 %s", official.Model, normalizedEndpoint), nil
 	}
-	ok, err := HasSuccessfulChannelEndpointTestResultWithDB(db, normalizedChannelID, normalizedEndpoint, row.Model, row.UpstreamModel)
+	ok, err := HasSuccessfulExactChannelEndpointTestResultWithDB(db, normalizedChannelID, row.Model, normalizedEndpoint)
 	if err != nil {
 		return "", err
 	}

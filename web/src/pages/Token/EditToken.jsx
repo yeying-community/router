@@ -426,6 +426,9 @@ const EditToken = () => {
             title: t('token.edit.models_table_name'),
             dataIndex: 'text',
             key: 'text',
+            render: (value) => (
+              <span className='router-monospace-value'>{value}</span>
+            ),
           },
         ]}
       />

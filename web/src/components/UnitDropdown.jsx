@@ -40,19 +40,22 @@ export default function UnitDropdown({
   options = [],
   ...rest
 }) {
+  const { variant: restVariant, bordered, ...selectRest } = rest;
   const normalizedOptions = useMemo(
     () => (Array.isArray(options) ? options.map(normalizeOptionItem).filter(Boolean) : []),
     [options],
   );
   const variantClassName = VARIANT_CLASS_MAP[variant] || VARIANT_CLASS_MAP.section;
   const combinedClassName = [variantClassName, className].filter(Boolean).join(' ');
+  const selectVariant =
+    variant === 'header' ? 'borderless' : restVariant || (bordered === false ? 'borderless' : undefined);
 
   return (
     <AppSelect
       className={combinedClassName}
       options={normalizedOptions}
-      bordered={variant === 'header' ? false : rest.bordered}
-      {...rest}
+      variant={selectVariant}
+      {...selectRest}
     />
   );
 }

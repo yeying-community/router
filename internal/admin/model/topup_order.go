@@ -1077,24 +1077,37 @@ func ApplyTopupOrderCallbackWithDB(db *gorm.DB, input TopupOrderCallbackInput) (
 	}
 	normalizedStatus := NormalizeTopupOrderStatus(input.Status)
 	if normalizedStatus == "" {
-		return TopupOrder{}, fmt.Errorf("无效的订单状态")
+		return TopupOrder{}, NewTopupFlowError(TopupErrorPaymentCallbackInvalid, "无效的订单状态", nil)
 	}
 	normalizedOrderID := strings.TrimSpace(input.OrderID)
 	normalizedTransactionID := strings.TrimSpace(input.TransactionID)
 	normalizedProviderOrderID := strings.TrimSpace(input.ProviderOrderID)
 	if normalizedOrderID == "" && normalizedTransactionID == "" && normalizedProviderOrderID == "" {
-		return TopupOrder{}, fmt.Errorf("order_id、transaction_id、provider_order_id 不能同时为空")
+		return TopupOrder{}, NewTopupFlowError(TopupErrorPaymentCallbackInvalid, "order_id、transaction_id、provider_order_id 不能同时为空", nil)
 	}
 	normalizedProviderName := strings.TrimSpace(input.ProviderName)
 	normalizedStatusMessage := strings.TrimSpace(input.StatusMessage)
 	result := TopupOrder{}
 	previousStatus := ""
+	effectiveStatus := normalizedStatus
+	if effectiveStatus == TopupOrderStatusFulfilled {
+		effectiveStatus = TopupOrderStatusPaid
+	}
 	err := db.Transaction(func(tx *gorm.DB) error {
 		order, err := selectTopupOrderForCallbackWithDB(tx, normalizedOrderID, normalizedTransactionID, normalizedProviderOrderID)
 		if err != nil {
 			return err
 		}
 		previousStatus = order.Status
+		if order.Status == TopupOrderStatusFulfilled {
+			result = order
+			return nil
+		}
+		if order.Status == TopupOrderStatusCanceled &&
+			effectiveStatus != TopupOrderStatusPaid {
+			result = order
+			return nil
+		}
 		if normalizedProviderName != "" {
 			order.ProviderName = normalizedProviderName
 		}
@@ -1105,24 +1118,13 @@ func ApplyTopupOrderCallbackWithDB(db *gorm.DB, input TopupOrderCallbackInput) (
 			order.StatusMessage = normalizedStatusMessage
 		}
 		now := helper.GetTimestamp()
-		order.Status = normalizedStatus
-		switch normalizedStatus {
+		order.Status = effectiveStatus
+		switch effectiveStatus {
 		case TopupOrderStatusPaid:
 			if input.PaidAt > 0 {
 				order.PaidAt = input.PaidAt
 			} else if order.PaidAt == 0 {
 				order.PaidAt = now
-			}
-		case TopupOrderStatusFulfilled:
-			if input.PaidAt > 0 {
-				order.PaidAt = input.PaidAt
-			} else if order.PaidAt == 0 {
-				order.PaidAt = now
-			}
-			if input.RedeemedAt > 0 {
-				order.RedeemedAt = input.RedeemedAt
-			} else if order.RedeemedAt == 0 {
-				order.RedeemedAt = now
 			}
 		}
 		order.UpdatedAt = now

@@ -61,6 +61,15 @@ func annotateTextBillingSnapshot(snapshot *billing.BillingSnapshot, pricingSourc
 	snapshot.SettlementMode = resolveTextSettlementMode(endpoint, req)
 }
 
+func annotateTextEstimateLogFields(logRow *adminmodel.Log, result tokenestimate.EstimateResult) {
+	if logRow == nil {
+		return
+	}
+	logRow.EstimatedPromptTokens = result.PromptTokens
+	logRow.BillingEstimateEstimator = strings.TrimSpace(result.Estimator)
+	logRow.BillingEstimatePrecision = strings.TrimSpace(string(result.Precision))
+}
+
 func buildTextBillingLogContent(pricing adminmodel.ResolvedModelPricing, groupRatio float64, suffix string) string {
 	content := billing.FormatPricingLog(pricing, groupRatio)
 	if strings.TrimSpace(suffix) == "" {

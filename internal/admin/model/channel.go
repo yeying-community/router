@@ -17,8 +17,10 @@ const (
 	ChannelStatusManuallyDisabled = 2 // also don't use 0
 	ChannelStatusAutoDisabled     = 3
 	ChannelStatusCreating         = 4
+	ChannelStatusHalfOpen         = 5
 
 	ChannelIdentifierMaxLength = 64
+	ChannelHalfOpenPriority    = -1 << 60
 )
 
 var channelIdentifierPattern = regexp.MustCompile(`^[a-z0-9-]+$`)

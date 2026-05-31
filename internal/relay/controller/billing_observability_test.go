@@ -55,6 +55,24 @@ func TestAnnotateTextBillingSnapshotResponsesImagePending(t *testing.T) {
 	}
 }
 
+func TestAnnotateTextEstimateLogFields(t *testing.T) {
+	logRow := &adminmodel.Log{}
+	annotateTextEstimateLogFields(logRow, tokenestimate.EstimateResult{
+		PromptTokens: 37,
+		Estimator:    "openai_exact",
+		Precision:    tokenestimate.PrecisionExact,
+	})
+	if logRow.EstimatedPromptTokens != 37 {
+		t.Fatalf("EstimatedPromptTokens = %d, want 37", logRow.EstimatedPromptTokens)
+	}
+	if logRow.BillingEstimateEstimator != "openai_exact" {
+		t.Fatalf("BillingEstimateEstimator = %q, want openai_exact", logRow.BillingEstimateEstimator)
+	}
+	if logRow.BillingEstimatePrecision != string(tokenestimate.PrecisionExact) {
+		t.Fatalf("BillingEstimatePrecision = %q, want %q", logRow.BillingEstimatePrecision, tokenestimate.PrecisionExact)
+	}
+}
+
 func TestParseResponsesImageToolSpecs(t *testing.T) {
 	raw := []byte(`{
 		"model":"gpt-5",

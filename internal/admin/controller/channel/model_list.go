@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yeying-community/router/common/ctxkey"
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/admin/monitor"
 	channelsvc "github.com/yeying-community/router/internal/admin/service/channel"
 )
 
@@ -179,12 +181,25 @@ func UpdateChannelModels(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
+	channelRow, err := channelsvc.GetByID(channelID)
+	if err != nil {
+		logChannelAdminWarn(c, "update_models", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	nextChannelRow := *channelRow
+	nextChannelRow.SetChannelModels(req.ChannelModels)
+	restoredModels := collectRestoredChannelModelCapabilities(channelRow.GetChannelModels(), nextChannelRow.GetChannelModels())
 	if err := channelsvc.UpdateModels(channelID, req.ChannelModels); err != nil {
 		logChannelAdminWarn(c, "update_models", stringField("channel_id", channelID), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
 	logChannelAdminInfo(c, "update_models", stringField("channel_id", channelID), intField("model_count", len(model.NormalizeChannelModelsPreserveOrder(req.ChannelModels))))
+	operator := channelAdminOperator(c)
+	for _, modelName := range restoredModels {
+		monitor.NotifyChannelModelCapabilityRestored(channelID, channelRow.DisplayName(), modelName, operator)
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -192,6 +207,50 @@ func UpdateChannelModels(c *gin.Context) {
 			"channel_id": channelID,
 		},
 	})
+}
+
+func collectRestoredChannelModelCapabilities(currentRows []model.ChannelModel, nextRows []model.ChannelModel) []string {
+	currentByModel := make(map[string]model.ChannelModel)
+	for _, row := range model.NormalizeChannelModelsPreserveOrder(currentRows) {
+		modelName := strings.TrimSpace(row.Model)
+		if modelName == "" {
+			continue
+		}
+		currentByModel[modelName] = row
+	}
+	restored := make([]string, 0)
+	for _, row := range model.NormalizeChannelModelsPreserveOrder(nextRows) {
+		modelName := strings.TrimSpace(row.Model)
+		if modelName == "" {
+			continue
+		}
+		current, ok := currentByModel[modelName]
+		if !ok || !isChannelModelRuntimeDisabled(current) {
+			continue
+		}
+		if row.Inactive {
+			continue
+		}
+		restored = append(restored, modelName)
+	}
+	return restored
+}
+
+func isChannelModelRuntimeDisabled(row model.ChannelModel) bool {
+	return row.Inactive &&
+		(row.DisabledAt > 0 ||
+			strings.TrimSpace(row.DisabledReason) != "" ||
+			strings.TrimSpace(row.DisabledBy) != "")
+}
+
+func channelAdminOperator(c *gin.Context) string {
+	if c == nil {
+		return ""
+	}
+	if username := strings.TrimSpace(c.GetString(ctxkey.Username)); username != "" {
+		return username
+	}
+	return strings.TrimSpace(c.GetString(ctxkey.Id))
 }
 
 func GetChannelTests(c *gin.Context) {

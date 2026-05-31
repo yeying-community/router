@@ -189,6 +189,7 @@ var MetricQueueSize = 10
 var MetricSuccessRateThreshold = 0.8
 var MetricSuccessChanSize = 1024
 var MetricFailChanSize = 128
+var MetricAutoRecoverAfterSeconds = 300
 
 var RootWalletAddress = ""
 var RootWalletAddresses []string

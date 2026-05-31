@@ -543,7 +543,10 @@ const ChannelDetailTestsTab = ({
               key: 'model',
               width: displayedColumnWidths[batchSelectionMode ? 1 : 0],
               render: (value) => (
-                <span className='router-cell-truncate' title={value || '-'}>
+                <span
+                  className='router-cell-truncate router-monospace-value'
+                  title={value || '-'}
+                >
                   {value || '-'}
                 </span>
               ),

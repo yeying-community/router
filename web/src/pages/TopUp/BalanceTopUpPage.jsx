@@ -5,10 +5,10 @@ import { buildTopUpReturnURL, useTopUpWorkspace } from './shared.jsx';
 import { AppButton, AppSection } from '../../router-ui';
 
 const renderPlanAmount = (amount, currency) =>
-  `${Number(amount || 0)} ${String(currency || 'CNY').toUpperCase()}`;
+  `${Number(amount || 0).toFixed(2)} ${String(currency || 'CNY').toUpperCase()}`;
 
 const renderPlanQuota = (amount, currency) =>
-  `${Number(amount || 0)} ${String(currency || 'USD').toUpperCase()}`;
+  `${Number(amount || 0).toFixed(2)} ${String(currency || 'USD').toUpperCase()}`;
 
 const resolvePlanID = (plan) =>
   String(plan?.id || plan?.plan_id || plan?.Id || '')

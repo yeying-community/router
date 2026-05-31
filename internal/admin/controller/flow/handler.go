@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/internal/admin/model"
+	usersvc "github.com/yeying-community/router/internal/admin/service/user"
 )
 
 const maxFlowPageSize = 100
@@ -129,6 +130,37 @@ func RefreshTopupReconcileRecord(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data":    refreshedOrder,
+	})
+}
+
+func FulfillTopupReconcileRecord(c *gin.Context) {
+	orderID := strings.TrimSpace(c.Param("id"))
+	order, err := model.GetTopupOrderByIDForAdminWithDB(model.DB, orderID)
+	if err != nil {
+		writeFlowError(c, err)
+		return
+	}
+	if strings.TrimSpace(order.Source) != model.TopupOrderSourceTopUpAPI {
+		writeFlowError(c, fmt.Errorf("该订单不属于支付记录"))
+		return
+	}
+	fulfilledOrder, fulfilledNow, err := model.FulfillTopupOrderWithDB(model.DB, order.Id)
+	if err != nil {
+		writeFlowError(c, err)
+		return
+	}
+	if fulfilledNow && fulfilledOrder.BusinessType == model.TopupOrderBusinessBalance && fulfilledOrder.Quota > 0 {
+		usersvc.RecordTopupLog(
+			c.Request.Context(),
+			fulfilledOrder.UserID,
+			"管理员补偿外部支付充值 "+strconv.FormatInt(fulfilledOrder.Quota, 10)+" 额度",
+			int(fulfilledOrder.Quota),
+		)
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    fulfilledOrder,
 	})
 }
 

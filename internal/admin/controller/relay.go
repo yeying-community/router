@@ -198,6 +198,9 @@ func shouldRetry(c *gin.Context, bizErr *model.ErrorWithStatusCode) bool {
 	if controller.IsGroupDailyQuotaExceededError(bizErr) {
 		return false
 	}
+	if isRelayCapabilityError(bizErr) {
+		return true
+	}
 	statusCode := bizErr.StatusCode
 	if statusCode == http.StatusPaymentRequired {
 		return true
@@ -263,6 +266,11 @@ func normalizeFinalRelayError(err *model.ErrorWithStatusCode) {
 		err.Error.Message = "当前分组可用上游额度不足，请稍后再试"
 		return
 	}
+	if isRelayCapabilityError(err) {
+		err.StatusCode = http.StatusServiceUnavailable
+		err.Error.Message = "当前分组可用上游能力不匹配，请稍后再试"
+		return
+	}
 	if !isTransientUpstreamRelayError(err) {
 		return
 	}
@@ -300,6 +308,11 @@ func isUpstreamQuotaRelayError(err *model.ErrorWithStatusCode) bool {
 		strings.Contains(lowerMessage, "credit") ||
 		strings.Contains(lowerMessage, "balance") ||
 		strings.Contains(lowerMessage, "daily limit")
+}
+
+func isRelayCapabilityError(err *model.ErrorWithStatusCode) bool {
+	return shouldDisableChannelModelRequestEndpointCapability(err) ||
+		shouldDisableChannelModelCapability(err)
 }
 
 func isTransientUpstreamRelayError(err *model.ErrorWithStatusCode) bool {
@@ -366,18 +379,22 @@ func processChannelRelayError(ctx context.Context, userId string, groupID string
 		logger.RelayWarnf(ctx, msg)
 	}
 	if shouldDisableChannelModelRequestEndpointCapability(&err) {
-		disabled, disableErr := dbmodel.DisableChannelModelRequestEndpointCapability(channelId, requestModel, requestPath)
+		disabled, disableErr := dbmodel.DisableChannelModelRequestEndpointCapabilityWithReason(channelId, requestModel, requestPath, err.Message, "runtime")
 		logChannelModelRequestEndpointDisableResult(ctx, channelId, channelName, requestModel, requestPath, err, disabled, disableErr)
 		if disableErr != nil {
 			monitor.Emit(channelId, false)
+		} else if disabled {
+			monitor.NotifyChannelModelEndpointCapabilityDisabled(channelId, channelName, requestModel, dbmodel.NormalizeRequestedChannelModelEndpoint(requestPath), err.Message)
 		}
 		return
 	}
 	if shouldDisableChannelModelCapability(&err) {
-		disabled, disableErr := dbmodel.DisableChannelModelCapability(channelId, requestModel)
+		disabled, disableErr := dbmodel.DisableChannelModelCapabilityWithReason(channelId, requestModel, err.Message, "runtime")
 		logChannelModelCapabilityDisableResult(ctx, channelId, channelName, requestModel, err, disabled, disableErr)
 		if disableErr != nil {
 			monitor.Emit(channelId, false)
+		} else if disabled {
+			monitor.NotifyChannelModelCapabilityDisabled(channelId, channelName, requestModel, err.Message)
 		}
 		return
 	}

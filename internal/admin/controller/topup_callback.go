@@ -18,11 +18,73 @@ type topupCallbackRequest struct {
 	OrderID         string `json:"order_id"`
 	TransactionID   string `json:"transaction_id"`
 	ProviderOrderID string `json:"provider_order_id"`
+	OutTradeNo      string `json:"out_trade_no"`
+	TradeNo         string `json:"trade_no"`
 	Status          string `json:"status"`
+	TradeStatus     string `json:"trade_status"`
+	PayStatus       string `json:"pay_status"`
+	CallbackStatus  string `json:"callback_status"`
 	ProviderName    string `json:"provider_name"`
 	StatusMessage   string `json:"status_message"`
+	Message         string `json:"message"`
 	PaidAt          int64  `json:"paid_at"`
+	PayTime         int64  `json:"pay_time"`
 	RedeemedAt      int64  `json:"redeemed_at"`
+}
+
+func normalizeTopupCallbackStatus(values ...string) string {
+	for _, value := range values {
+		normalized := strings.TrimSpace(strings.ToLower(value))
+		switch normalized {
+		case model.TopupOrderStatusCreated, "0", "unpaid":
+			return model.TopupOrderStatusCreated
+		case model.TopupOrderStatusPending, "1", "processing", "paying":
+			return model.TopupOrderStatusPending
+		case model.TopupOrderStatusPaid, "2", "success", "succeeded", "paid_success":
+			return model.TopupOrderStatusPaid
+		case model.TopupOrderStatusFulfilled, "fulfilled_success":
+			return model.TopupOrderStatusFulfilled
+		case model.TopupOrderStatusFailed, "4", "fail", "failure":
+			return model.TopupOrderStatusFailed
+		case model.TopupOrderStatusCanceled, "3", "cancel", "closed", "cancelled":
+			return model.TopupOrderStatusCanceled
+		}
+	}
+	return ""
+}
+
+func normalizeTopupCallbackInput(req topupCallbackRequest) model.TopupOrderCallbackInput {
+	transactionID := strings.TrimSpace(req.TransactionID)
+	if transactionID == "" {
+		transactionID = strings.TrimSpace(req.OutTradeNo)
+	}
+	providerOrderID := strings.TrimSpace(req.ProviderOrderID)
+	if providerOrderID == "" {
+		providerOrderID = strings.TrimSpace(req.TradeNo)
+	}
+	statusMessage := strings.TrimSpace(req.StatusMessage)
+	if statusMessage == "" {
+		statusMessage = strings.TrimSpace(req.Message)
+	}
+	paidAt := req.PaidAt
+	if paidAt <= 0 {
+		paidAt = req.PayTime
+	}
+	return model.TopupOrderCallbackInput{
+		OrderID:         req.OrderID,
+		TransactionID:   transactionID,
+		ProviderOrderID: providerOrderID,
+		Status: normalizeTopupCallbackStatus(
+			req.Status,
+			req.TradeStatus,
+			req.PayStatus,
+			req.CallbackStatus,
+		),
+		ProviderName:  req.ProviderName,
+		StatusMessage: statusMessage,
+		PaidAt:        paidAt,
+		RedeemedAt:    req.RedeemedAt,
+	}
 }
 
 func configuredTopupCallbackToken() string {
@@ -70,22 +132,18 @@ func ProcessTopupCallback(c *gin.Context) {
 		return
 	}
 
-	order, err := model.ApplyTopupOrderCallbackWithDB(model.DB, model.TopupOrderCallbackInput{
-		OrderID:         req.OrderID,
-		TransactionID:   req.TransactionID,
-		ProviderOrderID: req.ProviderOrderID,
-		Status:          req.Status,
-		ProviderName:    req.ProviderName,
-		StatusMessage:   req.StatusMessage,
-		PaidAt:          req.PaidAt,
-		RedeemedAt:      req.RedeemedAt,
-	})
+	callbackInput := normalizeTopupCallbackInput(req)
+	order, err := model.ApplyTopupOrderCallbackWithDB(model.DB, callbackInput)
 	if err != nil {
 		logTopupCallbackFailure(c, true, "payment_callback_apply_failed", http.StatusOK, &req, err)
-		c.JSON(http.StatusOK, gin.H{
+		response := gin.H{
 			"success": false,
 			"message": err.Error(),
-		})
+		}
+		if code := model.TopupErrorCode(err); code != "" {
+			response["data"] = gin.H{"code": code}
+		}
+		c.JSON(http.StatusOK, response)
 		return
 	}
 	if order.Status == model.TopupOrderStatusPaid {

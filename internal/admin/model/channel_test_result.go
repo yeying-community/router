@@ -373,7 +373,7 @@ func GetLatestChannelTestByModelEndpointWithDB(db *gorm.DB, channelID string, mo
 	}
 	normalizedChannelID := strings.TrimSpace(channelID)
 	normalizedModelID := strings.TrimSpace(modelID)
-	normalizedEndpoint := strings.TrimSpace(endpoint)
+	normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(endpoint)
 	if normalizedChannelID == "" || normalizedModelID == "" || normalizedEndpoint == "" {
 		return ChannelTest{}, gorm.ErrRecordNotFound
 	}

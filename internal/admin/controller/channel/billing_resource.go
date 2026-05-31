@@ -25,6 +25,8 @@ type channelBillingSummaryData struct {
 	ManualUpdateSupported bool                               `json:"manual_update_supported"`
 	RefreshSupported      bool                               `json:"refresh_supported"`
 	LatestSnapshotAt      int64                              `json:"latest_snapshot_at"`
+	LatestSnapshotStatus  string                             `json:"latest_snapshot_status"`
+	LatestSnapshotMessage string                             `json:"latest_snapshot_message"`
 	QuotaItems            []model.ChannelBillingSnapshotItem `json:"quota_items"`
 }
 
@@ -103,6 +105,8 @@ func buildChannelBillingSummary(channelRow *model.Channel, profile model.Channel
 		ManualUpdateSupported: profile.HasCapability(model.ChannelBillingCapabilityManualUpdateSnapshot),
 		RefreshSupported:      profile.HasCapability(model.ChannelBillingCapabilityRefreshBilling),
 		LatestSnapshotAt:      snapshot.CreatedAt,
+		LatestSnapshotStatus:  strings.TrimSpace(snapshot.RawStatus),
+		LatestSnapshotMessage: strings.TrimSpace(snapshot.Message),
 		QuotaItems:            model.NormalizeChannelBillingSnapshotItems(snapshot.Items),
 	}
 	if summary.BillingMode == "" {

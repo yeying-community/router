@@ -214,6 +214,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		ElapsedTime:        helper.CalcElapsedTime(meta.StartTime),
 	}
 	billingSnapshot.ApplyToLog(entry)
+	annotateTextEstimateLogFields(entry, estimateResult)
 	model.RecordConsumeLog(ctx, entry)
 	model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 	model.UpdateChannelUsedQuota(meta.ChannelId, quota)

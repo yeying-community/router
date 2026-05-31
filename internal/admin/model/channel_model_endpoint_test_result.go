@@ -79,6 +79,15 @@ func UpsertChannelModelEndpointTestResultsWithDB(db *gorm.DB, channelID string, 
 			if row.LastTestedAt == 0 {
 				row.LastTestedAt = now
 			}
+			existing := ChannelModelEndpointTestResult{}
+			err := tx.Where("channel_id = ? AND model = ? AND endpoint = ?", row.ChannelId, row.Model, row.Endpoint).
+				First(&existing).Error
+			if err == nil && existing.LastTestedAt > row.LastTestedAt {
+				continue
+			}
+			if err != nil && err != gorm.ErrRecordNotFound {
+				return err
+			}
 			if err := tx.Where("channel_id = ? AND model = ? AND endpoint = ?", row.ChannelId, row.Model, row.Endpoint).
 				Assign(map[string]any{
 					"upstream_model":    row.UpstreamModel,
@@ -99,19 +108,19 @@ func UpsertChannelModelEndpointTestResultsWithDB(db *gorm.DB, channelID string, 
 	})
 }
 
-func HasSuccessfulChannelEndpointTestResultWithDB(db *gorm.DB, channelID string, endpoint string, candidates ...string) (bool, error) {
+func HasSuccessfulExactChannelEndpointTestResultWithDB(db *gorm.DB, channelID string, modelName string, endpoint string) (bool, error) {
 	if db == nil {
 		return false, fmt.Errorf("database handle is nil")
 	}
 	normalizedChannelID := strings.TrimSpace(channelID)
+	normalizedModel := strings.TrimSpace(modelName)
 	normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(endpoint)
-	modelCandidates := NormalizeProviderLookupCandidates(candidates...)
-	if normalizedChannelID == "" || normalizedEndpoint == "" || len(modelCandidates) == 0 {
+	if normalizedChannelID == "" || normalizedModel == "" || normalizedEndpoint == "" {
 		return false, nil
 	}
 	count := int64(0)
 	err := db.Model(&ChannelModelEndpointTestResult{}).
-		Where("channel_id = ? AND endpoint = ? AND last_supported = ? AND (model IN ? OR upstream_model IN ?)", normalizedChannelID, normalizedEndpoint, true, modelCandidates, modelCandidates).
+		Where("channel_id = ? AND model = ? AND endpoint = ? AND last_supported = ? AND last_test_status = ?", normalizedChannelID, normalizedModel, normalizedEndpoint, true, ChannelModelEndpointTestStatusSuccess).
 		Count(&count).Error
 	return count > 0, err
 }

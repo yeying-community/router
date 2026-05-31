@@ -25,6 +25,7 @@ import {
   AppFormActions,
   AppModal,
   AppPagination,
+  AppSwitch,
   AppTable,
   AppTooltip,
 } from '../router-ui';
@@ -43,6 +44,18 @@ const compareArrayValue = (left, right) =>
 
 function renderTimestamp(timestamp) {
   return <>{timestamp2string(timestamp)}</>;
+}
+
+function renderCircuitTimestamp(timestamp) {
+  return timestamp ? timestamp2string(timestamp) : '-';
+}
+
+function formatSuccessRate(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return '-';
+  }
+  return `${(numeric * 100).toFixed(2)}%`;
 }
 
 function buildProtocolMap(options, t) {
@@ -117,6 +130,7 @@ const ChannelsTable = () => {
   const [batchDisabling, setBatchDisabling] = useState(false);
   const [selectedChannelIds, setSelectedChannelIds] = useState([]);
   const [disableBlockedImpact, setDisableBlockedImpact] = useState(null);
+  const [statusMutatingId, setStatusMutatingId] = useState('');
   const currentPagePath = `${location.pathname}${location.search}${location.hash}`;
   const [tableSorter, setTableSorter] = useState({
     columnKey: 'created_time',
@@ -132,6 +146,20 @@ const ChannelsTable = () => {
     next.protocol = (next.protocol || '').toString().trim().toLowerCase();
     next.created_time = Number(next.created_time || 0);
     next.updated_at = Number(next.updated_at || 0);
+    const circuitBreaker = next.circuit_breaker || null;
+    if (circuitBreaker && typeof circuitBreaker === 'object') {
+      next.circuit_breaker = {
+        state: (circuitBreaker.state || '').toString().trim(),
+        reason: (circuitBreaker.reason || '').toString().trim(),
+        success_rate: Number(circuitBreaker.success_rate || 0),
+        disabled_at: Number(circuitBreaker.disabled_at || 0),
+        recover_after: Number(circuitBreaker.recover_after || 0),
+        recovered_at: Number(circuitBreaker.recovered_at || 0),
+        updated_at: Number(circuitBreaker.updated_at || 0),
+      };
+    } else {
+      next.circuit_breaker = null;
+    }
     if (next.protocol === '') {
       next.protocol = 'openai';
     }
@@ -213,92 +241,145 @@ const ChannelsTable = () => {
       showError('渠道 ID 无效');
       return;
     }
+    const isStatusAction = action === 'enable' || action === 'disable';
+    if (isStatusAction) {
+      setStatusMutatingId(normalizedID);
+    }
     let data = { id: normalizedID };
     let res;
-    switch (action) {
-      case 'delete':
-        res = await API.delete(
-          `/api/v1/admin/channel/${encodeURIComponent(normalizedID)}/`
-        );
-        break;
-      case 'enable':
-        data.status = 1;
-        res = await API.put('/api/v1/admin/channel/', data);
-        break;
-      case 'disable':
-        data.status = 2;
-        res = await API.put('/api/v1/admin/channel/', data);
-        break;
-      case 'priority':
-        if (value === '') {
+    try {
+      switch (action) {
+        case 'delete':
+          res = await API.delete(
+            `/api/v1/admin/channel/${encodeURIComponent(normalizedID)}/`
+          );
+          break;
+        case 'enable':
+          data.status = 1;
+          res = await API.put('/api/v1/admin/channel/', data);
+          break;
+        case 'disable':
+          data.status = 2;
+          res = await API.put('/api/v1/admin/channel/', data);
+          break;
+        case 'priority':
+          if (value === '') {
+            return;
+          }
+          data.priority = parseInt(value);
+          res = await API.put('/api/v1/admin/channel/', data);
+          break;
+        case 'weight':
+          if (value === '') {
+            return;
+          }
+          data.weight = parseInt(value);
+          if (data.weight < 0) {
+            data.weight = 0;
+          }
+          res = await API.put('/api/v1/admin/channel/', data);
+          break;
+        default:
           return;
-        }
-        data.priority = parseInt(value);
-        res = await API.put('/api/v1/admin/channel/', data);
-        break;
-      case 'weight':
-        if (value === '') {
-          return;
-        }
-        data.weight = parseInt(value);
-        if (data.weight < 0) {
-          data.weight = 0;
-        }
-        res = await API.put('/api/v1/admin/channel/', data);
-        break;
-      default:
-        return;
-    }
-    const { success, message } = res.data;
-    if (success) {
-      showSuccess(t('channel.messages.operation_success'));
-      setLoading(true);
-      await loadChannels({ page: activePage, keyword: searchKeyword });
-    } else {
-      if (res?.data?.data?.code === 'channel_disable_blocked') {
-        setDisableBlockedImpact(res?.data?.data?.impact || null);
       }
-      showError(message);
+      const { success, message } = res.data;
+      if (success) {
+        showSuccess(t('channel.messages.operation_success'));
+        setLoading(true);
+        await loadChannels({ page: activePage, keyword: searchKeyword });
+      } else {
+        if (res?.data?.data?.code === 'channel_disable_blocked') {
+          setDisableBlockedImpact(res?.data?.data?.impact || null);
+        }
+        showError(message);
+      }
+    } finally {
+      if (isStatusAction) {
+        setStatusMutatingId('');
+      }
     }
   };
 
-  const renderStatus = (status, t) => {
-    const plainStatusText = (text, className) => (
-      <span className={className}>{text}</span>
-    );
+  const statusTooltipText = (status, t) => {
     switch (status) {
       case 1:
-        return plainStatusText(
-          t('channel.table.status_enabled'),
-          'router-text-success'
-        );
+        return t('channel.table.status_enabled');
       case 2:
-        return (
-          <AppTooltip title={t('channel.table.status_disabled_tip')}>
-            <span className='router-text-danger'>
-              {t('channel.table.status_disabled')}
-            </span>
-          </AppTooltip>
-        );
+        return t('channel.table.status_disabled_tip');
       case 3:
-        return (
-          <AppTooltip title={t('channel.table.status_auto_disabled_tip')}>
-            <span className='router-text-warning'>
-              {t('channel.table.status_auto_disabled')}
-            </span>
-          </AppTooltip>
-        );
+        return t('channel.table.status_auto_disabled_tip');
+      case 5:
+        return t('channel.table.status_half_open_tip');
       case channelStatusCreating:
-        return plainStatusText(
-          t('channel.table.status_creating'),
-          'router-text-info'
-        );
+        return t('channel.table.status_creating');
       default:
-        return plainStatusText(
-          t('channel.table.status_unknown'),
-          'router-text-muted'
-        );
+        return t('channel.table.status_unknown');
     }
+  };
+
+  const renderStatusSwitch = (channel, idx) => {
+    const status = Number(channel?.status || 0);
+    const checked = status === 1;
+    const disabled = status === channelStatusCreating || actionBusy;
+    return (
+      <div className='router-channel-status-switch' onClick={stopRowClick}>
+        <AppTooltip title={statusTooltipText(status, t)}>
+          <AppSwitch
+            size='small'
+            checked={checked}
+            disabled={disabled}
+            loading={statusMutatingId === channel.id}
+            aria-label={t('channel.table.status')}
+            onChange={(event, { checked: nextChecked }) => {
+              manageChannel(channel.id, nextChecked ? 'enable' : 'disable', idx);
+            }}
+          />
+        </AppTooltip>
+      </div>
+    );
+  };
+
+  const renderCircuitBreaker = (state, channel, t) => {
+    const circuitBreaker = channel?.circuit_breaker;
+    const normalizedState = (state || circuitBreaker?.state || '').toString().trim();
+    if (normalizedState === '') {
+      return <span className='router-text-muted'>-</span>;
+    }
+    const stateConfig = {
+      open: {
+        label: t('channel.table.circuit_state_open'),
+        className: 'router-text-warning',
+      },
+      half_open: {
+        label: t('channel.table.circuit_state_half_open'),
+        className: 'router-text-info',
+      },
+      recovered: {
+        label: t('channel.table.circuit_state_recovered'),
+        className: 'router-text-success',
+      },
+      canceled: {
+        label: t('channel.table.circuit_state_canceled'),
+        className: 'router-text-muted',
+      },
+    };
+    const config =
+      stateConfig[normalizedState] || {
+        label: normalizedState,
+        className: 'router-text-muted',
+      };
+    const tooltip = [
+      `${t('channel.table.circuit_reason')}: ${circuitBreaker?.reason || '-'}`,
+      `${t('channel.table.circuit_success_rate')}: ${formatSuccessRate(circuitBreaker?.success_rate)}`,
+      `${t('channel.table.circuit_disabled_at')}: ${renderCircuitTimestamp(circuitBreaker?.disabled_at)}`,
+      `${t('channel.table.circuit_recover_after')}: ${renderCircuitTimestamp(circuitBreaker?.recover_after)}`,
+      `${t('channel.table.circuit_recovered_at')}: ${renderCircuitTimestamp(circuitBreaker?.recovered_at)}`,
+    ].join('\n');
+    return (
+      <AppTooltip title={<span style={{ whiteSpace: 'pre-line' }}>{tooltip}</span>}>
+        <span className={config.className}>{config.label}</span>
+      </AppTooltip>
+    );
   };
 
   const renderCapabilities = (capabilities, t) => {
@@ -651,7 +732,7 @@ const ChannelsTable = () => {
             sorter: (a, b) => compareNumberValue(a.status, b.status),
             sortDirections: ['ascend', 'descend'],
             sortOrder: tableSorter.columnKey === 'status' ? tableSorter.order : null,
-            render: (value) => renderStatus(value, t),
+            render: (_, channel, idx) => renderStatusSwitch(channel, idx),
           },
           {
             title: t('channel.table.created_time'),
@@ -690,6 +771,21 @@ const ChannelsTable = () => {
             render: (value) => renderCapabilities(value, t),
           },
           {
+            title: t('channel.table.circuit_breaker'),
+            dataIndex: ['circuit_breaker', 'state'],
+            key: 'circuit_breaker',
+            className: 'router-table-col-status-compact',
+            width: CHANNEL_LIST_COLUMN_WIDTHS.circuitBreaker,
+            sorter: (a, b) =>
+              compareTextValue(a.circuit_breaker?.state, b.circuit_breaker?.state),
+            sortDirections: ['ascend', 'descend'],
+            sortOrder:
+              tableSorter.columnKey === 'circuit_breaker'
+                ? tableSorter.order
+                : null,
+            render: (value, channel) => renderCircuitBreaker(value, channel, t),
+          },
+          {
             title: t('channel.table.priority'),
             dataIndex: 'priority',
             key: 'priority',
@@ -721,36 +817,13 @@ const ChannelsTable = () => {
           {
             title: t('channel.table.actions'),
             key: 'actions',
-            className: 'router-table-col-actions-wide',
-            width: CHANNEL_LIST_COLUMN_WIDTHS.actions,
+            className: 'router-table-col-actions-icon',
+            width: 72,
             render: (_, channel, idx) => (
               <div
-                className='router-action-group-tight router-table-actions-wide'
+                className='router-action-group-tight router-table-actions-icon-compact'
                 onClick={stopRowClick}
               >
-                <AppButton
-                  className='router-inline-button'
-                  color={channel.status === 1 ? undefined : 'blue'}
-                  onClick={() => {
-                    manageChannel(
-                      channel.id,
-                      channel.status === 1 ? 'disable' : 'enable',
-                      idx,
-                    );
-                  }}
-                >
-                  {channel.status === 1
-                    ? t('channel.buttons.disable')
-                    : t('channel.buttons.enable')}
-                </AppButton>
-                <AppButton
-                  className='router-inline-button'
-                  onClick={() =>
-                    navigate(`/admin/channel/add?copy_from=${channel.id}`)
-                  }
-                >
-                  {t('channel.buttons.copy')}
-                </AppButton>
                 <AppButton
                   className='router-inline-button'
                   color='red'

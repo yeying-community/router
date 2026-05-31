@@ -225,6 +225,8 @@ metrics:
   success_chan_size: 1024
   # 失败事件缓冲通道大小。
   fail_chan_size: 128
+  # 低成功率自动禁用后的恢复等待时间（秒）；需同时开启 AutomaticEnableChannelEnabled。
+  auto_recover_after_seconds: 300
 
 bootstrap:
   # 拥有系统级用户管理权限的钱包地址；支持多个地址用英文逗号分隔。

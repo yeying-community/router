@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/yeying-community/router/common/helper"
-	"github.com/yeying-community/router/common/message"
 	"github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/admin/monitor"
 
@@ -24,6 +23,9 @@ type collectedChannelBillingSnapshot struct {
 
 func determineBillingItemStatus(item model.ChannelBillingSnapshotItem, now time.Time, lowRemainingRatio float64) string {
 	if item.ExpiresAt > 0 && item.ExpiresAt <= now.Unix() {
+		return model.ChannelBillingItemStatusExpired
+	}
+	if item.ResetAt > 0 && item.ResetAt <= now.Unix() {
 		return model.ChannelBillingItemStatusExpired
 	}
 	if item.RemainingAmount <= 0 {
@@ -48,6 +50,56 @@ func finalizeCollectedBillingItems(items []model.ChannelBillingSnapshotItem, not
 		normalized[index].Status = determineBillingItemStatus(normalized[index], now, notifyConfig.LowRemainingRatio)
 	}
 	return normalized
+}
+
+func isPackageBillingQuotaType(quotaType string) bool {
+	switch strings.TrimSpace(strings.ToLower(quotaType)) {
+	case "daily", "weekly", "monthly":
+		return true
+	default:
+		return false
+	}
+}
+
+func isUsableBillingEntitlement(item model.ChannelBillingSnapshotItem, now int64) bool {
+	if item.ExpiresAt > 0 && item.ExpiresAt <= now {
+		return false
+	}
+	switch strings.TrimSpace(strings.ToLower(item.Status)) {
+	case model.ChannelBillingItemStatusDepleted, model.ChannelBillingItemStatusExpired:
+		return false
+	}
+	return item.RemainingAmount > 0
+}
+
+func shouldDisableChannelForBillingEntitlements(collected collectedChannelBillingSnapshot, items []model.ChannelBillingSnapshotItem, now int64) bool {
+	normalized := model.NormalizeChannelBillingSnapshotItems(items)
+	hasPackageEntitlement := false
+	hasUsablePackageEntitlement := false
+	for _, item := range normalized {
+		resourceType := strings.TrimSpace(strings.ToLower(item.ResourceType))
+		quotaType := strings.TrimSpace(strings.ToLower(item.QuotaType))
+		isPackageEntitlement := resourceType == model.ChannelBillingResourceTypePlan || isPackageBillingQuotaType(quotaType)
+		if !isPackageEntitlement {
+			continue
+		}
+		hasPackageEntitlement = true
+		if isUsableBillingEntitlement(item, now) {
+			hasUsablePackageEntitlement = true
+		}
+	}
+	if hasPackageEntitlement {
+		return !hasUsablePackageEntitlement
+	}
+	if collected.ShouldHardStop {
+		return true
+	}
+	for _, item := range normalized {
+		if strings.TrimSpace(strings.ToLower(item.QuotaType)) == "total" && item.RemainingAmount <= 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func collectOpenAIBillingSnapshot(channel *model.Channel, profile model.ChannelBillingProfile, messageText string) (collectedChannelBillingSnapshot, error) {
@@ -240,9 +292,8 @@ func collectCDKBillingSnapshot(channel *model.Channel, profile model.ChannelBill
 				resolveChannelCDKCardInfoRequestURL(channel, profile),
 			}, "\n"),
 		},
-		Items:          items,
-		PrimaryAmount:  data.TotalRemaining,
-		ShouldHardStop: data.TotalRemaining <= 0,
+		Items:         items,
+		PrimaryAmount: data.TotalRemaining,
 	}, nil
 }
 
@@ -308,6 +359,129 @@ func buildChannelBillingAlertKey(item model.ChannelBillingSnapshotItem) string {
 	return strings.Join(base, "::")
 }
 
+func buildChannelBillingRefreshFailureAlertKey(channel *model.Channel, profile model.ChannelBillingProfile) string {
+	return strings.Join([]string{
+		"refresh",
+		strings.TrimSpace(profile.BillingMode),
+		strings.TrimSpace(resolveChannelBillingAPIBaseURL(channel, profile)),
+	}, "::")
+}
+
+func copyBillingSnapshotItemsForSnapshot(items []model.ChannelBillingSnapshotItem) []model.ChannelBillingSnapshotItem {
+	copied := model.NormalizeChannelBillingSnapshotItems(items)
+	for index := range copied {
+		copied[index].Id = ""
+		copied[index].SnapshotId = ""
+		copied[index].ChannelId = ""
+		copied[index].CreatedAt = 0
+	}
+	return copied
+}
+
+func resolveChannelBillingFailureRequestURLs(channel *model.Channel, profile model.ChannelBillingProfile) []string {
+	if strings.TrimSpace(profile.BillingMode) == model.ChannelBillingModeBuiltinCDK {
+		return []string{
+			resolveChannelCDKBillingRequestURL(channel, profile),
+			resolveChannelCDKCardInfoRequestURL(channel, profile),
+		}
+	}
+	return resolveChannelBillingRequestURLs(channel)
+}
+
+func isPlanBillingAlertItem(item model.ChannelBillingSnapshotItem) bool {
+	return strings.TrimSpace(strings.ToLower(item.ResourceType)) == model.ChannelBillingResourceTypePlan
+}
+
+func formatBillingAlertAmount(amount float64, currency string) string {
+	currency = strings.TrimSpace(strings.ToUpper(currency))
+	if currency == "" {
+		return fmt.Sprintf("%.2f", amount)
+	}
+	return fmt.Sprintf("%.2f %s", amount, currency)
+}
+
+func formatBillingAlertTime(unixTime int64) string {
+	if unixTime <= 0 {
+		return "-"
+	}
+	return time.Unix(unixTime, 0).Format("2006-01-02 15:04:05")
+}
+
+func shouldSkipExistingBillingAlert(channelID string, eventType string, alertKey string, notifyDate string) (bool, error) {
+	existing, err := model.GetChannelBillingAlertEventByDedupeKeyWithDB(model.DB, channelID, eventType, alertKey, notifyDate)
+	if err == nil {
+		return strings.TrimSpace(strings.ToLower(existing.Status)) == model.ChannelBillingAlertStatusSent, nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	return false, err
+}
+
+func isCDKAuthExpiredBillingError(profile model.ChannelBillingProfile, err error) bool {
+	if err == nil {
+		return false
+	}
+	if strings.TrimSpace(profile.BillingMode) != model.ChannelBillingModeBuiltinCDK {
+		return false
+	}
+	reason := strings.ToLower(strings.TrimSpace(err.Error()))
+	return strings.Contains(reason, "认证无效") ||
+		strings.Contains(reason, "已过期") ||
+		strings.Contains(reason, "过期") ||
+		strings.Contains(reason, "expired") ||
+		strings.Contains(reason, "invalid")
+}
+
+func isBillingResponseParseError(err error) bool {
+	if err == nil {
+		return false
+	}
+	reason := strings.ToLower(strings.TrimSpace(err.Error()))
+	return strings.Contains(reason, "invalid character") ||
+		strings.Contains(reason, "cannot unmarshal") ||
+		strings.Contains(reason, "unexpected end of json") ||
+		strings.Contains(reason, "json")
+}
+
+func createBillingRefreshFailureContent(channel *model.Channel, profile model.ChannelBillingProfile, err error) (string, string, string, string) {
+	if channel == nil || err == nil {
+		return "", "", "", ""
+	}
+	channelName := strings.TrimSpace(channel.DisplayName())
+	channelID := strings.TrimSpace(channel.Id)
+	reason := strings.TrimSpace(err.Error())
+	if reason == "" {
+		reason = "账务接口返回异常"
+	}
+	if isCDKAuthExpiredBillingError(profile, err) {
+		return model.ChannelBillingAlertTypePlanExpired, "套餐到期", "渠道套餐已到期", fmt.Sprintf(`
+			<p>类别：套餐到期</p>
+			<p>渠道：%s</p>
+			<p>标识：%s</p>
+			<p>原因：%s</p>
+			<p>处理：续费、切换备用渠道或主动下线，避免继续路由到不可用渠道。</p>
+		`, channelName, channelID, reason)
+	}
+	if isBillingResponseParseError(err) {
+		return model.ChannelBillingAlertTypeResponseError, "响应异常", "渠道账务接口响应异常", fmt.Sprintf(`
+			<p>类别：响应异常</p>
+			<p>渠道：%s</p>
+			<p>标识：%s</p>
+			<p>原因：上游账务接口返回了非预期内容，无法解析为账务数据。</p>
+			<p>详情：%s</p>
+			<p>处理：检查账务 API 地址、CDK 类型和上游服务状态；如果地址打开的是网页或错误页，请改为正确的账务接口地址。</p>
+		`, channelName, channelID, reason)
+	}
+	return model.ChannelBillingAlertTypeRefreshFailed, "刷新失败", "渠道账务刷新失败", fmt.Sprintf(`
+		<p>类别：刷新失败</p>
+		<p>渠道：%s</p>
+		<p>标识：%s</p>
+		<p>原因：%s</p>
+		<p>处理：检查 CDK、账务 API 地址或上游账号状态；恢复后下次刷新会重新同步权益项。</p>
+	`, channelName, channelID, reason)
+}
+
 func createBillingAlertContent(channel *model.Channel, item model.ChannelBillingSnapshotItem, eventType string) (string, string) {
 	channelName := ""
 	channelID := ""
@@ -319,37 +493,48 @@ func createBillingAlertContent(channel *model.Channel, item model.ChannelBilling
 	if label == "" {
 		label = strings.TrimSpace(item.QuotaType)
 	}
+	channelText := channelName
+	if channelID != "" {
+		channelText = fmt.Sprintf("%s (#%s)", channelName, channelID)
+	}
 	switch eventType {
 	case model.ChannelBillingAlertTypeExpiringSoon:
-		subject := "渠道额度到期提醒"
-		content := message.EmailTemplate(
-			subject,
-			fmt.Sprintf(`
-				<p>您好！</p>
-				<p>渠道「<strong>%s</strong>」（#%s）的额度项「<strong>%s</strong>」即将到期。</p>
-				<p>剩余额度：<strong>%.4f %s</strong></p>
-				<p>到期时间：<strong>%s</strong></p>
-				<p>请提前一周内完成续费、升级或充值安排。</p>
-			`, channelName, channelID, label, item.RemainingAmount, item.Currency, time.Unix(item.ExpiresAt, 0).Format(time.RFC3339)),
-		)
-		return subject, content
+		var content string
+		if isPlanBillingAlertItem(item) {
+			subject := "渠道套餐即将到期"
+			content = fmt.Sprintf(`
+				<p><strong>套餐即将到期</strong>：%s</p>
+				<p>类别：套餐到期</p>
+				<p>渠道：%s</p>
+				<p>权益：%s</p>
+				<p>处理：续费、切换备用渠道或主动下线，避免到期后继续路由。</p>
+			`, formatBillingAlertTime(item.ExpiresAt), channelText, label)
+			return subject, content
+		} else {
+			subject := "渠道额度即将到期"
+			content = fmt.Sprintf(`
+				<p><strong>额度即将到期</strong>：%s</p>
+				<p>类别：额度到期</p>
+				<p>渠道：%s</p>
+				<p>额度：%s</p>
+				<p>剩余：%s</p>
+				<p>处理：续费、升级或充值，避免额度到期后不可用。</p>
+			`, formatBillingAlertTime(item.ExpiresAt), channelText, label, formatBillingAlertAmount(item.RemainingAmount, item.Currency))
+			return subject, content
+		}
 	case model.ChannelBillingAlertTypeLowRemaining:
 		ratioText := "-"
 		if item.LimitAmount > 0 {
 			ratioText = fmt.Sprintf("%.2f%%", item.RemainingAmount/item.LimitAmount*100)
 		}
-		subject := "渠道额度不足提醒"
-		content := message.EmailTemplate(
-			subject,
-			fmt.Sprintf(`
-				<p>您好！</p>
-				<p>渠道「<strong>%s</strong>」（#%s）的额度项「<strong>%s</strong>」余额偏低。</p>
-				<p>剩余额度：<strong>%.4f %s</strong></p>
-				<p>总额度：<strong>%.4f %s</strong></p>
-				<p>剩余比例：<strong>%s</strong></p>
-				<p>请及时升级套餐或充值。</p>
-			`, channelName, channelID, label, item.RemainingAmount, item.Currency, item.LimitAmount, item.Currency, ratioText),
-		)
+		subject := "渠道额度余额偏低"
+		content := fmt.Sprintf(`
+			<p><strong>额度余额偏低</strong>：%s</p>
+			<p>类别：余额偏低</p>
+			<p>渠道：%s</p>
+			<p>剩余：%s / %s（%s）</p>
+			<p>处理：充值、升级套餐或切换备用渠道。</p>
+		`, label, channelText, formatBillingAlertAmount(item.RemainingAmount, item.Currency), formatBillingAlertAmount(item.LimitAmount, item.Currency), ratioText)
 		return subject, content
 	default:
 		return "", ""
@@ -362,10 +547,12 @@ func maybeNotifyChannelBillingAlert(channel *model.Channel, snapshotID string, i
 	}
 	today := time.Now().Format("2006-01-02")
 	alertKey := buildChannelBillingAlertKey(item)
-	if _, err := model.GetChannelBillingAlertEventByDedupeKeyWithDB(model.DB, channel.Id, eventType, alertKey, today); err == nil {
-		return nil
-	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	shouldSkip, err := shouldSkipExistingBillingAlert(channel.Id, eventType, alertKey, today)
+	if err != nil {
 		return err
+	}
+	if shouldSkip {
+		return nil
 	}
 	title, content := createBillingAlertContent(channel, item, eventType)
 	if title == "" || content == "" {
@@ -387,6 +574,55 @@ func maybeNotifyChannelBillingAlert(channel *model.Channel, snapshotID string, i
 		"expires_at":       item.ExpiresAt,
 		"status":           item.Status,
 	})
+	_, saveErr := model.SaveChannelBillingAlertEventWithDB(model.DB, model.ChannelBillingAlertEvent{
+		ChannelId:  channel.Id,
+		SnapshotId: snapshotID,
+		EventType:  eventType,
+		AlertKey:   alertKey,
+		NotifyDate: today,
+		Severity:   "warning",
+		Status:     status,
+		Title:      title,
+		Content:    content,
+		Payload:    string(payloadBody),
+	})
+	return saveErr
+}
+
+func maybeNotifyChannelBillingRefreshFailure(channel *model.Channel, profile model.ChannelBillingProfile, snapshotID string, cause error) error {
+	if channel == nil || cause == nil {
+		return nil
+	}
+	today := time.Now().Format("2006-01-02")
+	eventType, category, title, content := createBillingRefreshFailureContent(channel, profile, cause)
+	if eventType == "" || title == "" || content == "" {
+		return nil
+	}
+	alertKey := buildChannelBillingRefreshFailureAlertKey(channel, profile)
+	shouldSkip, err := shouldSkipExistingBillingAlert(channel.Id, eventType, alertKey, today)
+	if err != nil {
+		return err
+	}
+	if shouldSkip {
+		return nil
+	}
+	status := model.ChannelBillingAlertStatusSent
+	if err := monitor.NotifyRootUser(title, content); err != nil {
+		status = model.ChannelBillingAlertStatusFailed
+	}
+	payload := map[string]any{
+		"billing_mode":         strings.TrimSpace(profile.BillingMode),
+		"billing_api_base_url": resolveChannelBillingAPIBaseURL(channel, profile),
+		"category":             category,
+		"reason":               strings.TrimSpace(cause.Error()),
+	}
+	if eventType == model.ChannelBillingAlertTypePlanExpired {
+		payload["resource_type"] = model.ChannelBillingResourceTypePlan
+		payload["quota_type"] = "custom"
+		payload["quota_label"] = "套餐有效期"
+		payload["status"] = model.ChannelBillingItemStatusExpired
+	}
+	payloadBody, _ := json.Marshal(payload)
 	_, saveErr := model.SaveChannelBillingAlertEventWithDB(model.DB, model.ChannelBillingAlertEvent{
 		ChannelId:  channel.Id,
 		SnapshotId: snapshotID,
@@ -460,24 +696,70 @@ func persistCollectedChannelBillingSnapshot(channel *model.Channel, profile mode
 	return savedSnapshot, finalItems, nil
 }
 
+func persistChannelBillingRefreshFailure(channel *model.Channel, profile model.ChannelBillingProfile, messageText string, cause error) error {
+	if channel == nil || cause == nil {
+		return nil
+	}
+	now := helper.GetTimestamp()
+	previousSnapshot, err := model.GetLatestChannelBillingSnapshotByChannelIDWithDB(model.DB, channel.Id)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	messageParts := []string{}
+	if message := strings.TrimSpace(messageText); message != "" {
+		messageParts = append(messageParts, message)
+	}
+	messageParts = append(messageParts, strings.TrimSpace(cause.Error()))
+	failedSnapshot := model.ChannelBillingSnapshot{
+		ChannelId:  strings.TrimSpace(channel.Id),
+		SourceType: model.ChannelBillingSnapshotSourceAPI,
+		Balance:    previousSnapshot.Balance,
+		Currency:   previousSnapshot.Currency,
+		RawStatus:  "failed",
+		Message:    strings.Join(messageParts, " | "),
+		RequestURL: strings.Join(resolveChannelBillingFailureRequestURLs(channel, profile), "\n"),
+		CreatedAt:  now,
+	}
+	savedSnapshot := model.ChannelBillingSnapshot{}
+	err = model.DB.Transaction(func(tx *gorm.DB) error {
+		row, err := model.CreateChannelBillingSnapshotWithDB(tx, failedSnapshot)
+		if err != nil {
+			return err
+		}
+		savedSnapshot = row
+		copiedItems := finalizeCollectedBillingItems(
+			copyBillingSnapshotItemsForSnapshot(previousSnapshot.Items),
+			profile.ParseNotifyConfig(),
+		)
+		_, err = model.CreateChannelBillingSnapshotItemsWithDB(
+			tx,
+			row.Id,
+			channel.Id,
+			copiedItems,
+		)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return maybeNotifyChannelBillingRefreshFailure(channel, profile, savedSnapshot.Id, cause)
+}
+
 func refreshAndPersistChannelBillingEntitlements(channel *model.Channel, profile model.ChannelBillingProfile, messageText string) (float64, error) {
 	collected, err := collectChannelBillingSnapshot(channel, profile, messageText)
 	if err != nil {
+		if persistErr := persistChannelBillingRefreshFailure(channel, profile, messageText, err); persistErr != nil {
+			return 0, persistErr
+		}
 		return 0, err
 	}
 	_, items, err := persistCollectedChannelBillingSnapshot(channel, profile, collected)
 	if err != nil {
 		return 0, err
 	}
-	if collected.ShouldHardStop {
+	if shouldDisableChannelForBillingEntitlements(collected, items, time.Now().Unix()) {
 		monitor.DisableChannelForInsufficientBalance(channel.Id, channel.DisplayName(), collected.PrimaryAmount)
 		return collected.PrimaryAmount, nil
-	}
-	for _, item := range items {
-		if item.QuotaType == "total" && item.RemainingAmount <= 0 {
-			monitor.DisableChannelForInsufficientBalance(channel.Id, channel.DisplayName(), collected.PrimaryAmount)
-			break
-		}
 	}
 	return collected.PrimaryAmount, nil
 }

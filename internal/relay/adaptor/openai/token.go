@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
+	"unicode"
 
 	"github.com/pkoukk/tiktoken-go"
 
@@ -13,54 +15,141 @@ import (
 	"github.com/yeying-community/router/internal/relay/model"
 )
 
-// tokenEncoderMap won't grow after initialization
-var tokenEncoderMap = map[string]*tiktoken.Tiktoken{}
-var defaultTokenEncoder *tiktoken.Tiktoken
+const (
+	defaultTokenizerEncodingName = "cl100k_base"
+	modernTokenizerEncodingName  = "o200k_base"
+)
+
+var (
+	tokenEncoderMu      sync.RWMutex
+	tokenEncoderMap     = map[string]*tiktoken.Tiktoken{}
+	defaultTokenEncoder *tiktoken.Tiktoken
+)
+
+type tokenizerEncodingRule struct {
+	Encoding string
+	Prefixes []string
+	Exact    []string
+	Match    func(string) bool
+}
+
+var tokenizerEncodingRules = []tokenizerEncodingRule{
+	{
+		Encoding: modernTokenizerEncodingName,
+		Prefixes: []string{
+			"gpt-4o",
+			"chatgpt-4o",
+			"gpt-4.1",
+			"gpt-4.5",
+			"gpt-5",
+			"gpt-realtime",
+			"gpt-audio",
+			"gpt-image",
+			"chatgpt-image",
+		},
+		Match: isOReasoningModelName,
+	},
+	{
+		Encoding: defaultTokenizerEncodingName,
+		Prefixes: []string{
+			"gpt-4",
+			"gpt-3.5",
+			"text-embedding-3-",
+		},
+		Exact: []string{
+			"text-embedding-ada-002",
+		},
+	},
+	{
+		Encoding: "p50k_base",
+		Prefixes: []string{
+			"text-davinci-00",
+			"code-davinci-",
+			"code-cushman-",
+		},
+		Exact: []string{
+			"davinci-codex",
+			"cushman-codex",
+		},
+	},
+	{
+		Encoding: "p50k_edit",
+		Exact: []string{
+			"text-davinci-edit-001",
+			"code-davinci-edit-001",
+		},
+	},
+	{
+		Encoding: "r50k_base",
+		Prefixes: []string{
+			"text-davinci-001",
+			"text-curie-001",
+			"text-babbage-001",
+			"text-ada-001",
+			"text-similarity-",
+			"text-search-",
+			"code-search-",
+		},
+		Exact: []string{
+			"davinci",
+			"curie",
+			"babbage",
+			"ada",
+		},
+	},
+}
 
 func resolveTokenizerEncodingName(model string) string {
+	normalized := strings.TrimSpace(strings.ToLower(model))
+	if normalized == "" {
+		return ""
+	}
+	for _, rule := range tokenizerEncodingRules {
+		for _, exact := range rule.Exact {
+			if normalized == exact {
+				return rule.Encoding
+			}
+		}
+		for _, prefix := range rule.Prefixes {
+			if strings.HasPrefix(normalized, prefix) {
+				return rule.Encoding
+			}
+		}
+		if rule.Match != nil && rule.Match(normalized) {
+			return rule.Encoding
+		}
+	}
+	return resolveTokenizerFamilyFallbackEncodingName(normalized)
+}
+
+func resolveTokenizerFamilyFallbackEncodingName(model string) string {
 	normalized := strings.TrimSpace(strings.ToLower(model))
 	switch {
 	case normalized == "":
 		return ""
-	case strings.HasPrefix(normalized, "gpt-4o"),
-		strings.HasPrefix(normalized, "chatgpt-4o"),
-		strings.HasPrefix(normalized, "gpt-4.1"),
-		strings.HasPrefix(normalized, "gpt-4.5"),
-		strings.HasPrefix(normalized, "gpt-5"),
-		strings.HasPrefix(normalized, "o1"),
-		strings.HasPrefix(normalized, "o3"),
-		strings.HasPrefix(normalized, "o4"),
-		strings.HasPrefix(normalized, "gpt-image-"):
-		return "o200k_base"
-	case strings.HasPrefix(normalized, "gpt-4"),
-		strings.HasPrefix(normalized, "gpt-3.5"),
-		strings.HasPrefix(normalized, "text-embedding-3-"),
-		normalized == "text-embedding-ada-002":
-		return "cl100k_base"
-	case strings.HasPrefix(normalized, "text-davinci-00"),
-		strings.HasPrefix(normalized, "code-davinci-"),
-		strings.HasPrefix(normalized, "code-cushman-"),
-		normalized == "davinci-codex",
-		normalized == "cushman-codex":
-		return "p50k_base"
-	case normalized == "text-davinci-edit-001",
-		normalized == "code-davinci-edit-001":
-		return "p50k_edit"
-	case strings.HasPrefix(normalized, "text-davinci-001"),
-		strings.HasPrefix(normalized, "text-curie-001"),
-		strings.HasPrefix(normalized, "text-babbage-001"),
-		strings.HasPrefix(normalized, "text-ada-001"),
-		normalized == "davinci",
-		normalized == "curie",
-		normalized == "babbage",
-		normalized == "ada",
-		strings.HasPrefix(normalized, "text-similarity-"),
-		strings.HasPrefix(normalized, "text-search-"),
-		strings.HasPrefix(normalized, "code-search-"):
-		return "r50k_base"
+	case strings.HasPrefix(normalized, "gpt-"):
+		return modernTokenizerEncodingName
+	case isOReasoningModelName(normalized):
+		return modernTokenizerEncodingName
+	case strings.HasPrefix(normalized, "chatgpt"):
+		return modernTokenizerEncodingName
+	case strings.HasPrefix(normalized, "text-embedding-"):
+		return defaultTokenizerEncodingName
 	default:
 		return ""
 	}
+}
+
+func isOReasoningModelName(model string) bool {
+	normalized := strings.TrimSpace(strings.ToLower(model))
+	if len(normalized) < 2 || normalized[0] != 'o' || !unicode.IsDigit(rune(normalized[1])) {
+		return false
+	}
+	if len(normalized) == 2 {
+		return true
+	}
+	next := normalized[2]
+	return next == '-' || next == '_' || next == '.'
 }
 
 func getEncodingByName(name string) (*tiktoken.Tiktoken, error) {
@@ -86,47 +175,60 @@ func resolveTokenEncoder(model string) (*tiktoken.Tiktoken, string, error) {
 }
 
 func ensureDefaultTokenEncoder() *tiktoken.Tiktoken {
+	tokenEncoderMu.RLock()
+	if defaultTokenEncoder != nil {
+		defer tokenEncoderMu.RUnlock()
+		return defaultTokenEncoder
+	}
+	tokenEncoderMu.RUnlock()
+
+	tokenEncoderMu.Lock()
+	defer tokenEncoderMu.Unlock()
 	if defaultTokenEncoder != nil {
 		return defaultTokenEncoder
 	}
-	tokenEncoder, err := getEncodingByName("cl100k_base")
+	tokenEncoder, err := getEncodingByName(defaultTokenizerEncodingName)
 	if err != nil {
 		logger.SysError("failed to lazily initialize default token encoder: " + err.Error())
 		return nil
 	}
 	defaultTokenEncoder = tokenEncoder
-	tokenEncoderMap["gpt-3.5-turbo"] = tokenEncoder
+	tokenEncoderMap[defaultTokenizerEncodingName] = tokenEncoder
 	return defaultTokenEncoder
 }
 
 func InitTokenEncoders() {
 	logger.SysLog("initializing token encoders")
-	gpt35TokenEncoder, err := tiktoken.EncodingForModel("gpt-3.5-turbo")
+	defaultEncoder, err := getEncodingByName(defaultTokenizerEncodingName)
 	if err != nil {
-		logger.FatalLog(fmt.Sprintf("failed to get gpt-3.5-turbo token encoder: %s, "+
-			"if you are using in offline environment, please set TIKTOKEN_CACHE_DIR to use exsited files, check this link for more information: https://stackoverflow.com/questions/76106366/how-to-use-tiktoken-in-offline-mode-computer ", err.Error()))
+		logger.FatalLog(fmt.Sprintf("failed to get %s token encoder: %s, "+
+			"if you are using in offline environment, please set TIKTOKEN_CACHE_DIR to use exsited files, check this link for more information: https://stackoverflow.com/questions/76106366/how-to-use-tiktoken-in-offline-mode-computer ", defaultTokenizerEncodingName, err.Error()))
 	}
-	defaultTokenEncoder = gpt35TokenEncoder
-	gpt4oTokenEncoder, err := tiktoken.EncodingForModel("gpt-4o")
+	modernEncoder, err := getEncodingByName(modernTokenizerEncodingName)
 	if err != nil {
-		logger.FatalLog(fmt.Sprintf("failed to get gpt-4o token encoder: %s", err.Error()))
+		logger.FatalLog(fmt.Sprintf("failed to get %s token encoder: %s", modernTokenizerEncodingName, err.Error()))
 	}
-	gpt4TokenEncoder, err := tiktoken.EncodingForModel("gpt-4")
-	if err != nil {
-		logger.FatalLog(fmt.Sprintf("failed to get gpt-4 token encoder: %s", err.Error()))
-	}
-	tokenEncoderMap["gpt-3.5-turbo"] = gpt35TokenEncoder
-	tokenEncoderMap["gpt-4o"] = gpt4oTokenEncoder
-	tokenEncoderMap["gpt-4"] = gpt4TokenEncoder
+	tokenEncoderMu.Lock()
+	defaultTokenEncoder = defaultEncoder
+	tokenEncoderMap[defaultTokenizerEncodingName] = defaultEncoder
+	tokenEncoderMap[modernTokenizerEncodingName] = modernEncoder
+	tokenEncoderMu.Unlock()
 	logger.SysLog("token encoders initialized")
 }
 
 func getTokenEncoder(model string) *tiktoken.Tiktoken {
 	defaultEncoder := ensureDefaultTokenEncoder()
-	tokenEncoder, ok := tokenEncoderMap[model]
+	cacheKey := strings.TrimSpace(strings.ToLower(model))
+	if cacheKey == "" {
+		cacheKey = defaultTokenizerEncodingName
+	}
+	tokenEncoderMu.RLock()
+	tokenEncoder, ok := tokenEncoderMap[cacheKey]
 	if ok && tokenEncoder != nil {
+		tokenEncoderMu.RUnlock()
 		return tokenEncoder
 	}
+	tokenEncoderMu.RUnlock()
 	if ok {
 		tokenEncoder, encodingName, err := resolveTokenEncoder(model)
 		if err != nil {
@@ -137,7 +239,9 @@ func getTokenEncoder(model string) *tiktoken.Tiktoken {
 			}
 			tokenEncoder = defaultEncoder
 		}
-		tokenEncoderMap[model] = tokenEncoder
+		tokenEncoderMu.Lock()
+		tokenEncoderMap[cacheKey] = tokenEncoder
+		tokenEncoderMu.Unlock()
 		return tokenEncoder
 	}
 	tokenEncoder, encodingName, err := resolveTokenEncoder(model)
@@ -149,7 +253,9 @@ func getTokenEncoder(model string) *tiktoken.Tiktoken {
 		}
 		tokenEncoder = defaultEncoder
 	}
-	tokenEncoderMap[model] = tokenEncoder
+	tokenEncoderMu.Lock()
+	tokenEncoderMap[cacheKey] = tokenEncoder
+	tokenEncoderMu.Unlock()
 	return tokenEncoder
 }
 
@@ -312,5 +418,5 @@ func CountTokenText(text string, model string) int {
 }
 
 func CountToken(text string) int {
-	return CountTokenInput(text, "gpt-3.5-turbo")
+	return CountTokenInput(text, defaultTokenizerEncodingName)
 }

@@ -20,6 +20,8 @@ function AppSelect({
   multiple,
   fluid = false,
   compact = false,
+  variant,
+  bordered,
   noResultsMessage,
   onChange,
   ...props
@@ -30,6 +32,8 @@ function AppSelect({
   const mode = multiple === true ? 'multiple' : undefined;
   const normalizedOptions = normalizeOptions(options);
   const size = compact ? 'small' : undefined;
+  const nextVariant =
+    variant || (bordered === false ? 'borderless' : undefined);
 
   const filterOption =
     typeof search === 'function'
@@ -67,6 +71,7 @@ function AppSelect({
       allowClear={clearable === true}
       mode={mode}
       size={size}
+      variant={nextVariant}
       notFoundContent={noResultsMessage}
       onChange={handleChange}
     />

@@ -283,7 +283,7 @@ const LogDetail = () => {
                       <div className='router-detail-label'>
                         {t('log.detail.fields.model')}
                       </div>
-                      <pre className='router-detail-value'>
+                      <pre className='router-detail-value router-monospace-value'>
                         {renderText(log?.model_name)}
                       </pre>
                     </div>
@@ -309,7 +309,7 @@ const LogDetail = () => {
                       <div className='router-detail-label'>
                         {t('log.detail.fields.trace_id')}
                       </div>
-                      <pre className='router-detail-value'>
+                      <pre className='router-detail-value router-monospace-value'>
                         {renderText(log?.trace_id)}
                       </pre>
                     </div>
@@ -426,6 +426,30 @@ const LogDetail = () => {
                       </div>
                       <pre className='router-detail-value'>
                         {renderText(log?.billing_estimate_source)}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_estimate_estimator')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {renderText(log?.billing_estimate_estimator)}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_estimate_precision')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {renderText(log?.billing_estimate_precision)}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.estimated_prompt_tokens')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {log?.estimated_prompt_tokens ?? '-'}
                       </pre>
                     </div>
                     <div className='router-detail-item'>

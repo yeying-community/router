@@ -141,3 +141,26 @@ func TestBuildExternalPayCreateURLDerivesFromCashierLink(t *testing.T) {
 		t.Fatalf("expected original query to be preserved in %q", got)
 	}
 }
+
+func TestBuildExternalPayCreateURLReturnsStableConfigErrorCode(t *testing.T) {
+	previousMode := config.TopUpMode
+	previousLink := config.TopUpLink
+	previousCreateURL := config.TopUpAPICreateURL
+	t.Cleanup(func() {
+		config.TopUpMode = previousMode
+		config.TopUpLink = previousLink
+		config.TopUpAPICreateURL = previousCreateURL
+	})
+
+	config.TopUpMode = config.TopUpModeAPI
+	config.TopUpLink = ""
+	config.TopUpAPICreateURL = ""
+
+	_, err := buildExternalPayCreateURL()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if got := TopupErrorCode(err); got != TopupErrorPaymentConfigMissing {
+		t.Fatalf("error code = %q, want %q", got, TopupErrorPaymentConfigMissing)
+	}
+}

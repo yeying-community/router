@@ -13,6 +13,14 @@ import {
   AppTooltip,
 } from '../../../router-ui';
 
+const formatDisableTime = (value) => {
+  const timestamp = Number(value || 0);
+  if (timestamp <= 0) {
+    return '';
+  }
+  return new Date(timestamp * 1000).toLocaleString();
+};
+
 const ChannelDetailModelsTab = ({
   t,
   columnWidths,
@@ -50,6 +58,23 @@ const ChannelDetailModelsTab = ({
   setDetailModelPage,
   modelsSyncError,
 }) => {
+  const buildDisableInfo = (row) => {
+    const parts = [];
+    const disabledBy = (row?.disabled_by || '').toString().trim();
+    const disabledAt = formatDisableTime(row?.disabled_at);
+    const disabledReason = (row?.disabled_reason || '').toString().trim();
+    if (disabledBy) {
+      parts.push(t('channel.edit.capability_disable.by', { value: disabledBy }));
+    }
+    if (disabledAt) {
+      parts.push(t('channel.edit.capability_disable.at', { value: disabledAt }));
+    }
+    if (disabledReason) {
+      parts.push(t('channel.edit.capability_disable.reason', { value: disabledReason }));
+    }
+    return parts.join('\n');
+  };
+
   const renderMergedPrice = (row) => {
     const complexPricingDetails = getComplexPricingDetailsForModel(row);
     const hasComplexPricing = complexPricingDetails.some((detail) =>
@@ -247,16 +272,24 @@ const ChannelDetailModelsTab = ({
               key: 'upstream_model',
               width: columnWidths.name,
               ellipsis: true,
-              render: (value, row) => (
-                <div className='router-cell-truncate' title={value}>
-                  <span className='router-nowrap'>{value}</span>
-                  {row.inactive && (
-                    <AppTag color='grey' className='router-tag'>
-                      {t('channel.edit.model_selector.inactive')}
-                    </AppTag>
-                  )}
-                </div>
-              ),
+              render: (value, row) => {
+                const disableInfo = buildDisableInfo(row);
+                const inactiveTag = row.inactive ? (
+                  <AppTag color='grey' className='router-tag'>
+                    {t('channel.edit.model_selector.inactive')}
+                  </AppTag>
+                ) : null;
+                return (
+                  <div className='router-cell-truncate' title={value}>
+                    <span className='router-nowrap router-monospace-value'>{value}</span>
+                    {disableInfo && inactiveTag ? (
+                      <AppTooltip title={disableInfo}>{inactiveTag}</AppTooltip>
+                    ) : (
+                      inactiveTag
+                    )}
+                  </div>
+                );
+              },
             },
             {
               title: t('channel.edit.model_selector.table.type'),
@@ -273,7 +306,10 @@ const ChannelDetailModelsTab = ({
               width: columnWidths.alias,
               ellipsis: true,
               render: (value) => (
-                <span className='router-cell-truncate' title={value}>
+                <span
+                  className='router-cell-truncate router-monospace-value'
+                  title={value}
+                >
                   {value}
                 </span>
               ),

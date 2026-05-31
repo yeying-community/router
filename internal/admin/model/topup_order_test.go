@@ -5,7 +5,21 @@ import (
 	"testing"
 
 	"github.com/yeying-community/router/common/config"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
+
+func newTopupOrderTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&TopupOrder{}); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	return db
+}
 
 func TestBuildTopupOrderRedirectURL(t *testing.T) {
 	previousSecret := config.TopUpSignSecret
@@ -218,5 +232,80 @@ func TestTopupOrderSigningStringHelpers(t *testing.T) {
 	}
 	if got, want := topupOrderSigningString(payload, "secret-value"), "a=1&b=2&secret=secret-value"; got != want {
 		t.Fatalf("unexpected signing string: got %q want %q", got, want)
+	}
+}
+
+func TestApplyTopupOrderCallbackMapsProviderFulfilledToPaid(t *testing.T) {
+	db := newTopupOrderTestDB(t)
+	order := TopupOrder{
+		Id:            "order-1",
+		UserID:        "user-1",
+		Status:        TopupOrderStatusCreated,
+		TransactionID: "txn-1",
+		BusinessType:  TopupOrderBusinessBalance,
+		OperationType: TopupOrderOperationTopup,
+		Amount:        1,
+		Currency:      TopupOrderCurrencyCNY,
+		Quota:         100,
+		CreatedAt:     1000,
+		UpdatedAt:     1000,
+	}
+	if err := db.Create(&order).Error; err != nil {
+		t.Fatalf("create order: %v", err)
+	}
+
+	got, err := ApplyTopupOrderCallbackWithDB(db, TopupOrderCallbackInput{
+		OrderID: order.Id,
+		Status:  TopupOrderStatusFulfilled,
+		PaidAt:  1234,
+	})
+	if err != nil {
+		t.Fatalf("apply callback: %v", err)
+	}
+	if got.Status != TopupOrderStatusPaid {
+		t.Fatalf("status = %q, want paid before local fulfillment", got.Status)
+	}
+	if got.PaidAt != 1234 {
+		t.Fatalf("paid_at = %d, want 1234", got.PaidAt)
+	}
+	if got.RedeemedAt != 0 {
+		t.Fatalf("redeemed_at = %d, want 0 before local fulfillment", got.RedeemedAt)
+	}
+}
+
+func TestApplyTopupOrderCallbackDoesNotDowngradeFulfilledOrder(t *testing.T) {
+	db := newTopupOrderTestDB(t)
+	order := TopupOrder{
+		Id:            "order-1",
+		UserID:        "user-1",
+		Status:        TopupOrderStatusFulfilled,
+		TransactionID: "txn-1",
+		BusinessType:  TopupOrderBusinessBalance,
+		OperationType: TopupOrderOperationTopup,
+		Amount:        1,
+		Currency:      TopupOrderCurrencyCNY,
+		Quota:         100,
+		PaidAt:        1234,
+		RedeemedAt:    1240,
+		CreatedAt:     1000,
+		UpdatedAt:     1240,
+	}
+	if err := db.Create(&order).Error; err != nil {
+		t.Fatalf("create order: %v", err)
+	}
+
+	got, err := ApplyTopupOrderCallbackWithDB(db, TopupOrderCallbackInput{
+		OrderID:       order.Id,
+		Status:        TopupOrderStatusFailed,
+		StatusMessage: "late failed callback",
+	})
+	if err != nil {
+		t.Fatalf("apply callback: %v", err)
+	}
+	if got.Status != TopupOrderStatusFulfilled {
+		t.Fatalf("status = %q, want fulfilled", got.Status)
+	}
+	if got.StatusMessage != "" {
+		t.Fatalf("status_message = %q, want unchanged", got.StatusMessage)
 	}
 }

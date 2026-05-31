@@ -258,7 +258,7 @@ const TopupReconcileDetail = () => {
                     <div className='router-detail-label'>
                       {t('flow.topup_reconcile.detail.fields.id')}
                     </div>
-                    <pre className='router-detail-value'>
+                    <pre className='router-detail-value router-monospace-value'>
                       {readOnlyText(order?.id || id)}
                     </pre>
                   </div>
@@ -320,7 +320,7 @@ const TopupReconcileDetail = () => {
                     <div className='router-detail-label'>
                       {t('flow.topup_reconcile.detail.fields.transaction_id')}
                     </div>
-                    <pre className='router-detail-value'>
+                    <pre className='router-detail-value router-monospace-value'>
                       {readOnlyText(order?.transaction_id)}
                     </pre>
                   </div>
@@ -328,7 +328,7 @@ const TopupReconcileDetail = () => {
                     <div className='router-detail-label'>
                       {t('flow.topup_reconcile.detail.fields.provider_order_id')}
                     </div>
-                    <pre className='router-detail-value'>
+                    <pre className='router-detail-value router-monospace-value'>
                       {readOnlyText(order?.provider_order_id)}
                     </pre>
                   </div>

@@ -50,11 +50,23 @@ func detectFamily(model string) providerFamily {
 		return familyAnthropic
 	case strings.Contains(lower, "gemini"):
 		return familyGemini
-	case strings.HasPrefix(lower, "gpt-"), strings.HasPrefix(lower, "o1"), strings.HasPrefix(lower, "o3"), strings.HasPrefix(lower, "o4"), strings.HasPrefix(lower, "chatgpt"):
+	case strings.HasPrefix(lower, "gpt-"), isOReasoningFamily(lower), strings.HasPrefix(lower, "chatgpt"):
 		return familyOpenAI
 	default:
 		return familyUnknown
 	}
+}
+
+func isOReasoningFamily(model string) bool {
+	normalized := strings.TrimSpace(strings.ToLower(model))
+	if len(normalized) < 2 || normalized[0] != 'o' || !unicode.IsDigit(rune(normalized[1])) {
+		return false
+	}
+	if len(normalized) == 2 {
+		return true
+	}
+	next := normalized[2]
+	return next == '-' || next == '_' || next == '.'
 }
 
 func estimateHeuristicText(text string, family providerFamily) int {

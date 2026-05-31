@@ -216,7 +216,7 @@ func TestBuildDisabledChannelModelConfigsMarksOnlyTargetModelInactive(t *testing
 		},
 	}
 
-	updated, changed := buildDisabledChannelModels(rows, "gpt-5.3-codex")
+	updated, changed := buildDisabledChannelModels(rows, "gpt-5.3-codex", "model not found", "runtime")
 	if !changed {
 		t.Fatalf("changed = false, want true")
 	}
@@ -228,6 +228,9 @@ func TestBuildDisabledChannelModelConfigsMarksOnlyTargetModelInactive(t *testing
 	}
 	if updated[0].Selected {
 		t.Fatalf("updated[0].Selected = true, want false")
+	}
+	if updated[0].DisabledReason != "model not found" || updated[0].DisabledBy != "runtime" || updated[0].DisabledAt == 0 {
+		t.Fatalf("updated[0] disable metadata = reason:%q by:%q at:%d, want populated", updated[0].DisabledReason, updated[0].DisabledBy, updated[0].DisabledAt)
 	}
 	if updated[1].Inactive {
 		t.Fatalf("updated[1].Inactive = true, want false")
@@ -247,7 +250,7 @@ func TestBuildDisabledChannelModelConfigsNoopWhenTargetMissing(t *testing.T) {
 		},
 	}
 
-	updated, changed := buildDisabledChannelModels(rows, "gpt-5.3-codex")
+	updated, changed := buildDisabledChannelModels(rows, "gpt-5.3-codex", "", "")
 	if changed {
 		t.Fatalf("changed = true, want false")
 	}

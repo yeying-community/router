@@ -1212,7 +1212,7 @@ const UserDetail = () => {
                 <AppFormRow>
                   <AppField label={t('user.detail.user_id')} readOnly>
                     <AppInput
-                      className='router-section-input'
+                      className='router-section-input router-machine-input'
                       value={readOnlyValue(userId)}
                       readOnly
                     />
@@ -1596,7 +1596,17 @@ const UserDetail = () => {
                           dataIndex: 'source_id',
                           key: 'source_id',
                           width: BALANCE_LOT_COLUMN_WIDTHS.sourceId,
-                          render: (value) => readOnlyValue(value),
+                          render: (value) =>
+                            value ? (
+                              <span
+                                className='router-monospace-value router-monospace-truncate'
+                                title={value}
+                              >
+                                {value}
+                              </span>
+                            ) : (
+                              readOnlyValue(value)
+                            ),
                         },
                         {
                           title: t('user.detail.balance_lots.columns.remaining'),
