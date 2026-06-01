@@ -1,6 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { API, copy, isRoot, showError, showSuccess, timestamp2string } from '../helpers';
+import {
+  API,
+  copy,
+  downloadTextAsFile,
+  isRoot,
+  showError,
+  showSuccess,
+  timestamp2string,
+} from '../helpers';
 import { useTranslation } from 'react-i18next';
 import UnitDropdown from './UnitDropdown';
 
@@ -95,6 +103,8 @@ const UsersTable = () => {
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searching, setSearching] = useState(false);
+  const [focusLabel, setFocusLabel] = useState('');
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const [tableSorter, setTableSorter] = useState({
     columnKey: 'created_at',
     order: 'descend',
@@ -136,8 +146,56 @@ const UsersTable = () => {
     [],
   );
 
+  const loadUsersByIDs = useCallback(async (userIDs, label = '') => {
+    const normalizedIDs = [...new Set(
+      (Array.isArray(userIDs) ? userIDs : [])
+        .map((item) => (item || '').toString().trim())
+        .filter(Boolean),
+    )];
+    if (normalizedIDs.length === 0) {
+      setFocusLabel('');
+      setIsSearchMode(false);
+      setTotalCount(0);
+      setUsers([]);
+      setActivePage(1);
+      setLoading(false);
+      return;
+    }
+    const responses = await Promise.all(
+      normalizedIDs.map(async (userID) => {
+        try {
+          const res = await API.get(`/api/v1/admin/user/${encodeURIComponent(userID)}`);
+          const { success, data } = res.data || {};
+          return success && data ? data : null;
+        } catch (error) {
+          return null;
+        }
+      }),
+    );
+    const matchedUsers = responses.filter(Boolean);
+    setFocusLabel(label);
+    setIsFocusMode(true);
+    setSearchKeyword('');
+    setIsSearchMode(true);
+    setTotalCount(matchedUsers.length);
+    setUsers(matchedUsers);
+    setActivePage(1);
+    setLoading(false);
+  }, []);
+
   const refresh = async () => {
     setLoading(true);
+    const params = new URLSearchParams(location.search || '');
+    const focusIDs = (params.get('focus_ids') || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const focusName = (params.get('focus_name') || '').trim();
+    if (focusIDs.length > 0) {
+      await loadUsersByIDs(focusIDs, focusName);
+      return;
+    }
+    setIsFocusMode(false);
     await loadUsers(activePage);
   };
 
@@ -155,12 +213,29 @@ const UsersTable = () => {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    const focusIDs = (params.get('focus_ids') || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const focusName = (params.get('focus_name') || '').trim();
+    setLoading(true);
+    if (focusIDs.length > 0) {
+      loadUsersByIDs(focusIDs, focusName).catch((reason) => {
+        showError(reason?.message || reason);
+        setLoading(false);
+      });
+      return;
+    }
+    setFocusLabel('');
+    setIsFocusMode(false);
     loadUsers(1)
       .then()
       .catch((reason) => {
         showError(reason);
+        setLoading(false);
       });
-  }, [loadUsers]);
+  }, [loadUsers, loadUsersByIDs, location.search]);
 
   useEffect(() => {
     let disposed = false;
@@ -239,6 +314,8 @@ const UsersTable = () => {
   };
 
   const searchUsers = async () => {
+    setFocusLabel('');
+    setIsFocusMode(false);
     if (searchKeyword === '') {
       // if keyword is blank, load files instead.
       await loadUsers(1);
@@ -262,12 +339,17 @@ const UsersTable = () => {
   };
 
   const handleKeywordChange = async (e, { value }) => {
+    setFocusLabel('');
+    setIsFocusMode(false);
     setSearchKeyword(value.trim());
   };
 
   useEffect(() => {
     if (!initializedSearchRef.current) {
       initializedSearchRef.current = true;
+      return undefined;
+    }
+    if (isFocusMode && searchKeyword === '') {
       return undefined;
     }
     const timer = window.setTimeout(() => {
@@ -278,7 +360,7 @@ const UsersTable = () => {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [searchKeyword]);
+  }, [isFocusMode, searchKeyword]);
 
   const stopRowClick = (event) => {
     event.stopPropagation();
@@ -306,6 +388,58 @@ const UsersTable = () => {
       <span>{formatCompactNumber(value)}</span>
     </AppTooltip>
   );
+
+  const exportCurrentUsers = useCallback(() => {
+    const exportRows = (Array.isArray(users) ? users : []).filter((user) => !user?.deleted);
+    if (exportRows.length === 0) {
+      return;
+    }
+    const escapeCSV = (value) => {
+      const normalized = String(value ?? '');
+      if (/[",\n]/.test(normalized)) {
+        return `"${normalized.replace(/"/g, '""')}"`;
+      }
+      return normalized;
+    };
+    const headers = [
+      'id',
+      'username',
+      'email',
+      'display_name',
+      'wallet_address',
+      'active_package_name',
+      'yyc_balance',
+      'request_count',
+      'role',
+      'status',
+      'created_at',
+      'updated_at',
+    ];
+    const lines = [
+      headers.join(','),
+      ...exportRows.map((user) =>
+        [
+          user?.id,
+          user?.username,
+          user?.email,
+          user?.display_name,
+          user?.wallet_address,
+          user?.active_package_name,
+          user?.yyc_balance ?? user?.quota,
+          user?.request_count,
+          user?.role,
+          user?.status,
+          user?.created_at ? timestamp2string(user.created_at) : '',
+          user?.updated_at ? timestamp2string(user.updated_at) : '',
+        ]
+          .map(escapeCSV)
+          .join(','),
+      ),
+    ];
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const focusSuffix = focusLabel ? `-${focusLabel}` : '';
+    downloadTextAsFile(lines.join('\n'), `users${focusSuffix}-${timestamp}.csv`);
+  }, [focusLabel, users]);
 
   const balanceUnitOptions = useMemo(
     () => buildDisplayUnitOptions(currencyIndex),
@@ -343,6 +477,13 @@ const UsersTable = () => {
             >
               {t('user.buttons.refresh')}
             </AppButton>
+            <AppButton
+              className='router-page-button'
+              disabled={users.filter((user) => !user?.deleted).length === 0}
+              onClick={exportCurrentUsers}
+            >
+              {t('common.download')}
+            </AppButton>
           </div>
         }
         query={
@@ -359,6 +500,9 @@ const UsersTable = () => {
                 onChange={handleKeywordChange}
               />
             </div>
+            {focusLabel ? (
+              <AppTag className='router-tag'>{focusLabel}</AppTag>
+            ) : null}
           </div>
         }
       />

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -28,6 +28,7 @@ import {
   AppSelect,
   AppTag,
   AppTable,
+  AppTooltip,
   AppToolbar,
 } from '../../router-ui';
 import '../Dashboard/Dashboard.css';
@@ -230,6 +231,7 @@ const formatPercent = (raw) => `${toPercent(raw).toFixed(1)}%`;
 const AdminDashboard = () => {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const displayCurrencyIndex = useMemo(
     () => buildPublicDisplayCurrencyIndex([]),
     [],
@@ -524,12 +526,25 @@ const AdminDashboard = () => {
         width: 180,
         ellipsis: true,
         render: (_, record) => (
-          <span
-            className='admin-dashboard-rank-user'
-            title={record.username || record.user_id || '-'}
-          >
-            {record.username || record.user_id || '-'}
-          </span>
+          record.user_id ? (
+            <button
+              type='button'
+              className='admin-dashboard-user-link admin-dashboard-rank-user'
+              title={record.username || record.user_id || '-'}
+              onClick={() =>
+                navigate(`/admin/user/detail/${encodeURIComponent(record.user_id)}`)
+              }
+            >
+              {record.username || record.user_id || '-'}
+            </button>
+          ) : (
+            <span
+              className='admin-dashboard-rank-user'
+              title={record.username || record.user_id || '-'}
+            >
+              {record.username || record.user_id || '-'}
+            </span>
+          )
         ),
       },
       {
@@ -585,8 +600,22 @@ const AdminDashboard = () => {
         render: (value) => formatUpdatedAt(value),
       },
     ],
-    [formatUsd, t],
+    [formatUsd, navigate, t],
   );
+
+  const primaryUsageUser = useMemo(() => {
+    const rankedRows = Array.isArray(dashboard.usage_rank) ? dashboard.usage_rank : [];
+    const topUsername = String(dashboard.usage_summary.top_username || '').trim();
+    if (topUsername !== '') {
+      const matched = rankedRows.find(
+        (item) => String(item?.username || '').trim() === topUsername,
+      );
+      if (matched) {
+        return matched;
+      }
+    }
+    return rankedRows[0] || null;
+  }, [dashboard.usage_rank, dashboard.usage_summary.top_username]);
 
   const modelHealthDistribution = useMemo(
     () => [
@@ -656,37 +685,46 @@ const AdminDashboard = () => {
     const tokenAvg =
       rows.reduce((sum, item) => sum + Number(item.total_tokens || 0), 0) /
       rows.length;
-    const highSpendCount = rows.filter((item) => toPercent(item.share_rate) >= 10).length;
-    const activeCount = rows.filter(
+    const highSpendUsers = rows.filter((item) => toPercent(item.share_rate) >= 10);
+    const activeUsers = rows.filter(
       (item) => Number(item.request_count || 0) >= requestAvg,
-    ).length;
-    const longTailCount = rows.filter(
+    );
+    const longTailUsers = rows.filter(
       (item) =>
         toPercent(item.share_rate) < 3 &&
         Number(item.total_tokens || 0) <= tokenAvg,
-    ).length;
+    );
     return {
       distribution: [
         {
           key: 'high_spend',
           label: t('dashboard.admin.users.insights.high_spend'),
-          count: highSpendCount,
+          count: highSpendUsers.length,
           hint: t('dashboard.admin.users.insights.high_spend_hint'),
           color: '#dc2626',
+          userIds: highSpendUsers
+            .map((item) => (item?.user_id || '').toString().trim())
+            .filter(Boolean),
         },
         {
           key: 'active',
           label: t('dashboard.admin.users.insights.active'),
-          count: activeCount,
+          count: activeUsers.length,
           hint: t('dashboard.admin.users.insights.active_hint'),
           color: '#2563eb',
+          userIds: activeUsers
+            .map((item) => (item?.user_id || '').toString().trim())
+            .filter(Boolean),
         },
         {
           key: 'long_tail',
           label: t('dashboard.admin.users.insights.long_tail'),
-          count: longTailCount,
+          count: longTailUsers.length,
           hint: t('dashboard.admin.users.insights.long_tail_hint'),
           color: '#64748b',
+          userIds: longTailUsers
+            .map((item) => (item?.user_id || '').toString().trim())
+            .filter(Boolean),
         },
       ],
       shareChart: rows.slice(0, 8).map((item) => ({
@@ -696,6 +734,84 @@ const AdminDashboard = () => {
       })),
     };
   }, [dashboard.usage_rank, t]);
+
+  const openUserFocusList = useCallback((item) => {
+    const userIDs = [...new Set(
+      (Array.isArray(item?.userIds) ? item.userIds : [])
+        .map((entry) => (entry || '').toString().trim())
+        .filter(Boolean),
+    )];
+    if (userIDs.length === 0) {
+      return;
+    }
+    const params = new URLSearchParams();
+    params.set('focus_ids', userIDs.join(','));
+    params.set('focus_name', item?.label || t('header.user'));
+    navigate(`/admin/user?${params.toString()}`);
+  }, [navigate, t]);
+
+  const usageFocusData = useMemo(() => {
+    const rankedRows = Array.isArray(dashboard.usage_rank) ? dashboard.usage_rank : [];
+    const matchedUserCount = Number(dashboard.usage_totals.user_count || 0);
+    const totalSpendYyc = Number(dashboard.usage_totals.spend_yyc || 0);
+    const avgSpendPerUserYyc =
+      matchedUserCount > 0 ? totalSpendYyc / matchedUserCount : 0;
+    const topUserSharePercent = toPercent(dashboard.usage_summary.top_user_share);
+    const top3SharePercent = rankedRows
+      .slice(0, 3)
+      .reduce((sum, item) => sum + toPercent(item.share_rate), 0);
+    const highSpendBucket =
+      usageInsightData.distribution.find((item) => item.key === 'high_spend') || null;
+    const longTailBucket =
+      usageInsightData.distribution.find((item) => item.key === 'long_tail') || null;
+
+    let concentrationTone = 'stable';
+    if (top3SharePercent >= 60) {
+      concentrationTone = 'high';
+    } else if (top3SharePercent >= 35) {
+      concentrationTone = 'medium';
+    }
+
+    return [
+      {
+        key: 'top_user',
+        label: t('dashboard.admin.users.focus.top_user'),
+        value: dashboard.usage_summary.top_username || '-',
+        hint: t('dashboard.admin.users.focus.top_user_hint', {
+          share: formatPercent(dashboard.usage_summary.top_user_share),
+        }),
+        tone: 'neutral',
+        compact: true,
+        userId: primaryUsageUser?.user_id || '',
+      },
+      {
+        key: 'concentration',
+        label: t('dashboard.admin.users.focus.concentration'),
+        value: `${top3SharePercent.toFixed(1)}%`,
+        hint: t(`dashboard.admin.users.focus.concentration_${concentrationTone}`),
+        tone: concentrationTone,
+      },
+      {
+        key: 'avg_spend',
+        label: t('dashboard.admin.users.focus.avg_spend'),
+        value: formatUsd(avgSpendPerUserYyc),
+        hint: t('dashboard.admin.users.focus.avg_spend_hint', {
+          count: formatCount(matchedUserCount),
+        }),
+        tone: 'neutral',
+      },
+      {
+        key: 'long_tail',
+        label: t('dashboard.admin.users.focus.long_tail'),
+        value: formatCount(longTailBucket?.count || 0),
+        hint: t('dashboard.admin.users.focus.long_tail_hint', {
+          count: formatCount(highSpendBucket?.count || 0),
+          topShare: `${topUserSharePercent.toFixed(1)}%`,
+        }),
+        tone: longTailBucket?.count > (highSpendBucket?.count || 0) ? 'positive' : 'neutral',
+      },
+    ];
+  }, [dashboard.usage_rank, dashboard.usage_summary, dashboard.usage_totals, formatUsd, primaryUsageUser?.user_id, t, usageInsightData]);
 
   const channelInsightData = useMemo(() => {
     const rows = Array.isArray(channelHealthData) ? channelHealthData : [];
@@ -1028,18 +1144,10 @@ const AdminDashboard = () => {
         </div>
         <div className='admin-dashboard-kpi-item'>
           <div className='admin-dashboard-kpi-label'>
-            {t('dashboard.admin.metrics.groups')}
+            {t('dashboard.admin.health.summary.needs_retest')}
           </div>
           <div className='admin-dashboard-kpi-value'>
-            {formatCount(dashboard.summary.group_total)}
-          </div>
-        </div>
-        <div className='admin-dashboard-kpi-item'>
-          <div className='admin-dashboard-kpi-label'>
-            {t('dashboard.admin.metrics.providers')}
-          </div>
-          <div className='admin-dashboard-kpi-value'>
-            {formatCount(dashboard.summary.provider_total)}
+            {formatCount(channelHealthSummary.needs_retest)}
           </div>
         </div>
       </div>
@@ -1057,18 +1165,17 @@ const AdminDashboard = () => {
                   className='admin-dashboard-channel-panel'
                 >
                   <div className='admin-dashboard-channel-panel-main'>
-                    <div className='admin-dashboard-channel-panel-label-row'>
-                      <span
-                        className='admin-dashboard-channel-panel-dot'
-                        style={{ background: item.color }}
-                      />
-                      <span className='admin-dashboard-channel-panel-label'>
-                        {item.label}
-                      </span>
-                    </div>
-                    <div className='admin-dashboard-channel-panel-hint'>
-                      {item.hint}
-                    </div>
+                    <AppTooltip title={item.hint}>
+                      <div className='admin-dashboard-channel-panel-label-row'>
+                        <span
+                          className='admin-dashboard-channel-panel-dot'
+                          style={{ background: item.color }}
+                        />
+                        <span className='admin-dashboard-channel-panel-label'>
+                          {item.label}
+                        </span>
+                      </div>
+                    </AppTooltip>
                   </div>
                   <div className='admin-dashboard-channel-panel-value'>
                     {formatCount(item.count)}
@@ -1099,32 +1206,6 @@ const AdminDashboard = () => {
                 </div>
                 <div className='admin-dashboard-kpi-value'>
                   {formatPercent(channelHealthSummary.avg_pass_rate)}
-                </div>
-              </div>
-              <div className='admin-dashboard-kpi-item'>
-                <div className='admin-dashboard-kpi-label'>
-                  {t('dashboard.admin.health.summary.avg_coverage_rate')}
-                </div>
-                <div className='admin-dashboard-kpi-value'>
-                  {formatPercent(channelHealthSummary.avg_coverage_rate)}
-                </div>
-              </div>
-              <div className='admin-dashboard-kpi-item'>
-                <div className='admin-dashboard-kpi-label'>
-                  {t('dashboard.admin.health.summary.avg_latency')}
-                </div>
-                <div className='admin-dashboard-kpi-value'>
-                  {channelHealthSummary.avg_latency_ms > 0
-                    ? `${channelHealthSummary.avg_latency_ms} ms`
-                    : '-'}
-                </div>
-              </div>
-              <div className='admin-dashboard-kpi-item'>
-                <div className='admin-dashboard-kpi-label'>
-                  {t('dashboard.admin.health.summary.needs_retest')}
-                </div>
-                <div className='admin-dashboard-kpi-value'>
-                  {formatCount(channelHealthSummary.needs_retest)}
                 </div>
               </div>
             </div>
@@ -1220,8 +1301,7 @@ const AdminDashboard = () => {
                       const lastTested = entry.last_tested_at
                         ? formatUpdatedAt(entry.last_tested_at)
                         : '-';
-                      const capabilitiesText = entry.capabilities || '-';
-                      return `${label} | ${statusText} | ${healthLevelText} | ${t('dashboard.admin.table.capabilities')}: ${capabilitiesText} | ${t('dashboard.admin.health.chart.last_tested')}: ${lastTested}`;
+                      return `${label} | ${statusText} | ${healthLevelText} | ${t('dashboard.admin.health.chart.last_tested')}: ${lastTested}`;
                     }}
                   />
                   <Bar
@@ -1339,6 +1419,71 @@ const AdminDashboard = () => {
         </div>
       ) : (
         <>
+          <div className='admin-dashboard-kpi-grid admin-dashboard-kpi-grid-compact'>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.users.summary.user_count')}
+              </div>
+              <div className='admin-dashboard-kpi-value'>
+                {formatCount(dashboard.usage_totals.user_count)}
+              </div>
+            </div>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.users.summary.request_count')}
+              </div>
+              <div className='admin-dashboard-kpi-value'>
+                {formatCount(dashboard.usage_totals.request_count)}
+              </div>
+            </div>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.users.summary.total_tokens')}
+              </div>
+              <div className='admin-dashboard-kpi-value'>
+                {formatCount(dashboard.usage_totals.total_tokens)}
+              </div>
+            </div>
+            <div className='admin-dashboard-kpi-item'>
+              <div className='admin-dashboard-kpi-label'>
+                {t('dashboard.admin.users.summary.total_spend')}
+              </div>
+              <div className='admin-dashboard-kpi-value'>
+                {formatUsd(dashboard.usage_totals.spend_yyc)}
+              </div>
+            </div>
+          </div>
+          <div className='admin-dashboard-user-focus-grid'>
+            {usageFocusData.map((item) => (
+              <div
+                key={item.key}
+                className={`admin-dashboard-user-focus-card admin-dashboard-user-focus-card-${item.tone}`}
+              >
+                <div className='admin-dashboard-user-focus-label'>{item.label}</div>
+                <div
+                  className={`admin-dashboard-user-focus-value ${
+                    item.compact ? 'admin-dashboard-user-focus-value-compact' : ''
+                  }`.trim()}
+                  title={item.value}
+                >
+                  {item.userId ? (
+                    <button
+                      type='button'
+                      className='admin-dashboard-user-link admin-dashboard-user-focus-link'
+                      onClick={() =>
+                        navigate(`/admin/user/detail/${encodeURIComponent(item.userId)}`)
+                      }
+                    >
+                      {item.value}
+                    </button>
+                  ) : (
+                    item.value
+                  )}
+                </div>
+                <div className='admin-dashboard-user-focus-hint'>{item.hint}</div>
+              </div>
+            ))}
+          </div>
           <div className='admin-dashboard-user-overview-grid'>
             <div className='admin-dashboard-user-panel'>
               <div className='admin-dashboard-card-title'>
@@ -1364,8 +1509,19 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                     </div>
-                    <div className='admin-dashboard-user-distribution-value'>
-                      {formatCount(item.count)}
+                    <div className='admin-dashboard-user-distribution-side'>
+                      <div className='admin-dashboard-user-distribution-value'>
+                        {formatCount(item.count)}
+                      </div>
+                      {item.userIds?.length > 0 ? (
+                        <AppButton
+                          type='button'
+                          className='router-inline-button'
+                          onClick={() => openUserFocusList(item)}
+                        >
+                          {t('common.view')}
+                        </AppButton>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -1426,79 +1582,8 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-          <div className='admin-dashboard-usage-rank-summary-grid'>
-            <div className='admin-dashboard-kpi-item'>
-              <div className='admin-dashboard-kpi-label'>
-                {t('dashboard.admin.users.summary.user_count')}
-              </div>
-              <div className='admin-dashboard-kpi-value'>
-                {formatCount(dashboard.usage_totals.user_count)}
-              </div>
-            </div>
-            <div className='admin-dashboard-kpi-item'>
-              <div className='admin-dashboard-kpi-label'>
-                {t('dashboard.admin.users.summary.request_count')}
-              </div>
-              <div className='admin-dashboard-kpi-value'>
-                {formatCount(dashboard.usage_totals.request_count)}
-              </div>
-            </div>
-            <div className='admin-dashboard-kpi-item'>
-              <div className='admin-dashboard-kpi-label'>
-                {t('dashboard.admin.users.summary.total_tokens')}
-              </div>
-              <div className='admin-dashboard-kpi-value'>
-                {formatCount(dashboard.usage_totals.total_tokens)}
-              </div>
-            </div>
-            <div className='admin-dashboard-kpi-item'>
-              <div className='admin-dashboard-kpi-label'>
-                {t('dashboard.admin.users.summary.total_spend')}
-              </div>
-              <div className='admin-dashboard-kpi-value'>
-                {formatUsd(dashboard.usage_totals.spend_yyc)}
-              </div>
-            </div>
-          </div>
           <div className='admin-dashboard-usage-rank-section-title'>
-            {t('dashboard.admin.usage_rank.summary.title')}
-          </div>
-          <div className='admin-dashboard-usage-rank-summary-grid'>
-            <div className='admin-dashboard-kpi-item'>
-              <div className='admin-dashboard-kpi-label'>
-                {t('dashboard.admin.usage_rank.summary.top_user')}
-              </div>
-              <div
-                className='admin-dashboard-kpi-value admin-dashboard-usage-rank-top-user'
-                title={dashboard.usage_summary.top_username || '-'}
-              >
-                {dashboard.usage_summary.top_username || '-'}
-              </div>
-            </div>
-            <div className='admin-dashboard-kpi-item'>
-              <div className='admin-dashboard-kpi-label'>
-                {t('dashboard.admin.usage_rank.summary.top_share')}
-              </div>
-              <div className='admin-dashboard-kpi-value'>
-                {formatPercent(dashboard.usage_summary.top_user_share)}
-              </div>
-            </div>
-            <div className='admin-dashboard-kpi-item'>
-              <div className='admin-dashboard-kpi-label'>
-                {t('dashboard.admin.usage_rank.summary.user_count')}
-              </div>
-              <div className='admin-dashboard-kpi-value'>
-                {formatCount(dashboard.usage_summary.user_count)}
-              </div>
-            </div>
-            <div className='admin-dashboard-kpi-item'>
-              <div className='admin-dashboard-kpi-label'>
-                {t('dashboard.admin.usage_rank.summary.total_tokens')}
-              </div>
-              <div className='admin-dashboard-kpi-value'>
-                {formatCount(dashboard.usage_summary.total_tokens)}
-              </div>
-            </div>
+            {t('dashboard.admin.users.table_title')}
           </div>
           <AppTable
             className='admin-dashboard-rank-table'

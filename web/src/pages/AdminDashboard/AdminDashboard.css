@@ -203,6 +203,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  cursor: help;
 }
 
 .admin-dashboard-channel-panel-dot {
@@ -216,13 +217,6 @@
   color: #334155;
   font-size: 13px;
   font-weight: 600;
-}
-
-.admin-dashboard-channel-panel-hint {
-  margin-top: 6px;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .admin-dashboard-channel-panel-value {
@@ -330,6 +324,80 @@
   background: #fff;
 }
 
+.admin-dashboard-user-focus-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-dashboard-user-focus-card {
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-dashboard-user-focus-card-high {
+  background: linear-gradient(180deg, rgba(254, 242, 242, 0.92) 0%, #ffffff 100%);
+  border-color: rgba(239, 68, 68, 0.18);
+}
+
+.admin-dashboard-user-focus-card-medium {
+  background: linear-gradient(180deg, rgba(255, 251, 235, 0.96) 0%, #ffffff 100%);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.admin-dashboard-user-focus-card-positive {
+  background: linear-gradient(180deg, rgba(240, 253, 244, 0.96) 0%, #ffffff 100%);
+  border-color: rgba(34, 197, 94, 0.18);
+}
+
+.admin-dashboard-user-focus-label {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.admin-dashboard-user-focus-value {
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.admin-dashboard-user-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-dashboard-user-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.admin-dashboard-user-focus-link {
+  font: inherit;
+  line-height: inherit;
+}
+
+.admin-dashboard-user-focus-value-compact {
+  font-size: 18px;
+}
+
+.admin-dashboard-user-focus-hint {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .admin-dashboard-user-distribution-list {
   display: flex;
   flex-direction: column;
@@ -384,6 +452,14 @@
   font-size: 16px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.admin-dashboard-user-distribution-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .admin-dashboard-user-chart {
@@ -640,6 +716,7 @@
     grid-template-columns: 1fr;
   }
 
+  .admin-dashboard-user-focus-grid,
   .admin-dashboard-spending-overview-grid,
   .admin-dashboard-channel-overview-grid,
   .admin-dashboard-user-overview-grid,

@@ -1398,6 +1398,7 @@
     "loading": "加载中...",
     "no_data": "暂无数据",
     "add": "新增",
+    "view": "查看",
     "download": "下载",
     "basic_info": "基础信息",
     "cancel": "取消",
@@ -2149,6 +2150,19 @@
           "request_count": "命中请求数",
           "total_tokens": "命中总 Tokens",
           "total_spend": "命中总消费（美元）"
+        },
+        "table_title": "命中用户明细",
+        "focus": {
+          "top_user": "当前核心用户",
+          "top_user_hint": "当前榜首用户消费占比 {{share}}。",
+          "concentration": "Top 3 消费集中度",
+          "concentration_high": "头部消费过于集中，建议重点关注大客户波动与余额承接。",
+          "concentration_medium": "头部用户贡献明显，适合持续跟踪核心账户变化。",
+          "concentration_stable": "消费分布相对分散，整体结构更稳。",
+          "avg_spend": "人均消费（命中用户）",
+          "avg_spend_hint": "按当前命中的 {{count}} 个用户计算。",
+          "long_tail": "长尾用户数",
+          "long_tail_hint": "当前长尾 {{count}} 人，榜首占比 {{topShare}}。"
         },
         "insights": {
           "title": "当前命中榜单观察",

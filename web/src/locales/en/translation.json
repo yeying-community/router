@@ -1398,6 +1398,7 @@
     "loading": "Loading...",
     "no_data": "No data",
     "add": "Add",
+    "view": "View",
     "download": "Download",
     "basic_info": "Basic Information",
     "cancel": "Cancel",
@@ -2149,6 +2150,19 @@
           "request_count": "Matched Requests",
           "total_tokens": "Matched Tokens",
           "total_spend": "Matched Spend (USD)"
+        },
+        "table_title": "Matched User Details",
+        "focus": {
+          "top_user": "Primary User",
+          "top_user_hint": "The current top user contributes {{share}} of total spend.",
+          "concentration": "Top 3 Spend Concentration",
+          "concentration_high": "Spend is heavily concentrated. Watch key-account volatility and balance coverage closely.",
+          "concentration_medium": "Head users contribute a meaningful share. Keep tracking changes among core accounts.",
+          "concentration_stable": "Spend is relatively distributed across users, which is structurally more stable.",
+          "avg_spend": "Average Spend per Matched User",
+          "avg_spend_hint": "Calculated across {{count}} matched users in the current view.",
+          "long_tail": "Long-Tail Users",
+          "long_tail_hint": "Current long-tail users: {{count}}, with top-user share at {{topShare}}."
         },
         "insights": {
           "title": "Matched Rank Observations",
