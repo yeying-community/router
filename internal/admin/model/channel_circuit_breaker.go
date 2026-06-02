@@ -13,6 +13,8 @@ const (
 	ChannelCircuitBreakerStateHalfOpen  = "half_open"
 	ChannelCircuitBreakerStateRecovered = "recovered"
 	ChannelCircuitBreakerStateCanceled  = "canceled"
+
+	ChannelCircuitBreakerReasonInsufficientBalance = "insufficient balance"
 )
 
 type ChannelCircuitBreakerState struct {
@@ -59,6 +61,11 @@ func RecordChannelCircuitBreakerHalfOpen(channelID string) error {
 
 func RecordChannelCircuitBreakerCanceled(channelID string, reason string) error {
 	return updateChannelCircuitBreakerStateWithDB(DB, channelID, ChannelCircuitBreakerStateCanceled, reason)
+}
+
+func IsInsufficientBalanceCircuitBreakerState(row ChannelCircuitBreakerState) bool {
+	return strings.TrimSpace(strings.ToLower(row.State)) == ChannelCircuitBreakerStateCanceled &&
+		strings.TrimSpace(strings.ToLower(row.Reason)) == ChannelCircuitBreakerReasonInsufficientBalance
 }
 
 func GetChannelCircuitBreakerState(channelID string) (ChannelCircuitBreakerState, error) {
@@ -165,6 +172,29 @@ func updateChannelCircuitBreakerStateWithDB(db *gorm.DB, channelID string, state
 		return nil
 	}
 	now := helper.GetTimestamp()
+	if normalizedState == ChannelCircuitBreakerStateCanceled {
+		normalizedReason := strings.TrimSpace(reason)
+		row := ChannelCircuitBreakerState{
+			ChannelId:   normalizedChannelID,
+			State:       normalizedState,
+			Reason:      normalizedReason,
+			DisabledAt:  now,
+			RecoveredAt: 0,
+			UpdatedAt:   now,
+		}
+		return db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Save(&row).Error; err != nil {
+				return err
+			}
+			return createChannelCircuitBreakerEventWithDB(tx, ChannelCircuitBreakerEvent{
+				ChannelId: normalizedChannelID,
+				Event:     normalizedState,
+				State:     normalizedState,
+				Reason:    normalizedReason,
+				CreatedAt: now,
+			})
+		})
+	}
 	updates := map[string]any{
 		"state":      normalizedState,
 		"updated_at": now,

@@ -748,8 +748,9 @@ func refreshAllChannelsBilling() error {
 	if err != nil {
 		return err
 	}
+	circuitStateByChannelID := loadChannelBillingRefreshCircuitStateMap(channels)
 	for _, channel := range channels {
-		if channel.Status != model.ChannelStatusEnabled {
+		if !shouldRefreshChannelBillingInBatch(channel, circuitStateByChannelID) {
 			continue
 		}
 		profile, _ := model.GetChannelBillingProfileByChannelIDWithDB(model.DB, channel.Id)
@@ -760,6 +761,47 @@ func refreshAllChannelsBilling() error {
 		time.Sleep(config.RequestInterval)
 	}
 	return nil
+}
+
+func loadChannelBillingRefreshCircuitStateMap(channels []*model.Channel) map[string]model.ChannelCircuitBreakerState {
+	result := map[string]model.ChannelCircuitBreakerState{}
+	channelIDs := make([]string, 0, len(channels))
+	for _, channel := range channels {
+		if channel == nil || channel.Status != model.ChannelStatusAutoDisabled {
+			continue
+		}
+		if channelID := strings.TrimSpace(channel.Id); channelID != "" {
+			channelIDs = append(channelIDs, channelID)
+		}
+	}
+	if len(channelIDs) == 0 {
+		return result
+	}
+	rows, err := model.ListChannelCircuitBreakerStatesByChannelIDsWithDB(model.DB, channelIDs)
+	if err != nil {
+		return result
+	}
+	for _, row := range rows {
+		if channelID := strings.TrimSpace(row.ChannelId); channelID != "" {
+			result[channelID] = row
+		}
+	}
+	return result
+}
+
+func shouldRefreshChannelBillingInBatch(channel *model.Channel, circuitStateByChannelID map[string]model.ChannelCircuitBreakerState) bool {
+	if channel == nil {
+		return false
+	}
+	switch channel.Status {
+	case model.ChannelStatusEnabled:
+		return true
+	case model.ChannelStatusAutoDisabled:
+		state := circuitStateByChannelID[strings.TrimSpace(channel.Id)]
+		return model.IsInsufficientBalanceCircuitBreakerState(state)
+	default:
+		return false
+	}
 }
 
 func AutomaticallyRefreshChannelBilling(frequency int) {

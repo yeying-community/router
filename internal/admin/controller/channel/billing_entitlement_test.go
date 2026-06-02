@@ -114,3 +114,33 @@ func TestDetermineBillingItemStatusExpiresPastPeriodicReset(t *testing.T) {
 		t.Fatalf("past reset status=%q, want expired", status)
 	}
 }
+
+func TestShouldRefreshChannelBillingInBatchIncludesInsufficientBalanceAutoDisabled(t *testing.T) {
+	channel := &model.Channel{Id: "channel-1", Status: model.ChannelStatusAutoDisabled}
+	states := map[string]model.ChannelCircuitBreakerState{
+		"channel-1": {
+			ChannelId: "channel-1",
+			State:     model.ChannelCircuitBreakerStateCanceled,
+			Reason:    model.ChannelCircuitBreakerReasonInsufficientBalance,
+		},
+	}
+
+	if !shouldRefreshChannelBillingInBatch(channel, states) {
+		t.Fatalf("insufficient-balance auto-disabled channel should be refreshed")
+	}
+}
+
+func TestShouldRefreshChannelBillingInBatchSkipsManualDisabled(t *testing.T) {
+	channel := &model.Channel{Id: "channel-1", Status: model.ChannelStatusManuallyDisabled}
+	states := map[string]model.ChannelCircuitBreakerState{
+		"channel-1": {
+			ChannelId: "channel-1",
+			State:     model.ChannelCircuitBreakerStateCanceled,
+			Reason:    model.ChannelCircuitBreakerReasonInsufficientBalance,
+		},
+	}
+
+	if shouldRefreshChannelBillingInBatch(channel, states) {
+		t.Fatalf("manually disabled channel should not be auto-refreshed")
+	}
+}

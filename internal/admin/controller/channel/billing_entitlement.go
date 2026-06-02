@@ -761,5 +761,20 @@ func refreshAndPersistChannelBillingEntitlements(channel *model.Channel, profile
 		monitor.DisableChannelForInsufficientBalance(channel.Id, channel.DisplayName(), collected.PrimaryAmount)
 		return collected.PrimaryAmount, nil
 	}
+	maybeRestoreChannelAfterBillingRefresh(channel)
 	return collected.PrimaryAmount, nil
+}
+
+func maybeRestoreChannelAfterBillingRefresh(channel *model.Channel) {
+	if channel == nil || channel.Status != model.ChannelStatusAutoDisabled {
+		return
+	}
+	state, err := model.GetChannelCircuitBreakerState(channel.Id)
+	if err != nil {
+		return
+	}
+	if !model.IsInsufficientBalanceCircuitBreakerState(state) {
+		return
+	}
+	monitor.EnableChannel(channel.Id, channel.DisplayName())
 }

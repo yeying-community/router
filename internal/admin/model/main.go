@@ -110,6 +110,16 @@ func migrateDB() error {
 func InitLogDB() {
 	if common.LogSQLDSN == "" {
 		LOG_DB = DB
+		if !config.IsMasterNode {
+			return
+		}
+		logger.SysLog("log database migration started")
+		err := migrateLOGDBWithDSN(common.SQLDSN)
+		if err != nil {
+			logger.FatalLog("failed to migrate log database: " + err.Error())
+			return
+		}
+		logger.SysLog("log database migrated")
 		return
 	}
 
@@ -137,7 +147,11 @@ func InitLogDB() {
 }
 
 func migrateLOGDB() error {
-	migrationDB, err := chooseMigrationDB(common.LogSQLDSN)
+	return migrateLOGDBWithDSN(common.LogSQLDSN)
+}
+
+func migrateLOGDBWithDSN(dsn string) error {
+	migrationDB, err := chooseMigrationDB(dsn)
 	if err != nil {
 		return err
 	}
