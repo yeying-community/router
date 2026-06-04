@@ -816,7 +816,7 @@
         "editor": {
           "title": "编辑端点策略",
           "hint": "这里仅编辑端点策略。JSON 文本会按后端规则校验：`capabilities` 描述能力，`request_policy` 描述请求侧动作，`response_policy` 暂为预留字段。",
-          "anthropic_image_url_hint": "ANTHROPIC_IMAGE_URL_TO_BASE64 只会抓取 Router 可访问的图片地址。默认拒绝 localhost、127.0.0.1 和其它私网地址；如确需抓取本地分享地址，请在配置中显式加入 `relay.user_content_request_private_host_allowlist`。",
+          "image_url_to_base64_hint": "IMAGE_URL_TO_BASE64 只会抓取 Router 可访问的图片地址。默认拒绝 localhost、127.0.0.1 和其它私网地址；如确需抓取本地分享地址，请在配置中显式加入 `relay.user_content_request_private_host_allowlist`。",
           "template": "策略模板",
           "template_placeholder": "选择常用模板快速填充",
           "template_key": "策略标识",

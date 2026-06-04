@@ -816,7 +816,7 @@
         "editor": {
           "title": "Edit Endpoint Policy",
           "hint": "Only endpoint policy is edited here. JSON text is validated by backend rules: `capabilities` describes support, `request_policy` describes request-side actions, and `response_policy` is reserved for now.",
-          "anthropic_image_url_hint": "ANTHROPIC_IMAGE_URL_TO_BASE64 only fetches image URLs that Router is allowed to access. By default, localhost, 127.0.0.1, and other private-network addresses are rejected. If you really need local share URLs, explicitly add them to `relay.user_content_request_private_host_allowlist`.",
+          "image_url_to_base64_hint": "IMAGE_URL_TO_BASE64 only fetches image URLs that Router is allowed to access. By default, localhost, 127.0.0.1, and other private-network addresses are rejected. If you really need local share URLs, explicitly add them to `relay.user_content_request_private_host_allowlist`.",
           "template": "Policy Template",
           "template_placeholder": "Choose a common template for quick fill",
           "template_key": "Policy Key",

@@ -89,12 +89,12 @@ const ChannelEndpointPolicyEditorModal = ({
               />
             </AppField>
           </AppFormRow>
-          {(policyDraft.template_key || '') === 'ANTHROPIC_IMAGE_URL_TO_BASE64' ? (
+          {(policyDraft.template_key || '') === 'IMAGE_URL_TO_BASE64' ? (
             <AppAlert
               type='warning'
               showIcon
               className='router-section-message'
-              title={t('channel.edit.endpoint_policies.editor.anthropic_image_url_hint')}
+              title={t('channel.edit.endpoint_policies.editor.image_url_to_base64_hint')}
             />
           ) : null}
           <AppFormRow>
@@ -184,7 +184,7 @@ const ChannelEndpointPolicyEditorModal = ({
             >
               <AppTextarea
                 className='router-section-textarea router-code-textarea router-code-textarea-md'
-                placeholder='{"actions":[{"type":"image_url_to_base64","input_types":["anthropic.image_url"]}]}'
+                placeholder='{"actions":[{"type":"image_url_to_base64","input_types":["anthropic.image_url","openai.image_url","responses.input_image_url"]}]}'
                 value={policyDraft.request_policy}
                 onChange={(e, { value }) =>
                   setPolicyDraft((prev) => ({

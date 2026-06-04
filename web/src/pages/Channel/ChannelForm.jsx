@@ -745,11 +745,11 @@ const buildEmptyEndpointPolicyDraft = (channelId, modelName, endpoint) => ({
 
 const ENDPOINT_POLICY_TEMPLATES = [
   {
-    key: 'ANTHROPIC_IMAGE_URL_TO_BASE64',
-    value: 'ANTHROPIC_IMAGE_URL_TO_BASE64',
-    text: 'ANTHROPIC_IMAGE_URL_TO_BASE64',
+    key: 'IMAGE_URL_TO_BASE64',
+    value: 'IMAGE_URL_TO_BASE64',
+    text: 'IMAGE_URL_TO_BASE64',
     buildDraft: () => ({
-      template_key: 'ANTHROPIC_IMAGE_URL_TO_BASE64',
+      template_key: 'IMAGE_URL_TO_BASE64',
       capabilities: JSON.stringify(
         {
           input_image_url: false,
@@ -763,7 +763,11 @@ const ENDPOINT_POLICY_TEMPLATES = [
           actions: [
             {
               type: 'image_url_to_base64',
-              input_types: ['anthropic.image_url'],
+              input_types: [
+                'anthropic.image_url',
+                'openai.image_url',
+                'responses.input_image_url',
+              ],
               reason: 'convert image url to base64 for upstream compatibility',
               limits: {
                 max_bytes: 5242880,

@@ -189,7 +189,7 @@ relay:
   proxy: ""
   # 用户内容抓取/外链请求代理（可与 proxy 不同）。
   user_content_request_proxy: ""
-  # 允许端点策略抓取的私网/本机媒体主机白名单，仅在启用如 ANTHROPIC_IMAGE_URL_TO_BASE64 这类“URL -> base64”策略时生效。
+  # 允许端点策略抓取的私网/本机媒体主机白名单，仅在启用如 IMAGE_URL_TO_BASE64 这类“URL -> base64”策略时生效。
   # 默认仍拒绝 localhost、127.0.0.1、10.x、172.16-31.x、192.168.x 等私网地址。
   # 仅当这些地址确实是受信任的本地分享服务时再显式填写，可写 host 或 host:port。
   user_content_request_private_host_allowlist: []

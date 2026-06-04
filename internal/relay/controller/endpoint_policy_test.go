@@ -14,6 +14,7 @@ import (
 
 	"github.com/yeying-community/router/common/client"
 	"github.com/yeying-community/router/common/config"
+	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/admin/model"
 	relaymeta "github.com/yeying-community/router/internal/relay/meta"
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
@@ -112,6 +113,123 @@ func TestGetRequestBodyMessagesPassThroughConvertsAnthropicImageURLToBase64(t *t
 	}
 	if strings.Contains(data, mediaServer.URL) {
 		t.Fatalf("source.data still contains original url: %q", data)
+	}
+}
+
+func TestApplyEndpointRequestPolicyConvertsOpenAIImageURLToDataURL(t *testing.T) {
+	t.Helper()
+	mediaServer := newPolicyMediaServer()
+	defer mediaServer.Close()
+	reset := setupPolicyFetchTestClient(mediaServer.Client())
+	defer reset()
+
+	body := `{
+		"model":"gpt-4.1",
+		"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"` + mediaServer.URL + `/img.png"}}]}]
+	}`
+	c := newPolicyTestContext(t, body)
+	meta := &relaymeta.Meta{
+		ActualModelName:     "gpt-4.1",
+		ChannelId:           "channel-1",
+			UpstreamRequestPath: model.ChannelModelEndpointChat,
+		EndpointPolicy: &model.ChannelModelEndpointPolicy{
+			ID:            "policy-openai",
+			Enabled:       true,
+			Endpoint:      model.ChannelModelEndpointChat,
+			RequestPolicy: `{"actions":[{"type":"image_url_to_base64","input_types":["openai.image_url"],"reason":"convert image url","limits":{"max_bytes":10240,"timeout_ms":2000,"allowed_content_types":["image/png"]}}]}`,
+		},
+	}
+	updatedRaw, err := applyEndpointRequestPolicy(c, meta, []byte(body))
+	if err != nil {
+		t.Fatalf("applyEndpointRequestPolicy returned error: %v", err)
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(updatedRaw, &payload); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	messages := payload["messages"].([]any)
+	contentItem := messages[0].(map[string]any)["content"].([]any)[0].(map[string]any)
+	imageURL := contentItem["image_url"].(map[string]any)
+	got := strings.TrimSpace(imageURL["url"].(string))
+	if !strings.HasPrefix(strings.ToLower(got), "data:image/png;base64,") {
+		t.Fatalf("image_url.url = %q, want data url", got)
+	}
+}
+
+func TestApplyEndpointRequestPolicyConvertsResponsesInputImageURLToDataURL(t *testing.T) {
+	t.Helper()
+	mediaServer := newPolicyMediaServer()
+	defer mediaServer.Close()
+	reset := setupPolicyFetchTestClient(mediaServer.Client())
+	defer reset()
+
+	body := `{
+		"model":"gpt-4.1",
+		"input":[{"role":"user","content":[{"type":"input_image","image_url":"` + mediaServer.URL + `/img.png"}]}]
+	}`
+	c := newPolicyTestContext(t, body)
+	meta := &relaymeta.Meta{
+		ActualModelName:     "gpt-4.1",
+		ChannelId:           "channel-1",
+		UpstreamRequestPath: model.ChannelModelEndpointResponses,
+		EndpointPolicy: &model.ChannelModelEndpointPolicy{
+			ID:            "policy-responses",
+			Enabled:       true,
+			Endpoint:      model.ChannelModelEndpointResponses,
+			RequestPolicy: `{"actions":[{"type":"image_url_to_base64","input_types":["responses.input_image_url"],"reason":"convert image url","limits":{"max_bytes":10240,"timeout_ms":2000,"allowed_content_types":["image/png"]}}]}`,
+		},
+	}
+	updatedRaw, err := applyEndpointRequestPolicy(c, meta, []byte(body))
+	if err != nil {
+		t.Fatalf("applyEndpointRequestPolicy returned error: %v", err)
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(updatedRaw, &payload); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	inputList := payload["input"].([]any)
+	contentItem := inputList[0].(map[string]any)["content"].([]any)[0].(map[string]any)
+	got := strings.TrimSpace(contentItem["image_url"].(string))
+	if !strings.HasPrefix(strings.ToLower(got), "data:image/png;base64,") {
+		t.Fatalf("image_url = %q, want data url", got)
+	}
+}
+
+func TestNormalizeChannelEndpointPolicyTemplateKeySupportsLegacyAlias(t *testing.T) {
+	got := adminmodel.NormalizeChannelEndpointPolicyTemplateKey("ANTHROPIC_IMAGE_URL_TO_BASE64")
+	if got != "IMAGE_URL_TO_BASE64" {
+		t.Fatalf("NormalizeChannelEndpointPolicyTemplateKey() = %q, want IMAGE_URL_TO_BASE64", got)
+	}
+}
+
+func newPolicyMediaServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write([]byte{
+			0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+			0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+			0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+			0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+			0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41,
+			0x54, 0x78, 0x9c, 0x63, 0xf8, 0xcf, 0xc0, 0x00,
+			0x00, 0x03, 0x01, 0x01, 0x00, 0xc9, 0xfe, 0x92,
+			0xef, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e,
+			0x44, 0xae, 0x42, 0x60, 0x82,
+		})
+	}))
+}
+
+func setupPolicyFetchTestClient(httpClient *http.Client) func() {
+	originalClient := client.UserContentRequestHTTPClient
+	originalValidateHost := validateEndpointPolicyFetchHost
+	client.UserContentRequestHTTPClient = httpClient
+	client.UserContentRequestHTTPClient.Timeout = 2 * time.Second
+	validateEndpointPolicyFetchHost = func(_ context.Context, _ string) error {
+		return nil
+	}
+	return func() {
+		client.UserContentRequestHTTPClient = originalClient
+		validateEndpointPolicyFetchHost = originalValidateHost
 	}
 }
 

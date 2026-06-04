@@ -104,6 +104,10 @@ func NormalizeChannelEndpointPolicyTemplateKey(raw string) string {
 	if normalized == "" {
 		return ""
 	}
+	switch normalized {
+	case "ANTHROPIC_IMAGE_URL_TO_BASE64":
+		return "IMAGE_URL_TO_BASE64"
+	}
 	return normalized
 }
 
