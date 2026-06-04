@@ -359,7 +359,7 @@ const PersonalSetting = () => {
       >
         <div className='router-page-stack'>
           {passwordModal.mode === 'modify' ? (
-            <AppFormRow>
+            <AppFormRow className='router-modal-form-row'>
               <AppField label='当前密码'>
                 <AppInput
                   type='password'
@@ -372,7 +372,7 @@ const PersonalSetting = () => {
               </AppField>
             </AppFormRow>
           ) : null}
-          <AppFormRow>
+          <AppFormRow className='router-modal-form-row'>
             <AppField label='新密码'>
               <AppInput
                 type='password'
@@ -384,7 +384,7 @@ const PersonalSetting = () => {
               />
             </AppField>
           </AppFormRow>
-          <AppFormRow>
+          <AppFormRow className='router-modal-form-row'>
             <AppField label='确认新密码'>
               <AppInput
                 type='password'

@@ -967,7 +967,7 @@ const PackagesManager = () => {
 
   const renderFormFields = () => (
     <div>
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.name')} required>
           <AppInput
             className='router-section-input'
@@ -992,7 +992,7 @@ const PackagesManager = () => {
         </AppField>
       </AppFormRow>
 
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.description')}>
           <AppTextarea
             className='router-section-input'
@@ -1004,7 +1004,7 @@ const PackagesManager = () => {
         </AppField>
       </AppFormRow>
 
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.sale_price')}>
           <AppCompact className='router-section-input-with-unit' block>
             <AppInputNumber
@@ -1035,7 +1035,7 @@ const PackagesManager = () => {
         <AppField />
       </AppFormRow>
 
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.daily_quota_limit')}>
           <AppCompact className='router-section-input-with-unit' block>
             <AppInputNumber
@@ -1114,7 +1114,7 @@ const PackagesManager = () => {
         </AppField>
       </AppFormRow>
 
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.duration_days')}>
           <AppInputNumber
             className='router-section-input'
@@ -1139,7 +1139,7 @@ const PackagesManager = () => {
         </AppField>
       </AppFormRow>
 
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.enabled')}>
           <AppSwitch
             checked={Boolean(form.enabled)}
@@ -1151,7 +1151,7 @@ const PackagesManager = () => {
         <AppField />
       </AppFormRow>
 
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.source')}>
           <AppInput
             className='router-section-input'

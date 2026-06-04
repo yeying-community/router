@@ -639,7 +639,7 @@ const PackageDetail = () => {
 
   const renderEditForm = () => (
     <div>
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.name')} required>
           <AppInput
             className='router-section-input'
@@ -663,7 +663,7 @@ const PackageDetail = () => {
         </AppField>
       </AppFormRow>
 
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.description')}>
           <AppTextarea
             className='router-section-input'
@@ -675,7 +675,7 @@ const PackageDetail = () => {
         </AppField>
       </AppFormRow>
 
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.sale_price')}>
           <AppCompact className='router-section-input-with-unit' block>
             <AppInputNumber
@@ -706,7 +706,7 @@ const PackageDetail = () => {
         <AppField />
       </AppFormRow>
 
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.daily_quota_limit')}>
           <AppCompact className='router-section-input-with-unit' block>
             <AppInputNumber
@@ -782,7 +782,7 @@ const PackageDetail = () => {
         </AppField>
       </AppFormRow>
 
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.duration_days')}>
           <AppInputNumber
             className='router-section-input'
@@ -807,7 +807,7 @@ const PackageDetail = () => {
         </AppField>
       </AppFormRow>
 
-      <AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.enabled')}>
           <AppSwitch
             checked={Boolean(form.enabled)}
@@ -1020,8 +1020,8 @@ const PackageDetail = () => {
                       <div className='router-empty-cell'>{t('common.loading')}</div>
                     ) : (
                       <>
-                        <AppFormRow>
-                          <AppField label={t('package_manage.form.visibility_scope')}>
+      <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('package_manage.form.visibility_scope')}>
                             <AppSelect
                               className='router-section-dropdown'
                               options={[

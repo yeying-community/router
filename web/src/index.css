@@ -2840,6 +2840,14 @@ body,
     min-width: 0;
 }
 
+.router-ui-form-row.router-modal-form-row {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.router-ui-form-row.router-modal-form-row > .router-ui-field {
+    min-width: 0;
+}
+
 .router-section-stack {
     display: flex;
     flex-direction: column;

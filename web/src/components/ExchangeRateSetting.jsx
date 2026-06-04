@@ -323,14 +323,14 @@ const ExchangeRateSetting = ({ section = '' }) => {
         footer={null}
       >
         <div className='router-page-stack'>
-          <AppFormRow>
+          <AppFormRow className='router-modal-form-row'>
             <AppField label={t('setting.exchange.columns.pair')} readOnly>
               <div className='router-readonly-value'>
                 {editingRow?.pair || '-'}
               </div>
             </AppField>
           </AppFormRow>
-          <AppFormRow>
+          <AppFormRow className='router-modal-form-row'>
             <AppField label={t('setting.exchange.dialogs.rate_label')}>
               <AppInputNumber
                 className='router-section-input'
