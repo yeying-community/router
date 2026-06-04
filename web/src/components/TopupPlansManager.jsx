@@ -14,6 +14,7 @@ import {
 } from '../helpers/billing';
 import {
   AppButton,
+  AppCompact,
   AppField,
   AppFilterHeader,
   AppFormActions,
@@ -39,6 +40,15 @@ const createEmptyPlan = () => ({
   enabled: true,
   public_visible: true,
 });
+
+const ensureUnitOption = (options, value) => {
+  const normalized = (value || '').toString().trim().toUpperCase();
+  const items = Array.isArray(options) ? options : [];
+  if (!normalized || items.some((item) => item?.value === normalized)) {
+    return items;
+  }
+  return [...items, { value: normalized, label: normalized }];
+};
 
 const appendGroupOptionIfMissing = (options, groupID, groupName) => {
   const normalizedGroupID = (groupID || '').toString().trim();
@@ -79,6 +89,16 @@ const TopupPlansManager = () => {
   const displayUnitOptions = useMemo(
     () => buildDisplayUnitOptions(currencyIndex, { order: 'yyc-first' }),
     [currencyIndex]
+  );
+
+  const payCurrencyOptions = useMemo(
+    () => ensureUnitOption(displayUnitOptions, form.amount_currency || 'CNY'),
+    [displayUnitOptions, form.amount_currency]
+  );
+
+  const quotaCurrencyOptions = useMemo(
+    () => ensureUnitOption(displayUnitOptions, form.quota_currency || 'USD'),
+    [displayUnitOptions, form.quota_currency]
   );
 
   const loadPlans = useCallback(async () => {
@@ -578,34 +598,64 @@ const TopupPlansManager = () => {
           </AppFormRow>
           <AppFormRow>
             <AppField label={t('topup.manage.columns.pay_amount')}>
-              <AppInputNumber
-                min={0}
-                step={0.01}
-                precision={2}
-                fluid
-                value={form.amount}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({
-                    ...current,
-                    amount: Number(value || 0),
-                  }))
-                }
-              />
+              <AppCompact className='router-section-input-with-unit' block>
+                <AppInputNumber
+                  className='router-section-input router-section-input-with-unit-field'
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  fluid
+                  value={form.amount}
+                  onChange={(_, { value }) =>
+                    setForm((current) => ({
+                      ...current,
+                      amount: Number(value || 0),
+                    }))
+                  }
+                />
+                <UnitDropdown
+                  variant='inputUnit'
+                  options={payCurrencyOptions}
+                  value={form.amount_currency || 'CNY'}
+                  onChange={(_, { value }) =>
+                    setForm((current) => ({
+                      ...current,
+                      amount_currency: (value || 'CNY').toString().trim().toUpperCase(),
+                    }))
+                  }
+                  aria-label={t('topup.manage.columns.pay_amount')}
+                />
+              </AppCompact>
             </AppField>
             <AppField label={t('topup.manage.columns.credited_amount')}>
-              <AppInputNumber
-                min={0}
-                step={0.01}
-                precision={2}
-                fluid
-                value={form.quota_amount}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({
-                    ...current,
-                    quota_amount: Number(value || 0),
-                  }))
-                }
-              />
+              <AppCompact className='router-section-input-with-unit' block>
+                <AppInputNumber
+                  className='router-section-input router-section-input-with-unit-field'
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  fluid
+                  value={form.quota_amount}
+                  onChange={(_, { value }) =>
+                    setForm((current) => ({
+                      ...current,
+                      quota_amount: Number(value || 0),
+                    }))
+                  }
+                />
+                <UnitDropdown
+                  variant='inputUnit'
+                  options={quotaCurrencyOptions}
+                  value={form.quota_currency || 'USD'}
+                  onChange={(_, { value }) =>
+                    setForm((current) => ({
+                      ...current,
+                      quota_currency: (value || 'USD').toString().trim().toUpperCase(),
+                    }))
+                  }
+                  aria-label={t('topup.manage.columns.credited_amount')}
+                />
+              </AppCompact>
             </AppField>
           </AppFormRow>
           <AppFormRow>

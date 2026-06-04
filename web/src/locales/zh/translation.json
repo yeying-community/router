@@ -1725,8 +1725,8 @@
     "detail": {
       "title": "用户详情",
       "user_id": "用户 ID",
-      "package_mode_title": "套餐状态",
-      "balance_mode_title": "余额状态",
+      "package_mode_title": "套餐",
+      "balance_mode_title": "余额",
       "remaining_amount": "剩余",
       "used_amount": "已用",
       "request_count_hint": "累计请求次数",

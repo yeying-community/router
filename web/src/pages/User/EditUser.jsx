@@ -16,6 +16,7 @@ import {
 import UnitDropdown from '../../components/UnitDropdown';
 import {
   AppButton,
+  AppCompact,
   AppDetailSection,
   AppField,
   AppFilterHeader,
@@ -897,20 +898,6 @@ const UserDetail = () => {
     navigate('/admin/user');
   }, [navigate, returnPath]);
 
-  const openPackageManagement = useCallback(() => {
-    const keyword = hasActivePackage
-      ? (activePackageSubscription?.package_name || activePackageSubscription?.package_id || '')
-          .toString()
-          .trim()
-      : '';
-    const target = keyword !== '' ? `/admin/package?keyword=${encodeURIComponent(keyword)}` : '/admin/package';
-    navigate(target);
-  }, [activePackageSubscription?.package_id, activePackageSubscription?.package_name, hasActivePackage, navigate]);
-
-  const openTopupManagement = useCallback(() => {
-    navigate('/admin/topup');
-  }, [navigate]);
-
   const refreshBalanceSection = useCallback(async () => {
     await Promise.all([loadUser(), loadBalanceLots()]);
   }, [loadBalanceLots, loadUser]);
@@ -1057,7 +1044,7 @@ const UserDetail = () => {
   const renderBalanceAmountField = useCallback(
     ({ label, name, value }) => (
       <AppField label={label} readOnly>
-        <div className='router-section-input-with-unit'>
+        <AppCompact className='router-section-input-with-unit' block>
           <AppInputNumber
             className='router-section-input router-section-input-with-unit-field'
             fluid
@@ -1074,7 +1061,7 @@ const UserDetail = () => {
             onChange={(_, { value }) => handleBalanceUnitChange(value)}
             disabled={loading || actionLoading !== '' || billingUnitOptions.length === 0}
           />
-        </div>
+        </AppCompact>
       </AppField>
     ),
     [
@@ -1101,14 +1088,49 @@ const UserDetail = () => {
   );
 
   const renderReadonlyAmountField = useCallback(
-    ({ label, value }) => (
-      <AppField className='router-section-input' label={label} readOnly>
-        <div className='router-inline-amount-card'>
-          <div className='router-inline-meta-value'>{value}</div>
-        </div>
-      </AppField>
-    ),
-    [],
+    ({ label, yycAmount, fallback = '-' }) => {
+      if (fallback !== null) {
+        return (
+          <AppField className='router-section-input' label={label} readOnly>
+            <AppInput
+              className='router-section-input'
+              value={fallback}
+              readOnly
+            />
+          </AppField>
+        );
+      }
+      return (
+        <AppField className='router-section-input' label={label} readOnly>
+          <AppCompact className='router-section-input-with-unit' block>
+            <AppInputNumber
+              className='router-section-input router-section-input-with-unit-field'
+              fluid
+              min={0}
+              step={balanceInputStep}
+              value={yycToBillingInputValue(yycAmount, balanceUnit, billingCurrencyIndex)}
+              readOnly
+            />
+            <UnitDropdown
+              variant='inputUnit'
+              options={billingUnitOptions}
+              value={balanceUnit}
+              onChange={(_, { value }) => handleBalanceUnitChange(value)}
+              disabled={loading || actionLoading !== '' || billingUnitOptions.length === 0}
+            />
+          </AppCompact>
+        </AppField>
+      );
+    },
+    [
+      actionLoading,
+      balanceInputStep,
+      balanceUnit,
+      billingCurrencyIndex,
+      billingUnitOptions,
+      handleBalanceUnitChange,
+      loading,
+    ],
   );
 
   const detailTabItems = [
@@ -1296,14 +1318,6 @@ const UserDetail = () => {
                     >
                       {t('user.detail.buttons.gift_package')}
                     </AppButton>
-                    <AppButton
-                      type='button'
-                      className='router-page-button'
-                      disabled={loading || actionLoading !== '' || editSection !== ''}
-                      onClick={openPackageManagement}
-                    >
-                      {t('package_manage.title')}
-                    </AppButton>
                   </>
                 }
               >
@@ -1348,59 +1362,43 @@ const UserDetail = () => {
               <AppFormRow>
                 {renderReadonlyAmountField({
                   label: t('user.detail.package_daily_limit'),
-                  value:
-                    hasActivePackage
-                      ? Number(activePackageSubscription?.daily_amount || 0) > 0
-                        ? formatAmountBySelectedUnit(
-                            activePackageSubscription?.daily_amount || 0,
-                          )
-                        : formatAmountBySelectedUnit(0, { unlimited: true })
-                      : '-'
+                  yycAmount: activePackageSubscription?.daily_amount || 0,
+                  fallback: hasActivePackage
+                    ? Number(activePackageSubscription?.daily_amount || 0) > 0
+                      ? null
+                      : t('common.unlimited')
+                    : '-'
                 })}
                 {renderReadonlyAmountField({
                   label: t('user.detail.package_emergency_limit'),
-                  value:
-                    hasActivePackage
-                      ? formatAmountBySelectedUnit(
-                          activePackageSubscription?.emergency_amount || 0,
-                        )
-                      : '-'
+                  yycAmount: activePackageSubscription?.emergency_amount || 0,
+                  fallback: hasActivePackage ? null : '-'
                 })}
               </AppFormRow>
               <AppFormRow>
                 {renderReadonlyAmountField({
                   label: t('user.detail.package_daily_used'),
-                  value:
-                    hasActivePackage
-                      ? formatAmountBySelectedUnit(packageDailySnapshot.consumed_quota || 0)
-                      : '-'
+                  yycAmount: packageDailySnapshot.consumed_quota || 0,
+                  fallback: hasActivePackage ? null : '-'
                 })}
                 {renderReadonlyAmountField({
                   label: t('user.detail.package_daily_remaining'),
-                  value:
-                    hasActivePackage
-                      ? packageDailySnapshot.unlimited
-                        ? t('common.unlimited')
-                        : formatAmountBySelectedUnit(packageDailySnapshot.remaining_quota || 0)
-                      : '-'
+                  yycAmount: packageDailySnapshot.remaining_quota || 0,
+                  fallback: hasActivePackage
+                    ? packageDailySnapshot.unlimited
+                      ? t('common.unlimited')
+                      : null
+                    : '-'
                 })}
                 {renderReadonlyAmountField({
                   label: t('user.detail.package_emergency_used'),
-                  value:
-                    hasActivePackage
-                      ? packageEmergencySnapshot.enabled
-                        ? formatAmountBySelectedUnit(packageEmergencySnapshot.consumed_quota || 0)
-                        : '-'
-                      : '-'
+                  yycAmount: packageEmergencySnapshot.consumed_quota || 0,
+                  fallback: hasActivePackage && packageEmergencySnapshot.enabled ? null : '-'
                 })}
                 {renderReadonlyAmountField({
                   label: t('user.detail.package_emergency_remaining'),
-                  value:
-                    hasActivePackage
-                      ? packageEmergencySnapshot.enabled
-                        ? formatAmountBySelectedUnit(packageEmergencySnapshot.remaining_quota || 0)
-                        : '-'
-                      : '-'
+                  yycAmount: packageEmergencySnapshot.remaining_quota || 0,
+                  fallback: hasActivePackage && packageEmergencySnapshot.enabled ? null : '-'
                 })}
               </AppFormRow>
               <AppFormRow>
@@ -1459,14 +1457,6 @@ const UserDetail = () => {
                       onClick={openAssignTopupModal}
                     >
                       {t('user.detail.buttons.gift_topup')}
-                    </AppButton>
-                    <AppButton
-                      type='button'
-                      className='router-page-button'
-                      disabled={loading || actionLoading !== '' || editSection !== ''}
-                      onClick={openTopupManagement}
-                    >
-                      {t('user.detail.buttons.balance_manage')}
                     </AppButton>
                   </>
                 }

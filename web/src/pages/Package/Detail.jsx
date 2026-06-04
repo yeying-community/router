@@ -16,6 +16,7 @@ import { formatDecimalNumber } from '../../helpers/render';
 import UnitDropdown from '../../components/UnitDropdown';
 import {
   AppButton,
+  AppCompact,
   AppDetailSection,
   AppField,
   AppFilterHeader,
@@ -186,6 +187,15 @@ const resolvePackageYYCAmount = (row, type) => {
   return Number(row?.package_emergency_quota_limit ?? 0);
 };
 
+const ensureUnitOption = (options, value) => {
+  const normalized = (value || '').toString().trim().toUpperCase();
+  const items = Array.isArray(options) ? options : [];
+  if (!normalized || items.some((item) => item?.value === normalized)) {
+    return items;
+  }
+  return [...items, { value: normalized, label: normalized }];
+};
+
 const PackageDetail = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -221,6 +231,11 @@ const PackageDetail = () => {
   const billingUnitOptions = useMemo(
     () => buildBillingUnitOptions(currencyIndex),
     [currencyIndex],
+  );
+
+  const saleCurrencyOptions = useMemo(
+    () => ensureUnitOption(displayUnitOptions, form.sale_currency || 'CNY'),
+    [displayUnitOptions, form.sale_currency],
   );
 
   const selectedVisibleUsers = useMemo(
@@ -661,32 +676,38 @@ const PackageDetail = () => {
 
       <AppFormRow>
         <AppField label={t('package_manage.form.sale_price')}>
-          <AppInputNumber
-            className='router-section-input'
-            min={0}
-            step={0.01}
-            precision={2}
-            fluid
-            value={form.sale_price}
-            onChange={(e, { value }) =>
-              setForm((prev) => ({ ...prev, sale_price: value ?? '0' }))
-            }
-          />
+          <AppCompact className='router-section-input-with-unit' block>
+            <AppInputNumber
+              className='router-section-input router-section-input-with-unit-field'
+              min={0}
+              step={0.01}
+              precision={2}
+              fluid
+              value={form.sale_price}
+              onChange={(e, { value }) =>
+                setForm((prev) => ({ ...prev, sale_price: value ?? '0' }))
+              }
+            />
+            <UnitDropdown
+              variant='inputUnit'
+              options={saleCurrencyOptions}
+              value={form.sale_currency || 'CNY'}
+              onChange={(_, { value }) =>
+                setForm((prev) => ({
+                  ...prev,
+                  sale_currency: (value || 'CNY').toString().trim().toUpperCase(),
+                }))
+              }
+              aria-label={t('package_manage.form.sale_currency')}
+            />
+          </AppCompact>
         </AppField>
-        <AppField label={t('package_manage.form.sale_currency')}>
-          <AppInput
-            className='router-section-input'
-            value={form.sale_currency}
-            onChange={(e, { value }) =>
-              setForm((prev) => ({ ...prev, sale_currency: (value || 'CNY').toUpperCase() }))
-            }
-          />
-        </AppField>
+        <AppField />
       </AppFormRow>
 
       <AppFormRow>
         <AppField label={t('package_manage.form.daily_quota_limit')}>
-          <div className='router-section-input-with-unit'>
+          <AppCompact className='router-section-input-with-unit' block>
             <AppInputNumber
               className='router-section-input router-section-input-with-unit-field'
               value={form.daily_amount}
@@ -718,10 +739,10 @@ const PackageDetail = () => {
               }}
               aria-label={t('package_manage.form.daily_quota_limit')}
             />
-          </div>
+          </AppCompact>
         </AppField>
         <AppField label={t('package_manage.form.package_emergency_quota_limit')}>
-          <div className='router-section-input-with-unit'>
+          <AppCompact className='router-section-input-with-unit' block>
             <AppInputNumber
               className='router-section-input router-section-input-with-unit-field'
               value={form.emergency_amount}
@@ -756,7 +777,7 @@ const PackageDetail = () => {
               }}
               aria-label={t('package_manage.form.package_emergency_quota_limit')}
             />
-          </div>
+          </AppCompact>
         </AppField>
       </AppFormRow>
 
@@ -883,19 +904,28 @@ const PackageDetail = () => {
                         </AppFormRow>
                         <AppFormRow>
                           <AppField label={t('package_manage.form.sale_price')} readOnly>
-                            <AppInput
-                              className='router-section-input'
-                              value={`${detail?.sale_currency || 'CNY'} ${detail?.sale_price ?? 0}`}
-                              readOnly
-                            />
+                            <AppCompact className='router-section-input-with-unit' block>
+                              <AppInputNumber
+                                className='router-section-input router-section-input-with-unit-field'
+                                value={detail?.sale_price ?? 0}
+                                precision={2}
+                                readOnly
+                                fluid
+                              />
+                              <UnitDropdown
+                                variant='inputUnit'
+                                options={ensureUnitOption(displayUnitOptions, detail?.sale_currency || 'CNY')}
+                                value={detail?.sale_currency || 'CNY'}
+                                disabled
+                                aria-label={t('package_manage.form.sale_currency')}
+                              />
+                            </AppCompact>
                           </AppField>
-                          <AppField label={t('package_manage.form.sale_currency')} readOnly>
-                            <AppInput className='router-section-input' value={detail?.sale_currency || 'CNY'} readOnly />
-                          </AppField>
+                          <AppField />
                         </AppFormRow>
                         <AppFormRow>
                           <AppField label={t('package_manage.table.daily_quota_limit')} readOnly>
-                            <div className='router-section-input-with-unit'>
+                            <AppCompact className='router-section-input-with-unit' block>
                               <AppInput
                                 className='router-section-input router-section-input-with-unit-field'
                                 value={renderPackageAmountValue(
@@ -914,10 +944,10 @@ const PackageDetail = () => {
                                 }
                                 aria-label={t('package_manage.table.daily_quota_limit')}
                               />
-                            </div>
+                            </AppCompact>
                           </AppField>
                           <AppField label={t('package_manage.table.package_emergency_quota_limit')} readOnly>
-                            <div className='router-section-input-with-unit'>
+                            <AppCompact className='router-section-input-with-unit' block>
                               <AppInput
                                 className='router-section-input router-section-input-with-unit-field'
                                 value={renderPackageAmountValue(
@@ -936,7 +966,7 @@ const PackageDetail = () => {
                                 }
                                 aria-label={t('package_manage.table.package_emergency_quota_limit')}
                               />
-                            </div>
+                            </AppCompact>
                           </AppField>
                         </AppFormRow>
                         <AppFormRow>

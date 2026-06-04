@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
+import UnitDropdown from '../../../components/UnitDropdown';
 import {
   AppAlert,
   AppButton,
+  AppCompact,
   AppDetailSection,
   AppField,
   AppFormActions,
@@ -22,6 +24,20 @@ const buildManualQuotaItem = () => ({
   currency: 'USD',
   expires_at_input: '',
 });
+
+const MANUAL_CURRENCY_OPTIONS = ['USD', 'CNY', 'YYC'].map((value) => ({
+  value,
+  label: value,
+}));
+
+const ensureUnitOption = (options, value) => {
+  const normalized = (value || '').toString().trim().toUpperCase();
+  const items = Array.isArray(options) ? options : [];
+  if (!normalized || items.some((option) => option?.value === normalized)) {
+    return items;
+  }
+  return [...items, { value: normalized, label: normalized }];
+};
 
 const resourceTypeOptions = (t) => [
   { value: 'quota', label: t('channel.edit.billing.resource_types.quota') },
@@ -461,30 +477,32 @@ const ChannelDetailBillingTab = ({
             />
           </AppField>
           <AppField label={t('channel.edit.billing.manual_quota_amount')} required>
-            <AppInputNumber
-              className='router-section-input'
-              fluid
-              value={item.amount}
-              min={0}
-              onChange={(e, { value }) =>
-                updateManualItem(index, {
-                  amount: value,
-                })
-              }
-              disabled={billingReadonly || billingSubmitting}
-            />
-          </AppField>
-          <AppField label={t('channel.edit.billing.currency')}>
-            <AppInput
-              className='router-section-input'
-              value={item.currency}
-              onChange={(e, { value }) =>
-                updateManualItem(index, {
-                  currency: (value || '').toString(),
-                })
-              }
-              readOnly={billingReadonly || billingSubmitting}
-            />
+            <AppCompact className='router-section-input-with-unit' block>
+              <AppInputNumber
+                className='router-section-input router-section-input-with-unit-field'
+                fluid
+                value={item.amount}
+                min={0}
+                onChange={(e, { value }) =>
+                  updateManualItem(index, {
+                    amount: value,
+                  })
+                }
+                disabled={billingReadonly || billingSubmitting}
+              />
+              <UnitDropdown
+                variant='inputUnit'
+                options={ensureUnitOption(MANUAL_CURRENCY_OPTIONS, item.currency || 'USD')}
+                value={item.currency || 'USD'}
+                onChange={(_, { value }) =>
+                  updateManualItem(index, {
+                    currency: (value || 'USD').toString().trim().toUpperCase(),
+                  })
+                }
+                disabled={billingReadonly || billingSubmitting}
+                aria-label={t('channel.edit.billing.currency')}
+              />
+            </AppCompact>
           </AppField>
           <AppField label={t('channel.edit.billing.manual_quota_expires_at')}>
             <AppInput

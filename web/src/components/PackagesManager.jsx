@@ -20,6 +20,7 @@ import {
 import UnitDropdown from './UnitDropdown';
 import {
   AppButton,
+  AppCompact,
   AppField,
   AppFilterHeader,
   AppFormActions,
@@ -184,6 +185,15 @@ const resolvePackageYYCAmount = (row, type) => {
   return Number(row?.package_emergency_quota_limit ?? 0);
 };
 
+const ensureUnitOption = (options, value) => {
+  const normalized = (value || '').toString().trim().toUpperCase();
+  const items = Array.isArray(options) ? options : [];
+  if (!normalized || items.some((item) => item?.value === normalized)) {
+    return items;
+  }
+  return [...items, { value: normalized, label: normalized }];
+};
+
 const renderPackageAmountFieldValue = (row, type, displayUnit, currencyIndex) => {
   const normalizedYYCAmount = resolvePackageYYCAmount(row, type);
   if (!Number.isFinite(normalizedYYCAmount)) {
@@ -228,6 +238,11 @@ const PackagesManager = () => {
   const billingUnitOptions = useMemo(
     () => buildBillingUnitOptions(currencyIndex),
     [currencyIndex]
+  );
+
+  const saleCurrencyOptions = useMemo(
+    () => ensureUnitOption(displayUnitOptions, form.sale_currency || 'CNY'),
+    [displayUnitOptions, form.sale_currency]
   );
 
   const selectedVisibleUsers = useMemo(
@@ -992,32 +1007,38 @@ const PackagesManager = () => {
 
       <AppFormRow>
         <AppField label={t('package_manage.form.sale_price')}>
-          <AppInputNumber
-            className='router-section-input'
-            min={0}
-            step={0.01}
-            precision={2}
-            fluid
-            value={form.sale_price}
-            onChange={(e, { value }) =>
-              setForm((prev) => ({ ...prev, sale_price: value ?? '0' }))
-            }
-          />
+          <AppCompact className='router-section-input-with-unit' block>
+            <AppInputNumber
+              className='router-section-input router-section-input-with-unit-field'
+              min={0}
+              step={0.01}
+              precision={2}
+              fluid
+              value={form.sale_price}
+              onChange={(e, { value }) =>
+                setForm((prev) => ({ ...prev, sale_price: value ?? '0' }))
+              }
+            />
+            <UnitDropdown
+              variant='inputUnit'
+              options={saleCurrencyOptions}
+              value={form.sale_currency || 'CNY'}
+              onChange={(_, { value }) =>
+                setForm((prev) => ({
+                  ...prev,
+                  sale_currency: (value || 'CNY').toString().trim().toUpperCase(),
+                }))
+              }
+              aria-label={t('package_manage.form.sale_currency')}
+            />
+          </AppCompact>
         </AppField>
-        <AppField label={t('package_manage.form.sale_currency')}>
-          <AppInput
-            className='router-section-input'
-            value={form.sale_currency}
-            onChange={(e, { value }) =>
-              setForm((prev) => ({ ...prev, sale_currency: (value || 'CNY').toUpperCase() }))
-            }
-          />
-        </AppField>
+        <AppField />
       </AppFormRow>
 
       <AppFormRow>
         <AppField label={t('package_manage.form.daily_quota_limit')}>
-          <div className='router-section-input-with-unit'>
+          <AppCompact className='router-section-input-with-unit' block>
             <AppInputNumber
               className='router-section-input router-section-input-with-unit-field'
               value={form.daily_amount}
@@ -1049,10 +1070,10 @@ const PackagesManager = () => {
               }}
               aria-label={t('package_manage.form.daily_quota_limit')}
             />
-          </div>
+          </AppCompact>
         </AppField>
         <AppField label={t('package_manage.form.package_emergency_quota_limit')}>
-          <div className='router-section-input-with-unit'>
+          <AppCompact className='router-section-input-with-unit' block>
             <AppInputNumber
               className='router-section-input router-section-input-with-unit-field'
               value={form.emergency_amount}
@@ -1090,7 +1111,7 @@ const PackagesManager = () => {
               }}
               aria-label={t('package_manage.form.package_emergency_quota_limit')}
             />
-          </div>
+          </AppCompact>
         </AppField>
       </AppFormRow>
 

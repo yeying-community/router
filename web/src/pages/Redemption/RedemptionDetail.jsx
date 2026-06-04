@@ -18,6 +18,7 @@ import {
 import UnitDropdown from '../../components/UnitDropdown';
 import {
   AppButton,
+  AppCompact,
   AppDetailSection,
   AppField,
   AppFilterHeader,
@@ -429,7 +430,7 @@ const RedemptionDetail = () => {
 	                <AppFormRow>
 	                  {isEditing ? (
 	                    <AppField label={t('redemption.edit.face_value_amount')}>
-	                      <div className='router-section-input-with-unit'>
+	                      <AppCompact className='router-section-input-with-unit' block>
 	                        <AppInputNumber
 	                          className='router-section-input router-section-input-with-unit-field'
 	                          fluid
@@ -448,7 +449,7 @@ const RedemptionDetail = () => {
 	                          value={inputs.face_value_unit}
 	                          onChange={handleInputChange}
 	                        />
-	                      </div>
+	                      </AppCompact>
 	                    </AppField>
 	                  ) : (
 	                    <AppField label={t('redemption.table.face_value')} readOnly>

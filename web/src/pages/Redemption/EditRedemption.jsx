@@ -10,6 +10,7 @@ import { formatYYCValue } from '../../helpers/render';
 import UnitDropdown from '../../components/UnitDropdown';
 import {
   AppButton,
+  AppCompact,
   AppDetailSection,
   AppField,
   AppFilterHeader,
@@ -264,7 +265,7 @@ const EditRedemption = () => {
             </AppFormRow>
             <AppFormRow>
               <AppField label={t('redemption.edit.face_value_amount')}>
-                <div className='router-section-input-with-unit'>
+                <AppCompact className='router-section-input-with-unit' block>
                   <AppInputNumber
                     className='router-section-input router-section-input-with-unit-field'
                     name='face_value_amount'
@@ -284,7 +285,7 @@ const EditRedemption = () => {
                     value={face_value_unit}
                     onChange={handleInputChange}
                   />
-                </div>
+                </AppCompact>
               </AppField>
             </AppFormRow>
             <AppFormRow>

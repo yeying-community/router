@@ -21,6 +21,7 @@ import UnitDropdown from './UnitDropdown';
 import {
   AppAlert,
   AppButton,
+  AppCompact,
   AppDivider,
   AppField,
   AppFilterHeader,
@@ -486,7 +487,7 @@ const OperationSetting = ({ section = '' }) => {
       label={t(labelKey)}
       hint={descriptionKey ? t(descriptionKey) : ''}
     >
-      <div className='router-section-input-with-unit'>
+      <AppCompact className='router-section-input-with-unit' block>
         <AppInputNumber
           className='router-section-input router-section-input-with-unit-field'
           value={inputs[optionKey] ?? '0'}
@@ -524,7 +525,7 @@ const OperationSetting = ({ section = '' }) => {
           }}
           aria-label={t(labelKey)}
         />
-      </div>
+      </AppCompact>
     </AppField>
   );
 

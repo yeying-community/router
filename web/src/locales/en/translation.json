@@ -1725,8 +1725,8 @@
     "detail": {
       "title": "User Detail",
       "user_id": "User ID",
-      "package_mode_title": "Package Status",
-      "balance_mode_title": "Balance Status",
+      "package_mode_title": "Package",
+      "balance_mode_title": "Balance",
       "remaining_amount": "Remaining",
       "used_amount": "Used",
       "request_count_hint": "Total requests",
