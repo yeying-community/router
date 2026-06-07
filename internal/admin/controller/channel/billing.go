@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -189,13 +190,28 @@ func resolveChannelBillingAPIBaseURL(channel *model.Channel, profile model.Chann
 	if channel == nil {
 		return ""
 	}
-	if apiBaseURL := strings.TrimSpace(profile.ParseBillingConfig().APIBaseURL); apiBaseURL != "" {
-		return strings.TrimRight(apiBaseURL, "/")
+	return normalizeChannelBillingAPIBaseURL(profile.ParseBillingConfig().APIBaseURL)
+}
+
+func normalizeChannelBillingAPIBaseURL(raw string) string {
+	trimmed := strings.TrimRight(strings.TrimSpace(raw), "/")
+	if trimmed == "" {
+		return ""
 	}
-	return strings.TrimRight(channel.ResolveAPIBaseURL(""), "/")
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return ""
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return ""
+	}
+	return trimmed
 }
 
 func fetchChannelBillingResponseBody(method, url string, channel *model.Channel, headers http.Header) ([]byte, error) {
+	if client.HTTPClient == nil {
+		return nil, errors.New("HTTP client is not initialized")
+	}
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return nil, err
@@ -753,7 +769,11 @@ func refreshAllChannelsBilling() error {
 		if !shouldRefreshChannelBillingInBatch(channel, circuitStateByChannelID) {
 			continue
 		}
-		profile, _ := model.GetChannelBillingProfileByChannelIDWithDB(model.DB, channel.Id)
+		profile, err := model.GetChannelBillingProfileByChannelIDWithDB(model.DB, channel.Id)
+		if err != nil {
+			time.Sleep(config.RequestInterval)
+			continue
+		}
 		if _, err := refreshAndPersistChannelBillingEntitlements(channel, profile, "批量自动刷新账务"); err != nil {
 			time.Sleep(config.RequestInterval)
 			continue

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/admin/monitor"
 	channelsvc "github.com/yeying-community/router/internal/admin/service/channel"
+	"gorm.io/gorm"
 )
 
 type channelModelTestTaskPayload struct {
@@ -369,7 +371,13 @@ func executeChannelRefreshBillingTask(task *model.AsyncTask) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	profile, _ := model.GetChannelBillingProfileByChannelIDWithDB(model.DB, channelID)
+	profile, err := model.GetChannelBillingProfileByChannelIDWithDB(model.DB, channelID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", fmt.Errorf("渠道账务未配置")
+		}
+		return "", err
+	}
 	primaryAmount, err := refreshAndPersistChannelBillingEntitlements(channelRow, profile, "自动刷新账务")
 	if err != nil {
 		return "", err

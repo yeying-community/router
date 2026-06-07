@@ -79,14 +79,14 @@ func Run() {
 		logger.SysLog("metric enabled, will disable channel if too much request failed")
 		monitor.StartMetricMonitor()
 	}
+	openai.InitTokenEncoders()
+	client.Init()
 	if config.IsMasterNode {
 		task.StartAsyncTaskWorkers()
 		billingsvc.StartFXAutoSyncWorker()
 		billingsvc.StartChannelBillingAutoRefreshWorker()
 		topupsvc.StartTopupReconcileWorker()
 	}
-	openai.InitTokenEncoders()
-	client.Init()
 
 	// Initialize i18n
 	if err := i18n.Init(); err != nil {
