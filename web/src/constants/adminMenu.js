@@ -24,6 +24,11 @@ export const ADMIN_MENU_GROUPS = [
         to: '/admin/dashboard?section=models',
         icon: 'cube',
       },
+      {
+        name: 'dashboard.admin.nav.alerts',
+        to: '/admin/alerts',
+        icon: 'heartbeat',
+      },
     ],
   },
   {

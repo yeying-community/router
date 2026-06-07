@@ -32,14 +32,19 @@ import Redemption from './pages/Redemption';
 import EditRedemption from './pages/Redemption/EditRedemption';
 import RedemptionDetail from './pages/Redemption/RedemptionDetail';
 import AdminTopup from './pages/AdminTopup';
-import Task from './pages/Task';
-import TaskDetail from './pages/Task/Detail';
+import AdminChannelTaskPage from './pages/Task/AdminChannelTaskPage';
+import AdminChannelTaskDetailPage from './pages/Task/AdminChannelTaskDetailPage';
+import AdminUserTaskPage from './pages/Task/AdminUserTaskPage';
+import AdminUserTaskDetailPage from './pages/Task/AdminUserTaskDetailPage';
+import WorkspaceTaskPage from './pages/Task/WorkspaceTaskPage';
+import WorkspaceTaskDetailPage from './pages/Task/WorkspaceTaskDetailPage';
 import FlowPage from './pages/Flow';
 import TopupReconcileDetail from './pages/Flow/TopupReconcileDetail';
 import TopupDetail from './pages/Flow/TopupDetail';
 import PackageFlowDetail from './pages/Flow/PackageDetail';
 import RedemptionFlowDetail from './pages/Flow/RedemptionDetail';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminAlerts from './pages/AdminAlerts';
 import Providers from './pages/Providers';
 
 const RegisterForm = lazy(() => import('./components/RegisterForm'));
@@ -456,7 +461,7 @@ function App() {
           path='/workspace/task'
           element={
             <Suspense fallback={<Loading />}>
-              <Task />
+              <WorkspaceTaskPage />
             </Suspense>
           }
         />
@@ -464,7 +469,7 @@ function App() {
           path='/workspace/task/:id'
           element={
             <Suspense fallback={<Loading />}>
-              <TaskDetail />
+              <WorkspaceTaskDetailPage />
             </Suspense>
           }
         />
@@ -513,11 +518,11 @@ function App() {
         />
         <Route
           path='/admin/channel/tasks'
-          element={<Task />}
+          element={<AdminChannelTaskPage />}
         />
         <Route
           path='/admin/channel/tasks/:id'
-          element={<TaskDetail />}
+          element={<AdminChannelTaskDetailPage />}
         />
         <Route
           path='/admin/channel/edit/:id'
@@ -628,6 +633,10 @@ function App() {
           element={<AdminDashboard />}
         />
         <Route
+          path='/admin/alerts'
+          element={<AdminAlerts />}
+        />
+        <Route
           path='/admin/log'
           element={<Log />}
         />
@@ -637,11 +646,11 @@ function App() {
         />
         <Route
           path='/admin/task'
-          element={<Task />}
+          element={<AdminUserTaskPage />}
         />
         <Route
           path='/admin/task/:id'
-          element={<TaskDetail />}
+          element={<AdminUserTaskDetailPage />}
         />
         <Route
           path='/admin/setting'

@@ -32,6 +32,44 @@
     "chat": "聊天",
     "admin_workspace": "管理工作区",
     "user_workspace": "用户工作区",
+    "messages": {
+      "title": "消息",
+      "empty": "暂无消息",
+      "empty_filtered": "当前分类下暂无消息",
+      "mark_all_read": "全部已读",
+      "filter_all": "全部",
+      "filter_platform": "平台消息",
+      "filter_notification": "告警通知",
+      "view_details": "查看处理",
+      "unread_count": "未读 {{count}} 条",
+      "notice_title": "站点公告",
+      "notice_source": "系统公告",
+      "channel_alert_title": "渠道告警",
+      "channel_alert_source": "渠道账务告警",
+      "circuit_breaker_title": "渠道熔断事件",
+      "circuit_breaker_source": "渠道熔断",
+      "circuit_breaker_open_title": "渠道已熔断",
+      "circuit_breaker_half_open_title": "渠道进入半开恢复",
+      "circuit_breaker_recovered_title": "渠道已恢复",
+      "circuit_breaker_canceled_title": "渠道已取消熔断",
+      "circuit_breaker_no_reason": "请查看渠道详情",
+      "channel_endpoint_disabled_title": "渠道端点已摘除",
+      "channel_endpoint_disabled_source": "渠道端点摘除",
+      "channel_endpoint_disabled_no_reason": "请查看端点详情",
+      "channel_endpoint_disabled_by": "摘除来源",
+      "channel_model_disabled_title": "渠道模型已摘除",
+      "channel_model_disabled_source": "渠道模型摘除",
+      "channel_model_disabled_no_reason": "请查看模型详情",
+      "channel_model_disabled_by": "摘除来源",
+      "task_source_admin": "系统任务",
+      "task_source_user": "我的任务",
+      "admin_task_failed_title": "渠道任务失败",
+      "admin_task_running_title": "渠道任务进行中",
+      "user_task_failed_title": "任务失败",
+      "user_task_running_title": "任务进行中",
+      "user_task_failed_summary": "请查看任务详情",
+      "user_task_running_summary": "结果生成中"
+    },
     "get_started": "开通服务",
     "login": "登录",
     "logout": "退出",
@@ -1042,6 +1080,8 @@
         "model_tests_required": "请先完成模型测试并确保当前端点测试通过：{{models}}",
         "create_channel_failed": "创建渠道失败",
         "save_channel_failed": "保存渠道失败",
+        "load_failed": "加载渠道失败",
+        "channel_not_found": "该渠道不存在或已被删除，已返回渠道列表",
         "fetch_models_failed": "获取模型失败",
         "models_empty": "未返回可用模型",
         "model_config_invalid": "模型配置无效，请检查模型别名是否为空或重复，价格覆盖是否为非负数。",
@@ -2063,7 +2103,8 @@
         "spending": "收支",
         "channels": "渠道",
         "users": "用户",
-        "models": "模型"
+        "models": "模型",
+        "alerts": "告警"
       },
       "period": {
         "label": "统计周期"
@@ -2093,6 +2134,15 @@
           "placeholder": "搜索用户名或用户 ID",
           "submit": "搜索",
           "reset": "清空"
+        },
+        "dialog": {
+          "acknowledge_title": "确认告警",
+          "resolve_title": "恢复告警",
+          "note_placeholder": "补充处理说明、定位结果或恢复原因"
+        },
+        "meta": {
+          "acknowledged": "处理人：{{actor}} · 确认于 {{time}}",
+          "resolved": "处理人：{{actor}} · 恢复于 {{time}}"
         },
         "columns": {
           "rank": "排名",
@@ -2131,6 +2181,75 @@
           "risk_hint": "健康度已落入风险，或当前测试通过率低于 80% 的渠道。",
           "latency": "延迟异常渠道",
           "latency_hint": "当前平均延迟达到 8 秒及以上的渠道。"
+        }
+      },
+      "alerts": {
+        "title": "活跃告警",
+        "description": "汇总渠道账务异常、熔断事件以及模型/端点摘除，集中进入处理流程。",
+        "empty": "当前没有活跃告警",
+        "active_count": "当前 {{count}} 条",
+        "page_count": "当前页 {{page_count}} 条 / 共 {{total_count}} 条",
+        "filters": {
+          "status": {
+            "all": "全部",
+            "active": "活跃",
+            "unacknowledged": "未确认",
+            "acknowledged": "已确认",
+            "resolved": "已恢复"
+          },
+          "search": {
+            "placeholder": "搜索渠道、事件或备注",
+            "submit": "搜索",
+            "reset": "清空"
+          },
+          "time": {
+            "all": "全部时间",
+            "last_24h": "近 24 小时",
+            "last_7d": "近 7 天",
+            "last_30d": "近 30 天"
+          },
+          "type": {
+            "all": "全部类型"
+          },
+          "level": {
+            "all": "全部级别"
+          }
+        },
+        "columns": {
+          "level": "级别",
+          "event": "事件",
+          "channel": "渠道",
+          "summary": "摘要",
+          "time": "发生时间",
+          "actions": "处理"
+        },
+        "actions": {
+          "view_channel": "查看渠道",
+          "acknowledge": "标记已确认",
+          "acknowledged": "已确认",
+          "resolve": "标记已恢复"
+        },
+        "status": {
+          "active": "处理中",
+          "acknowledged": "已确认",
+          "resolved": "已恢复"
+        },
+        "note_prefix": "备注：",
+        "level": {
+          "critical": "严重",
+          "warning": "提醒",
+          "info": "信息"
+        },
+        "types": {
+          "billing": "账务刷新告警",
+          "model_disabled": "模型已摘除",
+          "endpoint_disabled": "端点已摘除"
+        },
+        "type_labels": {
+          "billing": "账务",
+          "circuit": "熔断",
+          "model_disabled": "模型",
+          "endpoint_disabled": "端点"
         }
       },
       "spending": {

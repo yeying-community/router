@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserContext } from '../context/User';
 import { StatusContext } from '../context/Status';
+import HeaderMessageCenter from './HeaderMessageCenter';
 import { API, getLogo, isAdmin, isMobile } from '../helpers';
 import { WEB3_TOKEN_STORAGE_KEY } from '../helpers/web3';
 import { logoutWallet } from '../services/web3Auth';
@@ -230,6 +231,7 @@ const Header = ({ workspace = 'user', hideNavButtons = false }) => {
               <img src={logo} alt='logo' />
             </a>
             <div className='router-header-actions'>
+              <HeaderMessageCenter />
               <button
                 type='button'
                 className='router-header-mobile-toggle'
@@ -401,6 +403,7 @@ const Header = ({ workspace = 'user', hideNavButtons = false }) => {
               </AppMenuDropdown>
             </div>
           )}
+          <HeaderMessageCenter />
           <div className='router-header-dropdown router-header-trigger'>
             <AppMenuDropdown
               items={languageOptions.map((option) => ({

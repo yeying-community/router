@@ -32,6 +32,7 @@ import {
   AppTooltip,
   AppToolbar,
 } from '../../router-ui';
+import AdminChannelAlertsPanel from '../../components/AdminChannelAlertsPanel';
 import '../Dashboard/Dashboard.css';
 import './AdminDashboard.css';
 
@@ -318,6 +319,10 @@ const AdminDashboard = () => {
   }, [activeSection, period, usageKeyword]);
 
   useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleRefresh = useCallback(() => {
     loadData();
   }, [loadData]);
 
@@ -774,7 +779,7 @@ const AdminDashboard = () => {
           type='button'
           aria-label={t('dashboard.admin.buttons.refresh')}
           loading={loading}
-          onClick={loadData}
+          onClick={handleRefresh}
           icon={<AppIcon name='exchange' />}
         />
       </AppTooltip>
@@ -1224,6 +1229,7 @@ const AdminDashboard = () => {
               <span>{t('dashboard.admin.health.chart.legend_coverage')}</span>
               <span>{t('dashboard.admin.health.chart.legend_latency')}</span>
             </div>
+            <AdminChannelAlertsPanel embedded />
           </>
         )}
       </div>

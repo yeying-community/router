@@ -259,6 +259,123 @@
   padding-top: 14px;
 }
 
+.admin-dashboard-alerts-block {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.admin-dashboard-alerts-header {
+  margin-bottom: 10px;
+}
+
+.admin-dashboard-alert-filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-dashboard-alert-filter-selects {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-dashboard-alert-search {
+  min-width: 220px;
+}
+
+.admin-dashboard-alert-filter-selects .router-ui-select.router-section-dropdown,
+.admin-dashboard-alert-filter-selects .router-ui-select.router-section-dropdown .ant-select-selector {
+  min-height: 32px !important;
+  height: 32px !important;
+}
+
+.admin-dashboard-alert-filter-selects .router-ui-select.router-section-dropdown {
+  min-width: 132px;
+}
+
+.admin-dashboard-alerts-count {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-dashboard-alert-table .ant-table-tbody > tr > td {
+  vertical-align: top;
+}
+
+.admin-dashboard-alert-title-cell,
+.admin-dashboard-alert-summary-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-dashboard-alert-title {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.admin-dashboard-alert-type,
+.admin-dashboard-alert-detail {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-dashboard-alert-summary {
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.admin-dashboard-alert-note {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.admin-dashboard-alert-meta {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-dashboard-alert-state {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.admin-dashboard-alert-dialog-hint {
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.admin-dashboard-alert-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-dashboard-alert-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .admin-dashboard-subsection-header {
   display: flex;
   align-items: flex-start;

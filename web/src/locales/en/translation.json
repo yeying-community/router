@@ -32,6 +32,44 @@
     "chat": "Chat",
     "admin_workspace": "Admin Workspace",
     "user_workspace": "User Workspace",
+    "messages": {
+      "title": "Messages",
+      "empty": "No messages",
+      "empty_filtered": "No messages in this category",
+      "mark_all_read": "Mark all read",
+      "filter_all": "All",
+      "filter_platform": "Platform",
+      "filter_notification": "Alerts",
+      "view_details": "Open",
+      "unread_count": "{{count}} unread",
+      "notice_title": "Site Announcement",
+      "notice_source": "System notice",
+      "channel_alert_title": "Channel alert",
+      "channel_alert_source": "Channel billing alert",
+      "circuit_breaker_title": "Channel circuit breaker event",
+      "circuit_breaker_source": "Channel circuit breaker",
+      "circuit_breaker_open_title": "Channel opened circuit breaker",
+      "circuit_breaker_half_open_title": "Channel entered half-open recovery",
+      "circuit_breaker_recovered_title": "Channel recovered",
+      "circuit_breaker_canceled_title": "Channel canceled circuit breaker",
+      "circuit_breaker_no_reason": "Open channel details for more information",
+      "channel_endpoint_disabled_title": "Channel endpoint disabled",
+      "channel_endpoint_disabled_source": "Channel endpoint disable",
+      "channel_endpoint_disabled_no_reason": "Open endpoint details for more information",
+      "channel_endpoint_disabled_by": "Disabled by",
+      "channel_model_disabled_title": "Channel model disabled",
+      "channel_model_disabled_source": "Channel model disable",
+      "channel_model_disabled_no_reason": "Open model details for more information",
+      "channel_model_disabled_by": "Disabled by",
+      "task_source_admin": "System task",
+      "task_source_user": "My task",
+      "admin_task_failed_title": "Channel task failed",
+      "admin_task_running_title": "Channel task running",
+      "user_task_failed_title": "Task failed",
+      "user_task_running_title": "Task running",
+      "user_task_failed_summary": "Open task details for more information",
+      "user_task_running_summary": "Result is still being generated"
+    },
     "get_started": "Activate Service",
     "login": "Login",
     "logout": "Logout",
@@ -1042,6 +1080,8 @@
         "model_tests_required": "Please complete model tests and ensure current endpoints are supported: {{models}}",
         "create_channel_failed": "Failed to create channel",
         "save_channel_failed": "Failed to save channel",
+        "load_failed": "Failed to load channel",
+        "channel_not_found": "This channel does not exist or has been deleted. Returned to the channel list.",
         "fetch_models_failed": "Failed to fetch models",
         "models_empty": "No available models were returned",
         "model_config_invalid": "Invalid model configuration. Check alias emptiness or duplicates, and ensure price overrides are non-negative.",
@@ -2063,7 +2103,8 @@
         "spending": "Spending",
         "channels": "Channels",
         "users": "Users",
-        "models": "Models"
+        "models": "Models",
+        "alerts": "Alerts"
       },
       "period": {
         "label": "Period"
@@ -2093,6 +2134,15 @@
           "placeholder": "Search username or user ID",
           "submit": "Search",
           "reset": "Clear"
+        },
+        "dialog": {
+          "acknowledge_title": "Acknowledge Alert",
+          "resolve_title": "Resolve Alert",
+          "note_placeholder": "Add handling details, diagnosis, or recovery notes"
+        },
+        "meta": {
+          "acknowledged": "Handled by {{actor}} · Acknowledged at {{time}}",
+          "resolved": "Handled by {{actor}} · Resolved at {{time}}"
         },
         "columns": {
           "rank": "Rank",
@@ -2131,6 +2181,75 @@
           "risk_hint": "Channels already in critical health, or whose current test pass rate is below 80%.",
           "latency": "High-Latency Channels",
           "latency_hint": "Channels whose current average latency is 8 seconds or higher."
+        }
+      },
+      "alerts": {
+        "title": "Active Alerts",
+        "description": "Aggregate billing anomalies, circuit breaker events, and model or endpoint disablements into one handling queue.",
+        "empty": "There are no active alerts right now",
+        "active_count": "{{count}} active",
+        "page_count": "{{page_count}} on this page / {{total_count}} total",
+        "filters": {
+          "status": {
+            "all": "All",
+            "active": "Active",
+            "unacknowledged": "Unacknowledged",
+            "acknowledged": "Acknowledged",
+            "resolved": "Resolved"
+          },
+          "search": {
+            "placeholder": "Search channel, event, or note",
+            "submit": "Search",
+            "reset": "Clear"
+          },
+          "time": {
+            "all": "All Time",
+            "last_24h": "Last 24 Hours",
+            "last_7d": "Last 7 Days",
+            "last_30d": "Last 30 Days"
+          },
+          "type": {
+            "all": "All Types"
+          },
+          "level": {
+            "all": "All Levels"
+          }
+        },
+        "columns": {
+          "level": "Level",
+          "event": "Event",
+          "channel": "Channel",
+          "summary": "Summary",
+          "time": "Occurred At",
+          "actions": "Actions"
+        },
+        "actions": {
+          "view_channel": "View Channel",
+          "acknowledge": "Acknowledge",
+          "acknowledged": "Acknowledged",
+          "resolve": "Resolve"
+        },
+        "status": {
+          "active": "Active",
+          "acknowledged": "Acknowledged",
+          "resolved": "Resolved"
+        },
+        "note_prefix": "Note: ",
+        "level": {
+          "critical": "Critical",
+          "warning": "Warning",
+          "info": "Info"
+        },
+        "types": {
+          "billing": "Billing Refresh Alert",
+          "model_disabled": "Model Disabled",
+          "endpoint_disabled": "Endpoint Disabled"
+        },
+        "type_labels": {
+          "billing": "Billing",
+          "circuit": "Circuit",
+          "model_disabled": "Model",
+          "endpoint_disabled": "Endpoint"
         }
       },
       "spending": {
