@@ -6,11 +6,10 @@ import {
   AppButton,
   AppDescriptions,
   AppDrawer,
+  AppFilterHeader,
   AppInput,
   AppModal,
   AppPagination,
-  AppSection,
-  AppSegmented,
   AppSelect,
   AppTag,
   AppTable,
@@ -70,6 +69,10 @@ function AdminChannelAlertsPanel({ embedded = false }) {
   const [keywordInput, setKeywordInput] = useState('');
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
+  const [tableSorter, setTableSorter] = useState({
+    columnKey: 'createdAt',
+    order: 'descend',
+  });
   const pageSize = embedded ? 20 : 20;
 
   const loadAlertItems = useCallback(async () => {
@@ -279,6 +282,65 @@ function AdminChannelAlertsPanel({ embedded = false }) {
 
   const displayAlertItems = alertItems;
 
+  const compareTextValue = useCallback((left, right) => {
+    return String(left || '').localeCompare(String(right || ''));
+  }, []);
+
+  const compareNumberValue = useCallback((left, right) => {
+    return Number(left || 0) - Number(right || 0);
+  }, []);
+
+  const sortedAlertItems = useMemo(() => {
+    const items = [...displayAlertItems];
+    const { columnKey, order } = tableSorter;
+    if (!columnKey || !order) {
+      return items;
+    }
+    items.sort((left, right) => {
+      let result = 0;
+      switch (columnKey) {
+        case 'level':
+          result = compareTextValue(
+            normalizeAlertLevel(left?.level),
+            normalizeAlertLevel(right?.level),
+          );
+          break;
+        case 'title':
+          result = compareTextValue(left?.title, right?.title);
+          break;
+        case 'type':
+          result = compareTextValue(left?.type, right?.type);
+          break;
+        case 'channelName':
+          result = compareTextValue(
+            left?.channelName || left?.channelId,
+            right?.channelName || right?.channelId,
+          );
+          break;
+        case 'summary':
+          result = compareTextValue(left?.summary, right?.summary);
+          break;
+        case 'status':
+          result = compareTextValue(left?.status, right?.status);
+          break;
+        case 'createdAt':
+        default:
+          result = compareNumberValue(left?.createdAt, right?.createdAt);
+          break;
+      }
+      return order === 'ascend' ? result : -result;
+    });
+    return items;
+  }, [compareNumberValue, compareTextValue, displayAlertItems, tableSorter]);
+
+  const handleTableChange = useCallback((pagination, filters, sorter) => {
+    const normalizedSorter = Array.isArray(sorter) ? sorter[0] : sorter;
+    setTableSorter({
+      columnKey: normalizedSorter?.columnKey || 'createdAt',
+      order: normalizedSorter?.order || 'descend',
+    });
+  }, []);
+
   const totalPages = useMemo(() => {
     if (embedded) return 1;
     const normalizedTotal = Number(total || 0);
@@ -357,46 +419,65 @@ function AdminChannelAlertsPanel({ embedded = false }) {
         title: t('dashboard.admin.alerts.columns.level'),
         dataIndex: 'level',
         key: 'level',
-        width: 116,
+        columnKey: 'level',
+        width: 88,
+        sorter: true,
+        sortDirections: ['ascend', 'descend'],
+        sortOrder: tableSorter.columnKey === 'level' ? tableSorter.order : null,
         render: (_, record) => renderAlertLevelTag(record.level),
       },
       {
         title: t('dashboard.admin.alerts.columns.event'),
         dataIndex: 'title',
         key: 'title',
-        width: 180,
+        columnKey: 'title',
+        width: 220,
+        sorter: true,
+        sortDirections: ['ascend', 'descend'],
+        sortOrder: tableSorter.columnKey === 'title' ? tableSorter.order : null,
         render: (_, record) => (
           <div className='admin-dashboard-alert-title-cell'>
-            <button
-              type='button'
-              className='admin-dashboard-alert-detail-trigger'
-              onClick={() => openDetailDrawer(record)}
-            >
-              {record.title || '-'}
-            </button>
-            <div className='admin-dashboard-alert-type'>
-              {t(`dashboard.admin.alerts.type_labels.${record.type}`, {
-                defaultValue: record.type || '-',
-              })}
-            </div>
+            <div className='admin-dashboard-alert-event-text'>{record.title || '-'}</div>
           </div>
+        ),
+      },
+      {
+        title: t('dashboard.admin.alerts.columns.type'),
+        dataIndex: 'type',
+        key: 'type',
+        columnKey: 'type',
+        width: 104,
+        sorter: true,
+        sortDirections: ['ascend', 'descend'],
+        sortOrder: tableSorter.columnKey === 'type' ? tableSorter.order : null,
+        render: (_, record) => (
+          <AppTag className='router-tag'>
+            {t(`dashboard.admin.alerts.type_labels.${record.type}`, {
+              defaultValue: record.type || '-',
+            })}
+          </AppTag>
         ),
       },
       {
         title: t('dashboard.admin.alerts.columns.channel'),
         dataIndex: 'channelName',
         key: 'channelName',
+        columnKey: 'channelName',
         width: 180,
         ellipsis: true,
+        sorter: true,
+        sortDirections: ['ascend', 'descend'],
+        sortOrder: tableSorter.columnKey === 'channelName' ? tableSorter.order : null,
         render: (_, record) =>
           record.channelId ? (
             <button
               type='button'
               className='admin-dashboard-user-link'
               title={record.channelName || record.channelId || '-'}
-              onClick={() =>
-                navigate(`/admin/channel/detail/${encodeURIComponent(record.channelId)}`)
-              }
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/admin/channel/detail/${encodeURIComponent(record.channelId)}`);
+              }}
             >
               {record.channelName || record.channelId || '-'}
             </button>
@@ -408,7 +489,11 @@ function AdminChannelAlertsPanel({ embedded = false }) {
         title: t('dashboard.admin.alerts.columns.summary'),
         dataIndex: 'summary',
         key: 'summary',
+        columnKey: 'summary',
         ellipsis: true,
+        sorter: true,
+        sortDirections: ['ascend', 'descend'],
+        sortOrder: tableSorter.columnKey === 'summary' ? tableSorter.order : null,
         render: (_, record) => (
           <div className='admin-dashboard-alert-summary-cell'>
             <div className='admin-dashboard-alert-summary'>{record.summary || '-'}</div>
@@ -434,37 +519,29 @@ function AdminChannelAlertsPanel({ embedded = false }) {
         title: t('dashboard.admin.alerts.columns.time'),
         dataIndex: 'createdAt',
         key: 'createdAt',
+        columnKey: 'createdAt',
         width: 180,
+        sorter: true,
+        sortDirections: ['ascend', 'descend'],
+        sortOrder: tableSorter.columnKey === 'createdAt' ? tableSorter.order : null,
         render: (value) => formatUpdatedAt(value),
       },
       {
         title: t('dashboard.admin.alerts.columns.actions'),
         key: 'actions',
-        width: 280,
+        width: 168,
         render: (_, record) => (
           <div className='admin-dashboard-alert-actions'>
             <AppButton
-              type='button'
-              className='router-inline-button'
-              onClick={() => openDetailDrawer(record)}
-            >
-              {t('dashboard.admin.alerts.actions.view_detail')}
-            </AppButton>
-            <AppButton
-              type='button'
-              className='router-inline-button'
-              onClick={() =>
-                navigate(`/admin/channel/detail/${encodeURIComponent(record.channelId)}`)
-              }
-            >
-              {t('dashboard.admin.alerts.actions.view_channel')}
-            </AppButton>
-            <AppButton
               color='blue'
               type='button'
+              className='router-inline-button'
               loading={acknowledgingAlertID === record.id}
               disabled={record.status === 'acknowledged' || resolvingAlertID === record.id}
-              onClick={() => openNoteModal('acknowledge', record)}
+              onClick={(event) => {
+                event.stopPropagation();
+                openNoteModal('acknowledge', record);
+              }}
             >
               {record.status === 'acknowledged'
                 ? t('dashboard.admin.alerts.actions.acknowledged')
@@ -475,7 +552,10 @@ function AdminChannelAlertsPanel({ embedded = false }) {
               className='router-inline-button'
               loading={resolvingAlertID === record.id}
               disabled={record.status !== 'acknowledged' || acknowledgingAlertID === record.id}
-              onClick={() => openNoteModal('resolve', record)}
+              onClick={(event) => {
+                event.stopPropagation();
+                openNoteModal('resolve', record);
+              }}
             >
               {t('dashboard.admin.alerts.actions.resolve')}
             </AppButton>
@@ -492,90 +572,110 @@ function AdminChannelAlertsPanel({ embedded = false }) {
       renderAlertLevelTag,
       renderAlertMeta,
       resolvingAlertID,
+      tableSorter,
       t,
     ],
   );
 
-  const content = (
-    <div className={embedded ? 'admin-dashboard-alerts-block' : ''}>
-      <div className='admin-dashboard-subsection-header admin-dashboard-alerts-header'>
-        <div className='admin-dashboard-subsection-header-main'>
-          <div className='admin-dashboard-subsection-title admin-dashboard-subsection-title-strong'>
-            {t('dashboard.admin.alerts.title')}
-          </div>
-          <div className='admin-dashboard-subsection-description'>
-            {t('dashboard.admin.alerts.description')}
-          </div>
-        </div>
-        <div className='admin-dashboard-alerts-count'>
-          {embedded
-            ? t('dashboard.admin.alerts.active_count', { count: displayAlertItems.length })
-            : t('dashboard.admin.alerts.page_count', {
-                page_count: displayAlertItems.length,
-                total_count: total,
-              })}
-        </div>
-      </div>
-      {!embedded ? (
-        <div className='admin-dashboard-alert-filters'>
-          <AppSegmented
-            className='admin-dashboard-segmented'
-            options={statusOptions}
-            value={statusFilter}
-            onChange={(_, event) => {
-              setStatusFilter(event?.value || 'all');
-            }}
-          />
-          <div className='admin-dashboard-alert-filter-selects'>
-            <div className='router-list-toolbar-query router-list-toolbar-query-compact'>
-              <AppInput
-                className='admin-dashboard-alert-search'
-                value={keywordInput}
-                placeholder={t('dashboard.admin.alerts.filters.search.placeholder')}
-                onChange={(e, { value }) => setKeywordInput(value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setKeyword(String(keywordInput || '').trim());
-                  }
-                }}
-              />
-              <AppButton color='blue' type='button' onClick={() => setKeyword(String(keywordInput || '').trim())}>
-                {t('dashboard.admin.alerts.filters.search.submit')}
-              </AppButton>
-              {keyword ? (
-                <AppButton
-                  type='button'
-                  className='router-inline-button'
-                  onClick={() => {
-                    setKeywordInput('');
-                    setKeyword('');
-                  }}
-                >
-                  {t('dashboard.admin.alerts.filters.search.reset')}
-                </AppButton>
-              ) : null}
-            </div>
-            <AppSelect
-              className='router-section-dropdown'
-              options={timeOptions}
-              value={timeFilter}
-              onChange={(e, { value }) => setTimeFilter(value)}
-            />
-            <AppSelect
-              className='router-section-dropdown'
-              options={typeOptions}
-              value={typeFilter}
-              onChange={(e, { value }) => setTypeFilter(value)}
-            />
-            <AppSelect
-              className='router-section-dropdown'
-              options={levelOptions}
-              value={levelFilter}
-              onChange={(e, { value }) => setLevelFilter(value)}
-            />
-          </div>
-        </div>
+  const selectorControls = !embedded ? (
+    <div className='admin-dashboard-alert-filter-selects admin-dashboard-alert-filter-selects-left'>
+      <AppSelect
+        className='router-section-dropdown'
+        options={statusOptions.map((item) => ({
+          key: item.value,
+          value: item.value,
+          text: item.label,
+        }))}
+        value={statusFilter}
+        onChange={(e, { value }) => setStatusFilter(value)}
+      />
+      <AppSelect
+        className='router-section-dropdown'
+        options={timeOptions}
+        value={timeFilter}
+        onChange={(e, { value }) => setTimeFilter(value)}
+      />
+      <AppSelect
+        className='router-section-dropdown'
+        options={typeOptions}
+        value={typeFilter}
+        onChange={(e, { value }) => setTypeFilter(value)}
+      />
+      <AppSelect
+        className='router-section-dropdown'
+        options={levelOptions}
+        value={levelFilter}
+        onChange={(e, { value }) => setLevelFilter(value)}
+      />
+    </div>
+  ) : null;
+
+  const searchControls = !embedded ? (
+    <div className='admin-dashboard-alert-search-controls'>
+      <AppInput
+        className='admin-dashboard-alert-search'
+        value={keywordInput}
+        placeholder={t('dashboard.admin.alerts.filters.search.placeholder')}
+        onChange={(e, { value }) => setKeywordInput(value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            setKeyword(String(keywordInput || '').trim());
+          }
+        }}
+      />
+      <AppButton
+        color='blue'
+        type='button'
+        className='router-page-button'
+        onClick={() => setKeyword(String(keywordInput || '').trim())}
+      >
+        {t('dashboard.admin.alerts.filters.search.submit')}
+      </AppButton>
+      {keyword ? (
+        <AppButton
+          type='button'
+          className='router-page-button'
+          onClick={() => {
+            setKeywordInput('');
+            setKeyword('');
+          }}
+        >
+          {t('dashboard.admin.alerts.filters.search.reset')}
+        </AppButton>
       ) : null}
+    </div>
+  ) : null;
+
+  const countLabel = embedded
+    ? t('dashboard.admin.alerts.active_count', { count: displayAlertItems.length })
+    : t('dashboard.admin.alerts.page_count', {
+        page_count: displayAlertItems.length,
+        total_count: total,
+      });
+
+  const content = (
+    <div className={embedded ? 'admin-dashboard-alerts-block' : 'admin-dashboard-alerts-list'}>
+      {embedded ? (
+        <div className='admin-dashboard-subsection-header admin-dashboard-alerts-header'>
+          <div className='admin-dashboard-subsection-header-main'>
+            <div className='admin-dashboard-subsection-title admin-dashboard-subsection-title-strong'>
+              {t('dashboard.admin.alerts.title')}
+            </div>
+            <div className='admin-dashboard-subsection-description'>
+              {t('dashboard.admin.alerts.description')}
+            </div>
+          </div>
+          <div className='admin-dashboard-alerts-count'>{countLabel}</div>
+        </div>
+      ) : (
+        <AppFilterHeader
+          className='admin-dashboard-alert-list-toolbar'
+          title={t('dashboard.admin.alerts.title')}
+          meta={countLabel}
+          picker={selectorControls}
+          end={searchControls}
+        />
+      )}
       {loading ? (
         <div className='admin-dashboard-empty'>{t('common.loading')}</div>
       ) : displayAlertItems.length === 0 ? (
@@ -583,14 +683,25 @@ function AdminChannelAlertsPanel({ embedded = false }) {
           {t('dashboard.admin.alerts.empty')}
         </div>
       ) : (
-        <AppTable
-          className='admin-dashboard-alert-table'
-          columns={alertColumns}
-          dataSource={displayAlertItems}
-          pagination={false}
-          rowKey='id'
-          scroll={{ x: 1160 }}
-        />
+        <div className='router-table-scroll-x'>
+          <AppTable
+            className={
+              embedded
+                ? 'admin-dashboard-alert-table'
+                : 'router-hover-table router-list-table router-table-fit-page admin-dashboard-alert-table'
+            }
+            columns={alertColumns}
+            dataSource={sortedAlertItems}
+            pagination={false}
+            rowKey='id'
+            onChange={handleTableChange}
+            onRow={(record) => ({
+              className: 'router-row-clickable',
+              onClick: () => openDetailDrawer(record),
+            })}
+            scroll={{ x: 1040 }}
+          />
+        </div>
       )}
       {!embedded && totalPages > 1 ? (
         <div className='router-pagination-wrap'>
@@ -688,7 +799,7 @@ function AdminChannelAlertsPanel({ embedded = false }) {
       open={!!detailAlert}
       onClose={closeDetailDrawer}
       placement='right'
-      width={520}
+      size='large'
       title={detailAlert?.title || t('dashboard.admin.alerts.detail.title')}
       className='admin-dashboard-alert-detail-drawer'
     >
@@ -828,7 +939,7 @@ function AdminChannelAlertsPanel({ embedded = false }) {
 
   return (
     <>
-      <AppSection className='admin-dashboard-section'>{content}</AppSection>
+      {content}
       {detailDrawer}
       <AppModal
         open={noteModal.open}
