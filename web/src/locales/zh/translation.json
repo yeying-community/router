@@ -2224,10 +2224,25 @@
           "actions": "处理"
         },
         "actions": {
+          "view_detail": "查看详情",
           "view_channel": "查看渠道",
           "acknowledge": "标记已确认",
           "acknowledged": "已确认",
           "resolve": "标记已恢复"
+        },
+        "detail": {
+          "title": "告警详情",
+          "type": "类型",
+          "level": "级别",
+          "status": "状态",
+          "occurred_at": "发生时间",
+          "channel": "渠道",
+          "channel_id": "渠道 ID",
+          "acknowledged": "确认记录",
+          "resolved": "恢复记录",
+          "summary": "摘要",
+          "reason": "详细原因",
+          "note": "处理备注"
         },
         "status": {
           "active": "处理中",

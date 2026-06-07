@@ -2224,10 +2224,25 @@
           "actions": "Actions"
         },
         "actions": {
+          "view_detail": "View Details",
           "view_channel": "View Channel",
           "acknowledge": "Acknowledge",
           "acknowledged": "Acknowledged",
           "resolve": "Resolve"
+        },
+        "detail": {
+          "title": "Alert Details",
+          "type": "Type",
+          "level": "Level",
+          "status": "Status",
+          "occurred_at": "Occurred At",
+          "channel": "Channel",
+          "channel_id": "Channel ID",
+          "acknowledged": "Acknowledgement",
+          "resolved": "Resolution",
+          "summary": "Summary",
+          "reason": "Details",
+          "note": "Operator Note"
         },
         "status": {
           "active": "Active",

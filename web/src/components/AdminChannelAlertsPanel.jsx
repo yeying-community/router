@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { API } from '../helpers/api';
 import {
   AppButton,
+  AppDescriptions,
+  AppDrawer,
   AppInput,
   AppModal,
   AppPagination,
@@ -60,6 +62,7 @@ function AdminChannelAlertsPanel({ embedded = false }) {
     alert: null,
     note: '',
   });
+  const [detailAlert, setDetailAlert] = useState(null);
   const [statusFilter, setStatusFilter] = useState(embedded ? 'active' : 'all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
@@ -141,6 +144,14 @@ function AdminChannelAlertsPanel({ embedded = false }) {
       note: '',
     });
   }, [acknowledgingAlertID, resolvingAlertID]);
+
+  const openDetailDrawer = useCallback((alert) => {
+    setDetailAlert(alert || null);
+  }, []);
+
+  const closeDetailDrawer = useCallback(() => {
+    setDetailAlert(null);
+  }, []);
 
   const submitNoteAction = useCallback(async () => {
     const action = String(noteModal?.action || '').trim();
@@ -356,7 +367,13 @@ function AdminChannelAlertsPanel({ embedded = false }) {
         width: 180,
         render: (_, record) => (
           <div className='admin-dashboard-alert-title-cell'>
-            <div className='admin-dashboard-alert-title'>{record.title || '-'}</div>
+            <button
+              type='button'
+              className='admin-dashboard-alert-detail-trigger'
+              onClick={() => openDetailDrawer(record)}
+            >
+              {record.title || '-'}
+            </button>
             <div className='admin-dashboard-alert-type'>
               {t(`dashboard.admin.alerts.type_labels.${record.type}`, {
                 defaultValue: record.type || '-',
@@ -429,6 +446,13 @@ function AdminChannelAlertsPanel({ embedded = false }) {
             <AppButton
               type='button'
               className='router-inline-button'
+              onClick={() => openDetailDrawer(record)}
+            >
+              {t('dashboard.admin.alerts.actions.view_detail')}
+            </AppButton>
+            <AppButton
+              type='button'
+              className='router-inline-button'
               onClick={() =>
                 navigate(`/admin/channel/detail/${encodeURIComponent(record.channelId)}`)
               }
@@ -464,6 +488,7 @@ function AdminChannelAlertsPanel({ embedded = false }) {
       formatUpdatedAt,
       navigate,
       openNoteModal,
+      openDetailDrawer,
       renderAlertLevelTag,
       renderAlertMeta,
       resolvingAlertID,
@@ -584,10 +609,174 @@ function AdminChannelAlertsPanel({ embedded = false }) {
     </div>
   );
 
+  const detailDescriptionItems = useMemo(() => {
+    if (!detailAlert) {
+      return [];
+    }
+    return [
+      {
+        key: 'type',
+        label: t('dashboard.admin.alerts.detail.type'),
+        value: t(`dashboard.admin.alerts.type_labels.${detailAlert.type}`, {
+          defaultValue: detailAlert.type || '-',
+        }),
+      },
+      {
+        key: 'level',
+        label: t('dashboard.admin.alerts.detail.level'),
+        value: t(`dashboard.admin.alerts.level.${normalizeAlertLevel(detailAlert.level)}`),
+      },
+      {
+        key: 'status',
+        label: t('dashboard.admin.alerts.detail.status'),
+        value:
+          detailAlert.status === 'acknowledged'
+            ? t('dashboard.admin.alerts.status.acknowledged')
+            : detailAlert.status === 'resolved'
+              ? t('dashboard.admin.alerts.status.resolved')
+              : t('dashboard.admin.alerts.status.active'),
+      },
+      {
+        key: 'time',
+        label: t('dashboard.admin.alerts.detail.occurred_at'),
+        value: formatUpdatedAt(detailAlert.createdAt || detailAlert.created_at),
+      },
+      {
+        key: 'channel',
+        label: t('dashboard.admin.alerts.detail.channel'),
+        value: detailAlert.channelName || detailAlert.channelId || '-',
+      },
+      {
+        key: 'channel_id',
+        label: t('dashboard.admin.alerts.detail.channel_id'),
+        value: detailAlert.channelId || detailAlert.channel_id || '-',
+      },
+      {
+        key: 'ack',
+        label: t('dashboard.admin.alerts.detail.acknowledged'),
+        value:
+          String(detailAlert.acknowledgedBy || detailAlert.acknowledged_by || '').trim() === ''
+            ? '-'
+            : t('dashboard.admin.alerts.meta.acknowledged', {
+                actor:
+                  String(detailAlert.acknowledgedBy || detailAlert.acknowledged_by || '').trim() ||
+                  '-',
+                time: formatActorTimestampLabel(
+                  Number(detailAlert.acknowledgedAt || detailAlert.acknowledged_at || 0),
+                ),
+              }),
+      },
+      {
+        key: 'resolved',
+        label: t('dashboard.admin.alerts.detail.resolved'),
+        value:
+          String(detailAlert.resolvedBy || detailAlert.resolved_by || '').trim() === ''
+            ? '-'
+            : t('dashboard.admin.alerts.meta.resolved', {
+                actor:
+                  String(detailAlert.resolvedBy || detailAlert.resolved_by || '').trim() || '-',
+                time: formatActorTimestampLabel(
+                  Number(detailAlert.resolvedAt || detailAlert.resolved_at || 0),
+                ),
+              }),
+      },
+    ];
+  }, [detailAlert, formatUpdatedAt, t]);
+
+  const detailDrawer = (
+    <AppDrawer
+      open={!!detailAlert}
+      onClose={closeDetailDrawer}
+      placement='right'
+      width={520}
+      title={detailAlert?.title || t('dashboard.admin.alerts.detail.title')}
+      className='admin-dashboard-alert-detail-drawer'
+    >
+      <div className='router-page-stack'>
+        <AppDescriptions
+          items={detailDescriptionItems}
+          column={1}
+        />
+        <div className='admin-dashboard-alert-detail-block'>
+          <div className='admin-dashboard-alert-detail-heading'>
+            {t('dashboard.admin.alerts.detail.summary')}
+          </div>
+          <div className='admin-dashboard-alert-detail-content'>
+            {detailAlert?.summary || '-'}
+          </div>
+        </div>
+        <div className='admin-dashboard-alert-detail-block'>
+          <div className='admin-dashboard-alert-detail-heading'>
+            {t('dashboard.admin.alerts.detail.reason')}
+          </div>
+          <div className='admin-dashboard-alert-detail-content'>
+            {detailAlert?.detail || '-'}
+          </div>
+        </div>
+        <div className='admin-dashboard-alert-detail-block'>
+          <div className='admin-dashboard-alert-detail-heading'>
+            {t('dashboard.admin.alerts.detail.note')}
+          </div>
+          <div className='admin-dashboard-alert-detail-content'>
+            {detailAlert?.operatorNote || detailAlert?.operator_note || '-'}
+          </div>
+        </div>
+        <div className='admin-dashboard-alert-detail-actions'>
+          <AppButton
+            type='button'
+            className='router-inline-button'
+            onClick={() => {
+              closeDetailDrawer();
+              navigate(`/admin/channel/detail/${encodeURIComponent(detailAlert?.channelId || '')}`);
+            }}
+            disabled={!detailAlert?.channelId}
+          >
+            {t('dashboard.admin.alerts.actions.view_channel')}
+          </AppButton>
+          <AppButton
+            color='blue'
+            type='button'
+            disabled={
+              !detailAlert ||
+              detailAlert.status === 'acknowledged' ||
+              resolvingAlertID === detailAlert.id
+            }
+            loading={acknowledgingAlertID === detailAlert?.id}
+            onClick={() => {
+              closeDetailDrawer();
+              openNoteModal('acknowledge', detailAlert);
+            }}
+          >
+            {detailAlert?.status === 'acknowledged'
+              ? t('dashboard.admin.alerts.actions.acknowledged')
+              : t('dashboard.admin.alerts.actions.acknowledge')}
+          </AppButton>
+          <AppButton
+            type='button'
+            className='router-inline-button'
+            disabled={
+              !detailAlert ||
+              detailAlert.status !== 'acknowledged' ||
+              acknowledgingAlertID === detailAlert.id
+            }
+            loading={resolvingAlertID === detailAlert?.id}
+            onClick={() => {
+              closeDetailDrawer();
+              openNoteModal('resolve', detailAlert);
+            }}
+          >
+            {t('dashboard.admin.alerts.actions.resolve')}
+          </AppButton>
+        </div>
+      </div>
+    </AppDrawer>
+  );
+
   if (embedded) {
     return (
       <>
         {content}
+        {detailDrawer}
         <AppModal
           open={noteModal.open}
           onClose={closeNoteModal}
@@ -640,6 +829,7 @@ function AdminChannelAlertsPanel({ embedded = false }) {
   return (
     <>
       <AppSection className='admin-dashboard-section'>{content}</AppSection>
+      {detailDrawer}
       <AppModal
         open={noteModal.open}
         onClose={closeNoteModal}
