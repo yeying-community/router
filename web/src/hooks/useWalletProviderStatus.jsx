@@ -1,50 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import * as web3bs from '@yeying-community/web3-bs';
+import {
+  getAccounts,
+  getChainId,
+  getProvider,
+  watchAccounts,
+  watchProvider,
+} from '@yeying-community/web3-bs';
 
 import { normalizeChainId } from '../services/web3Auth';
 
 const PROVIDER_DETECT_TIMEOUT_MS = 1200;
-
-const watchProviderCompat = (handler, options) => {
-  if (typeof web3bs.watchProvider === 'function') {
-    return web3bs.watchProvider(handler, options);
-  }
-  let stopped = false;
-  let lastProvider;
-  const emit = () => {
-    if (stopped) return;
-    const provider = window.ethereum || null;
-    if (provider === lastProvider) return;
-    lastProvider = provider;
-    handler({ provider, present: Boolean(provider) });
-  };
-  const handleProviderReady = () => emit();
-  window.addEventListener('ethereum#initialized', handleProviderReady);
-  window.addEventListener('eip6963:announceProvider', handleProviderReady);
-  try {
-    window.dispatchEvent(new Event('eip6963:requestProvider'));
-  } catch (error) {
-    // Ignore unsupported discovery events.
-  }
-  emit();
-  return () => {
-    stopped = true;
-    window.removeEventListener('ethereum#initialized', handleProviderReady);
-    window.removeEventListener('eip6963:announceProvider', handleProviderReady);
-  };
-};
-
-const watchAccountsCompat = (provider, handler) => {
-  if (typeof web3bs.watchAccounts === 'function') {
-    return web3bs.watchAccounts(provider, handler);
-  }
-  const handleAccountsChanged = (accounts) => {
-    const nextAccounts = Array.isArray(accounts) ? accounts : [];
-    handler({ account: nextAccounts[0] || null, accounts: nextAccounts });
-  };
-  provider.on?.('accountsChanged', handleAccountsChanged);
-  return () => provider.removeListener?.('accountsChanged', handleAccountsChanged);
-};
 
 export function useWalletProviderStatus({
   onAccountsChanged,
@@ -82,8 +47,8 @@ export function useWalletProviderStatus({
 
     try {
       const [accounts, chainId] = await Promise.all([
-        web3bs.getAccounts(provider),
-        web3bs.getChainId(provider).catch(() => ''),
+        getAccounts(provider),
+        getChainId(provider).catch(() => ''),
       ]);
       const normalizedChainId = normalizeChainId(chainId);
       setStatus({
@@ -117,7 +82,7 @@ export function useWalletProviderStatus({
         return;
       }
 
-      const stopWatchingAccounts = watchAccountsCompat(provider, ({ account, accounts }) => {
+      const stopWatchingAccounts = watchAccounts(provider, ({ accounts }) => {
         const nextAccounts = Array.isArray(accounts) ? accounts : [];
         setStatus((previous) => ({
           ...previous,
@@ -183,7 +148,7 @@ export function useWalletProviderStatus({
     }
     setStatus((previous) => ({ ...previous, detecting: true }));
     detectInFlightRef.current = (async () => {
-      const provider = await web3bs.getProvider({
+      const provider = await getProvider({
         preferYeYing: true,
         timeoutMs: PROVIDER_DETECT_TIMEOUT_MS,
       });
@@ -200,7 +165,7 @@ export function useWalletProviderStatus({
 
   useEffect(() => {
     let active = true;
-    cleanupProviderWatcherRef.current = watchProviderCompat(
+    cleanupProviderWatcherRef.current = watchProvider(
       ({ provider }) => {
         if (!active) return;
         bindProviderListeners(provider);
