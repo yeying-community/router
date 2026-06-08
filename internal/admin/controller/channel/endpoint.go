@@ -34,6 +34,16 @@ type channelEndpointItem struct {
 	EnableBlockReason string `json:"enable_block_reason,omitempty"`
 }
 
+type channelRecentDisabledEndpointFeedItem struct {
+	model.ChannelModelEndpoint
+	ChannelName string `json:"channel_name"`
+}
+
+type channelRecentDisabledEndpointFeedData struct {
+	Items []channelRecentDisabledEndpointFeedItem `json:"items"`
+	Total int                                     `json:"total"`
+}
+
 func GetChannelEndpoints(c *gin.Context) {
 	channelID := strings.TrimSpace(c.Param("id"))
 	if channelID == "" {
@@ -129,6 +139,61 @@ func GetChannelEndpoints(c *gin.Context) {
 		"data": gin.H{
 			"items": items,
 			"total": len(items),
+		},
+	})
+}
+
+func GetRecentDisabledChannelEndpoints(c *gin.Context) {
+	rows, err := model.ListRecentDisabledChannelModelEndpointsWithDB(model.DB, 20)
+	if err != nil {
+		logChannelAdminWarn(c, "list_recent_disabled_endpoints", stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	channelIDs := make([]string, 0, len(rows))
+	seen := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		channelID := strings.TrimSpace(row.ChannelId)
+		if channelID == "" {
+			continue
+		}
+		if _, ok := seen[channelID]; ok {
+			continue
+		}
+		seen[channelID] = struct{}{}
+		channelIDs = append(channelIDs, channelID)
+	}
+	channelNameByID := make(map[string]string, len(channelIDs))
+	if len(channelIDs) > 0 {
+		channels := make([]model.Channel, 0, len(channelIDs))
+		if err := model.DB.Select("id", "name").Where("id IN ?", channelIDs).Find(&channels).Error; err != nil {
+			logChannelAdminWarn(c, "list_recent_disabled_endpoints", stringField("reason", err.Error()))
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+		for _, channelRow := range channels {
+			channelNameByID[strings.TrimSpace(channelRow.Id)] = strings.TrimSpace(channelRow.DisplayName())
+		}
+	}
+	items := make([]channelRecentDisabledEndpointFeedItem, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, channelRecentDisabledEndpointFeedItem{
+			ChannelModelEndpoint: row,
+			ChannelName:          channelNameByID[strings.TrimSpace(row.ChannelId)],
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": channelRecentDisabledEndpointFeedData{
+			Items: items,
+			Total: len(items),
 		},
 	})
 }

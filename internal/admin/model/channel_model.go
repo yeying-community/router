@@ -128,6 +128,27 @@ func ListChannelModelUsageReferencesWithDB(db *gorm.DB, channelID string, modelN
 	return result, nil
 }
 
+func ListRecentDisabledChannelModelsWithDB(db *gorm.DB, limit int) ([]ChannelModel, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	rows := make([]ChannelModel, 0, limit)
+	if err := db.
+		Where("inactive = ? AND disabled_at > 0", true).
+		Order("disabled_at desc, updated_at desc, channel_id asc, sort_order asc, model asc").
+		Limit(limit).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return NormalizeChannelModelsPreserveOrder(rows), nil
+}
+
 func FormatChannelModelUsageReferences(usages []ChannelModelUsageReference) string {
 	if len(usages) == 0 {
 		return ""

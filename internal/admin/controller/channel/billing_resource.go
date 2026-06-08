@@ -46,6 +46,11 @@ type channelBillingListData[T any] struct {
 	Total int `json:"total"`
 }
 
+type channelBillingAlertFeedItem struct {
+	model.ChannelBillingAlertEvent
+	ChannelName string `json:"channel_name"`
+}
+
 type channelBillingOpenActivateRequest struct {
 	CDK string `json:"cdk"`
 }
@@ -228,6 +233,55 @@ func GetChannelBillingAlerts(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": channelBillingListData[model.ChannelBillingAlertEvent]{Items: rows, Total: len(rows)}})
+}
+
+func GetRecentChannelBillingAlerts(c *gin.Context) {
+	rows, err := model.ListRecentChannelBillingAlertEventsWithDB(model.DB, 20)
+	if err != nil {
+		logChannelAdminWarn(c, "list_recent_billing_alerts", stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	channelIDs := make([]string, 0, len(rows))
+	seen := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		channelID := strings.TrimSpace(row.ChannelId)
+		if channelID == "" {
+			continue
+		}
+		if _, ok := seen[channelID]; ok {
+			continue
+		}
+		seen[channelID] = struct{}{}
+		channelIDs = append(channelIDs, channelID)
+	}
+	channelNameByID := make(map[string]string, len(channelIDs))
+	if len(channelIDs) > 0 {
+		channels := make([]model.Channel, 0, len(channelIDs))
+		if err := model.DB.Select("id", "name").Where("id IN ?", channelIDs).Find(&channels).Error; err != nil {
+			logChannelAdminWarn(c, "list_recent_billing_alerts", stringField("reason", err.Error()))
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		for _, channelRow := range channels {
+			channelNameByID[strings.TrimSpace(channelRow.Id)] = strings.TrimSpace(channelRow.DisplayName())
+		}
+	}
+	items := make([]channelBillingAlertFeedItem, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, channelBillingAlertFeedItem{
+			ChannelBillingAlertEvent: row,
+			ChannelName:              channelNameByID[strings.TrimSpace(row.ChannelId)],
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": channelBillingListData[channelBillingAlertFeedItem]{
+			Items: items,
+			Total: len(items),
+		},
+	})
 }
 
 func UpdateChannelBillingProfile(c *gin.Context) {

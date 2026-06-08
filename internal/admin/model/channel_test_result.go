@@ -307,6 +307,26 @@ func ListChannelTestsByChannelIDWithDB(db *gorm.DB, channelID string) ([]Channel
 	return NormalizeChannelTestRows(rowsByChannelID[normalizedChannelID]), nil
 }
 
+func ListRecentFailedChannelTestsWithDB(db *gorm.DB, limit int) ([]ChannelTest, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	rows := make([]ChannelTest, 0, limit)
+	if err := db.Where("status IN ?", []string{ChannelTestStatusUnsupported, "failed"}).
+		Order("tested_at desc, round desc, sort_order asc").
+		Limit(limit).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return NormalizeChannelTestRows(rows), nil
+}
+
 // ListLatestChannelTestSupportByChannelIDsWithDB returns latest endpoint test support by
 // channel + model + endpoint.
 // The returned map shape is:

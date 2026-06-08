@@ -127,6 +127,23 @@ func ListChannelCircuitBreakerEventsWithDB(db *gorm.DB, channelID string, limit 
 	return rows, err
 }
 
+func ListRecentChannelCircuitBreakerEventsWithDB(db *gorm.DB, limit int) ([]ChannelCircuitBreakerEvent, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	rows := make([]ChannelCircuitBreakerEvent, 0, limit)
+	err := db.Order("created_at desc, id desc").
+		Limit(limit).
+		Find(&rows).Error
+	return rows, err
+}
+
 func recordChannelCircuitBreakerOpenWithDB(db *gorm.DB, channelID string, reason string, successRate float64, recoverAfter int64) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")

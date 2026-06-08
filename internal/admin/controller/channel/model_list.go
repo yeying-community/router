@@ -169,6 +169,65 @@ func GetChannelModels(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": data})
 }
 
+type channelRecentDisabledModelFeedItem struct {
+	model.ChannelModel
+	ChannelName string `json:"channel_name"`
+}
+
+type channelRecentDisabledModelFeedData struct {
+	Items []channelRecentDisabledModelFeedItem `json:"items"`
+	Total int                                  `json:"total"`
+}
+
+func GetRecentDisabledChannelModels(c *gin.Context) {
+	rows, err := model.ListRecentDisabledChannelModelsWithDB(model.DB, 20)
+	if err != nil {
+		logChannelAdminWarn(c, "list_recent_disabled_models", stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	channelIDs := make([]string, 0, len(rows))
+	seen := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		channelID := strings.TrimSpace(row.ChannelId)
+		if channelID == "" {
+			continue
+		}
+		if _, ok := seen[channelID]; ok {
+			continue
+		}
+		seen[channelID] = struct{}{}
+		channelIDs = append(channelIDs, channelID)
+	}
+	channelNameByID := make(map[string]string, len(channelIDs))
+	if len(channelIDs) > 0 {
+		channels := make([]model.Channel, 0, len(channelIDs))
+		if err := model.DB.Select("id", "name").Where("id IN ?", channelIDs).Find(&channels).Error; err != nil {
+			logChannelAdminWarn(c, "list_recent_disabled_models", stringField("reason", err.Error()))
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		for _, channelRow := range channels {
+			channelNameByID[strings.TrimSpace(channelRow.Id)] = strings.TrimSpace(channelRow.DisplayName())
+		}
+	}
+	items := make([]channelRecentDisabledModelFeedItem, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, channelRecentDisabledModelFeedItem{
+			ChannelModel: row,
+			ChannelName:  channelNameByID[strings.TrimSpace(row.ChannelId)],
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": channelRecentDisabledModelFeedData{
+			Items: items,
+			Total: len(items),
+		},
+	})
+}
+
 func UpdateChannelModels(c *gin.Context) {
 	channelID := strings.TrimSpace(c.Param("id"))
 	if channelID == "" {
@@ -266,4 +325,63 @@ func GetChannelTests(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": data})
+}
+
+type channelRecentFailedTestFeedItem struct {
+	model.ChannelTest
+	ChannelName string `json:"channel_name"`
+}
+
+type channelRecentFailedTestFeedData struct {
+	Items []channelRecentFailedTestFeedItem `json:"items"`
+	Total int                               `json:"total"`
+}
+
+func GetRecentFailedChannelTests(c *gin.Context) {
+	rows, err := model.ListRecentFailedChannelTestsWithDB(model.DB, 20)
+	if err != nil {
+		logChannelAdminWarn(c, "list_recent_failed_tests", stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	channelIDs := make([]string, 0, len(rows))
+	seen := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		channelID := strings.TrimSpace(row.ChannelId)
+		if channelID == "" {
+			continue
+		}
+		if _, ok := seen[channelID]; ok {
+			continue
+		}
+		seen[channelID] = struct{}{}
+		channelIDs = append(channelIDs, channelID)
+	}
+	channelNameByID := make(map[string]string, len(channelIDs))
+	if len(channelIDs) > 0 {
+		channels := make([]model.Channel, 0, len(channelIDs))
+		if err := model.DB.Select("id", "name").Where("id IN ?", channelIDs).Find(&channels).Error; err != nil {
+			logChannelAdminWarn(c, "list_recent_failed_tests", stringField("reason", err.Error()))
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		for _, channelRow := range channels {
+			channelNameByID[strings.TrimSpace(channelRow.Id)] = strings.TrimSpace(channelRow.DisplayName())
+		}
+	}
+	items := make([]channelRecentFailedTestFeedItem, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, channelRecentFailedTestFeedItem{
+			ChannelTest: row,
+			ChannelName: channelNameByID[strings.TrimSpace(row.ChannelId)],
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": channelRecentFailedTestFeedData{
+			Items: items,
+			Total: len(items),
+		},
+	})
 }

@@ -262,6 +262,34 @@ func ListEnabledChannelModelEndpointsByCandidatesWithDB(db *gorm.DB, channelID s
 	return rows, nil
 }
 
+func ListRecentDisabledChannelModelEndpointsWithDB(db *gorm.DB, limit int) ([]ChannelModelEndpoint, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	rows := make([]ChannelModelEndpoint, 0, limit)
+	if err := db.
+		Where("enabled = ? AND disabled_at > 0", false).
+		Order("disabled_at desc, updated_at desc, channel_id asc, model asc, endpoint asc").
+		Limit(limit).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		rows[i].ChannelId = strings.TrimSpace(rows[i].ChannelId)
+		rows[i].Model = strings.TrimSpace(rows[i].Model)
+		rows[i].Endpoint = NormalizeRequestedChannelModelEndpoint(rows[i].Endpoint)
+		rows[i].DisabledReason = strings.TrimSpace(rows[i].DisabledReason)
+		rows[i].DisabledBy = strings.TrimSpace(rows[i].DisabledBy)
+	}
+	return rows, nil
+}
+
 func ListChannelModelEndpointCandidatesByChannelIDWithDB(db *gorm.DB, channelID string, modelName string, endpoint string) ([]ChannelModelEndpoint, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database handle is nil")
