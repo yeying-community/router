@@ -262,85 +262,6 @@ const renderStatus = (row, t) => (
   <AppTag color={statusColor(row)}>{formatItemStatusText(row, t)}</AppTag>
 );
 
-const formatAlertTypeText = (row, t) => {
-  const eventType = (row?.event_type || '').toString().trim().toLowerCase();
-  switch (eventType) {
-    case 'expiring_soon':
-      return t('channel.edit.billing.alert_table.event_expiring_soon');
-    case 'low_remaining':
-      return t('channel.edit.billing.alert_table.event_low_remaining');
-    case 'plan_expired':
-      return t('channel.edit.billing.alert_table.event_plan_expired');
-    case 'refresh_failed':
-      return t('channel.edit.billing.alert_table.event_refresh_failed');
-    case 'response_error':
-      return t('channel.edit.billing.alert_table.event_response_error');
-    default:
-      return eventType || '-';
-  }
-};
-
-const formatAlertStatusText = (row, t) => {
-  const status = (row?.status || '').toString().trim().toLowerCase();
-  switch (status) {
-    case 'failed':
-      return t('channel.edit.billing.alert_table.status_failed');
-    case 'sent':
-    default:
-      return t('channel.edit.billing.alert_table.status_sent');
-  }
-};
-
-const formatAlertQuotaLabelText = (row, t) => {
-  const payload = row?.payload || {};
-  const quotaLabel = (payload?.quota_label || '').toString().trim();
-  if (quotaLabel !== '') {
-    return quotaLabel;
-  }
-  const quotaType = (payload?.quota_type || '').toString().trim().toLowerCase();
-  if (quotaType !== '') {
-    return t(`channel.edit.billing.quota_types.${quotaType}`, {
-      defaultValue: quotaType,
-    });
-  }
-  return '-';
-};
-
-const formatAlertQuotaValueText = (row) => {
-  const payload = row?.payload || {};
-  const remaining = Number(payload?.remaining_amount || 0);
-  const limit = Number(payload?.limit_amount || 0);
-  const currency = (payload?.currency || '').toString().trim();
-  if (limit > 0) {
-    return `${remaining} / ${limit}${currency ? ` ${currency}` : ''}`;
-  }
-  if (remaining > 0) {
-    return `${remaining}${currency ? ` ${currency}` : ''}`;
-  }
-  return '-';
-};
-
-const formatAlertRatioText = (row) => {
-  const payload = row?.payload || {};
-  const remaining = Number(payload?.remaining_amount || 0);
-  const limit = Number(payload?.limit_amount || 0);
-  if (!(limit > 0)) {
-    return '-';
-  }
-  return `${((remaining / limit) * 100).toFixed(2)}%`;
-};
-
-const formatAlertExpiresAtText = (row, timestamp2string, t) => {
-  const payload = row?.payload || {};
-  return formatExpiresAtText(
-    {
-      expires_at: Number(payload?.expires_at || 0),
-    },
-    timestamp2string,
-    t,
-  );
-};
-
 const toUnixTimestamp = (value) => {
   const normalized = (value || '').toString().trim();
   if (normalized === '') {
@@ -360,7 +281,6 @@ const ChannelDetailBillingTab = ({
   billingLoading,
   billingError,
   billingSnapshots,
-  billingAlerts,
   billingReadonly,
   billingSubmitting,
   onRefreshBilling,
@@ -389,7 +309,6 @@ const ChannelDetailBillingTab = ({
   const latestSnapshotMessage = (billingSummary?.latest_snapshot_message || '')
     .toString()
     .trim();
-  const alertRecords = Array.isArray(billingAlerts) ? billingAlerts : [];
   const entitlementModeSummary = summarizeEntitlementMode(quotaItems, t);
 
   const appendManualItem = () => {
@@ -766,79 +685,6 @@ const ChannelDetailBillingTab = ({
                 render: (value) => value || '-',
               },
             ]}
-          />
-        </AppDetailSection>
-        <AppDetailSection
-          title={t('channel.edit.billing.alerts_title')}
-          titleTag='span'
-        >
-          <AppTable
-            className='router-detail-table'
-            pagination={false}
-            loading={billingLoading}
-            dataSource={alertRecords}
-            rowKey={(row) => row.id}
-            columns={[
-              {
-                title: t('channel.edit.billing.alert_table.created_at'),
-                dataIndex: 'created_at',
-                key: 'created_at',
-                width: 180,
-                render: (value) => (value ? timestamp2string(value) : '-'),
-              },
-              {
-                title: t('channel.edit.billing.alert_table.event_type'),
-                dataIndex: 'event_type',
-                key: 'event_type',
-                width: 160,
-                render: (_, row) => formatAlertTypeText(row, t),
-              },
-              {
-                title: t('channel.edit.billing.alert_table.quota_label'),
-                dataIndex: 'payload',
-                key: 'quota_label',
-                width: 140,
-                render: (_, row) => formatAlertQuotaLabelText(row, t),
-              },
-              {
-                title: t('channel.edit.billing.alert_table.amount'),
-                dataIndex: 'payload',
-                key: 'amount',
-                width: 180,
-                render: (_, row) => formatAlertQuotaValueText(row),
-              },
-              {
-                title: t('channel.edit.billing.alert_table.remaining_ratio'),
-                dataIndex: 'payload',
-                key: 'remaining_ratio',
-                width: 120,
-                render: (_, row) => formatAlertRatioText(row),
-              },
-              {
-                title: t('channel.edit.billing.alert_table.expires_at'),
-                dataIndex: 'payload',
-                key: 'expires_at',
-                width: 180,
-                render: (_, row) =>
-                  formatAlertExpiresAtText(row, timestamp2string, t),
-              },
-              {
-                title: t('channel.edit.billing.alert_table.status'),
-                dataIndex: 'status',
-                key: 'status',
-                width: 120,
-                render: (_, row) => formatAlertStatusText(row, t),
-              },
-              {
-                title: t('channel.edit.billing.alert_table.title'),
-                dataIndex: 'title',
-                key: 'title',
-                render: (value) => value || '-',
-              },
-            ]}
-            locale={{
-              emptyText: t('channel.edit.billing.alert_table.empty'),
-            }}
           />
         </AppDetailSection>
         <AppModal

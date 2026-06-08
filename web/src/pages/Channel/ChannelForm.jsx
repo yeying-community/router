@@ -630,39 +630,6 @@ const normalizeChannelBillingActions = (items) => {
     }));
 };
 
-const normalizeChannelBillingAlerts = (items) => {
-  if (!Array.isArray(items)) {
-    return [];
-  }
-  return items
-    .filter((item) => item && typeof item === 'object')
-    .map((item) => ({
-      id: (item.id || '').toString().trim(),
-      event_type: (item.event_type || '').toString().trim(),
-      alert_key: (item.alert_key || '').toString().trim(),
-      notify_date: (item.notify_date || '').toString().trim(),
-      severity: (item.severity || '').toString().trim(),
-      status: (item.status || '').toString().trim(),
-      title: (item.title || '').toString().trim(),
-      content: (item.content || '').toString().trim(),
-      payload:
-        item.payload && typeof item.payload === 'object'
-          ? item.payload
-          : (() => {
-              const raw = (item.payload || '').toString().trim();
-              if (raw === '') {
-                return null;
-              }
-              try {
-                return JSON.parse(raw);
-              } catch {
-                return null;
-              }
-            })(),
-      created_at: Number(item.created_at || 0),
-    }));
-};
-
 const prettyJSONString = (value) => {
   const trimmed = (value || '').toString().trim();
   if (trimmed === '') {
@@ -1542,21 +1509,6 @@ const fetchChannelBillingActions = async (channelId) => {
   return normalizeChannelBillingActions(data?.items);
 };
 
-const fetchChannelBillingAlerts = async (channelId) => {
-  const normalizedChannelId = (channelId || '').toString().trim();
-  if (normalizedChannelId === '') {
-    return [];
-  }
-  const res = await API.get(
-    `/api/v1/admin/channel/${normalizedChannelId}/billing/alerts`,
-  );
-  const { success, message, data } = res.data || {};
-  if (!success) {
-    throw new Error(message || 'fetch channel billing alerts failed');
-  }
-  return normalizeChannelBillingAlerts(data?.items);
-};
-
 const fetchChannelCircuitBreakerEvents = async (channelId) => {
   const normalizedChannelId = (channelId || '').toString().trim();
   if (normalizedChannelId === '') {
@@ -1817,16 +1769,23 @@ const resolveProtocolFromChannelPayload = (payload) => {
   return 'openai';
 };
 
+const isRecordNotFoundMessage = (value) =>
+  (value || '')
+    .toString()
+    .trim()
+    .toLowerCase() === 'record not found';
+
 const ChannelForm = ({ mode = 'auto' } = {}) => {
   const { t } = useTranslation();
   const params = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const channelId = params.id;
+  const normalizedRouteChannelId = (channelId || '').toString().trim();
   const normalizedMode = (mode || 'auto').toString().trim().toLowerCase();
   const forceCreateMode = normalizedMode === 'add' || normalizedMode === 'create';
   const forceDetailMode = normalizedMode === 'edit' || normalizedMode === 'detail';
-  const hasChannelID = !forceCreateMode && channelId !== undefined;
+  const hasChannelID = !forceCreateMode && normalizedRouteChannelId !== '';
   const isDetailMode =
     forceDetailMode ||
     (hasChannelID && location.pathname.includes('/channel/detail/'));
@@ -1927,7 +1886,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const [channelBillingProfile, setChannelBillingProfile] = useState(null);
   const [channelBillingSnapshots, setChannelBillingSnapshots] = useState([]);
   const [channelBillingActions, setChannelBillingActions] = useState([]);
-  const [channelBillingAlerts, setChannelBillingAlerts] = useState([]);
   const [channelCircuitBreakerEvents, setChannelCircuitBreakerEvents] =
     useState([]);
   const [channelCircuitBreakerEventsLoading, setChannelCircuitBreakerEventsLoading] =
@@ -3163,19 +3121,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     [t],
   );
 
-  const loadChannelBillingAlertsFromServer = useCallback(
-    async (targetChannelId) => {
-      try {
-        return await fetchChannelBillingAlerts(targetChannelId);
-      } catch (error) {
-        throw new Error(
-          error?.message || t('channel.edit.billing.load_failed'),
-        );
-      }
-    },
-    [t],
-  );
-
   const loadChannelCircuitBreakerEventsFromServer = useCallback(
     async (targetChannelId) => {
       try {
@@ -3197,19 +3142,17 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       setChannelBillingLoading(true);
       try {
-        const [summary, profile, snapshots, actions, alerts] = await Promise.all([
+        const [summary, profile, snapshots, actions] = await Promise.all([
           loadChannelBillingSummaryFromServer(normalizedChannelId),
           loadChannelBillingProfileFromServer(normalizedChannelId),
           loadChannelBillingSnapshotsFromServer(normalizedChannelId),
           loadChannelBillingActionsFromServer(normalizedChannelId),
-          loadChannelBillingAlertsFromServer(normalizedChannelId),
         ]);
         setChannelBillingSummary(summary);
         setChannelBillingProfile(profile);
         setDetailBillingDraft(profile);
         setChannelBillingSnapshots(snapshots);
         setChannelBillingActions(actions);
-        setChannelBillingAlerts(alerts);
         setChannelBillingError('');
       } catch (error) {
         setChannelBillingError(
@@ -3221,7 +3164,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     },
     [
       loadChannelBillingActionsFromServer,
-      loadChannelBillingAlertsFromServer,
       loadChannelBillingProfileFromServer,
       loadChannelBillingSnapshotsFromServer,
       loadChannelBillingSummaryFromServer,
@@ -3551,7 +3493,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             billingProfileData,
             billingSnapshotsData,
             billingActionsData,
-            billingAlertsData,
             circuitBreakerEventsData,
           ] =
             await Promise.all([
@@ -3565,9 +3506,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               loadChannelBillingProfileFromServer(data.id || targetId),
               loadChannelBillingSnapshotsFromServer(data.id || targetId),
               loadChannelBillingActionsFromServer(data.id || targetId),
-              activeDetailTab !== 'billing'
-                ? Promise.resolve([])
-                : loadChannelBillingAlertsFromServer(data.id || targetId),
               loadChannelCircuitBreakerEventsFromServer(data.id || targetId),
             ]);
           const storedModelTestResults = normalizeModelTestResults(
@@ -3628,7 +3566,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           setDetailBillingDraft(billingProfileData);
           setChannelBillingSnapshots(billingSnapshotsData);
           setChannelBillingActions(billingActionsData);
-          setChannelBillingAlerts(billingAlertsData);
           setChannelCircuitBreakerEvents(circuitBreakerEventsData);
           setChannelCircuitBreakerEventsError('');
           setChannelBillingError('');
@@ -3644,16 +3581,28 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             setChannelKeySet(false);
           }
         } else {
+          if (isRecordNotFoundMessage(message)) {
+            showInfo(t('channel.edit.messages.channel_not_found'));
+            navigate('/admin/channel', { replace: true });
+            return;
+          }
           showError(message);
         }
+      } catch (error) {
+        if (isRecordNotFoundMessage(error?.message)) {
+          showInfo(t('channel.edit.messages.channel_not_found'));
+          navigate('/admin/channel', { replace: true });
+          return;
+        }
+        showError(error?.message || t('channel.edit.messages.load_failed'));
       } finally {
         setLoading(false);
       }
     },
     [
+      navigate,
       hasChannelID,
       loadChannelBillingActionsFromServer,
-      loadChannelBillingAlertsFromServer,
       loadChannelCircuitBreakerEventsFromServer,
       loadChannelBillingProfileFromServer,
       loadChannelBillingSnapshotsFromServer,
@@ -3661,6 +3610,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       loadChannelModelsFromServer,
       loadChannelTasksFromServer,
       loadChannelTestsFromServer,
+      t,
     ],
   );
 
@@ -5617,7 +5567,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 billingLoading={channelBillingLoading}
                 billingError={channelBillingError}
                 billingSnapshots={channelBillingSnapshots}
-                billingAlerts={channelBillingAlerts}
                 billingActions={channelBillingActions}
                 billingReadonly={detailBillingReadonly}
                 billingSubmitting={channelBillingSubmitting}
