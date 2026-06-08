@@ -6,6 +6,7 @@ import { StatusContext } from '../context/Status';
 import { API, getLogo, showError } from '../helpers';
 import { toastConstants } from '../constants';
 import { loginWithWallet } from '../services/web3Auth';
+import { useWalletProviderStatus } from '../hooks/useWalletProviderStatus';
 import { AppAlert, AppButton, AppDivider, AppInput } from '../router-ui';
 import './LoginForm.css';
 
@@ -44,6 +45,8 @@ const LoginForm = () => {
     status?.password_register_enabled !== false;
   const [showPasswordLogin, setShowPasswordLogin] =
     useState(walletLoginDisabled && passwordLoginEnabled);
+  const [walletLoginLoading, setWalletLoginLoading] = useState(false);
+  const walletProviderStatus = useWalletProviderStatus();
   const resolveLandingPath = (role) =>
     Number(role) >= 10 ? '/admin/dashboard' : '/workspace/entry';
 
@@ -68,11 +71,16 @@ const LoginForm = () => {
   }, [searchParams, t, navigate]);
 
   const onWalletLoginClicked = async () => {
+    if (walletLoginLoading) {
+      return;
+    }
+    setWalletLoginLoading(true);
     try {
       if (status?.wallet_login === false) {
         showError(t('auth.login.wallet_disabled') || '钱包登录未开启');
         return;
       }
+      await walletProviderStatus.refresh();
       const loginResult = await loginWithWallet();
       const payload = loginResult?.response?.data || loginResult?.response;
       if (payload?.expiresAt) {
@@ -97,6 +105,8 @@ const LoginForm = () => {
       } else {
         showError(error.message || '钱包登录失败');
       }
+    } finally {
+      setWalletLoginLoading(false);
     }
   };
 
@@ -160,7 +170,12 @@ const LoginForm = () => {
                 fluid
                 className='router-login-main-btn router-auth-button router-wallet-button'
                 onClick={onWalletLoginClicked}
-                disabled={walletLoginDisabled}
+                disabled={
+                  walletLoginDisabled ||
+                  walletLoginLoading ||
+                  (!walletProviderStatus.detecting && !walletProviderStatus.available)
+                }
+                loading={walletLoginLoading || walletProviderStatus.detecting}
               >
                 {t('auth.login.wallet_button', '使用钱包登录')}
               </AppButton>
@@ -175,6 +190,19 @@ const LoginForm = () => {
                   )}
                 />
               )}
+              {!walletLoginDisabled &&
+                !walletProviderStatus.detecting &&
+                !walletProviderStatus.available && (
+                  <AppAlert
+                    type='warning'
+                    showIcon
+                    className='router-auth-message'
+                    title={t(
+                      'auth.login.wallet_not_detected',
+                      '未检测到钱包插件，请安装或启用钱包插件后重试',
+                    )}
+                  />
+                )}
             </div>
 
             <AppDivider horizontal>或</AppDivider>

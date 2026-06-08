@@ -1,5 +1,5 @@
-import React, { Suspense, lazy, useCallback, useContext, useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import React, { Suspense, lazy, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import Loading from './components/Loading';
 import { PrivateRoute } from './components/PrivateRoute';
 import NotFound from './pages/NotFound';
@@ -13,6 +13,9 @@ import {
 } from './helpers';
 import { UserContext } from './context/User';
 import { StatusContext } from './context/Status';
+import { WEB3_TOKEN_STORAGE_KEY } from './helpers/web3';
+import { logoutWallet } from './services/web3Auth';
+import { useWalletProviderStatus } from './hooks/useWalletProviderStatus';
 import AdminLayout from './layouts/AdminLayout';
 import UserLayout from './layouts/UserLayout';
 import UserWorkspaceLayout from './layouts/UserWorkspaceLayout';
@@ -251,6 +254,95 @@ function TopUpTabRedirect() {
 function App() {
   const [, userDispatch] = useContext(UserContext);
   const [, statusDispatch] = useContext(StatusContext);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const walletDisconnectTimerRef = useRef(null);
+
+  const clearWalletSession = useCallback(
+    async (message) => {
+      window.clearTimeout(walletDisconnectTimerRef.current);
+      walletDisconnectTimerRef.current = null;
+      try {
+        await API.get('/api/v1/public/user/logout', {
+          skipErrorHandler: true,
+        });
+      } catch (error) {
+        // The local session must still be cleared if the server logout fails.
+      }
+      try {
+        await logoutWallet();
+      } catch (error) {
+        // Ignore wallet SDK logout errors while clearing a stale session.
+      }
+      userDispatch({ type: 'logout' });
+      localStorage.removeItem('user');
+      localStorage.removeItem(WEB3_TOKEN_STORAGE_KEY);
+      localStorage.removeItem('wallet_token_expires_at');
+      if (message) {
+        showNotice(message);
+      }
+      if (location.pathname !== '/login') {
+        navigate('/login', { replace: true });
+      }
+    },
+    [location.pathname, navigate, userDispatch],
+  );
+
+  const isWalletSessionActive = useCallback(() => {
+    return Boolean(localStorage.getItem(WEB3_TOKEN_STORAGE_KEY));
+  }, []);
+
+  const getCurrentUserWalletAddress = useCallback(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      return String(user?.wallet_address || '').trim().toLowerCase();
+    } catch (error) {
+      return '';
+    }
+  }, []);
+
+  const handleWalletAccountsChanged = useCallback(
+    (accounts) => {
+      window.clearTimeout(walletDisconnectTimerRef.current);
+      walletDisconnectTimerRef.current = null;
+      if (!isWalletSessionActive()) {
+        return;
+      }
+      const currentWalletAddress = getCurrentUserWalletAddress();
+      const nextWalletAddress = String(accounts?.[0] || '').trim().toLowerCase();
+      if (
+        currentWalletAddress === '' ||
+        nextWalletAddress === '' ||
+        currentWalletAddress !== nextWalletAddress
+      ) {
+        clearWalletSession('钱包账户已变更，请重新登录').then();
+      }
+    },
+    [clearWalletSession, getCurrentUserWalletAddress, isWalletSessionActive],
+  );
+
+  const handleWalletConnected = useCallback(() => {
+    window.clearTimeout(walletDisconnectTimerRef.current);
+    walletDisconnectTimerRef.current = null;
+  }, []);
+
+  const handleWalletDisconnected = useCallback(() => {
+    if (!isWalletSessionActive() || walletDisconnectTimerRef.current) {
+      return;
+    }
+    walletDisconnectTimerRef.current = window.setTimeout(() => {
+      walletDisconnectTimerRef.current = null;
+      if (isWalletSessionActive()) {
+        clearWalletSession('钱包连接已断开，请重新登录').then();
+      }
+    }, 2200);
+  }, [clearWalletSession, isWalletSessionActive]);
+
+  useWalletProviderStatus({
+    onAccountsChanged: handleWalletAccountsChanged,
+    onConnect: handleWalletConnected,
+    onDisconnect: handleWalletDisconnected,
+  });
 
   const loadUser = useCallback(() => {
     let user = localStorage.getItem('user');
@@ -308,6 +400,12 @@ function App() {
       }
     }
   }, [loadUser, loadStatus]);
+
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(walletDisconnectTimerRef.current);
+    };
+  }, []);
 
   return (
     <Routes>
