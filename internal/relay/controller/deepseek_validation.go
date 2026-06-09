@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -75,18 +74,7 @@ func isDeepSeekThinkingEnabled(textRequest *relaymodel.GeneralOpenAIRequest, raw
 		}
 		return true
 	}
-	if len(rawBody) == 0 {
-		return true
-	}
-	payload := make(map[string]any)
-	if err := json.Unmarshal(rawBody, &payload); err != nil {
-		return true
-	}
-	thinkingMap, ok := payload["thinking"].(map[string]any)
-	if !ok {
-		return true
-	}
-	return !strings.EqualFold(strings.TrimSpace(readStringValue(thinkingMap["type"])), "disabled")
+	return false
 }
 
 func validateDeepSeekStrictToolSchema(schema any, path string) error {

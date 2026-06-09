@@ -42,7 +42,7 @@ func TestValidateDeepSeekTextRequestRejectsMaxCompletionTokens(t *testing.T) {
 	}
 }
 
-func TestValidateDeepSeekTextRequestRejectsThinkingModeSamplingParams(t *testing.T) {
+func TestValidateDeepSeekTextRequestAllowsSamplingParamsWhenThinkingOmitted(t *testing.T) {
 	temperature := 0.7
 	topP := 0.9
 	err := validateProviderSpecificTextRequest(&meta.Meta{
@@ -50,6 +50,26 @@ func TestValidateDeepSeekTextRequestRejectsThinkingModeSamplingParams(t *testing
 		BaseURL:         "https://api.deepseek.com",
 	}, &relaymodel.GeneralOpenAIRequest{
 		Model:       "deepseek-v4-pro",
+		Temperature: &temperature,
+		TopP:        &topP,
+		Messages: []relaymodel.Message{
+			{Role: "user", Content: "hi"},
+		},
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected no error when thinking is omitted, got %v", err)
+	}
+}
+
+func TestValidateDeepSeekTextRequestRejectsExplicitThinkingModeSamplingParams(t *testing.T) {
+	temperature := 0.7
+	topP := 0.9
+	err := validateProviderSpecificTextRequest(&meta.Meta{
+		ChannelProtocol: relaychannel.DeepSeek,
+		BaseURL:         "https://api.deepseek.com",
+	}, &relaymodel.GeneralOpenAIRequest{
+		Model:       "deepseek-v4-pro",
+		Thinking:    map[string]any{"type": "enabled"},
 		Temperature: &temperature,
 		TopP:        &topP,
 		Messages: []relaymodel.Message{

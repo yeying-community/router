@@ -1184,6 +1184,9 @@
       {
         "model": "deepseek-v4-flash",
         "type": "text",
+        "tags": [
+          "reasoning"
+        ],
         "status": "active",
         "description": "DeepSeek V4 Flash 是 DeepSeek 当前的高吞吐通用模型，支持非思考和思考模式。",
         "supported_endpoints": [
@@ -1200,6 +1203,9 @@
       {
         "model": "deepseek-v4-pro",
         "type": "text",
+        "tags": [
+          "reasoning"
+        ],
         "status": "active",
         "description": "DeepSeek V4 Pro 是 DeepSeek 当前的高能力通用模型，支持非思考和思考模式。",
         "supported_endpoints": [
@@ -1232,6 +1238,9 @@
       {
         "model": "deepseek-reasoner",
         "type": "text",
+        "tags": [
+          "reasoning"
+        ],
         "status": "active",
         "description": "DeepSeek Reasoner 是 DeepSeek V4 Flash 思考模式的兼容别名，将于 2026-07-24 15:59 UTC 后退役。",
         "supported_endpoints": [

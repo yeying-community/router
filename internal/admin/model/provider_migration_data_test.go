@@ -899,11 +899,14 @@ func TestBuildProviderMigrationSeeds_ComplexPricingComponentsForLiveAndOmniModel
 
 func TestBuildProviderMigrationSeeds_DeepSeekTextModelsSupportChatAndMessages(t *testing.T) {
 	seeds := mustLoadProviderMigrationSeeds(t)
-	expectedModels := map[string]bool{
-		"deepseek-v4-flash": false,
-		"deepseek-v4-pro":   false,
-		"deepseek-chat":     false,
-		"deepseek-reasoner": false,
+	expectedModels := map[string]struct {
+		found     bool
+		reasoning bool
+	}{
+		"deepseek-v4-flash": {reasoning: true},
+		"deepseek-v4-pro":   {reasoning: true},
+		"deepseek-chat":     {},
+		"deepseek-reasoner": {reasoning: true},
 	}
 
 	for _, seed := range seeds {
@@ -911,7 +914,8 @@ func TestBuildProviderMigrationSeeds_DeepSeekTextModelsSupportChatAndMessages(t 
 			continue
 		}
 		for _, detail := range seed.ModelDetails {
-			if _, ok := expectedModels[detail.Model]; !ok {
+			expected, ok := expectedModels[detail.Model]
+			if !ok {
 				continue
 			}
 			if len(detail.SupportedEndpoints) != 2 ||
@@ -919,15 +923,28 @@ func TestBuildProviderMigrationSeeds_DeepSeekTextModelsSupportChatAndMessages(t 
 				detail.SupportedEndpoints[1] != ChannelModelEndpointMessages {
 				t.Fatalf("%s supported_endpoints=%#v, want [chat messages]", detail.Model, detail.SupportedEndpoints)
 			}
-			expectedModels[detail.Model] = true
+			if expected.reasoning && !providerModelTagsContain(detail.Tags, ProviderModelTagReasoning) {
+				t.Fatalf("%s tags=%#v, want reasoning tag", detail.Model, detail.Tags)
+			}
+			expected.found = true
+			expectedModels[detail.Model] = expected
 		}
 	}
 
-	for modelName, found := range expectedModels {
-		if !found {
+	for modelName, expected := range expectedModels {
+		if !expected.found {
 			t.Fatalf("expected deepseek seed to include %s", modelName)
 		}
 	}
+}
+
+func providerModelTagsContain(tags []string, target string) bool {
+	for _, tag := range tags {
+		if tag == target {
+			return true
+		}
+	}
+	return false
 }
 
 func TestInferModelType_RecognizesGPTImageModels(t *testing.T) {

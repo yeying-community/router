@@ -1284,6 +1284,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			},
 		},
 		{
+			Version:     "202606091030_deepseek_reasoning_model_tags",
+			Description: "mark deepseek reasoning-capable provider models",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderMigrationProvidersWithDB(tx, "deepseek")
+			},
+		},
+		{
 			Version:     "202605271030_channel_capability_disable_observability",
 			Description: "add runtime disable metadata to channel model and endpoint capabilities",
 			Up: func(tx *gorm.DB) error {
