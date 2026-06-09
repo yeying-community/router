@@ -290,6 +290,8 @@ func qwenProviderModelDescription(modelName string) string {
 	switch modelName {
 	case "qwen3.7-max":
 		return "Qwen3.7-Max 是 Qwen 当前高能力通用模型，适合复杂推理、代码和多轮任务。"
+	case "qwen3.7-plus":
+		return "Qwen3.7-Plus 是 Qwen 多模态通用模型，支持文本生成、视觉理解、非思考和思考模式。"
 	case "qwen3.6-plus":
 		return "Qwen3.6-Plus 是均衡型通用模型，适合多数生产场景。"
 	case "qwen3.6-flash":

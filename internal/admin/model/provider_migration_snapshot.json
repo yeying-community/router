@@ -2224,6 +2224,72 @@
         "updated_at": 1700000000
       },
       {
+        "model": "qwen3.7-plus",
+        "type": "text",
+        "tags": [
+          "vision",
+          "reasoning"
+        ],
+        "status": "active",
+        "description": "Qwen3.7-Plus 是 Qwen 多模态通用模型，支持文本生成、视觉理解、非思考和思考模式。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.002,
+        "output_price": 0.008,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "mode=standard;prompt_tokens_lte=256000",
+            "input_price": 0.002,
+            "output_price": 0.008,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "mode=standard;prompt_tokens_gt=256000;prompt_tokens_lte=1000000",
+            "input_price": 0.006,
+            "output_price": 0.024,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "sort_order": 20
+          },
+          {
+            "component": "text",
+            "condition": "mode=batch;prompt_tokens_lte=256000",
+            "input_price": 0.001,
+            "output_price": 0.004,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "sort_order": 30
+          },
+          {
+            "component": "text",
+            "condition": "mode=batch;prompt_tokens_gt=256000;prompt_tokens_lte=1000000",
+            "input_price": 0.003,
+            "output_price": 0.012,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+            "sort_order": 40
+          }
+        ]
+      },
+      {
         "model": "qwen3.6-plus",
         "type": "text",
         "status": "active",

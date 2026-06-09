@@ -1,6 +1,11 @@
 package ali
 
 var ModelList = []string{
+	"qwen3.7-max", "qwen3.7-plus",
+	"qwen3.6-plus", "qwen3.6-flash",
+	"qwen3.5-plus", "qwen3.5-flash",
+	"qwen3-max",
+	"qwen-image-2.0", "qwen-image-2.0-pro",
 	"qwen-turbo", "qwen-turbo-latest",
 	"qwen-plus", "qwen-plus-latest",
 	"qwen-max", "qwen-max-latest",

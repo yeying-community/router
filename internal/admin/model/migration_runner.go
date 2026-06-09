@@ -1318,6 +1318,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderMigrationProvidersWithDB(tx, "anthropic")
 			},
 		},
+		{
+			Version:     "202606091030_add_qwen37_plus_provider_model",
+			Description: "upsert qwen3.7-plus official provider model and tiered pricing",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderMigrationProvidersWithDB(tx, "qwen")
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
