@@ -301,26 +301,6 @@ function App() {
     }
   }, []);
 
-  const handleWalletAccountsChanged = useCallback(
-    (accounts) => {
-      window.clearTimeout(walletDisconnectTimerRef.current);
-      walletDisconnectTimerRef.current = null;
-      if (!isWalletSessionActive()) {
-        return;
-      }
-      const currentWalletAddress = getCurrentUserWalletAddress();
-      const nextWalletAddress = String(accounts?.[0] || '').trim().toLowerCase();
-      if (
-        currentWalletAddress === '' ||
-        nextWalletAddress === '' ||
-        currentWalletAddress !== nextWalletAddress
-      ) {
-        clearWalletSession('钱包账户已变更，请重新登录').then();
-      }
-    },
-    [clearWalletSession, getCurrentUserWalletAddress, isWalletSessionActive],
-  );
-
   const handleWalletConnected = useCallback(() => {
     window.clearTimeout(walletDisconnectTimerRef.current);
     walletDisconnectTimerRef.current = null;
@@ -337,6 +317,31 @@ function App() {
       }
     }, 2200);
   }, [clearWalletSession, isWalletSessionActive]);
+
+  const handleWalletAccountsChanged = useCallback(
+    (accounts) => {
+      window.clearTimeout(walletDisconnectTimerRef.current);
+      walletDisconnectTimerRef.current = null;
+      if (!isWalletSessionActive()) {
+        return;
+      }
+      const currentWalletAddress = getCurrentUserWalletAddress();
+      const nextWalletAddress = String(accounts?.[0] || '').trim().toLowerCase();
+      if (nextWalletAddress === '') {
+        handleWalletDisconnected();
+        return;
+      }
+      if (currentWalletAddress === '' || currentWalletAddress !== nextWalletAddress) {
+        clearWalletSession('钱包账户已变更，请重新登录').then();
+      }
+    },
+    [
+      clearWalletSession,
+      getCurrentUserWalletAddress,
+      handleWalletDisconnected,
+      isWalletSessionActive,
+    ],
+  );
 
   useWalletProviderStatus({
     onAccountsChanged: handleWalletAccountsChanged,
