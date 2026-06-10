@@ -605,6 +605,43 @@ func DisableChannelModelCapabilityWithReason(channelID string, modelName string,
 	return true, channel.UpdateGroupModelChannels()
 }
 
+func RestoreRuntimeDisabledChannelModelCapabilityWithDB(db *gorm.DB, channelID string, modelName string) (bool, error) {
+	if db == nil {
+		return false, fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	normalizedModelName := strings.TrimSpace(modelName)
+	if normalizedChannelID == "" || normalizedModelName == "" {
+		return false, nil
+	}
+	rows, err := listChannelModelRowsByChannelIDWithDB(db, normalizedChannelID)
+	if err != nil {
+		return false, err
+	}
+	changed := false
+	for idx := range rows {
+		if strings.TrimSpace(rows[idx].Model) != normalizedModelName {
+			continue
+		}
+		if !isRuntimeDisabledChannelModel(rows[idx]) {
+			continue
+		}
+		rows[idx].Inactive = false
+		rows[idx].Selected = true
+		rows[idx].DisabledReason = ""
+		rows[idx].DisabledAt = 0
+		rows[idx].DisabledBy = ""
+		changed = true
+	}
+	if !changed {
+		return false, nil
+	}
+	if err := ReplaceChannelModelsWithDB(db, normalizedChannelID, rows); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func DeleteChannelModelsByChannelIDWithDB(db *gorm.DB, channelID string) error {
 	return DeleteChannelModelsByChannelIDsWithDB(db, []string{channelID})
 }

@@ -210,7 +210,7 @@ func TestValidateChannelModelTestEndpointAgainstProviderAllowsProviderEndpoint(t
 	t.Cleanup(func() {
 		adminmodel.DB = previousDB
 	})
-	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
@@ -240,6 +240,111 @@ func TestValidateChannelModelTestEndpointAgainstProviderAllowsProviderEndpoint(t
 		},
 	}, adminmodel.ChannelModelEndpointChat); err != nil {
 		t.Fatalf("validateChannelModelTestEndpointAgainstProvider returned error: %v", err)
+	}
+}
+
+func TestRestoreRuntimeDisabledCapabilitiesAfterSuccessfulTests(t *testing.T) {
+	previousDB := adminmodel.DB
+	t.Cleanup(func() {
+		adminmodel.DB = previousDB
+	})
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	adminmodel.DB = db
+	if err := db.AutoMigrate(
+		&adminmodel.Channel{},
+		&adminmodel.ChannelModel{},
+		&adminmodel.ChannelModelPriceComponent{},
+		&adminmodel.ChannelModelEndpoint{},
+		&adminmodel.ProviderModel{},
+	); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	if err := db.Create(&adminmodel.Channel{
+		Id:       "channel-1",
+		Name:     "channel-1",
+		Protocol: "openai",
+		Status:   adminmodel.ChannelStatusEnabled,
+	}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&adminmodel.ProviderModel{
+		Provider:           "qwen",
+		Model:              "qwen3.7-max",
+		Tags:               adminmodel.ProviderModelTypeText,
+		Status:             adminmodel.ProviderModelStatusActive,
+		SupportedEndpoints: adminmodel.ChannelModelEndpointChat,
+	}).Error; err != nil {
+		t.Fatalf("create provider model: %v", err)
+	}
+	if err := db.Create(&adminmodel.ChannelModel{
+		ChannelId:      "channel-1",
+		Model:          "qwen3.7-max",
+		UpstreamModel:  "qwen3.7-max",
+		Provider:       "qwen",
+		Type:           adminmodel.ProviderModelTypeText,
+		Endpoint:       adminmodel.ChannelModelEndpointChat,
+		Endpoints:      []string{adminmodel.ChannelModelEndpointChat},
+		Inactive:       true,
+		Selected:       false,
+		DisabledReason: "model not found",
+		DisabledAt:     123,
+		DisabledBy:     "runtime",
+	}).Error; err != nil {
+		t.Fatalf("create channel model: %v", err)
+	}
+	if err := db.Create(&adminmodel.ChannelModelEndpoint{
+		ChannelId:      "channel-1",
+		Model:          "qwen3.7-max",
+		Endpoint:       adminmodel.ChannelModelEndpointChat,
+		Enabled:        false,
+		DisabledReason: "unsupported endpoint",
+		DisabledAt:     123,
+		DisabledBy:     "runtime",
+	}).Error; err != nil {
+		t.Fatalf("create channel endpoint: %v", err)
+	}
+
+	var restoredModels []string
+	var restoredEndpoints []channelModelEndpointRestore
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		models, endpoints, err := restoreRuntimeDisabledCapabilitiesAfterSuccessfulTests(tx, "channel-1", []adminmodel.ChannelTest{
+			{
+				ChannelId: "channel-1",
+				Model:     "qwen3.7-max",
+				Type:      adminmodel.ProviderModelTypeText,
+				Endpoint:  adminmodel.ChannelModelEndpointChat,
+				Status:    adminmodel.ChannelTestStatusSupported,
+				Supported: true,
+			},
+		})
+		restoredModels = models
+		restoredEndpoints = endpoints
+		return err
+	}); err != nil {
+		t.Fatalf("restoreRuntimeDisabledCapabilitiesAfterSuccessfulTests: %v", err)
+	}
+	if len(restoredModels) != 1 || restoredModels[0] != "qwen3.7-max" {
+		t.Fatalf("restoredModels=%v, want qwen3.7-max", restoredModels)
+	}
+	if len(restoredEndpoints) != 1 || restoredEndpoints[0].Model != "qwen3.7-max" || restoredEndpoints[0].Endpoint != adminmodel.ChannelModelEndpointChat {
+		t.Fatalf("restoredEndpoints=%v, want qwen3.7-max chat", restoredEndpoints)
+	}
+	modelRow := adminmodel.ChannelModel{}
+	if err := db.First(&modelRow, "channel_id = ? AND model = ?", "channel-1", "qwen3.7-max").Error; err != nil {
+		t.Fatalf("load channel model: %v", err)
+	}
+	if modelRow.Inactive || !modelRow.Selected || modelRow.DisabledReason != "" || modelRow.DisabledAt != 0 || modelRow.DisabledBy != "" {
+		t.Fatalf("model row after restore = %+v, want selected active without runtime metadata", modelRow)
+	}
+	endpointRow := adminmodel.ChannelModelEndpoint{}
+	if err := db.First(&endpointRow, "channel_id = ? AND model = ? AND endpoint = ?", "channel-1", "qwen3.7-max", adminmodel.ChannelModelEndpointChat).Error; err != nil {
+		t.Fatalf("load endpoint row: %v", err)
+	}
+	if !endpointRow.Enabled || endpointRow.DisabledReason != "" || endpointRow.DisabledAt != 0 || endpointRow.DisabledBy != "" {
+		t.Fatalf("endpoint row after restore = %+v, want enabled without runtime metadata", endpointRow)
 	}
 }
 

@@ -125,6 +125,22 @@ func HasSuccessfulExactChannelEndpointTestResultWithDB(db *gorm.DB, channelID st
 	return count > 0, err
 }
 
+func HasSuccessfulChannelModelTestResultWithDB(db *gorm.DB, channelID string, modelName string) (bool, error) {
+	if db == nil {
+		return false, fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	normalizedModel := strings.TrimSpace(modelName)
+	if normalizedChannelID == "" || normalizedModel == "" {
+		return false, nil
+	}
+	count := int64(0)
+	err := db.Model(&ChannelModelEndpointTestResult{}).
+		Where("channel_id = ? AND model = ? AND last_supported = ? AND last_test_status = ?", normalizedChannelID, normalizedModel, true, ChannelModelEndpointTestStatusSuccess).
+		Count(&count).Error
+	return count > 0, err
+}
+
 func ListChannelModelEndpointTestResultsByChannelIDWithDB(db *gorm.DB, channelID string) ([]ChannelModelEndpointTestResult, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database handle is nil")

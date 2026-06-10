@@ -65,6 +65,10 @@ const ChannelModelEditorModal = ({
       ? detailEditingModelRow.price_components
       : providerComponentDefaults;
   const hasComponentPricing = effectivePriceComponents.length > 0;
+  const canToggleModelEnabled = canSelectChannelModel({
+    ...(detailEditingModelRow || {}),
+    inactive: false,
+  });
 
   const updatePriceComponentField = (index, field, value) => {
     const nextComponents = effectivePriceComponents.map((component, itemIndex) => {
@@ -265,8 +269,7 @@ const ChannelModelEditorModal = ({
                 disabled={
                   detailModelMutating ||
                   providerDataLoading ||
-                  (!canSelectChannelModel(detailEditingModelRow) &&
-                    !detailEditingModelRow.selected)
+                  (!canToggleModelEnabled && !detailEditingModelRow.selected)
                 }
                 onChange={(_, { checked }) =>
                   toggleModelSelection(

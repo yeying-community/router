@@ -158,14 +158,19 @@ func TestListModelsOwnedByUsesProviderStats(t *testing.T) {
 		t.Fatalf("claude-sonnet-4-6 owned_by = %q, want %q", got, "anthropic")
 	}
 	supportedEndpoints := map[string][]string{}
+	tagsByModel := map[string][]string{}
 	for _, item := range payload.Data {
 		supportedEndpoints[item.Id] = item.SupportedEndpoints
+		tagsByModel[item.Id] = item.Tags
 	}
 	if got := supportedEndpoints["gpt-5.4"]; len(got) != 2 || got[0] != "/v1/chat/completions" || got[1] != "/v1/responses" {
 		t.Fatalf("gpt-5.4 supported_endpoints = %#v, want [/v1/chat/completions /v1/responses]", got)
 	}
 	if got := supportedEndpoints["claude-sonnet-4-6"]; len(got) != 1 || got[0] != "/v1/messages" {
 		t.Fatalf("claude-sonnet-4-6 supported_endpoints = %#v, want [/v1/messages]", got)
+	}
+	if got := tagsByModel["gpt-5.4"]; len(got) != 2 || got[0] != "text" || got[1] != "tool_calling" {
+		t.Fatalf("gpt-5.4 tags = %#v, want [text tool_calling]", got)
 	}
 }
 
@@ -247,6 +252,9 @@ func TestRetrieveModelSharesListOwnedByLogic(t *testing.T) {
 		}
 		if len(item.SupportedEndpoints) != 1 || item.SupportedEndpoints[0] != "/v1/responses" {
 			t.Fatalf("supported_endpoints = %#v, want [/v1/responses]", item.SupportedEndpoints)
+		}
+		if len(item.Tags) != 2 || item.Tags[0] != "text" || item.Tags[1] != "reasoning" {
+			t.Fatalf("tags = %#v, want [text reasoning]", item.Tags)
 		}
 	}
 

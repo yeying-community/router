@@ -67,6 +67,60 @@ func TestValidateManualChannelModelChangesValidatesNewlyEnabledRows(t *testing.T
 	}
 }
 
+func TestValidateManualChannelModelChangesRequiresSuccessfulTestBeforeRuntimeRestore(t *testing.T) {
+	db := newChannelManualValidationTestDB(t)
+	if err := db.Create(&ProviderModel{
+		Provider: "qwen",
+		Model:    "qwen3.7-max",
+		Tags:     ProviderModelTypeText,
+		Status:   ProviderModelStatusActive,
+	}).Error; err != nil {
+		t.Fatalf("create provider model: %v", err)
+	}
+	if err := db.Create(&ChannelModelSyncResult{
+		ChannelId:     "channel-1",
+		Model:         "qwen3.7-max",
+		UpstreamModel: "qwen3.7-max",
+		Returned:      true,
+	}).Error; err != nil {
+		t.Fatalf("create sync result: %v", err)
+	}
+	currentRows := []ChannelModel{
+		{
+			Model:          "qwen3.7-max",
+			UpstreamModel:  "qwen3.7-max",
+			Provider:       "qwen",
+			Type:           ProviderModelTypeText,
+			Inactive:       true,
+			Selected:       false,
+			DisabledReason: "model not found",
+			DisabledAt:     123,
+			DisabledBy:     "runtime",
+		},
+	}
+	nextRows := []ChannelModel{
+		{Model: "qwen3.7-max", UpstreamModel: "qwen3.7-max", Provider: "qwen", Type: ProviderModelTypeText, Selected: true},
+	}
+
+	err := ValidateManualChannelModelChangesWithDB(db, "channel-1", currentRows, nextRows)
+	if err == nil || !strings.Contains(err.Error(), "恢复前需要先测试通过") {
+		t.Fatalf("ValidateManualChannelModelChangesWithDB error=%v, want successful test requirement", err)
+	}
+
+	if err := db.Create(&ChannelModelEndpointTestResult{
+		ChannelId:      "channel-1",
+		Model:          "qwen3.7-max",
+		Endpoint:       ChannelModelEndpointChat,
+		LastTestStatus: ChannelModelEndpointTestStatusSuccess,
+		LastSupported:  true,
+	}).Error; err != nil {
+		t.Fatalf("create endpoint test result: %v", err)
+	}
+	if err := ValidateManualChannelModelChangesWithDB(db, "channel-1", currentRows, nextRows); err != nil {
+		t.Fatalf("ValidateManualChannelModelChangesWithDB error=%v, want nil after successful test", err)
+	}
+}
+
 func TestValidateManualChannelEndpointEnableRequiresExactModelTestResult(t *testing.T) {
 	db := newChannelManualValidationTestDB(t)
 	if err := db.Create(&ProviderModel{

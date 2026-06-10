@@ -21,6 +21,8 @@ import (
 	"github.com/yeying-community/router/common/client"
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/admin/monitor"
+	channelsvc "github.com/yeying-community/router/internal/admin/service/channel"
 	"github.com/yeying-community/router/internal/relay"
 	relayadaptor "github.com/yeying-community/router/internal/relay/adaptor"
 	aliadaptor "github.com/yeying-community/router/internal/relay/adaptor/ali"
@@ -99,15 +101,100 @@ func persistChannelModelTests(channelID string, taskID string, results []model.C
 		targetModels = append(targetModels, item.Model)
 	}
 	targetModels = model.NormalizeChannelModelIDsPreserveOrder(targetModels)
-	return model.DB.Transaction(func(tx *gorm.DB) error {
+	restoredModels := make([]string, 0)
+	restoredEndpoints := make([]channelModelEndpointRestore, 0)
+	err := model.DB.Transaction(func(tx *gorm.DB) error {
 		if _, err := model.AppendChannelTestsForModelsWithDB(tx, normalizedChannelID, targetModels, results); err != nil {
 			return err
 		}
 		if err := model.EnsureChannelTestModelWithDB(tx, normalizedChannelID); err != nil {
 			return err
 		}
-		return model.UpsertChannelModelEndpointTestResultsWithDB(tx, normalizedChannelID, taskID, results)
+		if err := model.UpsertChannelModelEndpointTestResultsWithDB(tx, normalizedChannelID, taskID, results); err != nil {
+			return err
+		}
+		models, endpoints, err := restoreRuntimeDisabledCapabilitiesAfterSuccessfulTests(tx, normalizedChannelID, results)
+		if err != nil {
+			return err
+		}
+		restoredModels = append(restoredModels, models...)
+		restoredEndpoints = append(restoredEndpoints, endpoints...)
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+	if len(restoredModels) > 0 || len(restoredEndpoints) > 0 {
+		notifyAutoRestoredCapabilities(normalizedChannelID, restoredModels, restoredEndpoints)
+	}
+	return nil
+}
+
+type channelModelEndpointRestore struct {
+	Model    string
+	Endpoint string
+}
+
+func restoreRuntimeDisabledCapabilitiesAfterSuccessfulTests(tx *gorm.DB, channelID string, results []model.ChannelTest) ([]string, []channelModelEndpointRestore, error) {
+	restoredModels := make([]string, 0)
+	restoredEndpoints := make([]channelModelEndpointRestore, 0)
+	seenModels := make(map[string]struct{})
+	seenEndpoints := make(map[string]struct{})
+	for _, result := range model.NormalizeChannelTestRows(results) {
+		if !result.Supported || model.NormalizeChannelTestStatus(result.Status) != model.ChannelTestStatusSupported {
+			continue
+		}
+		modelName := strings.TrimSpace(result.Model)
+		endpoint := model.NormalizeRequestedChannelModelEndpoint(result.Endpoint)
+		if modelName == "" || endpoint == "" {
+			continue
+		}
+		if _, ok := seenModels[modelName]; !ok {
+			restored, err := model.RestoreRuntimeDisabledChannelModelCapabilityWithDB(tx, channelID, modelName)
+			if err != nil {
+				return nil, nil, err
+			}
+			if restored {
+				restoredModels = append(restoredModels, modelName)
+			}
+			seenModels[modelName] = struct{}{}
+		}
+		endpointKey := modelName + "::" + endpoint
+		if _, ok := seenEndpoints[endpointKey]; ok {
+			continue
+		}
+		restored, err := model.RestoreRuntimeDisabledChannelModelEndpointCapabilityWithDB(tx, channelID, modelName, endpoint)
+		if err != nil {
+			return nil, nil, err
+		}
+		if restored {
+			restoredEndpoints = append(restoredEndpoints, channelModelEndpointRestore{
+				Model:    modelName,
+				Endpoint: endpoint,
+			})
+		}
+		seenEndpoints[endpointKey] = struct{}{}
+	}
+	return restoredModels, restoredEndpoints, nil
+}
+
+func notifyAutoRestoredCapabilities(channelID string, restoredModels []string, restoredEndpoints []channelModelEndpointRestore) {
+	channelRow, err := channelsvc.GetByID(channelID)
+	if err != nil {
+		return
+	}
+	if len(restoredModels) > 0 {
+		if err := channelRow.UpdateGroupModelChannels(); err != nil {
+			return
+		}
+	}
+	channelName := channelRow.DisplayName()
+	for _, modelName := range model.NormalizeChannelModelIDsPreserveOrder(restoredModels) {
+		monitor.NotifyChannelModelCapabilityRestored(channelID, channelName, modelName, "auto-test")
+	}
+	for _, item := range restoredEndpoints {
+		monitor.NotifyChannelModelEndpointCapabilityRestored(channelID, channelName, item.Model, item.Endpoint, "auto-test")
+	}
 }
 
 func normalizeChannelModelTestMode(raw string) string {

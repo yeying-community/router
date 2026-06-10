@@ -14,6 +14,7 @@ import (
 	"github.com/yeying-community/router/common/ctxkey"
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
+	adminchannel "github.com/yeying-community/router/internal/admin/controller/channel"
 	dbmodel "github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/admin/monitor"
 	"github.com/yeying-community/router/internal/relay/controller"
@@ -385,6 +386,7 @@ func processChannelRelayError(ctx context.Context, userId string, groupID string
 			monitor.Emit(channelId, false)
 		} else if disabled {
 			monitor.NotifyChannelModelEndpointCapabilityDisabled(channelId, channelName, requestModel, dbmodel.NormalizeRequestedChannelModelEndpoint(requestPath), err.Message)
+			enqueueChannelModelCapabilityRecoveryTest(ctx, channelId, requestModel, requestPath)
 		}
 		return
 	}
@@ -395,6 +397,7 @@ func processChannelRelayError(ctx context.Context, userId string, groupID string
 			monitor.Emit(channelId, false)
 		} else if disabled {
 			monitor.NotifyChannelModelCapabilityDisabled(channelId, channelName, requestModel, err.Message)
+			enqueueChannelModelCapabilityRecoveryTest(ctx, channelId, requestModel, requestPath)
 		}
 		return
 	}
@@ -402,6 +405,26 @@ func processChannelRelayError(ctx context.Context, userId string, groupID string
 		monitor.DisableChannel(channelId, channelName, err.Message)
 	} else {
 		monitor.Emit(channelId, false)
+	}
+}
+
+func enqueueChannelModelCapabilityRecoveryTest(ctx context.Context, channelID string, modelName string, endpoint string) {
+	created, err := adminchannel.EnqueueChannelModelEndpointRecoveryTest(channelID, modelName, endpoint, helper.GetTraceID(ctx))
+	if err != nil {
+		logger.RelayWarnf(ctx, relaylogging.NewFields("RECOVERY_TEST_ENQUEUE_FAILED").
+			String("channel_id", channelID).
+			String("model", modelName).
+			String("endpoint", endpoint).
+			String("error", err.Error()).
+			Build())
+		return
+	}
+	if created {
+		logger.RelayWarnf(ctx, relaylogging.NewFields("RECOVERY_TEST_ENQUEUED").
+			String("channel_id", channelID).
+			String("model", modelName).
+			String("endpoint", endpoint).
+			Build())
 	}
 }
 
@@ -424,12 +447,15 @@ func shouldDisableChannelModelCapability(err *model.ErrorWithStatusCode) bool {
 	if code == "unsupported_channel_endpoint" {
 		return false
 	}
+	lowerMessage := strings.ToLower(strings.TrimSpace(err.Message))
+	if isTransientUpstreamMessage(lowerMessage) {
+		return false
+	}
 	if code == "model_not_found" {
 		return true
 	}
 
 	lowerType := strings.ToLower(strings.TrimSpace(err.Type))
-	lowerMessage := strings.ToLower(strings.TrimSpace(err.Message))
 	if lowerType == "permission_error" && isModelScopedPermissionMessage(lowerMessage) {
 		return true
 	}
@@ -444,6 +470,21 @@ func shouldDisableChannelModelRequestEndpointCapability(err *model.ErrorWithStat
 		return false
 	}
 	return errorCodeString(err.Code) == "unsupported_channel_endpoint"
+}
+
+func isTransientUpstreamMessage(message string) bool {
+	if message == "" {
+		return false
+	}
+	return strings.Contains(message, "瞬时") ||
+		strings.Contains(message, "稍候重试") ||
+		strings.Contains(message, "稍后重试") ||
+		strings.Contains(message, "暂时不可用") ||
+		strings.Contains(message, "线路出现") ||
+		strings.Contains(message, "重试全部源头链路") ||
+		strings.Contains(message, "try again later") ||
+		strings.Contains(message, "temporarily unavailable") ||
+		strings.Contains(message, "temporary")
 }
 
 func isModelScopedPermissionMessage(message string) bool {

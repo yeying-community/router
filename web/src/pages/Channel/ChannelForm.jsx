@@ -4371,10 +4371,16 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     async (upstreamModel, checked) => {
       const nextConfigs = visibleChannelModels.map((row) =>
         row.upstream_model === upstreamModel &&
-        (checked ? canSelectChannelModel(row) : row.selected === true)
+        (checked
+          ? canSelectChannelModel({ ...row, inactive: false })
+          : row.selected === true)
           ? {
               ...row,
               selected: !!checked,
+              inactive: checked ? false : row.inactive,
+              disabled_reason: checked ? '' : row.disabled_reason,
+              disabled_at: checked ? 0 : row.disabled_at,
+              disabled_by: checked ? '' : row.disabled_by,
             }
           : row,
       );

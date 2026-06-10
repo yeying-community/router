@@ -465,6 +465,56 @@ func DisableChannelModelRequestEndpointCapabilityWithReason(channelID string, mo
 	return true, nil
 }
 
+func RestoreRuntimeDisabledChannelModelEndpointCapabilityWithDB(db *gorm.DB, channelID string, modelName string, requestPath string) (bool, error) {
+	if db == nil {
+		return false, fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	normalizedModelName := strings.TrimSpace(modelName)
+	normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(requestPath)
+	if normalizedChannelID == "" || normalizedModelName == "" || normalizedEndpoint == "" {
+		return false, nil
+	}
+	rows, err := listChannelModelEndpointRowsByChannelIDWithDB(db, normalizedChannelID)
+	if err != nil {
+		return false, err
+	}
+	changed := false
+	for idx := range rows {
+		if strings.TrimSpace(rows[idx].Model) != normalizedModelName {
+			continue
+		}
+		if NormalizeRequestedChannelModelEndpoint(rows[idx].Endpoint) != normalizedEndpoint {
+			continue
+		}
+		if rows[idx].Enabled || !isRuntimeDisabledChannelModelEndpoint(rows[idx]) {
+			continue
+		}
+		rows[idx].Enabled = true
+		rows[idx].DisabledReason = ""
+		rows[idx].DisabledAt = 0
+		rows[idx].DisabledBy = ""
+		changed = true
+	}
+	if !changed {
+		return false, nil
+	}
+	if err := replaceChannelModelEndpointRowsWithDB(db, normalizedChannelID, rows); err != nil {
+		return false, err
+	}
+	if config.MemoryCacheEnabled {
+		InitChannelCache()
+	}
+	return true, nil
+}
+
+func isRuntimeDisabledChannelModelEndpoint(row ChannelModelEndpoint) bool {
+	return !row.Enabled &&
+		(strings.TrimSpace(row.DisabledBy) == "runtime" ||
+			row.DisabledAt > 0 ||
+			strings.TrimSpace(row.DisabledReason) != "")
+}
+
 func HasChannelModelEndpoint(rows []ChannelModelEndpoint, modelName string, endpoint string) bool {
 	normalizedModelName := strings.TrimSpace(modelName)
 	normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(endpoint)

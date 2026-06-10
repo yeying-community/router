@@ -60,6 +60,15 @@ func ValidateManualChannelModelChangesWithDB(db *gorm.DB, channelID string, curr
 		if !shouldValidateManualChannelModelChange(currentByModel[row.Model], row) {
 			continue
 		}
+		if isRuntimeDisabledChannelModel(currentByModel[row.Model]) {
+			ok, err := HasSuccessfulChannelModelTestResultWithDB(db, normalizedChannelID, row.Model)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return fmt.Errorf("模型 %s 恢复前需要先测试通过", displayChannelModelName(row))
+			}
+		}
 		reason, err := ExplainManualChannelModelEnableBlockWithDB(db, normalizedChannelID, row)
 		if err != nil {
 			return err
@@ -91,6 +100,13 @@ func shouldValidateManualChannelModelChange(current ChannelModel, next ChannelMo
 		return true
 	}
 	return false
+}
+
+func isRuntimeDisabledChannelModel(row ChannelModel) bool {
+	return row.Inactive &&
+		(strings.TrimSpace(row.DisabledBy) == "runtime" ||
+			row.DisabledAt > 0 ||
+			strings.TrimSpace(row.DisabledReason) != "")
 }
 
 func ValidateManualChannelEndpointEnableWithDB(db *gorm.DB, channelID string, row ChannelModel, endpoint string) error {

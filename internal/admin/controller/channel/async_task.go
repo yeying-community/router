@@ -175,6 +175,85 @@ func CreateChannelModelTestTasks(channelID string, createdBy string, requestedTe
 	return tasks, createdCount, reusedCount, nil
 }
 
+func EnqueueChannelModelEndpointRecoveryTest(channelID string, modelID string, endpoint string, traceID string) (bool, error) {
+	normalizedModelID := strings.TrimSpace(modelID)
+	normalizedEndpoint := model.NormalizeRequestedChannelModelEndpoint(endpoint)
+	if strings.TrimSpace(channelID) == "" || normalizedModelID == "" || normalizedEndpoint == "" {
+		return false, nil
+	}
+	_, createdCount, _, err := CreateChannelModelTestTasks(
+		channelID,
+		"runtime",
+		normalizedModelID,
+		[]string{normalizedModelID},
+		[]channelModelTestTargetItem{
+			{
+				Model:    normalizedModelID,
+				Endpoint: normalizedEndpoint,
+			},
+		},
+		traceID,
+		"",
+		"",
+		"",
+	)
+	if err != nil {
+		return false, err
+	}
+	return createdCount > 0, nil
+}
+
+func EnqueueRuntimeDisabledCapabilityRecoveryTests(limit int) (int, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	createdCount := 0
+	modelRows, err := model.ListRecentDisabledChannelModelsWithDB(model.DB, limit)
+	if err != nil {
+		return createdCount, err
+	}
+	seen := make(map[string]struct{})
+	for _, row := range modelRows {
+		if strings.TrimSpace(row.DisabledBy) != "runtime" {
+			continue
+		}
+		key := strings.TrimSpace(row.ChannelId) + "::" + strings.TrimSpace(row.Model) + "::" + model.NormalizeRequestedChannelModelEndpoint(row.Endpoint)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		created, err := EnqueueChannelModelEndpointRecoveryTest(row.ChannelId, row.Model, row.Endpoint, "")
+		if err != nil {
+			return createdCount, err
+		}
+		if created {
+			createdCount++
+		}
+		seen[key] = struct{}{}
+	}
+	endpointRows, err := model.ListRecentDisabledChannelModelEndpointsWithDB(model.DB, limit)
+	if err != nil {
+		return createdCount, err
+	}
+	for _, row := range endpointRows {
+		if strings.TrimSpace(row.DisabledBy) != "runtime" {
+			continue
+		}
+		key := strings.TrimSpace(row.ChannelId) + "::" + strings.TrimSpace(row.Model) + "::" + model.NormalizeRequestedChannelModelEndpoint(row.Endpoint)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		created, err := EnqueueChannelModelEndpointRecoveryTest(row.ChannelId, row.Model, row.Endpoint, "")
+		if err != nil {
+			return createdCount, err
+		}
+		if created {
+			createdCount++
+		}
+		seen[key] = struct{}{}
+	}
+	return createdCount, nil
+}
+
 func validateChannelModelTestEndpointAgainstProvider(row model.ChannelModel, endpoint string) error {
 	normalizedEndpoint := model.NormalizeRequestedChannelModelEndpoint(endpoint)
 	if normalizedEndpoint == "" {

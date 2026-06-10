@@ -265,6 +265,66 @@ func TestBuildDisabledChannelModelConfigsNoopWhenTargetMissing(t *testing.T) {
 	}
 }
 
+func TestReplaceChannelModelsWithDBClearsRuntimeDisableMetadataWhenModelRestored(t *testing.T) {
+	db := openChannelModelTestDB(t)
+	if err := db.AutoMigrate(
+		&Channel{},
+		&ChannelModel{},
+		&ChannelModelEndpoint{},
+		&ChannelModelPriceComponent{},
+		&ProviderModel{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{Id: "channel-1", Name: "channel-1", Protocol: "openai"}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:      "channel-1",
+		Model:          "gpt-5.4",
+		UpstreamModel:  "gpt-5.4",
+		Provider:       "openai",
+		Type:           ProviderModelTypeText,
+		Inactive:       true,
+		Selected:       false,
+		DisabledReason: "model not found",
+		DisabledAt:     123,
+		DisabledBy:     "runtime",
+	}).Error; err != nil {
+		t.Fatalf("create disabled channel model: %v", err)
+	}
+
+	if err := ReplaceChannelModelsWithDB(db, "channel-1", []ChannelModel{
+		{
+			Model:         "gpt-5.4",
+			UpstreamModel: "gpt-5.4",
+			Provider:      "openai",
+			Type:          ProviderModelTypeText,
+			Inactive:      false,
+			Selected:      true,
+		},
+	}); err != nil {
+		t.Fatalf("ReplaceChannelModelsWithDB: %v", err)
+	}
+
+	rows, err := listChannelModelRowsByChannelIDWithDB(db, "channel-1")
+	if err != nil {
+		t.Fatalf("list channel models: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("len(rows) = %d, want 1", len(rows))
+	}
+	if rows[0].Inactive {
+		t.Fatalf("rows[0].Inactive = true, want false")
+	}
+	if !rows[0].Selected {
+		t.Fatalf("rows[0].Selected = false, want true")
+	}
+	if rows[0].DisabledReason != "" || rows[0].DisabledAt != 0 || rows[0].DisabledBy != "" {
+		t.Fatalf("disable metadata = reason:%q at:%d by:%q, want cleared", rows[0].DisabledReason, rows[0].DisabledAt, rows[0].DisabledBy)
+	}
+}
+
 func TestValidateChannelModelDisableTransitionsWithDBBlocksWhenEnabledEndpointsExist(t *testing.T) {
 	db := openChannelModelTestDB(t)
 	if err := db.AutoMigrate(&ChannelModelEndpoint{}); err != nil {

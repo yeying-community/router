@@ -184,6 +184,21 @@ func TestShouldDisableChannelModelCapabilityForModelNotFoundCode(t *testing.T) {
 	}
 }
 
+func TestShouldDisableChannelModelCapabilitySkipsTransientUpstreamMessage(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusNotFound,
+		Error: relaymodel.Error{
+			Message: "当前线路出现瞬时波动，系统已自动为您重试全部源头链路，请稍候重试",
+			Type:    "invalid_request_error",
+			Code:    "model_not_found",
+		},
+	}
+
+	if shouldDisableChannelModelCapability(err) {
+		t.Fatalf("shouldDisableChannelModelCapability = true, want false for transient upstream message")
+	}
+}
+
 func TestShouldDisableChannelModelCapabilityForModelScopedPermission(t *testing.T) {
 	err := &relaymodel.ErrorWithStatusCode{
 		StatusCode: http.StatusForbidden,
