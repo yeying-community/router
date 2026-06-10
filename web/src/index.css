@@ -3952,6 +3952,27 @@ body,
     word-break: break-all;
 }
 
+.router-ui-form-row.router-token-quota-row {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 160px);
+    align-items: start;
+}
+
+.router-token-quota-field {
+    min-width: 0;
+}
+
+.router-token-unlimited-field .router-ui-field-control {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+}
+
+@media (max-width: 720px) {
+    .router-ui-form-row.router-token-quota-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .router-token-expire-actions {
     display: flex;
     align-items: center;

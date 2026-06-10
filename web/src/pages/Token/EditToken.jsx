@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   useLocation,
@@ -11,8 +11,17 @@ import {
   showSuccess,
   timestamp2string,
 } from '../../helpers';
-import { renderAmountEquivalentPrompt } from '../../helpers/render';
 import UnitDropdown from '../../components/UnitDropdown';
+import {
+  billingInputValueToYYC,
+  buildBillingUnitOptions,
+  buildPublicDisplayCurrencyIndex,
+  convertBillingInputValueUnit,
+  loadPublicDisplayCurrencyCatalog,
+  resolveBillingInputStep,
+  resolveDefaultBillingUnit,
+  yycToBillingInputValue,
+} from '../../helpers/billing';
 import {
   AppButton,
   AppCompact,
@@ -29,8 +38,6 @@ import {
   AppTag,
   AppTextarea,
 } from '../../router-ui';
-
-const TOKEN_QUOTA_UNIT_OPTIONS = [{ key: 'YYC', value: 'YYC', text: 'YYC' }];
 
 const EditToken = () => {
   const { t } = useTranslation();
@@ -54,6 +61,10 @@ const EditToken = () => {
   const [detailEditingSection, setDetailEditingSection] = useState('');
   const [activeDetailTab, setActiveDetailTab] = useState('basic');
   const [createdToken, setCreatedToken] = useState(null);
+  const [billingCurrencyIndex, setBillingCurrencyIndex] = useState(
+    buildPublicDisplayCurrencyIndex([])
+  );
+  const [quotaDisplayUnit, setQuotaDisplayUnit] = useState('USD');
   const originInputs = {
     name: '',
     remain_quota: isDetailMode ? 0 : 500000,
@@ -69,9 +80,9 @@ const EditToken = () => {
   };
   const [inputs, setInputs] = useState(originInputs);
   const [persistedInputs, setPersistedInputs] = useState(originInputs);
+  const [quotaInputValue, setQuotaInputValue] = useState(`${originInputs.remain_quota}`);
   const {
     name,
-    remain_quota: remainingYYC,
     expired_time,
     unlimited_quota: hasUnlimitedYYCLimit,
   } = inputs;
@@ -80,13 +91,10 @@ const EditToken = () => {
   const filteredModelOptions = modelOptions.filter((option) =>
     option.value.toLowerCase().includes(modelKeyword.trim().toLowerCase())
   );
-  const formatQuotaInput = (value) => {
-    if (value === undefined || value === null || `${value}` === '') {
-      return '';
-    }
-    return `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  };
-  const parseQuotaInput = (value) => `${value || ''}`.replace(/[^\d]/g, '');
+  const quotaUnitOptions = useMemo(
+    () => buildBillingUnitOptions(billingCurrencyIndex),
+    [billingCurrencyIndex]
+  );
   const basicReadonly = isDetailMode && detailEditingSection !== 'basic';
   const modelsReadonly = isDetailMode && detailEditingSection !== 'models';
   const isEveryModelSelected = modelOptions.length > 0 && (
@@ -166,7 +174,14 @@ const EditToken = () => {
     }
     setInputs(normalizedData);
     setPersistedInputs(normalizedData);
-  }, []);
+    setQuotaInputValue(
+      yycToBillingInputValue(
+        normalizedData.remain_quota,
+        quotaDisplayUnit,
+        billingCurrencyIndex
+      )
+    );
+  }, [billingCurrencyIndex, quotaDisplayUnit]);
 
   const handleInputChange = (e, { name, value }) => {
     setInputs((inputs) => ({ ...inputs, [name]: value }));
@@ -181,13 +196,20 @@ const EditToken = () => {
 
   const cancelDetailSectionEdit = useCallback(() => {
     setInputs(persistedInputs);
+    setQuotaInputValue(
+      yycToBillingInputValue(
+        persistedInputs.remain_quota,
+        quotaDisplayUnit,
+        billingCurrencyIndex
+      )
+    );
     setAllModelsSelected(
       Array.isArray(persistedInputs.models)
         ? persistedInputs.models.length === 0
         : true
     );
     setDetailEditingSection('');
-  }, [persistedInputs]);
+  }, [billingCurrencyIndex, persistedInputs, quotaDisplayUnit]);
 
   const handleCancel = () => {
     if (isCreateMode) {
@@ -233,6 +255,23 @@ const EditToken = () => {
       ...prev,
       unlimited_quota: !prev.unlimited_quota,
     }));
+  };
+
+  const handleQuotaInputChange = (_, { value }) => {
+    setQuotaInputValue(value ?? '0');
+  };
+
+  const handleQuotaUnitChange = (_, { value }) => {
+    const nextUnit = (value || 'YYC').toString().trim().toUpperCase();
+    setQuotaInputValue((currentValue) =>
+      convertBillingInputValueUnit(
+        currentValue,
+        quotaDisplayUnit,
+        nextUnit,
+        billingCurrencyIndex
+      )
+    );
+    setQuotaDisplayUnit(nextUnit);
   };
 
   const loadToken = useCallback(async () => {
@@ -290,13 +329,40 @@ const EditToken = () => {
     });
   }, [isDetailMode, loadAvailableModels, loadToken]);
 
+  useEffect(() => {
+    let disposed = false;
+    loadPublicDisplayCurrencyCatalog().then(({ currencyIndex: nextIndex }) => {
+      if (disposed) {
+        return;
+      }
+      const nextUnit = resolveDefaultBillingUnit(nextIndex);
+      setBillingCurrencyIndex(nextIndex);
+      setQuotaDisplayUnit(nextUnit);
+      setQuotaInputValue(
+        yycToBillingInputValue(inputs.remain_quota, nextUnit, nextIndex)
+      );
+    });
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
   const submit = async () => {
     if (isCreateMode && inputs.name.trim() === '') {
       showError(t('token.edit.messages.name_required'));
       return;
     }
     const localInputs = { ...inputs };
-    localInputs.remain_quota = parseInt(localInputs.remain_quota);
+    const quotaYYC = billingInputValueToYYC(
+      quotaInputValue,
+      quotaDisplayUnit,
+      billingCurrencyIndex
+    );
+    if (!Number.isFinite(quotaYYC) || quotaYYC < 0) {
+      showError(t('token.edit.messages.quota_invalid'));
+      return;
+    }
+    localInputs.remain_quota = quotaYYC;
     if (localInputs.expired_time) {
       let time = Date.parse(localInputs.expired_time);
       if (isNaN(time)) {
@@ -336,6 +402,13 @@ const EditToken = () => {
         showSuccess(t('token.edit.messages.create_success'));
         setCreatedToken(data || null);
         setInputs(originInputs);
+        setQuotaInputValue(
+          yycToBillingInputValue(
+            originInputs.remain_quota,
+            quotaDisplayUnit,
+            billingCurrencyIndex
+          )
+        );
       }
     } else {
       showError(message);
@@ -613,12 +686,10 @@ const EditToken = () => {
                     {t('token.edit.buttons.expire_1_minute')}
                   </AppButton>
                 </div>
-                <AppFormRow>
+                <AppFormRow className='router-token-quota-row'>
                   <AppField
-                    label={`${t('token.edit.quota')}${renderAmountEquivalentPrompt(
-                      remainingYYC,
-                      t
-                    )}`}
+                    className='router-token-quota-field'
+                    label={t('token.edit.quota')}
                     hint={t('token.edit.quota_notice')}
                   >
                     <AppCompact className='router-section-input-with-unit' block>
@@ -626,27 +697,24 @@ const EditToken = () => {
                         className='router-section-input router-section-input-with-unit-field'
                         name='remain_quota'
                         placeholder={t('token.edit.quota_placeholder')}
-                        onChange={handleInputChange}
-                        value={remainingYYC}
+                        onChange={handleQuotaInputChange}
+                        value={quotaInputValue}
                         min={0}
-                        precision={0}
+                        step={resolveBillingInputStep(quotaDisplayUnit, billingCurrencyIndex)}
+                        precision={6}
                         fluid
-                        formatter={formatQuotaInput}
-                        parser={parseQuotaInput}
                         disabled={hasUnlimitedYYCLimit}
                       />
                       <UnitDropdown
                         variant='inputUnit'
-                        options={TOKEN_QUOTA_UNIT_OPTIONS}
-                        value='YYC'
-                        disabled
+                        options={quotaUnitOptions}
+                        value={quotaDisplayUnit}
+                        onChange={handleQuotaUnitChange}
                         aria-label={t('token.edit.quota')}
                       />
                     </AppCompact>
                   </AppField>
-                </AppFormRow>
-                <AppFormRow>
-                  <AppField label={t('token.edit.buttons.unlimited_quota')}>
+                  <AppField className='router-token-unlimited-field' label={t('token.edit.buttons.unlimited_quota')}>
                     <AppSwitch
                       checked={hasUnlimitedYYCLimit}
                       onChange={() => {
@@ -812,12 +880,10 @@ const EditToken = () => {
                       </AppButton>
                     </div>
                   ) : null}
-                  <AppFormRow>
+                  <AppFormRow className='router-token-quota-row'>
                     <AppField
-                      label={`${t('token.edit.quota')}${renderAmountEquivalentPrompt(
-                        remainingYYC,
-                        t
-                      )}`}
+                      className='router-token-quota-field'
+                      label={t('token.edit.quota')}
                       hint={t('token.edit.quota_notice')}
                     >
                       <AppCompact className='router-section-input-with-unit' block>
@@ -825,37 +891,34 @@ const EditToken = () => {
                           className='router-section-input router-section-input-with-unit-field'
                           name='remain_quota'
                           placeholder={t('token.edit.quota_placeholder')}
-                          onChange={handleInputChange}
-                          value={remainingYYC}
+                          onChange={handleQuotaInputChange}
+                          value={quotaInputValue}
                           min={0}
-                          precision={0}
+                          step={resolveBillingInputStep(quotaDisplayUnit, billingCurrencyIndex)}
+                          precision={6}
                           fluid
-                          formatter={formatQuotaInput}
-                          parser={parseQuotaInput}
                           disabled={hasUnlimitedYYCLimit || basicReadonly}
                         />
                         <UnitDropdown
                           variant='inputUnit'
-                          options={TOKEN_QUOTA_UNIT_OPTIONS}
-                          value='YYC'
-                          disabled
+                          options={quotaUnitOptions}
+                          value={quotaDisplayUnit}
+                          onChange={handleQuotaUnitChange}
+                          disabled={basicReadonly}
                           aria-label={t('token.edit.quota')}
                         />
                       </AppCompact>
                     </AppField>
+                    <AppField className='router-token-unlimited-field' label={t('token.edit.buttons.unlimited_quota')}>
+                      <AppSwitch
+                        checked={hasUnlimitedYYCLimit}
+                        disabled={basicReadonly}
+                        onChange={() => {
+                          toggleUnlimitedYYCLimit();
+                        }}
+                      />
+                    </AppField>
                   </AppFormRow>
-                  {detailEditingSection === 'basic' ? (
-                    <AppFormRow>
-                      <AppField label={t('token.edit.buttons.unlimited_quota')}>
-                        <AppSwitch
-                          checked={hasUnlimitedYYCLimit}
-                          onChange={() => {
-                            toggleUnlimitedYYCLimit();
-                          }}
-                        />
-                      </AppField>
-                    </AppFormRow>
-                  ) : null}
               </AppDetailSection>
             ) : null}
             {activeDetailTab === 'models' ? (

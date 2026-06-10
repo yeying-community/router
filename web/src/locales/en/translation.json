@@ -1421,6 +1421,7 @@
         "create_success": "Token created successfully, please copy it from the list page!",
         "name_required": "Please enter a token name.",
         "expire_time_invalid": "Invalid expiry time format!",
+        "quota_invalid": "Invalid remaining amount.",
         "models_required": "Please select at least one model."
       }
     },

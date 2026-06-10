@@ -1421,6 +1421,7 @@
         "create_success": "令牌创建成功，请在列表页面点击复制获取令牌！",
         "name_required": "请输入令牌名称。",
         "expire_time_invalid": "过期时间格式错误！",
+        "quota_invalid": "剩余额度格式错误。",
         "models_required": "请至少选择一个模型。"
       }
     },
