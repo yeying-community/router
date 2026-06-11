@@ -483,7 +483,8 @@
       "text": "Text",
       "image": "Image",
       "audio": "Audio",
-      "video": "Video"
+      "video": "Video",
+      "embedding": "Embedding"
     },
     "providers": {
       "title": "Providers",

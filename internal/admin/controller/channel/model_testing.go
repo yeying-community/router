@@ -348,6 +348,7 @@ const (
 	channelModelTestKindAudio          channelModelTestKind = "audio"
 	channelModelTestKindRealtime       channelModelTestKind = "realtime"
 	channelModelTestKindVideo          channelModelTestKind = "video"
+	channelModelTestKindEmbedding      channelModelTestKind = "embedding"
 )
 
 func resolveChannelModelTestKind(modelType string, endpoint string) channelModelTestKind {
@@ -371,6 +372,8 @@ func resolveChannelModelTestKind(modelType string, endpoint string) channelModel
 		return channelModelTestKindRealtime
 	case model.ChannelModelEndpointVideos:
 		return channelModelTestKindVideo
+	case model.ChannelModelEndpointEmbeddings:
+		return channelModelTestKindEmbedding
 	default:
 		return channelModelTestKindText
 	}
@@ -392,6 +395,8 @@ func isChannelModelTestEndpointAllowed(modelType string, endpoint string) bool {
 			normalizedEndpoint == model.ChannelModelEndpointRealtime
 	case model.ProviderModelTypeVideo:
 		return normalizedEndpoint == model.ChannelModelEndpointVideos
+	case model.ProviderModelTypeEmbedding:
+		return normalizedEndpoint == model.ChannelModelEndpointEmbeddings
 	default:
 		return normalizedEndpoint == model.ChannelModelEndpointChat ||
 			normalizedEndpoint == model.ChannelModelEndpointMessages ||
@@ -548,6 +553,14 @@ func runSingleChannelModelTestWithContextAndStream(ctx context.Context, channel 
 			UpstreamModel: row.UpstreamModel,
 			Type:          modelType,
 			Endpoint:      model.ChannelModelEndpointVideos,
+		}, execution), execution
+	case channelModelTestKindEmbedding:
+		execution := executeChannelEmbeddingModelTest(ctx, channel, row.Model)
+		return buildChannelModelTestResult(model.ChannelModel{
+			Model:         row.Model,
+			UpstreamModel: row.UpstreamModel,
+			Type:          modelType,
+			Endpoint:      model.ChannelModelEndpointEmbeddings,
 		}, execution), execution
 	default:
 		execution := channelModelTestExecution{
@@ -1038,6 +1051,109 @@ func parseTextModelTestResponseByEndpoint(path string, resp string) (string, err
 	default:
 		return parseTextModelTestResponse(resp)
 	}
+}
+
+func buildEmbeddingModelTestRequestBody(modelName string) []byte {
+	body, err := json.Marshal(map[string]any{
+		"model": strings.TrimSpace(modelName),
+		"input": "Router embedding test.",
+	})
+	if err != nil {
+		return nil
+	}
+	return body
+}
+
+func parseEmbeddingModelTestResponse(resp string) (string, error) {
+	payload := make(map[string]any)
+	if err := json.Unmarshal([]byte(resp), &payload); err != nil {
+		return "", fmt.Errorf("parse embedding response: %w", err)
+	}
+	data, ok := payload["data"].([]any)
+	if !ok || len(data) == 0 {
+		return "", fmt.Errorf("embedding response missing data")
+	}
+	first, ok := data[0].(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("embedding response data[0] is not object")
+	}
+	embedding, ok := first["embedding"].([]any)
+	if !ok || len(embedding) == 0 {
+		return "", fmt.Errorf("embedding response missing embedding vector")
+	}
+	return fmt.Sprintf("embedding dimensions: %d", len(embedding)), nil
+}
+
+func executeChannelEmbeddingModelTest(ctx context.Context, channel *model.Channel, modelName string) channelModelTestExecution {
+	execution := channelModelTestExecution{}
+	actualModel := resolveChannelUpstreamModelName(channel, modelName)
+	if strings.TrimSpace(actualModel) == "" {
+		execution.Err = fmt.Errorf("未找到可用于向量模型测试的模型")
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": execution.Err.Error()})
+		return execution
+	}
+	requestBody := buildEmbeddingModelTestRequestBody(actualModel)
+	if len(requestBody) == 0 {
+		execution.Err = fmt.Errorf("构建向量模型测试请求失败")
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": execution.Err.Error()})
+		return execution
+	}
+	c, relayMeta, err := newChannelRelayRuntimeContext(model.ChannelModelEndpointEmbeddings, channel, ctx)
+	if err != nil {
+		execution.Err = err
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		return execution
+	}
+	adaptor := relay.GetAdaptor(relayMeta.APIType)
+	if adaptor == nil {
+		execution.Err = fmt.Errorf("invalid api type: %d", relayMeta.APIType)
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": execution.Err.Error()})
+		return execution
+	}
+	adaptor.Init(relayMeta)
+	relayMeta.OriginModelName = strings.TrimSpace(modelName)
+	relayMeta.ActualModelName = strings.TrimSpace(actualModel)
+	baseURL := channel.ResolveAPIBaseURLForModel(model.ChannelModelEndpointEmbeddings, modelName, actualModel)
+	requestURL := resolveChannelModelTestRequestURL(baseURL, model.ChannelModelEndpointEmbeddings, adaptor, relayMeta)
+	execution.BaseURL = baseURL
+	execution.RequestURL = requestURL
+	requestHeader := http.Header{}
+	requestHeader.Set("Content-Type", "application/json")
+	execution.InputPayload = buildHTTPRequestPayloadForLog(http.MethodPost, requestURL, requestHeader, requestBody)
+	startedAt := time.Now()
+	resp, err := adaptor.DoRequest(c, relayMeta, bytes.NewBuffer(requestBody))
+	execution.LatencyMs = time.Since(startedAt).Milliseconds()
+	if err != nil {
+		execution.Err = err
+		execution.OutputPayload = marshalJSONForLog(map[string]any{"error": err.Error()})
+		return execution
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		execution.Err = err
+		execution.OutputPayload = buildHTTPResponsePayloadForLog(resp.StatusCode, resp.Header, nil)
+		return execution
+	}
+	if closeErr := resp.Body.Close(); closeErr != nil {
+		execution.Err = closeErr
+		execution.OutputPayload = buildHTTPResponsePayloadForLog(resp.StatusCode, resp.Header, body)
+		return execution
+	}
+	execution.ResponseStatusCode = resp.StatusCode
+	execution.ResponseHeader = resp.Header.Clone()
+	execution.ResponseBody = append([]byte(nil), body...)
+	execution.OutputPayload = buildHTTPResponsePayloadForLog(resp.StatusCode, resp.Header, body)
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		execution.Err = parseChannelUpstreamError(resp.StatusCode, body)
+		return execution
+	}
+	message, parseErr := parseEmbeddingModelTestResponse(string(body))
+	if parseErr != nil {
+		execution.Err = parseErr
+		return execution
+	}
+	execution.Message = message
+	return execution
 }
 
 func executeChannelImageResponsesModelTest(ctx context.Context, channel *model.Channel, modelName string) channelModelTestExecution {

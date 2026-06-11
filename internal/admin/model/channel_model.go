@@ -1407,6 +1407,8 @@ func normalizeExplicitChannelModelType(raw string) string {
 		return ProviderModelTypeAudio
 	case ProviderModelTypeVideo:
 		return ProviderModelTypeVideo
+	case ProviderModelTypeEmbedding:
+		return ProviderModelTypeEmbedding
 	default:
 		return ""
 	}

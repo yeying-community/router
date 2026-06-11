@@ -166,6 +166,38 @@ func TestResolveChannelModelTestEndpointForRow_AllowsRealtimeForAudioModel(t *te
 	}
 }
 
+func TestResolveChannelModelTestEndpointForRow_AllowsEmbeddingsForEmbeddingModel(t *testing.T) {
+	endpoint, err := resolveChannelModelTestEndpointForRow(adminmodel.ChannelModel{
+		Model:     "text-embedding-3-small",
+		Type:      adminmodel.ProviderModelTypeEmbedding,
+		Endpoint:  adminmodel.ChannelModelEndpointEmbeddings,
+		Endpoints: []string{adminmodel.ChannelModelEndpointEmbeddings},
+	})
+	if err != nil {
+		t.Fatalf("resolveChannelModelTestEndpointForRow returned error: %v", err)
+	}
+	if endpoint != adminmodel.ChannelModelEndpointEmbeddings {
+		t.Fatalf("endpoint = %q, want %q", endpoint, adminmodel.ChannelModelEndpointEmbeddings)
+	}
+}
+
+func TestResolveChannelModelTestEndpoint_RejectsResponsesForEmbedding(t *testing.T) {
+	_, err := resolveChannelModelTestEndpoint(adminmodel.ProviderModelTypeEmbedding, adminmodel.ChannelModelEndpointResponses)
+	if err == nil {
+		t.Fatalf("expected error when embedding model uses responses endpoint")
+	}
+}
+
+func TestParseEmbeddingModelTestResponse(t *testing.T) {
+	message, err := parseEmbeddingModelTestResponse(`{"object":"list","data":[{"object":"embedding","embedding":[0.1,0.2,0.3],"index":0}]}`)
+	if err != nil {
+		t.Fatalf("parseEmbeddingModelTestResponse returned error: %v", err)
+	}
+	if message != "embedding dimensions: 3" {
+		t.Fatalf("message = %q, want embedding dimensions: 3", message)
+	}
+}
+
 func TestValidateChannelModelTestEndpointAgainstProviderRejectsOutsideProviderRange(t *testing.T) {
 	previousDB := adminmodel.DB
 	t.Cleanup(func() {

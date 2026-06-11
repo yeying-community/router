@@ -76,6 +76,25 @@ func TestCompleteChannelModelRowDefaults_PreservesExplicitPrimaryEndpoint(t *tes
 	}
 }
 
+func TestCompleteChannelModelRowDefaults_PreservesExplicitEmbeddingType(t *testing.T) {
+	row := ChannelModel{
+		Model:         "custom-embedding",
+		UpstreamModel: "custom-embedding",
+		Type:          ProviderModelTypeEmbedding,
+		Endpoint:      ChannelModelEndpointEmbeddings,
+		Endpoints: []string{
+			ChannelModelEndpointEmbeddings,
+		},
+	}
+	completeChannelModelRowDefaults(&row, relaychannel.OpenAI)
+	if row.Type != ProviderModelTypeEmbedding {
+		t.Fatalf("row.Type = %q, want %q", row.Type, ProviderModelTypeEmbedding)
+	}
+	if row.Endpoint != ChannelModelEndpointEmbeddings {
+		t.Fatalf("row.Endpoint = %q, want %q", row.Endpoint, ChannelModelEndpointEmbeddings)
+	}
+}
+
 func TestNormalizeChannelModelRow_UsesFirstEndpointWhenPrimaryMissing(t *testing.T) {
 	row := ChannelModel{
 		Model:         "gpt-5.1",

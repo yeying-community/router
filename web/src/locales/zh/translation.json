@@ -483,7 +483,8 @@
       "text": "文本",
       "image": "图片",
       "audio": "音频",
-      "video": "视频"
+      "video": "视频",
+      "embedding": "向量"
     },
     "providers": {
       "title": "供应商管理",

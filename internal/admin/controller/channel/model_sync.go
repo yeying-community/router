@@ -84,6 +84,10 @@ func normalizeChannelModelTypeHint(raw string) string {
 		strings.Contains(lower, "tts"),
 		strings.Contains(lower, "transcription"):
 		return model.ProviderModelTypeAudio
+	case strings.Contains(lower, "embedding"),
+		strings.Contains(lower, "embeddings"),
+		strings.Contains(lower, "embed"):
+		return model.ProviderModelTypeEmbedding
 	case strings.Contains(lower, "text"),
 		strings.Contains(lower, "chat"),
 		strings.Contains(lower, "completion"),

@@ -1,6 +1,10 @@
 package channel
 
-import "testing"
+import (
+	"testing"
+
+	adminmodel "github.com/yeying-community/router/internal/admin/model"
+)
 
 func TestResolveModelsURL_AliRootBaseURLUsesCompatibleModelsEndpoint(t *testing.T) {
 	got := resolveModelsURL("https://dashscope.aliyuncs.com", "ali")
@@ -43,5 +47,11 @@ func TestZhipuModelSyncUsesProviderOfficialModels(t *testing.T) {
 func TestOpenAIModelSyncUsesUpstreamModelsEndpoint(t *testing.T) {
 	if usesProviderOfficialModelsForSync("openai") {
 		t.Fatalf("openai model sync should use upstream models endpoint")
+	}
+}
+
+func TestNormalizeChannelModelTypeHintRecognizesEmbedding(t *testing.T) {
+	if got := normalizeChannelModelTypeHint("text embedding model"); got != adminmodel.ProviderModelTypeEmbedding {
+		t.Fatalf("normalizeChannelModelTypeHint() = %q, want embedding", got)
 	}
 }
