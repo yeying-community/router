@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -22,7 +23,8 @@ func ShouldDisableChannel(err *model.Error, statusCode int) bool {
 	case "insufficient_quota", "authentication_error", "permission_error", "forbidden":
 		return true
 	}
-	if err.Code == "invalid_api_key" || err.Code == "account_deactivated" {
+	code := strings.ToLower(strings.TrimSpace(fmt.Sprint(err.Code)))
+	if code == "invalid_api_key" || code == "account_deactivated" || code == "1113" {
 		return true
 	}
 
@@ -37,7 +39,9 @@ func ShouldDisableChannel(err *model.Error, statusCode int) bool {
 		strings.Contains(lowerMessage, "organization has been restricted") || // groq
 		strings.Contains(lowerMessage, "api key not valid") || // gemini
 		strings.Contains(lowerMessage, "api key expired") || // gemini
-		strings.Contains(lowerMessage, "已欠费") {
+		strings.Contains(lowerMessage, "已欠费") ||
+		strings.Contains(lowerMessage, "余额不足") ||
+		strings.Contains(lowerMessage, "无可用资源包") {
 		return true
 	}
 	return false

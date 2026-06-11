@@ -299,11 +299,13 @@ func isUpstreamQuotaRelayError(err *model.ErrorWithStatusCode) bool {
 		return true
 	}
 	lowerCode := strings.ToLower(errorCodeString(err.Code))
-	if lowerCode == "insufficient_quota" || lowerCode == "billing_hard_limit_reached" {
+	if lowerCode == "insufficient_quota" || lowerCode == "billing_hard_limit_reached" || lowerCode == "1113" {
 		return true
 	}
 	lowerMessage := strings.ToLower(strings.TrimSpace(err.Message))
 	return strings.Contains(lowerMessage, "额度") ||
+		strings.Contains(lowerMessage, "余额不足") ||
+		strings.Contains(lowerMessage, "资源包") ||
 		strings.Contains(lowerMessage, "欠费") ||
 		strings.Contains(lowerMessage, "quota") ||
 		strings.Contains(lowerMessage, "credit") ||

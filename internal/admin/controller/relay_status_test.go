@@ -109,6 +109,26 @@ func TestNormalizeFinalRelayErrorForUpstreamQuotaExhausted(t *testing.T) {
 	}
 }
 
+func TestNormalizeFinalRelayErrorForZhipuInsufficientBalanceCode(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusTooManyRequests,
+		Error: relaymodel.Error{
+			Message: "余额不足或无可用资源包,请充值。",
+			Type:    "",
+			Code:    "1113",
+		},
+	}
+
+	normalizeFinalRelayError(err)
+
+	if err.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("unexpected status code: got %d want %d", err.StatusCode, http.StatusServiceUnavailable)
+	}
+	if err.Message != "当前分组可用上游额度不足，请稍后再试" {
+		t.Fatalf("unexpected message: got %q", err.Message)
+	}
+}
+
 func TestNormalizeFinalRelayErrorKeepsGroupDailyQuotaExceeded(t *testing.T) {
 	err := &relaymodel.ErrorWithStatusCode{
 		StatusCode: http.StatusForbidden,
