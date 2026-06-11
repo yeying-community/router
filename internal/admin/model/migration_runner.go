@@ -1389,6 +1389,9 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			Version:     "202606111160_qwen_channel_endpoint_baseline_cleanup",
 			Description: "rebuild qwen channel endpoints from official provider endpoint baseline",
 			Up: func(tx *gorm.DB) error {
+				if err := upsertProviderMigrationProvidersWithDB(tx, "qwen"); err != nil {
+					return err
+				}
 				return cleanupChannelEndpointBaselineWithDB(tx, "ali", "qwen", false)
 			},
 		},
