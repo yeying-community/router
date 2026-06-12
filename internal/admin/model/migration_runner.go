@@ -1397,16 +1397,15 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 		},
 		{
 			Version:     "202606111210_refresh_volcengine_provider_models",
-			Description: "upsert latest volcengine doubao provider models",
+			Description: "refresh volcengine official provider models and channel endpoint baseline",
 			Up: func(tx *gorm.DB) error {
-				return upsertProviderMigrationProvidersWithDB(tx, "volcengine")
-			},
-		},
-		{
-			Version:     "202606111220_volcengine_channel_upstream_models",
-			Description: "map volcengine stable model aliases to official upstream model ids",
-			Up: func(tx *gorm.DB) error {
-				return updateVolcengineChannelUpstreamModelsWithDB(tx)
+				if err := upsertProviderMigrationProvidersWithDB(tx, "volcengine"); err != nil {
+					return err
+				}
+				if err := renameVolcengineOldModelNamesWithDB(tx); err != nil {
+					return err
+				}
+				return cleanupChannelEndpointBaselineWithDB(tx, "doubao", "volcengine", false)
 			},
 		},
 		{
@@ -1420,43 +1419,6 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 						"description": "Volcengine Ark",
 						"updated_at":  helper.GetTimestamp(),
 					}).Error
-			},
-		},
-		{
-			Version:     "202606111240_volcengine_channel_endpoint_baseline_cleanup",
-			Description: "rebuild volcengine channel endpoints from official provider endpoint baseline",
-			Up: func(tx *gorm.DB) error {
-				if err := upsertProviderMigrationProvidersWithDB(tx, "volcengine"); err != nil {
-					return err
-				}
-				return cleanupChannelEndpointBaselineWithDB(tx, "doubao", "volcengine", false)
-			},
-		},
-		{
-			Version:     "202606120010_refresh_volcengine_provider_pricing",
-			Description: "refresh volcengine provider pricing from official model pricing document",
-			Up: func(tx *gorm.DB) error {
-				return upsertProviderMigrationProvidersWithDB(tx, "volcengine")
-			},
-		},
-		{
-			Version:     "202606120030_refresh_volcengine_multimodal_official_models",
-			Description: "refresh volcengine official multimodal models and rename old model names to official ids",
-			Up: func(tx *gorm.DB) error {
-				if err := upsertProviderMigrationProvidersWithDB(tx, "volcengine"); err != nil {
-					return err
-				}
-				return renameVolcengineOldModelNamesWithDB(tx)
-			},
-		},
-		{
-			Version:     "202606120040_fix_volcengine_multimodal_api_model_ids",
-			Description: "rename volcengine multimodal display model names to official api model ids",
-			Up: func(tx *gorm.DB) error {
-				if err := upsertProviderMigrationProvidersWithDB(tx, "volcengine"); err != nil {
-					return err
-				}
-				return renameVolcengineOldModelNamesWithDB(tx)
 			},
 		},
 	}
@@ -1536,22 +1498,6 @@ func renameVolcengineOldModelNamesWithDB(db *gorm.DB) error {
 				Updates(map[string]any{"model": officialModel}).Error; err != nil {
 				return err
 			}
-		}
-	}
-	return nil
-}
-
-func updateVolcengineChannelUpstreamModelsWithDB(db *gorm.DB) error {
-	if db == nil {
-		return fmt.Errorf("database handle is nil")
-	}
-	for publicModel, upstreamModel := range volcengineOldModelNameToOfficialModelMap() {
-		if err := db.Model(&ChannelModel{}).
-			Where("channel_id IN (?)", db.Model(&Channel{}).Select("id").Where("protocol = ?", "doubao")).
-			Where("model = ?", publicModel).
-			Where("(upstream_model = '' OR upstream_model = ?)", publicModel).
-			Update("upstream_model", upstreamModel).Error; err != nil {
-			return err
 		}
 	}
 	return nil
