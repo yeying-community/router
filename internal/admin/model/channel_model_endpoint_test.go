@@ -55,7 +55,7 @@ func TestDefaultProviderModelSupportedEndpointsByProvider(t *testing.T) {
 		t.Fatalf("embedding default endpoints = %#v, want embeddings", embedding)
 	}
 
-	volcengineText := DefaultProviderModelSupportedEndpoints("volcengine", ProviderModelTypeText, "doubao-seed-2.0-pro")
+	volcengineText := DefaultProviderModelSupportedEndpoints("volcengine", ProviderModelTypeText, "doubao-seed-2-0-pro-260215")
 	if len(volcengineText) != 2 ||
 		volcengineText[0] != ChannelModelEndpointChat ||
 		volcengineText[1] != ChannelModelEndpointResponses {

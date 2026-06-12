@@ -38,6 +38,12 @@ func TestGetRequestURLSupportsOfficialVolcengineEndpoints(t *testing.T) {
 			mode:    relaymode.Embeddings,
 			want:    "https://ark.cn-beijing.volces.com/api/v3/embeddings",
 		},
+		{
+			name:    "image generation",
+			baseURL: "https://ark.cn-beijing.volces.com",
+			mode:    relaymode.ImagesGenerations,
+			want:    "https://ark.cn-beijing.volces.com/api/v3/images/generations",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

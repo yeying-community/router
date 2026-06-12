@@ -473,62 +473,6 @@ func isDoubaoVisionChatModel(lowerModelName string) bool {
 	return strings.HasPrefix(lowerModelName, "doubao-seed-") && strings.Contains(lowerModelName, "vision")
 }
 
-func VolcengineOfficialUpstreamModel(modelName string) string {
-	normalizedModel := strings.TrimSpace(modelName)
-	switch normalizedModel {
-	case "doubao-seed-2.0-pro":
-		return "doubao-seed-2-0-pro-260215"
-	case "doubao-seed-2.0-lite":
-		return "doubao-seed-2-0-lite-260428"
-	case "doubao-seed-2.0-mini":
-		return "doubao-seed-2-0-mini-260428"
-	case "doubao-seed-2.0-code":
-		return "doubao-seed-2-0-code-preview-260215"
-	case "doubao-seed-1.8":
-		return "doubao-seed-1-8-251228"
-	case "doubao-seed-1.6-vision":
-		return "doubao-seed-1-6-vision-250815"
-	case "doubao-seed-code":
-		return "doubao-seed-code-preview-251028"
-	case "doubao-seed-translation":
-		return "doubao-seed-translation-250915"
-	case "doubao-seed-character":
-		return "doubao-seed-character-251128"
-	case "doubao-embedding-vision":
-		return "doubao-embedding-vision-251215"
-	default:
-		return normalizedModel
-	}
-}
-
-func VolcenginePublicModelAlias(modelName string) string {
-	normalizedModel := strings.TrimSpace(modelName)
-	switch normalizedModel {
-	case "doubao-seed-2-0-pro-260215":
-		return "doubao-seed-2.0-pro"
-	case "doubao-seed-2-0-lite-260428":
-		return "doubao-seed-2.0-lite"
-	case "doubao-seed-2-0-mini-260428":
-		return "doubao-seed-2.0-mini"
-	case "doubao-seed-2-0-code-preview-260215":
-		return "doubao-seed-2.0-code"
-	case "doubao-seed-1-8-251228":
-		return "doubao-seed-1.8"
-	case "doubao-seed-1-6-vision-250815":
-		return "doubao-seed-1.6-vision"
-	case "doubao-seed-code-preview-251028":
-		return "doubao-seed-code"
-	case "doubao-seed-translation-250915":
-		return "doubao-seed-translation"
-	case "doubao-seed-character-251128":
-		return "doubao-seed-character"
-	case "doubao-embedding-vision-251215":
-		return "doubao-embedding-vision"
-	default:
-		return normalizedModel
-	}
-}
-
 func defaultPriceUnitByComponent(component string) string {
 	switch strings.TrimSpace(strings.ToLower(component)) {
 	case ProviderModelPriceComponentImageGeneration:
@@ -625,6 +569,7 @@ func normalizeModelType(raw string, modelName string) string {
 	switch {
 	case strings.HasPrefix(lower, "veo"),
 		strings.HasPrefix(lower, "sora"),
+		strings.Contains(lower, "seedance"),
 		strings.Contains(lower, "text-to-video"),
 		strings.Contains(lower, "video-generation"),
 		strings.Contains(lower, "video_generation"),
@@ -646,6 +591,7 @@ func normalizeModelType(raw string, modelName string) string {
 	case strings.HasPrefix(lower, "dall-e"),
 		strings.HasPrefix(lower, "gpt-image"),
 		strings.HasPrefix(lower, "qwen-image"),
+		strings.Contains(lower, "seedream"),
 		strings.HasPrefix(lower, "pixtral"),
 		strings.HasPrefix(lower, "cogview"),
 		strings.Contains(lower, "image"),

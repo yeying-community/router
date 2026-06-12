@@ -326,12 +326,8 @@ func fetchChannelModelsFromProviderOfficialData(protocol string, providerFilter 
 }
 
 func providerOfficialUpstreamModel(provider string, modelName string) string {
-	normalizedProvider := commonutils.NormalizeProvider(provider)
 	normalizedModel := strings.TrimSpace(modelName)
-	if normalizedProvider != "volcengine" || normalizedModel == "" {
-		return normalizedModel
-	}
-	return model.VolcengineOfficialUpstreamModel(normalizedModel)
+	return normalizedModel
 }
 
 func loadChannelSyncState(protocol string, key string, baseURL string, channelID string, configRaw json.RawMessage, selectedModels []string, channelModels []model.ChannelModel, testModel string) (*model.Channel, string, error) {

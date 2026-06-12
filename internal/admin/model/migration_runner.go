@@ -1439,28 +1439,95 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderMigrationProvidersWithDB(tx, "volcengine")
 			},
 		},
+		{
+			Version:     "202606120030_refresh_volcengine_multimodal_official_models",
+			Description: "refresh volcengine official multimodal models and rename old model names to official ids",
+			Up: func(tx *gorm.DB) error {
+				if err := upsertProviderMigrationProvidersWithDB(tx, "volcengine"); err != nil {
+					return err
+				}
+				return renameVolcengineOldModelNamesWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
+}
+
+func volcengineOldModelNameToOfficialModelMap() map[string]string {
+	return map[string]string{
+		"doubao-seed-2.0-pro":     "doubao-seed-2-0-pro-260215",
+		"doubao-seed-2.0-lite":    "doubao-seed-2-0-lite-260428",
+		"doubao-seed-2.0-mini":    "doubao-seed-2-0-mini-260428",
+		"doubao-seed-2.0-code":    "doubao-seed-2-0-code-preview-260215",
+		"doubao-seed-1.8":         "doubao-seed-1-8-251228",
+		"doubao-seed-1.6-vision":  "doubao-seed-1-6-vision-250815",
+		"doubao-seed-code":        "doubao-seed-code-preview-251028",
+		"doubao-seed-translation": "doubao-seed-translation-250915",
+		"doubao-seed-character":   "doubao-seed-character-251128",
+		"doubao-embedding-vision": "doubao-embedding-vision-251215",
+	}
+}
+
+func renameVolcengineOldModelNamesWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	for oldModelName, officialModel := range volcengineOldModelNameToOfficialModelMap() {
+		for _, tableName := range []string{
+			ChannelModelsTableName,
+			ChannelModelEndpointsTableName,
+			ChannelModelEndpointTestResultsTableName,
+			ChannelModelSyncResultsTableName,
+			ChannelTestsTableName,
+			ChannelModelPriceComponentsTableName,
+			ChannelModelEndpointPoliciesTableName,
+		} {
+			if err := db.Table(tableName).
+				Where("channel_id IN (?)", db.Model(&Channel{}).Select("id").Where("protocol = ?", "doubao")).
+				Where("model = ?", oldModelName).
+				Updates(map[string]any{"model": officialModel}).Error; err != nil {
+				return err
+			}
+		}
+		for _, tableName := range []string{
+			ChannelModelsTableName,
+			ChannelModelEndpointTestResultsTableName,
+			ChannelModelSyncResultsTableName,
+			ChannelTestsTableName,
+		} {
+			if err := db.Table(tableName).
+				Where("channel_id IN (?)", db.Model(&Channel{}).Select("id").Where("protocol = ?", "doubao")).
+				Where("upstream_model = ? OR upstream_model = ?", oldModelName, officialModel).
+				Updates(map[string]any{"upstream_model": officialModel}).Error; err != nil {
+				return err
+			}
+		}
+		if err := db.Table(GroupModelChannelsTableName).
+			Where("provider = ?", "volcengine").
+			Where("upstream_model = ? OR upstream_model = ?", oldModelName, officialModel).
+			Updates(map[string]any{"upstream_model": officialModel}).Error; err != nil {
+			return err
+		}
+		for _, tableName := range []string{
+			GroupModelsTableName,
+			GroupModelChannelsTableName,
+		} {
+			if err := db.Table(tableName).
+				Where("provider = ?", "volcengine").
+				Where("model = ?", oldModelName).
+				Updates(map[string]any{"model": officialModel}).Error; err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func updateVolcengineChannelUpstreamModelsWithDB(db *gorm.DB) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")
 	}
-	models := []string{
-		"doubao-seed-2.0-pro",
-		"doubao-seed-2.0-lite",
-		"doubao-seed-2.0-mini",
-		"doubao-seed-2.0-code",
-		"doubao-seed-1.8",
-		"doubao-seed-1.6-vision",
-		"doubao-seed-code",
-		"doubao-seed-translation",
-		"doubao-seed-character",
-		"doubao-embedding-vision",
-	}
-	for _, publicModel := range models {
-		upstreamModel := VolcengineOfficialUpstreamModel(publicModel)
+	for publicModel, upstreamModel := range volcengineOldModelNameToOfficialModelMap() {
 		if err := db.Model(&ChannelModel{}).
 			Where("channel_id IN (?)", db.Model(&Channel{}).Select("id").Where("protocol = ?", "doubao")).
 			Where("model = ?", publicModel).

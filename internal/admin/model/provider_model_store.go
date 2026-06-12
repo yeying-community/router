@@ -43,9 +43,6 @@ func canonicalizeModelNameForProvider(provider string, modelName string) string 
 			name = trimmed
 		}
 	}
-	if normalizedProvider == "volcengine" {
-		name = VolcenginePublicModelAlias(name)
-	}
 	return name
 }
 

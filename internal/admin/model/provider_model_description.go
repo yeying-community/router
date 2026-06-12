@@ -271,23 +271,23 @@ func xAIProviderModelDescription(modelName string) string {
 
 func volcengineProviderModelDescription(modelName string) string {
 	switch modelName {
-	case "doubao-seed-2.0-pro":
+	case "doubao-seed-2-0-pro-260215":
 		return "Doubao Seed 2.0 Pro 是火山方舟的新一代高能力通用模型，支持深度思考、文本生成、多模态理解和工具调用。"
-	case "doubao-seed-2.0-lite":
+	case "doubao-seed-2-0-lite-260428":
 		return "Doubao Seed 2.0 Lite 是火山方舟的新一代轻量通用模型，支持深度思考、文本生成、多模态理解和工具调用。"
-	case "doubao-seed-2.0-mini":
+	case "doubao-seed-2-0-mini-260428":
 		return "Doubao Seed 2.0 Mini 是火山方舟的新一代低成本通用模型，支持深度思考、文本生成、多模态理解和工具调用。"
-	case "doubao-seed-2.0-code":
+	case "doubao-seed-2-0-code-preview-260215":
 		return "Doubao Seed 2.0 Code Preview 是火山方舟面向代码生成、补全和工程任务优化的新一代编程模型。"
-	case "doubao-seed-1.8":
+	case "doubao-seed-1-8-251228":
 		return "Doubao Seed 1.8 是火山方舟的通用模型，适合文本生成、多模态理解和工具调用。"
-	case "doubao-seed-1.6-vision":
+	case "doubao-seed-1-6-vision-250815":
 		return "Doubao Seed 1.6 Vision 是火山方舟的多模态理解模型，支持视觉理解和文本生成。"
-	case "doubao-seed-code":
+	case "doubao-seed-code-preview-251028":
 		return "Doubao Seed Code Preview 是火山方舟面向代码生成、补全和工程任务优化的编程模型。"
-	case "doubao-seed-translation":
+	case "doubao-seed-translation-250915":
 		return "Doubao Seed Translation 是火山方舟面向翻译任务优化的模型。"
-	case "doubao-seed-character":
+	case "doubao-seed-character-251128":
 		return "Doubao Seed Character 是火山方舟面向角色对话和个性化交互的模型。"
 	case "doubao-seed-1.6":
 		return "Doubao Seed 1.6 是火山方舟的通用高能力模型，适合复杂对话、推理和多模态任务。"
@@ -299,8 +299,24 @@ func volcengineProviderModelDescription(modelName string) string {
 		return "Seed1.6-Embedding 是火山方舟的全模态向量化模型，支持文本、图像和视频混合模态检索。"
 	case "doubao-seed-code-preview-latest":
 		return "Doubao Seed Code 是火山方舟面向代码生成、补全和工程任务优化的编程模型。"
-	case "doubao-embedding-vision":
+	case "doubao-embedding-vision-251215":
 		return "Doubao Embedding Vision 是火山方舟的多模态向量模型，支持文本、图像等内容的向量化检索。"
+	case "doubao-seedream-5.0-lite":
+		return "Doubao Seedream 5.0 Lite 是火山方舟图片生成模型，按成功输出图片数量计费。"
+	case "doubao-seedream-4.5":
+		return "Doubao Seedream 4.5 是火山方舟图片生成模型，按成功输出图片数量计费。"
+	case "doubao-seedream-4.0":
+		return "Doubao Seedream 4.0 是火山方舟图片生成模型，按成功输出图片数量计费。"
+	case "doubao-seedance-2.0":
+		return "Doubao Seedance 2.0 是火山方舟视频生成模型，按 token 用量和视频规格分档计费。"
+	case "doubao-seedance-2.0-fast":
+		return "Doubao Seedance 2.0 Fast 是火山方舟视频生成模型，按 token 用量和输入是否包含视频分档计费。"
+	case "doubao-seedance-1.5-pro":
+		return "Doubao Seedance 1.5 Pro 是火山方舟视频生成模型，按 token 用量和是否有声分档计费。"
+	case "doubao-seedance-1.0-pro":
+		return "Doubao Seedance 1.0 Pro 是火山方舟视频生成模型，按 token 用量计费。"
+	case "doubao-seedance-1.0-pro-fast":
+		return "Doubao Seedance 1.0 Pro Fast 是火山方舟视频生成模型，按 token 用量计费。"
 	default:
 		return ""
 	}

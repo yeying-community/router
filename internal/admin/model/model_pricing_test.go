@@ -81,13 +81,13 @@ func TestResolveChannelModelPricingUsesProviderDefaultAndChannelOverride(t *test
 	}
 }
 
-func TestResolveChannelModelPricingMapsVolcengineOfficialUpstreamModelToStableAlias(t *testing.T) {
+func TestResolveChannelModelPricingUsesVolcengineOfficialModelID(t *testing.T) {
 	restore := setModelPricingIndexForTest(providerModelPricingIndex{
 		byProviderAndModel: map[string]providerModelPricingEntry{
-			"volcengine:doubao-seed-2.0-pro": {
+			"volcengine:doubao-seed-2-0-pro-260215": {
 				Provider: "volcengine",
 				Detail: ProviderModelDetail{
-					Model:       "doubao-seed-2.0-pro",
+					Model:       "doubao-seed-2-0-pro-260215",
 					Type:        ProviderModelTypeText,
 					InputPrice:  0.0032,
 					OutputPrice: 0.016,
@@ -97,11 +97,11 @@ func TestResolveChannelModelPricingMapsVolcengineOfficialUpstreamModelToStableAl
 			},
 		},
 		byModel: map[string][]providerModelPricingEntry{
-			"doubao-seed-2.0-pro": {
+			"doubao-seed-2-0-pro-260215": {
 				{
 					Provider: "volcengine",
 					Detail: ProviderModelDetail{
-						Model:       "doubao-seed-2.0-pro",
+						Model:       "doubao-seed-2-0-pro-260215",
 						Type:        ProviderModelTypeText,
 						InputPrice:  0.0032,
 						OutputPrice: 0.016,
@@ -116,7 +116,7 @@ func TestResolveChannelModelPricingMapsVolcengineOfficialUpstreamModelToStableAl
 
 	pricing, err := ResolveChannelModelPricing(0, []ChannelModel{
 		{
-			Model:         "doubao-seed-2.0-pro",
+			Model:         "doubao-seed-2-0-pro-260215",
 			UpstreamModel: "doubao-seed-2-0-pro-260215",
 			Selected:      true,
 			PriceUnit:     ProviderPriceUnitPer1KTokens,

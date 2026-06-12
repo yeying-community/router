@@ -60,6 +60,10 @@ func volcengineProviderSupportedEndpoints(modelType string, modelName string, cu
 	switch normalizedType {
 	case ProviderModelTypeEmbedding:
 		return []string{ChannelModelEndpointEmbeddings}, true
+	case ProviderModelTypeImage:
+		return []string{ChannelModelEndpointImages}, true
+	case ProviderModelTypeVideo:
+		return []string{}, true
 	case ProviderModelTypeText:
 		return []string{ChannelModelEndpointChat, ChannelModelEndpointResponses}, true
 	default:

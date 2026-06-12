@@ -1792,7 +1792,7 @@
     "SortOrder": 126,
     "ModelDetails": [
       {
-        "model": "doubao-embedding-vision",
+        "model": "doubao-embedding-vision-251215",
         "type": "embedding",
         "status": "active",
         "description": "Doubao Embedding Vision 是火山方舟的多模态向量模型，支持文本、图像等内容的向量化检索。",
@@ -1829,20 +1829,7 @@
         ]
       },
       {
-        "model": "Seed1.6-Embedding",
-        "type": "embedding",
-        "status": "active",
-        "description": "Seed1.6-Embedding 是火山方舟的全模态向量化模型，支持文本、图像和视频混合模态检索。",
-        "supported_endpoints": [
-          "/v1/embeddings"
-        ],
-        "price_unit": "per_1k_tokens",
-        "currency": "CNY",
-        "source": "migration",
-        "updated_at": 1700000000
-      },
-      {
-        "model": "doubao-seed-1.6-vision",
+        "model": "doubao-seed-1-6-vision-250815",
         "type": "text",
         "tags": [
           "vision"
@@ -1896,7 +1883,7 @@
         ]
       },
       {
-        "model": "doubao-seed-1.8",
+        "model": "doubao-seed-1-8-251228",
         "type": "text",
         "tags": [
           "reasoning",
@@ -1959,345 +1946,6 @@
             "source": "migration",
             "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
             "sort_order": 40
-          }
-        ]
-      },
-      {
-        "model": "doubao-seed-2.0-code",
-        "type": "text",
-        "status": "active",
-        "description": "Doubao Seed 2.0 Code Preview 是火山方舟面向代码生成、补全和工程任务优化的新一代编程模型。",
-        "supported_endpoints": [
-          "/v1/chat/completions",
-          "/v1/responses"
-        ],
-        "price_unit": "per_1k_tokens",
-        "currency": "CNY",
-        "source": "migration",
-        "updated_at": 1700000000,
-        "input_price": 0.0032,
-        "output_price": 0.016,
-        "price_components": [
-          {
-            "component": "text",
-            "condition": "prompt_tokens_lte=32000",
-            "input_price": 0.0032,
-            "output_price": 0.016,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 10
-          },
-          {
-            "component": "text",
-            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
-            "input_price": 0.0048,
-            "output_price": 0.024,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 20
-          },
-          {
-            "component": "text",
-            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
-            "input_price": 0.0096,
-            "output_price": 0.048,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 30
-          }
-        ]
-      },
-      {
-        "model": "doubao-seed-2.0-lite",
-        "type": "text",
-        "tags": [
-          "reasoning",
-          "vision",
-          "tool_calling"
-        ],
-        "status": "active",
-        "description": "Doubao Seed 2.0 Lite 是火山方舟的新一代轻量通用模型，支持深度思考、文本生成、多模态理解和工具调用。",
-        "supported_endpoints": [
-          "/v1/chat/completions",
-          "/v1/responses"
-        ],
-        "price_unit": "per_1k_tokens",
-        "currency": "CNY",
-        "source": "migration",
-        "updated_at": 1700000000,
-        "input_price": 0.0006,
-        "output_price": 0.0036,
-        "price_components": [
-          {
-            "component": "text",
-            "condition": "prompt_tokens_lte=32000",
-            "input_price": 0.0006,
-            "output_price": 0.0036,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 10
-          },
-          {
-            "component": "text",
-            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
-            "input_price": 0.0009,
-            "output_price": 0.0054,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 20
-          },
-          {
-            "component": "text",
-            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
-            "input_price": 0.0018,
-            "output_price": 0.0108,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 30
-          }
-        ]
-      },
-      {
-        "model": "doubao-seed-2.0-mini",
-        "type": "text",
-        "tags": [
-          "reasoning",
-          "vision",
-          "tool_calling"
-        ],
-        "status": "active",
-        "description": "Doubao Seed 2.0 Mini 是火山方舟的新一代低成本通用模型，支持深度思考、文本生成、多模态理解和工具调用。",
-        "supported_endpoints": [
-          "/v1/chat/completions",
-          "/v1/responses"
-        ],
-        "price_unit": "per_1k_tokens",
-        "currency": "CNY",
-        "source": "migration",
-        "updated_at": 1700000000,
-        "input_price": 0.0002,
-        "output_price": 0.002,
-        "price_components": [
-          {
-            "component": "text",
-            "condition": "prompt_tokens_lte=32000",
-            "input_price": 0.0002,
-            "output_price": 0.002,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 10
-          },
-          {
-            "component": "text",
-            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
-            "input_price": 0.0004,
-            "output_price": 0.004,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 20
-          },
-          {
-            "component": "text",
-            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
-            "input_price": 0.0008,
-            "output_price": 0.008,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 30
-          }
-        ]
-      },
-      {
-        "model": "doubao-seed-2.0-pro",
-        "type": "text",
-        "tags": [
-          "reasoning",
-          "vision",
-          "tool_calling"
-        ],
-        "status": "active",
-        "description": "Doubao Seed 2.0 Pro 是火山方舟的新一代高能力通用模型，支持深度思考、文本生成、多模态理解和工具调用。",
-        "supported_endpoints": [
-          "/v1/chat/completions",
-          "/v1/responses"
-        ],
-        "price_unit": "per_1k_tokens",
-        "currency": "CNY",
-        "source": "migration",
-        "updated_at": 1700000000,
-        "input_price": 0.0032,
-        "output_price": 0.016,
-        "price_components": [
-          {
-            "component": "text",
-            "condition": "prompt_tokens_lte=32000",
-            "input_price": 0.0032,
-            "output_price": 0.016,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 10
-          },
-          {
-            "component": "text",
-            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
-            "input_price": 0.0048,
-            "output_price": 0.024,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 20
-          },
-          {
-            "component": "text",
-            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
-            "input_price": 0.0096,
-            "output_price": 0.048,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 30
-          }
-        ]
-      },
-      {
-        "model": "doubao-seed-character",
-        "type": "text",
-        "status": "active",
-        "description": "Doubao Seed Character 是火山方舟面向角色对话和个性化交互的模型。",
-        "supported_endpoints": [
-          "/v1/chat/completions",
-          "/v1/responses"
-        ],
-        "price_unit": "per_1k_tokens",
-        "currency": "CNY",
-        "source": "migration",
-        "updated_at": 1700000000,
-        "input_price": 0.0008,
-        "output_price": 0.002,
-        "price_components": [
-          {
-            "component": "text",
-            "condition": "prompt_tokens_lte=32000",
-            "input_price": 0.0008,
-            "output_price": 0.002,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 10
-          },
-          {
-            "component": "text",
-            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
-            "input_price": 0.0012,
-            "output_price": 0.006,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 20
-          }
-        ]
-      },
-      {
-        "model": "doubao-seed-code",
-        "type": "text",
-        "status": "active",
-        "description": "Doubao Seed Code Preview 是火山方舟面向代码生成、补全和工程任务优化的编程模型。",
-        "supported_endpoints": [
-          "/v1/chat/completions",
-          "/v1/responses"
-        ],
-        "price_unit": "per_1k_tokens",
-        "currency": "CNY",
-        "source": "migration",
-        "updated_at": 1700000000,
-        "input_price": 0.0012,
-        "output_price": 0.008,
-        "price_components": [
-          {
-            "component": "text",
-            "condition": "prompt_tokens_lte=32000",
-            "input_price": 0.0012,
-            "output_price": 0.008,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 10
-          },
-          {
-            "component": "text",
-            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
-            "input_price": 0.0014,
-            "output_price": 0.012,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 20
-          },
-          {
-            "component": "text",
-            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
-            "input_price": 0.0028,
-            "output_price": 0.016,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 30
-          }
-        ]
-      },
-      {
-        "model": "doubao-seed-translation",
-        "type": "text",
-        "status": "active",
-        "description": "Doubao Seed Translation 是火山方舟面向翻译任务优化的模型。",
-        "supported_endpoints": [
-          "/v1/chat/completions",
-          "/v1/responses"
-        ],
-        "price_unit": "per_1k_tokens",
-        "currency": "CNY",
-        "source": "migration",
-        "updated_at": 1700000000,
-        "input_price": 0.0012,
-        "output_price": 0.0036,
-        "price_components": [
-          {
-            "component": "text",
-            "condition": "",
-            "input_price": 0.0012,
-            "output_price": 0.0036,
-            "price_unit": "per_1k_tokens",
-            "currency": "CNY",
-            "source": "migration",
-            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
-            "sort_order": 10
           }
         ]
       },
@@ -2477,6 +2125,316 @@
         ]
       },
       {
+        "model": "doubao-seed-2-0-code-preview-260215",
+        "type": "text",
+        "status": "active",
+        "description": "Doubao Seed 2.0 Code Preview 是火山方舟面向代码生成、补全和工程任务优化的新一代编程模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0.0032,
+        "output_price": 0.016,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "prompt_tokens_lte=32000",
+            "input_price": 0.0032,
+            "output_price": 0.016,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
+            "input_price": 0.0048,
+            "output_price": 0.024,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 20
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
+            "input_price": 0.0096,
+            "output_price": 0.048,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 30
+          }
+        ]
+      },
+      {
+        "model": "doubao-seed-2-0-lite-260428",
+        "type": "text",
+        "tags": [
+          "reasoning",
+          "vision",
+          "tool_calling"
+        ],
+        "status": "active",
+        "description": "Doubao Seed 2.0 Lite 是火山方舟的新一代轻量通用模型，支持深度思考、文本生成、多模态理解和工具调用。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0.0006,
+        "output_price": 0.0036,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "prompt_tokens_lte=32000",
+            "input_price": 0.0006,
+            "output_price": 0.0036,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
+            "input_price": 0.0009,
+            "output_price": 0.0054,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 20
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
+            "input_price": 0.0018,
+            "output_price": 0.0108,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 30
+          }
+        ]
+      },
+      {
+        "model": "doubao-seed-2-0-mini-260428",
+        "type": "text",
+        "tags": [
+          "reasoning",
+          "vision",
+          "tool_calling"
+        ],
+        "status": "active",
+        "description": "Doubao Seed 2.0 Mini 是火山方舟的新一代低成本通用模型，支持深度思考、文本生成、多模态理解和工具调用。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0.0002,
+        "output_price": 0.002,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "prompt_tokens_lte=32000",
+            "input_price": 0.0002,
+            "output_price": 0.002,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
+            "input_price": 0.0004,
+            "output_price": 0.004,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 20
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
+            "input_price": 0.0008,
+            "output_price": 0.008,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 30
+          }
+        ]
+      },
+      {
+        "model": "doubao-seed-2-0-pro-260215",
+        "type": "text",
+        "tags": [
+          "reasoning",
+          "vision",
+          "tool_calling"
+        ],
+        "status": "active",
+        "description": "Doubao Seed 2.0 Pro 是火山方舟的新一代高能力通用模型，支持深度思考、文本生成、多模态理解和工具调用。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0.0032,
+        "output_price": 0.016,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "prompt_tokens_lte=32000",
+            "input_price": 0.0032,
+            "output_price": 0.016,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
+            "input_price": 0.0048,
+            "output_price": 0.024,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 20
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
+            "input_price": 0.0096,
+            "output_price": 0.048,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 30
+          }
+        ]
+      },
+      {
+        "model": "doubao-seed-character-251128",
+        "type": "text",
+        "status": "active",
+        "description": "Doubao Seed Character 是火山方舟面向角色对话和个性化交互的模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0.0008,
+        "output_price": 0.002,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "prompt_tokens_lte=32000",
+            "input_price": 0.0008,
+            "output_price": 0.002,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
+            "input_price": 0.0012,
+            "output_price": 0.006,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 20
+          }
+        ]
+      },
+      {
+        "model": "doubao-seed-code-preview-251028",
+        "type": "text",
+        "status": "active",
+        "description": "Doubao Seed Code Preview 是火山方舟面向代码生成、补全和工程任务优化的编程模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0.0012,
+        "output_price": 0.008,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "prompt_tokens_lte=32000",
+            "input_price": 0.0012,
+            "output_price": 0.008,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=32000;prompt_tokens_lte=128000",
+            "input_price": 0.0014,
+            "output_price": 0.012,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 20
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=128000;prompt_tokens_lte=256000",
+            "input_price": 0.0028,
+            "output_price": 0.016,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 30
+          }
+        ]
+      },
+      {
         "model": "doubao-seed-code-preview-latest",
         "type": "text",
         "status": "active",
@@ -2526,6 +2484,361 @@
             "sort_order": 30
           }
         ]
+      },
+      {
+        "model": "doubao-seed-translation-250915",
+        "type": "text",
+        "status": "active",
+        "description": "Doubao Seed Translation 是火山方舟面向翻译任务优化的模型。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0.0012,
+        "output_price": 0.0036,
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "",
+            "input_price": 0.0012,
+            "output_price": 0.0036,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10
+          }
+        ]
+      },
+      {
+        "model": "doubao-seedance-1.0-pro",
+        "type": "video",
+        "status": "active",
+        "description": "Doubao Seedance 1.0 Pro 是火山方舟视频生成模型，按 token 用量计费。",
+        "supported_endpoints": [],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0,
+        "output_price": 0.015,
+        "price_components": [
+          {
+            "component": "video_generation",
+            "condition": "mode=online",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10,
+            "input_price": 0,
+            "output_price": 0.015
+          },
+          {
+            "component": "video_generation",
+            "condition": "mode=offline",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 20,
+            "input_price": 0,
+            "output_price": 0.0075
+          }
+        ]
+      },
+      {
+        "model": "doubao-seedance-1.0-pro-fast",
+        "type": "video",
+        "status": "active",
+        "description": "Doubao Seedance 1.0 Pro Fast 是火山方舟视频生成模型，按 token 用量计费。",
+        "supported_endpoints": [],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0,
+        "output_price": 0.0042,
+        "price_components": [
+          {
+            "component": "video_generation",
+            "condition": "mode=online",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10,
+            "input_price": 0,
+            "output_price": 0.0042
+          },
+          {
+            "component": "video_generation",
+            "condition": "mode=offline",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 20,
+            "input_price": 0,
+            "output_price": 0.0021
+          }
+        ]
+      },
+      {
+        "model": "doubao-seedance-1.5-pro",
+        "type": "video",
+        "status": "active",
+        "description": "Doubao Seedance 1.5 Pro 是火山方舟视频生成模型，按 token 用量和是否有声分档计费。",
+        "supported_endpoints": [],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0,
+        "output_price": 0.016,
+        "price_components": [
+          {
+            "component": "video_generation",
+            "condition": "mode=online;audio=true",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10,
+            "input_price": 0,
+            "output_price": 0.016
+          },
+          {
+            "component": "video_generation",
+            "condition": "mode=online;audio=false",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 20,
+            "input_price": 0,
+            "output_price": 0.008
+          },
+          {
+            "component": "video_generation",
+            "condition": "mode=offline;audio=true",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 30,
+            "input_price": 0,
+            "output_price": 0.008
+          },
+          {
+            "component": "video_generation",
+            "condition": "mode=offline;audio=false",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 40,
+            "input_price": 0,
+            "output_price": 0.004
+          }
+        ]
+      },
+      {
+        "model": "doubao-seedance-2.0",
+        "type": "video",
+        "status": "active",
+        "description": "Doubao Seedance 2.0 是火山方舟视频生成模型，按 token 用量和视频规格分档计费。",
+        "supported_endpoints": [],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0,
+        "output_price": 0.046,
+        "price_components": [
+          {
+            "component": "video_generation",
+            "condition": "mode=online;resolution=480p_720p;input_video=false",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10,
+            "input_price": 0,
+            "output_price": 0.046
+          },
+          {
+            "component": "video_generation",
+            "condition": "mode=online;resolution=480p_720p;input_video=true",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 20,
+            "input_price": 0,
+            "output_price": 0.028
+          },
+          {
+            "component": "video_generation",
+            "condition": "mode=online;resolution=1080p;input_video=false",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 30,
+            "input_price": 0,
+            "output_price": 0.051
+          },
+          {
+            "component": "video_generation",
+            "condition": "mode=online;resolution=1080p;input_video=true",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 40,
+            "input_price": 0,
+            "output_price": 0.031
+          }
+        ]
+      },
+      {
+        "model": "doubao-seedance-2.0-fast",
+        "type": "video",
+        "status": "active",
+        "description": "Doubao Seedance 2.0 Fast 是火山方舟视频生成模型，按 token 用量和输入是否包含视频分档计费。",
+        "supported_endpoints": [],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0,
+        "output_price": 0.037,
+        "price_components": [
+          {
+            "component": "video_generation",
+            "condition": "mode=online;input_video=false",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10,
+            "input_price": 0,
+            "output_price": 0.037
+          },
+          {
+            "component": "video_generation",
+            "condition": "mode=online;input_video=true",
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 20,
+            "input_price": 0,
+            "output_price": 0.022
+          }
+        ]
+      },
+      {
+        "model": "doubao-seedream-4.0",
+        "type": "image",
+        "status": "active",
+        "description": "Doubao Seedream 4.0 是火山方舟图片生成模型，按成功输出图片数量计费。",
+        "supported_endpoints": [
+          "/v1/images/generations"
+        ],
+        "price_unit": "per_image",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0.2,
+        "output_price": 0,
+        "price_components": [
+          {
+            "component": "image_generation",
+            "condition": "",
+            "price_unit": "per_image",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10,
+            "input_price": 0.2,
+            "output_price": 0
+          }
+        ]
+      },
+      {
+        "model": "doubao-seedream-4.5",
+        "type": "image",
+        "status": "active",
+        "description": "Doubao Seedream 4.5 是火山方舟图片生成模型，按成功输出图片数量计费。",
+        "supported_endpoints": [
+          "/v1/images/generations"
+        ],
+        "price_unit": "per_image",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0.25,
+        "output_price": 0,
+        "price_components": [
+          {
+            "component": "image_generation",
+            "condition": "",
+            "price_unit": "per_image",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10,
+            "input_price": 0.25,
+            "output_price": 0
+          }
+        ]
+      },
+      {
+        "model": "doubao-seedream-5.0-lite",
+        "type": "image",
+        "status": "active",
+        "description": "Doubao Seedream 5.0 Lite 是火山方舟图片生成模型，按成功输出图片数量计费。",
+        "supported_endpoints": [
+          "/v1/images/generations"
+        ],
+        "price_unit": "per_image",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "input_price": 0.22,
+        "output_price": 0,
+        "price_components": [
+          {
+            "component": "image_generation",
+            "condition": "",
+            "price_unit": "per_image",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
+            "sort_order": 10,
+            "input_price": 0.22,
+            "output_price": 0
+          }
+        ]
+      },
+      {
+        "model": "Seed1.6-Embedding",
+        "type": "embedding",
+        "status": "active",
+        "description": "Seed1.6-Embedding 是火山方舟的全模态向量化模型，支持文本、图像和视频混合模态检索。",
+        "supported_endpoints": [
+          "/v1/embeddings"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
       }
     ]
   },

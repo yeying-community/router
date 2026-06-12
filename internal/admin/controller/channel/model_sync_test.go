@@ -50,8 +50,8 @@ func TestDoubaoModelSyncUsesProviderOfficialModels(t *testing.T) {
 	}
 }
 
-func TestProviderOfficialUpstreamModelMapsVolcengineStableAlias(t *testing.T) {
-	got := providerOfficialUpstreamModel("volcengine", "doubao-seed-2.0-pro")
+func TestProviderOfficialUpstreamModelKeepsVolcengineOfficialModel(t *testing.T) {
+	got := providerOfficialUpstreamModel("volcengine", "doubao-seed-2-0-pro-260215")
 	want := "doubao-seed-2-0-pro-260215"
 	if got != want {
 		t.Fatalf("providerOfficialUpstreamModel() = %q, want %q", got, want)

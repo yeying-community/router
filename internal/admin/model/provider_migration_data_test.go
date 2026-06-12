@@ -797,20 +797,28 @@ func TestBuildProviderMigrationSeeds_OfficialPricingBackfillForPreviouslyUnprice
 			"Hunyuan-Image": {modelType: ProviderModelTypeImage, input: 0.2, priceUnit: ProviderPriceUnitPerImage, currency: "CNY"},
 		},
 		"volcengine": {
-			"doubao-embedding-vision":         {modelType: ProviderModelTypeEmbedding, input: 0.0007, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-1.6":                 {modelType: ProviderModelTypeText, input: 0.0008, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-1.6-vision":          {modelType: ProviderModelTypeText, input: 0.0008, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-1.6-thinking":        {modelType: ProviderModelTypeText, input: 0.0008, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-1.6-flash":           {modelType: ProviderModelTypeText, input: 0.00015, output: 0.0015, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-1.8":                 {modelType: ProviderModelTypeText, input: 0.0008, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-2.0-code":            {modelType: ProviderModelTypeText, input: 0.0032, output: 0.016, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-2.0-lite":            {modelType: ProviderModelTypeText, input: 0.0006, output: 0.0036, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-2.0-mini":            {modelType: ProviderModelTypeText, input: 0.0002, output: 0.002, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-2.0-pro":             {modelType: ProviderModelTypeText, input: 0.0032, output: 0.016, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-character":           {modelType: ProviderModelTypeText, input: 0.0008, output: 0.002, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-code":                {modelType: ProviderModelTypeText, input: 0.0012, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-code-preview-latest": {modelType: ProviderModelTypeText, input: 0.0012, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"doubao-seed-translation":         {modelType: ProviderModelTypeText, input: 0.0012, output: 0.0036, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-embedding-vision-251215":      {modelType: ProviderModelTypeEmbedding, input: 0.0007, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-1.6":                     {modelType: ProviderModelTypeText, input: 0.0008, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-1-6-vision-250815":       {modelType: ProviderModelTypeText, input: 0.0008, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-1.6-thinking":            {modelType: ProviderModelTypeText, input: 0.0008, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-1.6-flash":               {modelType: ProviderModelTypeText, input: 0.00015, output: 0.0015, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-1-8-251228":              {modelType: ProviderModelTypeText, input: 0.0008, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-2-0-code-preview-260215": {modelType: ProviderModelTypeText, input: 0.0032, output: 0.016, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-2-0-lite-260428":         {modelType: ProviderModelTypeText, input: 0.0006, output: 0.0036, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-2-0-mini-260428":         {modelType: ProviderModelTypeText, input: 0.0002, output: 0.002, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-2-0-pro-260215":          {modelType: ProviderModelTypeText, input: 0.0032, output: 0.016, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-character-251128":        {modelType: ProviderModelTypeText, input: 0.0008, output: 0.002, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-code-preview-251028":     {modelType: ProviderModelTypeText, input: 0.0012, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-code-preview-latest":     {modelType: ProviderModelTypeText, input: 0.0012, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seed-translation-250915":      {modelType: ProviderModelTypeText, input: 0.0012, output: 0.0036, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seedream-5.0-lite":            {modelType: ProviderModelTypeImage, input: 0.22, priceUnit: ProviderPriceUnitPerImage, currency: "CNY"},
+			"doubao-seedream-4.5":                 {modelType: ProviderModelTypeImage, input: 0.25, priceUnit: ProviderPriceUnitPerImage, currency: "CNY"},
+			"doubao-seedream-4.0":                 {modelType: ProviderModelTypeImage, input: 0.2, priceUnit: ProviderPriceUnitPerImage, currency: "CNY"},
+			"doubao-seedance-2.0":                 {modelType: ProviderModelTypeVideo, output: 0.046, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seedance-2.0-fast":            {modelType: ProviderModelTypeVideo, output: 0.037, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seedance-1.5-pro":             {modelType: ProviderModelTypeVideo, output: 0.016, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seedance-1.0-pro":             {modelType: ProviderModelTypeVideo, output: 0.015, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"doubao-seedance-1.0-pro-fast":        {modelType: ProviderModelTypeVideo, output: 0.0042, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 		},
 	}
 
@@ -862,20 +870,28 @@ func TestBuildProviderMigrationSeeds_ComplexPricingComponentsForLiveAndOmniModel
 			"gemini-live-2.5-flash-preview": {componentCount: 5},
 		},
 		"volcengine": {
-			"doubao-embedding-vision":         {componentCount: 2},
-			"doubao-seed-1.6":                 {componentCount: 4},
-			"doubao-seed-1.6-vision":          {componentCount: 3},
-			"doubao-seed-1.6-thinking":        {componentCount: 4},
-			"doubao-seed-1.6-flash":           {componentCount: 3},
-			"doubao-seed-1.8":                 {componentCount: 4},
-			"doubao-seed-2.0-code":            {componentCount: 3},
-			"doubao-seed-2.0-lite":            {componentCount: 3},
-			"doubao-seed-2.0-mini":            {componentCount: 3},
-			"doubao-seed-2.0-pro":             {componentCount: 3},
-			"doubao-seed-character":           {componentCount: 2},
-			"doubao-seed-code":                {componentCount: 3},
-			"doubao-seed-code-preview-latest": {componentCount: 3},
-			"doubao-seed-translation":         {componentCount: 1},
+			"doubao-embedding-vision-251215":      {componentCount: 2},
+			"doubao-seed-1.6":                     {componentCount: 4},
+			"doubao-seed-1-6-vision-250815":       {componentCount: 3},
+			"doubao-seed-1.6-thinking":            {componentCount: 4},
+			"doubao-seed-1.6-flash":               {componentCount: 3},
+			"doubao-seed-1-8-251228":              {componentCount: 4},
+			"doubao-seed-2-0-code-preview-260215": {componentCount: 3},
+			"doubao-seed-2-0-lite-260428":         {componentCount: 3},
+			"doubao-seed-2-0-mini-260428":         {componentCount: 3},
+			"doubao-seed-2-0-pro-260215":          {componentCount: 3},
+			"doubao-seed-character-251128":        {componentCount: 2},
+			"doubao-seed-code-preview-251028":     {componentCount: 3},
+			"doubao-seed-code-preview-latest":     {componentCount: 3},
+			"doubao-seed-translation-250915":      {componentCount: 1},
+			"doubao-seedream-5.0-lite":            {componentCount: 1},
+			"doubao-seedream-4.5":                 {componentCount: 1},
+			"doubao-seedream-4.0":                 {componentCount: 1},
+			"doubao-seedance-2.0":                 {componentCount: 4},
+			"doubao-seedance-2.0-fast":            {componentCount: 2},
+			"doubao-seedance-1.5-pro":             {componentCount: 4},
+			"doubao-seedance-1.0-pro":             {componentCount: 2},
+			"doubao-seedance-1.0-pro-fast":        {componentCount: 2},
 		},
 		"zhipu": {
 			"glm-5.1":         {componentCount: 2},
@@ -903,8 +919,12 @@ func TestBuildProviderMigrationSeeds_ComplexPricingComponentsForLiveAndOmniModel
 			if len(detail.PriceComponents) != want.componentCount {
 				t.Fatalf("%s/%s price_components=%d, want %d", seed.Provider, detail.Model, len(detail.PriceComponents), want.componentCount)
 			}
-			if detail.PriceUnit != ProviderPriceUnitPer1KTokens {
-				t.Fatalf("%s/%s price_unit=%q, want %q", seed.Provider, detail.Model, detail.PriceUnit, ProviderPriceUnitPer1KTokens)
+			wantPriceUnit := ProviderPriceUnitPer1KTokens
+			if seed.Provider == "volcengine" && detail.Type == ProviderModelTypeImage {
+				wantPriceUnit = ProviderPriceUnitPerImage
+			}
+			if detail.PriceUnit != wantPriceUnit {
+				t.Fatalf("%s/%s price_unit=%q, want %q", seed.Provider, detail.Model, detail.PriceUnit, wantPriceUnit)
 			}
 			if seed.Provider == "google" && (detail.Model == "gemini-2.5-pro" || detail.Model == "gemini-2.5-flash" || detail.Model == "gemini-2.5-flash-lite") {
 				expectedConditions := map[string]bool{}
@@ -1315,19 +1335,33 @@ func TestBuildProviderMigrationSeeds_IncludesVolcengineEmbeddingModel(t *testing
 	t.Fatalf("expected volcengine provider to exist")
 }
 
-func TestBuildProviderMigrationSeeds_VolcengineUsesStableModelAliases(t *testing.T) {
+func TestBuildProviderMigrationSeeds_VolcengineUsesOfficialModelIDs(t *testing.T) {
 	seeds := mustLoadProviderMigrationSeeds(t)
 	expected := map[string]string{
-		"doubao-seed-2.0-pro":     ProviderModelTypeText,
-		"doubao-seed-2.0-lite":    ProviderModelTypeText,
-		"doubao-seed-2.0-mini":    ProviderModelTypeText,
-		"doubao-seed-2.0-code":    ProviderModelTypeText,
-		"doubao-seed-1.8":         ProviderModelTypeText,
-		"doubao-seed-1.6-vision":  ProviderModelTypeText,
-		"doubao-seed-code":        ProviderModelTypeText,
-		"doubao-seed-translation": ProviderModelTypeText,
-		"doubao-seed-character":   ProviderModelTypeText,
-		"doubao-embedding-vision": ProviderModelTypeEmbedding,
+		"doubao-seed-2-0-pro-260215":          ProviderModelTypeText,
+		"doubao-seed-2-0-lite-260428":         ProviderModelTypeText,
+		"doubao-seed-2-0-mini-260428":         ProviderModelTypeText,
+		"doubao-seed-2-0-code-preview-260215": ProviderModelTypeText,
+		"doubao-seed-1-8-251228":              ProviderModelTypeText,
+		"doubao-seed-1-6-vision-250815":       ProviderModelTypeText,
+		"doubao-seed-code-preview-251028":     ProviderModelTypeText,
+		"doubao-seed-translation-250915":      ProviderModelTypeText,
+		"doubao-seed-character-251128":        ProviderModelTypeText,
+		"doubao-embedding-vision-251215":      ProviderModelTypeEmbedding,
+		"doubao-seedream-5.0-lite":            ProviderModelTypeImage,
+		"doubao-seedance-2.0":                 ProviderModelTypeVideo,
+	}
+	legacyNames := map[string]bool{
+		"doubao-seed-2.0-pro":     true,
+		"doubao-seed-2.0-lite":    true,
+		"doubao-seed-2.0-mini":    true,
+		"doubao-seed-2.0-code":    true,
+		"doubao-seed-1.8":         true,
+		"doubao-seed-1.6-vision":  true,
+		"doubao-seed-code":        true,
+		"doubao-seed-translation": true,
+		"doubao-seed-character":   true,
+		"doubao-embedding-vision": true,
 	}
 	for _, seed := range seeds {
 		if seed.Provider != "volcengine" {
@@ -1335,10 +1369,8 @@ func TestBuildProviderMigrationSeeds_VolcengineUsesStableModelAliases(t *testing
 		}
 		found := make(map[string]bool, len(expected))
 		for _, detail := range seed.ModelDetails {
-			if strings.Contains(detail.Model, "-250") ||
-				strings.Contains(detail.Model, "-251") ||
-				strings.Contains(detail.Model, "-260") {
-				t.Fatalf("volcengine model %q should use stable alias without date suffix", detail.Model)
+			if legacyNames[detail.Model] {
+				t.Fatalf("volcengine model %q should use official model id", detail.Model)
 			}
 			wantType, ok := expected[detail.Model]
 			if !ok {
@@ -1347,11 +1379,20 @@ func TestBuildProviderMigrationSeeds_VolcengineUsesStableModelAliases(t *testing
 			if detail.Type != wantType {
 				t.Fatalf("%s type=%q, want %q", detail.Model, detail.Type, wantType)
 			}
-			if wantType == ProviderModelTypeEmbedding {
+			switch wantType {
+			case ProviderModelTypeEmbedding:
 				if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointEmbeddings {
 					t.Fatalf("%s supported_endpoints=%#v, want embeddings", detail.Model, detail.SupportedEndpoints)
 				}
-			} else {
+			case ProviderModelTypeImage:
+				if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointImages {
+					t.Fatalf("%s supported_endpoints=%#v, want images", detail.Model, detail.SupportedEndpoints)
+				}
+			case ProviderModelTypeVideo:
+				if len(detail.SupportedEndpoints) != 0 {
+					t.Fatalf("%s supported_endpoints=%#v, want empty endpoints until volcengine video task protocol is supported", detail.Model, detail.SupportedEndpoints)
+				}
+			default:
 				if len(detail.SupportedEndpoints) != 2 ||
 					detail.SupportedEndpoints[0] != ChannelModelEndpointChat ||
 					detail.SupportedEndpoints[1] != ChannelModelEndpointResponses {
@@ -1365,7 +1406,7 @@ func TestBuildProviderMigrationSeeds_VolcengineUsesStableModelAliases(t *testing
 		}
 		for modelName := range expected {
 			if !found[modelName] {
-				t.Fatalf("expected volcengine seed to include stable model %s", modelName)
+				t.Fatalf("expected volcengine seed to include official model %s", modelName)
 			}
 		}
 		return
