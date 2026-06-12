@@ -1,18 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess } from '../../helpers';
-import { formatAmountWithUnit, renderYYC } from '../../helpers/render';
+import { loadPublicDisplayCurrencyCatalog } from '../../helpers/billing';
 import {
-  convertYYCToDisplayAmount,
-  loadPublicDisplayCurrencyCatalog,
-} from '../../helpers/billing';
-import {
+  renderTopupIntegerAmountWithExactPopup,
   TopUpWorkspaceContext,
   buildInitialDisplayCurrencyIndex,
   normalizeTopUpResult,
   resolveDisplayCurrency,
   storeDisplayCurrency,
-  YYC_DISPLAY_CODE,
 } from './shared.jsx';
 
 const TopUpWorkspaceProvider = ({ children }) => {
@@ -35,24 +31,13 @@ const TopUpWorkspaceProvider = ({ children }) => {
 
   const renderDisplayAmount = useCallback(
     (yycAmount) => {
-      const normalizedAmount = Number(yycAmount || 0);
-      if (!Number.isFinite(normalizedAmount)) {
-        return renderYYC(0, t);
-      }
-      if (displayCurrency === YYC_DISPLAY_CODE) {
-        return renderYYC(normalizedAmount, t);
-      }
-      const displayAmount = convertYYCToDisplayAmount(
-        normalizedAmount,
+      return renderTopupIntegerAmountWithExactPopup({
+        yycAmount,
         displayCurrency,
         displayCurrencyIndex,
-      );
-      if (!Number.isFinite(displayAmount)) {
-        return renderYYC(normalizedAmount, t);
-      }
-      return formatAmountWithUnit(displayAmount, displayCurrency, 6);
+      });
     },
-    [displayCurrency, displayCurrencyIndex, t],
+    [displayCurrency, displayCurrencyIndex],
   );
 
   const loadDisplayCurrencies = useCallback(async () => {
