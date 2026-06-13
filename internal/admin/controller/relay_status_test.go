@@ -4,10 +4,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
 )
+
+func resetRuntimeCapabilityFailuresForTest() {
+	runtimeCapabilityFailures.Lock()
+	runtimeCapabilityFailures.items = make(map[string]runtimeCapabilityFailureState)
+	runtimeCapabilityFailures.Unlock()
+}
 
 func TestNormalizeFinalRelayErrorForTransientUpstream429(t *testing.T) {
 	err := &relaymodel.ErrorWithStatusCode{
@@ -66,6 +73,78 @@ func TestNormalizeFinalRelayErrorForTransientUpstreamTransportGoaway(t *testing.
 	}
 	if err.Message != "当前分组可用上游暂时不可用，请稍后再试" {
 		t.Fatalf("unexpected message: got %q", err.Message)
+	}
+}
+
+func TestRuntimeCapabilityFailureWindowPausesAfterThreshold(t *testing.T) {
+	resetRuntimeCapabilityFailuresForTest()
+	t.Cleanup(resetRuntimeCapabilityFailuresForTest)
+
+	now := time.Unix(1000, 0)
+	for idx := 1; idx < runtimeCapabilityFailureThreshold; idx++ {
+		count, shouldPause := recordRuntimeCapabilityFailureWindow("channel-1", "gpt-image-2", "/v1/images/generations", now.Add(time.Duration(idx)*time.Second))
+		if shouldPause {
+			t.Fatalf("recordRuntimeCapabilityFailureWindow shouldPause=true at count %d, want false", count)
+		}
+		if count != idx {
+			t.Fatalf("count=%d, want %d", count, idx)
+		}
+	}
+	count, shouldPause := recordRuntimeCapabilityFailureWindow("channel-1", "gpt-image-2", "/v1/images/generations", now.Add(5*time.Second))
+	if !shouldPause {
+		t.Fatalf("recordRuntimeCapabilityFailureWindow shouldPause=false at count %d, want true", count)
+	}
+	if count != runtimeCapabilityFailureThreshold {
+		t.Fatalf("count=%d, want %d", count, runtimeCapabilityFailureThreshold)
+	}
+}
+
+func TestRuntimeCapabilityFailureWindowResetsAfterSuccess(t *testing.T) {
+	resetRuntimeCapabilityFailuresForTest()
+	t.Cleanup(resetRuntimeCapabilityFailuresForTest)
+
+	now := time.Unix(1000, 0)
+	count, shouldPause := recordRuntimeCapabilityFailureWindow("channel-1", "gpt-image-2", "/v1/images/generations", now)
+	if count != 1 || shouldPause {
+		t.Fatalf("first record count=%d shouldPause=%v, want count=1 shouldPause=false", count, shouldPause)
+	}
+	clearRuntimeCapabilityFailureWindow("channel-1", "gpt-image-2", "/v1/images/generations")
+	count, shouldPause = recordRuntimeCapabilityFailureWindow("channel-1", "gpt-image-2", "/v1/images/generations", now.Add(2*time.Second))
+	if count != 1 || shouldPause {
+		t.Fatalf("record after clear count=%d shouldPause=%v, want count=1 shouldPause=false", count, shouldPause)
+	}
+}
+
+func TestShouldTrackRuntimeCapabilityFailureOnlyTracksTransientErrors(t *testing.T) {
+	if !shouldTrackRuntimeCapabilityFailure(&relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusInternalServerError,
+		Error: relaymodel.Error{
+			Message: "do request failed: http2: server sent GOAWAY",
+			Type:    "one_api_error",
+			Code:    "upstream_transport_goaway",
+		},
+	}) {
+		t.Fatalf("shouldTrackRuntimeCapabilityFailure = false, want true for transient goaway")
+	}
+	if shouldTrackRuntimeCapabilityFailure(&relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusNotFound,
+		Error: relaymodel.Error{
+			Message: "model does not exist",
+			Type:    "invalid_request_error",
+			Code:    "model_not_found",
+		},
+	}) {
+		t.Fatalf("shouldTrackRuntimeCapabilityFailure = true, want false for explicit capability error")
+	}
+	if shouldTrackRuntimeCapabilityFailure(&relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusPaymentRequired,
+		Error: relaymodel.Error{
+			Message: "insufficient quota",
+			Type:    "insufficient_quota",
+			Code:    "insufficient_quota",
+		},
+	}) {
+		t.Fatalf("shouldTrackRuntimeCapabilityFailure = true, want false for quota error")
 	}
 }
 
