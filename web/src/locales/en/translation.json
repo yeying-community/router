@@ -53,14 +53,14 @@
       "circuit_breaker_recovered_title": "Channel recovered",
       "circuit_breaker_canceled_title": "Channel canceled circuit breaker",
       "circuit_breaker_no_reason": "Open channel details for more information",
-      "channel_endpoint_disabled_title": "Channel endpoint disabled",
-      "channel_endpoint_disabled_source": "Channel endpoint disable",
+      "channel_endpoint_disabled_title": "Channel endpoint auto-paused",
+      "channel_endpoint_disabled_source": "Channel endpoint auto-pause",
       "channel_endpoint_disabled_no_reason": "Open endpoint details for more information",
-      "channel_endpoint_disabled_by": "Disabled by",
-      "channel_model_disabled_title": "Channel model disabled",
-      "channel_model_disabled_source": "Channel model disable",
+      "channel_endpoint_disabled_by": "Paused by",
+      "channel_model_disabled_title": "Channel model auto-paused",
+      "channel_model_disabled_source": "Channel model auto-pause",
       "channel_model_disabled_no_reason": "Open model details for more information",
-      "channel_model_disabled_by": "Disabled by",
+      "channel_model_disabled_by": "Paused by",
       "task_source_admin": "System task",
       "task_source_user": "My task",
       "admin_task_failed_title": "Channel task failed",
@@ -902,7 +902,7 @@
           "enabled": "Enabled Models",
           "selectable": "Ready to Enable",
           "unselectable": "Needs Setup",
-          "inactive": "Inactive Models"
+          "inactive": "Disabled Models"
         },
         "table": {
           "selected": "Enabled",
@@ -931,7 +931,8 @@
         "auto_assign_success": "Imported {{success}} models, failed {{failed}}",
         "provider_loading": "Loading providers...",
         "provider_unassigned": "Pending",
-        "inactive": "Inactive",
+        "inactive": "Disabled",
+        "auto_paused": "Auto-paused",
         "provider_add": "Add",
         "provider_no_options": "Please create a provider first",
         "provider_load_failed": "Failed to load provider list",
@@ -1003,9 +1004,9 @@
         }
       },
       "capability_disable": {
-        "by": "Disabled by: {{value}}",
-        "at": "Disabled at: {{value}}",
-        "reason": "Reason: {{value}}"
+        "by": "Paused by: {{value}}",
+        "at": "Paused at: {{value}}",
+        "reason": "Pause reason: {{value}}"
       },
       "model_tester": {
         "title": "Model Test",

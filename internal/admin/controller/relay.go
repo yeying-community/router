@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common"
@@ -68,15 +69,16 @@ func Relay(c *gin.Context) {
 	channelId := c.GetString(ctxkey.ChannelId)
 	userId := c.GetString(ctxkey.Id)
 	requestPath := c.Request.URL.Path
+	originalModel := c.GetString(ctxkey.OriginalModel)
 	bizErr := relayHelper(c, relayMode)
 	if bizErr == nil {
+		clearRuntimeCapabilityFailureWindow(channelId, originalModel, requestPath)
 		monitor.Emit(channelId, true)
 		return
 	}
 	lastFailedChannelId := channelId
 	channelName := c.GetString(ctxkey.ChannelName)
 	group := c.GetString(ctxkey.Group)
-	originalModel := c.GetString(ctxkey.OriginalModel)
 	if markClientAbortIfNeeded(c, bizErr) {
 		return
 	}
@@ -152,6 +154,8 @@ func Relay(c *gin.Context) {
 		relayMode = getEffectiveRelayMode(c)
 		bizErr = relayHelper(c, relayMode)
 		if bizErr == nil {
+			clearRuntimeCapabilityFailureWindow(channel.Id, originalModel, requestPath)
+			monitor.Emit(channel.Id, true)
 			return
 		}
 		if markClientAbortIfNeeded(c, bizErr) {
@@ -403,11 +407,48 @@ func processChannelRelayError(ctx context.Context, userId string, groupID string
 		}
 		return
 	}
+	if shouldAutoPauseChannelModelEndpointAfterRepeatedFailures(ctx, channelId, channelName, requestModel, requestPath, err) {
+		return
+	}
 	if monitor.ShouldDisableChannel(&err.Error, err.StatusCode) {
 		monitor.DisableChannel(channelId, channelName, err.Message)
 	} else {
 		monitor.Emit(channelId, false)
 	}
+}
+
+func shouldAutoPauseChannelModelEndpointAfterRepeatedFailures(ctx context.Context, channelId string, channelName string, requestModel string, requestPath string, err model.ErrorWithStatusCode) bool {
+	if !shouldTrackRuntimeCapabilityFailure(&err) {
+		return false
+	}
+	count, shouldPause := recordRuntimeCapabilityFailureWindow(channelId, requestModel, requestPath, time.Now())
+	logger.RelayWarnf(ctx, relaylogging.NewFields("RUNTIME_CAPABILITY_FAILURE_WINDOW").
+		String("channel_id", channelId).
+		String("channel_name", channelName).
+		String("model", requestModel).
+		String("endpoint", requestPath).
+		Int("count", count).
+		String("threshold", fmt.Sprintf("%d", runtimeCapabilityFailureThreshold)).
+		String("window", runtimeCapabilityFailureWindow.String()).
+		String("error_code", errorCodeString(err.Code)).
+		String("error", err.Message).
+		Build())
+	if !shouldPause {
+		return false
+	}
+	normalizedEndpoint := dbmodel.NormalizeRequestedChannelModelEndpoint(requestPath)
+	reason := fmt.Sprintf("连续临时失败自动暂停：%s 内失败 %d 次；最近错误：%s", runtimeCapabilityFailureWindow.String(), count, strings.TrimSpace(err.Message))
+	disabled, disableErr := dbmodel.DisableChannelModelRequestEndpointCapabilityWithReason(channelId, requestModel, normalizedEndpoint, reason, "runtime")
+	logChannelModelRequestEndpointDisableResult(ctx, channelId, channelName, requestModel, normalizedEndpoint, err, disabled, disableErr)
+	if disableErr != nil {
+		monitor.Emit(channelId, false)
+		return true
+	}
+	if disabled {
+		monitor.NotifyChannelModelEndpointCapabilityDisabled(channelId, channelName, requestModel, normalizedEndpoint, reason)
+		enqueueChannelModelCapabilityRecoveryTest(ctx, channelId, requestModel, normalizedEndpoint)
+	}
+	return disabled
 }
 
 func enqueueChannelModelCapabilityRecoveryTest(ctx context.Context, channelID string, modelName string, endpoint string) {

@@ -53,14 +53,14 @@
       "circuit_breaker_recovered_title": "渠道已恢复",
       "circuit_breaker_canceled_title": "渠道已取消熔断",
       "circuit_breaker_no_reason": "请查看渠道详情",
-      "channel_endpoint_disabled_title": "渠道端点已摘除",
-      "channel_endpoint_disabled_source": "渠道端点摘除",
+      "channel_endpoint_disabled_title": "渠道端点已自动暂停",
+      "channel_endpoint_disabled_source": "渠道端点自动暂停",
       "channel_endpoint_disabled_no_reason": "请查看端点详情",
-      "channel_endpoint_disabled_by": "摘除来源",
-      "channel_model_disabled_title": "渠道模型已摘除",
-      "channel_model_disabled_source": "渠道模型摘除",
+      "channel_endpoint_disabled_by": "暂停来源",
+      "channel_model_disabled_title": "渠道模型已自动暂停",
+      "channel_model_disabled_source": "渠道模型自动暂停",
       "channel_model_disabled_no_reason": "请查看模型详情",
-      "channel_model_disabled_by": "摘除来源",
+      "channel_model_disabled_by": "暂停来源",
       "task_source_admin": "系统任务",
       "task_source_user": "我的任务",
       "admin_task_failed_title": "渠道任务失败",
@@ -808,7 +808,7 @@
       },
       "circuit_breaker": {
         "title": "熔断事件",
-        "hint": "这里记录渠道低成功率熔断、半开探测、自动恢复和取消恢复的历史事件，用于排查渠道为什么被摘除或恢复。",
+        "hint": "这里记录渠道低成功率熔断、半开探测、自动恢复和取消恢复的历史事件，用于排查渠道为什么被自动暂停或恢复。",
         "empty": "当前没有熔断事件。",
         "load_failed": "加载熔断事件失败",
         "columns": {
@@ -902,7 +902,7 @@
           "enabled": "已启用模型",
           "selectable": "可直接启用",
           "unselectable": "待补充配置",
-          "inactive": "已下线模型"
+          "inactive": "已关闭模型"
         },
         "table": {
           "selected": "启用",
@@ -931,7 +931,8 @@
         "auto_assign_success": "已一键录入 {{success}} 个模型，失败 {{failed}} 个",
         "provider_loading": "加载供应商中...",
         "provider_unassigned": "待配置",
-        "inactive": "已下线",
+        "inactive": "已关闭",
+        "auto_paused": "自动暂停",
         "provider_add": "添加",
         "provider_no_options": "请先新增供应商",
         "provider_load_failed": "加载供应商列表失败",
@@ -1003,9 +1004,9 @@
         }
       },
       "capability_disable": {
-        "by": "摘除来源：{{value}}",
-        "at": "摘除时间：{{value}}",
-        "reason": "摘除原因：{{value}}"
+        "by": "暂停来源：{{value}}",
+        "at": "暂停时间：{{value}}",
+        "reason": "暂停原因：{{value}}"
       },
       "model_tester": {
         "title": "模型测试",
@@ -2194,7 +2195,7 @@
       },
       "alerts": {
         "title": "活跃告警",
-        "description": "汇总渠道账务异常、熔断事件以及模型/端点摘除，集中进入处理流程。",
+        "description": "汇总渠道账务异常、熔断事件以及模型/端点自动暂停，集中进入处理流程。",
         "empty": "当前没有活跃告警",
         "active_count": "当前 {{count}} 条",
         "page_count": "当前页 {{page_count}} 条 / 共 {{total_count}} 条",
@@ -2276,8 +2277,8 @@
         },
         "types": {
           "billing": "账务刷新告警",
-          "model_disabled": "模型已摘除",
-          "endpoint_disabled": "端点已摘除"
+          "model_disabled": "模型已自动暂停",
+          "endpoint_disabled": "端点已自动暂停"
         },
         "type_labels": {
           "billing": "账务",

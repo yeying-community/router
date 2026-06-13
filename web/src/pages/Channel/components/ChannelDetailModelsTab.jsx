@@ -76,6 +76,14 @@ const ChannelDetailModelsTab = ({
     return parts.join('\n');
   };
 
+  const resolveInactiveLabel = (row) => {
+    const disabledBy = (row?.disabled_by || '').toString().trim();
+    if (disabledBy) {
+      return t('channel.edit.model_selector.auto_paused');
+    }
+    return t('channel.edit.model_selector.inactive');
+  };
+
   const renderMergedPrice = (row) => {
     const complexPricingDetails = getComplexPricingDetailsForModel(row);
     const hasComplexPricing = complexPricingDetails.some((detail) =>
@@ -277,7 +285,7 @@ const ChannelDetailModelsTab = ({
                 const disableInfo = buildDisableInfo(row);
                 const inactiveTag = row.inactive ? (
                   <AppTag color='grey' className='router-tag'>
-                    {t('channel.edit.model_selector.inactive')}
+                    {resolveInactiveLabel(row)}
                   </AppTag>
                 ) : null;
                 return (
