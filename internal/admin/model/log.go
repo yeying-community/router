@@ -5,48 +5,60 @@ import "context"
 const EventLogsTableName = "event_logs"
 
 type Log struct {
-	Id                           string  `json:"id" gorm:"type:char(36);primaryKey"`
-	UserId                       string  `json:"user_id" gorm:"type:char(36);index"`
-	CreatedAt                    int64   `json:"created_at" gorm:"bigint;index:idx_created_at_type"`
-	Type                         int     `json:"type" gorm:"index:idx_created_at_type"`
-	Content                      string  `json:"content"`
-	Username                     string  `json:"username" gorm:"index:index_username_model_name,priority:2;default:''"`
-	TokenName                    string  `json:"token_name" gorm:"index;default:''"`
-	ModelName                    string  `json:"model_name" gorm:"index;index:index_username_model_name,priority:1;default:''"`
-	GroupId                      string  `json:"group_id" gorm:"type:varchar(64);index"`
-	GroupName                    string  `json:"group_name,omitempty" gorm:"-"`
-	Quota                        int     `json:"quota" gorm:"default:0"`
-	BillingSource                string  `json:"billing_source" gorm:"type:varchar(32);index;default:''"`
-	UserDailyQuota               int     `json:"user_daily_quota" gorm:"column:user_daily_quota;default:0"`
-	UserEmergencyQuota           int     `json:"user_emergency_quota" gorm:"column:user_emergency_quota;default:0"`
-	BillingPriceUnit             string  `json:"billing_price_unit" gorm:"type:varchar(64);default:''"`
-	BillingCurrency              string  `json:"billing_currency" gorm:"type:varchar(16);default:''"`
-	BillingPricingSource         string  `json:"billing_pricing_source" gorm:"type:varchar(64);default:''"`
-	BillingUsageSource           string  `json:"billing_usage_source" gorm:"type:varchar(64);default:''"`
-	BillingEstimateSource        string  `json:"billing_estimate_source" gorm:"type:varchar(64);default:''"`
-	BillingEstimateEstimator     string  `json:"billing_estimate_estimator" gorm:"type:varchar(64);default:''"`
-	BillingEstimatePrecision     string  `json:"billing_estimate_precision" gorm:"type:varchar(32);default:''"`
-	BillingSettlementMode        string  `json:"billing_settlement_mode" gorm:"type:varchar(64);default:''"`
-	BillingGroupRatio            float64 `json:"billing_group_ratio" gorm:"type:double precision;default:0"`
-	BillingYYCRate               float64 `json:"billing_yyc_rate" gorm:"type:double precision;default:0"`
-	BillingInputQuantity         float64 `json:"billing_input_quantity" gorm:"type:double precision;default:0"`
-	BillingOutputQuantity        float64 `json:"billing_output_quantity" gorm:"type:double precision;default:0"`
-	BillingInputAmount           float64 `json:"billing_input_amount" gorm:"type:double precision;default:0"`
-	BillingOutputAmount          float64 `json:"billing_output_amount" gorm:"type:double precision;default:0"`
-	BillingAmount                float64 `json:"billing_amount" gorm:"type:double precision;default:0"`
-	BillingYYCAmount             int64   `json:"billing_yyc_amount" gorm:"bigint;default:0"`
-	BillingImageToolCalls        int     `json:"billing_image_tool_calls" gorm:"default:0"`
-	BillingImageToolOutputTokens int     `json:"billing_image_tool_output_tokens" gorm:"default:0"`
-	BillingImageToolAmount       float64 `json:"billing_image_tool_amount" gorm:"type:double precision;default:0"`
-	BillingImageToolYYCAmount    int64   `json:"billing_image_tool_yyc_amount" gorm:"bigint;default:0"`
-	EstimatedPromptTokens        int     `json:"estimated_prompt_tokens" gorm:"default:0"`
-	PromptTokens                 int     `json:"prompt_tokens" gorm:"default:0"`
-	CompletionTokens             int     `json:"completion_tokens" gorm:"default:0"`
-	ChannelId                    string  `json:"channel" gorm:"type:varchar(64);index"`
-	ChannelName                  string  `json:"channel_name,omitempty" gorm:"-"`
-	TraceID                      string  `json:"trace_id" gorm:"column:trace_id;default:''"`
-	ElapsedTime                  int64   `json:"elapsed_time" gorm:"default:0"`
-	IsStream                     bool    `json:"is_stream" gorm:"default:false"`
+	Id                               string  `json:"id" gorm:"type:char(36);primaryKey"`
+	UserId                           string  `json:"user_id" gorm:"type:char(36);index"`
+	CreatedAt                        int64   `json:"created_at" gorm:"bigint;index:idx_created_at_type"`
+	Type                             int     `json:"type" gorm:"index:idx_created_at_type"`
+	Content                          string  `json:"content"`
+	Username                         string  `json:"username" gorm:"index:index_username_model_name,priority:2;default:''"`
+	TokenName                        string  `json:"token_name" gorm:"index;default:''"`
+	ModelName                        string  `json:"model_name" gorm:"index;index:index_username_model_name,priority:1;default:''"`
+	GroupId                          string  `json:"group_id" gorm:"type:varchar(64);index"`
+	GroupName                        string  `json:"group_name,omitempty" gorm:"-"`
+	Quota                            int     `json:"quota" gorm:"default:0"`
+	BillingSource                    string  `json:"billing_source" gorm:"type:varchar(32);index;default:''"`
+	UserDailyQuota                   int     `json:"user_daily_quota" gorm:"column:user_daily_quota;default:0"`
+	UserEmergencyQuota               int     `json:"user_emergency_quota" gorm:"column:user_emergency_quota;default:0"`
+	BillingPriceUnit                 string  `json:"billing_price_unit" gorm:"type:varchar(64);default:''"`
+	BillingCurrency                  string  `json:"billing_currency" gorm:"type:varchar(16);default:''"`
+	BillingPricingSource             string  `json:"billing_pricing_source" gorm:"type:varchar(64);default:''"`
+	BillingUsageSource               string  `json:"billing_usage_source" gorm:"type:varchar(64);default:''"`
+	BillingEstimateSource            string  `json:"billing_estimate_source" gorm:"type:varchar(64);default:''"`
+	BillingEstimateEstimator         string  `json:"billing_estimate_estimator" gorm:"type:varchar(64);default:''"`
+	BillingEstimatePrecision         string  `json:"billing_estimate_precision" gorm:"type:varchar(32);default:''"`
+	BillingSettlementMode            string  `json:"billing_settlement_mode" gorm:"type:varchar(64);default:''"`
+	BillingGroupRatio                float64 `json:"billing_group_ratio" gorm:"type:double precision;default:0"`
+	BillingYYCRate                   float64 `json:"billing_yyc_rate" gorm:"type:double precision;default:0"`
+	BillingInputQuantity             float64 `json:"billing_input_quantity" gorm:"type:double precision;default:0"`
+	BillingOutputQuantity            float64 `json:"billing_output_quantity" gorm:"type:double precision;default:0"`
+	BillingInputAmount               float64 `json:"billing_input_amount" gorm:"type:double precision;default:0"`
+	BillingOutputAmount              float64 `json:"billing_output_amount" gorm:"type:double precision;default:0"`
+	BillingAmount                    float64 `json:"billing_amount" gorm:"type:double precision;default:0"`
+	BillingYYCAmount                 int64   `json:"billing_yyc_amount" gorm:"bigint;default:0"`
+	BillingImageToolCalls            int     `json:"billing_image_tool_calls" gorm:"default:0"`
+	BillingImageToolOutputTokens     int     `json:"billing_image_tool_output_tokens" gorm:"default:0"`
+	BillingImageToolAmount           float64 `json:"billing_image_tool_amount" gorm:"type:double precision;default:0"`
+	BillingImageToolYYCAmount        int64   `json:"billing_image_tool_yyc_amount" gorm:"bigint;default:0"`
+	BillingSettlementTruthMode       string  `json:"billing_settlement_truth_mode" gorm:"type:varchar(64);default:''"`
+	BillingOfficialAnchorAmount      float64 `json:"billing_official_anchor_amount" gorm:"type:double precision;default:0"`
+	BillingOfficialAnchorCurrency    string  `json:"billing_official_anchor_currency" gorm:"type:varchar(16);default:''"`
+	BillingOfficialAnchorAmountCNY   float64 `json:"billing_official_anchor_amount_cny" gorm:"type:double precision;default:0"`
+	BillingProcurementCostCNY        float64 `json:"billing_procurement_cost_cny" gorm:"type:double precision;default:0"`
+	BillingProcurementCostSource     string  `json:"billing_procurement_cost_source" gorm:"type:varchar(32);default:''"`
+	BillingProcurementCostConfidence string  `json:"billing_procurement_cost_confidence" gorm:"type:varchar(64);default:''"`
+	BillingSellAmountCNY             float64 `json:"billing_sell_amount_cny" gorm:"type:double precision;default:0"`
+	BillingGrossProfitCNY            float64 `json:"billing_gross_profit_cny" gorm:"type:double precision;default:0"`
+	BillingGrossMargin               float64 `json:"billing_gross_margin" gorm:"type:double precision;default:0"`
+	BillingPricingRuleVersion        string  `json:"billing_pricing_rule_version" gorm:"type:varchar(64);default:''"`
+	BillingCostRuleVersion           string  `json:"billing_cost_rule_version" gorm:"type:varchar(64);default:''"`
+	EstimatedPromptTokens            int     `json:"estimated_prompt_tokens" gorm:"default:0"`
+	PromptTokens                     int     `json:"prompt_tokens" gorm:"default:0"`
+	CompletionTokens                 int     `json:"completion_tokens" gorm:"default:0"`
+	ChannelId                        string  `json:"channel" gorm:"type:varchar(64);index"`
+	ChannelName                      string  `json:"channel_name,omitempty" gorm:"-"`
+	TraceID                          string  `json:"trace_id" gorm:"column:trace_id;default:''"`
+	ElapsedTime                      int64   `json:"elapsed_time" gorm:"default:0"`
+	IsStream                         bool    `json:"is_stream" gorm:"default:false"`
 }
 
 func (Log) TableName() string {

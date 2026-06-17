@@ -11,8 +11,10 @@ import {
   AppInput,
   AppInputNumber,
   AppModal,
+  AppPopconfirm,
   AppSelect,
   AppTable,
+  AppTableActionButton,
   AppTag,
 } from '../../../router-ui';
 
@@ -20,12 +22,20 @@ const buildManualQuotaItem = () => ({
   resource_type: 'quota',
   quota_type: 'total',
   quota_label: '',
-  amount: null,
+  limit_amount: null,
+  used_amount: 0,
+  remaining_amount: null,
   currency: 'USD',
+  reset_at_input: '',
   expires_at_input: '',
 });
 
 const MANUAL_CURRENCY_OPTIONS = ['USD', 'CNY', 'YYC'].map((value) => ({
+  value,
+  label: value,
+}));
+
+const PROCUREMENT_CURRENCY_OPTIONS = ['CNY', 'USD'].map((value) => ({
   value,
   label: value,
 }));
@@ -63,7 +73,8 @@ const formatAmountText = (item) => {
   return `${amount}`;
 };
 
-const normalizeBillingValue = (value) => (value || '').toString().trim().toLowerCase();
+const normalizeBillingValue = (value) =>
+  (value || '').toString().trim().toLowerCase();
 
 const buildQuotaItemRowKey = (row) =>
   [
@@ -77,7 +88,46 @@ const buildQuotaItemRowKey = (row) =>
 const isPeriodicQuotaType = (quotaType) =>
   ['daily', 'weekly', 'monthly'].includes(normalizeBillingValue(quotaType));
 
-const isPlanEntitlement = (item) => normalizeBillingValue(item?.resource_type) === 'plan';
+const isPlanEntitlement = (item) =>
+  normalizeBillingValue(item?.resource_type) === 'plan';
+
+const isManualPlanItem = (item) =>
+  normalizeBillingValue(item?.resource_type) === 'plan';
+
+const isManualPeriodicItem = (item) =>
+  normalizeBillingValue(item?.resource_type) === 'quota' &&
+  isPeriodicQuotaType(item?.quota_type);
+
+const shouldShowManualQuotaType = (item) =>
+  normalizeBillingValue(item?.resource_type) === 'quota';
+
+const shouldShowManualAmountFields = (item) => !isManualPlanItem(item);
+
+const shouldShowManualResetAt = (item) => isManualPeriodicItem(item);
+
+const resolveManualItemAmounts = (item) => {
+  if (isManualPlanItem(item)) {
+    return {
+      amount: 0,
+      limit_amount: 0,
+      used_amount: 0,
+      remaining_amount: 0,
+    };
+  }
+  const limitAmount = Number(item?.limit_amount || 0);
+  const usedAmount = Number(item?.used_amount || 0);
+  let remainingAmount = Number(item?.remaining_amount || 0);
+  if (remainingAmount <= 0 && limitAmount > 0 && usedAmount >= 0) {
+    remainingAmount = Math.max(limitAmount - usedAmount, 0);
+  }
+  const amount = remainingAmount > 0 ? remainingAmount : limitAmount;
+  return {
+    amount,
+    limit_amount: limitAmount,
+    used_amount: usedAmount,
+    remaining_amount: remainingAmount,
+  };
+};
 
 const classifyEntitlementItem = (item, t) => {
   const resourceType = normalizeBillingValue(item?.resource_type);
@@ -98,7 +148,11 @@ const classifyEntitlementItem = (item, t) => {
       }),
     };
   }
-  if (resourceType === 'balance' || resourceType === 'credit' || quotaType === 'total') {
+  if (
+    resourceType === 'balance' ||
+    resourceType === 'credit' ||
+    quotaType === 'total'
+  ) {
     return {
       key: 'metered',
       color: 'cyan',
@@ -114,12 +168,18 @@ const classifyEntitlementItem = (item, t) => {
 
 const summarizeEntitlementMode = (items, t) => {
   const rows = Array.isArray(items) ? items : [];
-  const hasPlan = rows.some((row) => normalizeBillingValue(row?.resource_type) === 'plan');
+  const hasPlan = rows.some(
+    (row) => normalizeBillingValue(row?.resource_type) === 'plan'
+  );
   const hasPeriodic = rows.some((row) => isPeriodicQuotaType(row?.quota_type));
   const hasMetered = rows.some((row) => {
     const resourceType = normalizeBillingValue(row?.resource_type);
     const quotaType = normalizeBillingValue(row?.quota_type);
-    return resourceType === 'balance' || resourceType === 'credit' || quotaType === 'total';
+    return (
+      resourceType === 'balance' ||
+      resourceType === 'credit' ||
+      quotaType === 'total'
+    );
   });
   if (hasPlan || hasPeriodic) {
     return {
@@ -159,11 +219,17 @@ const formatValidityText = (item, timestamp2string, t) => {
   const parts = [];
   if (expiresAt > 0) {
     parts.push(
-      `${t('channel.edit.billing.quota_table.valid_until')}: ${timestamp2string(expiresAt)}`,
+      `${t('channel.edit.billing.quota_table.valid_until')}: ${timestamp2string(
+        expiresAt
+      )}`
     );
   }
   if (resetAt > 0) {
-    parts.push(`${t('channel.edit.billing.quota_table.next_reset')}: ${timestamp2string(resetAt)}`);
+    parts.push(
+      `${t('channel.edit.billing.quota_table.next_reset')}: ${timestamp2string(
+        resetAt
+      )}`
+    );
   }
   if (parts.length === 0) {
     return t('channel.edit.billing.no_expire');
@@ -262,6 +328,74 @@ const renderStatus = (row, t) => (
   <AppTag color={statusColor(row)}>{formatItemStatusText(row, t)}</AppTag>
 );
 
+const formatNumberText = (value, digits = 6) => {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount)) {
+    return '-';
+  }
+  return Number(amount.toFixed(digits)).toString();
+};
+
+const formatProcurementCapacityText = (row) => {
+  const remaining = formatNumberText(row?.capacity_remaining, 6);
+  const effective = formatNumberText(
+    row?.capacity_effective || row?.capacity_total,
+    6
+  );
+  const unit = (row?.capacity_unit || '').toString().trim();
+  return `${remaining} / ${effective}${unit ? ` ${unit}` : ''}`;
+};
+
+const formatProcurementCostText = (row, t) => {
+  const source = (row?.cost_source || '').toString().trim();
+  const status = (row?.cost_status || '').toString().trim();
+  if (status === 'cost_unconfigured' || source === 'none' || source === '') {
+    return t('channel.edit.billing.procurement_table.cost_unconfigured');
+  }
+  return `${formatNumberText(row?.purchase_cost_cny, 6)} CNY`;
+};
+
+const formatProcurementUnitCostText = (row) => {
+  const unit = (row?.capacity_unit || '').toString().trim();
+  const value = formatNumberText(row?.cost_per_unit_cny, 8);
+  if (value === '-') {
+    return '-';
+  }
+  return unit ? `${value} CNY/${unit}` : `${value} CNY`;
+};
+
+const procurementStatusColor = (status) => {
+  switch ((status || '').toString().trim()) {
+    case 'active':
+      return 'green';
+    case 'cost_unconfigured':
+      return 'orange';
+    case 'exhausted':
+    case 'expired':
+      return 'red';
+    case 'disabled':
+      return 'default';
+    default:
+      return 'default';
+  }
+};
+
+const buildProcurementCostDraft = (row) => ({
+  purchase_currency:
+    (row?.purchase_currency || 'CNY').toString().trim() || 'CNY',
+  purchase_amount: Number(row?.purchase_amount || 0),
+  purchase_fx_rate: Number(row?.purchase_fx_rate || 1) || 1,
+  purchase_cost_cny: Number(row?.purchase_cost_cny || 0),
+  capacity_effective: Number(
+    row?.capacity_effective || row?.capacity_total || 0
+  ),
+  cost_source:
+    (row?.cost_source || 'actual').toString().trim() === 'none'
+      ? 'actual'
+      : (row?.cost_source || 'actual').toString().trim(),
+  cost_status: 'active',
+});
+
 const toUnixTimestamp = (value) => {
   const normalized = (value || '').toString().trim();
   if (normalized === '') {
@@ -281,30 +415,45 @@ const ChannelDetailBillingTab = ({
   billingLoading,
   billingError,
   billingSnapshots,
+  procurementBatches,
   billingReadonly,
   billingSubmitting,
   onRefreshBilling,
   onOpenActivatePage,
   onManualSnapshotUpdate,
+  onProcurementBatchCostUpdate,
+  onProcurementBatchStatusUpdate,
+  onProcurementBatchConsumptionsLoad,
   timestamp2string,
 }) => {
   const [activateCredential, setActivateCredential] = useState('');
   const [manualMessage, setManualMessage] = useState('');
   const [manualItems, setManualItems] = useState([buildManualQuotaItem()]);
   const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [costModalOpen, setCostModalOpen] = useState(false);
+  const [editingProcurementBatch, setEditingProcurementBatch] = useState(null);
+  const [costDraft, setCostDraft] = useState(buildProcurementCostDraft(null));
+  const [consumptionModalOpen, setConsumptionModalOpen] = useState(false);
+  const [consumptionRows, setConsumptionRows] = useState([]);
+  const [consumptionLoading, setConsumptionLoading] = useState(false);
+  const [viewingProcurementBatch, setViewingProcurementBatch] = useState(null);
 
   const purchaseRecords = useMemo(
     () =>
       (Array.isArray(billingSnapshots) ? billingSnapshots : []).filter(
-        (snapshot) => (snapshot?.source_type || '').toString().trim() === 'manual',
+        (snapshot) =>
+          (snapshot?.source_type || '').toString().trim() === 'manual'
       ),
-    [billingSnapshots],
+    [billingSnapshots]
   );
   const quotaItems = Array.isArray(billingSummary?.quota_items)
     ? billingSummary.quota_items
     : [];
+  const procurementRows = Array.isArray(procurementBatches)
+    ? procurementBatches
+    : [];
   const latestSnapshotStatus = normalizeBillingValue(
-    billingSummary?.latest_snapshot_status,
+    billingSummary?.latest_snapshot_status
   );
   const latestSnapshotMessage = (billingSummary?.latest_snapshot_message || '')
     .toString()
@@ -332,8 +481,8 @@ const ChannelDetailBillingTab = ({
               ...item,
               ...patch,
             }
-          : item,
-      ),
+          : item
+      )
     );
   };
 
@@ -343,16 +492,65 @@ const ChannelDetailBillingTab = ({
     }
   };
 
+  const openCostModal = (row) => {
+    setEditingProcurementBatch(row);
+    setCostDraft(buildProcurementCostDraft(row));
+    setCostModalOpen(true);
+  };
+
+  const closeCostModal = () => {
+    if (!billingSubmitting) {
+      setCostModalOpen(false);
+      setEditingProcurementBatch(null);
+    }
+  };
+
+  const updateCostDraft = (patch) => {
+    setCostDraft((prev) => ({
+      ...prev,
+      ...(patch || {}),
+    }));
+  };
+
+  const openConsumptionModal = async (row) => {
+    setViewingProcurementBatch(row);
+    setConsumptionRows([]);
+    setConsumptionModalOpen(true);
+    setConsumptionLoading(true);
+    try {
+      const rows = await onProcurementBatchConsumptionsLoad(row?.id);
+      setConsumptionRows(Array.isArray(rows) ? rows : []);
+    } finally {
+      setConsumptionLoading(false);
+    }
+  };
+
+  const closeConsumptionModal = () => {
+    if (!consumptionLoading) {
+      setConsumptionModalOpen(false);
+      setViewingProcurementBatch(null);
+      setConsumptionRows([]);
+    }
+  };
+
   const submitManualSnapshot = async () => {
     const saved = await onManualSnapshotUpdate({
-      items: manualItems.map((manualItem) => ({
-        resource_type: manualItem.resource_type,
-        quota_type: manualItem.quota_type,
-        quota_label: manualItem.quota_label,
-        amount: manualItem.amount,
-        currency: manualItem.currency,
-        expires_at: toUnixTimestamp(manualItem.expires_at_input),
-      })),
+      items: manualItems.map((manualItem) => {
+        const amounts = resolveManualItemAmounts(manualItem);
+        return {
+          resource_type: manualItem.resource_type,
+          quota_type: shouldShowManualQuotaType(manualItem)
+            ? manualItem.quota_type
+            : 'total',
+          quota_label: manualItem.quota_label,
+          ...amounts,
+          currency: manualItem.currency,
+          reset_at: shouldShowManualResetAt(manualItem)
+            ? toUnixTimestamp(manualItem.reset_at_input)
+            : 0,
+          expires_at: toUnixTimestamp(manualItem.expires_at_input),
+        };
+      }),
       message: manualMessage,
     });
     if (saved) {
@@ -362,11 +560,34 @@ const ChannelDetailBillingTab = ({
     }
   };
 
+  const submitProcurementBatchCost = async () => {
+    if (!editingProcurementBatch?.id) {
+      return;
+    }
+    const saved = await onProcurementBatchCostUpdate(
+      editingProcurementBatch.id,
+      costDraft
+    );
+    if (saved) {
+      closeCostModal();
+    }
+  };
+
+  const updateProcurementBatchStatus = async (row, status) => {
+    if (!row?.id) {
+      return;
+    }
+    await onProcurementBatchStatusUpdate(row.id, status);
+  };
+
   const renderManualSnapshotForm = () => (
     <div>
       {manualItems.map((item, index) => (
         <AppFormRow key={`manual-quota-${index}`}>
-          <AppField label={t('channel.edit.billing.manual_resource_type')} required>
+          <AppField
+            label={t('channel.edit.billing.manual_resource_type')}
+            required
+          >
             <AppSelect
               className='router-section-input'
               options={resourceTypeOptions(t)}
@@ -379,20 +600,25 @@ const ChannelDetailBillingTab = ({
               disabled={billingReadonly || billingSubmitting}
             />
           </AppField>
-          <AppField label={t('channel.edit.billing.manual_quota_type')}>
-            <AppSelect
-              className='router-section-input'
-              options={quotaTypeOptions(t)}
-              value={item.quota_type}
-              onChange={(e, { value }) =>
-                updateManualItem(index, {
-                  quota_type: (value || 'custom').toString(),
-                })
-              }
-              disabled={billingReadonly || billingSubmitting}
-            />
-          </AppField>
-          <AppField label={t('channel.edit.billing.manual_quota_label')} required>
+          {shouldShowManualQuotaType(item) ? (
+            <AppField label={t('channel.edit.billing.manual_quota_type')}>
+              <AppSelect
+                className='router-section-input'
+                options={quotaTypeOptions(t)}
+                value={item.quota_type}
+                onChange={(e, { value }) =>
+                  updateManualItem(index, {
+                    quota_type: (value || 'custom').toString(),
+                  })
+                }
+                disabled={billingReadonly || billingSubmitting}
+              />
+            </AppField>
+          ) : null}
+          <AppField
+            label={t('channel.edit.billing.manual_quota_label')}
+            required
+          >
             <AppInput
               className='router-section-input'
               value={item.quota_label}
@@ -404,34 +630,95 @@ const ChannelDetailBillingTab = ({
               readOnly={billingReadonly || billingSubmitting}
             />
           </AppField>
-          <AppField label={t('channel.edit.billing.manual_quota_amount')} required>
-            <AppCompact className='router-section-input-with-unit' block>
-              <AppInputNumber
-                className='router-section-input router-section-input-with-unit-field'
-                fluid
-                value={item.amount}
-                min={0}
+          {shouldShowManualAmountFields(item) ? (
+            <>
+              <AppField
+                label={t('channel.edit.billing.manual_quota_limit_amount')}
+                required
+              >
+                <AppCompact className='router-section-input-with-unit' block>
+                  <AppInputNumber
+                    className='router-section-input router-section-input-with-unit-field'
+                    fluid
+                    value={item.limit_amount}
+                    min={0}
+                    onChange={(e, { value }) =>
+                      updateManualItem(index, {
+                        limit_amount: value,
+                      })
+                    }
+                    disabled={billingReadonly || billingSubmitting}
+                  />
+                  <UnitDropdown
+                    variant='inputUnit'
+                    options={ensureUnitOption(
+                      MANUAL_CURRENCY_OPTIONS,
+                      item.currency || 'USD'
+                    )}
+                    value={item.currency || 'USD'}
+                    onChange={(_, { value }) =>
+                      updateManualItem(index, {
+                        currency: (value || 'USD')
+                          .toString()
+                          .trim()
+                          .toUpperCase(),
+                      })
+                    }
+                    disabled={billingReadonly || billingSubmitting}
+                    aria-label={t('channel.edit.billing.currency')}
+                  />
+                </AppCompact>
+              </AppField>
+              <AppField
+                label={t('channel.edit.billing.manual_quota_used_amount')}
+              >
+                <AppInputNumber
+                  className='router-section-input'
+                  fluid
+                  value={item.used_amount}
+                  min={0}
+                  onChange={(e, { value }) =>
+                    updateManualItem(index, {
+                      used_amount: value,
+                    })
+                  }
+                  disabled={billingReadonly || billingSubmitting}
+                />
+              </AppField>
+              <AppField
+                label={t('channel.edit.billing.manual_quota_remaining_amount')}
+                required
+              >
+                <AppInputNumber
+                  className='router-section-input'
+                  fluid
+                  value={item.remaining_amount}
+                  min={0}
+                  onChange={(e, { value }) =>
+                    updateManualItem(index, {
+                      remaining_amount: value,
+                    })
+                  }
+                  disabled={billingReadonly || billingSubmitting}
+                />
+              </AppField>
+            </>
+          ) : null}
+          {shouldShowManualResetAt(item) ? (
+            <AppField label={t('channel.edit.billing.manual_quota_reset_at')}>
+              <AppInput
+                className='router-section-input'
+                type='datetime-local'
+                value={item.reset_at_input}
                 onChange={(e, { value }) =>
                   updateManualItem(index, {
-                    amount: value,
+                    reset_at_input: (value || '').toString(),
                   })
                 }
-                disabled={billingReadonly || billingSubmitting}
+                readOnly={billingReadonly || billingSubmitting}
               />
-              <UnitDropdown
-                variant='inputUnit'
-                options={ensureUnitOption(MANUAL_CURRENCY_OPTIONS, item.currency || 'USD')}
-                value={item.currency || 'USD'}
-                onChange={(_, { value }) =>
-                  updateManualItem(index, {
-                    currency: (value || 'USD').toString().trim().toUpperCase(),
-                  })
-                }
-                disabled={billingReadonly || billingSubmitting}
-                aria-label={t('channel.edit.billing.currency')}
-              />
-            </AppCompact>
-          </AppField>
+            </AppField>
+          ) : null}
           <AppField label={t('channel.edit.billing.manual_quota_expires_at')}>
             <AppInput
               className='router-section-input'
@@ -485,11 +772,112 @@ const ChannelDetailBillingTab = ({
     </div>
   );
 
+  const renderProcurementCostForm = () => (
+    <div>
+      <AppFormRow>
+        <AppField
+          label={t('channel.edit.billing.procurement_table.capacity')}
+          required
+        >
+          <AppInputNumber
+            className='router-section-input'
+            fluid
+            min={0}
+            value={costDraft.capacity_effective}
+            onChange={(e, { value }) =>
+              updateCostDraft({
+                capacity_effective: Number(value || 0),
+              })
+            }
+            disabled={billingReadonly || billingSubmitting}
+          />
+        </AppField>
+        <AppField
+          label={t('channel.edit.billing.procurement_table.purchase_currency')}
+          required
+        >
+          <AppSelect
+            className='router-section-input'
+            options={ensureUnitOption(
+              PROCUREMENT_CURRENCY_OPTIONS,
+              costDraft.purchase_currency || 'CNY'
+            )}
+            value={costDraft.purchase_currency || 'CNY'}
+            onChange={(e, { value }) =>
+              updateCostDraft({
+                purchase_currency: (value || 'CNY')
+                  .toString()
+                  .trim()
+                  .toUpperCase(),
+              })
+            }
+            disabled={billingReadonly || billingSubmitting}
+          />
+        </AppField>
+        <AppField
+          label={t('channel.edit.billing.procurement_table.purchase_amount')}
+          required
+        >
+          <AppInputNumber
+            className='router-section-input'
+            fluid
+            min={0}
+            value={costDraft.purchase_amount}
+            onChange={(e, { value }) =>
+              updateCostDraft({
+                purchase_amount: Number(value || 0),
+              })
+            }
+            disabled={billingReadonly || billingSubmitting}
+          />
+        </AppField>
+      </AppFormRow>
+      <AppFormRow>
+        <AppField
+          label={t('channel.edit.billing.procurement_table.purchase_fx_rate')}
+          required
+        >
+          <AppInputNumber
+            className='router-section-input'
+            fluid
+            min={0}
+            value={costDraft.purchase_fx_rate}
+            onChange={(e, { value }) =>
+              updateCostDraft({
+                purchase_fx_rate: Number(value || 0),
+              })
+            }
+            disabled={billingReadonly || billingSubmitting}
+          />
+        </AppField>
+        <AppField
+          label={t('channel.edit.billing.procurement_table.purchase_cost_cny')}
+        >
+          <AppInputNumber
+            className='router-section-input'
+            fluid
+            min={0}
+            value={costDraft.purchase_cost_cny}
+            onChange={(e, { value }) =>
+              updateCostDraft({
+                purchase_cost_cny: Number(value || 0),
+              })
+            }
+            disabled={billingReadonly || billingSubmitting}
+          />
+        </AppField>
+      </AppFormRow>
+      <AppAlert
+        type='info'
+        showIcon
+        className='router-section-message'
+        title={t('channel.edit.billing.procurement_cost_hint')}
+      />
+    </div>
+  );
+
   return (
-    <AppDetailSection
-      title={t('channel.edit.billing.title')}
-      titleTag='span'
-    >
+    <AppDetailSection title={t('channel.edit.billing.title')} titleTag='span'>
       <div>
         <AppAlert
           type='info'
@@ -503,9 +891,9 @@ const ChannelDetailBillingTab = ({
           headerEnd={
             <div className='router-billing-quota-status-actions'>
               <span className='router-billing-snapshot-time'>
-                  {billingSummary?.latest_snapshot_at
-                    ? timestamp2string(billingSummary.latest_snapshot_at)
-                    : '-'}
+                {billingSummary?.latest_snapshot_at
+                  ? timestamp2string(billingSummary.latest_snapshot_at)
+                  : '-'}
               </span>
               {billingSummary?.refresh_supported ? (
                 <AppButton
@@ -587,7 +975,8 @@ const ChannelDetailBillingTab = ({
                 dataIndex: 'expires_at',
                 key: 'validity',
                 width: 260,
-                render: (_, row) => formatValidityText(row, timestamp2string, t),
+                render: (_, row) =>
+                  formatValidityText(row, timestamp2string, t),
               },
               {
                 title: t('channel.edit.billing.quota_table.status'),
@@ -608,7 +997,10 @@ const ChannelDetailBillingTab = ({
             titleTag='span'
           >
             <AppFormRow>
-              <AppField label={t('channel.edit.billing.activate_input')} required>
+              <AppField
+                label={t('channel.edit.billing.activate_input')}
+                required
+              >
                 <AppInput
                   className='router-section-input'
                   type='password'
@@ -673,7 +1065,9 @@ const ChannelDetailBillingTab = ({
                     ? items
                         .map(
                           (row) =>
-                            `${row.quota_label || row.quota_type}: ${formatUsageText(row)}`,
+                            `${
+                              row.quota_label || row.quota_type
+                            }: ${formatUsageText(row)}`
                         )
                         .join(' / ')
                     : '-',
@@ -685,6 +1079,137 @@ const ChannelDetailBillingTab = ({
                 render: (value) => value || '-',
               },
             ]}
+          />
+        </AppDetailSection>
+        <AppDetailSection
+          title={t('channel.edit.billing.procurement_title')}
+          titleTag='span'
+        >
+          <AppTable
+            className='router-detail-table'
+            pagination={false}
+            loading={billingLoading}
+            dataSource={procurementRows}
+            rowKey={(row) => row.id}
+            columns={[
+              {
+                title: t('channel.edit.billing.procurement_table.resource'),
+                dataIndex: 'resource_type',
+                key: 'resource',
+                width: 150,
+                render: (_, row) =>
+                  `${row.resource_type || '-'} / ${row.quota_type || '-'}`,
+              },
+              {
+                title: t('channel.edit.billing.procurement_table.capacity'),
+                dataIndex: 'capacity_remaining',
+                key: 'capacity',
+                width: 220,
+                render: (_, row) => formatProcurementCapacityText(row),
+              },
+              {
+                title: t('channel.edit.billing.procurement_table.cost'),
+                dataIndex: 'purchase_cost_cny',
+                key: 'cost',
+                width: 150,
+                render: (_, row) => formatProcurementCostText(row, t),
+              },
+              {
+                title: t('channel.edit.billing.procurement_table.unit_cost'),
+                dataIndex: 'cost_per_unit_cny',
+                key: 'unit_cost',
+                width: 180,
+                render: (_, row) => formatProcurementUnitCostText(row),
+              },
+              {
+                title: t('channel.edit.billing.procurement_table.expire_at'),
+                dataIndex: 'expire_at',
+                key: 'expire_at',
+                width: 180,
+                render: (value) =>
+                  Number(value || 0) > 0 ? timestamp2string(value) : '-',
+              },
+              {
+                title: t('channel.edit.billing.procurement_table.status'),
+                dataIndex: 'cost_status',
+                key: 'cost_status',
+                width: 120,
+                render: (value) => (
+                  <AppTag color={procurementStatusColor(value)}>
+                    {t(
+                      `channel.edit.billing.procurement_status.${
+                        value || 'unknown'
+                      }`,
+                      {
+                        defaultValue: value || '-',
+                      }
+                    )}
+                  </AppTag>
+                ),
+              },
+              {
+                title: t('channel.edit.billing.procurement_table.actions'),
+                key: 'actions',
+                width: 150,
+                render: (_, row) => (
+                  <AppCompact>
+                    <AppTableActionButton
+                      title={t(
+                        'channel.edit.billing.procurement_view_consumptions'
+                      )}
+                      icon='eye'
+                      disabled={billingSubmitting}
+                      onClick={() => openConsumptionModal(row)}
+                    />
+                    <AppTableActionButton
+                      title={t('channel.edit.billing.procurement_edit_cost')}
+                      icon='edit'
+                      disabled={billingReadonly || billingSubmitting}
+                      onClick={() => openCostModal(row)}
+                    />
+                    {(row?.cost_status || '').toString().trim() ===
+                    'disabled' ? (
+                      <AppPopconfirm
+                        title={t(
+                          'channel.edit.billing.procurement_restore_confirm'
+                        )}
+                        okText={t('common.confirm')}
+                        cancelText={t('common.cancel')}
+                        onConfirm={() =>
+                          updateProcurementBatchStatus(row, 'active')
+                        }
+                      >
+                        <AppTableActionButton
+                          title={t('channel.edit.billing.procurement_restore')}
+                          icon='check'
+                          disabled={billingReadonly || billingSubmitting}
+                        />
+                      </AppPopconfirm>
+                    ) : (
+                      <AppPopconfirm
+                        title={t(
+                          'channel.edit.billing.procurement_disable_confirm'
+                        )}
+                        okText={t('common.confirm')}
+                        cancelText={t('common.cancel')}
+                        onConfirm={() =>
+                          updateProcurementBatchStatus(row, 'disabled')
+                        }
+                      >
+                        <AppTableActionButton
+                          title={t('channel.edit.billing.procurement_disable')}
+                          icon='close'
+                          disabled={billingReadonly || billingSubmitting}
+                        />
+                      </AppPopconfirm>
+                    )}
+                  </AppCompact>
+                ),
+              },
+            ]}
+            locale={{
+              emptyText: t('channel.edit.billing.no_procurement_batches'),
+            }}
           />
         </AppDetailSection>
         <AppModal
@@ -714,6 +1239,115 @@ const ChannelDetailBillingTab = ({
           }
         >
           {renderManualSnapshotForm()}
+        </AppModal>
+        <AppModal
+          size='small'
+          open={costModalOpen}
+          onClose={closeCostModal}
+          title={t('channel.edit.billing.procurement_edit_cost')}
+          footer={
+            <AppFormActions>
+              <AppButton
+                type='button'
+                disabled={billingSubmitting}
+                onClick={closeCostModal}
+              >
+                {t('common.cancel')}
+              </AppButton>
+              <AppButton
+                type='button'
+                color='blue'
+                loading={billingSubmitting}
+                disabled={billingReadonly || billingSubmitting}
+                onClick={submitProcurementBatchCost}
+              >
+                {t('common.save')}
+              </AppButton>
+            </AppFormActions>
+          }
+        >
+          {renderProcurementCostForm()}
+        </AppModal>
+        <AppModal
+          size='large'
+          open={consumptionModalOpen}
+          onClose={closeConsumptionModal}
+          title={t('channel.edit.billing.procurement_consumptions_title', {
+            batch:
+              viewingProcurementBatch?.source_ref ||
+              viewingProcurementBatch?.id ||
+              '-',
+          })}
+        >
+          <AppTable
+            className='router-detail-table'
+            pagination={false}
+            loading={consumptionLoading}
+            dataSource={consumptionRows}
+            rowKey={(row) => row.id}
+            columns={[
+              {
+                title: t(
+                  'channel.edit.billing.procurement_consumption_table.request_log'
+                ),
+                dataIndex: 'request_log_id',
+                key: 'request_log_id',
+                width: 220,
+                render: (value) => value || '-',
+              },
+              {
+                title: t(
+                  'channel.edit.billing.procurement_consumption_table.quantity'
+                ),
+                dataIndex: 'consumed_quantity',
+                key: 'consumed_quantity',
+                width: 150,
+                render: (value, row) =>
+                  `${formatNumberText(value, 6)} ${
+                    row?.capacity_unit || ''
+                  }`.trim(),
+              },
+              {
+                title: t(
+                  'channel.edit.billing.procurement_consumption_table.unit_cost'
+                ),
+                dataIndex: 'unit_cost_cny',
+                key: 'unit_cost_cny',
+                width: 150,
+                render: (value) => `${formatNumberText(value, 8)} CNY`,
+              },
+              {
+                title: t(
+                  'channel.edit.billing.procurement_consumption_table.cost'
+                ),
+                dataIndex: 'consumed_cost_cny',
+                key: 'consumed_cost_cny',
+                width: 150,
+                render: (value) => `${formatNumberText(value, 6)} CNY`,
+              },
+              {
+                title: t(
+                  'channel.edit.billing.procurement_consumption_table.truth_mode'
+                ),
+                dataIndex: 'settlement_truth_mode',
+                key: 'settlement_truth_mode',
+                render: (value) => value || '-',
+              },
+              {
+                title: t(
+                  'channel.edit.billing.procurement_consumption_table.created_at'
+                ),
+                dataIndex: 'created_at',
+                key: 'created_at',
+                width: 180,
+                render: (value) =>
+                  Number(value || 0) > 0 ? timestamp2string(value) : '-',
+              },
+            ]}
+            locale={{
+              emptyText: t('channel.edit.billing.no_procurement_consumptions'),
+            }}
+          />
         </AppModal>
         {billingError && (
           <div className='router-error-text router-error-text-top'>

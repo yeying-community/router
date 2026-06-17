@@ -96,8 +96,20 @@ func sanitizeChannelForResponse(channel *model.Channel) {
 	channel.AvailableModels = model.NormalizeChannelModelIDsPreserveOrder(channel.AvailableModels)
 	channel.ChannelModels = model.NormalizeChannelModelsPreserveOrder(channel.ChannelModels)
 	channel.SetChannelTests(channel.Tests)
+	channel.KeyPreview = maskChannelKeyPreview(channel.Key)
 	channel.KeySet = strings.TrimSpace(channel.Key) != ""
 	channel.Key = ""
+}
+
+func maskChannelKeyPreview(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	if len(trimmed) <= 6 {
+		return strings.Repeat("*", len(trimmed))
+	}
+	return trimmed[:3] + strings.Repeat("*", len(trimmed)-6) + trimmed[len(trimmed)-3:]
 }
 
 func buildChannelListItem(channel *model.Channel) channelListItem {

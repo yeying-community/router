@@ -288,7 +288,12 @@ const normalizeChannelModelEndpoint = (type, value, protocol) => {
   return defaultChannelModelEndpoint(normalizedType, protocol);
 };
 
-const normalizeChannelModelEndpoints = (type, endpoints, endpoint, protocol) => {
+const normalizeChannelModelEndpoints = (
+  type,
+  endpoints,
+  endpoint,
+  protocol
+) => {
   const candidates = [];
   if (Array.isArray(endpoints)) {
     endpoints.forEach((item) => {
@@ -328,7 +333,7 @@ const normalizeExplicitChannelModelEndpoints = (
   type,
   endpoints,
   endpoint,
-  protocol,
+  protocol
 ) => {
   const candidates = [];
   if (Array.isArray(endpoints)) {
@@ -345,7 +350,7 @@ const normalizeExplicitChannelModelEndpoints = (
     const normalized = normalizeExplicitChannelModelEndpoint(
       type,
       item,
-      protocol,
+      protocol
     );
     if (!normalized || seen.has(normalized)) {
       return;
@@ -356,13 +361,7 @@ const normalizeExplicitChannelModelEndpoints = (
   return result;
 };
 
-const DETAIL_TAB_KEYS = [
-  'overview',
-  'models',
-  'endpoints',
-  'tests',
-  'billing',
-];
+const DETAIL_TAB_KEYS = ['overview', 'models', 'endpoints', 'tests', 'billing'];
 
 const normalizeDetailTab = (value) => {
   const normalized = (value || '').toString().trim().toLowerCase();
@@ -394,8 +393,8 @@ const providerModelTypeFromTags = (tags) => {
   const values = Array.isArray(tags)
     ? tags
     : typeof tags === 'string'
-      ? tags.split(',')
-      : [];
+    ? tags.split(',')
+    : [];
   for (const item of values) {
     const tag = (item || '').toString().trim().toLowerCase();
     if (['text', 'image', 'audio', 'video', 'embedding'].includes(tag)) {
@@ -466,14 +465,14 @@ const buildEndpointOptionsFromValues = (type, values, protocol) => {
     endpointOptionsForModelType(type).map((option) => [
       normalizeChannelModelEndpoint(type, option.value, protocol),
       option.text || option.value,
-    ]),
+    ])
   );
   return normalizeChannelModelEndpoints(type, values, '', protocol).map(
     (endpoint) => ({
       key: endpoint,
       value: endpoint,
       text: labelByValue.get(endpoint) || endpoint,
-    }),
+    })
   );
 };
 
@@ -551,8 +550,12 @@ const normalizeChannelBillingSummary = (item) => {
     manual_update_supported: item.manual_update_supported === true,
     refresh_supported: item.refresh_supported === true,
     latest_snapshot_at: Number(item.latest_snapshot_at || 0),
-    latest_snapshot_status: (item.latest_snapshot_status || '').toString().trim(),
-    latest_snapshot_message: (item.latest_snapshot_message || '').toString().trim(),
+    latest_snapshot_status: (item.latest_snapshot_status || '')
+      .toString()
+      .trim(),
+    latest_snapshot_message: (item.latest_snapshot_message || '')
+      .toString()
+      .trim(),
     quota_items: Array.isArray(item.quota_items)
       ? item.quota_items.map((quotaItem) => ({
           resource_type: (quotaItem?.resource_type || '').toString().trim(),
@@ -632,6 +635,36 @@ const normalizeChannelBillingActions = (items) => {
       status: (item.status || '').toString().trim(),
       message: (item.message || '').toString().trim(),
       created_at: Number(item.created_at || 0),
+    }));
+};
+
+const normalizeChannelProcurementBatches = (items) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  return items
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      id: (item.id || '').toString().trim(),
+      channel_id: (item.channel_id || '').toString().trim(),
+      resource_type: (item.resource_type || '').toString().trim(),
+      quota_type: (item.quota_type || '').toString().trim(),
+      capacity_unit: (item.capacity_unit || '').toString().trim(),
+      capacity_total: Number(item.capacity_total || 0),
+      capacity_effective: Number(item.capacity_effective || 0),
+      capacity_remaining: Number(item.capacity_remaining || 0),
+      purchase_currency: (item.purchase_currency || '').toString().trim(),
+      purchase_amount: Number(item.purchase_amount || 0),
+      purchase_fx_rate: Number(item.purchase_fx_rate || 0),
+      purchase_cost_cny: Number(item.purchase_cost_cny || 0),
+      cost_per_unit_cny: Number(item.cost_per_unit_cny || 0),
+      cost_source: (item.cost_source || '').toString().trim(),
+      cost_status: (item.cost_status || '').toString().trim(),
+      expire_at: Number(item.expire_at || 0),
+      reset_cycle: (item.reset_cycle || '').toString().trim(),
+      source_ref: (item.source_ref || '').toString().trim(),
+      created_at: Number(item.created_at || 0),
+      updated_at: Number(item.updated_at || 0),
     }));
 };
 
@@ -729,7 +762,7 @@ const ENDPOINT_POLICY_TEMPLATES = [
           input_image_base64: true,
         },
         null,
-        2,
+        2
       ),
       request_policy: JSON.stringify(
         {
@@ -756,7 +789,7 @@ const ENDPOINT_POLICY_TEMPLATES = [
           ],
         },
         null,
-        2,
+        2
       ),
       response_policy: '',
       reason: '该上游只稳定支持 base64 图片输入，需要在 Router 侧转换',
@@ -793,7 +826,7 @@ const filterProviderOptionsByQuery = (options, query) => {
   }
   return (Array.isArray(options) ? options : []).filter((option) => {
     const candidates = [option?.text, option?.value, option?.key].map(
-      normalizeSearchKeyword,
+      normalizeSearchKeyword
     );
     return candidates.some((candidate) => candidate.includes(normalizedQuery));
   });
@@ -859,10 +892,12 @@ const mergePriceComponentOverrides = (baseComponents, overrideComponents) => {
     merged.map((component, index) => [
       `${component.component || ''}\u0000${component.condition || ''}`,
       index,
-    ]),
+    ])
   );
   normalizeComplexPriceComponents(overrideComponents).forEach((component) => {
-    const key = `${component.component || ''}\u0000${component.condition || ''}`;
+    const key = `${component.component || ''}\u0000${
+      component.condition || ''
+    }`;
     const nextComponent = {
       ...component,
       source: component.source || 'channel_override',
@@ -877,7 +912,7 @@ const mergePriceComponentOverrides = (baseComponents, overrideComponents) => {
   return normalizeComplexPriceComponents(merged).filter(
     (component) =>
       Number(component.input_price || 0) > 0 ||
-      Number(component.output_price || 0) > 0,
+      Number(component.output_price || 0) > 0
   );
 };
 
@@ -919,7 +954,9 @@ const buildProviderIndex = (items) => {
       const providerModelType = providerModelTypeFromTags(detail?.tags);
       providerModelDetails[providerId][modelName] = {
         model: modelName,
-        type: providerModelType ? normalizeChannelModelType(providerModelType) : '',
+        type: providerModelType
+          ? normalizeChannelModelType(providerModelType)
+          : '',
         input_price: Number(detail?.input_price || 0) || 0,
         output_price: Number(detail?.output_price || 0) || 0,
         price_unit:
@@ -942,7 +979,7 @@ const buildProviderIndex = (items) => {
             ? detail.source.toString().trim().toLowerCase()
             : 'manual',
         price_components: normalizeComplexPriceComponents(
-          detail?.price_components,
+          detail?.price_components
         ),
       };
     });
@@ -982,8 +1019,8 @@ const inferAssignableProviderForRowWithOptions = (row, providerOptions) => {
   const candidates = buildProviderLookupKeys(row);
   const providerValues = new Set(
     (Array.isArray(providerOptions) ? providerOptions : []).map((item) =>
-      normalizeProviderIdentifier(item?.value || ''),
-    ),
+      normalizeProviderIdentifier(item?.value || '')
+    )
   );
   for (const candidate of candidates) {
     const resolvedProvider = resolveProviderIdentifierFromModelName(candidate);
@@ -1159,12 +1196,12 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
     row.type,
     row.endpoints || row.endpoint_list || [],
     row.endpoint,
-    protocol,
+    protocol
   );
   const normalizedEndpointCandidate = normalizeChannelModelEndpoint(
     row.type,
     row.endpoint,
-    protocol,
+    protocol
   );
   return {
     model,
@@ -1190,7 +1227,6 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
     last_synced_at: Number(row.last_synced_at || 0),
     enable_block_reason: (row.enable_block_reason || '').toString().trim(),
   };
-
 };
 
 const normalizeChannelModels = (rows, protocol) => {
@@ -1224,7 +1260,10 @@ const buildChannelModelsFromLegacyFields = ({
   currency,
   protocol,
 }) => {
-  const normalizedChannelModels = normalizeChannelModels(channelModels, protocol);
+  const normalizedChannelModels = normalizeChannelModels(
+    channelModels,
+    protocol
+  );
   if (normalizedChannelModels.length > 0) {
     return normalizedChannelModels;
   }
@@ -1242,7 +1281,7 @@ const buildChannelModelsFromLegacyFields = ({
   (Array.isArray(selectedModels) ? selectedModels : []).forEach(appendModel);
 
   const selectedSet = new Set(
-    normalizeModelIDs(Array.isArray(selectedModels) ? selectedModels : []),
+    normalizeModelIDs(Array.isArray(selectedModels) ? selectedModels : [])
   );
   const modelMappingMap = parseJSONObject(modelMapping);
   const inputPriceMap = parseJSONObject(inputPrice);
@@ -1264,7 +1303,10 @@ const buildChannelModelsFromLegacyFields = ({
 };
 
 const buildChannelModelState = (channelModels, protocol) => {
-  const normalizedChannelModels = normalizeChannelModels(channelModels, protocol);
+  const normalizedChannelModels = normalizeChannelModels(
+    channelModels,
+    protocol
+  );
   const selectedModels = normalizedChannelModels
     .filter((row) => row.selected && row.inactive !== true)
     .map((row) => row.model);
@@ -1274,12 +1316,13 @@ const buildChannelModelState = (channelModels, protocol) => {
   };
 };
 
-const buildNextInputsWithChannelModels = (previousInputs, channelModels, protocol) => {
+const buildNextInputsWithChannelModels = (
+  previousInputs,
+  channelModels,
+  protocol
+) => {
   const { channelModels: normalizedChannelModels, selectedModels } =
-    buildChannelModelState(
-      channelModels,
-      protocol ?? previousInputs?.protocol,
-    );
+    buildChannelModelState(channelModels, protocol ?? previousInputs?.protocol);
   const currentTestModel = (previousInputs.test_model || '').toString().trim();
   const nextTestModel =
     currentTestModel !== '' && selectedModels.includes(currentTestModel)
@@ -1301,7 +1344,7 @@ const getChangedSelectedChannelModels = (rows, previousRows, protocol) => {
     normalizeChannelModels(previousRows, protocol).map((row) => [
       row.model,
       row,
-    ]),
+    ])
   );
   return normalizeChannelModels(rows, protocol).filter((row) => {
     if (row.inactive === true || row.selected !== true) {
@@ -1323,10 +1366,8 @@ const buildBlockedSelectedModelsMessage = (rows, previousRows, protocol, t) => {
   const blockedRows = getChangedSelectedChannelModels(
     rows,
     previousRows,
-    protocol,
-  ).filter(
-    (row) => ((row.enable_block_reason || '').toString().trim()) !== '',
-  );
+    protocol
+  ).filter((row) => (row.enable_block_reason || '').toString().trim() !== '');
   if (blockedRows.length === 0) {
     return '';
   }
@@ -1366,7 +1407,7 @@ const fetchAllChannelModels = async (channelId, protocol) => {
           page,
           page_size: 100,
         },
-      },
+      }
     );
     const { success, message, data } = res.data || {};
     if (!success) {
@@ -1374,7 +1415,7 @@ const fetchAllChannelModels = async (channelId, protocol) => {
     }
     const pageItems = normalizeChannelModels(
       extractChannelModelListItems(data),
-      protocol,
+      protocol
     );
     items.push(...pageItems);
     const total = Number(data?.total || pageItems.length || 0);
@@ -1399,7 +1440,7 @@ const fetchChannelTests = async (channelId) => {
     };
   }
   const res = await API.get(
-    `/api/v1/admin/channel/${normalizedChannelId}/tests`,
+    `/api/v1/admin/channel/${normalizedChannelId}/tests`
   );
   const { success, message, data } = res.data || {};
   if (!success) {
@@ -1417,7 +1458,7 @@ const fetchChannelEndpoints = async (channelId) => {
     return [];
   }
   const res = await API.get(
-    `/api/v1/admin/channel/${normalizedChannelId}/endpoints`,
+    `/api/v1/admin/channel/${normalizedChannelId}/endpoints`
   );
   const { success, message, data } = res.data || {};
   if (!success) {
@@ -1432,7 +1473,7 @@ const fetchChannelEndpointPolicies = async (channelId) => {
     return [];
   }
   const res = await API.get(
-    `/api/v1/admin/channel/${normalizedChannelId}/policies`,
+    `/api/v1/admin/channel/${normalizedChannelId}/policies`
   );
   const { success, message, data } = res.data || {};
   if (!success) {
@@ -1466,7 +1507,9 @@ const fetchChannelBillingSummary = async (channelId) => {
   if (normalizedChannelId === '') {
     return null;
   }
-  const res = await API.get(`/api/v1/admin/channel/${normalizedChannelId}/billing`);
+  const res = await API.get(
+    `/api/v1/admin/channel/${normalizedChannelId}/billing`
+  );
   const { success, message, data } = res.data || {};
   if (!success) {
     throw new Error(message || 'fetch channel billing failed');
@@ -1480,7 +1523,7 @@ const fetchChannelBillingProfile = async (channelId) => {
     return null;
   }
   const res = await API.get(
-    `/api/v1/admin/channel/${normalizedChannelId}/billing/profile`,
+    `/api/v1/admin/channel/${normalizedChannelId}/billing/profile`
   );
   const { success, message, data } = res.data || {};
   if (!success) {
@@ -1495,7 +1538,7 @@ const fetchChannelBillingSnapshots = async (channelId) => {
     return [];
   }
   const res = await API.get(
-    `/api/v1/admin/channel/${normalizedChannelId}/billing/snapshots`,
+    `/api/v1/admin/channel/${normalizedChannelId}/billing/snapshots`
   );
   const { success, message, data } = res.data || {};
   if (!success) {
@@ -1510,7 +1553,7 @@ const fetchChannelBillingActions = async (channelId) => {
     return [];
   }
   const res = await API.get(
-    `/api/v1/admin/channel/${normalizedChannelId}/billing/actions`,
+    `/api/v1/admin/channel/${normalizedChannelId}/billing/actions`
   );
   const { success, message, data } = res.data || {};
   if (!success) {
@@ -1519,13 +1562,44 @@ const fetchChannelBillingActions = async (channelId) => {
   return normalizeChannelBillingActions(data?.items);
 };
 
+const fetchChannelProcurementBatches = async (channelId) => {
+  const normalizedChannelId = (channelId || '').toString().trim();
+  if (normalizedChannelId === '') {
+    return [];
+  }
+  const res = await API.get(
+    `/api/v1/admin/channel/${normalizedChannelId}/billing/procurement-batches`
+  );
+  const { success, message, data } = res.data || {};
+  if (!success) {
+    throw new Error(message || 'fetch channel procurement batches failed');
+  }
+  return normalizeChannelProcurementBatches(data?.items);
+};
+
+const fetchChannelProcurementBatchConsumptions = async (channelId, batchId) => {
+  const normalizedChannelId = (channelId || '').toString().trim();
+  const normalizedBatchId = (batchId || '').toString().trim();
+  if (normalizedChannelId === '' || normalizedBatchId === '') {
+    return [];
+  }
+  const res = await API.get(
+    `/api/v1/admin/channel/${normalizedChannelId}/billing/procurement-batches/${normalizedBatchId}/consumptions`
+  );
+  const { success, message, data } = res.data || {};
+  if (!success) {
+    throw new Error(message || 'fetch procurement consumptions failed');
+  }
+  return Array.isArray(data?.items) ? data.items : [];
+};
+
 const fetchChannelCircuitBreakerEvents = async (channelId) => {
   const normalizedChannelId = (channelId || '').toString().trim();
   if (normalizedChannelId === '') {
     return [];
   }
   const res = await API.get(
-    `/api/v1/admin/channel/${normalizedChannelId}/circuit-breaker/events`,
+    `/api/v1/admin/channel/${normalizedChannelId}/circuit-breaker/events`
   );
   const { success, message, data } = res.data || {};
   if (!success) {
@@ -1603,7 +1677,7 @@ const buildChannelModelTestSignature = ({
     channelID,
   })}|${normalizeModelIDs(models).join(',')}|${normalizeChannelModels(
     channelModels,
-    protocol,
+    protocol
   )
     .filter((row) => row.selected)
     .map(
@@ -1612,8 +1686,8 @@ const buildChannelModelTestSignature = ({
           row.type,
           row.endpoints,
           row.endpoint,
-          protocol,
-        ).join('|')}`,
+          protocol
+        ).join('|')}`
     )
     .join(',')}`;
 
@@ -1624,15 +1698,13 @@ const normalizeModelTestResults = (results) => {
   return results
     .filter(
       (item) =>
-        item && typeof item === 'object' && typeof item.model === 'string',
+        item && typeof item === 'object' && typeof item.model === 'string'
     )
     .map((item) => {
       const hasIsStream =
         Object.prototype.hasOwnProperty.call(item, 'is_stream') ||
         Object.prototype.hasOwnProperty.call(item, 'isStream');
-      const rawIsStream = hasIsStream
-        ? item.is_stream ?? item.isStream
-        : null;
+      const rawIsStream = hasIsStream ? item.is_stream ?? item.isStream : null;
       return {
         channel_id: (item.channel_id || '').toString().trim(),
         model: item.model || '',
@@ -1640,11 +1712,7 @@ const normalizeModelTestResults = (results) => {
         type: normalizeChannelModelType(item.type),
         endpoint: item.endpoint || '',
         is_stream:
-          rawIsStream === true
-            ? true
-            : rawIsStream === false
-              ? false
-              : null,
+          rawIsStream === true ? true : rawIsStream === false ? false : null,
         status: item.status || 'unsupported',
         supported: !!item.supported,
         message: item.message || '',
@@ -1732,6 +1800,7 @@ const CHANNEL_ORIGIN_INPUTS = {
   name: '',
   protocol: 'openai',
   key: '',
+  key_preview: '',
   base_url: '',
   other: '',
   channel_models: [],
@@ -1780,10 +1849,20 @@ const resolveProtocolFromChannelPayload = (payload) => {
 };
 
 const isRecordNotFoundMessage = (value) =>
-  (value || '')
-    .toString()
-    .trim()
-    .toLowerCase() === 'record not found';
+  (value || '').toString().trim().toLowerCase() === 'record not found';
+
+const maskChannelKeyPreview = (value) => {
+  const normalized = (value || '').toString().trim();
+  if (normalized === '') {
+    return '';
+  }
+  if (normalized.length <= 6) {
+    return '*'.repeat(normalized.length);
+  }
+  return `${normalized.slice(0, 3)}${'*'.repeat(
+    normalized.length - 6
+  )}${normalized.slice(-3)}`;
+};
 
 const ChannelForm = ({ mode = 'auto' } = {}) => {
   const { t } = useTranslation();
@@ -1793,8 +1872,10 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const channelId = params.id;
   const normalizedRouteChannelId = (channelId || '').toString().trim();
   const normalizedMode = (mode || 'auto').toString().trim().toLowerCase();
-  const forceCreateMode = normalizedMode === 'add' || normalizedMode === 'create';
-  const forceDetailMode = normalizedMode === 'edit' || normalizedMode === 'detail';
+  const forceCreateMode =
+    normalizedMode === 'add' || normalizedMode === 'create';
+  const forceDetailMode =
+    normalizedMode === 'edit' || normalizedMode === 'detail';
   const hasChannelID = !forceCreateMode && normalizedRouteChannelId !== '';
   const isDetailMode =
     forceDetailMode ||
@@ -1852,10 +1933,10 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           pathname: location.pathname,
           search: nextSearch ? `?${nextSearch}` : '',
         },
-        { replace: false, state: location.state },
+        { replace: false, state: location.state }
       );
     },
-    [isDetailMode, location.pathname, location.search, location.state, navigate],
+    [isDetailMode, location.pathname, location.search, location.state, navigate]
   );
   const [inputs, setInputs] = useState(CHANNEL_ORIGIN_INPUTS);
   const detailChannelLabel = useMemo(() => {
@@ -1869,7 +1950,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     return '';
   }, [inputs.name, returnChannelLabel]);
   const [channelProtocolOptions, setChannelProtocolOptions] = useState(() =>
-    getChannelProtocolOptions(),
+    getChannelProtocolOptions()
   );
   const [fetchModelsLoading, setFetchModelsLoading] = useState(false);
   const [modelsSyncError, setModelsSyncError] = useState('');
@@ -1889,19 +1970,26 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const [policyEditorSaving, setPolicyEditorSaving] = useState(false);
   const [selectedPolicyTemplate, setSelectedPolicyTemplate] = useState('');
   const [policyDraft, setPolicyDraft] = useState(
-    buildEmptyEndpointPolicyDraft('', '', ''),
+    buildEmptyEndpointPolicyDraft('', '', '')
   );
   const [modelTesting, setModelTesting] = useState(false);
   const [channelBillingSummary, setChannelBillingSummary] = useState(null);
   const [channelBillingProfile, setChannelBillingProfile] = useState(null);
   const [channelBillingSnapshots, setChannelBillingSnapshots] = useState([]);
   const [channelBillingActions, setChannelBillingActions] = useState([]);
+  const [channelProcurementBatches, setChannelProcurementBatches] = useState(
+    []
+  );
   const [channelCircuitBreakerEvents, setChannelCircuitBreakerEvents] =
     useState([]);
-  const [channelCircuitBreakerEventsLoading, setChannelCircuitBreakerEventsLoading] =
-    useState(false);
-  const [channelCircuitBreakerEventsError, setChannelCircuitBreakerEventsError] =
-    useState('');
+  const [
+    channelCircuitBreakerEventsLoading,
+    setChannelCircuitBreakerEventsLoading,
+  ] = useState(false);
+  const [
+    channelCircuitBreakerEventsError,
+    setChannelCircuitBreakerEventsError,
+  ] = useState('');
   const [channelBillingLoading, setChannelBillingLoading] = useState(false);
   const [channelBillingError, setChannelBillingError] = useState('');
   const [channelBillingSubmitting, setChannelBillingSubmitting] =
@@ -1915,7 +2003,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const [audioTestLanguage, setAudioTestLanguage] = useState('zh-CN');
   const [responsesTestMode, setResponsesTestMode] = useState('text');
   const [imageEditTestURL, setImageEditTestURL] = useState(
-    DEFAULT_IMAGE_EDIT_TEST_URL,
+    DEFAULT_IMAGE_EDIT_TEST_URL
   );
   const [imageEditTestData, setImageEditTestData] = useState('');
   const [imageEditTestFileName, setImageEditTestFileName] = useState('');
@@ -1939,13 +2027,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       };
       reader.readAsDataURL(file);
     },
-    [t],
+    [t]
   );
   const openChannelTaskView = useCallback(
     (extraParams = {}) => {
-      const targetChannelId = (channelId || '')
-        .toString()
-        .trim();
+      const targetChannelId = (channelId || '').toString().trim();
       const query = new URLSearchParams();
       if (targetChannelId !== '') {
         query.set('channel_id', targetChannelId);
@@ -1973,7 +2059,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       location.pathname,
       location.search,
       navigate,
-    ],
+    ]
   );
   const [modelTestedAt, setModelTestedAt] = useState(0);
   const [modelTestedSignature, setModelTestedSignature] = useState('');
@@ -1988,7 +2074,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const [providerOptions, setProviderOptions] = useState([]);
   const [providerModelOwners, setProviderModelOwners] = useState({});
   const [providerModelDetailsIndex, setProviderModelDetailsIndex] = useState(
-    {},
+    {}
   );
   const [providerDataLoading, setProviderDataLoading] = useState(false);
   const [providerDataLoaded, setProviderDataLoaded] = useState(false);
@@ -2022,7 +2108,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       channelProtocolOptions.find(
         (option) =>
           (option?.value || '').toString().trim().toLowerCase() ===
-          normalizedProtocol,
+          normalizedProtocol
       ) || null
     );
   }, [channelProtocolOptions, inputs.protocol]);
@@ -2052,15 +2138,15 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
 
   const effectivePreviewKey = useMemo(
     () => buildEffectiveKey().trim(),
-    [buildEffectiveKey],
+    [buildEffectiveKey]
   );
   const effectiveAPIBaseURL = useMemo(
     () => resolveEffectiveAPIBaseURL(inputs, config),
-    [config, inputs],
+    [config, inputs]
   );
   const previewChannelID = useMemo(
     () => ((hasChannelID ? channelId : '') || '').trim(),
-    [channelId, hasChannelID],
+    [channelId, hasChannelID]
   );
   const currentModelSignature = useMemo(
     () =>
@@ -2070,7 +2156,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         baseURL: effectiveAPIBaseURL,
         channelID: previewChannelID,
       }),
-    [effectiveAPIBaseURL, effectivePreviewKey, inputs.protocol, previewChannelID],
+    [
+      effectiveAPIBaseURL,
+      effectivePreviewKey,
+      inputs.protocol,
+      previewChannelID,
+    ]
   );
   const requiresConnectionVerification = false;
   const showStepOne = isDetailMode ? activeDetailTab === 'overview' : true;
@@ -2079,7 +2170,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     (activeDetailTab === 'models' || activeDetailTab === 'endpoints');
   const showDetailOverviewTab = isDetailMode && activeDetailTab === 'overview';
   const showDetailModelsTab = isDetailMode && activeDetailTab === 'models';
-  const showDetailEndpointsTab = isDetailMode && activeDetailTab === 'endpoints';
+  const showDetailEndpointsTab =
+    isDetailMode && activeDetailTab === 'endpoints';
   const showDetailTestsTab = isDetailMode && activeDetailTab === 'tests';
   const showDetailBillingTab = isDetailMode && activeDetailTab === 'billing';
   const detailBasicReadonly = isDetailMode && !detailBasicEditing;
@@ -2129,7 +2221,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const inputReadonlyProps = detailBasicReadonly ? { readOnly: true } : {};
   const visibleChannelModels = useMemo(
     () => normalizeChannelModels(inputs.channel_models, inputs.protocol),
-    [inputs.channel_models, inputs.protocol],
+    [inputs.channel_models, inputs.protocol]
   );
   const detailEditingModelRow = useMemo(() => {
     if (!detailModelsEditing) {
@@ -2137,7 +2229,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     }
     return (
       visibleChannelModels.find(
-        (row) => row.upstream_model === detailEditingModelKey,
+        (row) => row.upstream_model === detailEditingModelKey
       ) || null
     );
   }, [detailEditingModelKey, detailModelsEditing, visibleChannelModels]);
@@ -2168,12 +2260,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   }, [modelTestResults]);
   const modelTestRows = useMemo(() => {
     return visibleChannelModels.filter(
-      (row) => row.inactive !== true && row.selected === true,
+      (row) => row.inactive !== true && row.selected === true
     );
   }, [visibleChannelModels]);
   const modelTestingTargetSet = useMemo(
     () => new Set(modelTestingTargets),
-    [modelTestingTargets],
+    [modelTestingTargets]
   );
   const activeChannelTasksByModel = useMemo(() => {
     const index = new Map();
@@ -2181,7 +2273,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       .filter(
         (item) =>
           item.type === 'channel_model_test' &&
-          isActiveAsyncTaskStatus(item.status),
+          isActiveAsyncTaskStatus(item.status)
       )
       .forEach((item) => {
         if (!item.model) {
@@ -2199,21 +2291,23 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       normalizeAsyncTasks(channelTasks).find(
         (item) =>
           item.type === 'channel_refresh_models' &&
-          isActiveAsyncTaskStatus(item.status),
+          isActiveAsyncTaskStatus(item.status)
       ) || null,
-    [channelTasks],
+    [channelTasks]
   );
   const selectedModelTestHasActiveTasks = useMemo(
     () =>
       modelTestTargetModels.some((modelName) =>
-        activeChannelTasksByModel.has(modelName),
+        activeChannelTasksByModel.has(modelName)
       ),
-    [activeChannelTasksByModel, modelTestTargetModels],
+    [activeChannelTasksByModel, modelTestTargetModels]
   );
   useEffect(() => {
     const visibleModelSet = new Set(modelTestRows.map((row) => row.model));
     setModelTestTargetModels((previous) => {
-      const next = previous.filter((modelName) => visibleModelSet.has(modelName));
+      const next = previous.filter((modelName) =>
+        visibleModelSet.has(modelName)
+      );
       if (next.length === previous.length) {
         return previous;
       }
@@ -2223,7 +2317,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const getProviderOwnersForModel = useCallback(
     (row) => {
       const selectedProvider = normalizeChannelModelProviderValue(
-        row?.provider,
+        row?.provider
       );
       const owners = new Set();
       buildProviderLookupKeys(row).forEach((key) => {
@@ -2232,7 +2326,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         });
       });
       const sortedOwners = Array.from(owners).sort((a, b) =>
-        a.localeCompare(b),
+        a.localeCompare(b)
       );
       if (selectedProvider === '' || !sortedOwners.includes(selectedProvider)) {
         return sortedOwners;
@@ -2242,18 +2336,17 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         ...sortedOwners.filter((item) => item !== selectedProvider),
       ];
     },
-    [providerModelOwners],
+    [providerModelOwners]
   );
   const getProviderSelectOptionsForModel = useCallback(
     (row) => {
       const selectedProvider = normalizeChannelModelProviderValue(
-        row?.provider,
+        row?.provider
       );
       const providerOptionById = new Map(
-        (Array.isArray(providerOptions) ? providerOptions : []).map((option) => [
-          normalizeProviderIdentifier(option?.value || ''),
-          option,
-        ]),
+        (Array.isArray(providerOptions) ? providerOptions : []).map(
+          (option) => [normalizeProviderIdentifier(option?.value || ''), option]
+        )
       );
       const allOptions = Array.from(providerOptionById.values());
       if (selectedProvider === '') {
@@ -2277,16 +2370,16 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         ...allOptions.filter(
           (option) =>
             normalizeProviderIdentifier(option?.value || '') !==
-            normalizedSelectedProvider,
+            normalizedSelectedProvider
         ),
       ];
     },
-    [providerOptions],
+    [providerOptions]
   );
   const resolvePreferredProviderForModel = useCallback(
     (row) => {
       const selectedProvider = normalizeChannelModelProviderValue(
-        row?.provider,
+        row?.provider
       );
       const providerOwners = getProviderOwnersForModel(row);
       if (
@@ -2300,7 +2393,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       return '';
     },
-    [getProviderOwnersForModel],
+    [getProviderOwnersForModel]
   );
   const getSelectedProviderDisplayItems = useCallback(
     (row) => {
@@ -2309,10 +2402,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return [];
       }
       const providerOptionById = new Map(
-        (Array.isArray(providerOptions) ? providerOptions : []).map((option) => [
-          normalizeProviderIdentifier(option?.value || ''),
-          option,
-        ]),
+        (Array.isArray(providerOptions) ? providerOptions : []).map(
+          (option) => [normalizeProviderIdentifier(option?.value || ''), option]
+        )
       );
       const normalizedSelectedProvider =
         normalizeProviderIdentifier(selectedProvider);
@@ -2325,7 +2417,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         },
       ];
     },
-    [providerOptions, resolvePreferredProviderForModel],
+    [providerOptions, resolvePreferredProviderForModel]
   );
   const getComplexPricingDetailsForModel = useCallback(
     (row) => {
@@ -2347,7 +2439,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           seen.add(uniqueKey);
           const priceComponents = mergePriceComponentOverrides(
             detail.price_components,
-            row?.price_components,
+            row?.price_components
           );
           if (priceComponents.length === 0) {
             return;
@@ -2371,7 +2463,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return (a.model || '').localeCompare(b.model || '');
       });
     },
-    [getProviderOwnersForModel, providerModelDetailsIndex],
+    [getProviderOwnersForModel, providerModelDetailsIndex]
   );
   const getProviderCandidateEndpointsForModel = useCallback(
     (row) => {
@@ -2398,7 +2490,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             row?.type,
             row?.endpoints || row?.endpoint_list || [],
             row?.endpoint,
-            inputs.protocol,
+            inputs.protocol
           );
       const seen = new Set();
       const result = [];
@@ -2406,7 +2498,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         const normalized = normalizeChannelModelEndpoint(
           row?.type,
           endpoint,
-          inputs.protocol,
+          inputs.protocol
         );
         if (normalized === '' || seen.has(normalized)) {
           return;
@@ -2419,7 +2511,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       return result;
     },
-    [inputs.protocol, providerModelDetailsIndex, resolvePreferredProviderForModel],
+    [
+      inputs.protocol,
+      providerModelDetailsIndex,
+      resolvePreferredProviderForModel,
+    ]
   );
   const getEndpointOptionsForModel = useCallback(
     (row) => {
@@ -2428,7 +2524,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         const explicitCurrent = normalizeExplicitChannelModelEndpoint(
           row?.type,
           row?.endpoint,
-          inputs.protocol,
+          inputs.protocol
         );
         if (explicitCurrent === '') {
           return [];
@@ -2436,23 +2532,23 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return buildEndpointOptionsFromValues(
           row?.type,
           [explicitCurrent],
-          inputs.protocol,
+          inputs.protocol
         );
       }
       return buildEndpointOptionsFromValues(
         row?.type,
         providerEndpoints,
-        inputs.protocol,
+        inputs.protocol
       );
     },
-    [getProviderCandidateEndpointsForModel, inputs.protocol],
+    [getProviderCandidateEndpointsForModel, inputs.protocol]
   );
   const getEffectiveModelEndpoint = useCallback(
     (row) => {
       const normalizedCurrent = normalizeExplicitChannelModelEndpoint(
         row?.type,
         row?.endpoint,
-        inputs.protocol,
+        inputs.protocol
       );
       const providerEndpoints = getProviderCandidateEndpointsForModel(row);
       if (
@@ -2463,7 +2559,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       return providerEndpoints[0] || '';
     },
-    [getProviderCandidateEndpointsForModel, inputs.protocol],
+    [getProviderCandidateEndpointsForModel, inputs.protocol]
   );
   const modelTestGroups = useMemo(() => {
     const groups = new Map();
@@ -2502,8 +2598,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           }
           commonEndpoints = new Set(
             Array.from(commonEndpoints).filter((endpoint) =>
-              rowEndpointSet.has(endpoint),
-            ),
+              rowEndpointSet.has(endpoint)
+            )
           );
         });
         const endpointOptions = Array.from(commonEndpoints || [])
@@ -2514,7 +2610,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             text: labelByValue.get(endpoint) || endpoint,
           }));
         const endpointSet = new Set(
-          group.rows.map((row) => getEffectiveModelEndpoint(row)),
+          group.rows.map((row) => getEffectiveModelEndpoint(row))
         );
         return {
           ...group,
@@ -2525,7 +2621,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       })
       .sort((left, right) => {
         const providerOrder = (left.provider || '').localeCompare(
-          right.provider || '',
+          right.provider || ''
         );
         if (providerOrder !== 0) {
           return providerOrder;
@@ -2548,7 +2644,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       });
       setComplexPricingModalOpen(true);
     },
-    [getComplexPricingDetailsForModel],
+    [getComplexPricingDetailsForModel]
   );
   const closeComplexPricingModal = useCallback(() => {
     setComplexPricingModalOpen(false);
@@ -2556,25 +2652,25 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   }, []);
   const hasProviderConfiguredForModel = useCallback(
     (row) => getProviderOwnersForModel(row).length > 0,
-    [getProviderOwnersForModel],
+    [getProviderOwnersForModel]
   );
   const canSelectChannelModel = useCallback(
     (row) =>
       row?.inactive !== true &&
       hasProviderConfiguredForModel(row) &&
-      !((row?.enable_block_reason || '').toString().trim()),
-    [hasProviderConfiguredForModel],
+      !(row?.enable_block_reason || '').toString().trim(),
+    [hasProviderConfiguredForModel]
   );
   const activeChannelModels = useMemo(
     () => visibleChannelModels.filter((row) => row.inactive !== true),
-    [visibleChannelModels],
+    [visibleChannelModels]
   );
   const detailProviderFilterOptions = useMemo(() => {
     const providerOptionById = new Map(
       (Array.isArray(providerOptions) ? providerOptions : []).map((option) => [
         normalizeProviderIdentifier(option?.value || ''),
         option,
-      ]),
+      ])
     );
     const providerIds = new Set();
     visibleChannelModels.forEach((row) => {
@@ -2603,12 +2699,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       },
       ...options,
     ];
-  }, [
-    getProviderOwnersForModel,
-    providerOptions,
-    t,
-    visibleChannelModels,
-  ]);
+  }, [getProviderOwnersForModel, providerOptions, t, visibleChannelModels]);
   const detailFilteredChannelModels = useMemo(() => {
     if (!isDetailMode) {
       return visibleChannelModels;
@@ -2632,8 +2723,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       ) {
         return getProviderOwnersForModel(row).some(
           (providerId) =>
-            normalizeProviderIdentifier(providerId) ===
-            normalizedProviderFilter,
+            normalizeProviderIdentifier(providerId) === normalizedProviderFilter
         );
       }
       return true;
@@ -2677,35 +2767,38 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const detailModelTotalPages = useMemo(() => {
     return Math.max(
       1,
-      Math.ceil(searchedChannelModels.length / CHANNEL_MODEL_PAGE_SIZE),
+      Math.ceil(searchedChannelModels.length / CHANNEL_MODEL_PAGE_SIZE)
     );
   }, [searchedChannelModels.length]);
   const renderedChannelModels = useMemo(() => {
     const offset = (detailModelPage - 1) * CHANNEL_MODEL_PAGE_SIZE;
-    return searchedChannelModels.slice(offset, offset + CHANNEL_MODEL_PAGE_SIZE);
+    return searchedChannelModels.slice(
+      offset,
+      offset + CHANNEL_MODEL_PAGE_SIZE
+    );
   }, [searchedChannelModels, detailModelPage]);
   const detailCurrentPageSelectableModels = useMemo(
     () => renderedChannelModels.filter((row) => canSelectChannelModel(row)),
-    [canSelectChannelModel, renderedChannelModels],
+    [canSelectChannelModel, renderedChannelModels]
   );
   const detailCurrentPageBlockedModels = useMemo(
     () =>
       renderedChannelModels.filter(
-        (row) => row.inactive !== true && !canSelectChannelModel(row),
+        (row) => row.inactive !== true && !canSelectChannelModel(row)
       ),
-    [canSelectChannelModel, renderedChannelModels],
+    [canSelectChannelModel, renderedChannelModels]
   );
   const detailCurrentPageAllSelected = useMemo(
     () =>
       detailCurrentPageSelectableModels.length > 0 &&
       detailCurrentPageSelectableModels.every((row) => row.selected === true),
-    [detailCurrentPageSelectableModels],
+    [detailCurrentPageSelectableModels]
   );
   const detailCurrentPagePartiallySelected = useMemo(
     () =>
       !detailCurrentPageAllSelected &&
       detailCurrentPageSelectableModels.some((row) => row.selected === true),
-    [detailCurrentPageAllSelected, detailCurrentPageSelectableModels],
+    [detailCurrentPageAllSelected, detailCurrentPageSelectableModels]
   );
   const modelSelectionSummaryText = useMemo(
     () =>
@@ -2713,11 +2806,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         selected: inputs.models.length,
         total: activeChannelModels.length,
       }),
-    [activeChannelModels.length, inputs.models.length, t],
+    [activeChannelModels.length, inputs.models.length, t]
   );
   const modelSectionMetaText = useMemo(
     () => modelSelectionSummaryText,
-    [modelSelectionSummaryText],
+    [modelSelectionSummaryText]
   );
   const endpointCapabilityStats = useMemo(() => {
     return channelEndpoints.reduce(
@@ -2734,7 +2827,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         total: 0,
         enabled: 0,
         disabled: 0,
-      },
+      }
     );
   }, [channelEndpoints]);
   const endpointSummaryText = useMemo(
@@ -2746,7 +2839,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         policy_enabled: channelEndpointPolicies.filter((row) => row.enabled)
           .length,
       }),
-    [channelEndpointPolicies, endpointCapabilityStats.enabled, endpointCapabilityStats.total, t],
+    [
+      channelEndpointPolicies,
+      endpointCapabilityStats.enabled,
+      endpointCapabilityStats.total,
+      t,
+    ]
   );
   const endpointCapabilityReadonly =
     !isDetailMode ||
@@ -2769,13 +2867,19 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     if (inputs.protocol === 'awsclaude' || inputs.protocol === 'vertexai') {
       return null;
     }
+    const keyDisplayValue =
+      detailBasicReadonly || !detailBasicEditing
+        ? inputs.key_preview || (channelKeySet ? '********' : '-')
+        : inputs.key;
     return (
       <AppFormRow>
         <AppField label={t('channel.edit.key')} required={isCreateMode}>
           <AppInput
             className='router-section-input'
             name='key'
-            type='password'
+            type={
+              detailBasicReadonly || !detailBasicEditing ? 'text' : 'password'
+            }
             required={isCreateMode}
             placeholder={
               channelKeySet && (inputs.key || '').trim() === ''
@@ -2783,7 +2887,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 : protocol2secretPrompt(inputs.protocol, t)
             }
             onChange={handleInputChange}
-            value={inputs.key}
+            value={keyDisplayValue}
             autoComplete='new-password'
             {...inputReadonlyProps}
           />
@@ -2794,7 +2898,10 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     channelKeySet,
     handleInputChange,
     inputReadonlyProps,
+    detailBasicEditing,
+    detailBasicReadonly,
     inputs.key,
+    inputs.key_preview,
     inputs.protocol,
     isCreateMode,
     t,
@@ -2813,7 +2920,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       if (localInputs.base_url && localInputs.base_url.endsWith('/')) {
         localInputs.base_url = localInputs.base_url.slice(
           0,
-          localInputs.base_url.length - 1,
+          localInputs.base_url.length - 1
         );
       }
       if (localInputs.protocol === 'azure' && localInputs.other === '') {
@@ -2822,7 +2929,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       if (includeModelState) {
         const derivedModelState = buildChannelModelState(
           baseInputs.channel_models,
-          baseInputs.protocol,
+          baseInputs.protocol
         );
         localInputs.channel_models = derivedModelState.channelModels;
         localInputs.models = derivedModelState.selectedModels.join(',');
@@ -2838,12 +2945,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       localInputs.config = JSON.stringify(submitConfig);
       return localInputs;
     },
-    [buildEffectiveKey],
+    [buildEffectiveKey]
   );
 
   const buildChannelPayload = useCallback(
     (options = {}) => buildChannelPayloadFromState(inputs, config, options),
-    [buildChannelPayloadFromState, config, inputs],
+    [buildChannelPayloadFromState, config, inputs]
   );
 
   const persistDetailChannelModels = useCallback(
@@ -2859,7 +2966,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         nextChannelModels,
         inputs.channel_models,
         inputs.protocol,
-        t,
+        t
       );
       if (blockedMessage !== '') {
         showError(blockedMessage);
@@ -2868,7 +2975,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const nextInputs = buildNextInputsWithChannelModels(
         inputs,
         nextChannelModels,
-        inputs.protocol,
+        inputs.protocol
       );
       setDetailModelMutating(true);
       try {
@@ -2876,7 +2983,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           `/api/v1/admin/channel/${targetChannelID}/models`,
           {
             channel_models: getChannelModelsFromInputs(nextInputs),
-          },
+          }
         );
         const { success, message } = res.data || {};
         if (!success) {
@@ -2892,19 +2999,14 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return true;
       } catch (error) {
         showError(
-          error?.message || t('channel.edit.messages.save_channel_failed'),
+          error?.message || t('channel.edit.messages.save_channel_failed')
         );
         return false;
       } finally {
         setDetailModelMutating(false);
       }
     },
-    [
-      channelId,
-      inputs,
-      isDetailMode,
-      t,
-    ],
+    [channelId, inputs, isDetailMode, t]
   );
 
   const persistDetailChannel = useCallback(
@@ -2934,7 +3036,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       const protocolConfigError = validateProtocolSpecificChannelConfig(
         inputs,
-        config,
+        config
       );
       if (protocolConfigError !== '') {
         showError(protocolConfigError);
@@ -2945,7 +3047,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           inputs.channel_models,
           inputs.channel_models,
           inputs.protocol,
-          t,
+          t
         );
         if (blockedMessage !== '') {
           showError(blockedMessage);
@@ -2968,6 +3070,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         }
         if ((payload.key || '').trim() !== '') {
           setChannelKeySet(true);
+          setInputs((prev) => ({
+            ...prev,
+            key: '',
+            key_preview: maskChannelKeyPreview(payload.key),
+          }));
         }
         if (successMessage) {
           showSuccess(successMessage);
@@ -2975,7 +3082,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return true;
       } catch (error) {
         showError(
-          error?.message || t('channel.edit.messages.save_channel_failed'),
+          error?.message || t('channel.edit.messages.save_channel_failed')
         );
         return false;
       } finally {
@@ -2992,7 +3099,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       inputs.name,
       isDetailMode,
       t,
-    ],
+    ]
   );
 
   const saveDetailBasicInfo = useCallback(async () => {
@@ -3017,7 +3124,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       setDetailEditingModelSnapshot(null);
       showSuccess(t('channel.edit.messages.update_success'));
     }
-  }, [detailModelsEditing, persistDetailChannelModels, t, visibleChannelModels]);
+  }, [
+    detailModelsEditing,
+    persistDetailChannelModels,
+    t,
+    visibleChannelModels,
+  ]);
 
   const loadChannelModelsFromServer = useCallback(
     async (targetChannelId, protocol) => {
@@ -3025,11 +3137,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return await fetchAllChannelModels(targetChannelId, protocol);
       } catch (error) {
         throw new Error(
-          error?.message || t('channel.edit.messages.fetch_models_failed'),
+          error?.message || t('channel.edit.messages.fetch_models_failed')
         );
       }
     },
-    [t],
+    [t]
   );
 
   const loadChannelTestsFromServer = useCallback(
@@ -3038,11 +3150,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return await fetchChannelTests(targetChannelId);
       } catch (error) {
         throw new Error(
-          error?.message || t('channel.edit.model_tester.test_failed'),
+          error?.message || t('channel.edit.model_tester.test_failed')
         );
       }
     },
-    [t],
+    [t]
   );
 
   const loadChannelEndpointsFromServer = useCallback(
@@ -3051,12 +3163,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return await fetchChannelEndpoints(targetChannelId);
       } catch (error) {
         throw new Error(
-          error?.message ||
-            t('channel.edit.endpoint_capabilities.load_failed'),
+          error?.message || t('channel.edit.endpoint_capabilities.load_failed')
         );
       }
     },
-    [t],
+    [t]
   );
 
   const loadChannelEndpointPoliciesFromServer = useCallback(
@@ -3065,11 +3176,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return await fetchChannelEndpointPolicies(targetChannelId);
       } catch (error) {
         throw new Error(
-          error?.message || t('channel.edit.endpoint_policies.load_failed'),
+          error?.message || t('channel.edit.endpoint_policies.load_failed')
         );
       }
     },
-    [t],
+    [t]
   );
 
   const loadChannelTasksFromServer = useCallback(async (targetChannelId) => {
@@ -3086,11 +3197,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return await fetchChannelBillingSummary(targetChannelId);
       } catch (error) {
         throw new Error(
-          error?.message || t('channel.edit.billing.load_failed'),
+          error?.message || t('channel.edit.billing.load_failed')
         );
       }
     },
-    [t],
+    [t]
   );
 
   const loadChannelBillingProfileFromServer = useCallback(
@@ -3099,11 +3210,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return await fetchChannelBillingProfile(targetChannelId);
       } catch (error) {
         throw new Error(
-          error?.message || t('channel.edit.billing.load_failed'),
+          error?.message || t('channel.edit.billing.load_failed')
         );
       }
     },
-    [t],
+    [t]
   );
 
   const loadChannelBillingSnapshotsFromServer = useCallback(
@@ -3112,11 +3223,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return await fetchChannelBillingSnapshots(targetChannelId);
       } catch (error) {
         throw new Error(
-          error?.message || t('channel.edit.billing.load_failed'),
+          error?.message || t('channel.edit.billing.load_failed')
         );
       }
     },
-    [t],
+    [t]
   );
 
   const loadChannelBillingActionsFromServer = useCallback(
@@ -3125,11 +3236,24 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return await fetchChannelBillingActions(targetChannelId);
       } catch (error) {
         throw new Error(
-          error?.message || t('channel.edit.billing.load_failed'),
+          error?.message || t('channel.edit.billing.load_failed')
         );
       }
     },
-    [t],
+    [t]
+  );
+
+  const loadChannelProcurementBatchesFromServer = useCallback(
+    async (targetChannelId) => {
+      try {
+        return await fetchChannelProcurementBatches(targetChannelId);
+      } catch (error) {
+        throw new Error(
+          error?.message || t('channel.edit.billing.load_failed')
+        );
+      }
+    },
+    [t]
   );
 
   const loadChannelCircuitBreakerEventsFromServer = useCallback(
@@ -3138,11 +3262,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return await fetchChannelCircuitBreakerEvents(targetChannelId);
       } catch (error) {
         throw new Error(
-          error?.message || t('channel.edit.circuit_breaker.load_failed'),
+          error?.message || t('channel.edit.circuit_breaker.load_failed')
         );
       }
     },
-    [t],
+    [t]
   );
 
   const refreshChannelBillingState = useCallback(
@@ -3153,21 +3277,24 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       setChannelBillingLoading(true);
       try {
-        const [summary, profile, snapshots, actions] = await Promise.all([
-          loadChannelBillingSummaryFromServer(normalizedChannelId),
-          loadChannelBillingProfileFromServer(normalizedChannelId),
-          loadChannelBillingSnapshotsFromServer(normalizedChannelId),
-          loadChannelBillingActionsFromServer(normalizedChannelId),
-        ]);
+        const [summary, profile, snapshots, actions, procurementBatches] =
+          await Promise.all([
+            loadChannelBillingSummaryFromServer(normalizedChannelId),
+            loadChannelBillingProfileFromServer(normalizedChannelId),
+            loadChannelBillingSnapshotsFromServer(normalizedChannelId),
+            loadChannelBillingActionsFromServer(normalizedChannelId),
+            loadChannelProcurementBatchesFromServer(normalizedChannelId),
+          ]);
         setChannelBillingSummary(summary);
         setChannelBillingProfile(profile);
         setDetailBillingDraft(profile);
         setChannelBillingSnapshots(snapshots);
         setChannelBillingActions(actions);
+        setChannelProcurementBatches(procurementBatches);
         setChannelBillingError('');
       } catch (error) {
         setChannelBillingError(
-          error?.message || t('channel.edit.billing.load_failed'),
+          error?.message || t('channel.edit.billing.load_failed')
         );
       } finally {
         setChannelBillingLoading(false);
@@ -3178,8 +3305,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       loadChannelBillingProfileFromServer,
       loadChannelBillingSnapshotsFromServer,
       loadChannelBillingSummaryFromServer,
+      loadChannelProcurementBatchesFromServer,
       t,
-    ],
+    ]
   );
 
   const refreshChannelRuntimeState = useCallback(
@@ -3198,8 +3326,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         nextBillingProfile,
         nextBillingSnapshots,
         nextBillingActions,
-      ] =
-        await Promise.all([
+        nextProcurementBatches,
+      ] = await Promise.all([
         loadChannelModelsFromServer(normalizedChannelId, inputs.protocol),
         loadChannelTestsFromServer(normalizedChannelId),
         loadChannelTasksFromServer(normalizedChannelId),
@@ -3209,11 +3337,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         loadChannelBillingProfileFromServer(normalizedChannelId),
         loadChannelBillingSnapshotsFromServer(normalizedChannelId),
         loadChannelBillingActionsFromServer(normalizedChannelId),
+        loadChannelProcurementBatchesFromServer(normalizedChannelId),
       ]);
       const nextInputs = buildNextInputsWithChannelModels(
         inputs,
         nextChannelModels,
-        inputs.protocol,
+        inputs.protocol
       );
       const nextSignature = buildChannelModelTestSignature({
         protocol: inputs.protocol,
@@ -3229,16 +3358,16 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       setModelTestedAt(
         Number(nextTests.lastTestedAt || 0) > 0
           ? Number(nextTests.lastTestedAt) * 1000
-          : 0,
+          : 0
       );
       setModelTestedSignature(
-        Number(nextTests.lastTestedAt || 0) > 0 ? nextSignature : '',
+        Number(nextTests.lastTestedAt || 0) > 0 ? nextSignature : ''
       );
       setChannelTasks(normalizeAsyncTasks(nextTasks));
       setChannelEndpoints(normalizeChannelEndpointRows(nextEndpoints));
       setChannelEndpointsError('');
       setChannelEndpointPolicies(
-        normalizeChannelEndpointPolicyRows(nextPolicies),
+        normalizeChannelEndpointPolicyRows(nextPolicies)
       );
       setChannelEndpointPoliciesError('');
       setChannelBillingSummary(nextBillingSummary);
@@ -3246,6 +3375,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       setDetailBillingDraft(nextBillingProfile);
       setChannelBillingSnapshots(nextBillingSnapshots);
       setChannelBillingActions(nextBillingActions);
+      setChannelProcurementBatches(nextProcurementBatches);
       setChannelBillingError('');
     },
     [
@@ -3257,12 +3387,13 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       loadChannelBillingProfileFromServer,
       loadChannelBillingSnapshotsFromServer,
       loadChannelBillingSummaryFromServer,
+      loadChannelProcurementBatchesFromServer,
       loadChannelEndpointPoliciesFromServer,
       loadChannelEndpointsFromServer,
       loadChannelModelsFromServer,
       loadChannelTasksFromServer,
       loadChannelTestsFromServer,
-    ],
+    ]
   );
 
   const openChannelBillingActivatePage = useCallback(
@@ -3277,7 +3408,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       try {
         const res = await API.post(
           `/api/v1/admin/channel/${targetChannelId}/billing/open-activate-page`,
-          { cdk: normalizedCDK },
+          { cdk: normalizedCDK }
         );
         const { success, message, data } = res.data || {};
         if (!success) {
@@ -3291,13 +3422,13 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         showSuccess(t('channel.edit.billing.open_activate_success'));
       } catch (error) {
         showError(
-          error?.message || t('channel.edit.billing.open_activate_failed'),
+          error?.message || t('channel.edit.billing.open_activate_failed')
         );
       } finally {
         setChannelBillingSubmitting(false);
       }
     },
-    [channelId, refreshChannelBillingState, t],
+    [channelId, refreshChannelBillingState, t]
   );
 
   const submitChannelBillingRefresh = useCallback(
@@ -3311,11 +3442,13 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         `/api/v1/admin/channel/${normalizedChannelId}/refresh`,
         {
           action: 'billing',
-        },
+        }
       );
       const { success, message, data, meta } = res.data || {};
       if (!success) {
-        throw new Error(message || t('channel.messages.billing_update_submit_failed'));
+        throw new Error(
+          message || t('channel.messages.billing_update_submit_failed')
+        );
       }
       const refreshTask = normalizeAsyncTasks([data?.task])[0];
       if (!refreshTask?.id) {
@@ -3323,7 +3456,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       pendingBillingRefreshTaskIdRef.current = refreshTask.id;
       setChannelTasks((prev) =>
-        normalizeAsyncTasks([...normalizeAsyncTasks(prev), refreshTask]),
+        normalizeAsyncTasks([...normalizeAsyncTasks(prev), refreshTask])
       );
       if (!silent) {
         showSuccess(
@@ -3333,12 +3466,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               })
             : t('channel.messages.billing_update_submitted', {
                 name: (inputs.name || normalizedChannelId).toString().trim(),
-              }),
+              })
         );
       }
       return refreshTask;
     },
-    [inputs.name, t],
+    [inputs.name, t]
   );
 
   const refreshChannelBillingNow = useCallback(async () => {
@@ -3351,7 +3484,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       await submitChannelBillingRefresh(targetChannelId);
     } catch (error) {
       showError(
-        error?.message || t('channel.messages.billing_update_submit_failed'),
+        error?.message || t('channel.messages.billing_update_submit_failed')
       );
     } finally {
       if (pendingBillingRefreshTaskIdRef.current === '') {
@@ -3372,15 +3505,23 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           quota_type: (item?.quota_type || '').toString().trim(),
           quota_label: (item?.quota_label || '').toString().trim(),
           amount: Number(item?.amount),
+          limit_amount: Number(item?.limit_amount || 0),
+          used_amount: Number(item?.used_amount || 0),
+          remaining_amount: Number(item?.remaining_amount || 0),
           currency: (item?.currency || '').toString().trim(),
+          reset_at: Number(item?.reset_at || 0),
           expires_at: Number(item?.expires_at || 0),
         }))
         .filter(
           (item) =>
             item.resource_type !== '' &&
             item.quota_label !== '' &&
-            Number.isFinite(item.amount) &&
-            item.amount >= 0,
+            (item.resource_type === 'plan' ||
+              (Number.isFinite(item.amount) &&
+                item.amount >= 0 &&
+                (item.amount > 0 ||
+                  item.limit_amount > 0 ||
+                  item.remaining_amount > 0)))
         );
       if (normalizedItems.length === 0) {
         showInfo(t('channel.edit.billing.manual_snapshot_invalid'));
@@ -3393,12 +3534,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           {
             items: normalizedItems,
             message: (message || '').toString().trim(),
-          },
+          }
         );
         const { success, message: responseMessage } = res.data || {};
         if (!success) {
           showError(
-            responseMessage || t('channel.edit.billing.manual_snapshot_failed'),
+            responseMessage || t('channel.edit.billing.manual_snapshot_failed')
           );
           return false;
         }
@@ -3407,31 +3548,144 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return true;
       } catch (error) {
         showError(
-          error?.message || t('channel.edit.billing.manual_snapshot_failed'),
+          error?.message || t('channel.edit.billing.manual_snapshot_failed')
         );
         return false;
       } finally {
         setChannelBillingSubmitting(false);
       }
     },
-    [channelId, refreshChannelBillingState, t],
+    [channelId, refreshChannelBillingState, t]
   );
 
-  const updateBillingProfileDraft = useCallback((patch) => {
-    setDetailBillingDraft((prev) => ({
-      ...(prev || {
-        channel_id: (channelId || '').toString().trim(),
-        enabled: true,
-        billing_mode: 'unsupported',
-        billing_api_base_url: '',
-        cdk: '',
-        currency: 'USD',
-        action_capabilities: [],
-        billing_portal_url: '',
-      }),
-      ...(patch || {}),
-    }));
-  }, [channelId]);
+  const updateChannelProcurementBatchCost = useCallback(
+    async (batchId, payload) => {
+      const targetChannelId = (channelId || '').toString().trim();
+      const normalizedBatchId = (batchId || '').toString().trim();
+      if (targetChannelId === '' || normalizedBatchId === '') {
+        return false;
+      }
+      setChannelBillingSubmitting(true);
+      try {
+        const res = await API.put(
+          `/api/v1/admin/channel/${targetChannelId}/billing/procurement-batches/${normalizedBatchId}/cost`,
+          {
+            purchase_currency: (payload?.purchase_currency || '')
+              .toString()
+              .trim(),
+            purchase_amount: Number(payload?.purchase_amount || 0),
+            purchase_fx_rate: Number(payload?.purchase_fx_rate || 0),
+            purchase_cost_cny: Number(payload?.purchase_cost_cny || 0),
+            capacity_effective: Number(payload?.capacity_effective || 0),
+            cost_source: (payload?.cost_source || 'actual').toString().trim(),
+            cost_status: (payload?.cost_status || 'active').toString().trim(),
+          }
+        );
+        const { success, message: responseMessage } = res.data || {};
+        if (!success) {
+          showError(
+            responseMessage ||
+              t('channel.edit.billing.procurement_update_failed')
+          );
+          return false;
+        }
+        await refreshChannelBillingState(targetChannelId);
+        showSuccess(t('channel.edit.billing.procurement_update_success'));
+        return true;
+      } catch (error) {
+        showError(
+          error?.message || t('channel.edit.billing.procurement_update_failed')
+        );
+        return false;
+      } finally {
+        setChannelBillingSubmitting(false);
+      }
+    },
+    [channelId, refreshChannelBillingState, t]
+  );
+
+  const updateChannelProcurementBatchStatus = useCallback(
+    async (batchId, costStatus) => {
+      const targetChannelId = (channelId || '').toString().trim();
+      const normalizedBatchId = (batchId || '').toString().trim();
+      if (targetChannelId === '' || normalizedBatchId === '') {
+        return false;
+      }
+      setChannelBillingSubmitting(true);
+      try {
+        const res = await API.put(
+          `/api/v1/admin/channel/${targetChannelId}/billing/procurement-batches/${normalizedBatchId}/status`,
+          {
+            cost_status: (costStatus || '').toString().trim(),
+          }
+        );
+        const { success, message: responseMessage } = res.data || {};
+        if (!success) {
+          showError(
+            responseMessage ||
+              t('channel.edit.billing.procurement_status_update_failed')
+          );
+          return false;
+        }
+        await refreshChannelBillingState(targetChannelId);
+        showSuccess(
+          t('channel.edit.billing.procurement_status_update_success')
+        );
+        return true;
+      } catch (error) {
+        showError(
+          error?.message ||
+            t('channel.edit.billing.procurement_status_update_failed')
+        );
+        return false;
+      } finally {
+        setChannelBillingSubmitting(false);
+      }
+    },
+    [channelId, refreshChannelBillingState, t]
+  );
+
+  const loadChannelProcurementBatchConsumptions = useCallback(
+    async (batchId) => {
+      const targetChannelId = (channelId || '').toString().trim();
+      const normalizedBatchId = (batchId || '').toString().trim();
+      if (targetChannelId === '' || normalizedBatchId === '') {
+        return [];
+      }
+      try {
+        return await fetchChannelProcurementBatchConsumptions(
+          targetChannelId,
+          normalizedBatchId
+        );
+      } catch (error) {
+        showError(
+          error?.message ||
+            t('channel.edit.billing.procurement_consumptions_load_failed')
+        );
+        return [];
+      }
+    },
+    [channelId, t]
+  );
+
+  const updateBillingProfileDraft = useCallback(
+    (patch) => {
+      setDetailBillingDraft((prev) => ({
+        ...(prev || {
+          channel_id: (channelId || '').toString().trim(),
+          enabled: true,
+          billing_mode: 'unsupported',
+          billing_api_base_url: '',
+          cdk: '',
+          currency: 'USD',
+          action_capabilities: [],
+          billing_portal_url: '',
+        }),
+        ...(patch || {}),
+      }));
+    },
+    [channelId]
+  );
 
   const cancelDetailBillingEdit = useCallback(() => {
     setDetailBillingDraft(channelBillingProfile);
@@ -3452,11 +3706,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             .toString()
             .trim(),
           billing_api_base_url: normalizeBaseURL(
-            detailBillingDraft.billing_api_base_url,
+            detailBillingDraft.billing_api_base_url
           ),
           cdk: (detailBillingDraft.cdk || '').toString().trim(),
           currency: (detailBillingDraft.currency || 'USD').toString().trim(),
-        },
+        }
       );
       const { success, message, data } = res.data || {};
       if (!success) {
@@ -3477,7 +3731,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       showSuccess(t('channel.edit.billing.profile_update_success'));
     } catch (error) {
       showError(
-        error?.message || t('channel.edit.billing.profile_update_failed'),
+        error?.message || t('channel.edit.billing.profile_update_failed')
       );
     } finally {
       setChannelBillingSubmitting(false);
@@ -3504,23 +3758,24 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             billingProfileData,
             billingSnapshotsData,
             billingActionsData,
+            procurementBatchesData,
             circuitBreakerEventsData,
-          ] =
-            await Promise.all([
-              loadChannelModelsFromServer(
-                data.id || targetId,
-                resolveProtocolFromChannelPayload(data),
-              ),
-              loadChannelTestsFromServer(data.id || targetId),
-              loadChannelTasksFromServer(data.id || targetId),
-              loadChannelBillingSummaryFromServer(data.id || targetId),
-              loadChannelBillingProfileFromServer(data.id || targetId),
-              loadChannelBillingSnapshotsFromServer(data.id || targetId),
-              loadChannelBillingActionsFromServer(data.id || targetId),
-              loadChannelCircuitBreakerEventsFromServer(data.id || targetId),
-            ]);
+          ] = await Promise.all([
+            loadChannelModelsFromServer(
+              data.id || targetId,
+              resolveProtocolFromChannelPayload(data)
+            ),
+            loadChannelTestsFromServer(data.id || targetId),
+            loadChannelTasksFromServer(data.id || targetId),
+            loadChannelBillingSummaryFromServer(data.id || targetId),
+            loadChannelBillingProfileFromServer(data.id || targetId),
+            loadChannelBillingSnapshotsFromServer(data.id || targetId),
+            loadChannelBillingActionsFromServer(data.id || targetId),
+            loadChannelProcurementBatchesFromServer(data.id || targetId),
+            loadChannelCircuitBreakerEventsFromServer(data.id || targetId),
+          ]);
           const storedModelTestResults = normalizeModelTestResults(
-            channelTestsData.items,
+            channelTestsData.items
           );
           const storedModelTestedAt =
             Number(channelTestsData.lastTestedAt || 0) > 0
@@ -3533,7 +3788,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           const normalizedProtocol = resolveProtocolFromChannelPayload(data);
           const modelState = buildChannelModelState(
             remoteChannelModels,
-            normalizedProtocol,
+            normalizedProtocol
           );
           const loadedModelTestSignature = buildChannelModelTestSignature({
             protocol: normalizedProtocol,
@@ -3551,6 +3806,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             name: data.name || '',
             protocol: normalizedProtocol,
             key: '',
+            key_preview: data.key_preview || '',
             base_url: data.base_url || '',
             other: data.other || '',
             channel_models: modelState.channelModels,
@@ -3568,7 +3824,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           setModelTestedSignature(
             storedModelTestResults.length > 0 && storedModelTestedAt > 0
               ? loadedModelTestSignature
-              : '',
+              : ''
           );
           setModelTestTargetModels([]);
           setChannelTasks(normalizeAsyncTasks(activeTasks));
@@ -3577,6 +3833,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           setDetailBillingDraft(billingProfileData);
           setChannelBillingSnapshots(billingSnapshotsData);
           setChannelBillingActions(billingActionsData);
+          setChannelProcurementBatches(procurementBatchesData);
           setChannelCircuitBreakerEvents(circuitBreakerEventsData);
           setChannelCircuitBreakerEventsError('');
           setChannelBillingError('');
@@ -3616,13 +3873,14 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       loadChannelBillingActionsFromServer,
       loadChannelCircuitBreakerEventsFromServer,
       loadChannelBillingProfileFromServer,
+      loadChannelProcurementBatchesFromServer,
       loadChannelBillingSnapshotsFromServer,
       loadChannelBillingSummaryFromServer,
       loadChannelModelsFromServer,
       loadChannelTasksFromServer,
       loadChannelTestsFromServer,
       t,
-    ],
+    ]
   );
 
   const cancelDetailBasicEdit = useCallback(async () => {
@@ -3648,10 +3906,10 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           visibleChannelModels.map((row) =>
             row.upstream_model === detailEditingModelKey
               ? { ...detailEditingModelSnapshot }
-              : row,
+              : row
           ),
-          prev.protocol,
-        ),
+          prev.protocol
+        )
       );
     }
     setDetailEditingModelKey('');
@@ -3686,7 +3944,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           channelID: targetChannelId,
         });
         const res = await API.post(
-          `/api/v1/admin/channel/${targetChannelId}/refresh`,
+          `/api/v1/admin/channel/${targetChannelId}/refresh`
         );
         const { success, message, data } = res.data || {};
         if (!success) {
@@ -3710,7 +3968,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           return false;
         }
         setChannelTasks((prev) =>
-          normalizeAsyncTasks([...normalizeAsyncTasks(prev), refreshTask]),
+          normalizeAsyncTasks([...normalizeAsyncTasks(prev), refreshTask])
         );
         pendingRefreshTaskIdRef.current = refreshTask.id;
         pendingRefreshSignatureRef.current = requestSignature;
@@ -3741,7 +3999,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       inputs.protocol,
       isDetailMode,
       t,
-    ],
+    ]
   );
 
   const fetchChannelTypes = useCallback(async () => {
@@ -3779,8 +4037,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           if (!success) {
             if (!silent) {
               showError(
-                message ||
-                  t('channel.edit.model_selector.provider_load_failed'),
+                message || t('channel.edit.model_selector.provider_load_failed')
               );
             }
             return null;
@@ -3807,7 +4064,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         if (!silent) {
           showError(
             error?.message ||
-              t('channel.edit.model_selector.provider_load_failed'),
+              t('channel.edit.model_selector.provider_load_failed')
           );
         }
         return null;
@@ -3822,7 +4079,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       providerModelOwners,
       providerOptions,
       t,
-    ],
+    ]
   );
 
   const startDetailModelEdit = useCallback(
@@ -3833,7 +4090,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       const currentRow =
         visibleChannelModels.find(
-          (row) => row.upstream_model === targetModel,
+          (row) => row.upstream_model === targetModel
         ) || null;
       if (!currentRow) {
         return;
@@ -3854,7 +4111,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       providerDataLoading,
       providerOptions.length,
       visibleChannelModels,
-    ],
+    ]
   );
 
   const openAppendProviderModal = useCallback(
@@ -3873,14 +4130,14 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       setAppendProviderForm({
         provider: inferAssignableProviderForRowWithOptions(
           row,
-          providerIndex.providerOptions,
+          providerIndex.providerOptions
         ),
         model: (row?.upstream_model || row?.model || '').toString().trim(),
         type: normalizeChannelModelType(row?.type),
       });
       setAppendProviderModalOpen(true);
     },
-    [loadProviderIndex, t],
+    [loadProviderIndex, t]
   );
 
   const closeAppendProviderModal = useCallback(() => {
@@ -3911,12 +4168,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           tags: Array.isArray(appendProviderForm.tags)
             ? appendProviderForm.tags
             : [],
-        },
+        }
       );
       const { success, message } = res.data || {};
       if (!success) {
         showError(
-          message || t('channel.edit.model_selector.provider_append_failed'),
+          message || t('channel.edit.model_selector.provider_append_failed')
         );
         return;
       }
@@ -3926,17 +4183,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     } catch (error) {
       showError(
         error?.message ||
-          t('channel.edit.model_selector.provider_append_failed'),
+          t('channel.edit.model_selector.provider_append_failed')
       );
     } finally {
       setAppendingProviderModel(false);
     }
-  }, [
-    appendProviderForm,
-    closeAppendProviderModal,
-    loadProviderIndex,
-    t,
-  ]);
+  }, [appendProviderForm, closeAppendProviderModal, loadProviderIndex, t]);
 
   const handleRunModelTests = useCallback(
     async ({ targetModels = [], scope = 'batch' } = {}) => {
@@ -3952,7 +4204,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const normalizedTargets = normalizeModelIDs(
         Array.isArray(targetModels) && targetModels.length > 0
           ? targetModels
-          : modelTestTargetModels,
+          : modelTestTargetModels
       );
       if (normalizedTargets.length === 0) {
         showInfo(t('channel.edit.messages.models_required'));
@@ -3991,7 +4243,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             audio_language: audioTestLanguage,
             image_edit_url: imageEditTestURL,
             image_edit_data: imageEditTestData,
-          },
+          }
         );
         const { success, message, data, meta } = res.data || {};
         if (!success) {
@@ -4003,14 +4255,14 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         }
         const nextTasks = normalizeAsyncTasks(data?.tasks);
         setChannelTasks((prev) =>
-          normalizeAsyncTasks([...normalizeAsyncTasks(prev), ...nextTasks]),
+          normalizeAsyncTasks([...normalizeAsyncTasks(prev), ...nextTasks])
         );
         setModelTestError('');
         showSuccess(
           t('channel.edit.model_tester.task_created', {
             count: Number(meta?.created || nextTasks.length || 0),
             reused: Number(meta?.reused || 0),
-          }),
+          })
         );
       } catch (error) {
         const errorMessage =
@@ -4038,24 +4290,27 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       responsesTestMode,
       imageEditTestURL,
       imageEditTestData,
-    ],
+    ]
   );
 
-  const toggleModelTestTarget = useCallback((modelName, checked) => {
-    if (detailTestingReadonly) {
-      return;
-    }
-    setModelTestTargetModels((prev) => {
-      const normalized = (modelName || '').toString().trim();
-      if (normalized === '') {
-        return prev;
+  const toggleModelTestTarget = useCallback(
+    (modelName, checked) => {
+      if (detailTestingReadonly) {
+        return;
       }
-      if (checked) {
-        return normalizeModelIDs([...prev, normalized]);
-      }
-      return prev.filter((item) => item !== normalized);
-    });
-  }, [detailTestingReadonly]);
+      setModelTestTargetModels((prev) => {
+        const normalized = (modelName || '').toString().trim();
+        if (normalized === '') {
+          return prev;
+        }
+        if (checked) {
+          return normalizeModelIDs([...prev, normalized]);
+        }
+        return prev.filter((item) => item !== normalized);
+      });
+    },
+    [detailTestingReadonly]
+  );
 
   const toggleModelTestGroupTargets = useCallback(
     (rows, checked) => {
@@ -4063,7 +4318,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return;
       }
       const modelIDs = normalizeModelIDs(
-        (Array.isArray(rows) ? rows : []).map((row) => row.model),
+        (Array.isArray(rows) ? rows : []).map((row) => row.model)
       );
       if (modelIDs.length === 0) {
         return;
@@ -4076,7 +4331,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return prev.filter((item) => !removeSet.has(item));
       });
     },
-    [detailTestingReadonly],
+    [detailTestingReadonly]
   );
 
   const updateModelTestEndpoint = useCallback(
@@ -4091,7 +4346,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         const nextEndpoint = normalizeChannelModelEndpoint(
           row.type,
           endpoint,
-          inputs.protocol,
+          inputs.protocol
         );
         return {
           ...row,
@@ -4100,7 +4355,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             row.type,
             row.endpoints,
             nextEndpoint,
-            inputs.protocol,
+            inputs.protocol
           ),
         };
       });
@@ -4109,7 +4364,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return;
       }
       setInputs((prev) =>
-        buildNextInputsWithChannelModels(prev, nextConfigs, prev.protocol),
+        buildNextInputsWithChannelModels(prev, nextConfigs, prev.protocol)
       );
     },
     [
@@ -4117,7 +4372,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       isDetailMode,
       persistDetailChannelModels,
       visibleChannelModels,
-    ],
+    ]
   );
   const updateAllModelTestEndpoints = useCallback(
     async (endpoint, targetModels) => {
@@ -4136,7 +4391,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         const nextEndpoint = normalizeChannelModelEndpoint(
           row.type,
           targetEndpoint,
-          inputs.protocol,
+          inputs.protocol
         );
         return {
           ...row,
@@ -4145,7 +4400,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             row.type,
             row.endpoints,
             nextEndpoint,
-            inputs.protocol,
+            inputs.protocol
           ),
         };
       });
@@ -4154,7 +4409,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return;
       }
       setInputs((prev) =>
-        buildNextInputsWithChannelModels(prev, nextConfigs, prev.protocol),
+        buildNextInputsWithChannelModels(prev, nextConfigs, prev.protocol)
       );
     },
     [
@@ -4163,7 +4418,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       isDetailMode,
       persistDetailChannelModels,
       visibleChannelModels,
-    ],
+    ]
   );
   const updateAllModelTestStreams = useCallback(
     async (isStream, modelNames = []) => {
@@ -4173,7 +4428,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const targetSet = new Set(
         (Array.isArray(modelNames) ? modelNames : [])
           .map((item) => (item || '').toString().trim())
-          .filter(Boolean),
+          .filter(Boolean)
       );
       if (targetSet.size === 0) {
         return;
@@ -4189,7 +4444,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return;
       }
       setInputs((prev) =>
-        buildNextInputsWithChannelModels(prev, nextConfigs, prev.protocol),
+        buildNextInputsWithChannelModels(prev, nextConfigs, prev.protocol)
       );
     },
     [
@@ -4197,7 +4452,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       isDetailMode,
       persistDetailChannelModels,
       visibleChannelModels,
-    ],
+    ]
   );
 
   const updateChannelEndpointCapability = useCallback(
@@ -4228,17 +4483,17 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             endpoint,
             base_url: baseURL,
             enabled: !!enabled,
-          },
+          }
         );
         const { success, message } = res.data || {};
         if (!success) {
           showError(
-            message || t('channel.edit.endpoint_capabilities.update_failed'),
+            message || t('channel.edit.endpoint_capabilities.update_failed')
           );
           return;
         }
         const nextEndpoints = await loadChannelEndpointsFromServer(
-          targetChannelId,
+          targetChannelId
         );
         setChannelEndpoints(normalizeChannelEndpointRows(nextEndpoints));
         setChannelEndpointsError('');
@@ -4246,12 +4501,13 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           t(
             enabled
               ? 'channel.edit.endpoint_capabilities.enable_success'
-              : 'channel.edit.endpoint_capabilities.disable_success',
-          ),
+              : 'channel.edit.endpoint_capabilities.disable_success'
+          )
         );
       } catch (error) {
         showError(
-          error?.message || t('channel.edit.endpoint_capabilities.update_failed'),
+          error?.message ||
+            t('channel.edit.endpoint_capabilities.update_failed')
         );
       } finally {
         setEndpointMutatingKey('');
@@ -4263,7 +4519,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       isDetailMode,
       loadChannelEndpointsFromServer,
       t,
-    ],
+    ]
   );
 
   const openEndpointPolicyEditor = useCallback(
@@ -4278,7 +4534,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       const existingPolicy =
         channelEndpointPolicies.find(
-          (item) => item.model === modelName && item.endpoint === endpoint,
+          (item) => item.model === modelName && item.endpoint === endpoint
         ) || null;
       setPolicyDraft(
         existingPolicy
@@ -4289,12 +4545,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               request_policy: prettyJSONString(existingPolicy.request_policy),
               response_policy: prettyJSONString(existingPolicy.response_policy),
             }
-          : buildEmptyEndpointPolicyDraft(targetChannelId, modelName, endpoint),
+          : buildEmptyEndpointPolicyDraft(targetChannelId, modelName, endpoint)
       );
       setSelectedPolicyTemplate(existingPolicy?.template_key || '');
       setPolicyEditorOpen(true);
     },
-    [channelEndpointPolicies, channelId],
+    [channelEndpointPolicies, channelId]
   );
 
   const closeEndpointPolicyEditor = useCallback(() => {
@@ -4308,7 +4564,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
 
   const applyEndpointPolicyTemplate = useCallback((templateValue) => {
     const template = ENDPOINT_POLICY_TEMPLATES.find(
-      (item) => item.value === templateValue,
+      (item) => item.value === templateValue
     );
     if (!template) {
       return;
@@ -4343,16 +4599,14 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           enabled: !!policyDraft.enabled,
           template_key: (policyDraft.template_key || '').toString().trim(),
           capabilities: (policyDraft.capabilities || '').toString().trim(),
-          request_policy: (policyDraft.request_policy || '')
-            .toString()
-            .trim(),
+          request_policy: (policyDraft.request_policy || '').toString().trim(),
           response_policy: (policyDraft.response_policy || '')
             .toString()
             .trim(),
           reason: (policyDraft.reason || '').toString(),
           source: 'manual',
           last_verified_at: Number(policyDraft.last_verified_at || 0),
-        },
+        }
       );
       const { success, message } = res.data || {};
       if (!success) {
@@ -4360,17 +4614,17 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return;
       }
       const nextPolicies = await loadChannelEndpointPoliciesFromServer(
-        targetChannelId,
+        targetChannelId
       );
       setChannelEndpointPolicies(
-        normalizeChannelEndpointPolicyRows(nextPolicies),
+        normalizeChannelEndpointPolicyRows(nextPolicies)
       );
       setChannelEndpointPoliciesError('');
       showSuccess(t('channel.edit.endpoint_policies.update_success'));
       closeEndpointPolicyEditor();
     } catch (error) {
       showError(
-        error?.message || t('channel.edit.endpoint_policies.update_failed'),
+        error?.message || t('channel.edit.endpoint_policies.update_failed')
       );
     } finally {
       setPolicyEditorSaving(false);
@@ -4398,7 +4652,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               disabled_at: checked ? 0 : row.disabled_at,
               disabled_by: checked ? '' : row.disabled_by,
             }
-          : row,
+          : row
       );
       if (isDetailMode) {
         if (
@@ -4406,7 +4660,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           detailEditingModelKey === (upstreamModel || '').toString().trim()
         ) {
           setInputs((prev) =>
-            buildNextInputsWithChannelModels(prev, nextConfigs, prev.protocol),
+            buildNextInputsWithChannelModels(prev, nextConfigs, prev.protocol)
           );
           return;
         }
@@ -4414,7 +4668,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return;
       }
       setInputs((prev) =>
-        buildNextInputsWithChannelModels(prev, nextConfigs, prev.protocol),
+        buildNextInputsWithChannelModels(prev, nextConfigs, prev.protocol)
       );
     },
     [
@@ -4424,7 +4678,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       isDetailMode,
       persistDetailChannelModels,
       visibleChannelModels,
-    ],
+    ]
   );
   const toggleDetailCurrentPageSelections = useCallback(
     async (checked) => {
@@ -4432,11 +4686,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         showInfo(
           t('channel.edit.model_selector.selection_skipped_unassigned', {
             count: detailCurrentPageBlockedModels.length,
-          }),
+          })
         );
       }
       const targetIDs = new Set(
-        detailCurrentPageSelectableModels.map((row) => row.upstream_model),
+        detailCurrentPageSelectableModels.map((row) => row.upstream_model)
       );
       if (targetIDs.size === 0) {
         return;
@@ -4447,7 +4701,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               ...row,
               selected: !!checked,
             }
-          : row,
+          : row
       );
       await persistDetailChannelModels(nextConfigs);
     },
@@ -4457,7 +4711,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       persistDetailChannelModels,
       t,
       visibleChannelModels,
-    ],
+    ]
   );
 
   const handleDeleteDetailModel = useCallback(
@@ -4468,7 +4722,10 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const targetChannelId = (channelId || '').toString().trim();
       const modelName = (row?.model || '').toString().trim();
       const upstreamModel = (row?.upstream_model || '').toString().trim();
-      if (targetChannelId === '' || (modelName === '' && upstreamModel === '')) {
+      if (
+        targetChannelId === '' ||
+        (modelName === '' && upstreamModel === '')
+      ) {
         return;
       }
       setDetailModelMutating(true);
@@ -4480,7 +4737,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               model: modelName,
               upstream_model: upstreamModel,
             },
-          },
+          }
         );
         const { success, message } = res.data || {};
         if (!success) {
@@ -4493,7 +4750,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         showSuccess(t('channel.edit.model_selector.delete_success'));
       } catch (error) {
         showError(
-          error?.message || t('channel.edit.model_selector.delete_failed'),
+          error?.message || t('channel.edit.model_selector.delete_failed')
         );
       } finally {
         setDetailModelMutating(false);
@@ -4506,7 +4763,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       isDetailMode,
       refreshChannelRuntimeState,
       t,
-    ],
+    ]
   );
 
   const updateModelConfigField = useCallback(
@@ -4531,7 +4788,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               const duplicated = visibleChannelModels.some(
                 (item) =>
                   item.upstream_model !== targetModel &&
-                  item.model === targetAlias,
+                  item.model === targetAlias
               );
               if (duplicated) {
                 return row;
@@ -4569,13 +4826,13 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               const nextEndpoint = normalizeChannelModelEndpoint(
                 row.type,
                 value,
-                prev.protocol,
+                prev.protocol
               );
               const nextEndpoints = normalizeChannelModelEndpoints(
                 row.type,
                 row.endpoints,
                 nextEndpoint,
-                prev.protocol,
+                prev.protocol
               );
               return {
                 ...row,
@@ -4588,7 +4845,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 row.type,
                 Array.isArray(value) ? value : [],
                 row.endpoint,
-                prev.protocol,
+                prev.protocol
               );
               const nextEndpoint = nextEndpoints.includes(row.endpoint)
                 ? row.endpoint
@@ -4604,11 +4861,16 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               [field]: value,
             };
           }),
-          prev.protocol,
-        ),
+          prev.protocol
+        )
       );
     },
-    [detailEditingModelKey, detailModelsEditing, isDetailMode, visibleChannelModels],
+    [
+      detailEditingModelKey,
+      detailModelsEditing,
+      isDetailMode,
+      visibleChannelModels,
+    ]
   );
 
   useEffect(() => {
@@ -4642,11 +4904,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     setChannelKeySet(false);
     setConfig(CHANNEL_DEFAULT_CONFIG);
     setLoading(false);
-  }, [
-    channelId,
-    hasChannelID,
-    loadChannelById,
-  ]);
+  }, [channelId, hasChannelID, loadChannelById]);
 
   useEffect(() => {
     if (!showDetailBillingTab) {
@@ -4682,7 +4940,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         }
         setChannelCircuitBreakerEvents([]);
         setChannelCircuitBreakerEventsError(
-          error?.message || t('channel.edit.circuit_breaker.load_failed'),
+          error?.message || t('channel.edit.circuit_breaker.load_failed')
         );
       })
       .finally(() => {
@@ -4723,7 +4981,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         }
         setChannelEndpoints([]);
         setChannelEndpointsError(
-          error?.message || t('channel.edit.endpoint_capabilities.load_failed'),
+          error?.message || t('channel.edit.endpoint_capabilities.load_failed')
         );
       })
       .finally(() => {
@@ -4760,7 +5018,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         }
         setChannelEndpointPolicies([]);
         setChannelEndpointPoliciesError(
-          error?.message || t('channel.edit.endpoint_policies.load_failed'),
+          error?.message || t('channel.edit.endpoint_policies.load_failed')
         );
       })
       .finally(() => {
@@ -4782,7 +5040,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       return undefined;
     }
     const hasActiveTasks = channelTasks.some((item) =>
-      isActiveAsyncTaskStatus(item?.status),
+      isActiveAsyncTaskStatus(item?.status)
     );
     if (!hasActiveTasks) {
       return undefined;
@@ -4791,7 +5049,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       try {
         const nextTasks = await loadChannelTasksFromServer(targetChannelId);
         const stillActive = nextTasks.some((item) =>
-          isActiveAsyncTaskStatus(item?.status),
+          isActiveAsyncTaskStatus(item?.status)
         );
         setChannelTasks(normalizeAsyncTasks(nextTasks));
         if (stillActive) {
@@ -4836,7 +5094,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               setVerifiedModelSignature('');
               setModelsSyncError(
                 completedRefreshTask?.error_message ||
-                  t('channel.edit.messages.fetch_models_failed'),
+                  t('channel.edit.messages.fetch_models_failed')
               );
             }
             pendingRefreshSignatureRef.current = '';
@@ -4846,7 +5104,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             let completedBillingRefreshTask = null;
             try {
               completedBillingRefreshTask = await fetchTaskById(
-                billingRefreshTaskId,
+                billingRefreshTaskId
               );
             } catch {
               completedBillingRefreshTask = null;
@@ -4861,14 +5119,14 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               showSuccess(
                 t('channel.messages.billing_update_success', {
                   name: (inputs.name || targetChannelId).toString().trim(),
-                }),
+                })
               );
             } else {
               showError(
                 completedBillingRefreshTask?.error_message ||
                   t('channel.messages.billing_update_failed', {
                     name: (inputs.name || targetChannelId).toString().trim(),
-                  }),
+                  })
               );
             }
           }
@@ -4923,10 +5181,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   }, [fetchChannelTypes]);
 
   useEffect(() => {
-    if (
-      !showStepTwo &&
-      !showDetailTestsTab
-    ) {
+    if (!showStepTwo && !showDetailTestsTab) {
       return;
     }
     loadProviderIndex({ silent: true }).then();
@@ -4967,7 +5222,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     }
     const protocolConfigError = validateProtocolSpecificChannelConfig(
       inputs,
-      config,
+      config
     );
     if (protocolConfigError !== '') {
       showError(protocolConfigError);
@@ -4978,11 +5233,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     const { success, message, data } = res.data;
     if (success) {
       showSuccess(t('channel.edit.messages.create_success'));
-      const targetChannelID = (
-        data?.id ||
-        localInputs.id ||
-        ''
-      ).toString().trim();
+      const targetChannelID = (data?.id || localInputs.id || '')
+        .toString()
+        .trim();
       if (targetChannelID !== '') {
         navigate(`/admin/channel/detail/${targetChannelID}`, {
           replace: true,
@@ -5049,17 +5302,17 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               className='router-section-message'
               title={
                 <span>
-              注意，<strong>模型部署名称必须和模型名称保持一致</strong>
-              ，因为 Router 会把请求体中的 model
-              参数替换为你的部署名称（模型名称中的点会被剔除），
-              <a
-                target='_blank'
-                rel='noreferrer'
-                href='https://github.com/yeying-community/router/issues/133?notification_referrer_id=NT_kwDOAmJSYrM2NjIwMzI3NDgyOjM5OTk4MDUw#issuecomment-1571602271'
-              >
-                图片演示
-              </a>
-              。
+                  注意，<strong>模型部署名称必须和模型名称保持一致</strong>
+                  ，因为 Router 会把请求体中的 model
+                  参数替换为你的部署名称（模型名称中的点会被剔除），
+                  <a
+                    target='_blank'
+                    rel='noreferrer'
+                    href='https://github.com/yeying-community/router/issues/133?notification_referrer_id=NT_kwDOAmJSYrM2NjIwMzI3NDgyOjM5OTk4MDUw#issuecomment-1571602271'
+                  >
+                    图片演示
+                  </a>
+                  。
                 </span>
               }
             />
@@ -5380,35 +5633,32 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             : 'router-tab-detail-page'
         }
       >
-          {isDetailMode && (
-            <div className='router-entity-detail-tabs router-block-gap-sm'>
-              <AppTabs
-                className='router-detail-tab-menu'
-                activeKey={activeDetailTab}
-                items={detailTabItems}
-                onChange={goToDetailTab}
-              />
-            </div>
-          )}
-          {isCreateMode && (
-            <AppFormActions align='start' className='router-block-gap-sm'>
-              <AppButton
-                className='router-page-button'
-                onClick={handleCancel}
-              >
-                {t('channel.edit.buttons.cancel')}
-              </AppButton>
-              <AppButton
-                className='router-page-button'
-                color='blue'
-                onClick={submit}
-              >
-                {t('channel.edit.buttons.submit')}
-              </AppButton>
-            </AppFormActions>
-          )}
-          <AppSpin spinning={loading}>
-            <div>
+        {isDetailMode && (
+          <div className='router-entity-detail-tabs router-block-gap-sm'>
+            <AppTabs
+              className='router-detail-tab-menu'
+              activeKey={activeDetailTab}
+              items={detailTabItems}
+              onChange={goToDetailTab}
+            />
+          </div>
+        )}
+        {isCreateMode && (
+          <AppFormActions align='start' className='router-block-gap-sm'>
+            <AppButton className='router-page-button' onClick={handleCancel}>
+              {t('channel.edit.buttons.cancel')}
+            </AppButton>
+            <AppButton
+              className='router-page-button'
+              color='blue'
+              onClick={submit}
+            >
+              {t('channel.edit.buttons.submit')}
+            </AppButton>
+          </AppFormActions>
+        )}
+        <AppSpin spinning={loading}>
+          <div>
             {renderCreateStepNavigation()}
             {renderBasicInfoSection()}
             {showDetailOverviewTab && showStepOne && (
@@ -5487,9 +5737,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                     providerDataLoading={providerDataLoading}
                     toggleModelSelection={toggleModelSelection}
                     canSelectChannelModel={canSelectChannelModel}
-                    detailCurrentPageAllSelected={
-                      detailCurrentPageAllSelected
-                    }
+                    detailCurrentPageAllSelected={detailCurrentPageAllSelected}
                     detailCurrentPagePartiallySelected={
                       detailCurrentPagePartiallySelected
                     }
@@ -5527,9 +5775,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                       channelEndpointPoliciesLoading
                     }
                     channelEndpointPolicies={channelEndpointPolicies}
-                    channelEndpointPoliciesError={
-                      channelEndpointPoliciesError
-                    }
+                    channelEndpointPoliciesError={channelEndpointPoliciesError}
                     endpointPolicyReadonly={endpointPolicyReadonly}
                     openEndpointPolicyEditor={openEndpointPolicyEditor}
                     timestamp2string={timestamp2string}
@@ -5592,16 +5838,24 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 billingError={channelBillingError}
                 billingSnapshots={channelBillingSnapshots}
                 billingActions={channelBillingActions}
+                procurementBatches={channelProcurementBatches}
                 billingReadonly={detailBillingReadonly}
                 billingSubmitting={channelBillingSubmitting}
                 onRefreshBilling={refreshChannelBillingNow}
                 onOpenActivatePage={openChannelBillingActivatePage}
                 onManualSnapshotUpdate={updateChannelManualBillingSnapshot}
+                onProcurementBatchCostUpdate={updateChannelProcurementBatchCost}
+                onProcurementBatchStatusUpdate={
+                  updateChannelProcurementBatchStatus
+                }
+                onProcurementBatchConsumptionsLoad={
+                  loadChannelProcurementBatchConsumptions
+                }
                 timestamp2string={timestamp2string}
               />
             )}
-            </div>
-          </AppSpin>
+          </div>
+        </AppSpin>
       </div>
     </div>
   );

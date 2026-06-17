@@ -49,6 +49,7 @@ type Channel struct {
 	SystemPrompt          *string        `json:"system_prompt" gorm:"type:text"`
 	TestModel             string         `json:"test_model" gorm:"type:varchar(255);default:''"`
 	KeySet                bool           `json:"key_set" gorm:"-"`
+	KeyPreview            string         `json:"key_preview,omitempty" gorm:"-"`
 	ModelsProvided        bool           `json:"-" gorm:"-"`
 	ChannelModelsProvided bool           `json:"-" gorm:"-"`
 	NameProvided          bool           `json:"-" gorm:"-"`

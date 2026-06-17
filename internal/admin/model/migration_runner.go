@@ -1428,6 +1428,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderMigrationProvidersWithDB(tx, "zhipu")
 			},
 		},
+		{
+			Version:     "202606171030_procurement_cost_tables",
+			Description: "add procurement cost batch and request consumption tables",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelProcurementBatch{}, &RequestProcurementConsumption{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -1760,6 +1767,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 		{
 			Version:     "202605300830_log_token_estimate_observability_columns",
 			Description: "add missing token estimate estimator fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202606171040_log_procurement_cost_snapshot",
+			Description: "add procurement cost and gross margin fields to consume logs",
 			Up: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
 			},

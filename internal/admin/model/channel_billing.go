@@ -717,7 +717,18 @@ func CreateChannelBillingSnapshotItemsWithDB(db *gorm.DB, snapshotID string, cha
 			normalizedItems[index].SortOrder = index + 1
 		}
 	}
-	return normalizedItems, db.Create(&normalizedItems).Error
+	if err := db.Create(&normalizedItems).Error; err != nil {
+		return nil, err
+	}
+	_, err := CreateProcurementBatchesFromBillingSnapshotItemsWithDB(db, ChannelBillingSnapshot{
+		Id:        normalizedSnapshotID,
+		ChannelId: normalizedChannelID,
+		CreatedAt: now,
+	}, normalizedItems)
+	if err != nil {
+		return nil, err
+	}
+	return normalizedItems, nil
 }
 
 type channelBillingActivateActionConfig struct {

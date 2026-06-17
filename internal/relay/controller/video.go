@@ -486,7 +486,9 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			Content:            appendVideoSummaryToLogContent(billing.FormatPricingLog(pricing, groupRatio), responseSummary),
 		}
 		billingSnapshot.ApplyToLog(entry)
+		billing.ApplyProcurementCostObservation(entry)
 		model.RecordConsumeLog(ctx, entry)
+		billing.RecordProcurementConsumptionObservation(ctx, entry)
 		model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 		model.UpdateChannelUsedQuota(meta.ChannelId, quota)
 	}(c.Request.Context())
