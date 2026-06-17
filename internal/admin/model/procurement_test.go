@@ -112,6 +112,69 @@ func TestConsumeChannelProcurementBatchesMarksExhausted(t *testing.T) {
 	}
 }
 
+func TestConsumeChannelProcurementBatchesPrefersModelScope(t *testing.T) {
+	db := newProcurementTestDB(t)
+	globalBatch, err := CreateChannelProcurementBatchWithDB(db, ChannelProcurementBatch{
+		ChannelId:         "channel-1",
+		ResourceType:      "quota",
+		QuotaType:         "total",
+		ScopeType:         "global",
+		CapacityUnit:      "token",
+		CapacityTotal:     100,
+		CapacityEffective: 100,
+		CapacityRemaining: 100,
+		CostPerUnitCNY:    0.1,
+		CostSource:        ProcurementCostSourceActual,
+		CostStatus:        ProcurementCostStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("create global batch: %v", err)
+	}
+	modelBatch, err := CreateChannelProcurementBatchWithDB(db, ChannelProcurementBatch{
+		ChannelId:         "channel-1",
+		ResourceType:      "quota",
+		QuotaType:         "total",
+		ScopeType:         "model",
+		ScopeValue:        "gpt-5",
+		CapacityUnit:      "token",
+		CapacityTotal:     100,
+		CapacityEffective: 100,
+		CapacityRemaining: 100,
+		CostPerUnitCNY:    0.5,
+		CostSource:        ProcurementCostSourceActual,
+		CostStatus:        ProcurementCostStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("create model batch: %v", err)
+	}
+
+	result, err := ConsumeChannelProcurementBatchesWithDB(db, ProcurementConsumeInput{
+		RequestLogID: "log-1",
+		ChannelID:    "channel-1",
+		ScopeType:    "model",
+		ScopeValue:   "gpt-5",
+		CapacityUnit: "token",
+		Quantity:     10,
+	})
+	if err != nil {
+		t.Fatalf("consume procurement: %v", err)
+	}
+	if len(result.Consumptions) != 1 {
+		t.Fatalf("consumptions len=%d, want 1", len(result.Consumptions))
+	}
+	if result.Consumptions[0].ProcurementBatchId != modelBatch.Id {
+		t.Fatalf("ProcurementBatchId=%q, want model batch %q", result.Consumptions[0].ProcurementBatchId, modelBatch.Id)
+	}
+
+	var updatedGlobal ChannelProcurementBatch
+	if err := db.Where("id = ?", globalBatch.Id).Take(&updatedGlobal).Error; err != nil {
+		t.Fatalf("load global batch: %v", err)
+	}
+	if updatedGlobal.CapacityRemaining != 100 {
+		t.Fatalf("global CapacityRemaining=%v, want 100", updatedGlobal.CapacityRemaining)
+	}
+}
+
 func TestUpdateLogProcurementCostObservationWithDB(t *testing.T) {
 	db := newProcurementTestDB(t)
 	logRow := Log{Id: "log-1", BillingSellAmountCNY: 10}

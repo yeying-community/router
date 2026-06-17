@@ -709,11 +709,19 @@
           "disabled": "已停用",
           "unknown": "未知"
         },
+        "procurement_scopes": {
+          "global": "全局",
+          "model": "模型"
+        },
         "procurement_table": {
           "resource": "资源",
           "capacity": "容量",
           "cost": "采购成本",
           "unit_cost": "单位成本",
+          "scope": "范围",
+          "scope_type": "范围类型",
+          "scope_value": "范围值",
+          "scope_value_placeholder": "填写模型名称",
           "expire_at": "截止时间",
           "status": "状态",
           "actions": "操作",

@@ -110,6 +110,8 @@ type ProcurementBatchCostUpdate struct {
 	CapacityEffective float64
 	CostSource        string
 	CostStatus        string
+	ScopeType         string
+	ScopeValue        string
 }
 
 type ProcurementBatchStatusUpdate struct {
@@ -306,11 +308,14 @@ func normalizeProcurementCostStatus(value string) string {
 }
 
 func normalizeProcurementScopeType(value string) string {
-	normalized := strings.TrimSpace(strings.ToLower(value))
-	if normalized == "" {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "", "global":
 		return "global"
+	case "model":
+		return "model"
+	default:
+		return ""
 	}
-	return normalized
 }
 
 func normalizeProcurementBatchRow(row *ChannelProcurementBatch) {
@@ -325,6 +330,9 @@ func normalizeProcurementBatchRow(row *ChannelProcurementBatch) {
 	row.ResourceType = strings.TrimSpace(strings.ToLower(row.ResourceType))
 	row.QuotaType = strings.TrimSpace(strings.ToLower(row.QuotaType))
 	row.ScopeType = normalizeProcurementScopeType(row.ScopeType)
+	if row.ScopeType == "" {
+		row.ScopeType = "global"
+	}
 	row.ScopeValue = strings.TrimSpace(row.ScopeValue)
 	row.CapacityUnit = strings.TrimSpace(strings.ToLower(row.CapacityUnit))
 	row.PurchaseCurrency = strings.TrimSpace(strings.ToUpper(row.PurchaseCurrency))
@@ -432,6 +440,8 @@ func UpdateChannelProcurementBatchCostWithDB(db *gorm.DB, id string, input Procu
 	capacityEffective := input.CapacityEffective
 	costSource := normalizeProcurementCostSource(input.CostSource)
 	costStatus := normalizeProcurementCostStatus(input.CostStatus)
+	scopeType := normalizeProcurementScopeType(input.ScopeType)
+	scopeValue := strings.TrimSpace(input.ScopeValue)
 	if costSource == "" || costSource == ProcurementCostSourceNone {
 		costSource = ProcurementCostSourceActual
 	}
@@ -440,6 +450,15 @@ func UpdateChannelProcurementBatchCostWithDB(db *gorm.DB, id string, input Procu
 	}
 	if purchaseAmount < 0 || purchaseFXRate < 0 || purchaseCostCNY < 0 || capacityEffective < 0 {
 		return ChannelProcurementBatch{}, fmt.Errorf("采购成本参数不能小于 0")
+	}
+	if scopeType == "" {
+		return ChannelProcurementBatch{}, fmt.Errorf("采购范围无效")
+	}
+	if scopeType == "global" {
+		scopeValue = ""
+	}
+	if scopeType == "model" && scopeValue == "" {
+		return ChannelProcurementBatch{}, fmt.Errorf("模型范围必须填写模型名称")
 	}
 	if purchaseCostCNY <= 0 && purchaseAmount > 0 && purchaseFXRate > 0 {
 		purchaseCostCNY = purchaseAmount * purchaseFXRate
@@ -473,6 +492,8 @@ func UpdateChannelProcurementBatchCostWithDB(db *gorm.DB, id string, input Procu
 		"cost_per_unit_cny":  costPerUnitCNY,
 		"cost_source":        costSource,
 		"cost_status":        costStatus,
+		"scope_type":         scopeType,
+		"scope_value":        scopeValue,
 		"updated_at":         now,
 	}
 	if err := db.Model(&ChannelProcurementBatch{}).
@@ -566,16 +587,9 @@ func ConsumeChannelProcurementBatchesWithDB(db *gorm.DB, input ProcurementConsum
 			Where("cost_source IN ?", []string{ProcurementCostSourceActual, ProcurementCostSourceEstimated, ProcurementCostSourceZeroCost}).
 			Where("capacity_remaining > 0").
 			Where("(expire_at = 0 OR expire_at > ?)", now)
-		query = query.Where(
-			"(scope_type = ? OR (scope_type = ? AND scope_value = ?) OR (scope_type IN ? AND scope_value = ?))",
-			"global",
-			normalizedScopeType,
-			normalizedScopeValue,
-			[]string{"model", "endpoint", "model_endpoint", "provider"},
-			normalizedScopeValue,
-		)
+		query = query.Where("(scope_type = ? OR (scope_type = ? AND scope_value = ?))", "global", normalizedScopeType, normalizedScopeValue)
 		rows := make([]ChannelProcurementBatch, 0)
-		if err := query.Order("CASE WHEN expire_at = 0 THEN 1 ELSE 0 END ASC, expire_at ASC, cost_per_unit_cny ASC, created_at ASC").Find(&rows).Error; err != nil {
+		if err := query.Order("CASE WHEN scope_type = 'model' THEN 0 ELSE 1 END ASC, CASE WHEN expire_at = 0 THEN 1 ELSE 0 END ASC, expire_at ASC, cost_per_unit_cny ASC, created_at ASC").Find(&rows).Error; err != nil {
 			return err
 		}
 		remaining := input.Quantity

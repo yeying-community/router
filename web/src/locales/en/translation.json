@@ -709,11 +709,19 @@
           "disabled": "Disabled",
           "unknown": "Unknown"
         },
+        "procurement_scopes": {
+          "global": "Global",
+          "model": "Model"
+        },
         "procurement_table": {
           "resource": "Resource",
           "capacity": "Capacity",
           "cost": "Purchase Cost",
           "unit_cost": "Unit Cost",
+          "scope": "Scope",
+          "scope_type": "Scope Type",
+          "scope_value": "Scope Value",
+          "scope_value_placeholder": "Model name",
           "expire_at": "Expires At",
           "status": "Status",
           "actions": "Actions",

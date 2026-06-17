@@ -3579,6 +3579,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             capacity_effective: Number(payload?.capacity_effective || 0),
             cost_source: (payload?.cost_source || 'actual').toString().trim(),
             cost_status: (payload?.cost_status || 'active').toString().trim(),
+            scope_type: (payload?.scope_type || 'global').toString().trim(),
+            scope_value: (payload?.scope_value || '').toString().trim(),
           }
         );
         const { success, message: responseMessage } = res.data || {};

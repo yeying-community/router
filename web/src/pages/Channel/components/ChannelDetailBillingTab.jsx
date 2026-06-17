@@ -40,6 +40,11 @@ const PROCUREMENT_CURRENCY_OPTIONS = ['CNY', 'USD'].map((value) => ({
   label: value,
 }));
 
+const procurementScopeOptions = (t) => [
+  { value: 'global', label: t('channel.edit.billing.procurement_scopes.global') },
+  { value: 'model', label: t('channel.edit.billing.procurement_scopes.model') },
+];
+
 const ensureUnitOption = (options, value) => {
   const normalized = (value || '').toString().trim().toUpperCase();
   const items = Array.isArray(options) ? options : [];
@@ -364,6 +369,15 @@ const formatProcurementUnitCostText = (row) => {
   return unit ? `${value} CNY/${unit}` : `${value} CNY`;
 };
 
+const formatProcurementScopeText = (row, t) => {
+  const scopeType = normalizeBillingValue(row?.scope_type || 'global') || 'global';
+  const scopeValue = (row?.scope_value || '').toString().trim();
+  if (scopeType === 'model') {
+    return scopeValue || '-';
+  }
+  return t('channel.edit.billing.procurement_scopes.global');
+};
+
 const procurementStatusColor = (status) => {
   switch ((status || '').toString().trim()) {
     case 'active':
@@ -394,6 +408,8 @@ const buildProcurementCostDraft = (row) => ({
       ? 'actual'
       : (row?.cost_source || 'actual').toString().trim(),
   cost_status: 'active',
+  scope_type: (row?.scope_type || 'global').toString().trim() || 'global',
+  scope_value: (row?.scope_value || '').toString().trim(),
 });
 
 const toUnixTimestamp = (value) => {
@@ -833,6 +849,42 @@ const ChannelDetailBillingTab = ({
         </AppField>
       </AppFormRow>
       <AppFormRow>
+        <AppField label={t('channel.edit.billing.procurement_table.scope_type')}>
+          <AppSelect
+            className='router-section-input'
+            options={procurementScopeOptions(t)}
+            value={costDraft.scope_type || 'global'}
+            onChange={(e, { value }) =>
+              updateCostDraft({
+                scope_type: (value || 'global').toString().trim(),
+                scope_value:
+                  (value || 'global').toString().trim() === 'global'
+                    ? ''
+                    : costDraft.scope_value,
+              })
+            }
+            disabled={billingReadonly || billingSubmitting}
+          />
+        </AppField>
+        <AppField label={t('channel.edit.billing.procurement_table.scope_value')}>
+          <AppInput
+            className='router-section-input'
+            value={costDraft.scope_value || ''}
+            onChange={(e, { value }) =>
+              updateCostDraft({
+                scope_value: (value || '').toString(),
+              })
+            }
+            readOnly={
+              billingReadonly ||
+              billingSubmitting ||
+              (costDraft.scope_type || 'global') === 'global'
+            }
+            placeholder={t(
+              'channel.edit.billing.procurement_table.scope_value_placeholder'
+            )}
+          />
+        </AppField>
         <AppField
           label={t('channel.edit.billing.procurement_table.purchase_fx_rate')}
           required
@@ -1120,6 +1172,12 @@ const ChannelDetailBillingTab = ({
                 key: 'unit_cost',
                 width: 180,
                 render: (_, row) => formatProcurementUnitCostText(row),
+              },
+              {
+                title: t('channel.edit.billing.procurement_table.scope'),
+                key: 'scope',
+                width: 160,
+                render: (_, row) => formatProcurementScopeText(row, t),
               },
               {
                 title: t('channel.edit.billing.procurement_table.expire_at'),

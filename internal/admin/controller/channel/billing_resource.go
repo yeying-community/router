@@ -81,6 +81,8 @@ type channelProcurementBatchCostUpdateRequest struct {
 	CapacityEffective float64 `json:"capacity_effective"`
 	CostSource        string  `json:"cost_source"`
 	CostStatus        string  `json:"cost_status"`
+	ScopeType         string  `json:"scope_type"`
+	ScopeValue        string  `json:"scope_value"`
 }
 
 type channelProcurementBatchStatusUpdateRequest struct {
@@ -298,6 +300,8 @@ func UpdateChannelProcurementBatchCost(c *gin.Context) {
 		CapacityEffective: req.CapacityEffective,
 		CostSource:        req.CostSource,
 		CostStatus:        req.CostStatus,
+		ScopeType:         req.ScopeType,
+		ScopeValue:        req.ScopeValue,
 	})
 	if err != nil {
 		logChannelAdminWarn(c, "update_procurement_batch_cost", stringField("channel_id", channelID), stringField("batch_id", batchID), stringField("reason", err.Error()))
