@@ -1,11 +1,15 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserContext } from '../context/User';
 import { StatusContext } from '../context/Status';
 import { API, getLogo, showError } from '../helpers';
 import { toastConstants } from '../constants';
-import { isWalletUserRejectedError, loginWithWallet } from '../services/web3Auth';
+import {
+  focusWalletPendingApproval,
+  isWalletUserRejectedError,
+  loginWithWallet,
+} from '../services/web3Auth';
 import { useWalletProviderStatus } from '../hooks/useWalletProviderStatus';
 import { AppAlert, AppButton, AppDivider, AppInput } from '../router-ui';
 import './LoginForm.css';
@@ -45,7 +49,10 @@ const LoginForm = () => {
     status?.password_register_enabled !== false;
   const [showPasswordLogin, setShowPasswordLogin] =
     useState(walletLoginDisabled && passwordLoginEnabled);
-  const [walletLoginLoading, setWalletLoginLoading] = useState(false);
+  const [walletLoginSubmitting, setWalletLoginSubmitting] = useState(false);
+  const [walletLoginAwaitingApproval, setWalletLoginAwaitingApproval] =
+    useState(false);
+  const walletLoginPromiseRef = useRef(null);
   const walletProviderStatus = useWalletProviderStatus();
   const resolveLandingPath = (role) =>
     Number(role) >= 10 ? '/admin/dashboard' : '/workspace/entry';
@@ -71,17 +78,32 @@ const LoginForm = () => {
   }, [searchParams, t, navigate]);
 
   const onWalletLoginClicked = async () => {
-    if (walletLoginLoading) {
+    if (walletLoginSubmitting) {
       return;
     }
-    setWalletLoginLoading(true);
+    if (walletLoginPromiseRef.current) {
+      const provider =
+        walletProviderStatus.provider || (await walletProviderStatus.refresh());
+      const pending = await focusWalletPendingApproval(provider || undefined);
+      if (!pending?.focused) {
+        showError('请在钱包中完成签名，或重新发起登录');
+      }
+      return;
+    }
+
+    setWalletLoginSubmitting(true);
     try {
       if (status?.wallet_login === false) {
         showError(t('auth.login.wallet_disabled') || '钱包登录未开启');
         return;
       }
       await walletProviderStatus.refresh();
-      const loginResult = await loginWithWallet();
+      setWalletLoginAwaitingApproval(true);
+      const loginTask = loginWithWallet();
+      walletLoginPromiseRef.current = loginTask;
+      setWalletLoginSubmitting(false);
+      const loginResult = await loginTask;
+      setWalletLoginAwaitingApproval(false);
       const payload = loginResult?.response?.data || loginResult?.response;
       if (payload?.expiresAt) {
         localStorage.setItem(
@@ -100,13 +122,15 @@ const LoginForm = () => {
       localStorage.setItem('user', JSON.stringify(userData));
       navigate(resolveLandingPath(userData.role));
     } catch (error) {
+      setWalletLoginAwaitingApproval(false);
       if (isWalletUserRejectedError(error)) {
         showError('用户拒绝了请求');
       } else {
         showError(error.message || '钱包登录失败');
       }
     } finally {
-      setWalletLoginLoading(false);
+      walletLoginPromiseRef.current = null;
+      setWalletLoginSubmitting(false);
     }
   };
 
@@ -172,12 +196,14 @@ const LoginForm = () => {
                 onClick={onWalletLoginClicked}
                 disabled={
                   walletLoginDisabled ||
-                  walletLoginLoading ||
+                  walletLoginSubmitting ||
                   (!walletProviderStatus.detecting && !walletProviderStatus.available)
                 }
-                loading={walletLoginLoading || walletProviderStatus.detecting}
+                loading={walletLoginSubmitting || walletProviderStatus.detecting}
               >
-                {t('auth.login.wallet_button', '使用钱包登录')}
+                {walletLoginAwaitingApproval
+                  ? '请在钱包中确认签名'
+                  : t('auth.login.wallet_button', '使用钱包登录')}
               </AppButton>
               {walletLoginDisabled && (
                 <AppAlert

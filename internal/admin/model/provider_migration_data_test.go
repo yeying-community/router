@@ -776,6 +776,7 @@ func TestBuildProviderMigrationSeeds_OfficialPricingBackfillForPreviouslyUnprice
 			"image-01":              {modelType: ProviderModelTypeImage, input: 0.0035, priceUnit: ProviderPriceUnitPerImage, currency: ProviderPriceCurrencyUSD},
 		},
 		"zhipu": {
+			"glm-5.2":          {modelType: ProviderModelTypeText, input: 0.008, output: 0.028, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"glm-5.1":          {modelType: ProviderModelTypeText, input: 0.006, output: 0.024, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"glm-5-turbo":      {modelType: ProviderModelTypeText, input: 0.005, output: 0.022, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"glm-5":            {modelType: ProviderModelTypeText, input: 0.004, output: 0.018, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
@@ -789,6 +790,7 @@ func TestBuildProviderMigrationSeeds_OfficialPricingBackfillForPreviouslyUnprice
 			"glm-4v-plus-0111": {modelType: ProviderModelTypeImage, input: 0.004, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"glm-4-voice":      {modelType: ProviderModelTypeAudio, input: 0.08, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"cogview-4-250304": {modelType: ProviderModelTypeImage, input: 0.06, priceUnit: ProviderPriceUnitPerImage, currency: "CNY"},
+			"glm-image":        {modelType: ProviderModelTypeImage, input: 0.1, priceUnit: ProviderPriceUnitPerImage, currency: "CNY"},
 			"cogvideox-2":      {modelType: ProviderModelTypeVideo, input: 0.5, priceUnit: ProviderPriceUnitPerVideo, currency: "CNY"},
 			"embedding-2":      {modelType: ProviderModelTypeEmbedding, input: 0.0005, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"embedding-3":      {modelType: ProviderModelTypeEmbedding, input: 0.0005, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
@@ -894,6 +896,7 @@ func TestBuildProviderMigrationSeeds_ComplexPricingComponentsForLiveAndOmniModel
 			"doubao-seedance-1-0-pro-fast-251015": {componentCount: 2},
 		},
 		"zhipu": {
+			"glm-5.2":         {componentCount: 2},
 			"glm-5.1":         {componentCount: 2},
 			"glm-5-turbo":     {componentCount: 2},
 			"glm-5":           {componentCount: 2},
@@ -1043,7 +1046,7 @@ func TestBuildProviderMigrationSeeds_ZhipuClaudeCompatibleModelsExposeMessagesEn
 	}
 }
 
-func TestBuildProviderMigrationSeeds_ZhipuIncludesGLM52WithoutFabricatedPricing(t *testing.T) {
+func TestBuildProviderMigrationSeeds_ZhipuIncludesGLM52OfficialPricing(t *testing.T) {
 	seeds := mustLoadProviderMigrationSeeds(t)
 	for _, seed := range seeds {
 		if seed.Provider != "zhipu" {
@@ -1064,17 +1067,171 @@ func TestBuildProviderMigrationSeeds_ZhipuIncludesGLM52WithoutFabricatedPricing(
 				detail.SupportedEndpoints[1] != ChannelModelEndpointMessages {
 				t.Fatalf("glm-5.2 supported_endpoints=%#v, want [chat messages]", detail.SupportedEndpoints)
 			}
-			if detail.InputPrice != 0 || detail.OutputPrice != 0 {
-				t.Fatalf("glm-5.2 pricing should stay empty until official price is published: input=%v output=%v", detail.InputPrice, detail.OutputPrice)
+			if detail.InputPrice != 0.008 || detail.OutputPrice != 0.028 {
+				t.Fatalf("glm-5.2 pricing input=%v output=%v, want 0.008/0.028", detail.InputPrice, detail.OutputPrice)
 			}
 			if detail.PriceUnit != ProviderPriceUnitPer1KTokens || detail.Currency != "CNY" {
 				t.Fatalf("glm-5.2 billing unit=%q currency=%q, want per_1k_tokens/CNY", detail.PriceUnit, detail.Currency)
+			}
+			if len(detail.PriceComponents) != 2 {
+				t.Fatalf("glm-5.2 price_components=%d, want 2", len(detail.PriceComponents))
+			}
+			expectedComponents := map[string]bool{
+				"text|mode=standard":          false,
+				"context_cache|mode=standard": false,
+			}
+			for _, component := range detail.PriceComponents {
+				key := component.Component + "|" + component.Condition
+				if _, ok := expectedComponents[key]; ok {
+					expectedComponents[key] = true
+				}
+			}
+			for key, found := range expectedComponents {
+				if !found {
+					t.Fatalf("glm-5.2 missing price component %s", key)
+				}
 			}
 			return
 		}
 		t.Fatalf("expected zhipu seed to include glm-5.2")
 	}
 	t.Fatalf("expected zhipu provider to exist")
+}
+
+func TestBuildProviderMigrationSeeds_ZhipuIncludesGLMImageSpecification(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	for _, seed := range seeds {
+		if seed.Provider != "zhipu" {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			if detail.Model != "glm-image" {
+				continue
+			}
+			if detail.Type != ProviderModelTypeImage {
+				t.Fatalf("glm-image type=%q, want %q", detail.Type, ProviderModelTypeImage)
+			}
+			if detail.Specification == nil {
+				t.Fatal("glm-image specification should not be nil")
+			}
+			spec, ok := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			if !ok {
+				t.Fatalf("glm-image endpoints=%#v, want /v1/images/generations", detail.Specification.Endpoints)
+			}
+			if spec.Constraints == nil || spec.Constraints.MinPixels == nil || *spec.Constraints.MinPixels != 3686400 {
+				t.Fatalf("glm-image min_pixels=%v, want 3686400", spec.Constraints)
+			}
+			if len(spec.Parameters["size"].AllowedValues) != 3 {
+				t.Fatalf("glm-image size allowed_values=%#v, want 3 values", spec.Parameters["size"].AllowedValues)
+			}
+			return
+		}
+		t.Fatalf("expected zhipu seed to include glm-image")
+	}
+	t.Fatalf("expected zhipu provider to exist")
+}
+
+func TestBuildProviderMigrationSeeds_ImageSpecificationsFromOfficialProviders(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	expected := map[string]func(detail ProviderModelDetail, t *testing.T){
+		"openai/dall-e-3": func(detail ProviderModelDetail, t *testing.T) {
+			spec := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			if spec.Parameters["n"].Max == nil || *spec.Parameters["n"].Max != 1 {
+				t.Fatalf("dall-e-3 n max=%v, want 1", spec.Parameters["n"].Max)
+			}
+			if len(spec.Parameters["size"].AllowedValues) != 3 {
+				t.Fatalf("dall-e-3 size allowed_values=%#v, want 3", spec.Parameters["size"].AllowedValues)
+			}
+		},
+		"openai/gpt-image-1": func(detail ProviderModelDetail, t *testing.T) {
+			genSpec := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			editSpec := detail.Specification.Endpoints[ChannelModelEndpointImageEdit]
+			if len(genSpec.Parameters["quality"].AllowedValues) != 3 {
+				t.Fatalf("gpt-image-1 quality allowed_values=%#v, want 3", genSpec.Parameters["quality"].AllowedValues)
+			}
+			if len(editSpec.InputModalities) != 2 {
+				t.Fatalf("gpt-image-1 edit input_modalities=%#v, want image+text", editSpec.InputModalities)
+			}
+		},
+		"google/gemini-2.5-flash-image-preview": func(detail ProviderModelDetail, t *testing.T) {
+			spec := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			if len(spec.Parameters["size"].AllowedValues) != 10 {
+				t.Fatalf("gemini image preview size allowed_values=%#v, want 10", spec.Parameters["size"].AllowedValues)
+			}
+		},
+		"google/imagen-4.0-generate-preview-06-06": func(detail ProviderModelDetail, t *testing.T) {
+			spec := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			if spec.Parameters["n"].Max == nil || *spec.Parameters["n"].Max != 4 {
+				t.Fatalf("imagen-4 n max=%v, want 4", spec.Parameters["n"].Max)
+			}
+		},
+		"hunyuan/Hunyuan-Image": func(detail ProviderModelDetail, t *testing.T) {
+			spec := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			if len(spec.Parameters["size"].AllowedValues) != 5 {
+				t.Fatalf("Hunyuan-Image size allowed_values=%#v, want 5", spec.Parameters["size"].AllowedValues)
+			}
+		},
+		"minimax/image-01": func(detail ProviderModelDetail, t *testing.T) {
+			spec := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			if spec.Constraints == nil || spec.Constraints.EdgeMultiple == nil || *spec.Constraints.EdgeMultiple != 8 {
+				t.Fatalf("image-01 edge_multiple=%v, want 8", spec.Constraints)
+			}
+			if spec.Parameters["width"].Min == nil || *spec.Parameters["width"].Min != 512 {
+				t.Fatalf("image-01 width min=%v, want 512", spec.Parameters["width"].Min)
+			}
+		},
+		"qwen/qwen-image-2.0": func(detail ProviderModelDetail, t *testing.T) {
+			spec := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			if spec.Parameters["n"].Max == nil || *spec.Parameters["n"].Max != 6 {
+				t.Fatalf("qwen-image-2.0 n max=%v, want 6", spec.Parameters["n"].Max)
+			}
+			if spec.Constraints == nil || spec.Constraints.MaxPixels == nil || *spec.Constraints.MaxPixels != 4194304 {
+				t.Fatalf("qwen-image-2.0 max_pixels=%v, want 4194304", spec.Constraints)
+			}
+		},
+		"stepfun/step-1x-medium": func(detail ProviderModelDetail, t *testing.T) {
+			spec := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			if len(spec.Parameters["size"].AllowedValues) != 6 {
+				t.Fatalf("step-1x-medium size allowed_values=%#v, want 6", spec.Parameters["size"].AllowedValues)
+			}
+		},
+		"volcengine/doubao-seedream-4-0-250828": func(detail ProviderModelDetail, t *testing.T) {
+			spec := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			if spec.Constraints == nil || spec.Constraints.MinPixels == nil || *spec.Constraints.MinPixels != 921600 {
+				t.Fatalf("doubao-seedream-4-0 min_pixels=%v, want 921600", spec.Constraints)
+			}
+		},
+		"volcengine/doubao-seedream-5-0-lite-260128": func(detail ProviderModelDetail, t *testing.T) {
+			spec := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			if len(spec.Parameters["size"].AllowedValues) < 20 {
+				t.Fatalf("doubao-seedream-5-0-lite size allowed_values=%#v, want >=20", spec.Parameters["size"].AllowedValues)
+			}
+			if spec.Constraints == nil || spec.Constraints.MinPixels == nil || *spec.Constraints.MinPixels != 3686400 {
+				t.Fatalf("doubao-seedream-5-0-lite min_pixels=%v, want 3686400", spec.Constraints)
+			}
+		},
+	}
+
+	found := make(map[string]bool, len(expected))
+	for _, seed := range seeds {
+		for _, detail := range seed.ModelDetails {
+			key := seed.Provider + "/" + detail.Model
+			check, ok := expected[key]
+			if !ok {
+				continue
+			}
+			if detail.Specification == nil {
+				t.Fatalf("%s specification should not be nil", key)
+			}
+			check(detail, t)
+			found[key] = true
+		}
+	}
+	for key := range expected {
+		if !found[key] {
+			t.Fatalf("expected provider migration seed to include specification for %s", key)
+		}
+	}
 }
 
 func TestBuildProviderMigrationSeeds_ZhipuEmbeddingModelsUseEmbeddingsEndpoint(t *testing.T) {
@@ -1291,7 +1448,6 @@ func TestBuildProviderMigrationSeeds_RemainingUnpricedModelsAreExplicitlyTracked
 			"cogvideox-flash": false,
 			"glm-4.6v-flash":  false,
 			"glm-4.7-flash":   false,
-			"glm-image":       false,
 		},
 		"mistral": {
 			"pixtral-large-latest": false,

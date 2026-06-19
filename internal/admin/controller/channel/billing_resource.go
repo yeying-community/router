@@ -56,17 +56,43 @@ type channelBillingOpenActivateRequest struct {
 }
 
 type channelBillingManualSnapshotRequest struct {
-	Items   []channelBillingManualQuotaItemRequest `json:"items"`
-	Message string                                 `json:"message"`
+	PurchaseAt       int64                                  `json:"purchase_at"`
+	PurchaseCurrency string                                 `json:"purchase_currency"`
+	PurchaseAmount   float64                                `json:"purchase_amount"`
+	PurchaseFXRate   float64                                `json:"purchase_fx_rate"`
+	PurchaseCostCNY  float64                                `json:"purchase_cost_cny"`
+	Items            []channelBillingManualQuotaItemRequest `json:"items"`
+	Message          string                                 `json:"message"`
 }
 
 type channelBillingManualQuotaItemRequest struct {
-	ResourceType string  `json:"resource_type"`
-	QuotaType    string  `json:"quota_type"`
-	QuotaLabel   string  `json:"quota_label"`
-	Amount       float64 `json:"amount"`
-	Currency     string  `json:"currency"`
-	ExpiresAt    int64   `json:"expires_at"`
+	ResourceType    string  `json:"resource_type"`
+	QuotaType       string  `json:"quota_type"`
+	QuotaLabel      string  `json:"quota_label"`
+	Amount          float64 `json:"amount"`
+	LimitAmount     float64 `json:"limit_amount"`
+	UsedAmount      float64 `json:"used_amount"`
+	RemainingAmount float64 `json:"remaining_amount"`
+	Currency        string  `json:"currency"`
+	ResetAt         int64   `json:"reset_at"`
+	ExpiresAt       int64   `json:"expires_at"`
+	SourceRef       string  `json:"source_ref"`
+}
+
+type channelProcurementBatchCostUpdateRequest struct {
+	PurchaseCurrency  string  `json:"purchase_currency"`
+	PurchaseAmount    float64 `json:"purchase_amount"`
+	PurchaseFXRate    float64 `json:"purchase_fx_rate"`
+	PurchaseCostCNY   float64 `json:"purchase_cost_cny"`
+	CapacityEffective float64 `json:"capacity_effective"`
+	CostSource        string  `json:"cost_source"`
+	CostStatus        string  `json:"cost_status"`
+	ScopeType         string  `json:"scope_type"`
+	ScopeValue        string  `json:"scope_value"`
+}
+
+type channelProcurementBatchStatusUpdateRequest struct {
+	CostStatus string `json:"cost_status"`
 }
 
 func isSupportedBillingResourceType(value string) bool {
@@ -132,6 +158,53 @@ func buildChannelBillingProfileData(channelRow *model.Channel, profile model.Cha
 		ActionCapabilities: profile.ParseActionCapabilities(),
 		BillingPortalURL:   extractBillingPortalURL(profile),
 	}
+}
+
+func attachManualPurchaseCostToSnapshotBatches(tx *gorm.DB, snapshotID string, purchaseCurrency string, purchaseAmount float64, purchaseFXRate float64, purchaseCostCNY float64) error {
+	normalizedSnapshotID := strings.TrimSpace(snapshotID)
+	if normalizedSnapshotID == "" || purchaseCostCNY <= 0 {
+		return nil
+	}
+	rows := make([]model.ChannelProcurementBatch, 0)
+	if err := tx.Where("source_snapshot_id = ?", normalizedSnapshotID).Find(&rows).Error; err != nil {
+		return err
+	}
+	totalEffectiveCapacity := 0.0
+	for _, row := range rows {
+		if row.CapacityEffective > 0 {
+			totalEffectiveCapacity += row.CapacityEffective
+		}
+	}
+	if len(rows) == 0 || totalEffectiveCapacity <= 0 {
+		return nil
+	}
+	now := helper.GetTimestamp()
+	for _, row := range rows {
+		if row.CapacityEffective <= 0 {
+			continue
+		}
+		ratio := row.CapacityEffective / totalEffectiveCapacity
+		allocatedCostCNY := purchaseCostCNY * ratio
+		if allocatedCostCNY <= 0 {
+			continue
+		}
+		costPerUnitCNY := allocatedCostCNY / row.CapacityEffective
+		if err := tx.Model(&model.ChannelProcurementBatch{}).
+			Where("id = ?", row.Id).
+			Updates(map[string]any{
+				"purchase_currency": strings.TrimSpace(strings.ToUpper(purchaseCurrency)),
+				"purchase_amount":   purchaseAmount * ratio,
+				"purchase_fx_rate":  purchaseFXRate,
+				"purchase_cost_cny": allocatedCostCNY,
+				"cost_per_unit_cny": costPerUnitCNY,
+				"cost_source":       model.ProcurementCostSourceActual,
+				"cost_status":       model.ProcurementCostStatusActive,
+				"updated_at":        now,
+			}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func getEffectiveChannelBillingProfile(channelID string) (*model.Channel, model.ChannelBillingProfile, error) {
@@ -233,6 +306,123 @@ func GetChannelBillingAlerts(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": channelBillingListData[model.ChannelBillingAlertEvent]{Items: rows, Total: len(rows)}})
+}
+
+func GetChannelProcurementBatches(c *gin.Context) {
+	channelID := strings.TrimSpace(c.Param("id"))
+	if channelID == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "渠道 ID 无效"})
+		return
+	}
+	rows, err := model.ListChannelProcurementBatchesByChannelIDWithDB(model.DB, channelID, 100)
+	if err != nil {
+		logChannelAdminWarn(c, "list_procurement_batches", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": channelBillingListData[model.ChannelProcurementBatch]{Items: rows, Total: len(rows)}})
+}
+
+func UpdateChannelProcurementBatchCost(c *gin.Context) {
+	channelID := strings.TrimSpace(c.Param("id"))
+	batchID := strings.TrimSpace(c.Param("batch_id"))
+	if channelID == "" || batchID == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "采购批次 ID 无效"})
+		return
+	}
+	req := channelProcurementBatchCostUpdateRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请求参数无效"})
+		return
+	}
+	current, err := model.GetChannelProcurementBatchByIDWithDB(model.DB, batchID)
+	if err != nil {
+		logChannelAdminWarn(c, "update_procurement_batch_cost", stringField("channel_id", channelID), stringField("batch_id", batchID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "采购批次不存在"})
+		return
+	}
+	if strings.TrimSpace(current.ChannelId) != channelID {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "采购批次不属于当前渠道"})
+		return
+	}
+	row, err := model.UpdateChannelProcurementBatchCostWithDB(model.DB, batchID, model.ProcurementBatchCostUpdate{
+		PurchaseCurrency:  req.PurchaseCurrency,
+		PurchaseAmount:    req.PurchaseAmount,
+		PurchaseFXRate:    req.PurchaseFXRate,
+		PurchaseCostCNY:   req.PurchaseCostCNY,
+		CapacityEffective: req.CapacityEffective,
+		CostSource:        req.CostSource,
+		CostStatus:        req.CostStatus,
+		ScopeType:         req.ScopeType,
+		ScopeValue:        req.ScopeValue,
+	})
+	if err != nil {
+		logChannelAdminWarn(c, "update_procurement_batch_cost", stringField("channel_id", channelID), stringField("batch_id", batchID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	logChannelAdminInfo(c, "update_procurement_batch_cost", stringField("channel_id", channelID), stringField("batch_id", batchID))
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": row})
+}
+
+func UpdateChannelProcurementBatchStatus(c *gin.Context) {
+	channelID := strings.TrimSpace(c.Param("id"))
+	batchID := strings.TrimSpace(c.Param("batch_id"))
+	if channelID == "" || batchID == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "采购批次 ID 无效"})
+		return
+	}
+	req := channelProcurementBatchStatusUpdateRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请求参数无效"})
+		return
+	}
+	current, err := model.GetChannelProcurementBatchByIDWithDB(model.DB, batchID)
+	if err != nil {
+		logChannelAdminWarn(c, "update_procurement_batch_status", stringField("channel_id", channelID), stringField("batch_id", batchID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "采购批次不存在"})
+		return
+	}
+	if strings.TrimSpace(current.ChannelId) != channelID {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "采购批次不属于当前渠道"})
+		return
+	}
+	row, err := model.UpdateChannelProcurementBatchStatusWithDB(model.DB, batchID, model.ProcurementBatchStatusUpdate{
+		CostStatus: req.CostStatus,
+	})
+	if err != nil {
+		logChannelAdminWarn(c, "update_procurement_batch_status", stringField("channel_id", channelID), stringField("batch_id", batchID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	logChannelAdminInfo(c, "update_procurement_batch_status", stringField("channel_id", channelID), stringField("batch_id", batchID), stringField("cost_status", row.CostStatus))
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": row})
+}
+
+func GetChannelProcurementBatchConsumptions(c *gin.Context) {
+	channelID := strings.TrimSpace(c.Param("id"))
+	batchID := strings.TrimSpace(c.Param("batch_id"))
+	if channelID == "" || batchID == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "采购批次 ID 无效"})
+		return
+	}
+	current, err := model.GetChannelProcurementBatchByIDWithDB(model.DB, batchID)
+	if err != nil {
+		logChannelAdminWarn(c, "list_procurement_batch_consumptions", stringField("channel_id", channelID), stringField("batch_id", batchID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "采购批次不存在"})
+		return
+	}
+	if strings.TrimSpace(current.ChannelId) != channelID {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "采购批次不属于当前渠道"})
+		return
+	}
+	rows, err := model.ListRequestProcurementConsumptionsByBatchIDWithDB(model.DB, batchID, 100)
+	if err != nil {
+		logChannelAdminWarn(c, "list_procurement_batch_consumptions", stringField("channel_id", channelID), stringField("batch_id", batchID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": channelBillingListData[model.RequestProcurementConsumption]{Items: rows, Total: len(rows)}})
 }
 
 func GetRecentChannelBillingAlerts(c *gin.Context) {
@@ -440,6 +630,128 @@ func maskBillingSecret(value string) string {
 	return trimmed[:3] + "***" + trimmed[len(trimmed)-3:]
 }
 
+type normalizedManualBillingSnapshotRequest struct {
+	PurchaseAt       int64
+	PurchaseCurrency string
+	PurchaseAmount   float64
+	PurchaseFXRate   float64
+	PurchaseCostCNY  float64
+	Items            []model.ChannelBillingSnapshotItem
+	Message          string
+}
+
+func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotRequest, now int64) (normalizedManualBillingSnapshotRequest, error) {
+	purchaseCurrency := strings.TrimSpace(strings.ToUpper(req.PurchaseCurrency))
+	purchaseAmount := req.PurchaseAmount
+	purchaseFXRate := req.PurchaseFXRate
+	purchaseCostCNY := req.PurchaseCostCNY
+	if purchaseCurrency == "" {
+		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("采购币种不能为空")
+	}
+	if purchaseAmount <= 0 {
+		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("实付金额必须大于 0")
+	}
+	if purchaseFXRate < 0 || purchaseCostCNY < 0 {
+		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("采购汇率和采购成本不能小于 0")
+	}
+	if purchaseCurrency == "CNY" {
+		if purchaseFXRate <= 0 {
+			purchaseFXRate = 1
+		}
+		if purchaseCostCNY <= 0 {
+			purchaseCostCNY = purchaseAmount
+		}
+	} else if purchaseCostCNY <= 0 && purchaseFXRate > 0 {
+		purchaseCostCNY = purchaseAmount * purchaseFXRate
+	}
+	if purchaseCostCNY <= 0 {
+		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("采购成本 CNY 必须大于 0")
+	}
+	purchaseAt := req.PurchaseAt
+	if purchaseAt <= 0 {
+		purchaseAt = now
+	}
+	quotaItems := make([]model.ChannelBillingSnapshotItem, 0, len(req.Items))
+	for index, item := range req.Items {
+		resourceType := strings.TrimSpace(strings.ToLower(item.ResourceType))
+		if !isSupportedBillingResourceType(resourceType) {
+			return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条权益类型无效", index+1)
+		}
+		quotaLabel := strings.TrimSpace(item.QuotaLabel)
+		if quotaLabel == "" {
+			return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条额度名称不能为空", index+1)
+		}
+		quotaType := strings.TrimSpace(strings.ToLower(item.QuotaType))
+		if resourceType == model.ChannelBillingResourceTypePlan {
+			quotaType = "plan"
+			if item.ExpiresAt <= 0 {
+				return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条套餐必须填写截止时间", index+1)
+			}
+		}
+		if resourceType == model.ChannelBillingResourceTypeQuota {
+			switch quotaType {
+			case "daily", "weekly", "monthly", "total", "custom":
+			default:
+				return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条额度类型无效", index+1)
+			}
+			if (quotaType == "daily" || quotaType == "weekly" || quotaType == "monthly") && item.ExpiresAt <= 0 {
+				return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条套餐周期额度必须填写截止时间", index+1)
+			}
+		}
+		limitAmount := item.LimitAmount
+		if limitAmount <= 0 {
+			limitAmount = item.Amount
+		}
+		remainingAmount := item.RemainingAmount
+		if remainingAmount <= 0 && item.UsedAmount == 0 {
+			remainingAmount = item.Amount
+		}
+		amount := item.Amount
+		if amount <= 0 {
+			amount = remainingAmount
+		}
+		if amount <= 0 && limitAmount > 0 {
+			amount = limitAmount
+		}
+		if item.Amount < 0 || item.LimitAmount < 0 || item.UsedAmount < 0 || item.RemainingAmount < 0 {
+			return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条额度数值不能小于 0", index+1)
+		}
+		if resourceType != model.ChannelBillingResourceTypePlan && amount <= 0 && remainingAmount <= 0 && limitAmount <= 0 {
+			return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条额度数值不能为空", index+1)
+		}
+		sourceRef := strings.TrimSpace(item.SourceRef)
+		if sourceRef == "" {
+			sourceRef = "manual"
+		}
+		quotaItems = append(quotaItems, model.ChannelBillingSnapshotItem{
+			ResourceType:    resourceType,
+			QuotaType:       quotaType,
+			QuotaLabel:      quotaLabel,
+			Amount:          amount,
+			LimitAmount:     limitAmount,
+			UsedAmount:      item.UsedAmount,
+			RemainingAmount: remainingAmount,
+			Currency:        strings.TrimSpace(item.Currency),
+			ResetAt:         item.ResetAt,
+			ExpiresAt:       item.ExpiresAt,
+			SourceRef:       sourceRef,
+			SortOrder:       index + 1,
+		})
+	}
+	if len(quotaItems) == 0 {
+		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("请至少填写一条权益项")
+	}
+	return normalizedManualBillingSnapshotRequest{
+		PurchaseAt:       purchaseAt,
+		PurchaseCurrency: purchaseCurrency,
+		PurchaseAmount:   purchaseAmount,
+		PurchaseFXRate:   purchaseFXRate,
+		PurchaseCostCNY:  purchaseCostCNY,
+		Items:            quotaItems,
+		Message:          strings.TrimSpace(req.Message),
+	}, nil
+}
+
 func CreateChannelBillingSnapshot(c *gin.Context) {
 	channelID := strings.TrimSpace(c.Param("id"))
 	if channelID == "" {
@@ -449,39 +761,6 @@ func CreateChannelBillingSnapshot(c *gin.Context) {
 	req := channelBillingManualSnapshotRequest{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	quotaItems := make([]model.ChannelBillingSnapshotItem, 0, len(req.Items))
-	for index, item := range req.Items {
-		resourceType := strings.TrimSpace(strings.ToLower(item.ResourceType))
-		if !isSupportedBillingResourceType(resourceType) {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("第 %d 条权益类型无效", index+1)})
-			return
-		}
-		quotaLabel := strings.TrimSpace(item.QuotaLabel)
-		if quotaLabel == "" {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("第 %d 条额度名称不能为空", index+1)})
-			return
-		}
-		if item.Amount < 0 {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("第 %d 条额度金额不能小于 0", index+1)})
-			return
-		}
-		quotaItems = append(quotaItems, model.ChannelBillingSnapshotItem{
-			ResourceType:    resourceType,
-			QuotaType:       strings.TrimSpace(item.QuotaType),
-			QuotaLabel:      quotaLabel,
-			Amount:          item.Amount,
-			LimitAmount:     item.Amount,
-			RemainingAmount: item.Amount,
-			Currency:        strings.TrimSpace(item.Currency),
-			ExpiresAt:       item.ExpiresAt,
-			SourceRef:       "manual",
-			SortOrder:       index + 1,
-		})
-	}
-	if len(quotaItems) == 0 {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "请至少填写一条权益项"})
 		return
 	}
 	channelRow, profile, err := getEffectiveChannelBillingProfile(channelID)
@@ -496,20 +775,33 @@ func CreateChannelBillingSnapshot(c *gin.Context) {
 	}
 	operatorUserID := strings.TrimSpace(c.GetString(ctxkey.Id))
 	now := helper.GetTimestamp()
+	normalizedReq, err := normalizeManualBillingSnapshotRequest(req, now)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
 	err = model.DB.Transaction(func(tx *gorm.DB) error {
 		snapshotRow, err := model.CreateChannelBillingSnapshotWithDB(tx, model.ChannelBillingSnapshot{
-			ChannelId:      channelRow.Id,
-			SourceType:     model.ChannelBillingSnapshotSourceManual,
-			RawStatus:      "manual",
-			Message:        strings.TrimSpace(req.Message),
-			OperatorUserId: operatorUserID,
-			CreatedAt:      now,
+			ChannelId:        channelRow.Id,
+			SourceType:       model.ChannelBillingSnapshotSourceManual,
+			PurchaseAt:       normalizedReq.PurchaseAt,
+			PurchaseCurrency: normalizedReq.PurchaseCurrency,
+			PurchaseAmount:   normalizedReq.PurchaseAmount,
+			PurchaseFXRate:   normalizedReq.PurchaseFXRate,
+			PurchaseCostCNY:  normalizedReq.PurchaseCostCNY,
+			RawStatus:        "manual",
+			Message:          normalizedReq.Message,
+			OperatorUserId:   operatorUserID,
+			CreatedAt:        now,
 		})
 		if err != nil {
 			return err
 		}
-		createdItems, err := model.CreateChannelBillingSnapshotItemsWithDB(tx, snapshotRow.Id, channelRow.Id, quotaItems)
+		createdItems, err := model.CreateChannelBillingSnapshotItemsWithDB(tx, snapshotRow.Id, channelRow.Id, normalizedReq.Items)
 		if err != nil {
+			return err
+		}
+		if err := attachManualPurchaseCostToSnapshotBatches(tx, snapshotRow.Id, normalizedReq.PurchaseCurrency, normalizedReq.PurchaseAmount, normalizedReq.PurchaseFXRate, normalizedReq.PurchaseCostCNY); err != nil {
 			return err
 		}
 		_, err = model.CreateChannelBillingActionWithDB(tx, model.ChannelBillingAction{
@@ -518,7 +810,7 @@ func CreateChannelBillingSnapshot(c *gin.Context) {
 			Status:         model.ChannelBillingActionStatusDone,
 			RequestPayload: marshalLogJSON(req),
 			ResultPayload:  marshalLogJSON(map[string]any{"items": createdItems}),
-			Message:        strings.TrimSpace(req.Message),
+			Message:        normalizedReq.Message,
 			OperatorUserId: operatorUserID,
 			CreatedAt:      now,
 			UpdatedAt:      now,
@@ -532,4 +824,146 @@ func CreateChannelBillingSnapshot(c *gin.Context) {
 	}
 	logChannelAdminInfo(c, "create_billing_snapshot", stringField("channel_id", channelID))
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"channel_id": channelID}})
+}
+
+func UpdateChannelBillingSnapshot(c *gin.Context) {
+	channelID := strings.TrimSpace(c.Param("id"))
+	snapshotID := strings.TrimSpace(c.Param("snapshot_id"))
+	if channelID == "" || snapshotID == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数无效"})
+		return
+	}
+	req := channelBillingManualSnapshotRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	channelRow, profile, err := getEffectiveChannelBillingProfile(channelID)
+	if err != nil {
+		logChannelAdminWarn(c, "update_billing_snapshot", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	if !profile.HasCapability(model.ChannelBillingCapabilityManualUpdateSnapshot) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "当前渠道不支持人工更新余额"})
+		return
+	}
+	operatorUserID := strings.TrimSpace(c.GetString(ctxkey.Id))
+	now := helper.GetTimestamp()
+	normalizedReq, err := normalizeManualBillingSnapshotRequest(req, now)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	err = model.DB.Transaction(func(tx *gorm.DB) error {
+		current, err := model.GetChannelBillingSnapshotByIDWithDB(tx, snapshotID)
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(current.ChannelId) != channelRow.Id {
+			return gorm.ErrRecordNotFound
+		}
+		if strings.TrimSpace(current.SourceType) != model.ChannelBillingSnapshotSourceManual {
+			return fmt.Errorf("只能修改人工采购记录")
+		}
+		count, err := model.CountRequestProcurementConsumptionsBySourceSnapshotIDWithDB(tx, snapshotID)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			return fmt.Errorf("该采购记录已经被消耗，不能修改")
+		}
+		updatedSnapshot, err := model.UpdateChannelBillingSnapshotPurchaseWithDB(tx, model.ChannelBillingSnapshot{
+			Id:               current.Id,
+			ChannelId:        channelRow.Id,
+			PurchaseAt:       normalizedReq.PurchaseAt,
+			PurchaseCurrency: normalizedReq.PurchaseCurrency,
+			PurchaseAmount:   normalizedReq.PurchaseAmount,
+			PurchaseFXRate:   normalizedReq.PurchaseFXRate,
+			PurchaseCostCNY:  normalizedReq.PurchaseCostCNY,
+			Message:          normalizedReq.Message,
+			OperatorUserId:   operatorUserID,
+		})
+		if err != nil {
+			return err
+		}
+		createdItems, err := model.ReplaceChannelBillingSnapshotItemsWithDB(tx, updatedSnapshot.Id, channelRow.Id, normalizedReq.Items)
+		if err != nil {
+			return err
+		}
+		if err := attachManualPurchaseCostToSnapshotBatches(tx, updatedSnapshot.Id, normalizedReq.PurchaseCurrency, normalizedReq.PurchaseAmount, normalizedReq.PurchaseFXRate, normalizedReq.PurchaseCostCNY); err != nil {
+			return err
+		}
+		_, err = model.CreateChannelBillingActionWithDB(tx, model.ChannelBillingAction{
+			ChannelId:      channelRow.Id,
+			ActionType:     model.ChannelBillingActionTypeManualUpdateSnapshot,
+			Status:         model.ChannelBillingActionStatusDone,
+			RequestPayload: marshalLogJSON(req),
+			ResultPayload:  marshalLogJSON(map[string]any{"items": createdItems}),
+			Message:        normalizedReq.Message,
+			OperatorUserId: operatorUserID,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		})
+		return err
+	})
+	if err != nil {
+		logChannelAdminWarn(c, "update_billing_snapshot", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	logChannelAdminInfo(c, "update_billing_snapshot", stringField("channel_id", channelID), stringField("snapshot_id", snapshotID))
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"channel_id": channelID, "snapshot_id": snapshotID}})
+}
+
+func DeleteChannelBillingSnapshot(c *gin.Context) {
+	channelID := strings.TrimSpace(c.Param("id"))
+	snapshotID := strings.TrimSpace(c.Param("snapshot_id"))
+	if channelID == "" || snapshotID == "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数无效"})
+		return
+	}
+	channelRow, profile, err := getEffectiveChannelBillingProfile(channelID)
+	if err != nil {
+		logChannelAdminWarn(c, "delete_billing_snapshot", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	if !profile.HasCapability(model.ChannelBillingCapabilityManualUpdateSnapshot) {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "当前渠道不支持人工更新余额"})
+		return
+	}
+	current, err := model.GetChannelBillingSnapshotByIDWithDB(model.DB, snapshotID)
+	if err != nil {
+		logChannelAdminWarn(c, "delete_billing_snapshot", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	if strings.TrimSpace(current.ChannelId) != channelRow.Id {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "采购记录不存在"})
+		return
+	}
+	if strings.TrimSpace(current.SourceType) != model.ChannelBillingSnapshotSourceManual {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "只能删除人工采购记录"})
+		return
+	}
+	count, err := model.CountRequestProcurementConsumptionsBySourceSnapshotIDWithDB(model.DB, snapshotID)
+	if err != nil {
+		logChannelAdminWarn(c, "delete_billing_snapshot", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	if count > 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "该采购记录已经被消耗，不能删除"})
+		return
+	}
+	if err := model.DB.Transaction(func(tx *gorm.DB) error {
+		return model.DeleteChannelBillingSnapshotPurchaseWithDB(tx, snapshotID, channelRow.Id)
+	}); err != nil {
+		logChannelAdminWarn(c, "delete_billing_snapshot", stringField("channel_id", channelID), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	logChannelAdminInfo(c, "delete_billing_snapshot", stringField("channel_id", channelID), stringField("snapshot_id", snapshotID))
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"channel_id": channelID, "snapshot_id": snapshotID}})
 }

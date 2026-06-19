@@ -95,6 +95,11 @@ func LoadProviderModelDetailsMapForProviders(db *gorm.DB, providers []string) (m
 			Source:             strings.TrimSpace(strings.ToLower(row.Source)),
 			UpdatedAt:          row.UpdatedAt,
 		}
+		specification, err := ParseProviderModelSpecification(row.Specification)
+		if err != nil {
+			return nil, err
+		}
+		detail.Specification = specification
 		detail.Type = ProviderModelTypeFromTags(detail.Tags)
 		if len(detail.SupportedEndpoints) == 0 {
 			if detail.Type == "" {
@@ -181,6 +186,7 @@ func BuildProviderModelStoreRows(provider string, details []ProviderModelDetail,
 			Tags:               joinProviderModelTags(detail.Model, detail.Tags),
 			Status:             normalizeProviderModelStatus(detail.Status),
 			Description:        strings.TrimSpace(detail.Description),
+			Specification:      MarshalProviderModelSpecification(detail.Specification),
 			IsDeleted:          detail.IsDeleted,
 			SupportedEndpoints: joinProviderModelSupportedEndpoints(detail.Type, detail.SupportedEndpoints),
 			InputPrice:         detail.InputPrice,

@@ -123,6 +123,11 @@ export const ADMIN_MENU_GROUPS = [
         icon: 'exchange',
       },
       {
+        name: 'billing.procurement_report.nav',
+        to: '/admin/billing/procurement-report',
+        icon: 'calculator',
+      },
+      {
         name: 'header.config',
         to: '/admin/setting?tab=operation&section=config',
         icon: 'sliders horizontal',

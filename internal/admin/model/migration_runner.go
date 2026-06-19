@@ -1428,6 +1428,61 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderMigrationProvidersWithDB(tx, "zhipu")
 			},
 		},
+		{
+			Version:     "202606171030_procurement_cost_tables",
+			Description: "add procurement cost batch and request consumption tables",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelProcurementBatch{}, &RequestProcurementConsumption{})
+			},
+		},
+		{
+			Version:     "202606181030_channel_billing_purchase_fields",
+			Description: "add purchase fields to channel billing snapshots",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelBillingSnapshot{})
+			},
+		},
+		{
+			Version:     "202606191030_refresh_zhipu_glm52_pricing",
+			Description: "refresh zhipu provider migration data for glm-5.2 pricing and official metadata",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderMigrationProvidersWithDB(tx, "zhipu")
+			},
+		},
+		{
+			Version:     "202606191100_refresh_zhipu_glm_image_pricing",
+			Description: "refresh zhipu provider migration data for glm-image pricing",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderMigrationProvidersWithDB(tx, "zhipu")
+			},
+		},
+		{
+			Version:     "202606191140_provider_model_specification",
+			Description: "add provider model specification field and refresh zhipu official image usage spec",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&ProviderModel{}); err != nil {
+					return err
+				}
+				return upsertProviderMigrationProvidersWithDB(tx, "zhipu")
+			},
+		},
+		{
+			Version:     "202606191230_refresh_provider_image_model_specifications",
+			Description: "refresh official image model specifications for supported providers",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderMigrationProvidersWithDB(
+					tx,
+					"openai",
+					"google",
+					"hunyuan",
+					"minimax",
+					"qwen",
+					"stepfun",
+					"volcengine",
+					"zhipu",
+				)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -1760,6 +1815,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 		{
 			Version:     "202605300830_log_token_estimate_observability_columns",
 			Description: "add missing token estimate estimator fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202606171040_log_procurement_cost_snapshot",
+			Description: "add procurement cost and gross margin fields to consume logs",
 			Up: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
 			},

@@ -103,7 +103,9 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 			Content:            FormatPricingLog(pricing, groupRatio),
 		}
 		snapshot.ApplyToLog(entry)
+		ApplyProcurementCostObservation(entry)
 		model.RecordConsumeLog(ctx, entry)
+		RecordProcurementConsumptionObservation(ctx, entry)
 		model.UpdateUserUsedQuotaAndRequestCount(userId, totalQuota)
 		model.UpdateChannelUsedQuota(channelId, totalQuota)
 	}

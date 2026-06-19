@@ -11,6 +11,7 @@ import (
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/internal/relay/adaptor"
 	"github.com/yeying-community/router/internal/relay/adaptor/openai"
+	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 	"github.com/yeying-community/router/internal/relay/meta"
 	"github.com/yeying-community/router/internal/relay/model"
 	"github.com/yeying-community/router/internal/relay/relaymode"
@@ -33,6 +34,14 @@ func (a *Adaptor) SetVersionByModeName(modelName string) {
 }
 
 func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
+	upstreamMode := meta.Mode
+	if meta != nil && meta.UpstreamMode != 0 {
+		upstreamMode = meta.UpstreamMode
+	}
+	if upstreamMode == relaymode.Messages {
+		baseURL := strings.TrimRight(strings.TrimSpace(meta.BaseURL), "/")
+		return baseURL + "/api/anthropic/v1/messages", nil
+	}
 	switch meta.Mode {
 	case relaymode.ImagesGenerations:
 		return fmt.Sprintf("%s/api/paas/v4/images/generations", meta.BaseURL), nil
@@ -52,6 +61,21 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *meta.Meta) error {
 	adaptor.SetupCommonRequestHeader(c, req, meta)
+	upstreamMode := meta.Mode
+	if meta != nil && meta.UpstreamMode != 0 {
+		upstreamMode = meta.UpstreamMode
+	}
+	if upstreamMode == relaymode.Messages {
+		req.Header.Del("Authorization")
+		req.Header.Set("x-api-key", meta.APIKey)
+		req.Header.Set("anthropic-version", "2023-06-01")
+		if meta.IsStream {
+			req.Header.Set("Accept", "text/event-stream")
+		} else {
+			req.Header.Set("Accept", "application/json")
+		}
+		return nil
+	}
 	token := GetToken(meta.APIKey)
 	req.Header.Set("Authorization", token)
 	return nil
@@ -107,6 +131,15 @@ func (a *Adaptor) DoResponseV4(c *gin.Context, resp *http.Response, meta *meta.M
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, meta *meta.Meta) (usage *model.Usage, err *model.ErrorWithStatusCode) {
+	upstreamMode := meta.Mode
+	if meta != nil && meta.UpstreamMode != 0 {
+		upstreamMode = meta.UpstreamMode
+	}
+	if meta.Mode == relaymode.Messages && upstreamMode == relaymode.Messages {
+		openAIAdaptor := &openai.Adaptor{}
+		openAIAdaptor.Init(meta)
+		return openAIAdaptor.DoResponse(c, resp, meta)
+	}
 	switch meta.Mode {
 	case relaymode.Embeddings:
 		err, usage = EmbeddingsHandler(c, resp)
@@ -146,5 +179,5 @@ func (a *Adaptor) GetModelList() []string {
 }
 
 func (a *Adaptor) GetChannelName() string {
-	return "zhipu"
+	return relaychannel.ProtocolByType(relaychannel.Zhipu)
 }

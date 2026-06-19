@@ -40,6 +40,107 @@ type publicBillingCurrencyItem struct {
 	YYCPerUnit float64 `json:"yyc_per_unit"`
 }
 
+type procurementReportItem struct {
+	model.ProcurementReportItem
+	DimensionName string `json:"dimension_name"`
+}
+
+type procurementReportResponse struct {
+	model.ProcurementReportSummary
+	Items []procurementReportItem `json:"items"`
+}
+
+func parseBillingReportTimestamp(value string) int64 {
+	parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	if err != nil || parsed < 0 {
+		return 0
+	}
+	return parsed
+}
+
+func loadProcurementReportChannelNames(items []model.ProcurementReportItem) map[string]string {
+	channelIDs := make([]string, 0, len(items))
+	seen := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		channelID := strings.TrimSpace(item.DimensionKey)
+		if channelID == "" || channelID == "-" {
+			continue
+		}
+		if _, ok := seen[channelID]; ok {
+			continue
+		}
+		seen[channelID] = struct{}{}
+		channelIDs = append(channelIDs, channelID)
+	}
+	result := make(map[string]string, len(channelIDs))
+	if len(channelIDs) == 0 {
+		return result
+	}
+	rows := make([]model.Channel, 0, len(channelIDs))
+	if err := model.DB.Select("id", "name").Where("id IN ?", channelIDs).Find(&rows).Error; err != nil {
+		return result
+	}
+	for _, row := range rows {
+		result[strings.TrimSpace(row.Id)] = strings.TrimSpace(row.DisplayName())
+	}
+	return result
+}
+
+func buildProcurementReportResponse(summary model.ProcurementReportSummary) procurementReportResponse {
+	response := procurementReportResponse{
+		ProcurementReportSummary: summary,
+		Items:                    make([]procurementReportItem, 0, len(summary.Items)),
+	}
+	channelNames := map[string]string{}
+	if summary.GroupBy == model.ProcurementReportGroupByChannel {
+		channelNames = loadProcurementReportChannelNames(summary.Items)
+	}
+	for _, item := range summary.Items {
+		nextItem := procurementReportItem{ProcurementReportItem: item}
+		switch summary.GroupBy {
+		case model.ProcurementReportGroupByChannel:
+			nextItem.DimensionName = channelNames[strings.TrimSpace(item.DimensionKey)]
+		case model.ProcurementReportGroupByModel:
+			nextItem.DimensionName = strings.TrimSpace(item.DimensionKey)
+		}
+		if strings.TrimSpace(nextItem.DimensionName) == "" {
+			nextItem.DimensionName = strings.TrimSpace(item.DimensionKey)
+		}
+		response.Items = append(response.Items, nextItem)
+	}
+	response.ProcurementReportSummary.Items = nil
+	return response
+}
+
+func GetProcurementReport(c *gin.Context) {
+	startAt := parseBillingReportTimestamp(c.Query("start_at"))
+	if startAt == 0 {
+		startAt = parseBillingReportTimestamp(c.Query("start_timestamp"))
+	}
+	endAt := parseBillingReportTimestamp(c.Query("end_at"))
+	if endAt == 0 {
+		endAt = parseBillingReportTimestamp(c.Query("end_timestamp"))
+	}
+	summary, err := model.ListProcurementReportWithDB(model.LOG_DB, model.ProcurementReportQuery{
+		StartAt:   startAt,
+		EndAt:     endAt,
+		GroupBy:   c.Query("group_by"),
+		CostScope: c.Query("cost_scope"),
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "加载采购成本报表失败: " + err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    buildProcurementReportResponse(summary),
+	})
+}
+
 func GetPublicBillingCurrencies(c *gin.Context) {
 	rows, err := model.ListBillingCurrencies()
 	if err != nil {

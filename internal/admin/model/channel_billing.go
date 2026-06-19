@@ -87,19 +87,24 @@ func (ChannelBillingProfile) TableName() string {
 }
 
 type ChannelBillingSnapshot struct {
-	Id              string                       `json:"id" gorm:"type:char(36);primaryKey"`
-	ChannelId       string                       `json:"channel_id" gorm:"type:char(36);not null;index"`
-	SourceType      string                       `json:"source_type" gorm:"type:varchar(32);not null;default:'manual'"`
-	Balance         float64                      `json:"balance" gorm:"not null;default:0"`
-	Currency        string                       `json:"currency" gorm:"type:varchar(16);default:''"`
-	RawStatus       string                       `json:"raw_status" gorm:"type:varchar(64);default:''"`
-	Message         string                       `json:"message" gorm:"type:text"`
-	RequestURL      string                       `json:"request_url" gorm:"type:text"`
-	ResponseExcerpt string                       `json:"response_excerpt" gorm:"type:text"`
-	OperatorUserId  string                       `json:"operator_user_id" gorm:"type:char(36);default:'';index"`
-	TaskId          string                       `json:"task_id" gorm:"type:char(36);default:'';index"`
-	CreatedAt       int64                        `json:"created_at" gorm:"bigint;index"`
-	Items           []ChannelBillingSnapshotItem `json:"items,omitempty" gorm:"-"`
+	Id               string                       `json:"id" gorm:"type:char(36);primaryKey"`
+	ChannelId        string                       `json:"channel_id" gorm:"type:char(36);not null;index"`
+	SourceType       string                       `json:"source_type" gorm:"type:varchar(32);not null;default:'manual'"`
+	Balance          float64                      `json:"balance" gorm:"not null;default:0"`
+	Currency         string                       `json:"currency" gorm:"type:varchar(16);default:''"`
+	PurchaseAt       int64                        `json:"purchase_at" gorm:"bigint;not null;default:0;index"`
+	PurchaseCurrency string                       `json:"purchase_currency" gorm:"type:varchar(16);not null;default:''"`
+	PurchaseAmount   float64                      `json:"purchase_amount" gorm:"type:double precision;not null;default:0"`
+	PurchaseFXRate   float64                      `json:"purchase_fx_rate" gorm:"type:double precision;not null;default:0"`
+	PurchaseCostCNY  float64                      `json:"purchase_cost_cny" gorm:"type:double precision;not null;default:0"`
+	RawStatus        string                       `json:"raw_status" gorm:"type:varchar(64);default:''"`
+	Message          string                       `json:"message" gorm:"type:text"`
+	RequestURL       string                       `json:"request_url" gorm:"type:text"`
+	ResponseExcerpt  string                       `json:"response_excerpt" gorm:"type:text"`
+	OperatorUserId   string                       `json:"operator_user_id" gorm:"type:char(36);default:'';index"`
+	TaskId           string                       `json:"task_id" gorm:"type:char(36);default:'';index"`
+	CreatedAt        int64                        `json:"created_at" gorm:"bigint;index"`
+	Items            []ChannelBillingSnapshotItem `json:"items,omitempty" gorm:"-"`
 }
 
 func (ChannelBillingSnapshot) TableName() string {
@@ -266,6 +271,28 @@ func ListChannelBillingSnapshotsByChannelIDWithDB(db *gorm.DB, channelID string,
 		return nil, err
 	}
 	return rows, nil
+}
+
+func GetChannelBillingSnapshotByIDWithDB(db *gorm.DB, id string) (ChannelBillingSnapshot, error) {
+	if db == nil {
+		return ChannelBillingSnapshot{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedID := strings.TrimSpace(id)
+	if normalizedID == "" {
+		return ChannelBillingSnapshot{}, gorm.ErrRecordNotFound
+	}
+	row := ChannelBillingSnapshot{}
+	if err := db.Where("id = ?", normalizedID).Take(&row).Error; err != nil {
+		return ChannelBillingSnapshot{}, err
+	}
+	rows := []ChannelBillingSnapshot{row}
+	if err := HydrateChannelBillingSnapshotsWithItemsWithDB(db, rows); err != nil {
+		return ChannelBillingSnapshot{}, err
+	}
+	if len(rows) == 0 {
+		return ChannelBillingSnapshot{}, gorm.ErrRecordNotFound
+	}
+	return rows[0], nil
 }
 
 func NormalizeChannelBillingSnapshotItems(items []ChannelBillingSnapshotItem) []ChannelBillingSnapshotItem {
@@ -673,6 +700,7 @@ func CreateChannelBillingSnapshotWithDB(db *gorm.DB, row ChannelBillingSnapshot)
 	normalized.ChannelId = strings.TrimSpace(normalized.ChannelId)
 	normalized.SourceType = strings.TrimSpace(normalized.SourceType)
 	normalized.Currency = strings.TrimSpace(strings.ToUpper(normalized.Currency))
+	normalized.PurchaseCurrency = strings.TrimSpace(strings.ToUpper(normalized.PurchaseCurrency))
 	normalized.OperatorUserId = strings.TrimSpace(normalized.OperatorUserId)
 	if normalized.ChannelId == "" {
 		return ChannelBillingSnapshot{}, fmt.Errorf("渠道账务快照无效")
@@ -688,6 +716,92 @@ func CreateChannelBillingSnapshotWithDB(db *gorm.DB, row ChannelBillingSnapshot)
 		normalized.CreatedAt = now
 	}
 	return normalized, db.Create(&normalized).Error
+}
+
+func UpdateChannelBillingSnapshotPurchaseWithDB(db *gorm.DB, row ChannelBillingSnapshot) (ChannelBillingSnapshot, error) {
+	if db == nil {
+		return ChannelBillingSnapshot{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedID := strings.TrimSpace(row.Id)
+	normalizedChannelID := strings.TrimSpace(row.ChannelId)
+	if normalizedID == "" || normalizedChannelID == "" {
+		return ChannelBillingSnapshot{}, fmt.Errorf("渠道账务采购记录无效")
+	}
+	current, err := GetChannelBillingSnapshotByIDWithDB(db, normalizedID)
+	if err != nil {
+		return ChannelBillingSnapshot{}, err
+	}
+	if strings.TrimSpace(current.ChannelId) != normalizedChannelID {
+		return ChannelBillingSnapshot{}, gorm.ErrRecordNotFound
+	}
+	if strings.TrimSpace(current.SourceType) != ChannelBillingSnapshotSourceManual {
+		return ChannelBillingSnapshot{}, fmt.Errorf("只能修改人工采购记录")
+	}
+	purchaseCurrency := strings.TrimSpace(strings.ToUpper(row.PurchaseCurrency))
+	if purchaseCurrency == "" {
+		return ChannelBillingSnapshot{}, fmt.Errorf("采购币种不能为空")
+	}
+	updates := map[string]any{
+		"purchase_at":       row.PurchaseAt,
+		"purchase_currency": purchaseCurrency,
+		"purchase_amount":   row.PurchaseAmount,
+		"purchase_fx_rate":  row.PurchaseFXRate,
+		"purchase_cost_cny": row.PurchaseCostCNY,
+		"message":           strings.TrimSpace(row.Message),
+		"operator_user_id":  strings.TrimSpace(row.OperatorUserId),
+	}
+	if err := db.Model(&ChannelBillingSnapshot{}).
+		Where("id = ? AND channel_id = ?", normalizedID, normalizedChannelID).
+		Updates(updates).Error; err != nil {
+		return ChannelBillingSnapshot{}, err
+	}
+	return GetChannelBillingSnapshotByIDWithDB(db, normalizedID)
+}
+
+func ReplaceChannelBillingSnapshotItemsWithDB(db *gorm.DB, snapshotID string, channelID string, items []ChannelBillingSnapshotItem) ([]ChannelBillingSnapshotItem, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	normalizedSnapshotID := strings.TrimSpace(snapshotID)
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedSnapshotID == "" || normalizedChannelID == "" {
+		return nil, fmt.Errorf("渠道账务额度项无效")
+	}
+	if err := db.Where("source_snapshot_id = ?", normalizedSnapshotID).Delete(&ChannelProcurementBatch{}).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Where("snapshot_id = ?", normalizedSnapshotID).Delete(&ChannelBillingSnapshotItem{}).Error; err != nil {
+		return nil, err
+	}
+	return CreateChannelBillingSnapshotItemsWithDB(db, normalizedSnapshotID, normalizedChannelID, items)
+}
+
+func DeleteChannelBillingSnapshotPurchaseWithDB(db *gorm.DB, snapshotID string, channelID string) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	normalizedSnapshotID := strings.TrimSpace(snapshotID)
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedSnapshotID == "" || normalizedChannelID == "" {
+		return fmt.Errorf("渠道账务采购记录无效")
+	}
+	current, err := GetChannelBillingSnapshotByIDWithDB(db, normalizedSnapshotID)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(current.ChannelId) != normalizedChannelID {
+		return gorm.ErrRecordNotFound
+	}
+	if strings.TrimSpace(current.SourceType) != ChannelBillingSnapshotSourceManual {
+		return fmt.Errorf("只能删除人工采购记录")
+	}
+	if err := db.Where("source_snapshot_id = ?", normalizedSnapshotID).Delete(&ChannelProcurementBatch{}).Error; err != nil {
+		return err
+	}
+	if err := db.Where("snapshot_id = ?", normalizedSnapshotID).Delete(&ChannelBillingSnapshotItem{}).Error; err != nil {
+		return err
+	}
+	return db.Where("id = ? AND channel_id = ?", normalizedSnapshotID, normalizedChannelID).Delete(&ChannelBillingSnapshot{}).Error
 }
 
 func CreateChannelBillingSnapshotItemsWithDB(db *gorm.DB, snapshotID string, channelID string, items []ChannelBillingSnapshotItem) ([]ChannelBillingSnapshotItem, error) {
@@ -717,7 +831,21 @@ func CreateChannelBillingSnapshotItemsWithDB(db *gorm.DB, snapshotID string, cha
 			normalizedItems[index].SortOrder = index + 1
 		}
 	}
-	return normalizedItems, db.Create(&normalizedItems).Error
+	if err := db.Create(&normalizedItems).Error; err != nil {
+		return nil, err
+	}
+	snapshotRow, err := GetChannelBillingSnapshotByIDWithDB(db, normalizedSnapshotID)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(snapshotRow.SourceType) != ChannelBillingSnapshotSourceManual {
+		return normalizedItems, nil
+	}
+	_, err = CreateProcurementBatchesFromBillingSnapshotItemsWithDB(db, snapshotRow, normalizedItems)
+	if err != nil {
+		return nil, err
+	}
+	return normalizedItems, nil
 }
 
 type channelBillingActivateActionConfig struct {

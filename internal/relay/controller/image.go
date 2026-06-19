@@ -913,7 +913,9 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			Content:            billing.FormatPricingLog(pricing, groupRatio),
 		}
 		billingSnapshot.ApplyToLog(entry)
+		billing.ApplyProcurementCostObservation(entry)
 		model.RecordConsumeLog(ctx, entry)
+		billing.RecordProcurementConsumptionObservation(ctx, entry)
 		model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 		channelId := c.GetString(ctxkey.ChannelId)
 		model.UpdateChannelUsedQuota(channelId, quota)

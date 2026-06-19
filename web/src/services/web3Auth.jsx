@@ -1,5 +1,6 @@
 import {
   clearAccessToken as sdkClearAccessToken,
+  focusPendingApproval,
   getAccessToken as sdkGetAccessToken,
   getChainId,
   getProvider,
@@ -96,6 +97,14 @@ export async function loginWithWallet() {
     }
     await waitForWalletProviderReconnect();
     return await loginWithWalletOnce();
+  }
+}
+
+export async function focusWalletPendingApproval(provider) {
+  try {
+    return await focusPendingApproval(provider);
+  } catch (error) {
+    return { focused: false, type: null };
   }
 }
 

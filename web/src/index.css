@@ -4140,6 +4140,55 @@ body,
     max-width: 148px;
 }
 
+.router-billing-page {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.router-billing-overview-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 14px;
+    background:
+        linear-gradient(135deg, rgba(248, 250, 252, 0.96), rgba(241, 245, 249, 0.86)),
+        #f8fafc;
+}
+
+.router-billing-overview-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    color: var(--router-text-secondary, rgba(0, 0, 0, 0.66));
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.router-billing-overview-main > span:last-child {
+    min-width: 0;
+}
+
+.router-billing-overview-meta {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.router-billing-overview-meta strong {
+    color: #111827;
+    font-size: 13px;
+    font-weight: 600;
+}
+
 .router-billing-snapshot-time {
     color: var(--router-text-muted, rgba(0, 0, 0, 0.5));
     font-size: 13px;
@@ -4167,6 +4216,103 @@ body,
 
 .router-billing-mode-summary > span:last-child {
     min-width: 0;
+}
+
+.router-billing-management-section .router-entity-detail-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.router-billing-subsection-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.router-billing-subsection-title {
+    color: #111827;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.router-billing-subsection-description {
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.router-billing-subsection-divider {
+    margin: 4px 0 !important;
+}
+
+.router-billing-manual-item-card {
+    border: 1px solid rgba(34, 36, 38, 0.1);
+    border-radius: 12px;
+    background: #fafbfc;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.router-billing-manual-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.router-billing-manual-item-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #1f2937;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.router-billing-manual-item-title-hint {
+    color: #6b7280;
+    font-weight: 400;
+    margin-left: 6px;
+}
+
+.router-billing-manual-item-help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border: 1px solid rgba(107, 114, 128, 0.5);
+    border-radius: 999px;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.router-billing-manual-item-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+    .router-billing-overview-strip,
+    .router-billing-subsection-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .router-billing-overview-meta {
+        justify-content: space-between;
+    }
 }
 
 .router-row-clickable {

@@ -19,6 +19,8 @@ func runMainBaselineMigrationWithDB(tx *gorm.DB) error {
 		&ChannelBillingSnapshotItem{},
 		&ChannelBillingAction{},
 		&ChannelBillingAlertEvent{},
+		&ChannelProcurementBatch{},
+		&RequestProcurementConsumption{},
 		&ChannelCircuitBreakerState{},
 		&ChannelModel{},
 		&ChannelModelPriceComponent{},

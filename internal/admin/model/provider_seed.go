@@ -214,6 +214,7 @@ func upsertProviderMigrationSeedsWithDB(db *gorm.DB, providers []string) error {
 					"tags",
 					"status",
 					"description",
+					"specification",
 					"is_deleted",
 					"supported_endpoints",
 					"input_price",

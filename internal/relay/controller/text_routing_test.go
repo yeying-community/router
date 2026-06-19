@@ -205,6 +205,12 @@ func TestSupportsMessagesUpstreamDeepSeek(t *testing.T) {
 	}
 }
 
+func TestSupportsMessagesUpstreamZhipu(t *testing.T) {
+	if !supportsMessagesUpstream(&meta.Meta{ChannelProtocol: relaychannel.Zhipu, APIType: apitype.Zhipu}) {
+		t.Fatal("supportsMessagesUpstream returned false for zhipu, want true")
+	}
+}
+
 func TestConvertTextRequestForUpstreamRejectsChatToResponses(t *testing.T) {
 	req := &relaymodel.GeneralOpenAIRequest{
 		Model: "gpt-4.1",

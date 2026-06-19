@@ -1,0 +1,99 @@
+.billing-procurement-report-page {
+  max-width: 1600px;
+}
+
+.billing-procurement-report-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.billing-procurement-report-segmented {
+  min-height: 32px;
+}
+
+.billing-procurement-report-time-input {
+  width: 188px;
+  min-height: 32px !important;
+  height: 32px !important;
+}
+
+.billing-procurement-report-section {
+  margin-top: 0;
+}
+
+.billing-procurement-report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.billing-procurement-report-summary-card {
+  min-height: 92px;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.billing-procurement-report-summary-card.is-danger {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
+}
+
+.billing-procurement-report-summary-label {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.billing-procurement-report-summary-value {
+  margin-top: 8px;
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.billing-procurement-report-summary-card.is-danger .billing-procurement-report-summary-value {
+  color: #b45309;
+}
+
+.billing-procurement-report-summary-hint {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.billing-procurement-report-table .ant-table-thead > tr > th,
+.billing-procurement-report-table .ant-table-tbody > tr > td {
+  white-space: nowrap;
+}
+
+.billing-procurement-report-link {
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.billing-procurement-report-link:hover {
+  color: #1d4ed8;
+}
+
+@media (max-width: 1180px) {
+  .billing-procurement-report-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .billing-procurement-report-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-procurement-report-time-input {
+    width: 100%;
+  }
+}

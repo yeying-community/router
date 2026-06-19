@@ -110,8 +110,10 @@ func supportsMessagesUpstream(meta *meta.Meta) bool {
 		return false
 	}
 	return meta.APIType == apitype.Anthropic ||
+		meta.APIType == apitype.Zhipu ||
 		meta.APIType == apitype.AwsClaude ||
-		meta.ChannelProtocol == relaychannel.DeepSeek
+		meta.ChannelProtocol == relaychannel.DeepSeek ||
+		meta.ChannelProtocol == relaychannel.Zhipu
 }
 
 func endpointByRelayMode(mode int) string {

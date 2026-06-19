@@ -49,6 +49,7 @@ import RedemptionFlowDetail from './pages/Flow/RedemptionDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminAlerts from './pages/AdminAlerts';
 import Providers from './pages/Providers';
+import BillingProcurementReport from './pages/BillingProcurementReport';
 
 const RegisterForm = lazy(() => import('./components/RegisterForm'));
 const LoginForm = lazy(() => import('./components/LoginForm'));
@@ -735,6 +736,10 @@ function App() {
         <Route
           path='/admin/alerts'
           element={<AdminAlerts />}
+        />
+        <Route
+          path='/admin/billing/procurement-report'
+          element={<BillingProcurementReport />}
         />
         <Route
           path='/admin/log'

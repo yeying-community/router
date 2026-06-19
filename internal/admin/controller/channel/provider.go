@@ -41,11 +41,12 @@ type providerListData struct {
 }
 
 type publicProviderModelDetail struct {
-	Model              string   `json:"model"`
-	Tags               []string `json:"tags,omitempty"`
-	Status             string   `json:"status,omitempty"`
-	Description        string   `json:"description,omitempty"`
-	SupportedEndpoints []string `json:"supported_endpoints,omitempty"`
+	Model              string                            `json:"model"`
+	Tags               []string                          `json:"tags,omitempty"`
+	Status             string                            `json:"status,omitempty"`
+	Description        string                            `json:"description,omitempty"`
+	Specification      *model.ProviderModelSpecification `json:"specification,omitempty"`
+	SupportedEndpoints []string                          `json:"supported_endpoints,omitempty"`
 }
 
 type publicProviderModelItem struct {
@@ -451,6 +452,7 @@ func listPublicProviderModels() ([]publicProviderModelItem, error) {
 				Tags:               detail.Tags,
 				Status:             strings.TrimSpace(detail.Status),
 				Description:        strings.TrimSpace(detail.Description),
+				Specification:      detail.Specification,
 				SupportedEndpoints: detail.SupportedEndpoints,
 			})
 		}
