@@ -21,6 +21,7 @@ func TestBuildOpenAIModelsForRequestOwnedByFromProviderStats(t *testing.T) {
 	original := loadGroupModelProvidersFn
 	originalEndpoints := loadGroupModelSupportedEndpointsFn
 	originalTags := loadProviderModelTagsFn
+	originalSpecifications := loadProviderModelSpecificationsFn
 	loadGroupModelProvidersFn = func(groupID string, modelNames []string) (map[string]string, error) {
 		return map[string]string{
 			"gpt-5.4":           "openai",
@@ -39,10 +40,24 @@ func TestBuildOpenAIModelsForRequestOwnedByFromProviderStats(t *testing.T) {
 			"claude-sonnet-4-6": {"text"},
 		}, nil
 	}
+	loadProviderModelSpecificationsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string]*model.ProviderModelSpecification, error) {
+		return map[string]*model.ProviderModelSpecification{
+			"gpt-5.4": {
+				Version: 1,
+				Endpoints: map[string]model.ProviderModelEndpointSpecification{
+					model.ChannelModelEndpointResponses: {
+						InputModalities:  []string{"text"},
+						OutputModalities: []string{"text"},
+					},
+				},
+			},
+		}, nil
+	}
 	t.Cleanup(func() {
 		loadGroupModelProvidersFn = original
 		loadGroupModelSupportedEndpointsFn = originalEndpoints
 		loadProviderModelTagsFn = originalTags
+		loadProviderModelSpecificationsFn = originalSpecifications
 	})
 
 	items, itemMap, err := buildOpenAIModelsForRequest(c)
@@ -67,6 +82,9 @@ func TestBuildOpenAIModelsForRequestOwnedByFromProviderStats(t *testing.T) {
 	if got := itemMap["gpt-5.4"].Tags; len(got) != 2 || got[0] != "text" || got[1] != "tool_calling" {
 		t.Fatalf("gpt-5.4 tags = %#v, want [text tool_calling]", got)
 	}
+	if itemMap["gpt-5.4"].Specification == nil {
+		t.Fatal("expected gpt-5.4 specification to be included")
+	}
 }
 
 func TestBuildOpenAIModelsForRequestFailsWhenProviderMissing(t *testing.T) {
@@ -77,6 +95,7 @@ func TestBuildOpenAIModelsForRequestFailsWhenProviderMissing(t *testing.T) {
 
 	original := loadGroupModelProvidersFn
 	originalTags := loadProviderModelTagsFn
+	originalSpecifications := loadProviderModelSpecificationsFn
 	loadGroupModelProvidersFn = func(groupID string, modelNames []string) (map[string]string, error) {
 		return map[string]string{
 			"gpt-5.4": "openai",
@@ -85,9 +104,13 @@ func TestBuildOpenAIModelsForRequestFailsWhenProviderMissing(t *testing.T) {
 	loadProviderModelTagsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string][]string, error) {
 		return map[string][]string{}, nil
 	}
+	loadProviderModelSpecificationsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string]*model.ProviderModelSpecification, error) {
+		return map[string]*model.ProviderModelSpecification{}, nil
+	}
 	t.Cleanup(func() {
 		loadGroupModelProvidersFn = original
 		loadProviderModelTagsFn = originalTags
+		loadProviderModelSpecificationsFn = originalSpecifications
 	})
 
 	_, _, err := buildOpenAIModelsForRequest(c)
@@ -105,6 +128,7 @@ func TestListModelsOwnedByUsesProviderStats(t *testing.T) {
 	original := loadGroupModelProvidersFn
 	originalEndpoints := loadGroupModelSupportedEndpointsFn
 	originalTags := loadProviderModelTagsFn
+	originalSpecifications := loadProviderModelSpecificationsFn
 	loadGroupModelProvidersFn = func(groupID string, modelNames []string) (map[string]string, error) {
 		return map[string]string{
 			"gpt-5.4":           "openai",
@@ -123,10 +147,24 @@ func TestListModelsOwnedByUsesProviderStats(t *testing.T) {
 			"claude-sonnet-4-6": {"text"},
 		}, nil
 	}
+	loadProviderModelSpecificationsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string]*model.ProviderModelSpecification, error) {
+		return map[string]*model.ProviderModelSpecification{
+			"claude-sonnet-4-6": {
+				Version: 1,
+				Endpoints: map[string]model.ProviderModelEndpointSpecification{
+					model.ChannelModelEndpointMessages: {
+						InputModalities:  []string{"text"},
+						OutputModalities: []string{"text"},
+					},
+				},
+			},
+		}, nil
+	}
 	t.Cleanup(func() {
 		loadGroupModelProvidersFn = original
 		loadGroupModelSupportedEndpointsFn = originalEndpoints
 		loadProviderModelTagsFn = originalTags
+		loadProviderModelSpecificationsFn = originalSpecifications
 	})
 
 	ListModels(c)
@@ -172,6 +210,11 @@ func TestListModelsOwnedByUsesProviderStats(t *testing.T) {
 	if got := tagsByModel["gpt-5.4"]; len(got) != 2 || got[0] != "text" || got[1] != "tool_calling" {
 		t.Fatalf("gpt-5.4 tags = %#v, want [text tool_calling]", got)
 	}
+	for _, item := range payload.Data {
+		if item.Id == "claude-sonnet-4-6" && item.Specification == nil {
+			t.Fatal("expected claude-sonnet-4-6 specification in list payload")
+		}
+	}
 }
 
 func TestListModelsFailsWhenProviderMissing(t *testing.T) {
@@ -182,15 +225,20 @@ func TestListModelsFailsWhenProviderMissing(t *testing.T) {
 
 	original := loadGroupModelProvidersFn
 	originalTags := loadProviderModelTagsFn
+	originalSpecifications := loadProviderModelSpecificationsFn
 	loadGroupModelProvidersFn = func(groupID string, modelNames []string) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	loadProviderModelTagsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string][]string, error) {
 		return map[string][]string{}, nil
 	}
+	loadProviderModelSpecificationsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string]*model.ProviderModelSpecification, error) {
+		return map[string]*model.ProviderModelSpecification{}, nil
+	}
 	t.Cleanup(func() {
 		loadGroupModelProvidersFn = original
 		loadProviderModelTagsFn = originalTags
+		loadProviderModelSpecificationsFn = originalSpecifications
 	})
 
 	ListModels(c)
@@ -212,6 +260,7 @@ func TestRetrieveModelSharesListOwnedByLogic(t *testing.T) {
 	original := loadGroupModelProvidersFn
 	originalEndpoints := loadGroupModelSupportedEndpointsFn
 	originalTags := loadProviderModelTagsFn
+	originalSpecifications := loadProviderModelSpecificationsFn
 	loadGroupModelProvidersFn = func(groupID string, modelNames []string) (map[string]string, error) {
 		return map[string]string{
 			"gpt-5.4": "openai",
@@ -227,10 +276,24 @@ func TestRetrieveModelSharesListOwnedByLogic(t *testing.T) {
 			"gpt-5.4": {"text", "reasoning"},
 		}, nil
 	}
+	loadProviderModelSpecificationsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string]*model.ProviderModelSpecification, error) {
+		return map[string]*model.ProviderModelSpecification{
+			"gpt-5.4": {
+				Version: 1,
+				Endpoints: map[string]model.ProviderModelEndpointSpecification{
+					model.ChannelModelEndpointResponses: {
+						InputModalities:  []string{"text"},
+						OutputModalities: []string{"text"},
+					},
+				},
+			},
+		}, nil
+	}
 	t.Cleanup(func() {
 		loadGroupModelProvidersFn = original
 		loadGroupModelSupportedEndpointsFn = originalEndpoints
 		loadProviderModelTagsFn = originalTags
+		loadProviderModelSpecificationsFn = originalSpecifications
 	})
 
 	{
@@ -255,6 +318,9 @@ func TestRetrieveModelSharesListOwnedByLogic(t *testing.T) {
 		}
 		if len(item.Tags) != 2 || item.Tags[0] != "text" || item.Tags[1] != "reasoning" {
 			t.Fatalf("tags = %#v, want [text reasoning]", item.Tags)
+		}
+		if item.Specification == nil {
+			t.Fatal("expected specification in retrieve payload")
 		}
 	}
 

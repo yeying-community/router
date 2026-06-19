@@ -25,6 +25,12 @@ type providerModelTagLookupRow struct {
 	Tags     string `gorm:"column:tags"`
 }
 
+type providerModelSpecificationLookupRow struct {
+	Provider      string `gorm:"column:provider"`
+	Model         string `gorm:"column:model"`
+	Specification string `gorm:"column:specification"`
+}
+
 func LoadUniqueProviderMapByModels(modelNames []string) (map[string]string, error) {
 	return LoadUniqueProviderMapByModelsWithDB(DB, modelNames)
 }
@@ -57,6 +63,42 @@ func LoadProviderModelTagMapByModelsWithDB(db *gorm.DB, providerByModel map[stri
 			continue
 		}
 		result[modelName] = NormalizeProviderModelTags(splitProviderModelTags(row.Tags))
+	}
+	return result, nil
+}
+
+func LoadProviderModelSpecificationMapByModelsWithDB(db *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string]*ProviderModelSpecification, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	candidates := NormalizeProviderLookupCandidates(modelNames...)
+	result := make(map[string]*ProviderModelSpecification, len(candidates))
+	if len(candidates) == 0 {
+		return result, nil
+	}
+	rows := make([]providerModelSpecificationLookupRow, 0)
+	if err := db.
+		Model(&ProviderModel{}).
+		Select("provider", "model", "specification").
+		Where("is_deleted = ? AND model IN ?", false, candidates).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		provider := NormalizeGroupModelProviderValue(row.Provider)
+		modelName := canonicalizeModelNameForProvider(provider, row.Model)
+		if modelName == "" {
+			continue
+		}
+		expectedProvider := ResolveProviderFromModelMap(providerByModel, modelName)
+		if expectedProvider == "" || expectedProvider != provider {
+			continue
+		}
+		specification, err := ParseProviderModelSpecification(row.Specification)
+		if err != nil {
+			return nil, fmt.Errorf("parse provider model specification for %s/%s: %w", provider, modelName, err)
+		}
+		result[modelName] = specification
 	}
 	return result, nil
 }

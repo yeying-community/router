@@ -2,6 +2,10 @@ package model
 
 import "testing"
 
+func intPointer(value int) *int {
+	return &value
+}
+
 func TestCanonicalizeModelNameForProvider(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -150,6 +154,66 @@ func TestBuildProviderModelStoreRows_IncludesPriceComponents(t *testing.T) {
 	}
 	if store.PriceComponents[0].Component != ProviderModelPriceComponentImageGeneration {
 		t.Fatalf("unexpected component %q", store.PriceComponents[0].Component)
+	}
+}
+
+func TestBuildProviderModelStoreRows_RoundTripsSpecification(t *testing.T) {
+	db := newProviderMigrationTestDB(t)
+	if err := db.AutoMigrate(&ProviderModel{}, &ProviderModelPriceComponent{}); err != nil {
+		t.Fatalf("auto migrate provider model tables: %v", err)
+	}
+	store := BuildProviderModelStoreRows("zhipu", []ProviderModelDetail{
+		{
+			Model: "glm-image",
+			Type:  ProviderModelTypeImage,
+			Tags:  []string{ProviderModelTagImage},
+			Specification: &ProviderModelSpecification{
+				Version: 1,
+				Endpoints: map[string]ProviderModelEndpointSpecification{
+					ChannelModelEndpointImages: {
+						InputModalities:  []string{"text"},
+						OutputModalities: []string{"image"},
+						Parameters: map[string]ProviderModelParameterSpecification{
+							"size": {
+								Type:          "enum",
+								AllowedValues: []string{"1920x1920", "1536x2304", "2304x1536"},
+							},
+						},
+						Constraints: &ProviderModelConstraintSpecification{
+							MinPixels:           intPointer(3686400),
+							AllowedAspectRatios: []string{"1:1", "2:3", "3:2"},
+						},
+					},
+				},
+			},
+		},
+	}, 300)
+	if len(store.Models) != 1 {
+		t.Fatalf("expected 1 model row, got %d", len(store.Models))
+	}
+	if store.Models[0].Specification == "" {
+		t.Fatal("expected specification to be serialized into provider_models row")
+	}
+	if err := db.Create(&store.Models).Error; err != nil {
+		t.Fatalf("create provider model rows: %v", err)
+	}
+	detailsMap, err := LoadProviderModelDetailsMapForProviders(db, []string{"zhipu"})
+	if err != nil {
+		t.Fatalf("LoadProviderModelDetailsMapForProviders failed: %v", err)
+	}
+	details := detailsMap["zhipu"]
+	if len(details) != 1 {
+		t.Fatalf("expected 1 loaded detail, got %d", len(details))
+	}
+	if details[0].Specification == nil {
+		t.Fatal("expected specification to round-trip from database")
+	}
+	spec := details[0].Specification.Endpoints[ChannelModelEndpointImages]
+	if spec.Constraints == nil || spec.Constraints.MinPixels == nil || *spec.Constraints.MinPixels != 3686400 {
+		t.Fatalf("min_pixels=%v, want 3686400", spec.Constraints)
+	}
+	if len(spec.Parameters["size"].AllowedValues) != 3 {
+		t.Fatalf("size allowed_values=%#v, want 3 values", spec.Parameters["size"].AllowedValues)
 	}
 }
 

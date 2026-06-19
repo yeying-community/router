@@ -71,15 +71,16 @@ type OpenAIModelPermission struct {
 }
 
 type OpenAIModels struct {
-	Id                 string                  `json:"id"`
-	Object             string                  `json:"object"`
-	Created            int                     `json:"created"`
-	OwnedBy            string                  `json:"owned_by"`
-	Tags               []string                `json:"tags"`
-	SupportedEndpoints []string                `json:"supported_endpoints"`
-	Permission         []OpenAIModelPermission `json:"permission"`
-	Root               string                  `json:"root"`
-	Parent             *string                 `json:"parent"`
+	Id                 string                            `json:"id"`
+	Object             string                            `json:"object"`
+	Created            int                               `json:"created"`
+	OwnedBy            string                            `json:"owned_by"`
+	Tags               []string                          `json:"tags"`
+	Specification      *model.ProviderModelSpecification `json:"specification,omitempty"`
+	SupportedEndpoints []string                          `json:"supported_endpoints"`
+	Permission         []OpenAIModelPermission           `json:"permission"`
+	Root               string                            `json:"root"`
+	Parent             *string                           `json:"parent"`
 }
 
 var defaultModelPermissions = []OpenAIModelPermission{
@@ -102,6 +103,7 @@ var defaultModelPermissions = []OpenAIModelPermission{
 var loadGroupModelProvidersFn = model.ListGroupModelProviderMapByModels
 var loadGroupModelSupportedEndpointsFn = listGroupModelSupportedEndpoints
 var loadProviderModelTagsFn = model.LoadProviderModelTagMapByModelsWithDB
+var loadProviderModelSpecificationsFn = model.LoadProviderModelSpecificationMapByModelsWithDB
 var loadProviderProtocolModelsFn = loadDashboardProtocolModels
 
 var endpointSortOrder = map[string]int{
@@ -291,6 +293,10 @@ func buildOpenAIModelsForRequest(c *gin.Context) ([]OpenAIModels, map[string]Ope
 	if err != nil {
 		return nil, nil, err
 	}
+	specificationsByModel, err := loadProviderModelSpecificationsFn(model.DB, providerByModel, modelNames)
+	if err != nil {
+		return nil, nil, err
+	}
 	items := make([]OpenAIModels, 0, len(modelNames))
 	itemMap := make(map[string]OpenAIModels, len(modelNames))
 	missingProviderModels := make([]string, 0)
@@ -306,6 +312,7 @@ func buildOpenAIModelsForRequest(c *gin.Context) ([]OpenAIModels, map[string]Ope
 			Created:            1626777600,
 			OwnedBy:            ownedBy,
 			Tags:               tagsByModel[modelName],
+			Specification:      specificationsByModel[modelName],
 			SupportedEndpoints: sortModelEndpoints(endpointsByModel[modelName]),
 			Permission:         cloneDefaultModelPermissions(),
 			Root:               modelName,

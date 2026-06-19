@@ -1456,6 +1456,16 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderMigrationProvidersWithDB(tx, "zhipu")
 			},
 		},
+		{
+			Version:     "202606191140_provider_model_specification",
+			Description: "add provider model specification field and refresh zhipu official image usage spec",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&ProviderModel{}); err != nil {
+					return err
+				}
+				return upsertProviderMigrationProvidersWithDB(tx, "zhipu")
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

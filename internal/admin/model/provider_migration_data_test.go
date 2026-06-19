@@ -1098,6 +1098,39 @@ func TestBuildProviderMigrationSeeds_ZhipuIncludesGLM52OfficialPricing(t *testin
 	t.Fatalf("expected zhipu provider to exist")
 }
 
+func TestBuildProviderMigrationSeeds_ZhipuIncludesGLMImageSpecification(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	for _, seed := range seeds {
+		if seed.Provider != "zhipu" {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			if detail.Model != "glm-image" {
+				continue
+			}
+			if detail.Type != ProviderModelTypeImage {
+				t.Fatalf("glm-image type=%q, want %q", detail.Type, ProviderModelTypeImage)
+			}
+			if detail.Specification == nil {
+				t.Fatal("glm-image specification should not be nil")
+			}
+			spec, ok := detail.Specification.Endpoints[ChannelModelEndpointImages]
+			if !ok {
+				t.Fatalf("glm-image endpoints=%#v, want /v1/images/generations", detail.Specification.Endpoints)
+			}
+			if spec.Constraints == nil || spec.Constraints.MinPixels == nil || *spec.Constraints.MinPixels != 3686400 {
+				t.Fatalf("glm-image min_pixels=%v, want 3686400", spec.Constraints)
+			}
+			if len(spec.Parameters["size"].AllowedValues) != 3 {
+				t.Fatalf("glm-image size allowed_values=%#v, want 3 values", spec.Parameters["size"].AllowedValues)
+			}
+			return
+		}
+		t.Fatalf("expected zhipu seed to include glm-image")
+	}
+	t.Fatalf("expected zhipu provider to exist")
+}
+
 func TestBuildProviderMigrationSeeds_ZhipuEmbeddingModelsUseEmbeddingsEndpoint(t *testing.T) {
 	seeds := mustLoadProviderMigrationSeeds(t)
 	expectedModels := map[string]bool{

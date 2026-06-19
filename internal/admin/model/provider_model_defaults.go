@@ -65,6 +65,7 @@ type ProviderModelDetail struct {
 	Tags               []string                            `json:"tags,omitempty"`
 	Status             string                              `json:"status,omitempty"`
 	Description        string                              `json:"description,omitempty"`
+	Specification      *ProviderModelSpecification         `json:"specification,omitempty"`
 	IsDeleted          bool                                `json:"is_deleted,omitempty"`
 	SupportedEndpoints []string                            `json:"supported_endpoints,omitempty"`
 	InputPrice         float64                             `json:"input_price,omitempty"`
@@ -129,6 +130,7 @@ func NormalizeProviderModelDetails(details []ProviderModelDetail) []ProviderMode
 			Tags:               tags,
 			Status:             status,
 			Description:        strings.TrimSpace(detail.Description),
+			Specification:      NormalizeProviderModelSpecification(detail.Specification),
 			IsDeleted:          detail.IsDeleted,
 			SupportedEndpoints: NormalizeProviderModelSupportedEndpointsForModel(t, modelName, detail.SupportedEndpoints),
 			InputPrice:         inputPrice,
@@ -153,6 +155,9 @@ func NormalizeProviderModelDetails(details []ProviderModelDetail) []ProviderMode
 			}
 			if existing.Description == "" {
 				existing.Description = entry.Description
+			}
+			if existing.Specification == nil && entry.Specification != nil {
+				existing.Specification = NormalizeProviderModelSpecification(entry.Specification)
 			}
 			if entry.IsDeleted {
 				existing.IsDeleted = true

@@ -4098,6 +4098,48 @@
         ],
         "status": "active",
         "description": "GLM-Image 是智谱的图像生成模型。",
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/images/generations": {
+              "input_modalities": [
+                "text"
+              ],
+              "output_modalities": [
+                "image"
+              ],
+              "parameters": {
+                "n": {
+                  "type": "integer",
+                  "min": 1,
+                  "max": 4
+                },
+                "quality": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "standard"
+                  ]
+                },
+                "size": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "1536x2304",
+                    "1920x1920",
+                    "2304x1536"
+                  ]
+                }
+              },
+              "constraints": {
+                "min_pixels": 3686400,
+                "allowed_aspect_ratios": [
+                  "1:1",
+                  "2:3",
+                  "3:2"
+                ]
+              }
+            }
+          }
+        },
         "supported_endpoints": [
           "/v1/images/generations"
         ],

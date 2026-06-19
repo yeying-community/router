@@ -20,6 +20,7 @@ type ProviderModel struct {
 	Tags               string  `json:"tags" gorm:"type:text;default:''"`
 	Status             string  `json:"status" gorm:"type:varchar(32);not null;default:'active'"`
 	Description        string  `json:"description" gorm:"type:text;default:''"`
+	Specification      string  `json:"specification" gorm:"type:text;default:''"`
 	IsDeleted          bool    `json:"is_deleted" gorm:"not null;default:false"`
 	SupportedEndpoints string  `json:"supported_endpoints" gorm:"type:text;default:''"`
 	InputPrice         float64 `json:"input_price" gorm:"type:double precision;default:0"`
@@ -86,12 +87,17 @@ func ListActiveProviderModelDetailsWithDB(db *gorm.DB, provider string) ([]Provi
 		if modelType == "" {
 			modelType = normalizeModelType("", modelName)
 		}
+		specification, err := ParseProviderModelSpecification(row.Specification)
+		if err != nil {
+			return nil, fmt.Errorf("parse provider model specification for %s/%s: %w", normalizedProvider, modelName, err)
+		}
 		result = append(result, ProviderModelDetail{
 			Model:              modelName,
 			Type:               modelType,
 			Tags:               tags,
 			Status:             normalizeProviderModelStatus(row.Status),
 			Description:        strings.TrimSpace(row.Description),
+			Specification:      specification,
 			IsDeleted:          row.IsDeleted,
 			SupportedEndpoints: splitProviderModelSupportedEndpoints(row.SupportedEndpoints),
 			InputPrice:         row.InputPrice,
