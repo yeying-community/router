@@ -39,11 +39,11 @@ func ApplyProcurementCostObservation(logRow *model.Log) {
 	if logRow.BillingOfficialAnchorAmount == 0 {
 		logRow.BillingOfficialAnchorAmount = logRow.BillingAmount
 	}
-	if logRow.BillingOfficialAnchorAmountCNY == 0 {
-		logRow.BillingOfficialAnchorAmountCNY = convertBillingAmountToCNY(logRow.BillingOfficialAnchorAmount, logRow.BillingOfficialAnchorCurrency)
+	if logRow.BillingOfficialAnchorBaseAmount == 0 {
+		logRow.BillingOfficialAnchorBaseAmount = convertBillingAmountToBaseAmount(logRow.BillingOfficialAnchorAmount, logRow.BillingOfficialAnchorCurrency)
 	}
-	if logRow.BillingSellAmountCNY == 0 {
-		logRow.BillingSellAmountCNY = convertYYCToCNY(float64(logRow.BillingYYCAmount))
+	if logRow.BillingSellBaseAmount == 0 {
+		logRow.BillingSellBaseAmount = convertChargeAmountToBaseAmount(float64(logRow.BillingChargeAmount))
 	}
 	if strings.TrimSpace(logRow.BillingProcurementCostSource) == "" {
 		logRow.BillingProcurementCostSource = model.ProcurementCostSourceNone
@@ -58,9 +58,9 @@ func ApplyProcurementCostObservation(logRow *model.Log) {
 	if logRow.BillingProcurementCostSource == model.ProcurementCostSourceActual ||
 		logRow.BillingProcurementCostSource == model.ProcurementCostSourceEstimated ||
 		logRow.BillingProcurementCostSource == model.ProcurementCostSourceZeroCost {
-		logRow.BillingGrossProfitCNY = logRow.BillingSellAmountCNY - logRow.BillingProcurementCostCNY
-		if logRow.BillingSellAmountCNY > 0 {
-			logRow.BillingGrossMargin = logRow.BillingGrossProfitCNY / logRow.BillingSellAmountCNY
+		logRow.BillingGrossProfitBaseAmount = logRow.BillingSellBaseAmount - logRow.BillingProcurementCostBaseAmount
+		if logRow.BillingSellBaseAmount > 0 {
+			logRow.BillingGrossMargin = logRow.BillingGrossProfitBaseAmount / logRow.BillingSellBaseAmount
 		}
 	}
 }
@@ -92,7 +92,7 @@ func RecordProcurementConsumptionObservation(ctx context.Context, logRow *model.
 	if len(result.Consumptions) == 0 {
 		return
 	}
-	if err := model.UpdateLogProcurementCostObservation(logRow.Id, result.TotalCostCNY, result.CostSource, logRow.BillingSellAmountCNY); err != nil {
+	if err := model.UpdateLogProcurementCostObservation(logRow.Id, result.TotalCostAmount, result.CostSource, logRow.BillingSellBaseAmount); err != nil {
 		logger.Errorf(ctx, "procurement cost log update failed log_id=%s channel_id=%s model=%s err=%q", strings.TrimSpace(logRow.Id), strings.TrimSpace(logRow.ChannelId), strings.TrimSpace(logRow.ModelName), err.Error())
 	}
 }
@@ -174,28 +174,28 @@ func procurementConsumptionQuantity(logRow *model.Log) float64 {
 	}
 }
 
-func convertBillingAmountToCNY(amount float64, currency string) float64 {
+func convertBillingAmountToBaseAmount(amount float64, currency string) float64 {
 	if amount == 0 {
 		return 0
 	}
-	sourceYYCPerUnit, err := model.GetBillingCurrencyYYCPerUnit(currency)
-	if err != nil || sourceYYCPerUnit <= 0 {
+	sourceChargeRate, err := model.GetBillingCurrencyChargeRate(currency)
+	if err != nil || sourceChargeRate <= 0 {
 		return 0
 	}
-	cnyYYCPerUnit, err := model.GetBillingCurrencyYYCPerUnit(model.BillingCurrencyCodeCNY)
-	if err != nil || cnyYYCPerUnit <= 0 {
+	cnyChargeRate, err := model.GetBillingCurrencyChargeRate(model.BillingCurrencyCodeCNY)
+	if err != nil || cnyChargeRate <= 0 {
 		return 0
 	}
-	return amount * sourceYYCPerUnit / cnyYYCPerUnit
+	return amount * sourceChargeRate / cnyChargeRate
 }
 
-func convertYYCToCNY(yycAmount float64) float64 {
-	if yycAmount == 0 {
+func convertChargeAmountToBaseAmount(chargeAmount float64) float64 {
+	if chargeAmount == 0 {
 		return 0
 	}
-	cnyYYCPerUnit, err := model.GetBillingCurrencyYYCPerUnit(model.BillingCurrencyCodeCNY)
-	if err != nil || cnyYYCPerUnit <= 0 {
+	cnyChargeRate, err := model.GetBillingCurrencyChargeRate(model.BillingCurrencyCodeCNY)
+	if err != nil || cnyChargeRate <= 0 {
 		return 0
 	}
-	return yycAmount / cnyYYCPerUnit
+	return chargeAmount / cnyChargeRate
 }

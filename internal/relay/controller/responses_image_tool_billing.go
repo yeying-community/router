@@ -28,7 +28,7 @@ type responsesImageToolBillingDetail struct {
 	Calls        int
 	OutputTokens int
 	Amount       float64
-	YYCAmount    int64
+	ChargeAmount int64
 	PriceUnit    string
 	Applied      bool
 }
@@ -124,9 +124,9 @@ func maybeApplyResponsesImageToolBilling(snapshot *billing.BillingSnapshot, usag
 	}
 	snapshot.InputAmount += extraSnapshot.Amount
 	snapshot.Amount += extraSnapshot.Amount
-	snapshot.YYCAmount += extraSnapshot.YYCAmount
-	if snapshot.YYCRate == 0 {
-		snapshot.YYCRate = extraSnapshot.YYCRate
+	snapshot.ChargeAmount += extraSnapshot.ChargeAmount
+	if snapshot.ChargeRate == 0 {
+		snapshot.ChargeRate = extraSnapshot.ChargeRate
 	}
 	if !strings.EqualFold(strings.TrimSpace(snapshot.PriceUnit), strings.TrimSpace(extraSnapshot.PriceUnit)) {
 		snapshot.PriceUnit = mixedBillingPriceUnit
@@ -137,13 +137,13 @@ func maybeApplyResponsesImageToolBilling(snapshot *billing.BillingSnapshot, usag
 		Calls:        usage.ImageGenerationCalls,
 		OutputTokens: imageOutputTokens,
 		Amount:       extraSnapshot.Amount,
-		YYCAmount:    extraSnapshot.YYCAmount,
+		ChargeAmount: extraSnapshot.ChargeAmount,
 		PriceUnit:    extraSnapshot.PriceUnit,
 		Applied:      true,
 	}
 	snapshot.ImageToolCalls = detail.Calls
 	snapshot.ImageToolOutputTokens = detail.OutputTokens
 	snapshot.ImageToolAmount = detail.Amount
-	snapshot.ImageToolYYCAmount = detail.YYCAmount
-	return detail, fmt.Sprintf("responses_image_fee model=%s calls=%d size=%s quality=%s unit=%s amount=%.6f quota=%d", spec.Model, usage.ImageGenerationCalls, spec.Size, spec.Quality, extraSnapshot.PriceUnit, extraSnapshot.Amount, extraSnapshot.YYCAmount), nil
+	snapshot.ImageToolChargeAmount = detail.ChargeAmount
+	return detail, fmt.Sprintf("responses_image_fee model=%s calls=%d size=%s quality=%s unit=%s amount=%.6f quota=%d", spec.Model, usage.ImageGenerationCalls, spec.Size, spec.Quality, extraSnapshot.PriceUnit, extraSnapshot.Amount, extraSnapshot.ChargeAmount), nil
 }

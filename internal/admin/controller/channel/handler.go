@@ -35,7 +35,7 @@ type channelListItem struct {
 	BillingSnapshotAt     int64                          `json:"billing_snapshot_at"`
 	BillingQuotaItemCount int                            `json:"billing_quota_item_count"`
 	UsedQuota             int64                          `json:"used_quota"`
-	YYCUsed               int64                          `json:"yyc_used"`
+	UsedAmount            int64                          `json:"used_amount"`
 	Priority              int64                          `json:"priority"`
 	CircuitBreaker        *channelCircuitBreakerListItem `json:"circuit_breaker,omitempty"`
 }
@@ -139,7 +139,7 @@ func buildChannelListItem(channel *model.Channel) channelListItem {
 		BaseURL:      baseURL,
 		Other:        other,
 		UsedQuota:    channel.UsedQuota,
-		YYCUsed:      channel.UsedQuota,
+		UsedAmount:   channel.UsedQuota,
 		Priority:     channel.GetPriority(),
 	}
 }

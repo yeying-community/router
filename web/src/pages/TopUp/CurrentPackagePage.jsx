@@ -74,10 +74,10 @@ const createEmptyQuotaSummary = () => ({
 const normalizeDailySnapshot = (raw) => ({
   biz_date: (raw?.biz_date || '').toString().trim(),
   timezone: (raw?.timezone || '').toString().trim(),
-  limit: Number(raw?.yyc_limit ?? raw?.limit ?? 0) || 0,
-  consumed_quota: Number(raw?.yyc_consumed ?? raw?.consumed_quota ?? 0) || 0,
-  reserved_quota: Number(raw?.yyc_reserved ?? raw?.reserved_quota ?? 0) || 0,
-  remaining_quota: Number(raw?.yyc_remaining ?? raw?.remaining_quota ?? 0) || 0,
+  limit: Number(raw?.limit_amount ?? raw?.limit ?? 0) || 0,
+  consumed_quota: Number(raw?.consumed_amount ?? raw?.consumed_quota ?? 0) || 0,
+  reserved_quota: Number(raw?.reserved_amount ?? raw?.reserved_quota ?? 0) || 0,
+  remaining_quota: Number(raw?.remaining_amount ?? raw?.remaining_quota ?? 0) || 0,
   unlimited: raw?.unlimited === true,
 });
 
@@ -86,25 +86,25 @@ const normalizeQuotaSummary = (raw) => ({
     biz_month: (raw?.package_emergency?.biz_month || '').toString().trim(),
     timezone: (raw?.package_emergency?.timezone || '').toString().trim(),
     limit: Number(
-      raw?.package_emergency?.yyc_limit ??
+      raw?.package_emergency?.limit_amount ??
         raw?.package_emergency?.limit ??
         0,
     ) || 0,
     consumed_quota:
       Number(
-        raw?.package_emergency?.yyc_consumed ??
+        raw?.package_emergency?.consumed_amount ??
           raw?.package_emergency?.consumed_quota ??
           0,
       ) || 0,
     reserved_quota:
       Number(
-        raw?.package_emergency?.yyc_reserved ??
+        raw?.package_emergency?.reserved_amount ??
           raw?.package_emergency?.reserved_quota ??
           0,
       ) || 0,
     remaining_quota:
       Number(
-        raw?.package_emergency?.yyc_remaining ??
+        raw?.package_emergency?.remaining_amount ??
           raw?.package_emergency?.remaining_quota ??
           0,
       ) || 0,
@@ -197,9 +197,9 @@ const CurrentPackagePage = () => {
   const [submittingUpgrade, setSubmittingUpgrade] = useState(false);
 
   const renderIntegerAmount = useCallback(
-    (yycAmount) =>
+    (chargeAmount) =>
       renderTopupIntegerAmountWithExactPopup({
-        yycAmount,
+        chargeAmount,
         displayCurrency,
         displayCurrencyIndex,
       }),

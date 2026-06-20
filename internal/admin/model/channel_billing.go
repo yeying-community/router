@@ -87,24 +87,24 @@ func (ChannelBillingProfile) TableName() string {
 }
 
 type ChannelBillingSnapshot struct {
-	Id               string                       `json:"id" gorm:"type:char(36);primaryKey"`
-	ChannelId        string                       `json:"channel_id" gorm:"type:char(36);not null;index"`
-	SourceType       string                       `json:"source_type" gorm:"type:varchar(32);not null;default:'manual'"`
-	Balance          float64                      `json:"balance" gorm:"not null;default:0"`
-	Currency         string                       `json:"currency" gorm:"type:varchar(16);default:''"`
-	PurchaseAt       int64                        `json:"purchase_at" gorm:"bigint;not null;default:0;index"`
-	PurchaseCurrency string                       `json:"purchase_currency" gorm:"type:varchar(16);not null;default:''"`
-	PurchaseAmount   float64                      `json:"purchase_amount" gorm:"type:double precision;not null;default:0"`
-	PurchaseFXRate   float64                      `json:"purchase_fx_rate" gorm:"type:double precision;not null;default:0"`
-	PurchaseCostCNY  float64                      `json:"purchase_cost_cny" gorm:"type:double precision;not null;default:0"`
-	RawStatus        string                       `json:"raw_status" gorm:"type:varchar(64);default:''"`
-	Message          string                       `json:"message" gorm:"type:text"`
-	RequestURL       string                       `json:"request_url" gorm:"type:text"`
-	ResponseExcerpt  string                       `json:"response_excerpt" gorm:"type:text"`
-	OperatorUserId   string                       `json:"operator_user_id" gorm:"type:char(36);default:'';index"`
-	TaskId           string                       `json:"task_id" gorm:"type:char(36);default:'';index"`
-	CreatedAt        int64                        `json:"created_at" gorm:"bigint;index"`
-	Items            []ChannelBillingSnapshotItem `json:"items,omitempty" gorm:"-"`
+	Id                 string                       `json:"id" gorm:"type:char(36);primaryKey"`
+	ChannelId          string                       `json:"channel_id" gorm:"type:char(36);not null;index"`
+	SourceType         string                       `json:"source_type" gorm:"type:varchar(32);not null;default:'manual'"`
+	Balance            float64                      `json:"balance" gorm:"not null;default:0"`
+	Currency           string                       `json:"currency" gorm:"type:varchar(16);default:''"`
+	PurchaseAt         int64                        `json:"purchase_at" gorm:"bigint;not null;default:0;index"`
+	PurchaseCurrency   string                       `json:"purchase_currency" gorm:"type:varchar(16);not null;default:''"`
+	PurchaseAmount     float64                      `json:"purchase_amount" gorm:"type:double precision;not null;default:0"`
+	PurchaseFXRate     float64                      `json:"purchase_fx_rate" gorm:"type:double precision;not null;default:0"`
+	PurchaseCostAmount float64                      `json:"purchase_cost_amount" gorm:"type:double precision;not null;default:0"`
+	RawStatus          string                       `json:"raw_status" gorm:"type:varchar(64);default:''"`
+	Message            string                       `json:"message" gorm:"type:text"`
+	RequestURL         string                       `json:"request_url" gorm:"type:text"`
+	ResponseExcerpt    string                       `json:"response_excerpt" gorm:"type:text"`
+	OperatorUserId     string                       `json:"operator_user_id" gorm:"type:char(36);default:'';index"`
+	TaskId             string                       `json:"task_id" gorm:"type:char(36);default:'';index"`
+	CreatedAt          int64                        `json:"created_at" gorm:"bigint;index"`
+	Items              []ChannelBillingSnapshotItem `json:"items,omitempty" gorm:"-"`
 }
 
 func (ChannelBillingSnapshot) TableName() string {
@@ -742,13 +742,13 @@ func UpdateChannelBillingSnapshotPurchaseWithDB(db *gorm.DB, row ChannelBillingS
 		return ChannelBillingSnapshot{}, fmt.Errorf("采购币种不能为空")
 	}
 	updates := map[string]any{
-		"purchase_at":       row.PurchaseAt,
-		"purchase_currency": purchaseCurrency,
-		"purchase_amount":   row.PurchaseAmount,
-		"purchase_fx_rate":  row.PurchaseFXRate,
-		"purchase_cost_cny": row.PurchaseCostCNY,
-		"message":           strings.TrimSpace(row.Message),
-		"operator_user_id":  strings.TrimSpace(row.OperatorUserId),
+		"purchase_at":          row.PurchaseAt,
+		"purchase_currency":    purchaseCurrency,
+		"purchase_amount":      row.PurchaseAmount,
+		"purchase_fx_rate":     row.PurchaseFXRate,
+		"purchase_cost_amount": row.PurchaseCostAmount,
+		"message":              strings.TrimSpace(row.Message),
+		"operator_user_id":     strings.TrimSpace(row.OperatorUserId),
 	}
 	if err := db.Model(&ChannelBillingSnapshot{}).
 		Where("id = ? AND channel_id = ?", normalizedID, normalizedChannelID).

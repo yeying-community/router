@@ -48,7 +48,7 @@ func getActiveTopupEntitlementGroupWithDB(db *gorm.DB, userID string, now int64)
 		WHERE l.user_id = ?
 		  AND l.source_type = ?
 		  AND l.status = ?
-		  AND l.remaining_yyc > 0
+		  AND l.remaining_amount > 0
 		  AND (l.expires_at = 0 OR l.expires_at > ?)
 		  AND COALESCE(TRIM(p.group_id), '') <> ''
 		ORDER BY l.granted_at DESC, l.created_at DESC, l.id DESC
@@ -65,7 +65,7 @@ func getActiveRedemptionEntitlementGroupWithDB(db *gorm.DB, userID string, now i
 		WHERE l.user_id = ?
 		  AND l.source_type = ?
 		  AND l.status = ?
-		  AND l.remaining_yyc > 0
+		  AND l.remaining_amount > 0
 		  AND (l.expires_at = 0 OR l.expires_at > ?)
 		  AND COALESCE(TRIM(r.group_id), '') <> ''
 		ORDER BY l.granted_at DESC, l.created_at DESC, l.id DESC

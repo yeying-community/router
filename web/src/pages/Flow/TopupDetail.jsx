@@ -27,7 +27,7 @@ const formatAmount = (row) =>
     ? `${readOnlyText(row?.currency)} ${Number(row?.amount || 0).toFixed(6)}`
     : '-';
 
-const formatYYC = (value) => {
+const formatChargeAmount = (value) => {
   const numericValue = Number(value || 0);
   if (!Number.isFinite(numericValue)) {
     return '-';
@@ -208,7 +208,7 @@ const TopupDetail = () => {
                       {t('topup.external_topup_orders.columns.quota')}
                     </div>
                     <pre className='router-detail-value'>
-                      {formatYYC(record?.yyc_value)}
+                      {formatChargeAmount(record?.credit_amount)}
                     </pre>
                   </div>
                   <div className='router-detail-item'>

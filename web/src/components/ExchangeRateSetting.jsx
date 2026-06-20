@@ -84,8 +84,8 @@ const ExchangeRateSetting = ({ section = '' }) => {
           base: item.code,
           quote: YYC_CODE,
           rate:
-            item?.yyc_per_unit === 0 || item?.yyc_per_unit
-              ? `${item.yyc_per_unit}`
+            item?.charge_rate === 0 || item?.charge_rate
+              ? `${item.charge_rate}`
               : '0',
           provider: t('setting.exchange.providers.manual'),
           rate_date: '',
@@ -168,7 +168,7 @@ const ExchangeRateSetting = ({ section = '' }) => {
           name: currency?.name,
           symbol: currency?.symbol,
           minor_unit: Number(currency?.minor_unit ?? 6),
-          yyc_per_unit: rate,
+          charge_rate: rate,
           status: Number(currency?.status || 1),
           source: (currency?.source || 'manual').toString().trim() || 'manual',
         },

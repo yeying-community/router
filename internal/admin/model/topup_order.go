@@ -93,17 +93,17 @@ type TopupOrderCallbackInput struct {
 }
 
 type PackagePurchasePreview struct {
-	OperationType      string  `json:"operation_type"`
-	StartAt            int64   `json:"start_at"`
-	ExpiresAt          int64   `json:"expires_at"`
-	CurrentExpiresAt   int64   `json:"current_expires_at"`
-	TargetPackageID    string  `json:"target_package_id"`
-	TargetPackageName  string  `json:"target_package_name"`
-	CurrentPackageID   string  `json:"current_package_id"`
-	CurrentPackageName string  `json:"current_package_name"`
-	PayableAmount      float64 `json:"payable_amount"`
-	PayableCurrency    string  `json:"payable_currency"`
-	PayableYYC         int64   `json:"payable_yyc"`
+	OperationType       string  `json:"operation_type"`
+	StartAt             int64   `json:"start_at"`
+	ExpiresAt           int64   `json:"expires_at"`
+	CurrentExpiresAt    int64   `json:"current_expires_at"`
+	TargetPackageID     string  `json:"target_package_id"`
+	TargetPackageName   string  `json:"target_package_name"`
+	CurrentPackageID    string  `json:"current_package_id"`
+	CurrentPackageName  string  `json:"current_package_name"`
+	PayableAmount       float64 `json:"payable_amount"`
+	PayableCurrency     string  `json:"payable_currency"`
+	PayableChargeAmount int64   `json:"payable_charge_amount"`
 }
 
 func (TopupOrder) TableName() string {
@@ -344,66 +344,66 @@ func resolvePackagePurchaseOperationType(requestedOperationType string, activeSu
 	return TopupOrderOperationUpgrade
 }
 
-func calcPackagePriceYYC(amount float64, currency string) (int64, error) {
+func calcPackageChargeAmount(amount float64, currency string) (int64, error) {
 	if amount <= 0 {
 		return 0, nil
 	}
-	yycPerUnit, err := GetBillingCurrencyYYCPerUnit(currency)
+	chargeRate, err := GetBillingCurrencyChargeRate(currency)
 	if err != nil {
 		return 0, err
 	}
-	return normalizeTopupOrderQuota(int64(math.Round(amount * yycPerUnit))), nil
+	return normalizeTopupOrderQuota(int64(math.Round(amount * chargeRate))), nil
 }
 
-func calcPayableAmountByYYC(payableYYC int64, currency string) (float64, error) {
-	if payableYYC <= 0 {
+func calcPayableAmountByChargeAmount(payableAmount int64, currency string) (float64, error) {
+	if payableAmount <= 0 {
 		return 0, nil
 	}
-	yycPerUnit, err := GetBillingCurrencyYYCPerUnit(currency)
+	chargeRate, err := GetBillingCurrencyChargeRate(currency)
 	if err != nil {
 		return 0, err
 	}
-	if yycPerUnit <= 0 {
+	if chargeRate <= 0 {
 		return 0, fmt.Errorf("币种兑换率无效：%s", strings.TrimSpace(strings.ToUpper(currency)))
 	}
 	// Round up to cents to avoid rounding down an otherwise payable amount.
-	amount := math.Ceil((float64(payableYYC)/yycPerUnit)*100) / 100
+	amount := math.Ceil((float64(payableAmount)/chargeRate)*100) / 100
 	if amount <= 0 {
 		return 0.01, nil
 	}
 	return amount, nil
 }
 
-func calcUpgradePayableYYCWithDB(db *gorm.DB, activeSubscription UserPackageSubscription, targetPackage ServicePackage, now int64) (int64, error) {
+func calcUpgradePayableAmountWithDB(db *gorm.DB, activeSubscription UserPackageSubscription, targetPackage ServicePackage, now int64) (int64, error) {
 	if db == nil {
 		return 0, fmt.Errorf("database handle is nil")
 	}
 	if activeSubscription.ExpiresAt <= 0 {
-		targetYYC, err := calcPackagePriceYYC(targetPackage.SalePrice, targetPackage.SaleCurrency)
+		targetChargeAmount, err := calcPackageChargeAmount(targetPackage.SalePrice, targetPackage.SaleCurrency)
 		if err != nil {
 			return 0, err
 		}
-		return targetYYC, nil
+		return targetChargeAmount, nil
 	}
 	currentPackage, err := getServicePackageByIDWithDB(db, activeSubscription.PackageID)
 	if err != nil {
 		// If historical template is missing, fallback to full target price.
-		targetYYC, convertErr := calcPackagePriceYYC(targetPackage.SalePrice, targetPackage.SaleCurrency)
+		targetChargeAmount, convertErr := calcPackageChargeAmount(targetPackage.SalePrice, targetPackage.SaleCurrency)
 		if convertErr != nil {
 			return 0, convertErr
 		}
-		return targetYYC, nil
+		return targetChargeAmount, nil
 	}
-	currentYYC, err := calcPackagePriceYYC(currentPackage.SalePrice, currentPackage.SaleCurrency)
+	currentChargeAmount, err := calcPackageChargeAmount(currentPackage.SalePrice, currentPackage.SaleCurrency)
 	if err != nil {
 		return 0, err
 	}
-	targetYYC, err := calcPackagePriceYYC(targetPackage.SalePrice, targetPackage.SaleCurrency)
+	targetChargeAmount, err := calcPackageChargeAmount(targetPackage.SalePrice, targetPackage.SaleCurrency)
 	if err != nil {
 		return 0, err
 	}
-	diffYYC := targetYYC - currentYYC
-	if diffYYC <= 0 {
+	diffChargeAmount := targetChargeAmount - currentChargeAmount
+	if diffChargeAmount <= 0 {
 		return 0, nil
 	}
 
@@ -413,7 +413,7 @@ func calcUpgradePayableYYCWithDB(db *gorm.DB, activeSubscription UserPackageSubs
 		periodSeconds = int64(durationDays) * 86400
 	}
 	if periodSeconds <= 0 {
-		return diffYYC, nil
+		return diffChargeAmount, nil
 	}
 	remainingSeconds := activeSubscription.ExpiresAt - now
 	if remainingSeconds <= 0 {
@@ -422,7 +422,7 @@ func calcUpgradePayableYYCWithDB(db *gorm.DB, activeSubscription UserPackageSubs
 	if remainingSeconds > periodSeconds {
 		remainingSeconds = periodSeconds
 	}
-	return int64(math.Ceil(float64(diffYYC) * (float64(remainingSeconds) / float64(periodSeconds)))), nil
+	return int64(math.Ceil(float64(diffChargeAmount) * (float64(remainingSeconds) / float64(periodSeconds)))), nil
 }
 
 func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, requestedOperationType string, now int64) (PackagePurchasePreview, error) {
@@ -503,11 +503,11 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 		preview.StartAt = startAt
 		preview.ExpiresAt = expiresAt
 		preview.PayableAmount = normalizeTopupOrderAmount(targetPackage.SalePrice)
-		payableYYC, err := calcPackagePriceYYC(preview.PayableAmount, preview.PayableCurrency)
+		payableChargeAmount, err := calcPackageChargeAmount(preview.PayableAmount, preview.PayableCurrency)
 		if err != nil {
 			return PackagePurchasePreview{}, err
 		}
-		preview.PayableYYC = payableYYC
+		preview.PayableChargeAmount = payableChargeAmount
 	case TopupOrderOperationUpgrade:
 		if active == nil {
 			operationType = TopupOrderOperationNew
@@ -516,18 +516,18 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 			return PackagePurchasePreview{}, fmt.Errorf("目标套餐与当前套餐一致，请使用续费")
 		}
 		if preview.OperationType == TopupOrderOperationUpgrade {
-			payableYYC, err := calcUpgradePayableYYCWithDB(db, *active, targetPackage, effectiveNow)
+			payableChargeAmount, err := calcUpgradePayableAmountWithDB(db, *active, targetPackage, effectiveNow)
 			if err != nil {
 				return PackagePurchasePreview{}, err
 			}
-			if payableYYC <= 0 {
+			if payableChargeAmount <= 0 {
 				return PackagePurchasePreview{}, fmt.Errorf("目标套餐无需补差价，请选择续费或待当前周期结束后更换")
 			}
-			payableAmount, err := calcPayableAmountByYYC(payableYYC, preview.PayableCurrency)
+			payableAmount, err := calcPayableAmountByChargeAmount(payableChargeAmount, preview.PayableCurrency)
 			if err != nil {
 				return PackagePurchasePreview{}, err
 			}
-			preview.PayableYYC = payableYYC
+			preview.PayableChargeAmount = payableChargeAmount
 			preview.PayableAmount = normalizeTopupOrderAmount(payableAmount)
 			preview.StartAt = effectiveNow
 			preview.ExpiresAt = active.ExpiresAt
@@ -543,11 +543,11 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 		preview.StartAt = effectiveNow
 		preview.ExpiresAt = expiresAt
 		preview.PayableAmount = normalizeTopupOrderAmount(targetPackage.SalePrice)
-		payableYYC, err := calcPackagePriceYYC(preview.PayableAmount, preview.PayableCurrency)
+		payableChargeAmount, err := calcPackageChargeAmount(preview.PayableAmount, preview.PayableCurrency)
 		if err != nil {
 			return PackagePurchasePreview{}, err
 		}
-		preview.PayableYYC = payableYYC
+		preview.PayableChargeAmount = payableChargeAmount
 	default:
 		return PackagePurchasePreview{}, fmt.Errorf("无效的套餐操作类型")
 	}
@@ -555,12 +555,12 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 	if preview.PayableAmount <= 0 {
 		return PackagePurchasePreview{}, fmt.Errorf("套餐应付金额必须大于 0")
 	}
-	if preview.PayableYYC <= 0 {
-		payableYYC, err := calcPackagePriceYYC(preview.PayableAmount, preview.PayableCurrency)
+	if preview.PayableChargeAmount <= 0 {
+		payableChargeAmount, err := calcPackageChargeAmount(preview.PayableAmount, preview.PayableCurrency)
 		if err != nil {
 			return PackagePurchasePreview{}, err
 		}
-		preview.PayableYYC = payableYYC
+		preview.PayableChargeAmount = payableChargeAmount
 	}
 	return preview, nil
 }
@@ -730,7 +730,7 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 			order.TopupPlanID = strings.TrimSpace(resolvedPlan.Id)
 			order.Amount = normalizeTopupOrderAmount(resolvedPlan.Amount)
 			order.Currency = normalizeTopupOrderCurrency(resolvedPlan.AmountCurrency)
-			order.Quota = normalizeTopupOrderQuota(resolvedPlan.QuotaYYC)
+			order.Quota = normalizeTopupOrderQuota(resolvedPlan.ChargeAmount)
 			order.ValidityDays = normalizeTopupPlanValidityDays(resolvedPlan.ValidityDays)
 			if strings.TrimSpace(input.Title) != "" {
 				order.Title = strings.TrimSpace(input.Title)
@@ -744,11 +744,11 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 				return TopupOrder{}, fmt.Errorf("充值金额必须大于 0")
 			}
 			if order.Quota <= 0 {
-				yycPerUnit, err := GetBillingCurrencyYYCPerUnit(order.Currency)
+				chargeRate, err := GetBillingCurrencyChargeRate(order.Currency)
 				if err != nil {
 					return TopupOrder{}, err
 				}
-				order.Quota = normalizeTopupOrderQuota(int64(math.Round(order.Amount * yycPerUnit)))
+				order.Quota = normalizeTopupOrderQuota(int64(math.Round(order.Amount * chargeRate)))
 			}
 			if strings.TrimSpace(input.Title) != "" {
 				order.Title = strings.TrimSpace(input.Title)
@@ -1180,12 +1180,12 @@ func FulfillTopupOrderWithDB(db *gorm.DB, orderID string) (TopupOrder, bool, err
 				order.CreditExpiresAt = resolveBalanceCreditExpiresAt(effectiveGrantedAt, order.ValidityDays)
 			}
 			lot, creditedNow, err := CreditUserBalanceLotWithDB(tx, UserBalanceLotCreditInput{
-				UserID:     order.UserID,
-				SourceType: UserBalanceLotSourceTopup,
-				SourceID:   order.Id,
-				TotalYYC:   order.Quota,
-				GrantedAt:  effectiveGrantedAt,
-				ExpiresAt:  order.CreditExpiresAt,
+				UserID:      order.UserID,
+				SourceType:  UserBalanceLotSourceTopup,
+				SourceID:    order.Id,
+				TotalAmount: order.Quota,
+				GrantedAt:   effectiveGrantedAt,
+				ExpiresAt:   order.CreditExpiresAt,
 			})
 			if err != nil {
 				return err
@@ -1287,7 +1287,7 @@ func GrantTopupPlanToUserWithDB(db *gorm.DB, userID string, username string, pla
 			Title:         buildTopupOrderPlanTitle(resolvedPlan),
 			Amount:        normalizeTopupOrderAmount(resolvedPlan.Amount),
 			Currency:      normalizeTopupOrderCurrency(resolvedPlan.AmountCurrency),
-			Quota:         normalizeTopupOrderQuota(resolvedPlan.QuotaYYC),
+			Quota:         normalizeTopupOrderQuota(resolvedPlan.ChargeAmount),
 			TopupPlanID:   strings.TrimSpace(resolvedPlan.Id),
 			ValidityDays:  normalizeTopupPlanValidityDays(resolvedPlan.ValidityDays),
 			PaidAt:        now,
@@ -1315,12 +1315,12 @@ func GrantTopupPlanToUserWithDB(db *gorm.DB, userID string, username string, pla
 			return err
 		}
 		lot, creditedNow, err := CreditUserBalanceLotWithDB(tx, UserBalanceLotCreditInput{
-			UserID:     normalizedUserID,
-			SourceType: UserBalanceLotSourceTopup,
-			SourceID:   order.Id,
-			TotalYYC:   order.Quota,
-			GrantedAt:  now,
-			ExpiresAt:  order.CreditExpiresAt,
+			UserID:      normalizedUserID,
+			SourceType:  UserBalanceLotSourceTopup,
+			SourceID:    order.Id,
+			TotalAmount: order.Quota,
+			GrantedAt:   now,
+			ExpiresAt:   order.CreditExpiresAt,
 		})
 		if err != nil {
 			return err

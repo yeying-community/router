@@ -442,8 +442,8 @@ func GetLogsStat(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"quota":      quotaNum,
-			"yyc_amount": quotaNum,
+			"quota":         quotaNum,
+			"charge_amount": quotaNum,
 			//"token": tokenNum,
 		},
 	})
@@ -464,8 +464,8 @@ func GetLogsSelfStat(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"quota":      quotaNum,
-			"yyc_amount": quotaNum,
+			"quota":         quotaNum,
+			"charge_amount": quotaNum,
 			//"token": tokenNum,
 		},
 	})

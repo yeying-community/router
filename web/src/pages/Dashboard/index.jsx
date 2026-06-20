@@ -15,7 +15,7 @@ import {
 import { API } from '../../helpers/api';
 import {
   buildPublicDisplayCurrencyIndex,
-  convertYYCToDisplayAmount,
+  convertChargeAmountToDisplayAmount,
   formatCompactDisplayAmount,
   loadPublicDisplayCurrencyCatalog,
 } from '../../helpers/billing';
@@ -140,17 +140,17 @@ const endOfDay = (date) => {
 
 const normalizeDashboardRow = (item) => ({
   ...item,
-  yycAmount: Number(item?.yyc_amount ?? item?.Quota ?? 0),
+  chargeAmount: Number(item?.charge_amount ?? item?.Quota ?? 0),
 });
 
 const normalizeOverviewSummary = (data) => ({
   ...(data || {}),
-  today_cost: Number(data?.today_yyc_cost ?? data?.today_cost ?? 0),
-  today_revenue: Number(data?.today_yyc_revenue ?? data?.today_revenue ?? 0),
-  yesterday_cost: Number(data?.yesterday_yyc_cost ?? data?.yesterday_cost ?? 0),
-  yesterday_revenue: Number(data?.yesterday_yyc_revenue ?? data?.yesterday_revenue ?? 0),
-  period_cost: Number(data?.period_yyc_cost ?? data?.period_cost ?? 0),
-  period_revenue: Number(data?.period_yyc_revenue ?? data?.period_revenue ?? 0),
+  today_cost: Number(data?.today_charge_amount ?? data?.today_cost ?? 0),
+  today_revenue: Number(data?.today_revenue_amount ?? data?.today_revenue ?? 0),
+  yesterday_cost: Number(data?.yesterday_charge_amount ?? data?.yesterday_cost ?? 0),
+  yesterday_revenue: Number(data?.yesterday_revenue_amount ?? data?.yesterday_revenue ?? 0),
+  period_cost: Number(data?.period_charge_amount ?? data?.period_cost ?? 0),
+  period_revenue: Number(data?.period_revenue_amount ?? data?.period_revenue ?? 0),
 });
 
 const CALENDAR_VIEW_OPTIONS = [
@@ -624,10 +624,10 @@ const Dashboard = () => {
         }
         setDailyPackageBalanceSummary({
           ...data,
-          yycLimit: Number(data?.yyc_limit ?? data?.limit ?? 0),
-          yycUsed: Number(data?.yyc_consumed ?? data?.consumed_quota ?? 0),
-          yycReserved: Number(data?.yyc_reserved ?? data?.reserved_quota ?? 0),
-          yycRemaining: Number(data?.yyc_remaining ?? data?.remaining_quota ?? 0),
+          limitAmount: Number(data?.limit_amount ?? data?.limit ?? 0),
+          usedAmount: Number(data?.consumed_amount ?? data?.consumed_quota ?? 0),
+          reservedAmount: Number(data?.reserved_amount ?? data?.reserved_quota ?? 0),
+          remainingAmount: Number(data?.remaining_amount ?? data?.remaining_quota ?? 0),
         });
         return;
       }
@@ -641,9 +641,9 @@ const Dashboard = () => {
   };
 
   const toUsd = useCallback(
-    (yycAmount) => {
-      const amount = convertYYCToDisplayAmount(
-        yycAmount,
+    (chargeAmount) => {
+      const amount = convertChargeAmountToDisplayAmount(
+        chargeAmount,
         'USD',
         displayCurrencyIndex
       );
@@ -664,13 +664,13 @@ const Dashboard = () => {
   );
 
   const formatYycAsUsd = useCallback(
-    (yycAmount) => formatUsdAmount(toUsd(yycAmount)),
+    (chargeAmount) => formatUsdAmount(toUsd(chargeAmount)),
     [formatUsdAmount, toUsd]
   );
 
-  const formatYycAsUsdWithUnit = useCallback(
-    (yycAmount) => {
-      const usdAmount = toUsd(yycAmount);
+  const formatChargeAsUsdWithUnit = useCallback(
+    (chargeAmount) => {
+      const usdAmount = toUsd(chargeAmount);
       if (!Number.isFinite(usdAmount)) {
         return '-';
       }
@@ -691,11 +691,11 @@ const Dashboard = () => {
       const key = item.Day;
       if (!key) return;
       if (!map.has(key)) {
-        map.set(key, { requests: 0, tokens: 0, yycAmount: 0 });
+        map.set(key, { requests: 0, tokens: 0, chargeAmount: 0 });
       }
       const target = map.get(key);
       target.requests += item.RequestCount || 0;
-      target.yycAmount += item.yycAmount || 0;
+      target.chargeAmount += item.chargeAmount || 0;
       target.tokens += (item.PromptTokens || 0) + (item.CompletionTokens || 0);
     });
     return map;
@@ -892,12 +892,12 @@ const Dashboard = () => {
     );
     const ordered = labels.length ? labels : Array.from(bucketMap.keys()).sort();
     return ordered.map((label) => {
-      const bucket = bucketMap.get(label) || { requests: 0, tokens: 0, yycAmount: 0 };
+      const bucket = bucketMap.get(label) || { requests: 0, tokens: 0, chargeAmount: 0 };
       return {
         date: label,
         requests: bucket.requests,
         tokens: bucket.tokens,
-        cost: toUsd(bucket.yycAmount),
+        cost: toUsd(bucket.chargeAmount),
       };
     });
   }, [overviewTrendData, overviewSummary, overviewGranularity, toUsd]);
@@ -908,8 +908,8 @@ const Dashboard = () => {
     const labels = buildBucketLabels(range.start, range.end, calendarGranularity);
     const ordered = labels.length ? labels : Array.from(bucketMap.keys()).sort();
     return ordered.map((label) => {
-      const bucket = bucketMap.get(label) || { requests: 0, tokens: 0, yycAmount: 0 };
-      const value = calendarUnit === 'usd' ? toUsd(bucket.yycAmount) : bucket.tokens;
+      const bucket = bucketMap.get(label) || { requests: 0, tokens: 0, chargeAmount: 0 };
+      const value = calendarUnit === 'usd' ? toUsd(bucket.chargeAmount) : bucket.tokens;
       return {
         label,
         value,
@@ -1007,19 +1007,19 @@ const Dashboard = () => {
   const packageLimitDisplay = useMemo(() => {
     if (!dailyPackageBalanceSummary) return '-';
     if (dailyPackageBalanceSummary.unlimited) return t('common.unlimited');
-    return formatYycAsUsdWithUnit(dailyPackageBalanceSummary.yycLimit || 0);
-  }, [dailyPackageBalanceSummary, formatYycAsUsdWithUnit, t]);
+    return formatChargeAsUsdWithUnit(dailyPackageBalanceSummary.limitAmount || 0);
+  }, [dailyPackageBalanceSummary, formatChargeAsUsdWithUnit, t]);
 
   const packageRemainingDisplay = useMemo(() => {
     if (!dailyPackageBalanceSummary) return '-';
     if (dailyPackageBalanceSummary.unlimited) return t('common.unlimited');
-    return formatYycAsUsdWithUnit(dailyPackageBalanceSummary.yycRemaining || 0);
-  }, [dailyPackageBalanceSummary, formatYycAsUsdWithUnit, t]);
+    return formatChargeAsUsdWithUnit(dailyPackageBalanceSummary.remainingAmount || 0);
+  }, [dailyPackageBalanceSummary, formatChargeAsUsdWithUnit, t]);
 
   const packageUsedDisplay = useMemo(() => {
     if (!dailyPackageBalanceSummary) return '-';
-    return formatYycAsUsdWithUnit(dailyPackageBalanceSummary.yycUsed || 0);
-  }, [dailyPackageBalanceSummary, formatYycAsUsdWithUnit]);
+    return formatChargeAsUsdWithUnit(dailyPackageBalanceSummary.usedAmount || 0);
+  }, [dailyPackageBalanceSummary, formatChargeAsUsdWithUnit]);
 
   const calendarViewOptions = useMemo(
     () =>

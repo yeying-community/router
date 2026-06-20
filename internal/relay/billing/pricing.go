@@ -10,24 +10,25 @@ import (
 )
 
 type BillingSnapshot struct {
-	PriceUnit             string  `json:"price_unit,omitempty"`
-	Currency              string  `json:"currency,omitempty"`
-	PricingSource         string  `json:"pricing_source,omitempty"`
-	UsageSource           string  `json:"usage_source,omitempty"`
-	EstimateSource        string  `json:"estimate_source,omitempty"`
-	SettlementMode        string  `json:"settlement_mode,omitempty"`
-	GroupRatio            float64 `json:"group_ratio,omitempty"`
-	YYCRate               float64 `json:"yyc_rate,omitempty"`
-	InputQuantity         float64 `json:"input_quantity,omitempty"`
-	OutputQuantity        float64 `json:"output_quantity,omitempty"`
-	InputAmount           float64 `json:"input_amount,omitempty"`
-	OutputAmount          float64 `json:"output_amount,omitempty"`
-	Amount                float64 `json:"amount,omitempty"`
-	YYCAmount             int64   `json:"yyc_amount,omitempty"`
-	ImageToolCalls        int     `json:"image_tool_calls,omitempty"`
-	ImageToolOutputTokens int     `json:"image_tool_output_tokens,omitempty"`
-	ImageToolAmount       float64 `json:"image_tool_amount,omitempty"`
-	ImageToolYYCAmount    int64   `json:"image_tool_yyc_amount,omitempty"`
+	PriceUnit             string           `json:"price_unit,omitempty"`
+	Currency              string           `json:"currency,omitempty"`
+	PricingSource         string           `json:"pricing_source,omitempty"`
+	UsageSource           string           `json:"usage_source,omitempty"`
+	EstimateSource        string           `json:"estimate_source,omitempty"`
+	SettlementMode        string           `json:"settlement_mode,omitempty"`
+	GroupRatio            float64          `json:"group_ratio,omitempty"`
+	ChargeRate            float64          `json:"charge_rate,omitempty"`
+	InputQuantity         float64          `json:"input_quantity,omitempty"`
+	OutputQuantity        float64          `json:"output_quantity,omitempty"`
+	InputAmount           float64          `json:"input_amount,omitempty"`
+	OutputAmount          float64          `json:"output_amount,omitempty"`
+	Amount                float64          `json:"amount,omitempty"`
+	ChargeAmount          int64            `json:"charge_amount,omitempty"`
+	PricingDecision       *PricingDecision `json:"pricing_decision,omitempty"`
+	ImageToolCalls        int              `json:"image_tool_calls,omitempty"`
+	ImageToolOutputTokens int              `json:"image_tool_output_tokens,omitempty"`
+	ImageToolAmount       float64          `json:"image_tool_amount,omitempty"`
+	ImageToolChargeAmount int64            `json:"image_tool_charge_amount,omitempty"`
 }
 
 type ImageBillingMode string
@@ -50,17 +51,23 @@ func (snapshot BillingSnapshot) ApplyToLog(log *model.Log) {
 	log.BillingEstimateSource = snapshot.EstimateSource
 	log.BillingSettlementMode = snapshot.SettlementMode
 	log.BillingGroupRatio = snapshot.GroupRatio
-	log.BillingYYCRate = snapshot.YYCRate
+	log.BillingChargeRate = snapshot.ChargeRate
 	log.BillingInputQuantity = snapshot.InputQuantity
 	log.BillingOutputQuantity = snapshot.OutputQuantity
 	log.BillingInputAmount = snapshot.InputAmount
 	log.BillingOutputAmount = snapshot.OutputAmount
 	log.BillingAmount = snapshot.Amount
-	log.BillingYYCAmount = snapshot.YYCAmount
+	log.BillingChargeAmount = snapshot.ChargeAmount
+	if snapshot.PricingDecision != nil {
+		log.BillingOfficialAnchorAmount = snapshot.Amount
+		log.BillingOfficialAnchorCurrency = snapshot.Currency
+		log.BillingOfficialAnchorBaseAmount = snapshot.PricingDecision.OfficialAnchor.Amount
+		log.BillingSellBaseAmount = snapshot.PricingDecision.SelectedSell.Amount
+	}
 	log.BillingImageToolCalls = snapshot.ImageToolCalls
 	log.BillingImageToolOutputTokens = snapshot.ImageToolOutputTokens
 	log.BillingImageToolAmount = snapshot.ImageToolAmount
-	log.BillingImageToolYYCAmount = snapshot.ImageToolYYCAmount
+	log.BillingImageToolChargeAmount = snapshot.ImageToolChargeAmount
 }
 
 func ComputeTextPreConsumedQuota(promptTokens int, maxCompletionTokens int, pricing model.ResolvedModelPricing, groupRatio float64) (int64, error) {
@@ -68,7 +75,7 @@ func ComputeTextPreConsumedQuota(promptTokens int, maxCompletionTokens int, pric
 	if err != nil {
 		return 0, err
 	}
-	return snapshot.YYCAmount, nil
+	return snapshot.ChargeAmount, nil
 }
 
 func ComputeTextPreConsumedBillingSnapshot(promptTokens int, maxCompletionTokens int, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
@@ -92,7 +99,7 @@ func ComputeTextQuota(promptTokens int, completionTokens int, pricing model.Reso
 	if err != nil {
 		return 0, err
 	}
-	return snapshot.YYCAmount, nil
+	return snapshot.ChargeAmount, nil
 }
 
 func ComputeTextBillingSnapshot(promptTokens int, completionTokens int, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
@@ -112,7 +119,7 @@ func ComputeImageQuota(imageCount int, multiplier float64, pricing model.Resolve
 	if err != nil {
 		return 0, err
 	}
-	return snapshot.YYCAmount, nil
+	return snapshot.ChargeAmount, nil
 }
 
 func ComputeImageBillingSnapshot(imageCount int, multiplier float64, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
@@ -174,17 +181,18 @@ func ComputeExplicitAmountBillingSnapshot(inputQuantity float64, outputQuantity 
 	}
 	snapshot.Amount = snapshot.InputAmount + snapshot.OutputAmount
 	if snapshot.Amount > 0 {
-		yycRate, err := model.GetBillingCurrencyYYCPerUnit(snapshot.Currency)
+		chargeRate, err := model.GetBillingCurrencyChargeRate(snapshot.Currency)
 		if err != nil {
 			if groupRatio != 0 {
 				return BillingSnapshot{}, err
 			}
 		} else {
-			snapshot.YYCRate = yycRate
+			snapshot.ChargeRate = chargeRate
 		}
 	}
-	rawYYC := snapshot.Amount * snapshot.YYCRate * groupRatio
-	snapshot.YYCAmount = normalizeQuota(rawYYC, hasUsage, pricing, groupRatio)
+	rawChargeAmount := snapshot.Amount * snapshot.ChargeRate * groupRatio
+	snapshot.ChargeAmount = normalizeQuota(rawChargeAmount, hasUsage, pricing, groupRatio)
+	applyPricingDecision(&snapshot)
 	return snapshot, nil
 }
 
@@ -206,7 +214,7 @@ func ComputeImagePerImageQuota(imageCount int, multiplier float64, pricing model
 	if err != nil {
 		return 0, err
 	}
-	return snapshot.YYCAmount, nil
+	return snapshot.ChargeAmount, nil
 }
 
 func ComputeImagePerImageBillingSnapshot(imageCount int, multiplier float64, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
@@ -226,7 +234,7 @@ func ComputeImagePerCallQuota(imageCount int, pricing model.ResolvedModelPricing
 	if err != nil {
 		return 0, err
 	}
-	return snapshot.YYCAmount, nil
+	return snapshot.ChargeAmount, nil
 }
 
 func ComputeImagePerCallBillingSnapshot(imageCount int, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
@@ -245,7 +253,7 @@ func ComputeAudioSpeechQuota(charCount int, pricing model.ResolvedModelPricing, 
 	if err != nil {
 		return 0, err
 	}
-	return snapshot.YYCAmount, nil
+	return snapshot.ChargeAmount, nil
 }
 
 func ComputeAudioSpeechBillingSnapshot(charCount int, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
@@ -264,7 +272,7 @@ func ComputeAudioTextQuota(tokenCount int, pricing model.ResolvedModelPricing, g
 	if err != nil {
 		return 0, err
 	}
-	return snapshot.YYCAmount, nil
+	return snapshot.ChargeAmount, nil
 }
 
 func ComputeAudioTextBillingSnapshot(tokenCount int, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
@@ -283,7 +291,7 @@ func ComputeVideoQuota(quantity float64, pricing model.ResolvedModelPricing, gro
 	if err != nil {
 		return 0, err
 	}
-	return snapshot.YYCAmount, nil
+	return snapshot.ChargeAmount, nil
 }
 
 func ComputeVideoBillingSnapshot(quantity float64, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
@@ -319,27 +327,27 @@ func FormatPricingLog(pricing model.ResolvedModelPricing, groupRatio float64) st
 	)
 }
 
-func yycFromPrice(price float64, priceUnit string, currency string, quantity float64, groupRatio float64) (float64, error) {
+func chargeAmountFromPrice(price float64, priceUnit string, currency string, quantity float64, groupRatio float64) (float64, error) {
 	if price <= 0 || quantity <= 0 || groupRatio == 0 {
 		return 0, nil
 	}
-	yycPerUnit, err := model.GetBillingCurrencyYYCPerUnit(currency)
+	chargeRate, err := model.GetBillingCurrencyChargeRate(currency)
 	if err != nil {
 		return 0, err
 	}
 	normalizedUnit := strings.TrimSpace(strings.ToLower(priceUnit))
 	switch normalizedUnit {
 	case "", model.ProviderPriceUnitPer1KTokens, model.ProviderPriceUnitPer1KChars:
-		return quantity * price * yycPerUnit / 1000 * groupRatio, nil
+		return quantity * price * chargeRate / 1000 * groupRatio, nil
 	case model.ProviderPriceUnitPerImage,
 		model.ProviderPriceUnitPerVideo,
 		model.ProviderPriceUnitPerSecond,
 		model.ProviderPriceUnitPerMinute,
 		model.ProviderPriceUnitPerRequest,
 		model.ProviderPriceUnitPerTask:
-		return quantity * price * yycPerUnit * groupRatio, nil
+		return quantity * price * chargeRate * groupRatio, nil
 	default:
-		return quantity * price * yycPerUnit / 1000 * groupRatio, nil
+		return quantity * price * chargeRate / 1000 * groupRatio, nil
 	}
 }
 
@@ -367,18 +375,40 @@ func buildBillingSnapshot(inputQuantity float64, outputQuantity float64, inputPr
 	snapshot.OutputAmount = billingAmountFromPrice(outputPrice, snapshot.PriceUnit, outputQuantity)
 	snapshot.Amount = snapshot.InputAmount + snapshot.OutputAmount
 	if snapshot.Amount > 0 {
-		yycRate, err := model.GetBillingCurrencyYYCPerUnit(snapshot.Currency)
+		chargeRate, err := model.GetBillingCurrencyChargeRate(snapshot.Currency)
 		if err != nil {
 			if groupRatio != 0 {
 				return BillingSnapshot{}, err
 			}
 		} else {
-			snapshot.YYCRate = yycRate
+			snapshot.ChargeRate = chargeRate
 		}
 	}
-	rawYYC := snapshot.Amount * snapshot.YYCRate * groupRatio
-	snapshot.YYCAmount = normalizeQuota(rawYYC, hasUsage, pricing, groupRatio)
+	rawChargeAmount := snapshot.Amount * snapshot.ChargeRate * groupRatio
+	snapshot.ChargeAmount = normalizeQuota(rawChargeAmount, hasUsage, pricing, groupRatio)
+	applyPricingDecision(&snapshot)
 	return snapshot, nil
+}
+
+func applyPricingDecision(snapshot *BillingSnapshot) {
+	if snapshot == nil {
+		return
+	}
+	decision := DecidePricing(PricingDecisionInput{
+		OfficialAnchor: MoneyAmount{
+			Amount:   snapshot.Amount,
+			Currency: snapshot.Currency,
+		},
+		CurrentCharge: MoneyAmount{
+			Amount:   float64(snapshot.ChargeAmount),
+			Currency: model.BillingCurrencyCodeYYC,
+		},
+		Policy: CurrentPricingPolicy(),
+	})
+	snapshot.PricingDecision = &decision
+	if decision.SelectedCharge.Amount > float64(snapshot.ChargeAmount) {
+		snapshot.ChargeAmount = int64(decision.SelectedCharge.Amount)
+	}
 }
 
 func primaryUnitPrice(pricing model.ResolvedModelPricing) float64 {

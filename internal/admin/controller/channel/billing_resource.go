@@ -56,13 +56,13 @@ type channelBillingOpenActivateRequest struct {
 }
 
 type channelBillingManualSnapshotRequest struct {
-	PurchaseAt       int64                                  `json:"purchase_at"`
-	PurchaseCurrency string                                 `json:"purchase_currency"`
-	PurchaseAmount   float64                                `json:"purchase_amount"`
-	PurchaseFXRate   float64                                `json:"purchase_fx_rate"`
-	PurchaseCostCNY  float64                                `json:"purchase_cost_cny"`
-	Items            []channelBillingManualQuotaItemRequest `json:"items"`
-	Message          string                                 `json:"message"`
+	PurchaseAt         int64                                  `json:"purchase_at"`
+	PurchaseCurrency   string                                 `json:"purchase_currency"`
+	PurchaseAmount     float64                                `json:"purchase_amount"`
+	PurchaseFXRate     float64                                `json:"purchase_fx_rate"`
+	PurchaseCostAmount float64                                `json:"purchase_cost_amount"`
+	Items              []channelBillingManualQuotaItemRequest `json:"items"`
+	Message            string                                 `json:"message"`
 }
 
 type channelBillingManualQuotaItemRequest struct {
@@ -80,15 +80,15 @@ type channelBillingManualQuotaItemRequest struct {
 }
 
 type channelProcurementBatchCostUpdateRequest struct {
-	PurchaseCurrency  string  `json:"purchase_currency"`
-	PurchaseAmount    float64 `json:"purchase_amount"`
-	PurchaseFXRate    float64 `json:"purchase_fx_rate"`
-	PurchaseCostCNY   float64 `json:"purchase_cost_cny"`
-	CapacityEffective float64 `json:"capacity_effective"`
-	CostSource        string  `json:"cost_source"`
-	CostStatus        string  `json:"cost_status"`
-	ScopeType         string  `json:"scope_type"`
-	ScopeValue        string  `json:"scope_value"`
+	PurchaseCurrency   string  `json:"purchase_currency"`
+	PurchaseAmount     float64 `json:"purchase_amount"`
+	PurchaseFXRate     float64 `json:"purchase_fx_rate"`
+	PurchaseCostAmount float64 `json:"purchase_cost_amount"`
+	CapacityEffective  float64 `json:"capacity_effective"`
+	CostSource         string  `json:"cost_source"`
+	CostStatus         string  `json:"cost_status"`
+	ScopeType          string  `json:"scope_type"`
+	ScopeValue         string  `json:"scope_value"`
 }
 
 type channelProcurementBatchStatusUpdateRequest struct {
@@ -160,9 +160,9 @@ func buildChannelBillingProfileData(channelRow *model.Channel, profile model.Cha
 	}
 }
 
-func attachManualPurchaseCostToSnapshotBatches(tx *gorm.DB, snapshotID string, purchaseCurrency string, purchaseAmount float64, purchaseFXRate float64, purchaseCostCNY float64) error {
+func attachManualPurchaseCostToSnapshotBatches(tx *gorm.DB, snapshotID string, purchaseCurrency string, purchaseAmount float64, purchaseFXRate float64, purchaseCostAmount float64) error {
 	normalizedSnapshotID := strings.TrimSpace(snapshotID)
-	if normalizedSnapshotID == "" || purchaseCostCNY <= 0 {
+	if normalizedSnapshotID == "" || purchaseCostAmount <= 0 {
 		return nil
 	}
 	rows := make([]model.ChannelProcurementBatch, 0)
@@ -184,22 +184,22 @@ func attachManualPurchaseCostToSnapshotBatches(tx *gorm.DB, snapshotID string, p
 			continue
 		}
 		ratio := row.CapacityEffective / totalEffectiveCapacity
-		allocatedCostCNY := purchaseCostCNY * ratio
-		if allocatedCostCNY <= 0 {
+		allocatedCostAmount := purchaseCostAmount * ratio
+		if allocatedCostAmount <= 0 {
 			continue
 		}
-		costPerUnitCNY := allocatedCostCNY / row.CapacityEffective
+		costPerUnitAmount := allocatedCostAmount / row.CapacityEffective
 		if err := tx.Model(&model.ChannelProcurementBatch{}).
 			Where("id = ?", row.Id).
 			Updates(map[string]any{
-				"purchase_currency": strings.TrimSpace(strings.ToUpper(purchaseCurrency)),
-				"purchase_amount":   purchaseAmount * ratio,
-				"purchase_fx_rate":  purchaseFXRate,
-				"purchase_cost_cny": allocatedCostCNY,
-				"cost_per_unit_cny": costPerUnitCNY,
-				"cost_source":       model.ProcurementCostSourceActual,
-				"cost_status":       model.ProcurementCostStatusActive,
-				"updated_at":        now,
+				"purchase_currency":    strings.TrimSpace(strings.ToUpper(purchaseCurrency)),
+				"purchase_amount":      purchaseAmount * ratio,
+				"purchase_fx_rate":     purchaseFXRate,
+				"purchase_cost_amount": allocatedCostAmount,
+				"cost_per_unit_amount": costPerUnitAmount,
+				"cost_source":          model.ProcurementCostSourceActual,
+				"cost_status":          model.ProcurementCostStatusActive,
+				"updated_at":           now,
 			}).Error; err != nil {
 			return err
 		}
@@ -346,15 +346,15 @@ func UpdateChannelProcurementBatchCost(c *gin.Context) {
 		return
 	}
 	row, err := model.UpdateChannelProcurementBatchCostWithDB(model.DB, batchID, model.ProcurementBatchCostUpdate{
-		PurchaseCurrency:  req.PurchaseCurrency,
-		PurchaseAmount:    req.PurchaseAmount,
-		PurchaseFXRate:    req.PurchaseFXRate,
-		PurchaseCostCNY:   req.PurchaseCostCNY,
-		CapacityEffective: req.CapacityEffective,
-		CostSource:        req.CostSource,
-		CostStatus:        req.CostStatus,
-		ScopeType:         req.ScopeType,
-		ScopeValue:        req.ScopeValue,
+		PurchaseCurrency:   req.PurchaseCurrency,
+		PurchaseAmount:     req.PurchaseAmount,
+		PurchaseFXRate:     req.PurchaseFXRate,
+		PurchaseCostAmount: req.PurchaseCostAmount,
+		CapacityEffective:  req.CapacityEffective,
+		CostSource:         req.CostSource,
+		CostStatus:         req.CostStatus,
+		ScopeType:          req.ScopeType,
+		ScopeValue:         req.ScopeValue,
 	})
 	if err != nil {
 		logChannelAdminWarn(c, "update_procurement_batch_cost", stringField("channel_id", channelID), stringField("batch_id", batchID), stringField("reason", err.Error()))
@@ -631,40 +631,40 @@ func maskBillingSecret(value string) string {
 }
 
 type normalizedManualBillingSnapshotRequest struct {
-	PurchaseAt       int64
-	PurchaseCurrency string
-	PurchaseAmount   float64
-	PurchaseFXRate   float64
-	PurchaseCostCNY  float64
-	Items            []model.ChannelBillingSnapshotItem
-	Message          string
+	PurchaseAt         int64
+	PurchaseCurrency   string
+	PurchaseAmount     float64
+	PurchaseFXRate     float64
+	PurchaseCostAmount float64
+	Items              []model.ChannelBillingSnapshotItem
+	Message            string
 }
 
 func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotRequest, now int64) (normalizedManualBillingSnapshotRequest, error) {
 	purchaseCurrency := strings.TrimSpace(strings.ToUpper(req.PurchaseCurrency))
 	purchaseAmount := req.PurchaseAmount
 	purchaseFXRate := req.PurchaseFXRate
-	purchaseCostCNY := req.PurchaseCostCNY
+	purchaseCostAmount := req.PurchaseCostAmount
 	if purchaseCurrency == "" {
 		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("采购币种不能为空")
 	}
 	if purchaseAmount <= 0 {
 		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("实付金额必须大于 0")
 	}
-	if purchaseFXRate < 0 || purchaseCostCNY < 0 {
+	if purchaseFXRate < 0 || purchaseCostAmount < 0 {
 		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("采购汇率和采购成本不能小于 0")
 	}
 	if purchaseCurrency == "CNY" {
 		if purchaseFXRate <= 0 {
 			purchaseFXRate = 1
 		}
-		if purchaseCostCNY <= 0 {
-			purchaseCostCNY = purchaseAmount
+		if purchaseCostAmount <= 0 {
+			purchaseCostAmount = purchaseAmount
 		}
-	} else if purchaseCostCNY <= 0 && purchaseFXRate > 0 {
-		purchaseCostCNY = purchaseAmount * purchaseFXRate
+	} else if purchaseCostAmount <= 0 && purchaseFXRate > 0 {
+		purchaseCostAmount = purchaseAmount * purchaseFXRate
 	}
-	if purchaseCostCNY <= 0 {
+	if purchaseCostAmount <= 0 {
 		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("采购成本 CNY 必须大于 0")
 	}
 	purchaseAt := req.PurchaseAt
@@ -742,13 +742,13 @@ func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotReque
 		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("请至少填写一条权益项")
 	}
 	return normalizedManualBillingSnapshotRequest{
-		PurchaseAt:       purchaseAt,
-		PurchaseCurrency: purchaseCurrency,
-		PurchaseAmount:   purchaseAmount,
-		PurchaseFXRate:   purchaseFXRate,
-		PurchaseCostCNY:  purchaseCostCNY,
-		Items:            quotaItems,
-		Message:          strings.TrimSpace(req.Message),
+		PurchaseAt:         purchaseAt,
+		PurchaseCurrency:   purchaseCurrency,
+		PurchaseAmount:     purchaseAmount,
+		PurchaseFXRate:     purchaseFXRate,
+		PurchaseCostAmount: purchaseCostAmount,
+		Items:              quotaItems,
+		Message:            strings.TrimSpace(req.Message),
 	}, nil
 }
 
@@ -782,17 +782,17 @@ func CreateChannelBillingSnapshot(c *gin.Context) {
 	}
 	err = model.DB.Transaction(func(tx *gorm.DB) error {
 		snapshotRow, err := model.CreateChannelBillingSnapshotWithDB(tx, model.ChannelBillingSnapshot{
-			ChannelId:        channelRow.Id,
-			SourceType:       model.ChannelBillingSnapshotSourceManual,
-			PurchaseAt:       normalizedReq.PurchaseAt,
-			PurchaseCurrency: normalizedReq.PurchaseCurrency,
-			PurchaseAmount:   normalizedReq.PurchaseAmount,
-			PurchaseFXRate:   normalizedReq.PurchaseFXRate,
-			PurchaseCostCNY:  normalizedReq.PurchaseCostCNY,
-			RawStatus:        "manual",
-			Message:          normalizedReq.Message,
-			OperatorUserId:   operatorUserID,
-			CreatedAt:        now,
+			ChannelId:          channelRow.Id,
+			SourceType:         model.ChannelBillingSnapshotSourceManual,
+			PurchaseAt:         normalizedReq.PurchaseAt,
+			PurchaseCurrency:   normalizedReq.PurchaseCurrency,
+			PurchaseAmount:     normalizedReq.PurchaseAmount,
+			PurchaseFXRate:     normalizedReq.PurchaseFXRate,
+			PurchaseCostAmount: normalizedReq.PurchaseCostAmount,
+			RawStatus:          "manual",
+			Message:            normalizedReq.Message,
+			OperatorUserId:     operatorUserID,
+			CreatedAt:          now,
 		})
 		if err != nil {
 			return err
@@ -801,7 +801,7 @@ func CreateChannelBillingSnapshot(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		if err := attachManualPurchaseCostToSnapshotBatches(tx, snapshotRow.Id, normalizedReq.PurchaseCurrency, normalizedReq.PurchaseAmount, normalizedReq.PurchaseFXRate, normalizedReq.PurchaseCostCNY); err != nil {
+		if err := attachManualPurchaseCostToSnapshotBatches(tx, snapshotRow.Id, normalizedReq.PurchaseCurrency, normalizedReq.PurchaseAmount, normalizedReq.PurchaseFXRate, normalizedReq.PurchaseCostAmount); err != nil {
 			return err
 		}
 		_, err = model.CreateChannelBillingActionWithDB(tx, model.ChannelBillingAction{
@@ -874,15 +874,15 @@ func UpdateChannelBillingSnapshot(c *gin.Context) {
 			return fmt.Errorf("该采购记录已经被消耗，不能修改")
 		}
 		updatedSnapshot, err := model.UpdateChannelBillingSnapshotPurchaseWithDB(tx, model.ChannelBillingSnapshot{
-			Id:               current.Id,
-			ChannelId:        channelRow.Id,
-			PurchaseAt:       normalizedReq.PurchaseAt,
-			PurchaseCurrency: normalizedReq.PurchaseCurrency,
-			PurchaseAmount:   normalizedReq.PurchaseAmount,
-			PurchaseFXRate:   normalizedReq.PurchaseFXRate,
-			PurchaseCostCNY:  normalizedReq.PurchaseCostCNY,
-			Message:          normalizedReq.Message,
-			OperatorUserId:   operatorUserID,
+			Id:                 current.Id,
+			ChannelId:          channelRow.Id,
+			PurchaseAt:         normalizedReq.PurchaseAt,
+			PurchaseCurrency:   normalizedReq.PurchaseCurrency,
+			PurchaseAmount:     normalizedReq.PurchaseAmount,
+			PurchaseFXRate:     normalizedReq.PurchaseFXRate,
+			PurchaseCostAmount: normalizedReq.PurchaseCostAmount,
+			Message:            normalizedReq.Message,
+			OperatorUserId:     operatorUserID,
 		})
 		if err != nil {
 			return err
@@ -891,7 +891,7 @@ func UpdateChannelBillingSnapshot(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		if err := attachManualPurchaseCostToSnapshotBatches(tx, updatedSnapshot.Id, normalizedReq.PurchaseCurrency, normalizedReq.PurchaseAmount, normalizedReq.PurchaseFXRate, normalizedReq.PurchaseCostCNY); err != nil {
+		if err := attachManualPurchaseCostToSnapshotBatches(tx, updatedSnapshot.Id, normalizedReq.PurchaseCurrency, normalizedReq.PurchaseAmount, normalizedReq.PurchaseFXRate, normalizedReq.PurchaseCostAmount); err != nil {
 			return err
 		}
 		_, err = model.CreateChannelBillingActionWithDB(tx, model.ChannelBillingAction{

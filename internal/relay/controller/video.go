@@ -470,7 +470,7 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			}
 		}
 		tokenName := c.GetString(ctxkey.TokenName)
-		billingSnapshot.YYCAmount = quota
+		billingSnapshot.ChargeAmount = quota
 		entry := &model.Log{
 			UserId:             meta.UserId,
 			GroupId:            meta.Group,

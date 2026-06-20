@@ -23,7 +23,7 @@ const formatDateTime = (value) => {
   return timestamp2string(numericValue);
 };
 
-const formatYYC = (value) => {
+const formatChargeAmount = (value) => {
   const numericValue = Number(value || 0);
   if (!Number.isFinite(numericValue)) {
     return '-';
@@ -202,7 +202,7 @@ const PackageDetail = () => {
                     </div>
                     <pre className='router-detail-value'>
                       {Number(record?.daily_quota_limit || 0) > 0
-                        ? formatYYC(record?.daily_quota_limit)
+                        ? formatChargeAmount(record?.daily_quota_limit)
                         : t('common.unlimited')}
                     </pre>
                   </div>
@@ -211,7 +211,7 @@ const PackageDetail = () => {
                       {t('user.detail.package_emergency_limit')}
                     </div>
                     <pre className='router-detail-value'>
-                      {formatYYC(record?.package_emergency_quota_limit)}
+                      {formatChargeAmount(record?.package_emergency_quota_limit)}
                     </pre>
                   </div>
                   <div className='router-detail-item'>

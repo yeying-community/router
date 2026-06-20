@@ -6,7 +6,7 @@ import {
   buildBillingCurrencyIndex,
   buildFaceValueUnitOptions,
 } from '../../helpers/billing';
-import { formatYYCValue } from '../../helpers/render';
+import { formatCreditAmount } from '../../helpers/render';
 import UnitDropdown from '../../components/UnitDropdown';
 import {
   AppButton,
@@ -41,7 +41,7 @@ const toGroupOptions = (rows) =>
     text: item.name || item.id,
   }));
 
-const computeYYCPreview = (amountValue, unitValue, currencyIndex) => {
+const computeChargePreview = (amountValue, unitValue, currencyIndex) => {
   const amount = Number.parseFloat(`${amountValue ?? ''}`);
   if (!Number.isFinite(amount) || amount <= 0) {
     return 0;
@@ -51,7 +51,7 @@ const computeYYCPreview = (amountValue, unitValue, currencyIndex) => {
     return Math.round(amount);
   }
   const currency = currencyIndex[normalizedUnit];
-  const rate = Number(currency?.yyc_per_unit || 0);
+  const rate = Number(currency?.charge_rate || 0);
   if (!Number.isFinite(rate) || rate <= 0) {
     return 0;
   }
@@ -78,8 +78,8 @@ const EditRedemption = () => {
     count,
   } = inputs;
 
-  const yycPreview = useMemo(
-    () => computeYYCPreview(face_value_amount, face_value_unit, currencyIndex),
+  const chargePreview = useMemo(
+    () => computeChargePreview(face_value_amount, face_value_unit, currencyIndex),
     [currencyIndex, face_value_amount, face_value_unit]
   );
 
@@ -292,7 +292,7 @@ const EditRedemption = () => {
               <AppField label={t('redemption.edit.credit_yyc')} readOnly>
                 <AppInput
                   className='router-section-input'
-                  value={yycPreview > 0 ? formatYYCValue(yycPreview) : '-'}
+                  value={chargePreview > 0 ? formatCreditAmount(chargePreview) : '-'}
                   readOnly
                 />
               </AppField>

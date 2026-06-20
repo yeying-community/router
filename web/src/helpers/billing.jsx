@@ -7,7 +7,7 @@ export const DEFAULT_FIAT_DISPLAY_CODE = 'USD';
 export const normalizeDisplayCurrencyCode = (value) =>
   (value || '').toString().trim().toUpperCase();
 
-export const getFallbackUSDYYCPerUnit = () => {
+export const getFallbackUSDChargeRate = () => {
   if (typeof window === 'undefined') {
     return 0;
   }
@@ -24,21 +24,21 @@ const PLACEHOLDER_CURRENCY_MAP = {
     name: 'US Dollar',
     symbol: '$',
     minor_unit: 6,
-    yyc_per_unit: 0,
+    charge_rate: 0,
   },
   CNY: {
     code: 'CNY',
     name: 'Chinese Yuan',
     symbol: '¥',
     minor_unit: 6,
-    yyc_per_unit: 0,
+    charge_rate: 0,
   },
 };
 
 export const buildBillingCurrencyIndex = (
   rows,
   {
-    fallbackUsdYYCPerUnit = 0,
+    fallbackUsdChargeRate = 0,
     activeOnly = false,
     requirePositiveRate = false,
     placeholderCodes = [],
@@ -50,7 +50,7 @@ export const buildBillingCurrencyIndex = (
       name: 'Yeying Coin',
       symbol: YYC_SYMBOL,
       minor_unit: 0,
-      yyc_per_unit: 1,
+      charge_rate: 1,
     },
   };
 
@@ -65,17 +65,17 @@ export const buildBillingCurrencyIndex = (
     };
   });
 
-  if (Number.isFinite(fallbackUsdYYCPerUnit) && fallbackUsdYYCPerUnit > 0) {
+  if (Number.isFinite(fallbackUsdChargeRate) && fallbackUsdChargeRate > 0) {
     next[DEFAULT_FIAT_DISPLAY_CODE] = {
       ...PLACEHOLDER_CURRENCY_MAP[DEFAULT_FIAT_DISPLAY_CODE],
-      yyc_per_unit: fallbackUsdYYCPerUnit,
+      charge_rate: fallbackUsdChargeRate,
     };
   }
 
   (Array.isArray(rows) ? rows : []).forEach((item) => {
     const code = normalizeDisplayCurrencyCode(item?.code);
     const status = Number(item?.status ?? 1);
-    const rawRate = Number(item?.yyc_per_unit ?? 0);
+    const rawRate = Number(item?.charge_rate ?? 0);
     if (!code) {
       return;
     }
@@ -91,9 +91,9 @@ export const buildBillingCurrencyIndex = (
       ...item,
       code,
       minor_unit: Number(item?.minor_unit ?? current.minor_unit ?? 6),
-      yyc_per_unit: Number.isFinite(rawRate)
+      charge_rate: Number.isFinite(rawRate)
         ? rawRate
-        : Number(current?.yyc_per_unit ?? 0),
+        : Number(current?.charge_rate ?? 0),
     };
   });
 
@@ -102,10 +102,10 @@ export const buildBillingCurrencyIndex = (
 
 export const buildPublicDisplayCurrencyIndex = (
   rows,
-  fallbackUsdYYCPerUnit = getFallbackUSDYYCPerUnit(),
+  fallbackUsdChargeRate = getFallbackUSDChargeRate(),
 ) =>
   buildBillingCurrencyIndex(rows, {
-    fallbackUsdYYCPerUnit,
+    fallbackUsdChargeRate,
     activeOnly: true,
     requirePositiveRate: true,
   });
@@ -154,15 +154,15 @@ const listBillingUnitCurrencies = (currencyIndex) =>
       return `${a.code}`.localeCompare(`${b.code}`);
     });
 
-const listYYCFirstCurrencies = (currencyIndex) => {
+const listChargeFirstCurrencies = (currencyIndex) => {
   const items = Object.values(currencyIndex || {}).filter((item) => item?.code);
-  const yycItem = items.find(
+  const chargeUnitItem = items.find(
     (item) => normalizeDisplayCurrencyCode(item.code) === YYC_DISPLAY_CODE,
   );
   const others = items
     .filter((item) => normalizeDisplayCurrencyCode(item.code) !== YYC_DISPLAY_CODE)
     .sort((a, b) => `${a.code}`.localeCompare(`${b.code}`));
-  return yycItem ? [yycItem, ...others] : others;
+  return chargeUnitItem ? [chargeUnitItem, ...others] : others;
 };
 
 const buildCurrencyOptionLabel = (item, { includeCode = false } = {}) => {
@@ -201,8 +201,8 @@ export const buildDisplayUnitOptions = (
   { order = 'display', includeCode = false } = {},
 ) => {
   const items =
-    order === 'yyc-first'
-      ? listYYCFirstCurrencies(currencyIndex)
+    order === 'charge-first'
+      ? listChargeFirstCurrencies(currencyIndex)
       : listDisplayCurrencies(currencyIndex);
   return items.map((item) => ({
     value: normalizeDisplayCurrencyCode(item?.code),
@@ -270,12 +270,12 @@ export const resolveDefaultBillingUnit = (currencyIndex) => {
   );
 };
 
-export const getCurrencyRateToYYC = (unit, currencyIndex) => {
+export const getCurrencyChargeRate = (unit, currencyIndex) => {
   const normalizedUnit = normalizeDisplayCurrencyCode(unit);
   if (normalizedUnit === YYC_DISPLAY_CODE) {
     return 1;
   }
-  const rate = Number(currencyIndex?.[normalizedUnit]?.yyc_per_unit || 0);
+  const rate = Number(currencyIndex?.[normalizedUnit]?.charge_rate || 0);
   if (!Number.isFinite(rate) || rate <= 0) {
     return 0;
   }
@@ -297,24 +297,24 @@ export const formatBillingInputAmount = (amount, unit, currencyIndex) => {
   return normalizedAmount.toFixed(fractionDigits).replace(/\.?0+$/, '');
 };
 
-export const yycToBillingInputValue = (yycValue, unit, currencyIndex) => {
-  const storedYYC = Number(yycValue || 0);
-  if (!Number.isFinite(storedYYC) || storedYYC <= 0) {
+export const chargeAmountToBillingInputValue = (chargeValue, unit, currencyIndex) => {
+  const storedChargeAmount = Number(chargeValue || 0);
+  if (!Number.isFinite(storedChargeAmount) || storedChargeAmount <= 0) {
     return '0';
   }
-  const rate = getCurrencyRateToYYC(unit, currencyIndex);
+  const rate = getCurrencyChargeRate(unit, currencyIndex);
   if (rate <= 0) {
     return '0';
   }
-  return formatBillingInputAmount(storedYYC / rate, unit, currencyIndex);
+  return formatBillingInputAmount(storedChargeAmount / rate, unit, currencyIndex);
 };
 
-export const billingInputValueToYYC = (value, unit, currencyIndex) => {
+export const billingInputValueToChargeAmount = (value, unit, currencyIndex) => {
   const normalizedAmount = Number(value ?? 0);
   if (!Number.isFinite(normalizedAmount) || normalizedAmount < 0) {
     return NaN;
   }
-  const rate = getCurrencyRateToYYC(unit, currencyIndex);
+  const rate = getCurrencyChargeRate(unit, currencyIndex);
   if (rate <= 0) {
     return NaN;
   }
@@ -329,15 +329,15 @@ export const convertBillingInputValueUnit = (value, fromUnit, toUnit, currencyIn
   if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
     return '0';
   }
-  const storedYYC = billingInputValueToYYC(
+  const storedChargeAmount = billingInputValueToChargeAmount(
     normalizedAmount,
     fromUnit,
     currencyIndex,
   );
-  if (!Number.isFinite(storedYYC) || storedYYC < 0) {
+  if (!Number.isFinite(storedChargeAmount) || storedChargeAmount < 0) {
     return '0';
   }
-  return yycToBillingInputValue(storedYYC, toUnit, currencyIndex);
+  return chargeAmountToBillingInputValue(storedChargeAmount, toUnit, currencyIndex);
 };
 
 export const resolveBillingInputStep = (unit, currencyIndex) => {
@@ -362,7 +362,7 @@ export const applyBillingInputValues = (
     ...(rawInputs || {}),
   };
   (Array.isArray(settingKeys) ? settingKeys : []).forEach((key) => {
-    next[key] = yycToBillingInputValue(
+    next[key] = chargeAmountToBillingInputValue(
       rawInputs?.[key] ?? 0,
       billingUnits?.[key],
       currencyIndex,
@@ -371,12 +371,12 @@ export const applyBillingInputValues = (
   return next;
 };
 
-export const convertYYCToDisplayAmount = (
-  yycAmount,
+export const convertChargeAmountToDisplayAmount = (
+  chargeAmount,
   displayUnit,
   currencyIndex,
 ) => {
-  const normalizedAmount = Number(yycAmount || 0);
+  const normalizedAmount = Number(chargeAmount || 0);
   if (!Number.isFinite(normalizedAmount)) {
     return NaN;
   }
@@ -384,7 +384,7 @@ export const convertYYCToDisplayAmount = (
   if (normalizedUnit === YYC_DISPLAY_CODE) {
     return normalizedAmount;
   }
-  const rate = Number(currencyIndex?.[normalizedUnit]?.yyc_per_unit || 0);
+  const rate = Number(currencyIndex?.[normalizedUnit]?.charge_rate || 0);
   if (!Number.isFinite(rate) || rate <= 0) {
     return NaN;
   }
@@ -415,32 +415,32 @@ export const formatCompactDisplayAmount = (
   return normalizedAmount.toFixed(fractionDigits);
 };
 
-export const formatDisplayAmountFromYYC = (
-  yycAmount,
+export const formatDisplayAmountFromChargeAmount = (
+  chargeAmount,
   displayUnit,
   currencyIndex,
   {
     fractionDigits = 6,
     includeSymbol = false,
-    yycMode = 'fixed',
+    chargeMode = 'fixed',
     invalidValue = '-',
   } = {},
 ) => {
-  const yycValue = Number(yycAmount || 0);
-  if (!Number.isFinite(yycValue)) {
+  const chargeValue = Number(chargeAmount || 0);
+  if (!Number.isFinite(chargeValue)) {
     return invalidValue;
   }
 
   const normalizedUnit = normalizeDisplayCurrencyCode(displayUnit);
   if (normalizedUnit === YYC_DISPLAY_CODE) {
-    if (yycMode === 'compact') {
-      return renderNumber(yycValue);
+    if (chargeMode === 'compact') {
+      return renderNumber(chargeValue);
     }
-    return Number(yycValue).toFixed(fractionDigits);
+    return Number(chargeValue).toFixed(fractionDigits);
   }
 
-  const amount = convertYYCToDisplayAmount(
-    yycValue,
+  const amount = convertChargeAmountToDisplayAmount(
+    chargeValue,
     normalizedUnit,
     currencyIndex,
   );
@@ -459,7 +459,7 @@ export const formatDisplayAmountFromYYC = (
 };
 
 export const loadPublicDisplayCurrencyCatalog = async () => {
-  const fallbackUsdYYCPerUnit = getFallbackUSDYYCPerUnit();
+  const fallbackUsdChargeRate = getFallbackUSDChargeRate();
   try {
     const res = await API.get('/api/v1/public/billing/currencies');
     const { success, data } = res.data || {};
@@ -468,7 +468,7 @@ export const loadPublicDisplayCurrencyCatalog = async () => {
     }
     const index = buildPublicDisplayCurrencyIndex(
       Array.isArray(data?.items) ? data.items : data,
-      fallbackUsdYYCPerUnit,
+      fallbackUsdChargeRate,
     );
     return {
       currencyIndex: index,
@@ -478,7 +478,7 @@ export const loadPublicDisplayCurrencyCatalog = async () => {
       ),
     };
   } catch {
-    const index = buildPublicDisplayCurrencyIndex([], fallbackUsdYYCPerUnit);
+    const index = buildPublicDisplayCurrencyIndex([], fallbackUsdChargeRate);
     return {
       currencyIndex: index,
       defaultCurrency: resolvePreferredDisplayCurrency(index),

@@ -191,16 +191,16 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			redemption.GroupID = strings.TrimSpace(groupRow.Id)
 			redemption.GroupName = strings.TrimSpace(groupRow.Name)
 		}
-		beforeYYCBalance := user.Quota
+		beforeBalanceAmount := user.Quota
 		redeemedAt := now
 		creditExpiresAt := model.ResolveBalanceCreditExpiresAt(redeemedAt, redemption.CreditValidityDays)
 		_, creditedNow, err := model.CreditUserBalanceLotWithDB(tx, model.UserBalanceLotCreditInput{
-			UserID:     strings.TrimSpace(userId),
-			SourceType: model.UserBalanceLotSourceRedeem,
-			SourceID:   strings.TrimSpace(redemption.Id),
-			TotalYYC:   redemption.Quota,
-			GrantedAt:  redeemedAt,
-			ExpiresAt:  creditExpiresAt,
+			UserID:      strings.TrimSpace(userId),
+			SourceType:  model.UserBalanceLotSourceRedeem,
+			SourceID:    strings.TrimSpace(redemption.Id),
+			TotalAmount: redemption.Quota,
+			GrantedAt:   redeemedAt,
+			ExpiresAt:   creditExpiresAt,
 		})
 		if err != nil {
 			return err
@@ -209,9 +209,9 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 		if creditedNow {
 			quotaIncrement = redemption.Quota
 		}
-		afterYYCBalance := beforeYYCBalance + quotaIncrement
+		afterBalanceAmount := beforeBalanceAmount + quotaIncrement
 		userUpdates := map[string]any{
-			"quota": afterYYCBalance,
+			"quota": afterBalanceAmount,
 		}
 		if resolvedGroupID != "" {
 			userUpdates["group"] = resolvedGroupID
@@ -228,17 +228,17 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			return err
 		}
 		result = model.RedemptionResult{
-			RedeemedYYC:      redemption.Quota,
-			BeforeYYCBalance: beforeYYCBalance,
-			AfterYYCBalance:  afterYYCBalance,
-			RedemptionID:     strings.TrimSpace(redemption.Id),
-			RedemptionName:   strings.TrimSpace(redemption.Name),
-			GroupID:          strings.TrimSpace(redemption.GroupID),
-			GroupName:        strings.TrimSpace(redemption.GroupName),
-			FaceValueAmount:  redemption.FaceValueAmount,
-			FaceValueUnit:    strings.TrimSpace(redemption.FaceValueUnit),
-			RedeemedAt:       redemption.RedeemedTime,
-			CreditExpiresAt:  redemption.CreditExpiresAt,
+			RedeemedAmount:      redemption.Quota,
+			BeforeBalanceAmount: beforeBalanceAmount,
+			AfterBalanceAmount:  afterBalanceAmount,
+			RedemptionID:        strings.TrimSpace(redemption.Id),
+			RedemptionName:      strings.TrimSpace(redemption.Name),
+			GroupID:             strings.TrimSpace(redemption.GroupID),
+			GroupName:           strings.TrimSpace(redemption.GroupName),
+			FaceValueAmount:     redemption.FaceValueAmount,
+			FaceValueUnit:       strings.TrimSpace(redemption.FaceValueUnit),
+			RedeemedAt:          redemption.RedeemedTime,
+			CreditExpiresAt:     redemption.CreditExpiresAt,
 		}
 		return nil
 	})

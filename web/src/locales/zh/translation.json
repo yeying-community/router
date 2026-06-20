@@ -140,7 +140,7 @@
       "package_preview_effective_at": "生效时间",
       "package_preview_expires_at": "新到期",
       "package_preview_payable": "应付金额",
-      "package_preview_payable_yyc": "折合 YYC",
+      "package_preview_payable_charge_amount": "折合 YYC",
       "package_confirm_button": "去支付",
       "package_operation": {
         "purchase": "新购",
@@ -666,7 +666,7 @@
         "manual_purchase_currency": "采购币种",
         "manual_purchase_amount": "实付金额",
         "manual_purchase_fx_rate": "折算汇率",
-        "manual_purchase_cost_cny": "采购成本 CNY",
+        "manual_purchase_cost_amount": "采购成本 CNY",
         "manual_purchase_hint": "先填写这笔采购的实付信息，再填写买到了什么权益。",
         "manual_snapshot_invalid": "请至少填写一条有效权益项",
         "manual_snapshot_success": "采购记录保存成功",
@@ -764,7 +764,7 @@
           "purchase_currency": "采购币种",
           "purchase_amount": "采购金额",
           "purchase_fx_rate": "折算汇率",
-          "purchase_cost_cny": "采购成本 CNY",
+          "purchase_cost_amount": "采购成本 CNY",
           "cost_unconfigured": "成本未配置"
         },
         "procurement_consumption_table": {
@@ -845,7 +845,7 @@
           "created_at": "时间",
           "purchase_at": "采购时间",
           "purchase_amount": "实付金额",
-          "purchase_cost_cny": "采购成本 CNY",
+          "purchase_cost_amount": "采购成本 CNY",
           "source_type": "来源",
           "quota_items": "额度项",
           "message": "备注",
@@ -1742,17 +1742,17 @@
         "estimated_prompt_tokens": "预估提示词消耗",
         "billing_settlement_mode": "结算模式",
         "billing_group_ratio": "命中业务倍率",
-        "billing_yyc_rate": "折算比率",
+        "billing_charge_rate": "折算比率",
         "billing_input_quantity": "输入计费数量",
         "billing_output_quantity": "输出计费数量",
         "billing_input_amount": "输入金额",
         "billing_output_amount": "输出金额",
         "billing_amount": "计费金额",
-        "billing_yyc_amount": "折算金额",
+        "billing_charge_amount": "折算金额",
         "billing_image_tool_calls": "图片工具调用次数",
         "billing_image_tool_output_tokens": "图片工具输出词元",
         "billing_image_tool_amount": "图片工具金额",
-        "billing_image_tool_yyc_amount": "图片工具折算金额",
+        "billing_image_tool_charge_amount": "图片工具折算金额",
         "elapsed_time": "耗时",
         "is_stream": "流式输出",
         "system_prompt_reset": "重置系统提示词"
@@ -2817,7 +2817,7 @@
         "chat_link": "聊天页面链接",
         "chat_link_placeholder": "例如 Chat Web 的部署地址",
         "quota_per_unit": "USD -> YYC 折算比率",
-        "quota_per_unit_placeholder": "1 USD 折算为多少 YYC",
+        "quota_per_unit_placeholder": "1 USD 折算为多少扣减额度",
         "channel_billing_auto_refresh": {
           "enabled": "启用渠道账务自动刷新",
           "interval_seconds": "刷新间隔（秒）",
@@ -2837,7 +2837,7 @@
           "name": "名称",
           "symbol": "符号",
           "minor_unit": "精度",
-          "yyc_per_unit": "每单位兑换 YYC",
+          "charge_rate": "每单位扣减额度",
           "status": "状态",
           "source": "来源",
           "updated_at": "更新时间",
@@ -2849,7 +2849,7 @@
         },
         "placeholders": {
           "name": "例如 US Dollar",
-          "yyc_per_unit": "例如 500000"
+          "charge_rate": "例如 500000"
         },
         "auto_sync": {
           "enabled": "启用自动汇率同步",
@@ -2876,7 +2876,7 @@
           "code_required": "币种代码不能为空",
           "name_required": "币种名称不能为空",
           "minor_unit_invalid": "精度必须大于或等于 0",
-          "yyc_per_unit_invalid": "YYC 兑换比率必须大于 0"
+          "charge_rate_invalid": "扣减比率必须大于 0"
         }
       }
     },
@@ -2917,7 +2917,7 @@
           "code_required": "币种代码不能为空",
           "name_required": "币种名称不能为空",
           "minor_unit_invalid": "精度必须大于或等于 0",
-          "enabled_rate_required": "启用币种前，请先在汇率设置中配置大于 0 的 YYC 汇率"
+          "enabled_rate_required": "启用币种前，请先在汇率设置中配置大于 0 的 扣减汇率"
         }
       }
     },
@@ -2973,7 +2973,7 @@
     },
     "exchange": {
       "title": "汇率管理",
-      "subtitle": "统一展示手动维护的 */YYC 汇率，以及同步得到的法币货币对汇率。",
+      "subtitle": "统一展示手动维护的 */扣减汇率，以及同步得到的法币货币对汇率。",
       "empty": "暂无汇率数据",
       "columns": {
         "pair": "货币对",

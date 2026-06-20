@@ -22,7 +22,7 @@ const createEmptyCurrency = () => ({
   name: '',
   symbol: '',
   minor_unit: 6,
-  yyc_per_unit: '0',
+  charge_rate: '0',
   status: 2,
   source: 'manual',
   updated_at: 0,
@@ -72,9 +72,9 @@ const CurrencySetting = ({ section = '' }) => {
         .map((item) => ({
           ...item,
           minor_unit: Number(item?.minor_unit ?? 6),
-          yyc_per_unit:
-            item?.yyc_per_unit === 0 || item?.yyc_per_unit
-              ? `${item.yyc_per_unit}`
+          charge_rate:
+            item?.charge_rate === 0 || item?.charge_rate
+              ? `${item.charge_rate}`
               : '0',
           status: Number(item?.status || 1),
           _isNew: false,
@@ -124,7 +124,7 @@ const CurrencySetting = ({ section = '' }) => {
     const symbol = (row.symbol || '').toString().trim();
     const minorUnit = Number.parseInt(row.minor_unit ?? 6, 10);
     const status = Number(row.status || 1);
-    const yycPerUnit = Number.parseFloat(row.yyc_per_unit ?? '0');
+    const chargeRate = Number.parseFloat(row.charge_rate ?? '0');
 
     if (!code) {
       showError(t('setting.currency.catalog.messages.code_required'));
@@ -138,7 +138,7 @@ const CurrencySetting = ({ section = '' }) => {
       showError(t('setting.currency.catalog.messages.minor_unit_invalid'));
       return;
     }
-    if (status === 1 && (!Number.isFinite(yycPerUnit) || yycPerUnit <= 0)) {
+    if (status === 1 && (!Number.isFinite(chargeRate) || chargeRate <= 0)) {
       showError(t('setting.currency.catalog.messages.enabled_rate_required'));
       return;
     }
@@ -148,7 +148,7 @@ const CurrencySetting = ({ section = '' }) => {
       name,
       symbol,
       minor_unit: minorUnit,
-      yyc_per_unit: Number.isFinite(yycPerUnit) && yycPerUnit > 0 ? yycPerUnit : 0,
+      charge_rate: Number.isFinite(chargeRate) && chargeRate > 0 ? chargeRate : 0,
       status,
       source: (row.source || 'manual').toString().trim() || 'manual',
     };

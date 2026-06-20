@@ -36,7 +36,7 @@ type TopupPlan struct {
 
 type ResolvedTopupPlan struct {
 	TopupPlan
-	QuotaYYC int64 `json:"quota_yyc"`
+	ChargeAmount int64 `json:"charge_amount"`
 }
 
 func (TopupPlan) TableName() string {
@@ -457,16 +457,16 @@ func ResolveTopupPlan(planID string) (ResolvedTopupPlan, error) {
 	if !item.Enabled {
 		return ResolvedTopupPlan{}, fmt.Errorf("充值额度已禁用")
 	}
-	yycPerUnit, err := GetBillingCurrencyYYCPerUnit(item.QuotaCurrency)
+	chargeRate, err := GetBillingCurrencyChargeRate(item.QuotaCurrency)
 	if err != nil {
 		return ResolvedTopupPlan{}, err
 	}
-	quotaYYC := int64(math.Round(item.QuotaAmount * yycPerUnit))
-	if quotaYYC <= 0 {
+	quotaChargeAmount := int64(math.Round(item.QuotaAmount * chargeRate))
+	if quotaChargeAmount <= 0 {
 		return ResolvedTopupPlan{}, fmt.Errorf("充值额度不能为空")
 	}
 	return ResolvedTopupPlan{
-		TopupPlan: item,
-		QuotaYYC:  quotaYYC,
+		TopupPlan:    item,
+		ChargeAmount: quotaChargeAmount,
 	}, nil
 }

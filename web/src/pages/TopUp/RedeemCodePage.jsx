@@ -29,7 +29,7 @@ const RedeemCodePage = ({ open, onClose, onRedeemed }) => {
         {
           key: 'row-1',
           leftLabel: t('topup.redemption_result.fields.redeemed_amount'),
-          leftValue: renderDisplayAmount(recentResult.redeemed_yyc),
+          leftValue: renderDisplayAmount(recentResult.redeemed_amount),
           rightLabel: t('topup.redemption_result.fields.redeemed_at'),
           rightValue: recentResult.redeemed_at
             ? timestamp2string(recentResult.redeemed_at)
@@ -38,9 +38,9 @@ const RedeemCodePage = ({ open, onClose, onRedeemed }) => {
         {
           key: 'row-2',
           leftLabel: t('topup.redemption_result.fields.before_balance'),
-          leftValue: renderDisplayAmount(recentResult.before_yyc_balance),
+          leftValue: renderDisplayAmount(recentResult.before_balance_amount),
           rightLabel: t('topup.redemption_result.fields.after_balance'),
-          rightValue: renderDisplayAmount(recentResult.after_yyc_balance),
+          rightValue: renderDisplayAmount(recentResult.after_balance_amount),
         },
         {
           key: 'row-3',

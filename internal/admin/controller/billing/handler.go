@@ -14,8 +14,8 @@ import (
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
 )
 
-func usdYYCPerUnit() float64 {
-	value, err := model.GetBillingCurrencyYYCPerUnit(model.BillingCurrencyCodeUSD)
+func usdChargeRate() float64 {
+	value, err := model.GetBillingCurrencyChargeRate(model.BillingCurrencyCodeUSD)
 	if err != nil || value <= 0 {
 		return config.QuotaPerUnit
 	}
@@ -27,7 +27,7 @@ type upsertBillingCurrencyRequest struct {
 	Name       string  `json:"name"`
 	Symbol     string  `json:"symbol"`
 	MinorUnit  int     `json:"minor_unit"`
-	YYCPerUnit float64 `json:"yyc_per_unit"`
+	ChargeRate float64 `json:"charge_rate"`
 	Status     int     `json:"status"`
 	Source     string  `json:"source"`
 }
@@ -37,7 +37,7 @@ type publicBillingCurrencyItem struct {
 	Name       string  `json:"name"`
 	Symbol     string  `json:"symbol"`
 	MinorUnit  int     `json:"minor_unit"`
-	YYCPerUnit float64 `json:"yyc_per_unit"`
+	ChargeRate float64 `json:"charge_rate"`
 }
 
 type procurementReportItem struct {
@@ -154,7 +154,7 @@ func GetPublicBillingCurrencies(c *gin.Context) {
 	items := make([]publicBillingCurrencyItem, 0, len(rows))
 	seen := make(map[string]struct{}, len(rows))
 	for _, row := range rows {
-		if row.Status != model.BillingCurrencyStatusEnabled || row.YYCPerUnit <= 0 {
+		if row.Status != model.BillingCurrencyStatusEnabled || row.ChargeRate <= 0 {
 			continue
 		}
 		code := strings.ToUpper(strings.TrimSpace(row.Code))
@@ -170,7 +170,7 @@ func GetPublicBillingCurrencies(c *gin.Context) {
 			Name:       row.Name,
 			Symbol:     row.Symbol,
 			MinorUnit:  row.MinorUnit,
-			YYCPerUnit: row.YYCPerUnit,
+			ChargeRate: row.ChargeRate,
 		})
 	}
 	if _, ok := seen[model.BillingCurrencyCodeUSD]; !ok {
@@ -179,7 +179,7 @@ func GetPublicBillingCurrencies(c *gin.Context) {
 			Name:       "US Dollar",
 			Symbol:     "$",
 			MinorUnit:  6,
-			YYCPerUnit: usdYYCPerUnit(),
+			ChargeRate: usdChargeRate(),
 		})
 	}
 
@@ -223,7 +223,7 @@ func CreateBillingCurrency(c *gin.Context) {
 		Name:       req.Name,
 		Symbol:     req.Symbol,
 		MinorUnit:  req.MinorUnit,
-		YYCPerUnit: req.YYCPerUnit,
+		ChargeRate: req.ChargeRate,
 		Status:     req.Status,
 		Source:     req.Source,
 	})
@@ -263,7 +263,7 @@ func UpdateBillingCurrency(c *gin.Context) {
 		next.Name = req.Name
 		next.Symbol = req.Symbol
 		next.MinorUnit = req.MinorUnit
-		next.YYCPerUnit = req.YYCPerUnit
+		next.ChargeRate = req.ChargeRate
 		next.Status = req.Status
 		if strings.TrimSpace(req.Source) != "" {
 			next.Source = req.Source
@@ -405,7 +405,7 @@ func GetSubscription(c *gin.Context) {
 		return
 	}
 	quota := remainQuota + usedQuota
-	amount := float64(quota) / usdYYCPerUnit()
+	amount := float64(quota) / usdChargeRate()
 	if token != nil && token.UnlimitedQuota {
 		amount = 100000000
 	}
@@ -446,7 +446,7 @@ func GetUsage(c *gin.Context) {
 		})
 		return
 	}
-	amount := float64(quota) / usdYYCPerUnit()
+	amount := float64(quota) / usdChargeRate()
 	usage := billingsvc.OpenAIUsageResponse{
 		Object:     "list",
 		TotalUsage: amount * 100,

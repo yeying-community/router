@@ -87,7 +87,7 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 	}
 	// totalQuota is total quota consumed
 	if totalQuota != 0 {
-		snapshot.YYCAmount = totalQuota
+		snapshot.ChargeAmount = totalQuota
 		entry := &model.Log{
 			UserId:             userId,
 			GroupId:            groupID,

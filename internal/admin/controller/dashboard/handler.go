@@ -42,11 +42,11 @@ const (
 
 type summaryData struct {
 	ConsumeQuota    int64 `json:"consume_quota"`
-	ConsumeYYC      int64 `json:"consume_yyc"`
+	ConsumeAmount      int64 `json:"consume_amount"`
 	TopupQuota      int64 `json:"topup_quota"`
-	TopupYYC        int64 `json:"topup_yyc"`
+	TopupAmount     int64 `json:"topup_amount"`
 	NetQuota        int64 `json:"net_quota"`
-	NetYYC          int64 `json:"net_yyc"`
+	NetAmount          int64 `json:"net_amount"`
 	RequestCount    int64 `json:"request_count"`
 	ActiveUserCount int64 `json:"active_user_count"`
 
@@ -64,9 +64,9 @@ type summaryData struct {
 type trendPoint struct {
 	Bucket          string `json:"bucket"`
 	ConsumeQuota    int64  `json:"consume_quota"`
-	ConsumeYYC      int64  `json:"consume_yyc"`
+	ConsumeAmount      int64  `json:"consume_amount"`
 	TopupQuota      int64  `json:"topup_quota"`
-	TopupYYC        int64  `json:"topup_yyc"`
+	TopupAmount     int64  `json:"topup_amount"`
 	RequestCount    int64  `json:"request_count"`
 	ActiveUserCount int64  `json:"active_user_count"`
 }
@@ -78,7 +78,7 @@ type channelHealthItem struct {
 	Status             int      `json:"status"`
 	Capabilities       []string `json:"capabilities"`
 	UsedQuota          int64    `json:"used_quota"`
-	YYCUsed            int64    `json:"yyc_used"`
+	UsedAmount         int64    `json:"used_amount"`
 	Priority           int64    `json:"priority"`
 	SelectedModelCount int      `json:"selected_model_count"`
 	TestedModelCount   int      `json:"tested_model_count"`
@@ -100,7 +100,7 @@ type usageRankingItem struct {
 	RequestCount int64   `json:"request_count"`
 	TotalTokens  int64   `json:"total_tokens"`
 	SpendQuota   int64   `json:"spend_quota"`
-	SpendYYC     int64   `json:"spend_yyc"`
+	SpendAmount     int64   `json:"spend_amount"`
 	ShareRate    float64 `json:"share_rate"`
 	LastUsedAt   int64   `json:"last_used_at"`
 }
@@ -110,7 +110,7 @@ type usageRankSummary struct {
 	RequestCount int64   `json:"request_count"`
 	TotalTokens  int64   `json:"total_tokens"`
 	SpendQuota   int64   `json:"spend_quota"`
-	SpendYYC     int64   `json:"spend_yyc"`
+	SpendAmount     int64   `json:"spend_amount"`
 	TopUsername  string  `json:"top_username"`
 	TopUserShare float64 `json:"top_user_share"`
 }
@@ -120,7 +120,7 @@ type usageTotalSummary struct {
 	RequestCount int64 `json:"request_count"`
 	TotalTokens  int64 `json:"total_tokens"`
 	SpendQuota   int64 `json:"spend_quota"`
-	SpendYYC     int64 `json:"spend_yyc"`
+	SpendAmount     int64 `json:"spend_amount"`
 }
 
 type modelHealthItem struct {
@@ -130,7 +130,7 @@ type modelHealthItem struct {
 	RequestCount         int64    `json:"request_count"`
 	TotalTokens          int64    `json:"total_tokens"`
 	SpendQuota           int64    `json:"spend_quota"`
-	SpendYYC             int64    `json:"spend_yyc"`
+	SpendAmount             int64    `json:"spend_amount"`
 	ChannelCount         int      `json:"channel_count"`
 	TestedChannelCount   int      `json:"tested_channel_count"`
 	TestedEndpointCount  int      `json:"tested_endpoint_count"`
@@ -153,7 +153,7 @@ type modelSummaryData struct {
 	RequestCount       int64   `json:"request_count"`
 	TotalTokens        int64   `json:"total_tokens"`
 	SpendQuota         int64   `json:"spend_quota"`
-	SpendYYC           int64   `json:"spend_yyc"`
+	SpendAmount           int64   `json:"spend_amount"`
 	AvgPassRate        float64 `json:"avg_pass_rate"`
 	AvgLatencyMs       int64   `json:"avg_latency_ms"`
 }
@@ -508,7 +508,7 @@ func listTopChannels() ([]channelHealthItem, int64, int64, int64, error) {
 			Status:             row.Status,
 			Capabilities:       collectCapabilities(row),
 			UsedQuota:          row.UsedQuota,
-			YYCUsed:            row.UsedQuota,
+			UsedAmount:         row.UsedQuota,
 			Priority:           row.GetPriority(),
 			SelectedModelCount: health.SelectedModelCount,
 			TestedModelCount:   health.TestedModelCount,
@@ -655,10 +655,10 @@ func buildTrend(startAt int64, endAt int64, granularity string) ([]trendPoint, e
 		}
 		if row.Type == model.LogTypeConsume {
 			points[bucket].ConsumeQuota += row.Quota
-			points[bucket].ConsumeYYC += row.Quota
+			points[bucket].ConsumeAmount += row.Quota
 		} else if row.Type == model.LogTypeTopup {
 			points[bucket].TopupQuota += row.Quota
-			points[bucket].TopupYYC += row.Quota
+			points[bucket].TopupAmount += row.Quota
 		}
 	}
 	for _, row := range requestRows {
@@ -732,7 +732,7 @@ func summarizeUsageTotals(startAt int64, endAt int64, userKeyword string) (usage
 	summary.RequestCount = row.RequestCount
 	summary.TotalTokens = row.PromptTokens + row.CompletionTs
 	summary.SpendQuota = row.SpendQuota
-	summary.SpendYYC = row.SpendQuota
+	summary.SpendAmount = row.SpendQuota
 	return summary, nil
 }
 
@@ -747,7 +747,7 @@ func summarizeUsageRanking(items []usageRankingItem) usageRankSummary {
 		summary.RequestCount += item.RequestCount
 		summary.TotalTokens += item.TotalTokens
 		summary.SpendQuota += item.SpendQuota
-		summary.SpendYYC += item.SpendYYC
+		summary.SpendAmount += item.SpendAmount
 		if index == 0 || item.SpendQuota > topSpendQuota {
 			topSpendQuota = item.SpendQuota
 			summary.TopUsername = strings.TrimSpace(item.Username)
@@ -833,7 +833,7 @@ func buildUsageRankingWithKeyword(startAt int64, endAt int64, totalConsumeQuota 
 				RequestCount: row.RequestCount,
 				TotalTokens:  totalTokens,
 				SpendQuota:   row.SpendQuota,
-				SpendYYC:     row.SpendQuota,
+				SpendAmount:     row.SpendQuota,
 				LastUsedAt:   row.LastUsedAt,
 			},
 			CreatedAt: userRow.CreatedAt,
@@ -1122,7 +1122,7 @@ func buildModelDashboard(startAt int64, endAt int64, limit int) (modelSummaryDat
 		agg.item.RequestCount = row.RequestCount
 		agg.item.TotalTokens = row.PromptTokens + row.CompletionTokens
 		agg.item.SpendQuota = row.SpendQuota
-		agg.item.SpendYYC = row.SpendQuota
+		agg.item.SpendAmount = row.SpendQuota
 		if row.LastUsedAt > agg.item.LastTestedAt {
 			// keep usage recency separate from test recency; test time remains authoritative for health
 		}
@@ -1165,7 +1165,7 @@ func buildModelDashboard(startAt int64, endAt int64, limit int) (modelSummaryDat
 		summary.RequestCount += item.RequestCount
 		summary.TotalTokens += item.TotalTokens
 		summary.SpendQuota += item.SpendQuota
-		summary.SpendYYC += item.SpendYYC
+		summary.SpendAmount += item.SpendAmount
 		summary.AvgPassRate += item.PassRate
 		if item.AvgLatencyMs > 0 {
 			summary.AvgLatencyMs += item.AvgLatencyMs
@@ -1188,8 +1188,8 @@ func buildModelDashboard(startAt int64, endAt int64, limit int) (modelSummaryDat
 	}
 
 	sort.Slice(items, func(i, j int) bool {
-		if items[i].SpendYYC != items[j].SpendYYC {
-			return items[i].SpendYYC > items[j].SpendYYC
+		if items[i].SpendAmount != items[j].SpendAmount {
+			return items[i].SpendAmount > items[j].SpendAmount
 		}
 		if items[i].RequestCount != items[j].RequestCount {
 			return items[i].RequestCount > items[j].RequestCount
@@ -1289,11 +1289,11 @@ func GetDashboard(c *gin.Context) {
 		}
 		payload.Summary = summaryData{
 			ConsumeQuota:    consumeQuota,
-			ConsumeYYC:      consumeQuota,
+			ConsumeAmount:      consumeQuota,
 			TopupQuota:      topupQuota,
-			TopupYYC:        topupQuota,
+			TopupAmount:     topupQuota,
 			NetQuota:        topupQuota - consumeQuota,
-			NetYYC:          topupQuota - consumeQuota,
+			NetAmount:          topupQuota - consumeQuota,
 			RequestCount:    requestCount,
 			ActiveUserCount: activeUserCount,
 			ChannelTotal:    channelTotal,

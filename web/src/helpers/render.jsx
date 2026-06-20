@@ -81,27 +81,27 @@ export function formatCompactNumber(value) {
   return `${text}${unit}`;
 }
 
-export function renderDisplayAmount(yycAmount, t, precision = 2) {
-  const yycPerUnit = getYYCPerUnitValue();
-  if (yycPerUnit > 0 && typeof t === 'function') {
-    const amount = (yycAmount / yycPerUnit).toFixed(precision);
+export function renderDisplayAmount(chargeAmount, t, precision = 2) {
+  const chargeRate = getChargeRateValue();
+  if (chargeRate > 0 && typeof t === 'function') {
+    const amount = (chargeAmount / chargeRate).toFixed(precision);
     return t('common.quota.display_short', { amount });
   }
 
-  return renderNumber(yycAmount);
+  return renderNumber(chargeAmount);
 }
 
-// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
+// Alias kept for quota-named UI callsites that still display charge amounts.
 export const renderQuota = renderDisplayAmount;
 
-export function isYYCDisplayedInCurrency() {
-  return getYYCPerUnitValue() > 0;
+export function isChargeDisplayedInCurrency() {
+  return getChargeRateValue() > 0;
 }
 
-// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
-export const isQuotaDisplayedInCurrency = isYYCDisplayedInCurrency;
+// Alias kept for quota-named UI callsites that still display charge amounts.
+export const isQuotaDisplayedInCurrency = isChargeDisplayedInCurrency;
 
-export function getYYCPerUnitValue() {
+export function getChargeRateValue() {
   if (typeof window === 'undefined') {
     return 0;
   }
@@ -112,28 +112,28 @@ export function getYYCPerUnitValue() {
   return value;
 }
 
-// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
-export const getQuotaPerUnitValue = getYYCPerUnitValue;
+// Alias kept for quota-named UI callsites that still display charge amounts.
+export const getQuotaPerUnitValue = getChargeRateValue;
 
-export function formatYYCEquivalentAmount(yycAmount, precision = 6) {
-  const normalized = Number(yycAmount || 0);
-  const yycPerUnit = getYYCPerUnitValue();
+export function formatChargeEquivalentAmount(chargeAmount, precision = 6) {
+  const normalized = Number(chargeAmount || 0);
+  const chargeRate = getChargeRateValue();
   if (!Number.isFinite(normalized)) {
     return '';
   }
-  if (!Number.isFinite(yycPerUnit) || yycPerUnit <= 0) {
+  if (!Number.isFinite(chargeRate) || chargeRate <= 0) {
     return '';
   }
-  return (normalized / yycPerUnit)
+  return (normalized / chargeRate)
     .toFixed(precision)
     .replace(/\.?0+$/, '');
 }
 
-// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
-export const formatQuotaEquivalentAmount = formatYYCEquivalentAmount;
+// Alias kept for quota-named UI callsites that still display charge amounts.
+export const formatQuotaEquivalentAmount = formatChargeEquivalentAmount;
 
-export function formatYYCValue(yycAmount, compact = false) {
-  const normalized = Number(yycAmount || 0);
+export function formatCreditAmount(chargeAmount, compact = false) {
+  const normalized = Number(chargeAmount || 0);
   if (!Number.isFinite(normalized)) {
     return `${YYC_SYMBOL} 0`;
   }
@@ -158,76 +158,76 @@ export function formatAmountWithUnit(amount, unit, maximumFractionDigits = 8) {
   const normalizedUnit = (unit || '').toString().trim().toUpperCase();
   const normalizedAmount = Number(amount);
   if (normalizedUnit === 'YYC') {
-    return formatYYCValue(normalizedAmount, false);
+    return formatCreditAmount(normalizedAmount, false);
   }
   const display = formatDecimalNumber(normalizedAmount, maximumFractionDigits);
   return normalizedUnit ? `${display} ${normalizedUnit}` : display;
 }
 
-export function renderYYC(yycAmount, t, compact = true, amountPrecision = 6) {
-  const normalized = Number(yycAmount || 0);
-  const triggerText = formatYYCValue(normalized, compact);
-  const amount = formatYYCEquivalentAmount(normalized, amountPrecision);
+export function renderChargeAmount(chargeAmount, t, compact = true, amountPrecision = 6) {
+  const normalized = Number(chargeAmount || 0);
+  const triggerText = formatCreditAmount(normalized, compact);
+  const amount = formatChargeEquivalentAmount(normalized, amountPrecision);
   if (!amount || typeof t !== 'function') {
     return <span>{triggerText}</span>;
   }
   return (
     <AppTooltip
-      title={`${formatYYCValue(normalized, false)} (${t('common.quota.display', { amount })})`}
+      title={`${formatCreditAmount(normalized, false)} (${t('common.quota.display', { amount })})`}
     >
       <span>{triggerText}</span>
     </AppTooltip>
   );
 }
 
-export function yycToDisplayInputValue(yycAmount, precision = 6) {
-  const normalized = Number(yycAmount || 0);
+export function chargeAmountToDisplayInputValue(chargeAmount, precision = 6) {
+  const normalized = Number(chargeAmount || 0);
   if (!Number.isFinite(normalized) || normalized === 0) {
     return '0';
   }
-  if (!isYYCDisplayedInCurrency()) {
+  if (!isChargeDisplayedInCurrency()) {
     return `${Math.trunc(normalized)}`;
   }
-  return (normalized / getYYCPerUnitValue())
+  return (normalized / getChargeRateValue())
     .toFixed(precision)
     .replace(/\.?0+$/, '');
 }
 
-// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
-export const quotaToInputValue = yycToDisplayInputValue;
+// Alias kept for quota-named UI callsites that still display charge amounts.
+export const quotaToInputValue = chargeAmountToDisplayInputValue;
 
-export function displayInputToYYCStoredValue(value) {
+export function displayInputToChargeAmount(value) {
   const normalized = Number(value ?? 0);
   if (!Number.isFinite(normalized) || normalized < 0) {
     return NaN;
   }
-  if (!isYYCDisplayedInCurrency()) {
+  if (!isChargeDisplayedInCurrency()) {
     return Math.trunc(normalized);
   }
-  return Math.round(normalized * getYYCPerUnitValue());
+  return Math.round(normalized * getChargeRateValue());
 }
 
-// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
-export const quotaInputToStoredValue = displayInputToYYCStoredValue;
+// Alias kept for quota-named UI callsites that still display charge amounts.
+export const quotaInputToStoredValue = displayInputToChargeAmount;
 
 export function displayAmountInputStep() {
-  return isYYCDisplayedInCurrency() ? '0.01' : '1';
+  return isChargeDisplayedInCurrency() ? '0.01' : '1';
 }
 
-// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
+// Alias kept for quota-named UI callsites that still display charge amounts.
 export const quotaInputStep = displayAmountInputStep;
 
-export function renderAmountEquivalentPrompt(yycAmount, t) {
-  if (getYYCPerUnitValue() > 0) {
-    const amount = formatYYCEquivalentAmount(yycAmount, 2);
+export function renderAmountEquivalentPrompt(chargeAmount, t) {
+  if (getChargeRateValue() > 0) {
+    const amount = formatChargeEquivalentAmount(chargeAmount, 2);
     return ` (${t('common.quota.display', { amount })})`;
   }
 
   return '';
 }
 
-// Legacy alias kept for older frontend callsites during the quota -> YYC cleanup.
-export const renderYYCEquivalentPrompt = renderAmountEquivalentPrompt;
+// Alias kept for quota-named UI callsites that still display charge amounts.
+export const renderChargeAmountEquivalentPrompt = renderAmountEquivalentPrompt;
 
 const colors = [
   'red',

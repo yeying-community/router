@@ -26,7 +26,7 @@ import {
   buildPublicDisplayCurrencyIndex,
   loadPublicDisplayCurrencyCatalog,
   resolvePreferredDisplayCurrency,
-  yycToBillingInputValue,
+  chargeAmountToBillingInputValue,
 } from '../helpers/billing';
 import {
   AppButton,
@@ -409,7 +409,7 @@ const UsersTable = () => {
       'display_name',
       'wallet_address',
       'active_package_name',
-      'yyc_balance',
+      'balance_amount',
       'request_count',
       'role',
       'status',
@@ -426,7 +426,7 @@ const UsersTable = () => {
           user?.display_name,
           user?.wallet_address,
           user?.active_package_name,
-          user?.yyc_balance ?? user?.quota,
+          user?.balance_amount ?? user?.quota,
           user?.request_count,
           user?.role,
           user?.status,
@@ -613,8 +613,8 @@ const UsersTable = () => {
             width: USER_LIST_COLUMN_WIDTHS.balance,
             render: (_, user) =>
               formatUserBalanceValue(
-                yycToBillingInputValue(
-                  user.yyc_balance ?? user.quota,
+                chargeAmountToBillingInputValue(
+                  user.balance_amount ?? user.quota,
                   balanceUnit,
                   currencyIndex,
                 ),

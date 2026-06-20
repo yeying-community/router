@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import {
-  convertYYCToDisplayAmount,
+  convertChargeAmountToDisplayAmount,
   DEFAULT_FIAT_DISPLAY_CODE,
   buildPublicDisplayCurrencyIndex,
   normalizeDisplayCurrencyCode,
@@ -57,13 +57,13 @@ export const normalizeTopUpResult = (raw) => {
   if (!raw || typeof raw !== 'object') {
     return null;
   }
-  const redeemedYYC = Number(raw?.redeemed_yyc ?? 0) || 0;
-  const beforeYYCBalance = Number(raw?.before_yyc_balance ?? 0) || 0;
-  const afterYYCBalance = Number(raw?.after_yyc_balance ?? 0) || 0;
+  const redeemedAmount = Number(raw?.redeemed_amount ?? 0) || 0;
+  const beforeBalanceAmount = Number(raw?.before_balance_amount ?? 0) || 0;
+  const afterBalanceAmount = Number(raw?.after_balance_amount ?? 0) || 0;
   return {
-    redeemed_yyc: redeemedYYC,
-    before_yyc_balance: beforeYYCBalance,
-    after_yyc_balance: afterYYCBalance,
+    redeemed_amount: redeemedAmount,
+    before_balance_amount: beforeBalanceAmount,
+    after_balance_amount: afterBalanceAmount,
     redemption_id: raw?.redemption_id || '',
     redemption_name: raw?.redemption_name || '',
     group_id: raw?.group_id || '',
@@ -85,7 +85,7 @@ export const normalizeRedemptionRecord = (raw) => {
   return {
     ...raw,
     created_at: normalizedTime,
-    yycAmount: Number(raw?.yyc_amount ?? raw?.yyc_value ?? raw?.quota ?? 0) || 0,
+    chargeAmount: Number(raw?.charge_amount ?? raw?.credit_amount ?? raw?.quota ?? 0) || 0,
     redemptionName:
       String(raw?.redemption_name || raw?.name || '').trim(),
     redemptionCode: String(raw?.code || '').trim(),
@@ -276,14 +276,14 @@ const formatTopupAmountWithFixedFraction = (amount, unit, fractionDigits = 2) =>
 };
 
 const buildTopupAmountDisplayTexts = ({
-  yycAmount,
+  chargeAmount,
   displayCurrency,
   displayCurrencyIndex,
   displayFractionDigits = 2,
   exactFractionDigits = 6,
 }) => {
-  const normalizedYYCAmount = Number(yycAmount ?? 0);
-  if (!Number.isFinite(normalizedYYCAmount)) {
+  const normalizedChargeAmount = Number(chargeAmount ?? 0);
+  if (!Number.isFinite(normalizedChargeAmount)) {
     return {
       displayText: '-',
       exactText: '-',
@@ -293,19 +293,19 @@ const buildTopupAmountDisplayTexts = ({
   if (normalizedDisplayCurrency === YYC_DISPLAY_CODE) {
     return {
       displayText: formatTopupAmountWithFixedFraction(
-        normalizedYYCAmount,
+        normalizedChargeAmount,
         YYC_DISPLAY_CODE,
         displayFractionDigits,
       ),
       exactText: formatAmountWithUnit(
-        normalizedYYCAmount,
+        normalizedChargeAmount,
         YYC_DISPLAY_CODE,
         exactFractionDigits,
       ),
     };
   }
-  const convertedAmount = convertYYCToDisplayAmount(
-    normalizedYYCAmount,
+  const convertedAmount = convertChargeAmountToDisplayAmount(
+    normalizedChargeAmount,
     normalizedDisplayCurrency,
     displayCurrencyIndex,
   );
@@ -330,14 +330,14 @@ const buildTopupAmountDisplayTexts = ({
 };
 
 export const renderTopupIntegerAmountWithExactPopup = ({
-  yycAmount,
+  chargeAmount,
   displayCurrency,
   displayCurrencyIndex,
   displayFractionDigits = 2,
   exactFractionDigits = 6,
 }) => {
   const { displayText, exactText } = buildTopupAmountDisplayTexts({
-    yycAmount,
+    chargeAmount,
     displayCurrency,
     displayCurrencyIndex,
     displayFractionDigits,

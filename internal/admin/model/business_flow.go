@@ -17,7 +17,7 @@ type AdminTopupOrderRecord struct {
 	ProviderOrderID string  `json:"provider_order_id"`
 	Amount          float64 `json:"amount"`
 	Currency        string  `json:"currency"`
-	YYCValue        int64   `json:"yyc_value"`
+	CreditAmount    int64   `json:"credit_amount"`
 	TransactionID   string  `json:"transaction_id"`
 	StatusMessage   string  `json:"status_message"`
 	PaidAt          int64   `json:"paid_at"`
@@ -54,7 +54,7 @@ type AdminRedemptionRecord struct {
 	Name               string  `json:"name"`
 	FaceValueAmount    float64 `json:"face_value_amount"`
 	FaceValueUnit      string  `json:"face_value_unit"`
-	YYCValue           int64   `json:"yyc_value"`
+	CreditAmount       int64   `json:"credit_amount"`
 	RedeemedTime       int64   `json:"redeemed_time"`
 	CreatedTime        int64   `json:"created_time"`
 }
@@ -138,7 +138,7 @@ func ListAdminTopupOrderRecordsPageWithDB(db *gorm.DB, page int, pageSize int, k
 			o.provider_order_id,
 			o.amount,
 			o.currency,
-			COALESCE(o.quota, 0) AS yyc_value,
+			COALESCE(o.quota, 0) AS credit_amount,
 			o.transaction_id,
 			o.status_message,
 			o.paid_at,
@@ -176,7 +176,7 @@ func GetAdminTopupOrderRecordByIDWithDB(db *gorm.DB, id string) (AdminTopupOrder
 			o.provider_order_id,
 			o.amount,
 			o.currency,
-			COALESCE(o.quota, 0) AS yyc_value,
+			COALESCE(o.quota, 0) AS credit_amount,
 			o.transaction_id,
 			o.status_message,
 			o.paid_at,
@@ -308,7 +308,7 @@ func ListAdminRedemptionRecordsPageWithDB(db *gorm.DB, page int, pageSize int, k
 			r.name,
 			r.face_value_amount,
 			r.face_value_unit,
-			r.quota AS yyc_value,
+			r.quota AS credit_amount,
 			r.redeemed_time,
 			r.created_time`).
 		Order("r.redeemed_time desc, r.id desc").
@@ -342,7 +342,7 @@ func GetAdminRedemptionRecordByIDWithDB(db *gorm.DB, id string) (AdminRedemption
 			r.name,
 			r.face_value_amount,
 			r.face_value_unit,
-			r.quota AS yyc_value,
+			r.quota AS credit_amount,
 			r.redeemed_time,
 			r.created_time`).
 		Take(&row).Error

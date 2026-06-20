@@ -7,7 +7,7 @@ import {
   BUSINESS_FLOW_COLUMN_WIDTHS,
 } from '../constants/tableWidthPresets';
 import UnitDropdown from './UnitDropdown';
-import { buildBillingCurrencyIndex, buildDisplayUnitOptions, formatDisplayAmountFromYYC } from '../helpers/billing';
+import { buildBillingCurrencyIndex, buildDisplayUnitOptions, formatDisplayAmountFromChargeAmount } from '../helpers/billing';
 import { formatAmountWithUnit, renderText } from '../helpers/render';
 import {
   AppButton,
@@ -140,7 +140,7 @@ const BusinessFlowTable = ({ kind }) => {
   );
 
   const displayUnitOptions = useMemo(
-    () => buildDisplayUnitOptions(currencyIndex, { order: 'yyc-first' }),
+    () => buildDisplayUnitOptions(currencyIndex, { order: 'charge-first' }),
     [currencyIndex],
   );
 
@@ -281,11 +281,11 @@ const BusinessFlowTable = ({ kind }) => {
             ),
             width: BUSINESS_FLOW_COLUMN_WIDTHS.quota,
             render: (row) =>
-              formatDisplayAmountFromYYC(
-                row?.yyc_value || 0,
+              formatDisplayAmountFromChargeAmount(
+                row?.credit_amount || 0,
                 displayUnit,
                 currencyIndex,
-                { fractionDigits: 6, includeSymbol: false, yycMode: 'fixed' },
+                { fractionDigits: 6, includeSymbol: false, chargeMode: 'fixed' },
               ),
           },
           {
@@ -529,11 +529,11 @@ const BusinessFlowTable = ({ kind }) => {
             width: BUSINESS_FLOW_COLUMN_WIDTHS.quota,
             render: (row) => (
               Number(row.daily_quota_limit || 0) > 0
-                ? formatDisplayAmountFromYYC(
+                ? formatDisplayAmountFromChargeAmount(
                     row.daily_quota_limit,
                     displayUnit,
                     currencyIndex,
-                    { fractionDigits: 6, includeSymbol: false, yycMode: 'fixed' },
+                    { fractionDigits: 6, includeSymbol: false, chargeMode: 'fixed' },
                   )
                 : t('common.unlimited')
             ),
@@ -558,11 +558,11 @@ const BusinessFlowTable = ({ kind }) => {
               </div>
             ),
             width: BUSINESS_FLOW_COLUMN_WIDTHS.quota,
-            render: (row) => formatDisplayAmountFromYYC(
+            render: (row) => formatDisplayAmountFromChargeAmount(
               row.package_emergency_quota_limit || 0,
               displayUnit,
               currencyIndex,
-              { fractionDigits: 6, includeSymbol: false, yycMode: 'fixed' },
+              { fractionDigits: 6, includeSymbol: false, chargeMode: 'fixed' },
             ),
           },
           {
@@ -662,11 +662,11 @@ const BusinessFlowTable = ({ kind }) => {
           width: BUSINESS_FLOW_COLUMN_WIDTHS.quota,
           render: (row) => {
             const unit = (displayUnit || 'USD').toString().trim().toUpperCase();
-            const amountText = formatDisplayAmountFromYYC(
-              row.yyc_value || 0,
+            const amountText = formatDisplayAmountFromChargeAmount(
+              row.credit_amount || 0,
               unit,
               currencyIndex,
-              { fractionDigits: 6, includeSymbol: false, yycMode: 'fixed' },
+              { fractionDigits: 6, includeSymbol: false, chargeMode: 'fixed' },
             );
             return amountText === '-' ? '-' : `${amountText} ${unit}`;
           },

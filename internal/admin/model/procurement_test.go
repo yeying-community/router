@@ -22,19 +22,19 @@ func newProcurementTestDB(t *testing.T) *gorm.DB {
 func TestConsumeChannelProcurementBatchesWithDB(t *testing.T) {
 	db := newProcurementTestDB(t)
 	batch, err := CreateChannelProcurementBatchWithDB(db, ChannelProcurementBatch{
-		ChannelId:         "channel-1",
-		ResourceType:      "quota",
-		QuotaType:         "total",
-		ScopeType:         "model",
-		ScopeValue:        "gpt-5",
-		CapacityUnit:      "token",
-		CapacityTotal:     100,
-		CapacityEffective: 100,
-		CapacityRemaining: 100,
-		PurchaseCostCNY:   10,
-		CostPerUnitCNY:    0.1,
-		CostSource:        ProcurementCostSourceActual,
-		CostStatus:        ProcurementCostStatusActive,
+		ChannelId:          "channel-1",
+		ResourceType:       "quota",
+		QuotaType:          "total",
+		ScopeType:          "model",
+		ScopeValue:         "gpt-5",
+		CapacityUnit:       "token",
+		CapacityTotal:      100,
+		CapacityEffective:  100,
+		CapacityRemaining:  100,
+		PurchaseCostAmount: 10,
+		CostPerUnitAmount:  0.1,
+		CostSource:         ProcurementCostSourceActual,
+		CostStatus:         ProcurementCostStatusActive,
 	})
 	if err != nil {
 		t.Fatalf("create batch: %v", err)
@@ -55,8 +55,8 @@ func TestConsumeChannelProcurementBatchesWithDB(t *testing.T) {
 	if len(result.Consumptions) != 1 {
 		t.Fatalf("consumptions len=%d, want 1", len(result.Consumptions))
 	}
-	if result.TotalCostCNY != 4 {
-		t.Fatalf("TotalCostCNY=%v, want 4", result.TotalCostCNY)
+	if result.TotalCostAmount != 4 {
+		t.Fatalf("TotalCostAmount=%v, want 4", result.TotalCostAmount)
 	}
 
 	var updated ChannelProcurementBatch
@@ -83,8 +83,8 @@ func TestCountRequestProcurementConsumptionsBySourceSnapshotIDWithDB(t *testing.
 		CapacityTotal:        100,
 		CapacityEffective:    100,
 		CapacityRemaining:    100,
-		PurchaseCostCNY:      10,
-		CostPerUnitCNY:       0.1,
+		PurchaseCostAmount:   10,
+		CostPerUnitAmount:    0.1,
 		CostSource:           ProcurementCostSourceActual,
 		CostStatus:           ProcurementCostStatusActive,
 		SourceSnapshotId:     snapshotID,
@@ -111,8 +111,8 @@ func TestCountRequestProcurementConsumptionsBySourceSnapshotIDWithDB(t *testing.
 		QuotaType:          "total",
 		CapacityUnit:       "token",
 		ConsumedQuantity:   1,
-		UnitCostCNY:        0.1,
-		ConsumedCostCNY:    0.1,
+		UnitCostAmount:     0.1,
+		ConsumedCostAmount: 0.1,
 		CostSource:         ProcurementCostSourceActual,
 	}).Error; err != nil {
 		t.Fatalf("create consumption: %v", err)
@@ -138,7 +138,7 @@ func TestConsumeChannelProcurementBatchesMarksExhausted(t *testing.T) {
 		CapacityTotal:     10,
 		CapacityEffective: 10,
 		CapacityRemaining: 10,
-		CostPerUnitCNY:    0.2,
+		CostPerUnitAmount: 0.2,
 		CostSource:        ProcurementCostSourceActual,
 		CostStatus:        ProcurementCostStatusActive,
 	})
@@ -179,7 +179,7 @@ func TestConsumeChannelProcurementBatchesPrefersModelScope(t *testing.T) {
 		CapacityTotal:     100,
 		CapacityEffective: 100,
 		CapacityRemaining: 100,
-		CostPerUnitCNY:    0.1,
+		CostPerUnitAmount: 0.1,
 		CostSource:        ProcurementCostSourceActual,
 		CostStatus:        ProcurementCostStatusActive,
 	})
@@ -196,7 +196,7 @@ func TestConsumeChannelProcurementBatchesPrefersModelScope(t *testing.T) {
 		CapacityTotal:     100,
 		CapacityEffective: 100,
 		CapacityRemaining: 100,
-		CostPerUnitCNY:    0.5,
+		CostPerUnitAmount: 0.5,
 		CostSource:        ProcurementCostSourceActual,
 		CostStatus:        ProcurementCostStatusActive,
 	})
@@ -233,7 +233,7 @@ func TestConsumeChannelProcurementBatchesPrefersModelScope(t *testing.T) {
 
 func TestUpdateLogProcurementCostObservationWithDB(t *testing.T) {
 	db := newProcurementTestDB(t)
-	logRow := Log{Id: "log-1", BillingSellAmountCNY: 10}
+	logRow := Log{Id: "log-1", BillingSellBaseAmount: 10}
 	if err := db.Create(&logRow).Error; err != nil {
 		t.Fatalf("create log: %v", err)
 	}
@@ -246,11 +246,11 @@ func TestUpdateLogProcurementCostObservationWithDB(t *testing.T) {
 	if err := db.Where("id = ?", "log-1").Take(&updated).Error; err != nil {
 		t.Fatalf("load updated log: %v", err)
 	}
-	if updated.BillingProcurementCostCNY != 4 {
-		t.Fatalf("BillingProcurementCostCNY=%v, want 4", updated.BillingProcurementCostCNY)
+	if updated.BillingProcurementCostBaseAmount != 4 {
+		t.Fatalf("BillingProcurementCostBaseAmount=%v, want 4", updated.BillingProcurementCostBaseAmount)
 	}
-	if updated.BillingGrossProfitCNY != 6 {
-		t.Fatalf("BillingGrossProfitCNY=%v, want 6", updated.BillingGrossProfitCNY)
+	if updated.BillingGrossProfitBaseAmount != 6 {
+		t.Fatalf("BillingGrossProfitBaseAmount=%v, want 6", updated.BillingGrossProfitBaseAmount)
 	}
 	if updated.BillingGrossMargin != 0.6 {
 		t.Fatalf("BillingGrossMargin=%v, want 0.6", updated.BillingGrossMargin)
@@ -507,11 +507,11 @@ func TestUpdateChannelProcurementBatchCostActivatesBatch(t *testing.T) {
 	if updated.CostSource != ProcurementCostSourceActual {
 		t.Fatalf("CostSource=%q, want actual", updated.CostSource)
 	}
-	if updated.PurchaseCostCNY != 700 {
-		t.Fatalf("PurchaseCostCNY=%v, want 700", updated.PurchaseCostCNY)
+	if updated.PurchaseCostAmount != 700 {
+		t.Fatalf("PurchaseCostAmount=%v, want 700", updated.PurchaseCostAmount)
 	}
-	if updated.CostPerUnitCNY != 7 {
-		t.Fatalf("CostPerUnitCNY=%v, want 7", updated.CostPerUnitCNY)
+	if updated.CostPerUnitAmount != 7 {
+		t.Fatalf("CostPerUnitAmount=%v, want 7", updated.CostPerUnitAmount)
 	}
 }
 
@@ -547,20 +547,20 @@ func TestUpdateChannelProcurementBatchCostRejectsEffectiveCapacityBelowRemaining
 func TestUpdateChannelProcurementBatchStatusDisablesAndRestores(t *testing.T) {
 	db := newProcurementTestDB(t)
 	batch, err := CreateChannelProcurementBatchWithDB(db, ChannelProcurementBatch{
-		ChannelId:         "channel-1",
-		ResourceType:      "credit",
-		QuotaType:         "total",
-		ScopeType:         "global",
-		CapacityUnit:      "usd_equivalent",
-		CapacityTotal:     100,
-		CapacityEffective: 100,
-		CapacityRemaining: 80,
-		PurchaseCurrency:  "CNY",
-		PurchaseAmount:    700,
-		PurchaseCostCNY:   700,
-		CostPerUnitCNY:    7,
-		CostSource:        ProcurementCostSourceActual,
-		CostStatus:        ProcurementCostStatusActive,
+		ChannelId:          "channel-1",
+		ResourceType:       "credit",
+		QuotaType:          "total",
+		ScopeType:          "global",
+		CapacityUnit:       "usd_equivalent",
+		CapacityTotal:      100,
+		CapacityEffective:  100,
+		CapacityRemaining:  80,
+		PurchaseCurrency:   "CNY",
+		PurchaseAmount:     700,
+		PurchaseCostAmount: 700,
+		CostPerUnitAmount:  7,
+		CostSource:         ProcurementCostSourceActual,
+		CostStatus:         ProcurementCostStatusActive,
 	})
 	if err != nil {
 		t.Fatalf("create batch: %v", err)
@@ -616,19 +616,19 @@ func TestUpdateChannelProcurementBatchStatusRejectsUnconfiguredRestore(t *testin
 func TestListRequestProcurementConsumptionsByBatchIDWithDB(t *testing.T) {
 	db := newProcurementTestDB(t)
 	batch, err := CreateChannelProcurementBatchWithDB(db, ChannelProcurementBatch{
-		ChannelId:         "channel-1",
-		ResourceType:      "quota",
-		QuotaType:         "total",
-		ScopeType:         "model",
-		ScopeValue:        "gpt-5",
-		CapacityUnit:      "token",
-		CapacityTotal:     100,
-		CapacityEffective: 100,
-		CapacityRemaining: 100,
-		PurchaseCostCNY:   10,
-		CostPerUnitCNY:    0.1,
-		CostSource:        ProcurementCostSourceActual,
-		CostStatus:        ProcurementCostStatusActive,
+		ChannelId:          "channel-1",
+		ResourceType:       "quota",
+		QuotaType:          "total",
+		ScopeType:          "model",
+		ScopeValue:         "gpt-5",
+		CapacityUnit:       "token",
+		CapacityTotal:      100,
+		CapacityEffective:  100,
+		CapacityRemaining:  100,
+		PurchaseCostAmount: 10,
+		CostPerUnitAmount:  0.1,
+		CostSource:         ProcurementCostSourceActual,
+		CostStatus:         ProcurementCostStatusActive,
 	})
 	if err != nil {
 		t.Fatalf("create batch: %v", err)
@@ -660,15 +660,15 @@ func TestListProcurementReportWithDB(t *testing.T) {
 	db := newProcurementTestDB(t)
 	rows := []Log{
 		{
-			Id:                           "log-1",
-			Type:                         LogTypeConsume,
-			CreatedAt:                    100,
-			ChannelId:                    "channel-1",
-			ModelName:                    "gpt-5",
-			BillingSellAmountCNY:         10,
-			BillingProcurementCostCNY:    4,
-			BillingProcurementCostSource: ProcurementCostSourceActual,
-			BillingGrossProfitCNY:        6,
+			Id:                               "log-1",
+			Type:                             LogTypeConsume,
+			CreatedAt:                        100,
+			ChannelId:                        "channel-1",
+			ModelName:                        "gpt-5",
+			BillingSellBaseAmount:            10,
+			BillingProcurementCostBaseAmount: 4,
+			BillingProcurementCostSource:     ProcurementCostSourceActual,
+			BillingGrossProfitBaseAmount:     6,
 		},
 		{
 			Id:                           "log-2",
@@ -676,7 +676,7 @@ func TestListProcurementReportWithDB(t *testing.T) {
 			CreatedAt:                    120,
 			ChannelId:                    "channel-1",
 			ModelName:                    "gpt-5",
-			BillingSellAmountCNY:         8,
+			BillingSellBaseAmount:        8,
 			BillingProcurementCostSource: ProcurementCostSourceNone,
 		},
 		{
@@ -685,9 +685,9 @@ func TestListProcurementReportWithDB(t *testing.T) {
 			CreatedAt:                    130,
 			ChannelId:                    "channel-2",
 			ModelName:                    "gpt-5-mini",
-			BillingSellAmountCNY:         5,
+			BillingSellBaseAmount:        5,
 			BillingProcurementCostSource: ProcurementCostSourceZeroCost,
-			BillingGrossProfitCNY:        5,
+			BillingGrossProfitBaseAmount: 5,
 		},
 	}
 	if err := db.Create(&rows).Error; err != nil {
@@ -711,20 +711,20 @@ func TestListProcurementReportWithDB(t *testing.T) {
 	if report.UnconfiguredCostRequestCount != 1 {
 		t.Fatalf("UnconfiguredCostRequestCount=%d, want 1", report.UnconfiguredCostRequestCount)
 	}
-	if report.SellAmountCNY != 23 {
-		t.Fatalf("SellAmountCNY=%v, want 23", report.SellAmountCNY)
+	if report.SellBaseAmount != 23 {
+		t.Fatalf("SellBaseAmount=%v, want 23", report.SellBaseAmount)
 	}
-	if report.ConfiguredSellAmountCNY != 15 {
-		t.Fatalf("ConfiguredSellAmountCNY=%v, want 15", report.ConfiguredSellAmountCNY)
+	if report.ConfiguredSellBaseAmount != 15 {
+		t.Fatalf("ConfiguredSellBaseAmount=%v, want 15", report.ConfiguredSellBaseAmount)
 	}
-	if report.UnconfiguredSellAmountCNY != 8 {
-		t.Fatalf("UnconfiguredSellAmountCNY=%v, want 8", report.UnconfiguredSellAmountCNY)
+	if report.UnconfiguredSellBaseAmount != 8 {
+		t.Fatalf("UnconfiguredSellBaseAmount=%v, want 8", report.UnconfiguredSellBaseAmount)
 	}
-	if report.ProcurementCostCNY != 4 {
-		t.Fatalf("ProcurementCostCNY=%v, want 4", report.ProcurementCostCNY)
+	if report.ProcurementCostBaseAmount != 4 {
+		t.Fatalf("ProcurementCostBaseAmount=%v, want 4", report.ProcurementCostBaseAmount)
 	}
-	if report.GrossProfitCNY != 11 {
-		t.Fatalf("GrossProfitCNY=%v, want 11", report.GrossProfitCNY)
+	if report.GrossProfitBaseAmount != 11 {
+		t.Fatalf("GrossProfitBaseAmount=%v, want 11", report.GrossProfitBaseAmount)
 	}
 	if report.GrossMargin != 11.0/15.0 {
 		t.Fatalf("GrossMargin=%v, want %v", report.GrossMargin, 11.0/15.0)
@@ -748,10 +748,10 @@ func TestListProcurementReportWithDB(t *testing.T) {
 	if unconfiguredReport.UnconfiguredCostRequestCount != 1 {
 		t.Fatalf("unconfigured UnconfiguredCostRequestCount=%d, want 1", unconfiguredReport.UnconfiguredCostRequestCount)
 	}
-	if unconfiguredReport.SellAmountCNY != 8 {
-		t.Fatalf("unconfigured SellAmountCNY=%v, want 8", unconfiguredReport.SellAmountCNY)
+	if unconfiguredReport.SellBaseAmount != 8 {
+		t.Fatalf("unconfigured SellBaseAmount=%v, want 8", unconfiguredReport.SellBaseAmount)
 	}
-	if unconfiguredReport.GrossProfitCNY != 0 {
-		t.Fatalf("unconfigured GrossProfitCNY=%v, want 0", unconfiguredReport.GrossProfitCNY)
+	if unconfiguredReport.GrossProfitBaseAmount != 0 {
+		t.Fatalf("unconfigured GrossProfitBaseAmount=%v, want 0", unconfiguredReport.GrossProfitBaseAmount)
 	}
 }

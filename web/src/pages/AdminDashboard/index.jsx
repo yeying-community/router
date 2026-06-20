@@ -16,7 +16,7 @@ import {
 import { API } from '../../helpers/api';
 import {
   buildPublicDisplayCurrencyIndex,
-  convertYYCToDisplayAmount,
+  convertChargeAmountToDisplayAmount,
   formatCompactDisplayAmount,
 } from '../../helpers/billing';
 import {
@@ -95,7 +95,7 @@ const EMPTY_DASHBOARD = {
     user_count: 0,
     request_count: 0,
     total_tokens: 0,
-    spend_yyc: 0,
+    spend_amount: 0,
     top_username: '',
     top_user_share: 0,
   },
@@ -103,7 +103,7 @@ const EMPTY_DASHBOARD = {
     user_count: 0,
     request_count: 0,
     total_tokens: 0,
-    spend_yyc: 0,
+    spend_amount: 0,
   },
   usage_rank: [],
   model_summary: {
@@ -114,7 +114,7 @@ const EMPTY_DASHBOARD = {
     critical_model_count: 0,
     request_count: 0,
     total_tokens: 0,
-    spend_yyc: 0,
+    spend_amount: 0,
     avg_pass_rate: 0,
     avg_latency_ms: 0,
   },
@@ -152,24 +152,24 @@ const normalizeAdminDashboardPayload = (payload) => {
     summary: {
       ...EMPTY_SUMMARY,
       ...summary,
-      spend_amount: Number(summary?.consume_yyc ?? summary?.consume_quota ?? 0),
-      topup_amount: Number(summary?.topup_yyc ?? summary?.topup_quota ?? 0),
-      net_amount: Number(summary?.net_yyc ?? summary?.net_quota ?? 0),
+      spend_amount: Number(summary?.consume_amount ?? summary?.consume_quota ?? 0),
+      topup_amount: Number(summary?.topup_amount ?? summary?.topup_quota ?? 0),
+      net_amount: Number(summary?.net_amount ?? summary?.net_quota ?? 0),
     },
     trend: trend.map((item) => ({
       ...item,
-      spend_amount: Number(item?.consume_yyc ?? item?.consume_quota ?? 0),
-      topup_amount: Number(item?.topup_yyc ?? item?.topup_quota ?? 0),
+      spend_amount: Number(item?.consume_amount ?? item?.consume_quota ?? 0),
+      topup_amount: Number(item?.topup_amount ?? item?.topup_quota ?? 0),
     })),
     top_channels: topChannels.map((item) => ({
       ...item,
-      usedYyc: Number(item?.yyc_used ?? item?.used_quota ?? 0),
+      usedYyc: Number(item?.used_amount ?? item?.used_quota ?? 0),
     })),
     usage_summary: {
       user_count: Number(usageSummary?.user_count || 0),
       request_count: Number(usageSummary?.request_count || 0),
       total_tokens: Number(usageSummary?.total_tokens || 0),
-      spend_yyc: Number(usageSummary?.spend_yyc ?? usageSummary?.spend_quota ?? 0),
+      spend_amount: Number(usageSummary?.spend_amount ?? usageSummary?.spend_quota ?? 0),
       top_username: String(usageSummary?.top_username || ''),
       top_user_share: Number(usageSummary?.top_user_share || 0),
     },
@@ -177,13 +177,13 @@ const normalizeAdminDashboardPayload = (payload) => {
       user_count: Number(usageTotals?.user_count || 0),
       request_count: Number(usageTotals?.request_count || 0),
       total_tokens: Number(usageTotals?.total_tokens || 0),
-      spend_yyc: Number(usageTotals?.spend_yyc ?? usageTotals?.spend_quota ?? 0),
+      spend_amount: Number(usageTotals?.spend_amount ?? usageTotals?.spend_quota ?? 0),
     },
     usage_rank: usageRank.map((item) => ({
       ...item,
       request_count: Number(item?.request_count || 0),
       total_tokens: Number(item?.total_tokens || 0),
-      spend_yyc: Number(item?.spend_yyc ?? item?.spend_quota ?? 0),
+      spend_amount: Number(item?.spend_amount ?? item?.spend_quota ?? 0),
       share_rate: Number(item?.share_rate || 0),
       last_used_at: Number(item?.last_used_at || 0),
     })),
@@ -195,7 +195,7 @@ const normalizeAdminDashboardPayload = (payload) => {
       critical_model_count: Number(modelSummary?.critical_model_count || 0),
       request_count: Number(modelSummary?.request_count || 0),
       total_tokens: Number(modelSummary?.total_tokens || 0),
-      spend_yyc: Number(modelSummary?.spend_yyc ?? modelSummary?.spend_quota ?? 0),
+      spend_amount: Number(modelSummary?.spend_amount ?? modelSummary?.spend_quota ?? 0),
       avg_pass_rate: Number(modelSummary?.avg_pass_rate || 0),
       avg_latency_ms: Number(modelSummary?.avg_latency_ms || 0),
     },
@@ -203,7 +203,7 @@ const normalizeAdminDashboardPayload = (payload) => {
       ...item,
       request_count: Number(item?.request_count || 0),
       total_tokens: Number(item?.total_tokens || 0),
-      spend_yyc: Number(item?.spend_yyc ?? item?.spend_quota ?? 0),
+      spend_amount: Number(item?.spend_amount ?? item?.spend_quota ?? 0),
       channel_count: Number(item?.channel_count || 0),
       tested_channel_count: Number(item?.tested_channel_count || 0),
       tested_endpoint_count: Number(item?.tested_endpoint_count || 0),
@@ -259,9 +259,9 @@ const AdminDashboard = () => {
   const activeSectionTitle = t(DASHBOARD_SECTION_TITLES[activeSection]);
 
   const toUsd = useCallback(
-    (yycAmount) => {
-      const amount = convertYYCToDisplayAmount(
-        yycAmount,
+    (chargeAmount) => {
+      const amount = convertChargeAmountToDisplayAmount(
+        chargeAmount,
         'USD',
         displayCurrencyIndex,
       );
@@ -272,7 +272,7 @@ const AdminDashboard = () => {
   );
 
   const formatUsd = useCallback(
-    (yycAmount) => formatCompactDisplayAmount(toUsd(yycAmount)),
+    (chargeAmount) => formatCompactDisplayAmount(toUsd(chargeAmount)),
     [toUsd],
   );
 
@@ -471,8 +471,8 @@ const AdminDashboard = () => {
           if (rightLatency <= 0) return -1;
           return leftLatency - rightLatency;
         }
-      } else if (left.spend_yyc !== right.spend_yyc) {
-        return right.spend_yyc - left.spend_yyc;
+      } else if (left.spend_amount !== right.spend_amount) {
+        return right.spend_amount - left.spend_amount;
       }
       if (left.request_count !== right.request_count) {
         return right.request_count - left.request_count;
@@ -558,8 +558,8 @@ const AdminDashboard = () => {
       },
       {
         title: t('dashboard.admin.usage_rank.columns.spend'),
-        dataIndex: 'spend_yyc',
-        key: 'spend_yyc',
+        dataIndex: 'spend_amount',
+        key: 'spend_amount',
         width: 120,
         render: (value) => formatUsd(value),
       },
@@ -624,8 +624,8 @@ const AdminDashboard = () => {
 
   const modelLeaderboardData = useMemo(() => {
     return sortedModels.slice(0, 8).map((item) => {
-      let value = Number(item.spend_yyc || 0);
-      let displayValue = formatUsd(item.spend_yyc);
+      let value = Number(item.spend_amount || 0);
+      let displayValue = formatUsd(item.spend_amount);
       let metricLabel = t('dashboard.admin.models.sort.spend');
       if (modelSort === 'requests') {
         value = Number(item.request_count || 0);
@@ -1376,7 +1376,7 @@ const AdminDashboard = () => {
             {t('dashboard.admin.models.summary.total_spend')}
           </div>
           <div className='admin-dashboard-kpi-value'>
-            {formatUsd(dashboard.model_summary.spend_yyc)}
+            {formatUsd(dashboard.model_summary.spend_amount)}
           </div>
         </div>
         <div className='admin-dashboard-kpi-item'>
@@ -1552,7 +1552,7 @@ const AdminDashboard = () => {
                         {t('dashboard.admin.models.card.spend')}
                       </div>
                       <div className='admin-dashboard-model-metric-value'>
-                        {formatUsd(item.spend_yyc)}
+                        {formatUsd(item.spend_amount)}
                       </div>
                     </div>
                     <div className='admin-dashboard-model-metric'>

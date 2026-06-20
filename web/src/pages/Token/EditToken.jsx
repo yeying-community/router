@@ -13,14 +13,14 @@ import {
 } from '../../helpers';
 import UnitDropdown from '../../components/UnitDropdown';
 import {
-  billingInputValueToYYC,
+  billingInputValueToChargeAmount,
   buildBillingUnitOptions,
   buildPublicDisplayCurrencyIndex,
   convertBillingInputValueUnit,
   loadPublicDisplayCurrencyCatalog,
   resolveBillingInputStep,
   resolveDefaultBillingUnit,
-  yycToBillingInputValue,
+  chargeAmountToBillingInputValue,
 } from '../../helpers/billing';
 import {
   AppButton,
@@ -86,7 +86,7 @@ const EditToken = () => {
   const {
     name,
     expired_time,
-    unlimited_quota: hasUnlimitedYYCLimit,
+    unlimited_quota: hasUnlimitedLimitAmount,
   } = inputs;
   const navigate = useNavigate();
   const allModelValues = modelOptions.map((option) => option.value);
@@ -188,10 +188,10 @@ const EditToken = () => {
       ...data,
     };
     normalizedData.remain_quota = Number(
-      data?.yyc_remain ?? normalizedData.remain_quota ?? 0
+      data?.remaining_amount ?? normalizedData.remain_quota ?? 0
     ) || 0;
     normalizedData.used_quota = Number(
-      data?.yyc_used ?? normalizedData.used_quota ?? 0
+      data?.used_amount ?? normalizedData.used_quota ?? 0
     ) || 0;
     if (normalizedData.expired_time !== -1) {
       normalizedData.expired_time = timestamp2string(normalizedData.expired_time);
@@ -213,7 +213,7 @@ const EditToken = () => {
     setPersistedInputs(normalizedData);
     setExpireTimeMode('custom');
     setQuotaInputValue(
-      yycToBillingInputValue(
+      chargeAmountToBillingInputValue(
         normalizedData.remain_quota,
         quotaDisplayUnit,
         billingCurrencyIndex
@@ -244,7 +244,7 @@ const EditToken = () => {
     setInputs(persistedInputs);
     setExpireTimeMode('custom');
     setQuotaInputValue(
-      yycToBillingInputValue(
+      chargeAmountToBillingInputValue(
         persistedInputs.remain_quota,
         quotaDisplayUnit,
         billingCurrencyIndex
@@ -326,7 +326,7 @@ const EditToken = () => {
     }
   };
 
-  const toggleUnlimitedYYCLimit = () => {
+  const toggleUnlimitedLimitAmount = () => {
     setInputs((prev) => ({
       ...prev,
       unlimited_quota: !prev.unlimited_quota,
@@ -415,7 +415,7 @@ const EditToken = () => {
       setBillingCurrencyIndex(nextIndex);
       setQuotaDisplayUnit(nextUnit);
       setQuotaInputValue(
-        yycToBillingInputValue(inputs.remain_quota, nextUnit, nextIndex)
+        chargeAmountToBillingInputValue(inputs.remain_quota, nextUnit, nextIndex)
       );
     });
     return () => {
@@ -429,16 +429,16 @@ const EditToken = () => {
       return;
     }
     const localInputs = { ...inputs };
-    const quotaYYC = billingInputValueToYYC(
+    const quotaChargeAmount = billingInputValueToChargeAmount(
       quotaInputValue,
       quotaDisplayUnit,
       billingCurrencyIndex
     );
-    if (!Number.isFinite(quotaYYC) || quotaYYC < 0) {
+    if (!Number.isFinite(quotaChargeAmount) || quotaChargeAmount < 0) {
       showError(t('token.edit.messages.quota_invalid'));
       return;
     }
-    localInputs.remain_quota = quotaYYC;
+    localInputs.remain_quota = quotaChargeAmount;
     if (localInputs.expired_time) {
       let time = Date.parse(localInputs.expired_time);
       if (isNaN(time)) {
@@ -485,7 +485,7 @@ const EditToken = () => {
         setInputs(originInputs);
         setExpireTimeMode('custom');
         setQuotaInputValue(
-          yycToBillingInputValue(
+          chargeAmountToBillingInputValue(
             originInputs.remain_quota,
             quotaDisplayUnit,
             billingCurrencyIndex
@@ -747,7 +747,7 @@ const EditToken = () => {
                         step={resolveBillingInputStep(quotaDisplayUnit, billingCurrencyIndex)}
                         precision={6}
                         fluid
-                        disabled={hasUnlimitedYYCLimit}
+                        disabled={hasUnlimitedLimitAmount}
                       />
                       <UnitDropdown
                         variant='inputUnit'
@@ -760,9 +760,9 @@ const EditToken = () => {
                   </AppField>
                   <AppField className='router-token-unlimited-field' label={t('token.edit.buttons.unlimited_quota')}>
                     <AppSwitch
-                      checked={hasUnlimitedYYCLimit}
+                      checked={hasUnlimitedLimitAmount}
                       onChange={() => {
-                        toggleUnlimitedYYCLimit();
+                        toggleUnlimitedLimitAmount();
                       }}
                     />
                   </AppField>
@@ -902,7 +902,7 @@ const EditToken = () => {
                           step={resolveBillingInputStep(quotaDisplayUnit, billingCurrencyIndex)}
                           precision={6}
                           fluid
-                          disabled={hasUnlimitedYYCLimit || basicReadonly}
+                          disabled={hasUnlimitedLimitAmount || basicReadonly}
                         />
                         <UnitDropdown
                           variant='inputUnit'
@@ -916,10 +916,10 @@ const EditToken = () => {
                     </AppField>
                     <AppField className='router-token-unlimited-field' label={t('token.edit.buttons.unlimited_quota')}>
                       <AppSwitch
-                        checked={hasUnlimitedYYCLimit}
+                        checked={hasUnlimitedLimitAmount}
                         disabled={basicReadonly}
                         onChange={() => {
-                          toggleUnlimitedYYCLimit();
+                          toggleUnlimitedLimitAmount();
                         }}
                       />
                     </AppField>

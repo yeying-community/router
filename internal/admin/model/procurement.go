@@ -45,8 +45,8 @@ type ChannelProcurementBatch struct {
 	PurchaseCurrency     string  `json:"purchase_currency" gorm:"type:varchar(16);not null;default:''"`
 	PurchaseAmount       float64 `json:"purchase_amount" gorm:"type:double precision;not null;default:0"`
 	PurchaseFXRate       float64 `json:"purchase_fx_rate" gorm:"type:double precision;not null;default:0"`
-	PurchaseCostCNY      float64 `json:"purchase_cost_cny" gorm:"type:double precision;not null;default:0"`
-	CostPerUnitCNY       float64 `json:"cost_per_unit_cny" gorm:"type:double precision;not null;default:0"`
+	PurchaseCostAmount   float64 `json:"purchase_cost_amount" gorm:"type:double precision;not null;default:0"`
+	CostPerUnitAmount    float64 `json:"cost_per_unit_amount" gorm:"type:double precision;not null;default:0"`
 	CostSource           string  `json:"cost_source" gorm:"type:varchar(32);not null;default:'';index"`
 	CostStatus           string  `json:"cost_status" gorm:"type:varchar(32);not null;default:'cost_unconfigured';index"`
 	ValidFrom            int64   `json:"valid_from" gorm:"bigint;not null;default:0;index"`
@@ -75,8 +75,8 @@ type RequestProcurementConsumption struct {
 	ScopeValue          string  `json:"scope_value" gorm:"type:varchar(191);not null;default:'';index"`
 	CapacityUnit        string  `json:"capacity_unit" gorm:"type:varchar(32);not null;default:'';index"`
 	ConsumedQuantity    float64 `json:"consumed_quantity" gorm:"type:double precision;not null;default:0"`
-	UnitCostCNY         float64 `json:"unit_cost_cny" gorm:"type:double precision;not null;default:0"`
-	ConsumedCostCNY     float64 `json:"consumed_cost_cny" gorm:"type:double precision;not null;default:0"`
+	UnitCostAmount      float64 `json:"unit_cost_amount" gorm:"type:double precision;not null;default:0"`
+	ConsumedCostAmount  float64 `json:"consumed_cost_amount" gorm:"type:double precision;not null;default:0"`
 	SettlementTruthMode string  `json:"settlement_truth_mode" gorm:"type:varchar(64);not null;default:'';index"`
 	CostSource          string  `json:"cost_source" gorm:"type:varchar(32);not null;default:'';index"`
 	CreatedAt           int64   `json:"created_at" gorm:"bigint;index"`
@@ -97,21 +97,21 @@ type ProcurementConsumeInput struct {
 }
 
 type ProcurementConsumeResult struct {
-	Consumptions []RequestProcurementConsumption
-	TotalCostCNY float64
-	CostSource   string
+	Consumptions    []RequestProcurementConsumption
+	TotalCostAmount float64
+	CostSource      string
 }
 
 type ProcurementBatchCostUpdate struct {
-	PurchaseCurrency  string
-	PurchaseAmount    float64
-	PurchaseFXRate    float64
-	PurchaseCostCNY   float64
-	CapacityEffective float64
-	CostSource        string
-	CostStatus        string
-	ScopeType         string
-	ScopeValue        string
+	PurchaseCurrency   string
+	PurchaseAmount     float64
+	PurchaseFXRate     float64
+	PurchaseCostAmount float64
+	CapacityEffective  float64
+	CostSource         string
+	CostStatus         string
+	ScopeType          string
+	ScopeValue         string
 }
 
 type ProcurementBatchStatusUpdate struct {
@@ -273,8 +273,8 @@ func BuildProcurementBatchFromBillingSnapshotItem(snapshot ChannelBillingSnapsho
 		PurchaseCurrency:     "",
 		PurchaseAmount:       0,
 		PurchaseFXRate:       0,
-		PurchaseCostCNY:      0,
-		CostPerUnitCNY:       0,
+		PurchaseCostAmount:   0,
+		CostPerUnitAmount:    0,
 		CostSource:           ProcurementCostSourceNone,
 		CostStatus:           ProcurementCostStatusCostUnconfigured,
 		ValidFrom:            validFrom,
@@ -410,11 +410,11 @@ func normalizeProcurementBatchRow(row *ChannelProcurementBatch) {
 	if row.PurchaseFXRate < 0 {
 		row.PurchaseFXRate = 0
 	}
-	if row.PurchaseCostCNY < 0 {
-		row.PurchaseCostCNY = 0
+	if row.PurchaseCostAmount < 0 {
+		row.PurchaseCostAmount = 0
 	}
-	if row.CostPerUnitCNY < 0 {
-		row.CostPerUnitCNY = 0
+	if row.CostPerUnitAmount < 0 {
+		row.CostPerUnitAmount = 0
 	}
 }
 
@@ -534,7 +534,7 @@ func UpdateChannelProcurementBatchCostWithDB(db *gorm.DB, id string, input Procu
 	purchaseCurrency := strings.TrimSpace(strings.ToUpper(input.PurchaseCurrency))
 	purchaseAmount := input.PurchaseAmount
 	purchaseFXRate := input.PurchaseFXRate
-	purchaseCostCNY := input.PurchaseCostCNY
+	purchaseCostAmount := input.PurchaseCostAmount
 	capacityEffective := input.CapacityEffective
 	costSource := normalizeProcurementCostSource(input.CostSource)
 	costStatus := normalizeProcurementCostStatus(input.CostStatus)
@@ -546,7 +546,7 @@ func UpdateChannelProcurementBatchCostWithDB(db *gorm.DB, id string, input Procu
 	if costStatus == "" || costStatus == ProcurementCostStatusCostUnconfigured {
 		costStatus = ProcurementCostStatusActive
 	}
-	if purchaseAmount < 0 || purchaseFXRate < 0 || purchaseCostCNY < 0 || capacityEffective < 0 {
+	if purchaseAmount < 0 || purchaseFXRate < 0 || purchaseCostAmount < 0 || capacityEffective < 0 {
 		return ChannelProcurementBatch{}, fmt.Errorf("采购成本参数不能小于 0")
 	}
 	if scopeType == "" {
@@ -558,8 +558,8 @@ func UpdateChannelProcurementBatchCostWithDB(db *gorm.DB, id string, input Procu
 	if scopeType == "model" && scopeValue == "" {
 		return ChannelProcurementBatch{}, fmt.Errorf("模型范围必须填写模型名称")
 	}
-	if purchaseCostCNY <= 0 && purchaseAmount > 0 && purchaseFXRate > 0 {
-		purchaseCostCNY = purchaseAmount * purchaseFXRate
+	if purchaseCostAmount <= 0 && purchaseAmount > 0 && purchaseFXRate > 0 {
+		purchaseCostAmount = purchaseAmount * purchaseFXRate
 	}
 	if capacityEffective <= 0 {
 		capacityEffective = row.CapacityEffective
@@ -567,7 +567,7 @@ func UpdateChannelProcurementBatchCostWithDB(db *gorm.DB, id string, input Procu
 	if capacityEffective <= 0 {
 		capacityEffective = row.CapacityTotal
 	}
-	if costSource != ProcurementCostSourceZeroCost && purchaseCostCNY <= 0 {
+	if costSource != ProcurementCostSourceZeroCost && purchaseCostAmount <= 0 {
 		return ChannelProcurementBatch{}, fmt.Errorf("采购成本必须大于 0")
 	}
 	if capacityEffective <= 0 {
@@ -576,23 +576,23 @@ func UpdateChannelProcurementBatchCostWithDB(db *gorm.DB, id string, input Procu
 	if row.CapacityRemaining > capacityEffective {
 		return ChannelProcurementBatch{}, fmt.Errorf("有效容量不能小于当前剩余容量")
 	}
-	costPerUnitCNY := 0.0
+	costPerUnitAmount := 0.0
 	if costSource != ProcurementCostSourceZeroCost {
-		costPerUnitCNY = purchaseCostCNY / capacityEffective
+		costPerUnitAmount = purchaseCostAmount / capacityEffective
 	}
 	now := helper.GetTimestamp()
 	updates := map[string]any{
-		"purchase_currency":  purchaseCurrency,
-		"purchase_amount":    purchaseAmount,
-		"purchase_fx_rate":   purchaseFXRate,
-		"purchase_cost_cny":  purchaseCostCNY,
-		"capacity_effective": capacityEffective,
-		"cost_per_unit_cny":  costPerUnitCNY,
-		"cost_source":        costSource,
-		"cost_status":        costStatus,
-		"scope_type":         scopeType,
-		"scope_value":        scopeValue,
-		"updated_at":         now,
+		"purchase_currency":    purchaseCurrency,
+		"purchase_amount":      purchaseAmount,
+		"purchase_fx_rate":     purchaseFXRate,
+		"purchase_cost_amount": purchaseCostAmount,
+		"capacity_effective":   capacityEffective,
+		"cost_per_unit_amount": costPerUnitAmount,
+		"cost_source":          costSource,
+		"cost_status":          costStatus,
+		"scope_type":           scopeType,
+		"scope_value":          scopeValue,
+		"updated_at":           now,
 	}
 	if err := db.Model(&ChannelProcurementBatch{}).
 		Where("id = ?", strings.TrimSpace(row.Id)).
@@ -620,7 +620,7 @@ func UpdateChannelProcurementBatchStatusWithDB(db *gorm.DB, id string, input Pro
 		if row.CostSource != ProcurementCostSourceActual && row.CostSource != ProcurementCostSourceEstimated && row.CostSource != ProcurementCostSourceZeroCost {
 			return ChannelProcurementBatch{}, fmt.Errorf("采购批次成本未配置，不能恢复")
 		}
-		if row.CostSource != ProcurementCostSourceZeroCost && row.CostPerUnitCNY <= 0 {
+		if row.CostSource != ProcurementCostSourceZeroCost && row.CostPerUnitAmount <= 0 {
 			return ChannelProcurementBatch{}, fmt.Errorf("采购批次单位成本未配置，不能恢复")
 		}
 	default:
@@ -687,7 +687,7 @@ func ConsumeChannelProcurementBatchesWithDB(db *gorm.DB, input ProcurementConsum
 			Where("(expire_at = 0 OR expire_at > ?)", now)
 		query = query.Where("(scope_type = ? OR (scope_type = ? AND scope_value = ?))", "global", normalizedScopeType, normalizedScopeValue)
 		rows := make([]ChannelProcurementBatch, 0)
-		if err := query.Order("CASE WHEN scope_type = 'model' THEN 0 ELSE 1 END ASC, CASE WHEN expire_at = 0 THEN 1 ELSE 0 END ASC, expire_at ASC, cost_per_unit_cny ASC, created_at ASC").Find(&rows).Error; err != nil {
+		if err := query.Order("CASE WHEN scope_type = 'model' THEN 0 ELSE 1 END ASC, CASE WHEN expire_at = 0 THEN 1 ELSE 0 END ASC, expire_at ASC, cost_per_unit_amount ASC, created_at ASC").Find(&rows).Error; err != nil {
 			return err
 		}
 		remaining := input.Quantity
@@ -726,8 +726,8 @@ func ConsumeChannelProcurementBatchesWithDB(db *gorm.DB, input ProcurementConsum
 				ScopeValue:          row.ScopeValue,
 				CapacityUnit:        row.CapacityUnit,
 				ConsumedQuantity:    consumeQuantity,
-				UnitCostCNY:         row.CostPerUnitCNY,
-				ConsumedCostCNY:     consumeQuantity * row.CostPerUnitCNY,
+				UnitCostAmount:      row.CostPerUnitAmount,
+				ConsumedCostAmount:  consumeQuantity * row.CostPerUnitAmount,
 				SettlementTruthMode: strings.TrimSpace(input.SettlementTruthMode),
 				CostSource:          row.CostSource,
 				CreatedAt:           now,
@@ -736,7 +736,7 @@ func ConsumeChannelProcurementBatchesWithDB(db *gorm.DB, input ProcurementConsum
 				return err
 			}
 			result.Consumptions = append(result.Consumptions, consumption)
-			result.TotalCostCNY += consumption.ConsumedCostCNY
+			result.TotalCostAmount += consumption.ConsumedCostAmount
 			if result.CostSource == "" {
 				result.CostSource = row.CostSource
 			} else if result.CostSource != row.CostSource {
@@ -758,11 +758,11 @@ func ConsumeChannelProcurementBatchesWithDB(db *gorm.DB, input ProcurementConsum
 	return result, nil
 }
 
-func UpdateLogProcurementCostObservation(logID string, costCNY float64, costSource string, sellAmountCNY float64) error {
-	return UpdateLogProcurementCostObservationWithDB(LOG_DB, logID, costCNY, costSource, sellAmountCNY)
+func UpdateLogProcurementCostObservation(logID string, costBaseAmount float64, costSource string, sellBaseAmount float64) error {
+	return UpdateLogProcurementCostObservationWithDB(LOG_DB, logID, costBaseAmount, costSource, sellBaseAmount)
 }
 
-func UpdateLogProcurementCostObservationWithDB(db *gorm.DB, logID string, costCNY float64, costSource string, sellAmountCNY float64) error {
+func UpdateLogProcurementCostObservationWithDB(db *gorm.DB, logID string, costBaseAmount float64, costSource string, sellBaseAmount float64) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")
 	}
@@ -772,13 +772,13 @@ func UpdateLogProcurementCostObservationWithDB(db *gorm.DB, logID string, costCN
 		return nil
 	}
 	updates := map[string]any{
-		"billing_procurement_cost_cny":    costCNY,
-		"billing_procurement_cost_source": normalizedCostSource,
+		"billing_procurement_cost_base_amount": costBaseAmount,
+		"billing_procurement_cost_source":      normalizedCostSource,
 	}
-	if sellAmountCNY > 0 {
-		grossProfit := sellAmountCNY - costCNY
-		updates["billing_gross_profit_cny"] = grossProfit
-		updates["billing_gross_margin"] = grossProfit / sellAmountCNY
+	if sellBaseAmount > 0 {
+		grossProfit := sellBaseAmount - costBaseAmount
+		updates["billing_gross_profit_base_amount"] = grossProfit
+		updates["billing_gross_margin"] = grossProfit / sellBaseAmount
 	}
 	return db.Model(&Log{}).Where("id = ?", normalizedLogID).Updates(updates).Error
 }

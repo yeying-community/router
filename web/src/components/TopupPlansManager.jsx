@@ -7,10 +7,10 @@ import {
 } from '../constants/tableWidthPresets';
 import UnitDropdown from './UnitDropdown';
 import {
-  billingInputValueToYYC,
+  billingInputValueToChargeAmount,
   buildBillingCurrencyIndex,
   buildDisplayUnitOptions,
-  formatDisplayAmountFromYYC,
+  formatDisplayAmountFromChargeAmount,
 } from '../helpers/billing';
 import {
   AppButton,
@@ -137,7 +137,7 @@ const TopupPlansManager = () => {
   );
 
   const displayUnitOptions = useMemo(
-    () => buildDisplayUnitOptions(currencyIndex, { order: 'yyc-first' }),
+    () => buildDisplayUnitOptions(currencyIndex, { order: 'charge-first' }),
     [currencyIndex]
   );
 
@@ -513,22 +513,22 @@ const TopupPlansManager = () => {
               className: 'router-topup-plan-quota-cell',
               width: TOPUP_PLAN_LIST_COLUMN_WIDTHS.creditedAmount,
               render: (_, row) => {
-                const storedYYC = billingInputValueToYYC(
+                const storedChargeAmount = billingInputValueToChargeAmount(
                   row?.quota_amount || 0,
                   row?.quota_currency || 'USD',
                   currencyIndex,
                 );
-                if (!Number.isFinite(storedYYC)) {
+                if (!Number.isFinite(storedChargeAmount)) {
                   return '-';
                 }
-                return formatDisplayAmountFromYYC(
-                  storedYYC,
+                return formatDisplayAmountFromChargeAmount(
+                  storedChargeAmount,
                   displayUnit,
                   currencyIndex,
                   {
                     fractionDigits: 6,
                     includeSymbol: false,
-                    yycMode: 'fixed',
+                    chargeMode: 'fixed',
                   },
                 );
               },

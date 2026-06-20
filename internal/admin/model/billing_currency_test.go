@@ -39,20 +39,20 @@ func TestDefaultBillingCurrenciesUsesQuotaPerUnit(t *testing.T) {
 		byCode[row.Code] = row
 	}
 
-	if got := byCode[BillingCurrencyCodeYYC].YYCPerUnit; got != defaultYYCYYCPerUnit {
-		t.Fatalf("YYC yyc_per_unit=%v, want %v", got, defaultYYCYYCPerUnit)
+	if got := byCode[BillingCurrencyCodeYYC].ChargeRate; got != defaultYYCChargeRate {
+		t.Fatalf("YYC charge_rate=%v, want %v", got, defaultYYCChargeRate)
 	}
 	if got := byCode[BillingCurrencyCodeYYC].MinorUnit; got != defaultYYCMinorUnit {
 		t.Fatalf("YYC minor_unit=%v, want %v", got, defaultYYCMinorUnit)
 	}
-	if got := byCode[BillingCurrencyCodeUSD].YYCPerUnit; got != 600000 {
-		t.Fatalf("USD yyc_per_unit=%v, want 600000", got)
+	if got := byCode[BillingCurrencyCodeUSD].ChargeRate; got != 600000 {
+		t.Fatalf("USD charge_rate=%v, want 600000", got)
 	}
 	if got := byCode[BillingCurrencyCodeUSD].MinorUnit; got != defaultFiatMinorUnit {
 		t.Fatalf("USD minor_unit=%v, want %v", got, defaultFiatMinorUnit)
 	}
-	if got := byCode[BillingCurrencyCodeCNY].YYCPerUnit; got != defaultCNYYYCPerUnit {
-		t.Fatalf("CNY yyc_per_unit=%v, want %v", got, defaultCNYYYCPerUnit)
+	if got := byCode[BillingCurrencyCodeCNY].ChargeRate; got != defaultCNYChargeRate {
+		t.Fatalf("CNY charge_rate=%v, want %v", got, defaultCNYChargeRate)
 	}
 	if got := byCode[BillingCurrencyCodeCNY].MinorUnit; got != defaultFiatMinorUnit {
 		t.Fatalf("CNY minor_unit=%v, want %v", got, defaultFiatMinorUnit)

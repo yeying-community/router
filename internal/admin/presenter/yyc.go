@@ -8,8 +8,8 @@ import (
 
 type User struct {
 	*model.User
-	YYCBalance        int64  `json:"yyc_balance"`
-	YYCUsed           int64  `json:"yyc_used"`
+	BalanceAmount     int64  `json:"balance_amount"`
+	UsedAmount        int64  `json:"used_amount"`
 	ActivePackageName string `json:"active_package_name,omitempty"`
 }
 
@@ -18,9 +18,9 @@ func NewUser(user *model.User) *User {
 		return nil
 	}
 	return &User{
-		User:       user,
-		YYCBalance: user.Quota,
-		YYCUsed:    user.UsedQuota,
+		User:          user,
+		BalanceAmount: user.Quota,
+		UsedAmount:    user.UsedQuota,
 	}
 }
 
@@ -34,8 +34,8 @@ func NewUsers(users []*model.User) []*User {
 
 type Token struct {
 	*model.Token
-	YYCRemain int64 `json:"yyc_remain"`
-	YYCUsed   int64 `json:"yyc_used"`
+	RemainingAmount int64 `json:"remaining_amount"`
+	UsedAmount      int64 `json:"used_amount"`
 }
 
 func NewToken(token *model.Token) *Token {
@@ -45,9 +45,9 @@ func NewToken(token *model.Token) *Token {
 	sanitized := *token
 	sanitized.Key = ""
 	return &Token{
-		Token:     &sanitized,
-		YYCRemain: token.RemainQuota,
-		YYCUsed:   token.UsedQuota,
+		Token:           &sanitized,
+		RemainingAmount: token.RemainQuota,
+		UsedAmount:      token.UsedQuota,
 	}
 }
 
@@ -56,9 +56,9 @@ func NewCreatedToken(token *model.Token) *Token {
 		return nil
 	}
 	return &Token{
-		Token:     token,
-		YYCRemain: token.RemainQuota,
-		YYCUsed:   token.UsedQuota,
+		Token:           token,
+		RemainingAmount: token.RemainQuota,
+		UsedAmount:      token.UsedQuota,
 	}
 }
 
@@ -72,7 +72,7 @@ func NewTokens(tokens []*model.Token) []*Token {
 
 type Redemption struct {
 	*model.Redemption
-	YYCValue int64 `json:"yyc_value"`
+	CreditAmount int64 `json:"credit_amount"`
 }
 
 func NewRedemption(redemption *model.Redemption) *Redemption {
@@ -80,8 +80,8 @@ func NewRedemption(redemption *model.Redemption) *Redemption {
 		return nil
 	}
 	return &Redemption{
-		Redemption: redemption,
-		YYCValue:   redemption.Quota,
+		Redemption:   redemption,
+		CreditAmount: redemption.Quota,
 	}
 }
 
@@ -95,7 +95,7 @@ func NewRedemptions(redemptions []*model.Redemption) []*Redemption {
 
 type Channel struct {
 	*model.Channel
-	YYCUsed int64 `json:"yyc_used"`
+	UsedAmount int64 `json:"used_amount"`
 }
 
 func NewChannel(channel *model.Channel) *Channel {
@@ -103,8 +103,8 @@ func NewChannel(channel *model.Channel) *Channel {
 		return nil
 	}
 	return &Channel{
-		Channel: channel,
-		YYCUsed: channel.UsedQuota,
+		Channel:    channel,
+		UsedAmount: channel.UsedQuota,
 	}
 }
 
@@ -150,37 +150,37 @@ func NewGroups(groups []model.GroupCatalog) []*Group {
 
 type UserDailyQuotaSnapshot struct {
 	model.UserDailyQuotaSnapshot
-	YYCLimit     int64 `json:"yyc_limit"`
-	YYCConsumed  int64 `json:"yyc_consumed"`
-	YYCReserved  int64 `json:"yyc_reserved"`
-	YYCRemaining int64 `json:"yyc_remaining"`
+	LimitAmount     int64 `json:"limit_amount"`
+	ConsumedAmount  int64 `json:"consumed_amount"`
+	ReservedAmount  int64 `json:"reserved_amount"`
+	RemainingAmount int64 `json:"remaining_amount"`
 }
 
 func NewUserDailyQuotaSnapshot(snapshot model.UserDailyQuotaSnapshot) UserDailyQuotaSnapshot {
 	return UserDailyQuotaSnapshot{
 		UserDailyQuotaSnapshot: snapshot,
-		YYCLimit:               snapshot.Limit,
-		YYCConsumed:            snapshot.ConsumedQuota,
-		YYCReserved:            snapshot.ReservedQuota,
-		YYCRemaining:           snapshot.RemainingQuota,
+		LimitAmount:            snapshot.Limit,
+		ConsumedAmount:         snapshot.ConsumedQuota,
+		ReservedAmount:         snapshot.ReservedQuota,
+		RemainingAmount:        snapshot.RemainingQuota,
 	}
 }
 
 type UserPackageEmergencyQuotaSnapshot struct {
 	model.UserPackageEmergencyQuotaSnapshot
-	YYCLimit     int64 `json:"yyc_limit"`
-	YYCConsumed  int64 `json:"yyc_consumed"`
-	YYCReserved  int64 `json:"yyc_reserved"`
-	YYCRemaining int64 `json:"yyc_remaining"`
+	LimitAmount     int64 `json:"limit_amount"`
+	ConsumedAmount  int64 `json:"consumed_amount"`
+	ReservedAmount  int64 `json:"reserved_amount"`
+	RemainingAmount int64 `json:"remaining_amount"`
 }
 
 func NewUserPackageEmergencyQuotaSnapshot(snapshot model.UserPackageEmergencyQuotaSnapshot) UserPackageEmergencyQuotaSnapshot {
 	return UserPackageEmergencyQuotaSnapshot{
 		UserPackageEmergencyQuotaSnapshot: snapshot,
-		YYCLimit:                          snapshot.Limit,
-		YYCConsumed:                       snapshot.ConsumedQuota,
-		YYCReserved:                       snapshot.ReservedQuota,
-		YYCRemaining:                      snapshot.RemainingQuota,
+		LimitAmount:                       snapshot.Limit,
+		ConsumedAmount:                    snapshot.ConsumedQuota,
+		ReservedAmount:                    snapshot.ReservedQuota,
+		RemainingAmount:                   snapshot.RemainingQuota,
 	}
 }
 
@@ -200,27 +200,27 @@ func NewUserQuotaSummary(summary model.UserQuotaSummary) UserQuotaSummary {
 
 type GroupDailyQuotaSnapshot struct {
 	model.GroupDailyQuotaSnapshot
-	GroupName    string `json:"group_name,omitempty"`
-	YYCLimit     int64  `json:"yyc_limit"`
-	YYCConsumed  int64  `json:"yyc_consumed"`
-	YYCReserved  int64  `json:"yyc_reserved"`
-	YYCRemaining int64  `json:"yyc_remaining"`
+	GroupName       string `json:"group_name,omitempty"`
+	LimitAmount     int64  `json:"limit_amount"`
+	ConsumedAmount  int64  `json:"consumed_amount"`
+	ReservedAmount  int64  `json:"reserved_amount"`
+	RemainingAmount int64  `json:"remaining_amount"`
 }
 
 func NewGroupDailyQuotaSnapshot(snapshot model.GroupDailyQuotaSnapshot, groupName string) GroupDailyQuotaSnapshot {
 	return GroupDailyQuotaSnapshot{
 		GroupDailyQuotaSnapshot: snapshot,
 		GroupName:               strings.TrimSpace(groupName),
-		YYCLimit:                snapshot.Limit,
-		YYCConsumed:             snapshot.ConsumedQuota,
-		YYCReserved:             snapshot.ReservedQuota,
-		YYCRemaining:            snapshot.RemainingQuota,
+		LimitAmount:             snapshot.Limit,
+		ConsumedAmount:          snapshot.ConsumedQuota,
+		ReservedAmount:          snapshot.ReservedQuota,
+		RemainingAmount:         snapshot.RemainingQuota,
 	}
 }
 
 type LogStatistic struct {
 	model.LogStatistic
-	YYCAmount int `json:"yyc_amount"`
+	ChargeAmount int `json:"charge_amount"`
 }
 
 func NewLogStatistic(row *model.LogStatistic) *LogStatistic {
@@ -229,7 +229,7 @@ func NewLogStatistic(row *model.LogStatistic) *LogStatistic {
 	}
 	return &LogStatistic{
 		LogStatistic: *row,
-		YYCAmount:    row.Quota,
+		ChargeAmount: row.Quota,
 	}
 }
 
@@ -243,9 +243,9 @@ func NewLogStatistics(rows []*model.LogStatistic) []*LogStatistic {
 
 type Log struct {
 	*model.Log
-	YYCAmount        int `json:"yyc_amount"`
-	YYCUserDaily     int `json:"yyc_user_daily"`
-	YYCUserEmergency int `json:"yyc_user_emergency"`
+	ChargeAmount              int `json:"charge_amount"`
+	UserDailyChargeAmount     int `json:"user_daily_charge_amount"`
+	UserEmergencyChargeAmount int `json:"user_emergency_charge_amount"`
 }
 
 func NewLog(row *model.Log) *Log {
@@ -253,10 +253,10 @@ func NewLog(row *model.Log) *Log {
 		return nil
 	}
 	return &Log{
-		Log:              row,
-		YYCAmount:        row.Quota,
-		YYCUserDaily:     row.UserDailyQuota,
-		YYCUserEmergency: row.UserEmergencyQuota,
+		Log:                       row,
+		ChargeAmount:              row.Quota,
+		UserDailyChargeAmount:     row.UserDailyQuota,
+		UserEmergencyChargeAmount: row.UserEmergencyQuota,
 	}
 }
 

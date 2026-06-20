@@ -24,7 +24,7 @@ type UserBalanceLotTransaction struct {
 	SourceType         string `json:"source_type" gorm:"type:varchar(32);not null;index:idx_balance_lot_tx_source,priority:1"`
 	SourceID           string `json:"source_id" gorm:"type:char(36);not null;index:idx_balance_lot_tx_source,priority:2"`
 	TxType             string `json:"tx_type" gorm:"type:varchar(16);not null;index:idx_balance_lot_tx_user_time,priority:2"`
-	DeltaYYC           int64  `json:"delta_yyc" gorm:"type:bigint;not null;default:0"`
+	DeltaAmount        int64  `json:"delta_amount" gorm:"type:bigint;not null;default:0"`
 	LotRemainingBefore int64  `json:"lot_remaining_before" gorm:"type:bigint;not null;default:0"`
 	LotRemainingAfter  int64  `json:"lot_remaining_after" gorm:"type:bigint;not null;default:0"`
 	OccurredAt         int64  `json:"occurred_at" gorm:"bigint;not null;default:0;index:idx_balance_lot_tx_user_time,priority:3;index:idx_balance_lot_tx_lot_time,priority:2"`
@@ -38,7 +38,7 @@ type UserBalanceLotTransactionInput struct {
 	SourceType         string
 	SourceID           string
 	TxType             string
-	DeltaYYC           int64
+	DeltaAmount        int64
 	LotRemainingBefore int64
 	LotRemainingAfter  int64
 	OccurredAt         int64
@@ -100,7 +100,7 @@ func CreateUserBalanceLotTransactionWithDB(db *gorm.DB, input UserBalanceLotTran
 		SourceType:         normalizeUserBalanceLotSourceType(input.SourceType),
 		SourceID:           strings.TrimSpace(input.SourceID),
 		TxType:             normalizeUserBalanceLotTxType(input.TxType),
-		DeltaYYC:           input.DeltaYYC,
+		DeltaAmount:        input.DeltaAmount,
 		LotRemainingBefore: input.LotRemainingBefore,
 		LotRemainingAfter:  input.LotRemainingAfter,
 		OccurredAt:         input.OccurredAt,
@@ -121,7 +121,7 @@ func CreateUserBalanceLotTransactionWithDB(db *gorm.DB, input UserBalanceLotTran
 	if row.TxType == "" {
 		return UserBalanceLotTransaction{}, fmt.Errorf("交易类型不能为空")
 	}
-	if row.DeltaYYC == 0 {
+	if row.DeltaAmount == 0 {
 		return UserBalanceLotTransaction{}, fmt.Errorf("交易变动额度不能为 0")
 	}
 	now := helper.GetTimestamp()

@@ -153,7 +153,7 @@ func resolveRewardQuotaFromTopupPlan(ctx context.Context, planID string, rewardK
 		logger.Warnf(ctx, "resolve reward topup plan failed reward=%s plan_id=%s err=%v", rewardKey, normalizedPlanID, err)
 		return 0
 	}
-	return resolvedPlan.QuotaYYC
+	return resolvedPlan.ChargeAmount
 }
 
 func DeleteByID(id string) error {

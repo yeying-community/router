@@ -301,8 +301,8 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
       },
       {
         title: t('topup.redemption_records.columns.amount'),
-        dataIndex: 'yycAmount',
-        key: 'yycAmount',
+        dataIndex: 'chargeAmount',
+        key: 'chargeAmount',
         width: TOPUP_RECORD_COLUMN_WIDTHS.amount,
         render: (value) =>
           value ? (

@@ -112,7 +112,7 @@ function UserWorkspaceEntryRedirect() {
           : null;
         const hasActivePackage = String(packageData?.package_id || '').trim() !== '';
         const totalBalance = Number(
-          balanceData?.total_yyc_balance ?? balanceData?.yyc_balance ?? balanceData?.quota ?? 0,
+          balanceData?.total_balance_amount ?? balanceData?.balance_amount ?? balanceData?.quota ?? 0,
         );
         const hasBalance = Number.isFinite(totalBalance) && totalBalance > 0;
         if (!active) {

@@ -12,8 +12,8 @@ import {
   buildDisplayUnitOptions,
   buildBillingUnitOptions,
   convertBillingInputValueUnit,
-  billingInputValueToYYC,
-  yycToBillingInputValue,
+  billingInputValueToChargeAmount,
+  chargeAmountToBillingInputValue,
   resolveDefaultBillingUnit,
   resolveBillingInputStep,
 } from '../helpers/billing';
@@ -166,20 +166,20 @@ const formatByCurrencyMinorUnit = (amount, currency) => {
   return formatDecimalNumber(normalizedAmount, maximumFractionDigits);
 };
 
-const renderPackageAmountValue = (yycAmount, displayUnit, currencyIndex) => {
-  const normalizedYYCAmount = Number(yycAmount || 0);
-  if (!Number.isFinite(normalizedYYCAmount)) {
+const renderPackageAmountValue = (chargeAmount, displayUnit, currencyIndex) => {
+  const normalizedChargeAmount = Number(chargeAmount || 0);
+  if (!Number.isFinite(normalizedChargeAmount)) {
     return '-';
   }
   const targetCurrency = currencyIndex[displayUnit] || currencyIndex.YYC;
-  const rate = Number(targetCurrency?.yyc_per_unit || 0);
+  const rate = Number(targetCurrency?.charge_rate || 0);
   if (!Number.isFinite(rate) || rate <= 0) {
     return '-';
   }
-  return formatByCurrencyMinorUnit(normalizedYYCAmount / rate, targetCurrency);
+  return formatByCurrencyMinorUnit(normalizedChargeAmount / rate, targetCurrency);
 };
 
-const resolvePackageYYCAmount = (row, type) => {
+const resolvePackageChargeAmount = (row, type) => {
   if (type === 'daily') {
     return Number(row?.daily_quota_limit ?? 0);
   }
@@ -196,11 +196,11 @@ const ensureUnitOption = (options, value) => {
 };
 
 const renderPackageAmountFieldValue = (row, type, displayUnit, currencyIndex) => {
-  const normalizedYYCAmount = resolvePackageYYCAmount(row, type);
-  if (!Number.isFinite(normalizedYYCAmount)) {
+  const normalizedChargeAmount = resolvePackageChargeAmount(row, type);
+  if (!Number.isFinite(normalizedChargeAmount)) {
     return '-';
   }
-  return renderPackageAmountValue(normalizedYYCAmount, displayUnit, currencyIndex);
+  return renderPackageAmountValue(normalizedChargeAmount, displayUnit, currencyIndex);
 };
 
 const PackagesManager = () => {
@@ -232,7 +232,7 @@ const PackagesManager = () => {
   const [activeRow, setActiveRow] = useState(null);
 
   const displayUnitOptions = useMemo(
-    () => buildDisplayUnitOptions(currencyIndex, { order: 'yyc-first' }),
+    () => buildDisplayUnitOptions(currencyIndex, { order: 'charge-first' }),
     [currencyIndex]
   );
 
@@ -510,13 +510,13 @@ const PackagesManager = () => {
           : [],
         sale_price: detail?.sale_price ?? '0',
         sale_currency: detail?.sale_currency || 'CNY',
-        daily_amount: yycToBillingInputValue(
+        daily_amount: chargeAmountToBillingInputValue(
           Number(detail?.daily_quota_limit ?? 0),
           defaultBillingUnit,
           currencyIndex
         ),
         daily_amount_unit: defaultBillingUnit,
-        emergency_amount: yycToBillingInputValue(
+        emergency_amount: chargeAmountToBillingInputValue(
           Number(detail?.package_emergency_quota_limit ?? 0),
           defaultBillingUnit,
           currencyIndex
@@ -558,12 +558,12 @@ const PackagesManager = () => {
     const visibleUserIDs = Array.isArray(form.visible_user_ids)
       ? [...new Set(form.visible_user_ids.map((item) => (item || '').toString().trim()).filter(Boolean))]
       : [];
-    const dailyStored = billingInputValueToYYC(
+    const dailyStored = billingInputValueToChargeAmount(
       form.daily_amount ?? 0,
       form.daily_amount_unit,
       currencyIndex
     );
-    const emergencyStored = billingInputValueToYYC(
+    const emergencyStored = billingInputValueToChargeAmount(
       form.emergency_amount ?? 0,
       form.emergency_amount_unit,
       currencyIndex

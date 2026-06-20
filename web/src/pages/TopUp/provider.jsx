@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess } from '../../helpers';
-import { formatAmountWithUnit, renderYYC } from '../../helpers/render';
+import { formatAmountWithUnit, renderChargeAmount } from '../../helpers/render';
 import {
-  convertYYCToDisplayAmount,
+  convertChargeAmountToDisplayAmount,
   loadPublicDisplayCurrencyCatalog,
 } from '../../helpers/billing';
 import {
@@ -18,9 +18,9 @@ import {
 const TopUpWorkspaceProvider = ({ children }) => {
   const { t } = useTranslation();
   const initialCurrencyIndex = buildInitialDisplayCurrencyIndex();
-  const [userBalanceYYC, setUserBalanceYYC] = useState(0);
-  const [topupBalanceYYC, setTopupBalanceYYC] = useState(0);
-  const [redeemBalanceYYC, setRedeemBalanceYYC] = useState(0);
+  const [userBalanceAmount, setUserBalanceAmount] = useState(0);
+  const [topupBalanceAmount, setTopupBalanceAmount] = useState(0);
+  const [redeemBalanceAmount, setRedeemBalanceAmount] = useState(0);
   const [balanceLots, setBalanceLots] = useState([]);
   const [loadingBalanceLots, setLoadingBalanceLots] = useState(false);
   const [topupPlans, setTopupPlans] = useState([]);
@@ -34,21 +34,21 @@ const TopUpWorkspaceProvider = ({ children }) => {
     useState(false);
 
   const renderDisplayAmount = useCallback(
-    (yycAmount) => {
-      const normalizedAmount = Number(yycAmount || 0);
+    (chargeAmount) => {
+      const normalizedAmount = Number(chargeAmount || 0);
       if (!Number.isFinite(normalizedAmount)) {
-        return renderYYC(0, t);
+        return renderChargeAmount(0, t);
       }
       if (displayCurrency === YYC_DISPLAY_CODE) {
-        return renderYYC(normalizedAmount, t);
+        return renderChargeAmount(normalizedAmount, t);
       }
-      const displayAmount = convertYYCToDisplayAmount(
+      const displayAmount = convertChargeAmountToDisplayAmount(
         normalizedAmount,
         displayCurrency,
         displayCurrencyIndex,
       );
       if (!Number.isFinite(displayAmount)) {
-        return renderYYC(normalizedAmount, t);
+        return renderChargeAmount(normalizedAmount, t);
       }
       return formatAmountWithUnit(displayAmount, displayCurrency, 6);
     },
@@ -79,7 +79,7 @@ const TopUpWorkspaceProvider = ({ children }) => {
       const res = await API.get('/api/v1/public/user/self');
       const { success, message, data } = res?.data || {};
       if (success) {
-        setUserBalanceYYC(Number(data?.yyc_balance ?? data?.quota ?? 0) || 0);
+        setUserBalanceAmount(Number(data?.balance_amount ?? data?.quota ?? 0) || 0);
         return;
       }
       showError(message || t('topup.external_topup.request_failed'));
@@ -100,13 +100,13 @@ const TopUpWorkspaceProvider = ({ children }) => {
           return false;
         }
         const totalBalance = Number(
-          data?.total_yyc_balance ?? data?.yyc_balance ?? data?.quota ?? 0,
+          data?.total_balance_amount ?? data?.balance_amount ?? data?.quota ?? 0,
         );
-        const topupBalance = Number(data?.topup_yyc_balance ?? 0);
-        const redeemBalance = Number(data?.redeem_yyc_balance ?? 0);
-        setUserBalanceYYC(Number.isFinite(totalBalance) ? totalBalance : 0);
-        setTopupBalanceYYC(Number.isFinite(topupBalance) ? topupBalance : 0);
-        setRedeemBalanceYYC(Number.isFinite(redeemBalance) ? redeemBalance : 0);
+        const topupBalance = Number(data?.topup_balance_amount ?? 0);
+        const redeemBalance = Number(data?.redeem_balance_amount ?? 0);
+        setUserBalanceAmount(Number.isFinite(totalBalance) ? totalBalance : 0);
+        setTopupBalanceAmount(Number.isFinite(topupBalance) ? topupBalance : 0);
+        setRedeemBalanceAmount(Number.isFinite(redeemBalance) ? redeemBalance : 0);
         return true;
       } catch (error) {
         if (!silent) {
@@ -306,9 +306,9 @@ const TopUpWorkspaceProvider = ({ children }) => {
       }
       const normalizedResult =
         normalizeTopUpResult(data) || {
-          redeemed_yyc: Number(data ?? 0) || 0,
-          before_yyc_balance: userBalanceYYC,
-          after_yyc_balance: userBalanceYYC + (Number(data ?? 0) || 0),
+          redeemed_amount: Number(data ?? 0) || 0,
+          before_balance_amount: userBalanceAmount,
+          after_balance_amount: userBalanceAmount + (Number(data ?? 0) || 0),
           redemption_id: '',
           redemption_name: '',
           group_id: '',
@@ -318,22 +318,22 @@ const TopUpWorkspaceProvider = ({ children }) => {
           redeemed_at: 0,
           credit_expires_at: 0,
         };
-      setUserBalanceYYC(normalizedResult.after_yyc_balance);
-      setRedeemBalanceYYC((previous) =>
-        Math.max(0, previous + normalizedResult.redeemed_yyc),
+      setUserBalanceAmount(normalizedResult.after_balance_amount);
+      setRedeemBalanceAmount((previous) =>
+        Math.max(0, previous + normalizedResult.redeemed_amount),
       );
       loadBalanceLots({ silent: true }).then();
       showSuccess(t('topup.redeem.success'));
       return normalizedResult;
     },
-    [loadBalanceLots, t, userBalanceYYC],
+    [loadBalanceLots, t, userBalanceAmount],
   );
 
   const contextValue = useMemo(
     () => ({
-      userBalanceYYC,
-      topupBalanceYYC,
-      redeemBalanceYYC,
+      userBalanceAmount,
+      topupBalanceAmount,
+      redeemBalanceAmount,
       balanceLots,
       loadingBalanceLots,
       topupPlans,
@@ -359,12 +359,12 @@ const TopUpWorkspaceProvider = ({ children }) => {
       loadingBalanceLots,
       loadingDisplayCurrencies,
       previewPackagePurchase,
-      redeemBalanceYYC,
+      redeemBalanceAmount,
       renderDisplayAmount,
       submitRedemption,
-      topupBalanceYYC,
+      topupBalanceAmount,
       topupPlans,
-      userBalanceYYC,
+      userBalanceAmount,
     ],
   );
 

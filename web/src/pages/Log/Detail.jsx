@@ -123,19 +123,19 @@ function renderRate(rate, currency) {
 function normalizeLogDetail(data) {
   return {
     ...(data || {}),
-    // Prefer YYC-native fields, fall back to legacy quota payloads for old logs.
-    yycAmount: Number(data?.yyc_amount ?? data?.quota ?? 0),
-    userDailyYYC: Number(data?.yyc_user_daily ?? data?.user_daily_quota ?? 0),
-    userEmergencyYYC: Number(
-      data?.yyc_user_emergency ?? data?.user_emergency_quota ?? 0,
+    // Prefer charge-amount fields, fall back to legacy quota payloads for old logs.
+    chargeAmount: Number(data?.charge_amount ?? data?.quota ?? 0),
+    userDailyChargeAmount: Number(data?.user_daily_charge_amount ?? data?.user_daily_quota ?? 0),
+    userEmergencyChargeAmount: Number(
+      data?.user_emergency_charge_amount ?? data?.user_emergency_quota ?? 0,
     ),
-    billingYYCAmount: Number(data?.billing_yyc_amount ?? 0),
+    billingChargeAmount: Number(data?.billing_charge_amount ?? 0),
     billingImageToolCalls: Number(data?.billing_image_tool_calls ?? 0),
     billingImageToolOutputTokens: Number(
       data?.billing_image_tool_output_tokens ?? 0,
     ),
     billingImageToolAmount: Number(data?.billing_image_tool_amount ?? 0),
-    billingImageToolYYCAmount: Number(data?.billing_image_tool_yyc_amount ?? 0),
+    billingImageToolChargeAmount: Number(data?.billing_image_tool_charge_amount ?? 0),
   };
 }
 
@@ -334,8 +334,8 @@ const LogDetail = () => {
                         {t('log.detail.fields.quota')}
                       </div>
                       <div className='router-detail-value'>
-                        {typeof log?.yycAmount === 'number'
-                          ? renderDisplayAmount(log.yycAmount, t, 6)
+                        {typeof log?.chargeAmount === 'number'
+                          ? renderDisplayAmount(log.chargeAmount, t, 6)
                           : '-'}
                       </div>
                     </div>
@@ -352,8 +352,8 @@ const LogDetail = () => {
                         {t('log.detail.fields.user_daily_quota')}
                       </div>
                       <div className='router-detail-value'>
-                        {typeof log?.userDailyYYC === 'number'
-                          ? renderDisplayAmount(log.userDailyYYC, t, 6)
+                        {typeof log?.userDailyChargeAmount === 'number'
+                          ? renderDisplayAmount(log.userDailyChargeAmount, t, 6)
                           : '-'}
                       </div>
                     </div>
@@ -362,8 +362,8 @@ const LogDetail = () => {
                         {t('log.detail.fields.user_emergency_quota')}
                       </div>
                       <div className='router-detail-value'>
-                        {typeof log?.userEmergencyYYC === 'number'
-                          ? renderDisplayAmount(log.userEmergencyYYC, t, 6)
+                        {typeof log?.userEmergencyChargeAmount === 'number'
+                          ? renderDisplayAmount(log.userEmergencyChargeAmount, t, 6)
                           : '-'}
                       </div>
                     </div>
@@ -470,11 +470,11 @@ const LogDetail = () => {
                     </div>
                     <div className='router-detail-item'>
                       <div className='router-detail-label'>
-                        {t('log.detail.fields.billing_yyc_rate')}
+                        {t('log.detail.fields.billing_charge_rate')}
                       </div>
                       <pre className='router-detail-value'>
                         {renderRate(
-                          log?.billing_yyc_rate,
+                          log?.billing_charge_rate,
                           log?.billing_currency,
                         )}
                       </pre>
@@ -530,11 +530,11 @@ const LogDetail = () => {
                     </div>
                     <div className='router-detail-item'>
                       <div className='router-detail-label'>
-                        {t('log.detail.fields.billing_yyc_amount')}
+                        {t('log.detail.fields.billing_charge_amount')}
                       </div>
                       <div className='router-detail-value'>
-                        {typeof log?.billingYYCAmount === 'number'
-                          ? renderDisplayAmount(log.billingYYCAmount, t, 6)
+                        {typeof log?.billingChargeAmount === 'number'
+                          ? renderDisplayAmount(log.billingChargeAmount, t, 6)
                           : '-'}
                       </div>
                     </div>
@@ -575,12 +575,12 @@ const LogDetail = () => {
                     </div>
                     <div className='router-detail-item'>
                       <div className='router-detail-label'>
-                        {t('log.detail.fields.billing_image_tool_yyc_amount')}
+                        {t('log.detail.fields.billing_image_tool_charge_amount')}
                       </div>
                       <div className='router-detail-value'>
-                        {log?.billingImageToolYYCAmount > 0
+                        {log?.billingImageToolChargeAmount > 0
                           ? renderDisplayAmount(
-                              log.billingImageToolYYCAmount,
+                              log.billingImageToolChargeAmount,
                               t,
                               6,
                             )

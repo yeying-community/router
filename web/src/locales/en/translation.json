@@ -140,7 +140,7 @@
       "package_preview_effective_at": "Effective At",
       "package_preview_expires_at": "New Expiry",
       "package_preview_payable": "Payable Amount",
-      "package_preview_payable_yyc": "YYC Equivalent",
+      "package_preview_payable_charge_amount": "YYC Equivalent",
       "package_confirm_button": "Proceed to Pay",
       "package_operation": {
         "purchase": "New Purchase",
@@ -666,7 +666,7 @@
         "manual_purchase_currency": "Purchase Currency",
         "manual_purchase_amount": "Paid Amount",
         "manual_purchase_fx_rate": "FX Rate",
-        "manual_purchase_cost_cny": "Purchase Cost CNY",
+        "manual_purchase_cost_amount": "Purchase Cost CNY",
         "manual_purchase_hint": "Fill in the purchase payment details first, then record what entitlements were bought.",
         "manual_snapshot_invalid": "Please provide at least one valid entitlement item",
         "manual_snapshot_success": "Purchase record saved",
@@ -764,7 +764,7 @@
           "purchase_currency": "Purchase Currency",
           "purchase_amount": "Purchase Amount",
           "purchase_fx_rate": "FX Rate",
-          "purchase_cost_cny": "Purchase Cost CNY",
+          "purchase_cost_amount": "Purchase Cost CNY",
           "cost_unconfigured": "Cost unconfigured"
         },
         "procurement_consumption_table": {
@@ -845,7 +845,7 @@
           "created_at": "Time",
           "purchase_at": "Purchase Time",
           "purchase_amount": "Paid Amount",
-          "purchase_cost_cny": "Purchase Cost CNY",
+          "purchase_cost_amount": "Purchase Cost CNY",
           "source_type": "Source",
           "quota_items": "Quota Items",
           "message": "Message",
@@ -1742,17 +1742,17 @@
         "estimated_prompt_tokens": "Estimated Prompt Tokens",
         "billing_settlement_mode": "Settlement Mode",
         "billing_group_ratio": "Applied Business Ratio",
-        "billing_yyc_rate": "Conversion Rate",
+        "billing_charge_rate": "Conversion Rate",
         "billing_input_quantity": "Input Quantity",
         "billing_output_quantity": "Output Quantity",
         "billing_input_amount": "Input Amount",
         "billing_output_amount": "Output Amount",
         "billing_amount": "Billing Amount",
-        "billing_yyc_amount": "Converted Amount",
+        "billing_charge_amount": "Converted Amount",
         "billing_image_tool_calls": "Image Tool Calls",
         "billing_image_tool_output_tokens": "Image Tool Output Tokens",
         "billing_image_tool_amount": "Image Tool Amount",
-        "billing_image_tool_yyc_amount": "Image Tool Converted Amount",
+        "billing_image_tool_charge_amount": "Image Tool Converted Amount",
         "elapsed_time": "Elapsed Time",
         "is_stream": "Stream Output",
         "system_prompt_reset": "System Prompt Reset"
@@ -2839,7 +2839,7 @@
           "name": "Name",
           "symbol": "Symbol",
           "minor_unit": "Minor Unit",
-          "yyc_per_unit": "YYC per Unit",
+          "charge_rate": "Charge rate",
           "status": "Status",
           "source": "Source",
           "updated_at": "Updated At",
@@ -2851,7 +2851,7 @@
         },
         "placeholders": {
           "name": "e.g. US Dollar",
-          "yyc_per_unit": "e.g. 500000"
+          "charge_rate": "e.g. 500000"
         },
         "auto_sync": {
           "enabled": "Enable auto FX sync",
@@ -2878,7 +2878,7 @@
           "code_required": "Currency code is required",
           "name_required": "Currency name is required",
           "minor_unit_invalid": "Minor unit must be greater than or equal to 0",
-          "yyc_per_unit_invalid": "YYC rate must be greater than 0"
+          "charge_rate_invalid": "charge rate must be greater than 0"
         }
       }
     },
@@ -2919,7 +2919,7 @@
           "code_required": "Currency code is required",
           "name_required": "Currency name is required",
           "minor_unit_invalid": "Minor unit must be greater than or equal to 0",
-          "enabled_rate_required": "Configure a positive YYC rate in exchange settings before enabling this currency"
+          "enabled_rate_required": "Configure a positive charge rate in exchange settings before enabling this currency"
         }
       }
     },
@@ -2978,7 +2978,7 @@
     },
     "exchange": {
       "title": "Exchange Management",
-      "subtitle": "Show both manually maintained */YYC rates and synced fiat currency-pair rates.",
+      "subtitle": "Show both manually maintained */charge rates and synced fiat currency-pair rates.",
       "empty": "No rates",
       "columns": {
         "pair": "Pair",

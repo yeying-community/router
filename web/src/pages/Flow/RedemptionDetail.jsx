@@ -22,7 +22,7 @@ const formatDateTime = (value) => {
   return timestamp2string(numericValue);
 };
 
-const formatYYC = (value) => {
+const formatChargeAmount = (value) => {
   const numericValue = Number(value || 0);
   if (!Number.isFinite(numericValue)) {
     return '-';
@@ -159,7 +159,7 @@ const RedemptionDetail = () => {
                       {t('topup.external_topup_orders.columns.quota')}
                     </div>
                     <pre className='router-detail-value'>
-                      {formatYYC(record?.yyc_value)}
+                      {formatChargeAmount(record?.credit_amount)}
                     </pre>
                   </div>
                   <div className='router-detail-item'>

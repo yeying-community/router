@@ -41,17 +41,17 @@ type Redemption struct {
 }
 
 type RedemptionResult struct {
-	RedeemedYYC      int64   `json:"redeemed_yyc"`
-	BeforeYYCBalance int64   `json:"before_yyc_balance"`
-	AfterYYCBalance  int64   `json:"after_yyc_balance"`
-	RedemptionID     string  `json:"redemption_id"`
-	RedemptionName   string  `json:"redemption_name"`
-	GroupID          string  `json:"group_id,omitempty"`
-	GroupName        string  `json:"group_name,omitempty"`
-	FaceValueAmount  float64 `json:"face_value_amount,omitempty"`
-	FaceValueUnit    string  `json:"face_value_unit,omitempty"`
-	RedeemedAt       int64   `json:"redeemed_at"`
-	CreditExpiresAt  int64   `json:"credit_expires_at,omitempty"`
+	RedeemedAmount      int64   `json:"redeemed_amount"`
+	BeforeBalanceAmount int64   `json:"before_balance_amount"`
+	AfterBalanceAmount  int64   `json:"after_balance_amount"`
+	RedemptionID        string  `json:"redemption_id"`
+	RedemptionName      string  `json:"redemption_name"`
+	GroupID             string  `json:"group_id,omitempty"`
+	GroupName           string  `json:"group_name,omitempty"`
+	FaceValueAmount     float64 `json:"face_value_amount,omitempty"`
+	FaceValueUnit       string  `json:"face_value_unit,omitempty"`
+	RedeemedAt          int64   `json:"redeemed_at"`
+	CreditExpiresAt     int64   `json:"credit_expires_at,omitempty"`
 }
 
 func normalizeRedemptionValidityDays(value int) int {
@@ -121,10 +121,10 @@ func ResolveRedemptionFaceValueWithDB(db *gorm.DB, amount float64, unit string) 
 		if currency.Status != BillingCurrencyStatusEnabled {
 			return 0, "", 0, fmt.Errorf("计费单位已禁用: %s", currency.Code)
 		}
-		if currency.YYCPerUnit <= 0 {
+		if currency.ChargeRate <= 0 {
 			return 0, "", 0, fmt.Errorf("计费单位兑换比率无效: %s", currency.Code)
 		}
-		quotaFloat := amount * currency.YYCPerUnit
+		quotaFloat := amount * currency.ChargeRate
 		if !isValidRedemptionFaceValueAmount(quotaFloat) {
 			return 0, "", 0, fmt.Errorf("面值换算失败")
 		}

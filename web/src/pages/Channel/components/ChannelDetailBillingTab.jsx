@@ -53,7 +53,7 @@ const buildManualPurchaseRecord = () => ({
   purchase_currency: 'CNY',
   purchase_amount: null,
   purchase_fx_rate: 1,
-  purchase_cost_cny: null,
+  purchase_cost_amount: null,
 });
 
 const MANUAL_CURRENCY_OPTIONS = ['USD', 'CNY', 'YYC'].map((value) => ({
@@ -450,12 +450,12 @@ const formatProcurementCostText = (row, t) => {
   if (status === 'cost_unconfigured' || source === 'none' || source === '') {
     return t('channel.edit.billing.procurement_table.cost_unconfigured');
   }
-  return `${formatNumberText(row?.purchase_cost_cny, 6)} CNY`;
+  return `${formatNumberText(row?.purchase_cost_amount, 6)} CNY`;
 };
 
 const formatProcurementUnitCostText = (row) => {
   const unit = (row?.capacity_unit || '').toString().trim();
-  const value = formatNumberText(row?.cost_per_unit_cny, 8);
+  const value = formatNumberText(row?.cost_per_unit_amount, 8);
   if (value === '-') {
     return '-';
   }
@@ -520,7 +520,7 @@ const buildProcurementCostDraft = (row) => ({
     (row?.purchase_currency || 'CNY').toString().trim() || 'CNY',
   purchase_amount: Number(row?.purchase_amount || 0),
   purchase_fx_rate: Number(row?.purchase_fx_rate || 1) || 1,
-  purchase_cost_cny: Number(row?.purchase_cost_cny || 0),
+  purchase_cost_amount: Number(row?.purchase_cost_amount || 0),
   capacity_effective: Number(
     row?.capacity_effective || row?.capacity_total || 0
   ),
@@ -562,7 +562,7 @@ const buildManualPurchaseRecordFromSnapshot = (row) => ({
 		(row?.purchase_currency || 'CNY').toString().trim().toUpperCase() || 'CNY',
 	purchase_amount: Number(row?.purchase_amount || 0),
 	purchase_fx_rate: Number(row?.purchase_fx_rate || 1) || 1,
-	purchase_cost_cny: Number(row?.purchase_cost_cny || 0),
+	purchase_cost_amount: Number(row?.purchase_cost_amount || 0),
 });
 
 const buildManualQuotaItemFromSnapshotItem = (item) => ({
@@ -761,16 +761,16 @@ const ChannelDetailBillingTab = ({
     const purchaseFXRate = purchaseCurrency === 'CNY'
       ? 1
       : Number(manualPurchaseRecord.purchase_fx_rate || 0);
-    const purchaseCostCNY = purchaseCurrency === 'CNY'
+    const purchaseCostAmount = purchaseCurrency === 'CNY'
       ? purchaseAmount
-      : Number(manualPurchaseRecord.purchase_cost_cny || 0);
+      : Number(manualPurchaseRecord.purchase_cost_amount || 0);
     const saved = await onManualSnapshotUpdate({
       id: editingPurchaseRecord?.id || '',
       purchase_at: toUnixTimestamp(manualPurchaseRecord.purchase_at_input),
       purchase_currency: purchaseCurrency,
       purchase_amount: purchaseAmount,
       purchase_fx_rate: purchaseFXRate,
-      purchase_cost_cny: purchaseCostCNY,
+      purchase_cost_amount: purchaseCostAmount,
       items: manualItems.map((manualItem) => {
         const amounts = resolveManualItemAmounts(manualItem);
         return {
@@ -866,10 +866,10 @@ const ChannelDetailBillingTab = ({
                     nextCurrency === 'CNY'
                       ? 1
                       : manualPurchaseRecord.purchase_fx_rate,
-                  purchase_cost_cny:
+                  purchase_cost_amount:
                     nextCurrency === 'CNY'
                       ? Number(manualPurchaseRecord.purchase_amount || 0)
-                      : manualPurchaseRecord.purchase_cost_cny,
+                      : manualPurchaseRecord.purchase_cost_amount,
                 });
               }}
               disabled={billingReadonly || billingSubmitting}
@@ -884,7 +884,7 @@ const ChannelDetailBillingTab = ({
               onChange={(e, { value }) =>
                 updateManualPurchaseRecord({
                   purchase_amount: Number(value || 0),
-                  purchase_cost_cny: isPurchaseCurrencyCNY(manualPurchaseRecord)
+                  purchase_cost_amount: isPurchaseCurrencyCNY(manualPurchaseRecord)
                     ? Number(value || 0)
                     : Number(value || 0) *
                       Number(manualPurchaseRecord.purchase_fx_rate || 0),
@@ -904,7 +904,7 @@ const ChannelDetailBillingTab = ({
                   onChange={(e, { value }) =>
                     updateManualPurchaseRecord({
                       purchase_fx_rate: Number(value || 0),
-                      purchase_cost_cny:
+                      purchase_cost_amount:
                         Number(manualPurchaseRecord.purchase_amount || 0) *
                         Number(value || 0),
                     })
@@ -912,15 +912,15 @@ const ChannelDetailBillingTab = ({
                   disabled={billingReadonly || billingSubmitting}
                 />
               </AppField>
-              <AppField label={t('channel.edit.billing.manual_purchase_cost_cny')} required>
+              <AppField label={t('channel.edit.billing.manual_purchase_cost_amount')} required>
                 <AppInputNumber
                   className='router-section-input'
                   fluid
                   min={0}
-                  value={manualPurchaseRecord.purchase_cost_cny}
+                  value={manualPurchaseRecord.purchase_cost_amount}
                   onChange={(e, { value }) =>
                     updateManualPurchaseRecord({
-                      purchase_cost_cny: Number(value || 0),
+                      purchase_cost_amount: Number(value || 0),
                     })
                   }
                   disabled={billingReadonly || billingSubmitting}
@@ -1310,16 +1310,16 @@ const ChannelDetailBillingTab = ({
           />
         </AppField>
         <AppField
-          label={t('channel.edit.billing.procurement_table.purchase_cost_cny')}
+          label={t('channel.edit.billing.procurement_table.purchase_cost_amount')}
         >
           <AppInputNumber
             className='router-section-input'
             fluid
             min={0}
-            value={costDraft.purchase_cost_cny}
+            value={costDraft.purchase_cost_amount}
             onChange={(e, { value }) =>
               updateCostDraft({
-                purchase_cost_cny: Number(value || 0),
+                purchase_cost_amount: Number(value || 0),
               })
             }
             disabled={billingReadonly || billingSubmitting}
@@ -1544,9 +1544,9 @@ const ChannelDetailBillingTab = ({
                     : '-',
               },
               {
-                title: t('channel.edit.billing.snapshot_table.purchase_cost_cny'),
-                dataIndex: 'purchase_cost_cny',
-                key: 'purchase_cost_cny',
+                title: t('channel.edit.billing.snapshot_table.purchase_cost_amount'),
+                dataIndex: 'purchase_cost_amount',
+                key: 'purchase_cost_amount',
                 width: 160,
                 render: (value) =>
                   Number(value || 0) > 0
@@ -1652,14 +1652,14 @@ const ChannelDetailBillingTab = ({
               },
               {
                 title: t('channel.edit.billing.procurement_table.cost'),
-                dataIndex: 'purchase_cost_cny',
+                dataIndex: 'purchase_cost_amount',
                 key: 'cost',
                 width: 150,
                 render: (_, row) => formatProcurementCostText(row, t),
               },
               {
                 title: t('channel.edit.billing.procurement_table.unit_cost'),
-                dataIndex: 'cost_per_unit_cny',
+                dataIndex: 'cost_per_unit_amount',
                 key: 'unit_cost',
                 width: 180,
                 render: (_, row) => formatProcurementUnitCostText(row),
@@ -1864,8 +1864,8 @@ const ChannelDetailBillingTab = ({
                 title: t(
                   'channel.edit.billing.procurement_consumption_table.unit_cost'
                 ),
-                dataIndex: 'unit_cost_cny',
-                key: 'unit_cost_cny',
+                dataIndex: 'unit_cost_amount',
+                key: 'unit_cost_amount',
                 width: 150,
                 render: (value) => `${formatNumberText(value, 8)} CNY`,
               },
@@ -1873,8 +1873,8 @@ const ChannelDetailBillingTab = ({
                 title: t(
                   'channel.edit.billing.procurement_consumption_table.cost'
                 ),
-                dataIndex: 'consumed_cost_cny',
-                key: 'consumed_cost_cny',
+                dataIndex: 'consumed_cost_amount',
+                key: 'consumed_cost_amount',
                 width: 150,
                 render: (value) => `${formatNumberText(value, 6)} CNY`,
               },

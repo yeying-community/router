@@ -907,27 +907,27 @@ func GetUserSpendOverview(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"today_cost":            todayCost,
-			"today_yyc_cost":        todayCost,
-			"today_revenue":         todayRevenue,
-			"today_yyc_revenue":     todayRevenue,
-			"today_requests":        todayRequests,
-			"today_tokens":          todayTokens,
-			"yesterday_cost":        yesterdayCost,
-			"yesterday_yyc_cost":    yesterdayCost,
-			"yesterday_revenue":     yesterdayRevenue,
-			"yesterday_yyc_revenue": yesterdayRevenue,
-			"period_cost":           periodCost,
-			"period_yyc_cost":       periodCost,
-			"period_revenue":        periodRevenue,
-			"period_yyc_revenue":    periodRevenue,
-			"period_requests":       periodRequests,
-			"period_tokens":         periodTokens,
-			"period_days":           periodDays,
-			"period_start":          periodStartUnix,
-			"period_end":            periodEndUnix,
-			"yesterday_start":       yesterdayStart.Unix(),
-			"yesterday_end":         yesterdayEnd.Unix(),
+			"today_cost":               todayCost,
+			"today_charge_amount":      todayCost,
+			"today_revenue":            todayRevenue,
+			"today_revenue_amount":     todayRevenue,
+			"today_requests":           todayRequests,
+			"today_tokens":             todayTokens,
+			"yesterday_cost":           yesterdayCost,
+			"yesterday_charge_amount":  yesterdayCost,
+			"yesterday_revenue":        yesterdayRevenue,
+			"yesterday_revenue_amount": yesterdayRevenue,
+			"period_cost":              periodCost,
+			"period_charge_amount":     periodCost,
+			"period_revenue":           periodRevenue,
+			"period_revenue_amount":    periodRevenue,
+			"period_requests":          periodRequests,
+			"period_tokens":            periodTokens,
+			"period_days":              periodDays,
+			"period_start":             periodStartUnix,
+			"period_end":               periodEndUnix,
+			"yesterday_start":          yesterdayStart.Unix(),
+			"yesterday_end":            yesterdayEnd.Unix(),
 		},
 	})
 	return
@@ -1931,9 +1931,9 @@ type topUpOrderListData struct {
 }
 
 type topUpBalanceSummaryData struct {
-	TotalYYCBalance  int64 `json:"total_yyc_balance"`
-	TopupYYCBalance  int64 `json:"topup_yyc_balance"`
-	RedeemYYCBalance int64 `json:"redeem_yyc_balance"`
+	TotalBalanceAmount  int64 `json:"total_balance_amount"`
+	TopupBalanceAmount  int64 `json:"topup_balance_amount"`
+	RedeemBalanceAmount int64 `json:"redeem_balance_amount"`
 }
 
 type topUpBalanceLotListData struct {
@@ -2122,9 +2122,9 @@ func buildTopUpBalanceSummary(totalBalance int64, topupRemain int64, redeemRemai
 	}
 
 	return topUpBalanceSummaryData{
-		TotalYYCBalance:  normalizedTotal,
-		TopupYYCBalance:  normalizedTopup,
-		RedeemYYCBalance: normalizedRedeem,
+		TotalBalanceAmount:  normalizedTotal,
+		TopupBalanceAmount:  normalizedTopup,
+		RedeemBalanceAmount: normalizedRedeem,
 	}
 }
 
@@ -2152,8 +2152,8 @@ func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
 
 	var topupRemain int64
 	if err := model.DB.Model(&model.UserBalanceLot{}).
-		Select("COALESCE(SUM(remaining_yyc), 0)").
-		Where("user_id = ? AND source_type = ? AND remaining_yyc > 0", userID, model.UserBalanceLotSourceTopup).
+		Select("COALESCE(SUM(remaining_amount), 0)").
+		Where("user_id = ? AND source_type = ? AND remaining_amount > 0", userID, model.UserBalanceLotSourceTopup).
 		Scan(&topupRemain).Error; err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -2164,8 +2164,8 @@ func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
 
 	var redeemRemain int64
 	if err := model.DB.Model(&model.UserBalanceLot{}).
-		Select("COALESCE(SUM(remaining_yyc), 0)").
-		Where("user_id = ? AND source_type = ? AND remaining_yyc > 0", userID, model.UserBalanceLotSourceRedeem).
+		Select("COALESCE(SUM(remaining_amount), 0)").
+		Where("user_id = ? AND source_type = ? AND remaining_amount > 0", userID, model.UserBalanceLotSourceRedeem).
 		Scan(&redeemRemain).Error; err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

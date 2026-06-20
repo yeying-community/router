@@ -13,7 +13,7 @@ import {
   convertBillingInputValueUnit,
   createBillingUnitState,
   BILLING_OPTION_SETTING_KEYS,
-  billingInputValueToYYC,
+  billingInputValueToChargeAmount,
   resolveDefaultBillingUnit,
   resolveBillingInputStep,
 } from '../helpers/billing';
@@ -241,9 +241,9 @@ const OperationSetting = ({ section = '' }) => {
         .map((item) => ({
           ...item,
           minor_unit: Number(item?.minor_unit ?? 6),
-          yyc_per_unit:
-            item?.yyc_per_unit === 0 || item?.yyc_per_unit
-              ? `${item.yyc_per_unit}`
+          charge_rate:
+            item?.charge_rate === 0 || item?.charge_rate
+              ? `${item.charge_rate}`
               : '',
           status: Number(item?.status || 1),
           _isNew: false,
@@ -344,25 +344,25 @@ const OperationSetting = ({ section = '' }) => {
             showError(t('setting.operation.quota.messages.plan_invalid'));
             break;
           }
-          const preConsumedYYC = billingInputValueToYYC(
+          const preConsumedChargeAmount = billingInputValueToChargeAmount(
             inputs[BALANCE_OPTION_KEYS.preConsumedAmount],
             billingUnits[BALANCE_OPTION_KEYS.preConsumedAmount],
             billingCurrencyIndex
           );
           if (
-            !Number.isFinite(preConsumedYYC) ||
-            preConsumedYYC < 0
+            !Number.isFinite(preConsumedChargeAmount) ||
+            preConsumedChargeAmount < 0
           ) {
             showError(t('setting.operation.quota.messages.amount_invalid'));
             break;
           }
           if (
             normalizeOptionValue(originInputs[BALANCE_OPTION_KEYS.preConsumedAmount], '0') !==
-            `${Math.trunc(preConsumedYYC)}`
+            `${Math.trunc(preConsumedChargeAmount)}`
           ) {
             await updateOption(
               BALANCE_OPTION_KEYS.preConsumedAmount,
-              `${Math.trunc(preConsumedYYC)}`
+              `${Math.trunc(preConsumedChargeAmount)}`
             );
           }
           if (

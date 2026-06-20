@@ -17,7 +17,7 @@ import {
 import {
   buildDisplayUnitOptions,
   buildPublicDisplayCurrencyIndex,
-  formatDisplayAmountFromYYC,
+  formatDisplayAmountFromChargeAmount,
   loadPublicDisplayCurrencyCatalog,
   resolvePreferredDisplayCurrency,
 } from '../helpers/billing';
@@ -46,9 +46,9 @@ const normalizeTokenRow = (raw) => {
   }
   return {
     ...raw,
-    yycUsed: Number(raw?.yyc_used ?? raw?.used_quota ?? 0) || 0,
-    yycRemaining: Number(raw?.yyc_remain ?? raw?.remain_quota ?? 0) || 0,
-    hasUnlimitedYYCLimit: raw?.unlimited_quota === true,
+    usedAmount: Number(raw?.used_amount ?? raw?.used_quota ?? 0) || 0,
+    remainingAmount: Number(raw?.remaining_amount ?? raw?.remain_quota ?? 0) || 0,
+    hasUnlimitedLimitAmount: raw?.unlimited_quota === true,
     createdTime: Number(raw?.created_time ?? 0) || 0,
     expiredTime: Number(raw?.expired_time ?? 0) || 0,
   };
@@ -422,15 +422,15 @@ const TokensTable = () => {
                 />
               </div>
             ),
-            dataIndex: 'yycUsed',
+            dataIndex: 'usedAmount',
             key: 'usedAmount',
             width: TOKEN_LIST_COLUMN_WIDTHS.usedAmount,
-            sorter: (a, b) => compareNumberValue(a.yycUsed, b.yycUsed),
+            sorter: (a, b) => compareNumberValue(a.usedAmount, b.usedAmount),
             sortDirections: ['ascend', 'descend'],
             sortOrder:
               tableSorter.columnKey === 'usedAmount' ? tableSorter.order : null,
             render: (value) =>
-              formatDisplayAmountFromYYC(value, displayUnit, currencyIndex),
+              formatDisplayAmountFromChargeAmount(value, displayUnit, currencyIndex),
           },
           {
             title: (
@@ -450,19 +450,19 @@ const TokensTable = () => {
                 />
               </div>
             ),
-            dataIndex: 'yycRemaining',
+            dataIndex: 'remainingAmount',
             key: 'remainingAmount',
             width: TOKEN_LIST_COLUMN_WIDTHS.remainingAmount,
-            sorter: (a, b) => compareNumberValue(a.yycRemaining, b.yycRemaining),
+            sorter: (a, b) => compareNumberValue(a.remainingAmount, b.remainingAmount),
             sortDirections: ['ascend', 'descend'],
             sortOrder:
               tableSorter.columnKey === 'remainingAmount'
                 ? tableSorter.order
                 : null,
             render: (value, token) =>
-              token.hasUnlimitedYYCLimit
+              token.hasUnlimitedLimitAmount
                 ? t('token.table.unlimited')
-                : formatDisplayAmountFromYYC(value, displayUnit, currencyIndex),
+                : formatDisplayAmountFromChargeAmount(value, displayUnit, currencyIndex),
           },
           {
             title: t('token.table.created_time'),

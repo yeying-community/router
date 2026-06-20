@@ -147,7 +147,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		quota = preConsumedQuota
 	}
 	if imageFeeDetail.Applied {
-		quota = billingSnapshot.YYCAmount
+		quota = billingSnapshot.ChargeAmount
 	}
 	totalTokens := promptTokens + completionTokens
 	if totalTokens == 0 {
@@ -196,7 +196,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		userDailyQuota = int(dailyConsumed)
 		userEmergencyQuota = int(emergencyConsumed)
 	}
-	billingSnapshot.YYCAmount = quota
+	billingSnapshot.ChargeAmount = quota
 	entry := &model.Log{
 		UserId:             meta.UserId,
 		GroupId:            meta.Group,

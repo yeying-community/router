@@ -23,28 +23,28 @@ const (
 )
 
 type UserBalanceLot struct {
-	Id           string `json:"id" gorm:"primaryKey;type:char(36)"`
-	UserID       string `json:"user_id" gorm:"type:char(36);not null;index:idx_balance_lot_user_status_expire,priority:1"`
-	SourceType   string `json:"source_type" gorm:"type:varchar(32);not null;index:idx_balance_lot_source,unique,priority:1"`
-	SourceID     string `json:"source_id" gorm:"type:char(36);not null;index:idx_balance_lot_source,unique,priority:2"`
-	TotalYYC     int64  `json:"total_yyc" gorm:"type:bigint;not null;default:0"`
-	UsedYYC      int64  `json:"used_yyc" gorm:"type:bigint;not null;default:0"`
-	RemainingYYC int64  `json:"remaining_yyc" gorm:"type:bigint;not null;default:0;index:idx_balance_lot_user_status_expire,priority:2"`
-	Status       string `json:"status" gorm:"type:varchar(16);not null;default:'active';index:idx_balance_lot_user_status_expire,priority:3"`
-	GrantedAt    int64  `json:"granted_at" gorm:"bigint;not null;default:0;index"`
-	ExpiresAt    int64  `json:"expires_at" gorm:"bigint;not null;default:0;index:idx_balance_lot_user_status_expire,priority:4"`
-	ExpiredAt    int64  `json:"expired_at" gorm:"bigint;not null;default:0;index"`
-	CreatedAt    int64  `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt    int64  `json:"updated_at" gorm:"bigint;index"`
+	Id              string `json:"id" gorm:"primaryKey;type:char(36)"`
+	UserID          string `json:"user_id" gorm:"type:char(36);not null;index:idx_balance_lot_user_status_expire,priority:1"`
+	SourceType      string `json:"source_type" gorm:"type:varchar(32);not null;index:idx_balance_lot_source,unique,priority:1"`
+	SourceID        string `json:"source_id" gorm:"type:char(36);not null;index:idx_balance_lot_source,unique,priority:2"`
+	TotalAmount     int64  `json:"total_amount" gorm:"type:bigint;not null;default:0"`
+	UsedAmount      int64  `json:"used_amount" gorm:"type:bigint;not null;default:0"`
+	RemainingAmount int64  `json:"remaining_amount" gorm:"type:bigint;not null;default:0;index:idx_balance_lot_user_status_expire,priority:2"`
+	Status          string `json:"status" gorm:"type:varchar(16);not null;default:'active';index:idx_balance_lot_user_status_expire,priority:3"`
+	GrantedAt       int64  `json:"granted_at" gorm:"bigint;not null;default:0;index"`
+	ExpiresAt       int64  `json:"expires_at" gorm:"bigint;not null;default:0;index:idx_balance_lot_user_status_expire,priority:4"`
+	ExpiredAt       int64  `json:"expired_at" gorm:"bigint;not null;default:0;index"`
+	CreatedAt       int64  `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt       int64  `json:"updated_at" gorm:"bigint;index"`
 }
 
 type UserBalanceLotCreditInput struct {
-	UserID     string
-	SourceType string
-	SourceID   string
-	TotalYYC   int64
-	GrantedAt  int64
-	ExpiresAt  int64
+	UserID      string
+	SourceType  string
+	SourceID    string
+	TotalAmount int64
+	GrantedAt   int64
+	ExpiresAt   int64
 }
 
 func (UserBalanceLot) TableName() string {
@@ -134,20 +134,20 @@ func normalizeUserBalanceLotRow(row *UserBalanceLot) {
 	row.UserID = strings.TrimSpace(row.UserID)
 	row.SourceType = normalizeUserBalanceLotSourceType(row.SourceType)
 	row.SourceID = strings.TrimSpace(row.SourceID)
-	if row.TotalYYC < 0 {
-		row.TotalYYC = 0
+	if row.TotalAmount < 0 {
+		row.TotalAmount = 0
 	}
-	if row.UsedYYC < 0 {
-		row.UsedYYC = 0
+	if row.UsedAmount < 0 {
+		row.UsedAmount = 0
 	}
-	if row.RemainingYYC < 0 {
-		row.RemainingYYC = 0
+	if row.RemainingAmount < 0 {
+		row.RemainingAmount = 0
 	}
-	if row.RemainingYYC > row.TotalYYC {
-		row.RemainingYYC = row.TotalYYC
+	if row.RemainingAmount > row.TotalAmount {
+		row.RemainingAmount = row.TotalAmount
 	}
-	if row.UsedYYC+row.RemainingYYC > row.TotalYYC {
-		row.UsedYYC = row.TotalYYC - row.RemainingYYC
+	if row.UsedAmount+row.RemainingAmount > row.TotalAmount {
+		row.UsedAmount = row.TotalAmount - row.RemainingAmount
 	}
 	if row.GrantedAt < 0 {
 		row.GrantedAt = 0
@@ -166,16 +166,16 @@ func CreditUserBalanceLotWithDB(db *gorm.DB, input UserBalanceLotCreditInput) (U
 		return UserBalanceLot{}, false, fmt.Errorf("database handle is nil")
 	}
 	row := UserBalanceLot{
-		Id:           random.GetUUID(),
-		UserID:       strings.TrimSpace(input.UserID),
-		SourceType:   normalizeUserBalanceLotSourceType(input.SourceType),
-		SourceID:     strings.TrimSpace(input.SourceID),
-		TotalYYC:     input.TotalYYC,
-		UsedYYC:      0,
-		RemainingYYC: input.TotalYYC,
-		GrantedAt:    input.GrantedAt,
-		ExpiresAt:    input.ExpiresAt,
-		Status:       UserBalanceLotStatusActive,
+		Id:              random.GetUUID(),
+		UserID:          strings.TrimSpace(input.UserID),
+		SourceType:      normalizeUserBalanceLotSourceType(input.SourceType),
+		SourceID:        strings.TrimSpace(input.SourceID),
+		TotalAmount:     input.TotalAmount,
+		UsedAmount:      0,
+		RemainingAmount: input.TotalAmount,
+		GrantedAt:       input.GrantedAt,
+		ExpiresAt:       input.ExpiresAt,
+		Status:          UserBalanceLotStatusActive,
 	}
 	normalizeUserBalanceLotRow(&row)
 	if row.UserID == "" {
@@ -187,7 +187,7 @@ func CreditUserBalanceLotWithDB(db *gorm.DB, input UserBalanceLotCreditInput) (U
 	if row.SourceID == "" {
 		return UserBalanceLot{}, false, fmt.Errorf("来源 ID 不能为空")
 	}
-	if row.TotalYYC <= 0 {
+	if row.TotalAmount <= 0 {
 		return UserBalanceLot{}, false, fmt.Errorf("额度必须大于 0")
 	}
 	if row.GrantedAt <= 0 {
@@ -220,9 +220,9 @@ func CreditUserBalanceLotWithDB(db *gorm.DB, input UserBalanceLotCreditInput) (U
 			SourceType:         row.SourceType,
 			SourceID:           row.SourceID,
 			TxType:             UserBalanceLotTxTypeCredit,
-			DeltaYYC:           row.TotalYYC,
+			DeltaAmount:        row.TotalAmount,
 			LotRemainingBefore: 0,
-			LotRemainingAfter:  row.RemainingYYC,
+			LotRemainingAfter:  row.RemainingAmount,
 			OccurredAt:         row.GrantedAt,
 		}); err != nil {
 			return UserBalanceLot{}, false, err
@@ -242,7 +242,7 @@ func expireUserBalanceLotsInTx(tx *gorm.DB, userID string, now int64) (int64, er
 	}
 	rows := make([]UserBalanceLot, 0)
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where("user_id = ? AND status = ? AND remaining_yyc > 0 AND expires_at > 0 AND expires_at <= ?", normalizedUserID, UserBalanceLotStatusActive, effectiveNow).
+		Where("user_id = ? AND status = ? AND remaining_amount > 0 AND expires_at > 0 AND expires_at <= ?", normalizedUserID, UserBalanceLotStatusActive, effectiveNow).
 		Order("expires_at asc, created_at asc, id asc").
 		Find(&rows).Error; err != nil {
 		return 0, err
@@ -252,16 +252,16 @@ func expireUserBalanceLotsInTx(tx *gorm.DB, userID string, now int64) (int64, er
 	}
 	expiredTotal := int64(0)
 	for _, row := range rows {
-		if row.RemainingYYC <= 0 {
+		if row.RemainingAmount <= 0 {
 			continue
 		}
-		expiredAmount := row.RemainingYYC
+		expiredAmount := row.RemainingAmount
 		updated := map[string]any{
-			"used_yyc":      row.UsedYYC + expiredAmount,
-			"remaining_yyc": 0,
-			"status":        UserBalanceLotStatusExpired,
-			"expired_at":    effectiveNow,
-			"updated_at":    effectiveNow,
+			"used_amount":      row.UsedAmount + expiredAmount,
+			"remaining_amount": 0,
+			"status":           UserBalanceLotStatusExpired,
+			"expired_at":       effectiveNow,
+			"updated_at":       effectiveNow,
 		}
 		if err := tx.Model(&UserBalanceLot{}).Where("id = ?", row.Id).Updates(updated).Error; err != nil {
 			return 0, err
@@ -272,8 +272,8 @@ func expireUserBalanceLotsInTx(tx *gorm.DB, userID string, now int64) (int64, er
 			SourceType:         row.SourceType,
 			SourceID:           row.SourceID,
 			TxType:             UserBalanceLotTxTypeExpire,
-			DeltaYYC:           -expiredAmount,
-			LotRemainingBefore: row.RemainingYYC,
+			DeltaAmount:        -expiredAmount,
+			LotRemainingBefore: row.RemainingAmount,
 			LotRemainingAfter:  0,
 			OccurredAt:         effectiveNow,
 		}); err != nil {
@@ -342,7 +342,7 @@ func ConsumeUserBalanceLotsWithDB(db *gorm.DB, userID string, quota int64, now i
 		}
 		rows := make([]UserBalanceLot, 0)
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("user_id = ? AND status = ? AND remaining_yyc > 0 AND (expires_at = 0 OR expires_at > ?)", normalizedUserID, UserBalanceLotStatusActive, effectiveNow).
+			Where("user_id = ? AND status = ? AND remaining_amount > 0 AND (expires_at = 0 OR expires_at > ?)", normalizedUserID, UserBalanceLotStatusActive, effectiveNow).
 			Order("CASE WHEN expires_at = 0 THEN 1 ELSE 0 END asc, expires_at asc, created_at asc, id asc").
 			Find(&rows).Error; err != nil {
 			return err
@@ -352,7 +352,7 @@ func ConsumeUserBalanceLotsWithDB(db *gorm.DB, userID string, quota int64, now i
 			if remainingToConsume <= 0 {
 				break
 			}
-			available := row.RemainingYYC
+			available := row.RemainingAmount
 			if available <= 0 {
 				continue
 			}
@@ -364,10 +364,10 @@ func ConsumeUserBalanceLotsWithDB(db *gorm.DB, userID string, quota int64, now i
 				nextStatus = UserBalanceLotStatusExhaust
 			}
 			if err := tx.Model(&UserBalanceLot{}).Where("id = ?", row.Id).Updates(map[string]any{
-				"used_yyc":      row.UsedYYC + delta,
-				"remaining_yyc": nextRemaining,
-				"status":        nextStatus,
-				"updated_at":    effectiveNow,
+				"used_amount":      row.UsedAmount + delta,
+				"remaining_amount": nextRemaining,
+				"status":           nextStatus,
+				"updated_at":       effectiveNow,
 			}).Error; err != nil {
 				return err
 			}
@@ -377,7 +377,7 @@ func ConsumeUserBalanceLotsWithDB(db *gorm.DB, userID string, quota int64, now i
 				SourceType:         row.SourceType,
 				SourceID:           row.SourceID,
 				TxType:             UserBalanceLotTxTypeConsume,
-				DeltaYYC:           -delta,
+				DeltaAmount:        -delta,
 				LotRemainingBefore: available,
 				LotRemainingAfter:  nextRemaining,
 				OccurredAt:         effectiveNow,
@@ -424,7 +424,7 @@ func ListUserBalanceLotsPageWithDB(db *gorm.DB, userID string, sourceType string
 		query = query.Where("status = ?", normalizedStatus)
 	}
 	if positiveOnly {
-		query = query.Where("remaining_yyc > 0")
+		query = query.Where("remaining_amount > 0")
 	}
 	total := int64(0)
 	if err := query.Count(&total).Error; err != nil {

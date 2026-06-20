@@ -48,6 +48,9 @@ func InitOptionMap() {
 	config.OptionMap["ChannelBillingAutoRefreshEnabled"] = strconv.FormatBool(config.ChannelBillingAutoRefreshEnabled)
 	config.OptionMap["ChannelBillingAutoRefreshIntervalSeconds"] = strconv.Itoa(config.ChannelBillingAutoRefreshIntervalSeconds)
 	config.OptionMap["ChannelBillingAutoRefreshLastRunAt"] = strconv.FormatInt(config.ChannelBillingAutoRefreshLastRunAt, 10)
+	config.OptionMap["BillingOfficialMarkup"] = strconv.FormatFloat(config.BillingOfficialMarkup, 'f', -1, 64)
+	config.OptionMap["BillingTargetMargin"] = strconv.FormatFloat(config.BillingTargetMargin, 'f', -1, 64)
+	config.OptionMap["BillingRiskBuffer"] = strconv.FormatFloat(config.BillingRiskBuffer, 'f', -1, 64)
 	config.OptionMap["ChannelDisableThreshold"] = strconv.FormatFloat(config.ChannelDisableThreshold, 'f', -1, 64)
 	config.OptionMap["SMTPServer"] = ""
 	config.OptionMap["SMTPFrom"] = ""
@@ -113,6 +116,20 @@ func UpdateOption(key string, value string) error {
 		return UpdateOptionMap(normalizedKey, "")
 	}
 	return mustOptionRepo().UpdateOption(key, value)
+}
+
+func normalizeBillingFloatOption(value string, fallback float64, minValue float64, maxValue float64) float64 {
+	parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	if err != nil {
+		parsed = fallback
+	}
+	if parsed < minValue {
+		return minValue
+	}
+	if parsed > maxValue {
+		return maxValue
+	}
+	return parsed
 }
 
 func UpdateOptionMap(key string, value string) (err error) {
@@ -217,6 +234,15 @@ func UpdateOptionMap(key string, value string) (err error) {
 		config.ChannelBillingAutoRefreshIntervalSeconds = interval
 	case "ChannelBillingAutoRefreshLastRunAt":
 		config.ChannelBillingAutoRefreshLastRunAt, _ = strconv.ParseInt(value, 10, 64)
+	case "BillingOfficialMarkup":
+		config.BillingOfficialMarkup = normalizeBillingFloatOption(value, 1, 0, 100)
+		config.OptionMap[key] = strconv.FormatFloat(config.BillingOfficialMarkup, 'f', -1, 64)
+	case "BillingTargetMargin":
+		config.BillingTargetMargin = normalizeBillingFloatOption(value, 0, 0, 0.95)
+		config.OptionMap[key] = strconv.FormatFloat(config.BillingTargetMargin, 'f', -1, 64)
+	case "BillingRiskBuffer":
+		config.BillingRiskBuffer = normalizeBillingFloatOption(value, 0, 0, 100)
+		config.OptionMap[key] = strconv.FormatFloat(config.BillingRiskBuffer, 'f', -1, 64)
 	case "ChannelDisableThreshold":
 		config.ChannelDisableThreshold, _ = strconv.ParseFloat(value, 64)
 	case "QuotaPerUnit":

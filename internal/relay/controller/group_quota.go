@@ -16,13 +16,13 @@ import (
 const groupDailyQuotaExceededCode = "group_daily_quota_exceeded"
 
 func formatGroupDailyQuotaExceededMessage(requested int64, snapshot model.GroupDailyQuotaSnapshot) string {
-	requestedYYC := requested
-	if requestedYYC < 0 {
-		requestedYYC = 0
+	requestedChargeAmount := requested
+	if requestedChargeAmount < 0 {
+		requestedChargeAmount = 0
 	}
 	return fmt.Sprintf(
 		"当前分组套餐每日额度不足：本次预估消耗 %d YYC，今日剩余 %d YYC（已用 %d，预占 %d，日上限 %d）",
-		requestedYYC,
+		requestedChargeAmount,
 		snapshot.RemainingQuota,
 		snapshot.ConsumedQuota,
 		snapshot.ReservedQuota,
@@ -31,13 +31,13 @@ func formatGroupDailyQuotaExceededMessage(requested int64, snapshot model.GroupD
 }
 
 func formatPackageQuotaExceededMessage(requested int64, daily model.GroupDailyQuotaSnapshot, emergency model.UserPackageEmergencyQuotaSnapshot) string {
-	requestedYYC := requested
-	if requestedYYC < 0 {
-		requestedYYC = 0
+	requestedChargeAmount := requested
+	if requestedChargeAmount < 0 {
+		requestedChargeAmount = 0
 	}
 	return fmt.Sprintf(
 		"当前分组套餐额度不足：本次预估消耗 %d YYC，每日剩余 %d YYC（已用 %d，预占 %d，日上限 %d），应急剩余 %d YYC（已用 %d，预占 %d，应急上限 %d）",
-		requestedYYC,
+		requestedChargeAmount,
 		daily.RemainingQuota,
 		daily.ConsumedQuota,
 		daily.ReservedQuota,

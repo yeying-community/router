@@ -13,14 +13,14 @@ import UnitDropdown from './UnitDropdown';
 import { ITEMS_PER_PAGE } from '../constants';
 import {
   renderColorLabel,
-  isYYCDisplayedInCurrency,
+  isChargeDisplayedInCurrency,
   YYC_SYMBOL,
 } from '../helpers/render';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   buildPublicDisplayCurrencyIndex,
   buildDisplayUnitOptions,
-  formatDisplayAmountFromYYC,
+  formatDisplayAmountFromChargeAmount,
   loadPublicDisplayCurrencyCatalog,
   resolvePreferredDisplayCurrency,
   YYC_DISPLAY_CODE,
@@ -145,10 +145,10 @@ function getLogChannelLabel(log) {
 function normalizeLogEntry(log) {
   return {
     ...(log || {}),
-    // Prefer YYC-native settlement fields, fall back to legacy quota-based logs.
-    yycAmount: Number(log?.yyc_amount ?? log?.quota ?? 0),
-    userDailyYYC: Number(log?.yyc_user_daily ?? log?.user_daily_quota ?? 0),
-    userEmergencyYYC: Number(log?.yyc_user_emergency ?? log?.user_emergency_quota ?? 0),
+    // Prefer charge-amount settlement fields, fall back to legacy quota-based logs.
+    chargeAmount: Number(log?.charge_amount ?? log?.quota ?? 0),
+    userDailyChargeAmount: Number(log?.user_daily_charge_amount ?? log?.user_daily_quota ?? 0),
+    userEmergencyChargeAmount: Number(log?.user_emergency_charge_amount ?? log?.user_emergency_quota ?? 0),
   };
 }
 
@@ -536,7 +536,7 @@ const LogsTable = () => {
     try {
       if (!isAdminScope) {
         const { currencyIndex: nextIndex } = await loadPublicDisplayCurrencyCatalog();
-        const preferredUnit = isYYCDisplayedInCurrency() ? 'USD' : YYC_DISPLAY_CODE;
+        const preferredUnit = isChargeDisplayedInCurrency() ? 'USD' : YYC_DISPLAY_CODE;
         setCurrencyIndex(nextIndex);
         setDisplayUnit((current) =>
           resolvePreferredDisplayCurrency(
@@ -725,8 +725,8 @@ const LogsTable = () => {
             left.completion_tokens,
             right.completion_tokens,
           );
-        case 'yycAmount':
-          return compareNumberValue(left.yycAmount, right.yycAmount);
+        case 'chargeAmount':
+          return compareNumberValue(left.chargeAmount, right.chargeAmount);
         default:
           return 0;
       }
@@ -1169,22 +1169,22 @@ const LogsTable = () => {
                   ) : (
                     <span>{t('log.table.quota')}</span>
                   ),
-                  dataIndex: 'yycAmount',
-                  key: 'yycAmount',
+                  dataIndex: 'chargeAmount',
+                  key: 'chargeAmount',
                   width: LOG_LIST_COLUMN_WIDTHS.quota,
                   sorter: true,
                   sortDirections: ['ascend', 'descend'],
                   sortOrder:
-                    tableSorter.columnKey === 'yycAmount'
+                    tableSorter.columnKey === 'chargeAmount'
                       ? tableSorter.order
                       : null,
                   render: (value) =>
                     isAdminScope
-                      ? formatDisplayAmountFromYYC(value, displayUnit, currencyIndex)
+                      ? formatDisplayAmountFromChargeAmount(value, displayUnit, currencyIndex)
                       : value
-                        ? formatDisplayAmountFromYYC(value, displayUnit, currencyIndex, {
+                        ? formatDisplayAmountFromChargeAmount(value, displayUnit, currencyIndex, {
                             includeSymbol: true,
-                            yycMode: 'compact',
+                            chargeMode: 'compact',
                           })
                         : '',
                 },

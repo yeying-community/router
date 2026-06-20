@@ -262,7 +262,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 	succeed = true
 	quotaDelta := quota - preConsumedQuota
-	billingSnapshot.YYCAmount = quota
+	billingSnapshot.ChargeAmount = quota
 	defer func(ctx context.Context) {
 		go billing.PostConsumeQuota(ctx, tokenId, quotaDelta, quota, userId, group, channelId, pricing, groupRatio, audioModel, tokenName, billingPlan.ChargeUserBalance(), packageReservation, billingSnapshot)
 	}(c.Request.Context())

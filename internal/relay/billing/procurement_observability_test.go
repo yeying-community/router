@@ -67,7 +67,7 @@ func TestApplyProcurementCostObservationDoesNotInventGrossProfitWithoutCost(t *t
 	logRow := &adminmodel.Log{
 		BillingAmount:         1,
 		BillingCurrency:       adminmodel.BillingCurrencyCodeCNY,
-		BillingYYCAmount:      1000,
+		BillingChargeAmount:   1000,
 		BillingSettlementMode: "usage_final",
 	}
 
@@ -76,8 +76,8 @@ func TestApplyProcurementCostObservationDoesNotInventGrossProfitWithoutCost(t *t
 	if logRow.BillingProcurementCostSource != adminmodel.ProcurementCostSourceNone {
 		t.Fatalf("BillingProcurementCostSource=%q, want %q", logRow.BillingProcurementCostSource, adminmodel.ProcurementCostSourceNone)
 	}
-	if logRow.BillingGrossProfitCNY != 0 {
-		t.Fatalf("BillingGrossProfitCNY=%v, want 0 without procurement cost", logRow.BillingGrossProfitCNY)
+	if logRow.BillingGrossProfitBaseAmount != 0 {
+		t.Fatalf("BillingGrossProfitBaseAmount=%v, want 0 without procurement cost", logRow.BillingGrossProfitBaseAmount)
 	}
 	if logRow.BillingGrossMargin != 0 {
 		t.Fatalf("BillingGrossMargin=%v, want 0 without procurement cost", logRow.BillingGrossMargin)

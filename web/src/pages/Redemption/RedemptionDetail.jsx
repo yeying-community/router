@@ -13,7 +13,7 @@ import {
 } from '../../helpers/billing';
 import {
   formatAmountWithUnit,
-  formatYYCValue,
+  formatCreditAmount,
 } from '../../helpers/render';
 import UnitDropdown from '../../components/UnitDropdown';
 import {
@@ -67,7 +67,7 @@ const toGroupOptions = (rows) =>
     text: item.name || item.id,
   }));
 
-const computeYYCPreview = (amountValue, unitValue, currencyIndex) => {
+const computeChargePreview = (amountValue, unitValue, currencyIndex) => {
   const amount = Number.parseFloat(`${amountValue ?? ''}`);
   if (!Number.isFinite(amount) || amount <= 0) {
     return 0;
@@ -77,7 +77,7 @@ const computeYYCPreview = (amountValue, unitValue, currencyIndex) => {
     return Math.round(amount);
   }
   const currency = currencyIndex[normalizedUnit];
-  const rate = Number(currency?.yyc_per_unit || 0);
+  const rate = Number(currency?.charge_rate || 0);
   if (!Number.isFinite(rate) || rate <= 0) {
     return 0;
   }
@@ -89,10 +89,10 @@ const normalizeFaceValueAmount = (data) => {
   if (Number.isFinite(rawAmount) && rawAmount > 0) {
     return `${rawAmount}`;
   }
-  // Older payloads only returned quota/yyc_value instead of face_value_amount.
-  const creditedYYC = Number(data?.yyc_value ?? data?.quota ?? 0);
-  if (Number.isFinite(creditedYYC) && creditedYYC > 0) {
-    return `${creditedYYC}`;
+  // Older payloads only returned quota/credit_amount instead of face_value_amount.
+  const creditedChargeAmount = Number(data?.credit_amount ?? data?.quota ?? 0);
+  if (Number.isFinite(creditedChargeAmount) && creditedChargeAmount > 0) {
+    return `${creditedChargeAmount}`;
   }
   return '0';
 };
@@ -112,7 +112,7 @@ const formatGroupLabel = (data) => {
 };
 
 // Keep legacy quota fallback for historical redemption payloads.
-const resolveCreditedYYC = (data) => Number(data?.yyc_value ?? data?.quota ?? 0);
+const resolveCreditedChargeAmount = (data) => Number(data?.credit_amount ?? data?.quota ?? 0);
 
 const RedemptionDetail = () => {
   const { t } = useTranslation();
@@ -145,8 +145,8 @@ const RedemptionDetail = () => {
     return normalized.startsWith('/') ? normalized : '';
   })();
 
-  const yycPreview = useMemo(
-    () => computeYYCPreview(inputs.face_value_amount, inputs.face_value_unit, currencyIndex),
+  const chargePreview = useMemo(
+    () => computeChargePreview(inputs.face_value_amount, inputs.face_value_unit, currencyIndex),
     [currencyIndex, inputs.face_value_amount, inputs.face_value_unit]
   );
 
@@ -456,7 +456,7 @@ const RedemptionDetail = () => {
                       <AppInput
                         className='router-section-input'
                         value={formatAmountWithUnit(
-                          redemption?.face_value_amount ?? resolveCreditedYYC(redemption),
+                          redemption?.face_value_amount ?? resolveCreditedChargeAmount(redemption),
                           normalizeFaceValueUnit(redemption)
                         )}
                         readOnly
@@ -467,7 +467,7 @@ const RedemptionDetail = () => {
 	                    <AppField label={t('redemption.edit.credit_yyc')} readOnly>
 	                      <AppInput
 	                        className='router-section-input'
-	                        value={yycPreview > 0 ? formatYYCValue(yycPreview) : '-'}
+	                        value={chargePreview > 0 ? formatCreditAmount(chargePreview) : '-'}
 	                        readOnly
 	                      />
 	                    </AppField>
@@ -475,7 +475,7 @@ const RedemptionDetail = () => {
 	                    <AppField label={t('redemption.table.credited_yyc')} readOnly>
 	                      <AppInput
 	                        className='router-section-input'
-                        value={redemption ? formatYYCValue(resolveCreditedYYC(redemption)) : ''}
+                        value={redemption ? formatCreditAmount(resolveCreditedChargeAmount(redemption)) : ''}
                         readOnly
                       />
                     </AppField>

@@ -607,7 +607,7 @@ const normalizeChannelBillingSnapshots = (items) => {
       purchase_currency: (item.purchase_currency || '').toString().trim(),
       purchase_amount: Number(item.purchase_amount || 0),
       purchase_fx_rate: Number(item.purchase_fx_rate || 0),
-      purchase_cost_cny: Number(item.purchase_cost_cny || 0),
+      purchase_cost_amount: Number(item.purchase_cost_amount || 0),
       created_at: Number(item.created_at || 0),
       items: Array.isArray(item.items)
         ? item.items.map((quotaItem) => ({
@@ -661,8 +661,8 @@ const normalizeChannelProcurementBatches = (items) => {
       purchase_currency: (item.purchase_currency || '').toString().trim(),
       purchase_amount: Number(item.purchase_amount || 0),
       purchase_fx_rate: Number(item.purchase_fx_rate || 0),
-      purchase_cost_cny: Number(item.purchase_cost_cny || 0),
-      cost_per_unit_cny: Number(item.cost_per_unit_cny || 0),
+      purchase_cost_amount: Number(item.purchase_cost_amount || 0),
+      cost_per_unit_amount: Number(item.cost_per_unit_amount || 0),
       cost_source: (item.cost_source || '').toString().trim(),
       cost_status: (item.cost_status || '').toString().trim(),
       expire_at: Number(item.expire_at || 0),
@@ -3506,7 +3506,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       purchase_currency,
       purchase_amount,
       purchase_fx_rate,
-      purchase_cost_cny,
+      purchase_cost_amount,
       items,
       message,
     }) => {
@@ -3560,7 +3560,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             purchase_currency: (purchase_currency || '').toString().trim(),
             purchase_amount: Number(purchase_amount || 0),
             purchase_fx_rate: Number(purchase_fx_rate || 0),
-            purchase_cost_cny: Number(purchase_cost_cny || 0),
+            purchase_cost_amount: Number(purchase_cost_amount || 0),
             items: normalizedItems,
             message: (message || '').toString().trim(),
           }
@@ -3638,7 +3638,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               .trim(),
             purchase_amount: Number(payload?.purchase_amount || 0),
             purchase_fx_rate: Number(payload?.purchase_fx_rate || 0),
-            purchase_cost_cny: Number(payload?.purchase_cost_cny || 0),
+            purchase_cost_amount: Number(payload?.purchase_cost_amount || 0),
             capacity_effective: Number(payload?.capacity_effective || 0),
             cost_source: (payload?.cost_source || 'actual').toString().trim(),
             cost_status: (payload?.cost_status || 'active').toString().trim(),

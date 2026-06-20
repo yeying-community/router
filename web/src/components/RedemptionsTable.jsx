@@ -80,7 +80,7 @@ function normalizeRedemptionRow(row) {
   return {
     ...(row || {}),
     // Prefer YYC-native fields, fall back to historical quota payloads.
-    creditedYYC: Number(row?.yyc_value ?? row?.quota ?? 0),
+    creditedChargeAmount: Number(row?.credit_amount ?? row?.quota ?? 0),
     groupLabel: renderGroupLabel(row),
     createdTime: Number(row?.created_time ?? 0),
     redeemedTime: Number(row?.redeemed_time ?? 0),
@@ -89,13 +89,13 @@ function normalizeRedemptionRow(row) {
 
 function buildDisplayValue(redemption, displayUnit, currencyIndex) {
   // Keep legacy quota fallback for older redemption records.
-  const creditedYYC = Number(redemption?.creditedYYC ?? redemption?.yyc_value ?? redemption?.quota ?? 0);
+  const creditedChargeAmount = Number(redemption?.creditedChargeAmount ?? redemption?.credit_amount ?? redemption?.quota ?? 0);
   const targetCurrency = currencyIndex[displayUnit] || currencyIndex.YYC;
-  const rate = Number(targetCurrency?.yyc_per_unit || 0);
+  const rate = Number(targetCurrency?.charge_rate || 0);
   if (!Number.isFinite(rate) || rate <= 0) {
     return '-';
   }
-  return formatByCurrencyMinorUnit(creditedYYC / rate, targetCurrency);
+  return formatByCurrencyMinorUnit(creditedChargeAmount / rate, targetCurrency);
 }
 
 function renderDisplayFaceValue(redemption, displayUnit, currencyIndex) {
@@ -153,7 +153,7 @@ const RedemptionsTable = () => {
   );
 
   const displayUnitOptions = useMemo(
-    () => buildDisplayUnitOptions(currencyIndex, { order: 'yyc-first' }),
+    () => buildDisplayUnitOptions(currencyIndex, { order: 'charge-first' }),
     [currencyIndex]
   );
 
@@ -443,7 +443,7 @@ const RedemptionsTable = () => {
             ),
             key: 'face_value',
             width: REDEMPTION_LIST_COLUMN_WIDTHS.faceValue,
-            sorter: (a, b) => compareNumberValue(a.creditedYYC, b.creditedYYC),
+            sorter: (a, b) => compareNumberValue(a.creditedChargeAmount, b.creditedChargeAmount),
             sortDirections: ['ascend', 'descend'],
             sortOrder:
               tableSorter.columnKey === 'face_value' ? tableSorter.order : null,

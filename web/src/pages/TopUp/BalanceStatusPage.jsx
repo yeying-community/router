@@ -62,9 +62,9 @@ const BalanceStatusPage = () => {
   const navigate = useNavigate();
   const [redeemModalOpen, setRedeemModalOpen] = useState(false);
   const {
-    userBalanceYYC,
-    topupBalanceYYC,
-    redeemBalanceYYC,
+    userBalanceAmount,
+    topupBalanceAmount,
+    redeemBalanceAmount,
     balanceLots,
     loadingBalanceLots,
     loadBalanceLots,
@@ -82,24 +82,24 @@ const BalanceStatusPage = () => {
       },
       {
         title: t('topup.balance_lots.columns.remaining'),
-        dataIndex: 'remaining_yyc',
-        key: 'remaining_yyc',
+        dataIndex: 'remaining_amount',
+        key: 'remaining_amount',
         width: BALANCE_LOT_COLUMN_WIDTHS.remaining,
         render: (_, row) =>
           renderTopupIntegerAmountWithExactPopup({
-            yycAmount: row.remaining_yyc,
+            chargeAmount: row.remaining_amount,
             displayCurrency,
             displayCurrencyIndex,
           }),
       },
       {
         title: t('topup.balance_lots.columns.total'),
-        dataIndex: 'total_yyc',
-        key: 'total_yyc',
+        dataIndex: 'total_amount',
+        key: 'total_amount',
         width: BALANCE_LOT_COLUMN_WIDTHS.total,
         render: (_, row) =>
           renderTopupIntegerAmountWithExactPopup({
-            yycAmount: row.total_yyc,
+            chargeAmount: row.total_amount,
             displayCurrency,
             displayCurrencyIndex,
           }),
@@ -145,7 +145,7 @@ const BalanceStatusPage = () => {
                 value={0}
                 formatter={() =>
                   renderTopupIntegerAmountWithExactPopup({
-                    yycAmount: userBalanceYYC,
+                    chargeAmount: userBalanceAmount,
                     displayCurrency,
                     displayCurrencyIndex,
                   })
@@ -159,7 +159,7 @@ const BalanceStatusPage = () => {
                 value={0}
                 formatter={() =>
                   renderTopupIntegerAmountWithExactPopup({
-                    yycAmount: topupBalanceYYC,
+                    chargeAmount: topupBalanceAmount,
                     displayCurrency,
                     displayCurrencyIndex,
                   })
@@ -173,7 +173,7 @@ const BalanceStatusPage = () => {
                 value={0}
                 formatter={() =>
                   renderTopupIntegerAmountWithExactPopup({
-                    yycAmount: redeemBalanceYYC,
+                    chargeAmount: redeemBalanceAmount,
                     displayCurrency,
                     displayCurrencyIndex,
                   })

@@ -814,7 +814,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		billingSnapshot.EstimateSource = imageEstimateSourceImageCountRatio
 		billingSnapshot.SettlementMode = imageSettlementModeEstimateOnly
 	}
-	quota := billingSnapshot.YYCAmount
+	quota := billingSnapshot.ChargeAmount
 	billingPlan, quotaErr := reserveRelayQuota(ctx, meta.Group, meta.UserId, quota)
 	if quotaErr != nil {
 		return quotaErr
@@ -897,7 +897,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			}
 		}
 		tokenName := c.GetString(ctxkey.TokenName)
-		billingSnapshot.YYCAmount = quota
+		billingSnapshot.ChargeAmount = quota
 		entry := &model.Log{
 			UserId:             meta.UserId,
 			GroupId:            meta.Group,
@@ -939,7 +939,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		finalSnapshot.EstimateSource = imageEstimateSourceQwenImageOutputCount
 		finalSnapshot.SettlementMode = imageSettlementModeProviderUsageFinal
 		billingSnapshot = finalSnapshot
-		quota = billingSnapshot.YYCAmount
+		quota = billingSnapshot.ChargeAmount
 	}
 
 	return nil

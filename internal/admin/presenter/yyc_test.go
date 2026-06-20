@@ -6,7 +6,7 @@ import (
 	"github.com/yeying-community/router/internal/admin/model"
 )
 
-func TestNewUserAddsYYCBaseAliases(t *testing.T) {
+func TestNewUserAddsAmountFields(t *testing.T) {
 	row := &model.User{
 		Id:        "u1",
 		Quota:     1200,
@@ -16,15 +16,15 @@ func TestNewUserAddsYYCBaseAliases(t *testing.T) {
 	if view == nil {
 		t.Fatal("NewUser returned nil")
 	}
-	if view.YYCBalance != row.Quota {
-		t.Fatalf("yyc_balance=%d, want %d", view.YYCBalance, row.Quota)
+	if view.BalanceAmount != row.Quota {
+		t.Fatalf("balance_amount=%d, want %d", view.BalanceAmount, row.Quota)
 	}
-	if view.YYCUsed != row.UsedQuota {
-		t.Fatalf("yyc_used=%d, want %d", view.YYCUsed, row.UsedQuota)
+	if view.UsedAmount != row.UsedQuota {
+		t.Fatalf("used_amount=%d, want %d", view.UsedAmount, row.UsedQuota)
 	}
 }
 
-func TestNewTokenAddsYYCAliases(t *testing.T) {
+func TestNewTokenAddsAmountFields(t *testing.T) {
 	row := &model.Token{
 		Id:          "t1",
 		Key:         "secret",
@@ -35,11 +35,11 @@ func TestNewTokenAddsYYCAliases(t *testing.T) {
 	if view == nil {
 		t.Fatal("NewToken returned nil")
 	}
-	if view.YYCRemain != row.RemainQuota {
-		t.Fatalf("yyc_remain=%d, want %d", view.YYCRemain, row.RemainQuota)
+	if view.RemainingAmount != row.RemainQuota {
+		t.Fatalf("remaining_amount=%d, want %d", view.RemainingAmount, row.RemainQuota)
 	}
-	if view.YYCUsed != row.UsedQuota {
-		t.Fatalf("yyc_used=%d, want %d", view.YYCUsed, row.UsedQuota)
+	if view.UsedAmount != row.UsedQuota {
+		t.Fatalf("used_amount=%d, want %d", view.UsedAmount, row.UsedQuota)
 	}
 	if view.Key != "" {
 		t.Fatalf("key=%q, want hidden", view.Key)
@@ -62,7 +62,7 @@ func TestNewCreatedTokenKeepsKey(t *testing.T) {
 	}
 }
 
-func TestNewRedemptionAddsYYCAlias(t *testing.T) {
+func TestNewRedemptionAddsAmountField(t *testing.T) {
 	row := &model.Redemption{
 		Id:    "r1",
 		Quota: 2048,
@@ -71,12 +71,12 @@ func TestNewRedemptionAddsYYCAlias(t *testing.T) {
 	if view == nil {
 		t.Fatal("NewRedemption returned nil")
 	}
-	if view.YYCValue != row.Quota {
-		t.Fatalf("yyc_value=%d, want %d", view.YYCValue, row.Quota)
+	if view.CreditAmount != row.Quota {
+		t.Fatalf("credit_amount=%d, want %d", view.CreditAmount, row.Quota)
 	}
 }
 
-func TestNewUserQuotaSummaryAddsYYCAliases(t *testing.T) {
+func TestNewUserQuotaSummaryAddsAmountFields(t *testing.T) {
 	summary := model.UserQuotaSummary{
 		UserID: "u1",
 		Daily: model.UserDailyQuotaSnapshot{
@@ -93,15 +93,15 @@ func TestNewUserQuotaSummaryAddsYYCAliases(t *testing.T) {
 		},
 	}
 	view := NewUserQuotaSummary(summary)
-	if view.Daily.YYCLimit != summary.Daily.Limit || view.Daily.YYCConsumed != summary.Daily.ConsumedQuota || view.Daily.YYCReserved != summary.Daily.ReservedQuota || view.Daily.YYCRemaining != summary.Daily.RemainingQuota {
-		t.Fatalf("daily yyc aliases mismatch: %+v", view.Daily)
+	if view.Daily.LimitAmount != summary.Daily.Limit || view.Daily.ConsumedAmount != summary.Daily.ConsumedQuota || view.Daily.ReservedAmount != summary.Daily.ReservedQuota || view.Daily.RemainingAmount != summary.Daily.RemainingQuota {
+		t.Fatalf("daily amount fields mismatch: %+v", view.Daily)
 	}
-	if view.PackageEmergency.YYCLimit != summary.PackageEmergency.Limit || view.PackageEmergency.YYCConsumed != summary.PackageEmergency.ConsumedQuota || view.PackageEmergency.YYCReserved != summary.PackageEmergency.ReservedQuota || view.PackageEmergency.YYCRemaining != summary.PackageEmergency.RemainingQuota {
-		t.Fatalf("package emergency yyc aliases mismatch: %+v", view.PackageEmergency)
+	if view.PackageEmergency.LimitAmount != summary.PackageEmergency.Limit || view.PackageEmergency.ConsumedAmount != summary.PackageEmergency.ConsumedQuota || view.PackageEmergency.ReservedAmount != summary.PackageEmergency.ReservedQuota || view.PackageEmergency.RemainingAmount != summary.PackageEmergency.RemainingQuota {
+		t.Fatalf("package emergency amount fields mismatch: %+v", view.PackageEmergency)
 	}
 }
 
-func TestNewLogStatisticAddsYYCAlias(t *testing.T) {
+func TestNewLogStatisticAddsAmountField(t *testing.T) {
 	row := &model.LogStatistic{
 		Day:              "2026-03-31",
 		ModelName:        "gpt-5.4",
@@ -114,12 +114,12 @@ func TestNewLogStatisticAddsYYCAlias(t *testing.T) {
 	if view == nil {
 		t.Fatal("NewLogStatistic returned nil")
 	}
-	if view.YYCAmount != row.Quota {
-		t.Fatalf("yyc_amount=%d, want %d", view.YYCAmount, row.Quota)
+	if view.ChargeAmount != row.Quota {
+		t.Fatalf("charge_amount=%d, want %d", view.ChargeAmount, row.Quota)
 	}
 }
 
-func TestNewLogAddsYYCAliases(t *testing.T) {
+func TestNewLogAddsAmountFields(t *testing.T) {
 	row := &model.Log{
 		Id:                 "l1",
 		Quota:              123,
@@ -130,18 +130,18 @@ func TestNewLogAddsYYCAliases(t *testing.T) {
 	if view == nil {
 		t.Fatal("NewLog returned nil")
 	}
-	if view.YYCAmount != row.Quota {
-		t.Fatalf("yyc_amount=%d, want %d", view.YYCAmount, row.Quota)
+	if view.ChargeAmount != row.Quota {
+		t.Fatalf("charge_amount=%d, want %d", view.ChargeAmount, row.Quota)
 	}
-	if view.YYCUserDaily != row.UserDailyQuota {
-		t.Fatalf("yyc_user_daily=%d, want %d", view.YYCUserDaily, row.UserDailyQuota)
+	if view.UserDailyChargeAmount != row.UserDailyQuota {
+		t.Fatalf("user_daily_charge_amount=%d, want %d", view.UserDailyChargeAmount, row.UserDailyQuota)
 	}
-	if view.YYCUserEmergency != row.UserEmergencyQuota {
-		t.Fatalf("yyc_user_emergency=%d, want %d", view.YYCUserEmergency, row.UserEmergencyQuota)
+	if view.UserEmergencyChargeAmount != row.UserEmergencyQuota {
+		t.Fatalf("user_emergency_charge_amount=%d, want %d", view.UserEmergencyChargeAmount, row.UserEmergencyQuota)
 	}
 }
 
-func TestNewChannelAddsYYCAlias(t *testing.T) {
+func TestNewChannelAddsAmountField(t *testing.T) {
 	row := &model.Channel{
 		Id:        "c1",
 		UsedQuota: 2048,
@@ -150,8 +150,8 @@ func TestNewChannelAddsYYCAlias(t *testing.T) {
 	if view == nil {
 		t.Fatal("NewChannel returned nil")
 	}
-	if view.YYCUsed != row.UsedQuota {
-		t.Fatalf("yyc_used=%d, want %d", view.YYCUsed, row.UsedQuota)
+	if view.UsedAmount != row.UsedQuota {
+		t.Fatalf("used_amount=%d, want %d", view.UsedAmount, row.UsedQuota)
 	}
 }
 

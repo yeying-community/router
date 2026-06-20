@@ -6,11 +6,11 @@ import {
   buildBillingCurrencyIndex,
   buildBillingUnitOptions,
   buildDisplayUnitOptions,
-  billingInputValueToYYC,
+  billingInputValueToChargeAmount,
   convertBillingInputValueUnit,
   resolveBillingInputStep,
   resolveDefaultBillingUnit,
-  yycToBillingInputValue,
+  chargeAmountToBillingInputValue,
 } from '../../helpers/billing';
 import { formatDecimalNumber } from '../../helpers/render';
 import UnitDropdown from '../../components/UnitDropdown';
@@ -168,20 +168,20 @@ const formatByCurrencyMinorUnit = (amount, currency) => {
   return formatDecimalNumber(normalizedAmount, maximumFractionDigits);
 };
 
-const renderPackageAmountValue = (yycAmount, displayUnit, currencyIndex) => {
-  const normalizedYYCAmount = Number(yycAmount || 0);
-  if (!Number.isFinite(normalizedYYCAmount)) {
+const renderPackageAmountValue = (chargeAmount, displayUnit, currencyIndex) => {
+  const normalizedChargeAmount = Number(chargeAmount || 0);
+  if (!Number.isFinite(normalizedChargeAmount)) {
     return '-';
   }
   const targetCurrency = currencyIndex[displayUnit] || currencyIndex.YYC;
-  const rate = Number(targetCurrency?.yyc_per_unit || 0);
+  const rate = Number(targetCurrency?.charge_rate || 0);
   if (!Number.isFinite(rate) || rate <= 0) {
     return '-';
   }
-  return formatByCurrencyMinorUnit(normalizedYYCAmount / rate, targetCurrency);
+  return formatByCurrencyMinorUnit(normalizedChargeAmount / rate, targetCurrency);
 };
 
-const resolvePackageYYCAmount = (row, type) => {
+const resolvePackageChargeAmount = (row, type) => {
   if (type === 'daily') {
     return Number(row?.daily_quota_limit ?? 0);
   }
@@ -225,7 +225,7 @@ const PackageDetail = () => {
   const normalizedId = useMemo(() => (id || '').toString().trim(), [id]);
 
   const displayUnitOptions = useMemo(
-    () => buildDisplayUnitOptions(currencyIndex, { order: 'yyc-first' }),
+    () => buildDisplayUnitOptions(currencyIndex, { order: 'charge-first' }),
     [currencyIndex],
   );
 
@@ -435,13 +435,13 @@ const PackageDetail = () => {
         : [],
       sale_price: detail?.sale_price ?? '0',
       sale_currency: detail?.sale_currency || 'CNY',
-      daily_amount: yycToBillingInputValue(
+      daily_amount: chargeAmountToBillingInputValue(
         Number(detail?.daily_quota_limit ?? 0),
         defaultBillingUnit,
         currencyIndex,
       ),
       daily_amount_unit: defaultBillingUnit,
-      emergency_amount: yycToBillingInputValue(
+      emergency_amount: chargeAmountToBillingInputValue(
         Number(detail?.package_emergency_quota_limit ?? 0),
         defaultBillingUnit,
         currencyIndex,
@@ -474,12 +474,12 @@ const PackageDetail = () => {
     const visibleUserIDs = Array.isArray(form.visible_user_ids)
       ? [...new Set(form.visible_user_ids.map((item) => (item || '').toString().trim()).filter(Boolean))]
       : [];
-    const dailyStored = billingInputValueToYYC(
+    const dailyStored = billingInputValueToChargeAmount(
       form.daily_amount ?? 0,
       form.daily_amount_unit,
       currencyIndex,
     );
-    const emergencyStored = billingInputValueToYYC(
+    const emergencyStored = billingInputValueToChargeAmount(
       form.emergency_amount ?? 0,
       form.emergency_amount_unit,
       currencyIndex,
@@ -930,7 +930,7 @@ const PackageDetail = () => {
                               <AppInput
                                 className='router-section-input router-section-input-with-unit-field'
                                 value={renderPackageAmountValue(
-                                  resolvePackageYYCAmount(detail, 'daily'),
+                                  resolvePackageChargeAmount(detail, 'daily'),
                                   dailyDisplayUnit,
                                   currencyIndex,
                                 )}
@@ -952,7 +952,7 @@ const PackageDetail = () => {
                               <AppInput
                                 className='router-section-input router-section-input-with-unit-field'
                                 value={renderPackageAmountValue(
-                                  resolvePackageYYCAmount(detail, 'emergency'),
+                                  resolvePackageChargeAmount(detail, 'emergency'),
                                   emergencyDisplayUnit,
                                   currencyIndex,
                                 )}

@@ -289,9 +289,9 @@ const PackagePurchasePage = () => {
             </div>
 
             <div className='router-text-muted'>
-              {t('topup.external_topup.package_preview_payable_yyc')}
+              {t('topup.external_topup.package_preview_payable_charge_amount')}
             </div>
-            <div>{renderDisplayAmount(previewState?.preview?.payable_yyc || 0)}</div>
+            <div>{renderDisplayAmount(previewState?.preview?.payable_charge_amount || 0)}</div>
           </div>
       </AppModal>
     </>

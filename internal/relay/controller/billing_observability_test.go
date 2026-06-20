@@ -98,7 +98,7 @@ func TestBillingSnapshotApplyToLogIncludesImageToolFields(t *testing.T) {
 		ImageToolCalls:        1,
 		ImageToolOutputTokens: 4160,
 		ImageToolAmount:       0.1248,
-		ImageToolYYCAmount:    74880,
+		ImageToolChargeAmount: 74880,
 	}
 	logRow := &adminmodel.Log{}
 	snapshot.ApplyToLog(logRow)
@@ -111,7 +111,7 @@ func TestBillingSnapshotApplyToLogIncludesImageToolFields(t *testing.T) {
 	if logRow.BillingImageToolAmount != 0.1248 {
 		t.Fatalf("BillingImageToolAmount = %v, want 0.1248", logRow.BillingImageToolAmount)
 	}
-	if logRow.BillingImageToolYYCAmount != 74880 {
-		t.Fatalf("BillingImageToolYYCAmount = %d, want 74880", logRow.BillingImageToolYYCAmount)
+	if logRow.BillingImageToolChargeAmount != 74880 {
+		t.Fatalf("BillingImageToolChargeAmount = %d, want 74880", logRow.BillingImageToolChargeAmount)
 	}
 }
