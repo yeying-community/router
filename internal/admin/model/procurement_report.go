@@ -22,6 +22,7 @@ type ProcurementReportQuery struct {
 	EndAt     int64
 	GroupBy   string
 	CostScope string
+	GroupID   string
 }
 
 type ProcurementReportItem struct {
@@ -46,6 +47,7 @@ type ProcurementReportItem struct {
 type ProcurementReportSummary struct {
 	GroupBy                      string                  `json:"group_by"`
 	CostScope                    string                  `json:"cost_scope"`
+	GroupID                      string                  `json:"group_id"`
 	StartAt                      int64                   `json:"start_at"`
 	EndAt                        int64                   `json:"end_at"`
 	Items                        []ProcurementReportItem `json:"items"`
@@ -102,6 +104,7 @@ func ListProcurementReportWithDB(db *gorm.DB, query ProcurementReportQuery) (Pro
 	summary := ProcurementReportSummary{
 		GroupBy:   groupBy,
 		CostScope: costScope,
+		GroupID:   strings.TrimSpace(query.GroupID),
 		StartAt:   query.StartAt,
 		EndAt:     query.EndAt,
 		Items:     []ProcurementReportItem{},
@@ -131,6 +134,9 @@ func ListProcurementReportWithDB(db *gorm.DB, query ProcurementReportQuery) (Pro
 			COALESCE(MAX(created_at), 0) AS last_request_at
 		`, configuredSources, configuredSources, configuredSources, configuredSources, configuredSources, configuredSources, ProcurementCostSourceActual, ProcurementCostSourceEstimated, ProcurementCostSourceZeroCost).
 		Where("type = ? AND created_at BETWEEN ? AND ?", LogTypeConsume, query.StartAt, query.EndAt)
+	if summary.GroupID != "" {
+		queryDB = queryDB.Where("group_id = ?", summary.GroupID)
+	}
 	if costScope == ProcurementReportCostScopeUnconfigured {
 		queryDB = queryDB.Where(procurementReportUnconfiguredCostCondition(), configuredSources)
 	}

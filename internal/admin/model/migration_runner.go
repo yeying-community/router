@@ -1483,6 +1483,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				)
 			},
 		},
+		{
+			Version:     "202606211230_billing_currency_charge_rate",
+			Description: "migrate billing currency yyc_per_unit values into charge_rate",
+			Up: func(tx *gorm.DB) error {
+				return migrateBillingCurrencyChargeRateWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

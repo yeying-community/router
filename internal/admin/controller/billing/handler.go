@@ -42,7 +42,16 @@ type publicBillingCurrencyItem struct {
 
 type procurementReportItem struct {
 	model.ProcurementReportItem
-	DimensionName string `json:"dimension_name"`
+	DimensionName          string                            `json:"dimension_name"`
+	UnconfiguredChannels   []procurementReportRelatedChannel `json:"unconfigured_channels,omitempty"`
+	UnconfiguredChannelCnt int                               `json:"unconfigured_channel_count,omitempty"`
+}
+
+type procurementReportRelatedChannel struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	RequestCount  int64  `json:"request_count"`
+	LastRequestAt int64  `json:"last_request_at"`
 }
 
 type procurementReportResponse struct {
@@ -58,11 +67,11 @@ func parseBillingReportTimestamp(value string) int64 {
 	return parsed
 }
 
-func loadProcurementReportChannelNames(items []model.ProcurementReportItem) map[string]string {
-	channelIDs := make([]string, 0, len(items))
-	seen := make(map[string]struct{}, len(items))
-	for _, item := range items {
-		channelID := strings.TrimSpace(item.DimensionKey)
+func loadProcurementReportChannelNames(channelIDs []string) map[string]string {
+	seen := make(map[string]struct{}, len(channelIDs))
+	normalizedIDs := make([]string, 0, len(channelIDs))
+	for _, raw := range channelIDs {
+		channelID := strings.TrimSpace(raw)
 		if channelID == "" || channelID == "-" {
 			continue
 		}
@@ -70,18 +79,87 @@ func loadProcurementReportChannelNames(items []model.ProcurementReportItem) map[
 			continue
 		}
 		seen[channelID] = struct{}{}
-		channelIDs = append(channelIDs, channelID)
+		normalizedIDs = append(normalizedIDs, channelID)
 	}
-	result := make(map[string]string, len(channelIDs))
-	if len(channelIDs) == 0 {
+	result := make(map[string]string, len(normalizedIDs))
+	if len(normalizedIDs) == 0 {
 		return result
 	}
-	rows := make([]model.Channel, 0, len(channelIDs))
-	if err := model.DB.Select("id", "name").Where("id IN ?", channelIDs).Find(&rows).Error; err != nil {
+	rows := make([]model.Channel, 0, len(normalizedIDs))
+	if err := model.DB.Select("id", "name").Where("id IN ?", normalizedIDs).Find(&rows).Error; err != nil {
 		return result
 	}
 	for _, row := range rows {
 		result[strings.TrimSpace(row.Id)] = strings.TrimSpace(row.DisplayName())
+	}
+	return result
+}
+
+func procurementReportUnconfiguredCostCondition() string {
+	return "billing_procurement_cost_source NOT IN ? OR COALESCE(NULLIF(TRIM(billing_procurement_cost_source), ''), '') = ''"
+}
+
+func loadProcurementReportUnconfiguredModelChannels(summary model.ProcurementReportSummary) map[string][]procurementReportRelatedChannel {
+	result := map[string][]procurementReportRelatedChannel{}
+	if summary.GroupBy != model.ProcurementReportGroupByModel || summary.StartAt <= 0 || summary.EndAt <= 0 {
+		return result
+	}
+	type modelChannelRow struct {
+		ModelKey      string `gorm:"column:model_key"`
+		ChannelID     string `gorm:"column:channel_id"`
+		RequestCount  int64  `gorm:"column:request_count"`
+		LastRequestAt int64  `gorm:"column:last_request_at"`
+	}
+	rows := make([]modelChannelRow, 0)
+	configuredSources := []string{
+		model.ProcurementCostSourceActual,
+		model.ProcurementCostSourceEstimated,
+		model.ProcurementCostSourceZeroCost,
+	}
+	query := model.LOG_DB.Table(model.EventLogsTableName).
+		Select(`
+			COALESCE(NULLIF(TRIM(model_name), ''), '-') AS model_key,
+			COALESCE(NULLIF(TRIM(channel_id), ''), '-') AS channel_id,
+			COUNT(1) AS request_count,
+			COALESCE(MAX(created_at), 0) AS last_request_at
+		`).
+		Where("type = ? AND created_at BETWEEN ? AND ?", model.LogTypeConsume, summary.StartAt, summary.EndAt).
+		Where(procurementReportUnconfiguredCostCondition(), configuredSources)
+	if summary.GroupID != "" {
+		query = query.Where("group_id = ?", summary.GroupID)
+	}
+	err := query.
+		Group("model_key, channel_id").
+		Order("model_key ASC, request_count DESC, last_request_at DESC").
+		Scan(&rows).Error
+	if err != nil || len(rows) == 0 {
+		return result
+	}
+	channelIDs := make([]string, 0, len(rows))
+	for _, row := range rows {
+		channelID := strings.TrimSpace(row.ChannelID)
+		if channelID == "" || channelID == "-" {
+			continue
+		}
+		channelIDs = append(channelIDs, channelID)
+	}
+	channelNames := loadProcurementReportChannelNames(channelIDs)
+	for _, row := range rows {
+		modelKey := strings.TrimSpace(row.ModelKey)
+		channelID := strings.TrimSpace(row.ChannelID)
+		if modelKey == "" || modelKey == "-" || channelID == "" || channelID == "-" {
+			continue
+		}
+		name := strings.TrimSpace(channelNames[channelID])
+		if name == "" {
+			name = channelID
+		}
+		result[modelKey] = append(result[modelKey], procurementReportRelatedChannel{
+			ID:            channelID,
+			Name:          name,
+			RequestCount:  row.RequestCount,
+			LastRequestAt: row.LastRequestAt,
+		})
 	}
 	return result
 }
@@ -93,8 +171,13 @@ func buildProcurementReportResponse(summary model.ProcurementReportSummary) proc
 	}
 	channelNames := map[string]string{}
 	if summary.GroupBy == model.ProcurementReportGroupByChannel {
-		channelNames = loadProcurementReportChannelNames(summary.Items)
+		channelIDs := make([]string, 0, len(summary.Items))
+		for _, item := range summary.Items {
+			channelIDs = append(channelIDs, strings.TrimSpace(item.DimensionKey))
+		}
+		channelNames = loadProcurementReportChannelNames(channelIDs)
 	}
+	unconfiguredModelChannels := loadProcurementReportUnconfiguredModelChannels(summary)
 	for _, item := range summary.Items {
 		nextItem := procurementReportItem{ProcurementReportItem: item}
 		switch summary.GroupBy {
@@ -102,6 +185,13 @@ func buildProcurementReportResponse(summary model.ProcurementReportSummary) proc
 			nextItem.DimensionName = channelNames[strings.TrimSpace(item.DimensionKey)]
 		case model.ProcurementReportGroupByModel:
 			nextItem.DimensionName = strings.TrimSpace(item.DimensionKey)
+			relatedChannels := unconfiguredModelChannels[strings.TrimSpace(item.DimensionKey)]
+			nextItem.UnconfiguredChannelCnt = len(relatedChannels)
+			if len(relatedChannels) > 5 {
+				nextItem.UnconfiguredChannels = relatedChannels[:5]
+			} else {
+				nextItem.UnconfiguredChannels = relatedChannels
+			}
 		}
 		if strings.TrimSpace(nextItem.DimensionName) == "" {
 			nextItem.DimensionName = strings.TrimSpace(item.DimensionKey)
@@ -126,6 +216,7 @@ func GetProcurementReport(c *gin.Context) {
 		EndAt:     endAt,
 		GroupBy:   c.Query("group_by"),
 		CostScope: c.Query("cost_scope"),
+		GroupID:   strings.TrimSpace(c.Query("group_id")),
 	})
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{

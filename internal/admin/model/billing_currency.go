@@ -164,6 +164,58 @@ func syncDefaultBillingCurrenciesWithDB(db *gorm.DB) error {
 	return nil
 }
 
+func billingCurrencyColumnExistsWithDB(db *gorm.DB, columnName string) (bool, error) {
+	if db == nil {
+		return false, fmt.Errorf("database handle is nil")
+	}
+	var count int64
+	switch strings.ToLower(strings.TrimSpace(db.Dialector.Name())) {
+	case "sqlite":
+		if err := db.Raw(
+			"SELECT COUNT(1) FROM pragma_table_info(?) WHERE name = ?",
+			BillingCurrenciesTableName,
+			columnName,
+		).Scan(&count).Error; err != nil {
+			return false, err
+		}
+	default:
+		if err := db.Raw(
+			"SELECT COUNT(1) FROM information_schema.columns WHERE table_name = ? AND column_name = ?",
+			BillingCurrenciesTableName,
+			columnName,
+		).Scan(&count).Error; err != nil {
+			return false, err
+		}
+	}
+	return count > 0, nil
+}
+
+func migrateBillingCurrencyChargeRateWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	hasChargeRate, err := billingCurrencyColumnExistsWithDB(db, "charge_rate")
+	if err != nil {
+		return err
+	}
+	if !hasChargeRate {
+		addColumnSQL := "ALTER TABLE billing_currencies ADD COLUMN charge_rate DOUBLE PRECISION NOT NULL DEFAULT 0"
+		if err := db.Exec(addColumnSQL).Error; err != nil {
+			return err
+		}
+	}
+	err = db.Exec(`
+		UPDATE billing_currencies
+		SET charge_rate = yyc_per_unit
+		WHERE COALESCE(charge_rate, 0) <= 0
+		  AND COALESCE(yyc_per_unit, 0) > 0
+	`).Error
+	if err != nil && !strings.Contains(strings.ToLower(err.Error()), "yyc_per_unit") {
+		return err
+	}
+	return nil
+}
+
 func decoupleCNYYYCFromSystemDefaultWithDB(db *gorm.DB) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")

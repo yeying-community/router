@@ -7,6 +7,7 @@ import {
   AppButton,
   AppFilterHeader,
   AppInput,
+  AppSelect,
   AppSegmented,
   AppSection,
   AppSpin,
@@ -74,6 +75,14 @@ const normalizeReport = (payload) => {
     gross_margin: Number(payload?.gross_margin || 0),
     items: items.map((item) => ({
       ...item,
+      unconfigured_channels: Array.isArray(item?.unconfigured_channels)
+        ? item.unconfigured_channels.map((channel) => ({
+            ...channel,
+            request_count: Number(channel?.request_count || 0),
+            last_request_at: Number(channel?.last_request_at || 0),
+          }))
+        : [],
+      unconfigured_channel_count: Number(item?.unconfigured_channel_count || 0),
       request_count: Number(item?.request_count || 0),
       configured_cost_request_count: Number(item?.configured_cost_request_count || 0),
       unconfigured_cost_request_count: Number(item?.unconfigured_cost_request_count || 0),
@@ -87,15 +96,45 @@ const normalizeReport = (payload) => {
   };
 };
 
+const channelBillingPath = (channelID) =>
+  `/admin/channel/detail/${encodeURIComponent(channelID)}?tab=billing`;
+
 function BillingProcurementReport() {
   const { t } = useTranslation();
   const initialRange = useMemo(() => createLastSevenDaysRange(), []);
   const [groupBy, setGroupBy] = useState('channel');
   const [costScope, setCostScope] = useState('all');
+  const [groupID, setGroupID] = useState('');
+  const [groupOptions, setGroupOptions] = useState([]);
   const [startAt, setStartAt] = useState(initialRange.startAt);
   const [endAt, setEndAt] = useState(initialRange.endAt);
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(() => normalizeReport({}));
+
+  const loadGroups = async () => {
+    try {
+      const res = await API.get('/api/v1/admin/groups', {
+        params: {
+          page: 1,
+          page_size: 200,
+        },
+      });
+      const { success, data } = res.data || {};
+      if (!success) {
+        return;
+      }
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setGroupOptions(
+        items.map((group) => ({
+          key: group.id,
+          value: group.id,
+          text: group.name || group.id,
+        })),
+      );
+    } catch {
+      // Ignore non-critical filter bootstrap failure.
+    }
+  };
 
   const loadReport = async () => {
     const startTimestamp = timestampFromDateTimeLocal(startAt);
@@ -112,6 +151,7 @@ function BillingProcurementReport() {
           end_at: endTimestamp,
           group_by: groupBy,
           cost_scope: costScope,
+          group_id: groupID,
         },
       });
       const { success, message, data } = res.data || {};
@@ -128,8 +168,12 @@ function BillingProcurementReport() {
   };
 
   useEffect(() => {
+    loadGroups().then();
+  }, []);
+
+  useEffect(() => {
     loadReport().then();
-  }, [groupBy, costScope]);
+  }, [groupBy, costScope, groupID]);
 
   const summaryItems = [
     {
@@ -171,6 +215,44 @@ function BillingProcurementReport() {
     },
   ];
 
+  const renderUnconfiguredChannels = (row) => {
+    const channels = Array.isArray(row?.unconfigured_channels)
+      ? row.unconfigured_channels
+      : [];
+    if (channels.length === 0) {
+      return '-';
+    }
+    const total = Number(row?.unconfigured_channel_count || channels.length);
+    return (
+      <div className='billing-procurement-report-channel-links'>
+        {channels.map((channel) => {
+          const channelID = (channel?.id || '').toString().trim();
+          if (!channelID) {
+            return null;
+          }
+          const label = (channel?.name || channelID).toString().trim();
+          return (
+            <Link
+              key={channelID}
+              className='billing-procurement-report-link'
+              to={channelBillingPath(channelID)}
+              title={t('billing.procurement_report.actions.configure_cost')}
+            >
+              {label}
+            </Link>
+          );
+        })}
+        {total > channels.length ? (
+          <AppTag className='router-tag'>
+            {t('billing.procurement_report.columns.more_channels', {
+              count: total - channels.length,
+            })}
+          </AppTag>
+        ) : null}
+      </div>
+    );
+  };
+
   const columns = [
     {
       title:
@@ -186,7 +268,7 @@ function BillingProcurementReport() {
           return (
             <Link
               className='billing-procurement-report-link'
-              to={`/admin/channel/detail/${encodeURIComponent(key)}?tab=billing`}
+              to={channelBillingPath(key)}
             >
               {label}
             </Link>
@@ -195,6 +277,16 @@ function BillingProcurementReport() {
         return label;
       },
     },
+    ...(groupBy === 'model'
+      ? [
+          {
+            title: t('billing.procurement_report.columns.related_channels'),
+            key: 'unconfigured_channels',
+            width: 220,
+            render: (_, row) => renderUnconfiguredChannels(row),
+          },
+        ]
+      : []),
     {
       title: t('billing.procurement_report.columns.request_count'),
       dataIndex: 'request_count',
@@ -305,6 +397,15 @@ function BillingProcurementReport() {
               value={endAt}
               onChange={(e, { value }) => setEndAt(value)}
             />
+            <AppSelect
+              className='router-section-input billing-procurement-report-group-select'
+              clearable
+              search
+              options={groupOptions}
+              value={groupID}
+              placeholder={t('billing.procurement_report.filters.group')}
+              onChange={(e, { value }) => setGroupID((value || '').toString())}
+            />
           </div>
         }
       />
@@ -339,7 +440,7 @@ function BillingProcurementReport() {
             dataSource={report.items}
             columns={columns}
             pagination={false}
-            scroll={{ x: 1100 }}
+            scroll={{ x: groupBy === 'model' ? 1320 : 1100 }}
             locale={{
               emptyText: loading
                 ? t('common.loading')
