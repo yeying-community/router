@@ -3056,6 +3056,21 @@
       "nav": "Procurement Cost",
       "title": "Procurement Cost Report",
       "empty": "No procurement cost data",
+      "health": {
+        "status": {
+          "ok": "Billing healthy",
+          "warning": "Billing has risks",
+          "critical": "Billing needs action"
+        },
+        "level": {
+          "critical": "Critical",
+          "warning": "Warning"
+        },
+        "summary": "{{critical}} critical, {{warning}} warning",
+        "no_issue": "No billing configuration risk detected",
+        "load_failed": "Failed to load billing health",
+        "load_failed_hint": "Unable to load billing health check. Refresh later."
+      },
       "group_by": {
         "channel": "By channel",
         "model": "By model"

@@ -96,6 +96,19 @@ const normalizeReport = (payload) => {
   };
 };
 
+const normalizeHealth = (payload) => ({
+  status: payload?.status || 'ok',
+  checked_at: Number(payload?.checked_at || 0),
+  critical_count: Number(payload?.critical_count || 0),
+  warning_count: Number(payload?.warning_count || 0),
+  issues: Array.isArray(payload?.issues)
+    ? payload.issues.map((item) => ({
+        ...item,
+        count: Number(item?.count || 0),
+      }))
+    : [],
+});
+
 const channelBillingPath = (channelID) =>
   `/admin/channel/detail/${encodeURIComponent(channelID)}?tab=billing`;
 
@@ -109,7 +122,9 @@ function BillingProcurementReport() {
   const [startAt, setStartAt] = useState(initialRange.startAt);
   const [endAt, setEndAt] = useState(initialRange.endAt);
   const [loading, setLoading] = useState(false);
+  const [healthLoading, setHealthLoading] = useState(false);
   const [report, setReport] = useState(() => normalizeReport({}));
+  const [health, setHealth] = useState(() => normalizeHealth({}));
 
   const loadGroups = async () => {
     try {
@@ -167,8 +182,37 @@ function BillingProcurementReport() {
     }
   };
 
+  const loadHealth = async () => {
+    setHealthLoading(true);
+    try {
+      const res = await API.get('/api/v1/admin/billing/health');
+      const { success, data } = res.data || {};
+      if (success) {
+        setHealth(normalizeHealth(data));
+      }
+    } catch {
+      setHealth(
+        normalizeHealth({
+          status: 'warning',
+          warning_count: 1,
+          issues: [
+            {
+              key: 'health_load_failed',
+              level: 'warning',
+              title: t('billing.procurement_report.health.load_failed'),
+              message: t('billing.procurement_report.health.load_failed_hint'),
+            },
+          ],
+        }),
+      );
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadGroups().then();
+    loadHealth().then();
   }, []);
 
   useEffect(() => {
@@ -343,6 +387,9 @@ function BillingProcurementReport() {
     },
   ];
 
+  const healthStatusClass = `is-${health.status || 'ok'}`;
+  const healthIssues = health.issues.slice(0, 4);
+
   return (
     <div className='dashboard-container billing-procurement-report-page'>
       <AppFilterHeader
@@ -359,8 +406,11 @@ function BillingProcurementReport() {
           <AppButton
             className='router-page-button'
             color='blue'
-            loading={loading}
-            onClick={() => loadReport()}
+            loading={loading || healthLoading}
+            onClick={() => {
+              loadHealth().then();
+              loadReport().then();
+            }}
           >
             {t('common.refresh')}
           </AppButton>
@@ -410,6 +460,60 @@ function BillingProcurementReport() {
         }
       />
       <AppSpin spinning={loading}>
+        <AppSection className='billing-procurement-report-section'>
+          <div className={`billing-procurement-report-health ${healthStatusClass}`}>
+            <div className='billing-procurement-report-health-main'>
+              <div className='billing-procurement-report-health-title'>
+                {t(`billing.procurement_report.health.status.${health.status || 'ok'}`)}
+              </div>
+              <div className='billing-procurement-report-health-meta'>
+                {t('billing.procurement_report.health.summary', {
+                  critical: health.critical_count,
+                  warning: health.warning_count,
+                })}
+              </div>
+            </div>
+            <div className='billing-procurement-report-health-issues'>
+              {healthIssues.length === 0 ? (
+                <span className='billing-procurement-report-health-ok'>
+                  {t('billing.procurement_report.health.no_issue')}
+                </span>
+              ) : (
+                healthIssues.map((issue) => {
+                  const content = (
+                    <>
+                      <span className={`billing-procurement-report-health-level is-${issue.level || 'warning'}`}>
+                        {t(`billing.procurement_report.health.level.${issue.level || 'warning'}`)}
+                      </span>
+                      <span className='billing-procurement-report-health-text'>
+                        {issue.title}
+                        {issue.count > 0 ? ` (${formatCount(issue.count)})` : ''}
+                      </span>
+                    </>
+                  );
+                  return issue.link ? (
+                    <Link
+                      key={issue.key}
+                      className='billing-procurement-report-health-issue'
+                      to={issue.link}
+                      title={issue.message}
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <span
+                      key={issue.key}
+                      className='billing-procurement-report-health-issue'
+                      title={issue.message}
+                    >
+                      {content}
+                    </span>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </AppSection>
         <AppSection className='billing-procurement-report-section'>
           <div className='billing-procurement-report-summary-grid'>
             {summaryItems.map((item) => (

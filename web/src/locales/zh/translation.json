@@ -3051,6 +3051,21 @@
       "nav": "采购成本",
       "title": "采购成本报表",
       "empty": "暂无采购成本数据",
+      "health": {
+        "status": {
+          "ok": "计费健康",
+          "warning": "计费存在风险",
+          "critical": "计费需要处理"
+        },
+        "level": {
+          "critical": "严重",
+          "warning": "提醒"
+        },
+        "summary": "严重 {{critical}} 项，提醒 {{warning}} 项",
+        "no_issue": "未发现影响计费的配置风险",
+        "load_failed": "计费健康检查加载失败",
+        "load_failed_hint": "无法加载计费健康检查，请稍后刷新页面。"
+      },
       "group_by": {
         "channel": "按渠道",
         "model": "按模型"
