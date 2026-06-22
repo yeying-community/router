@@ -132,6 +132,28 @@ func TestGetRequestModel_RealtimeNestedSessionModel(t *testing.T) {
 	}
 }
 
+func TestHydrateResponsesRelayContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("POST", "/api/v1/public/responses", bytes.NewBufferString(`{
+		"model":"gpt-5.4",
+		"previous_response_id":"resp_prev",
+		"input":[{"type":"function_call_output","call_id":"call_123","output":"ok"}]
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = req
+
+	hydrateResponsesRelayContext(c)
+
+	if got := c.GetString(ctxkey.ResponsesPreviousResponseID); got != "resp_prev" {
+		t.Fatalf("ResponsesPreviousResponseID = %q, want resp_prev", got)
+	}
+	if !c.GetBool(ctxkey.ResponsesStatefulRequest) {
+		t.Fatal("ResponsesStatefulRequest = false, want true")
+	}
+}
+
 func TestUserAuthAcceptsUcan(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

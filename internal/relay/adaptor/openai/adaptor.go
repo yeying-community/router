@@ -401,6 +401,7 @@ func relayResponsesResponse(c *gin.Context, resp *http.Response) (*model.Usage, 
 	var bridgeEnvelope responsesBridgeEnvelope
 	_ = json.Unmarshal(responseBody, &bridgeEnvelope)
 	_ = json.Unmarshal(responseBody, &envelope)
+	rememberResponsesRouteFromBody(c, responseBody)
 	copyUpstreamResponseHeaders(c, resp.Header, false)
 	c.Writer.WriteHeader(resp.StatusCode)
 	if _, err := c.Writer.Write(responseBody); err != nil {

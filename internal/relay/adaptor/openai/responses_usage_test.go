@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yeying-community/router/common/ctxkey"
+	"github.com/yeying-community/router/internal/relay/responsestate"
 )
 
 func newOpenAITestContext() (*gin.Context, *httptest.ResponseRecorder) {
@@ -19,6 +21,9 @@ func newOpenAITestContext() (*gin.Context, *httptest.ResponseRecorder) {
 
 func TestRelayResponsesResponseSkipsUpstreamCORSHeaders(t *testing.T) {
 	ctx, recorder := newOpenAITestContext()
+	ctx.Set(ctxkey.ChannelId, "channel-1")
+	responsestate.ResetForTest()
+	defer responsestate.ResetForTest()
 	recorder.Header().Set("Access-Control-Allow-Origin", "http://localhost:3020")
 	recorder.Header().Set("Access-Control-Allow-Credentials", "true")
 	resp := &http.Response{
@@ -52,6 +57,34 @@ func TestRelayResponsesResponseSkipsUpstreamCORSHeaders(t *testing.T) {
 	}
 	if recorder.Header().Get("X-Upstream") != "ok" {
 		t.Fatalf("expected non-CORS upstream headers to remain copied, got %q", recorder.Header().Get("X-Upstream"))
+	}
+	if channelID, ok := responsestate.LookupRoute("resp_123"); !ok || channelID != "channel-1" {
+		t.Fatalf("response route = (%q, %t), want (channel-1, true)", channelID, ok)
+	}
+}
+
+func TestStreamResponsesHandlerStoresResponseRoute(t *testing.T) {
+	ctx, _ := newOpenAITestContext()
+	ctx.Set(ctxkey.ChannelId, "channel-stream")
+	responsestate.ResetForTest()
+	defer responsestate.ResetForTest()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{},
+		Body: io.NopCloser(strings.NewReader("event: response.completed\n" +
+			"data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_stream\",\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}}\n\n" +
+			"data: [DONE]\n\n")),
+	}
+
+	usageErr, usage := StreamResponsesHandler(ctx, resp, "gpt-5.4", 1)
+	if usageErr != nil {
+		t.Fatalf("StreamResponsesHandler returned error: %+v", usageErr)
+	}
+	if usage == nil || usage.TotalTokens != 3 {
+		t.Fatalf("unexpected usage: %#v", usage)
+	}
+	if channelID, ok := responsestate.LookupRoute("resp_stream"); !ok || channelID != "channel-stream" {
+		t.Fatalf("response route = (%q, %t), want (channel-stream, true)", channelID, ok)
 	}
 }
 

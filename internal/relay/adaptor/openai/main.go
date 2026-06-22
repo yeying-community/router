@@ -155,6 +155,8 @@ func StreamResponsesHandler(c *gin.Context, resp *http.Response, modelName strin
 			continue
 		}
 
+		rememberResponsesRoute(c, extractResponsesStreamResponseID([]byte(data)))
+
 		var envelope responsesStreamEnvelope
 		if err := json.Unmarshal([]byte(data), &envelope); err == nil {
 			if envelope.Usage != nil {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/admin/model"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
+	"github.com/yeying-community/router/internal/relay/responsestate"
 )
 
 type ModelRequest struct {
@@ -41,13 +43,63 @@ func pickChannelByPriority(channels []*model.Channel, ignoreFirstPriority bool) 
 	return targets[rand.Intn(len(targets))]
 }
 
+func channelIDInList(channels []*model.Channel, channelID string) bool {
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return false
+	}
+	for _, channel := range channels {
+		if channel == nil {
+			continue
+		}
+		if strings.TrimSpace(channel.Id) == normalizedChannelID {
+			return true
+		}
+	}
+	return false
+}
+
+func selectPinnedResponsesChannel(c *gin.Context, userGroup string, requestModel string, requestPath string) (*model.Channel, bool) {
+	previousResponseID := strings.TrimSpace(c.GetString(ctxkey.ResponsesPreviousResponseID))
+	if previousResponseID == "" {
+		return nil, false
+	}
+	channelID, ok := responsestate.LookupRoute(previousResponseID)
+	if !ok {
+		logger.RelayInfof(c.Request.Context(), "DISTRIBUTE decision=miss reason=responses_route_missing user_id=%s group=%s response_id=%s endpoint=%s", c.GetString(ctxkey.Id), userGroup, previousResponseID, requestPath)
+		return nil, false
+	}
+	channel, err := model.GetChannelById(channelID)
+	if err != nil {
+		logger.RelayWarnf(c.Request.Context(), "DISTRIBUTE decision=miss reason=responses_route_channel_lookup_failed user_id=%s group=%s response_id=%s channel_id=%s endpoint=%s error=%q", c.GetString(ctxkey.Id), userGroup, previousResponseID, channelID, requestPath, err.Error())
+		return nil, false
+	}
+	if channel.Status != model.ChannelStatusEnabled {
+		logger.RelayWarnf(c.Request.Context(), "DISTRIBUTE decision=miss reason=responses_route_channel_disabled user_id=%s group=%s response_id=%s channel_id=%s endpoint=%s", c.GetString(ctxkey.Id), userGroup, previousResponseID, channelID, requestPath)
+		return nil, false
+	}
+	if strings.TrimSpace(requestModel) != "" {
+		channels, err := model.CacheListSatisfiedChannelsForRequest(userGroup, requestModel, requestPath)
+		if err != nil {
+			logger.RelayWarnf(c.Request.Context(), "DISTRIBUTE decision=miss reason=responses_route_validation_failed user_id=%s group=%s response_id=%s channel_id=%s model=%s endpoint=%s error=%q", c.GetString(ctxkey.Id), userGroup, previousResponseID, channelID, requestModel, requestPath, err.Error())
+			return nil, false
+		}
+		if !channelIDInList(channels, channelID) {
+			logger.RelayWarnf(c.Request.Context(), "DISTRIBUTE decision=miss reason=responses_route_not_eligible user_id=%s group=%s response_id=%s channel_id=%s model=%s endpoint=%s", c.GetString(ctxkey.Id), userGroup, previousResponseID, channelID, requestModel, requestPath)
+			return nil, false
+		}
+	}
+	logger.RelayInfof(c.Request.Context(), "DISTRIBUTE decision=pin reason=responses_route_match user_id=%s group=%s response_id=%s channel_id=%s model=%s endpoint=%s", c.GetString(ctxkey.Id), userGroup, previousResponseID, channelID, requestModel, requestPath)
+	return channel, true
+}
+
 func Distribute() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 		userId := c.GetString(ctxkey.Id)
 		userGroup, _ := model.CacheGetUserGroup(userId)
 		c.Set(ctxkey.Group, userGroup)
-		var requestModel string
+		requestModel := c.GetString(ctxkey.RequestModel)
 		var channel *model.Channel
 		var err error
 		channelId, ok := c.Get(ctxkey.SpecificChannelId)
@@ -65,24 +117,28 @@ func Distribute() func(c *gin.Context) {
 				return
 			}
 		} else {
-			requestModel = c.GetString(ctxkey.RequestModel)
-			candidates, stats, err := model.CacheListSatisfiedChannelsForRequestWithStats(userGroup, requestModel, c.Request.URL.Path)
-			if err != nil {
-				message := fmt.Sprintf("当前分组 %s 下对于模型 %s 无可用渠道", userGroup, requestModel)
-				if channel != nil {
-					logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=channel_missing user_id=%s group=%s model=%s endpoint=%s channel_id=%s", userId, userGroup, requestModel, c.Request.URL.Path, channel.Id)
-					message = "数据库一致性已被破坏，请联系管理员"
-				}
-				logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=list_candidates_failed user_id=%s group=%s model=%s endpoint=%s listed_candidates=%d endpoint_filtered_candidates=%d message=%q error=%q", userId, userGroup, requestModel, c.Request.URL.Path, stats.ListedCount, stats.EndpointFilteredCount, message, err.Error())
-				abortWithMessage(c, http.StatusServiceUnavailable, message)
-				return
+			if pinnedChannel, ok := selectPinnedResponsesChannel(c, userGroup, requestModel, c.Request.URL.Path); ok {
+				channel = pinnedChannel
 			}
-			channel = pickChannelByPriority(candidates, false)
 			if channel == nil {
-				message := fmt.Sprintf("当前分组 %s 下对于模型 %s 无可用渠道", userGroup, requestModel)
-				logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=no_available_channel user_id=%s group=%s model=%s endpoint=%s listed_candidates=%d endpoint_filtered_candidates=%d message=%q", userId, userGroup, requestModel, c.Request.URL.Path, stats.ListedCount, stats.EndpointFilteredCount, message)
-				abortWithMessage(c, http.StatusServiceUnavailable, message)
-				return
+				candidates, stats, err := model.CacheListSatisfiedChannelsForRequestWithStats(userGroup, requestModel, c.Request.URL.Path)
+				if err != nil {
+					message := fmt.Sprintf("当前分组 %s 下对于模型 %s 无可用渠道", userGroup, requestModel)
+					if channel != nil {
+						logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=channel_missing user_id=%s group=%s model=%s endpoint=%s channel_id=%s", userId, userGroup, requestModel, c.Request.URL.Path, channel.Id)
+						message = "数据库一致性已被破坏，请联系管理员"
+					}
+					logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=list_candidates_failed user_id=%s group=%s model=%s endpoint=%s listed_candidates=%d endpoint_filtered_candidates=%d message=%q error=%q", userId, userGroup, requestModel, c.Request.URL.Path, stats.ListedCount, stats.EndpointFilteredCount, message, err.Error())
+					abortWithMessage(c, http.StatusServiceUnavailable, message)
+					return
+				}
+				channel = pickChannelByPriority(candidates, false)
+				if channel == nil {
+					message := fmt.Sprintf("当前分组 %s 下对于模型 %s 无可用渠道", userGroup, requestModel)
+					logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=no_available_channel user_id=%s group=%s model=%s endpoint=%s listed_candidates=%d endpoint_filtered_candidates=%d message=%q", userId, userGroup, requestModel, c.Request.URL.Path, stats.ListedCount, stats.EndpointFilteredCount, message)
+					abortWithMessage(c, http.StatusServiceUnavailable, message)
+					return
+				}
 			}
 		}
 		logger.Debugf(ctx, "user id %s, user group: %s, request model: %s, using channel #%s", userId, userGroup, requestModel, channel.Id)

@@ -92,6 +92,10 @@ func Relay(c *gin.Context) {
 	retryCount := 0
 	retryable := shouldRetry(c, bizErr)
 	if !retryable {
+		skipReason := "status_not_retryable"
+		if isStatefulResponsesRequest(c) {
+			skipReason = "stateful_responses_request"
+		}
 		logger.RelayWarnf(ctx, relaylogging.NewFields("RETRY").
 			String("decision", "skip").
 			Int("status", bizErr.StatusCode).
@@ -101,7 +105,7 @@ func Relay(c *gin.Context) {
 			String("group", group).
 			String("model", originalModel).
 			String("endpoint", requestPath).
-			String("reason", "status_not_retryable").
+			String("reason", skipReason).
 			Build())
 		retryAllRemainingCandidates = false
 	}
@@ -189,12 +193,19 @@ func getEffectiveRelayMode(c *gin.Context) int {
 	return relaymode.GetByPath(c.Request.URL.Path)
 }
 
+func isStatefulResponsesRequest(c *gin.Context) bool {
+	return getEffectiveRelayMode(c) == relaymode.Responses && c.GetBool(ctxkey.ResponsesStatefulRequest)
+}
+
 func shouldRetry(c *gin.Context, bizErr *model.ErrorWithStatusCode) bool {
 	if bizErr == nil {
 		return false
 	}
 	switch getEffectiveRelayMode(c) {
 	case relaymode.ImagesGenerations, relaymode.ImagesEdits:
+		return false
+	}
+	if isStatefulResponsesRequest(c) {
 		return false
 	}
 	if _, ok := c.Get(ctxkey.SpecificChannelId); ok {

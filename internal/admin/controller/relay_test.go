@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yeying-community/router/common/ctxkey"
+	relaymodel "github.com/yeying-community/router/internal/relay/model"
 )
 
 func TestRelayNotFoundDisablesCaching(t *testing.T) {
@@ -29,5 +31,22 @@ func TestRelayNotFoundDisablesCaching(t *testing.T) {
 	}
 	if got := recorder.Header().Get("Expires"); got != "0" {
 		t.Fatalf("unexpected Expires header: got %q", got)
+	}
+}
+
+func TestShouldRetrySkipsStatefulResponses(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	c.Request = req
+	c.Set(ctxkey.ResponsesStatefulRequest, true)
+
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusTooManyRequests,
+	}
+	if shouldRetry(c, err) {
+		t.Fatal("shouldRetry returned true for stateful responses request, want false")
 	}
 }

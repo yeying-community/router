@@ -18,6 +18,7 @@ import (
 	"github.com/yeying-community/router/common/network"
 	"github.com/yeying-community/router/common/random"
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/relay/responsestate"
 )
 
 var (
@@ -62,6 +63,24 @@ func hydrateVideoTaskRelayContext(c *gin.Context, requestModel string) (string, 
 		c.Set(ctxkey.SpecificChannelId, strings.TrimSpace(taskRow.ChannelID))
 	}
 	return requestModel, nil
+}
+
+func hydrateResponsesRelayContext(c *gin.Context) {
+	path := normalizeRelayPath(c.Request.URL.Path)
+	if !strings.HasPrefix(path, "/v1/responses") {
+		return
+	}
+	rawBody, err := common.GetRequestBody(c)
+	if err != nil || len(rawBody) == 0 {
+		return
+	}
+	state := responsestate.AnalyzeRequestBody(rawBody)
+	if state.PreviousResponseID != "" {
+		c.Set(ctxkey.ResponsesPreviousResponseID, state.PreviousResponseID)
+	}
+	if state.PreviousResponseID != "" || state.HasToolOutput {
+		c.Set(ctxkey.ResponsesStatefulRequest, true)
+	}
 }
 
 func authHelper(c *gin.Context, minRole int) {
@@ -296,6 +315,7 @@ func TokenAuth() func(c *gin.Context) {
 			return
 		}
 		c.Set(ctxkey.RequestModel, requestModel)
+		hydrateResponsesRelayContext(c)
 		if token.Models != nil && *token.Models != "" {
 			c.Set(ctxkey.AvailableModels, *token.Models)
 			if requestModel != "" && !isModelInList(requestModel, *token.Models) {
