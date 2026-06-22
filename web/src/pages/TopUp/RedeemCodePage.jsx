@@ -135,10 +135,8 @@ const RedeemCodePage = ({ open, onClose, onRedeemed }) => {
         <div className='router-text-muted'>{t('topup.redeem.description')}</div>
 
         <AppInput
-          className='router-section-input router-redeem-code-input router-machine-input'
+          className='router-modal-input router-machine-input'
           fluid
-          icon='key'
-          iconPosition='left'
           placeholder={t('topup.redeem.placeholder')}
           value={redemptionCode}
           onChange={(event) => setRedemptionCode(event.target.value)}
