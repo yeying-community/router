@@ -2428,6 +2428,27 @@
         }
       },
       "users": {
+        "growth": {
+          "title": "用户增长",
+          "description": "新增、活跃、充值用户的周期变化。",
+          "trend_title": "增长趋势",
+          "current_period": "当前周期：{{range}}",
+          "no_baseline": "无上期基准",
+          "granularity": {
+            "week": "按周",
+            "month": "按月"
+          },
+          "metrics": {
+            "new_users": "新增用户",
+            "active_users": "活跃用户",
+            "topup_users": "充值用户"
+          },
+          "lines": {
+            "new_user_count": "新增用户",
+            "active_user_count": "活跃用户",
+            "topup_user_count": "充值用户"
+          }
+        },
         "summary": {
           "user_count": "命中用户数",
           "request_count": "命中请求数",

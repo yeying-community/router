@@ -53,6 +53,9 @@ const TREND_METRIC_OPTIONS = [
   'active_user_count',
 ];
 
+const USER_GROWTH_GRANULARITY_OPTIONS = ['week', 'month'];
+const USER_GROWTH_LINE_KEYS = ['new_user_count', 'active_user_count', 'topup_user_count'];
+
 const DASHBOARD_SECTIONS = ['spending', 'channels', 'users', 'models'];
 const DASHBOARD_SECTION_TITLES = {
   spending: 'dashboard.admin.nav.spending',
@@ -95,6 +98,39 @@ const EMPTY_CHANNEL_HEALTH_SUMMARY = {
   high_latency_count: 0,
 };
 
+const EMPTY_USER_GROWTH_COMPARISON = {
+  current: 0,
+  previous: 0,
+  delta: 0,
+  growth_rate: 0,
+  has_baseline: false,
+};
+
+const EMPTY_USER_GROWTH_SUMMARY = {
+  granularity: 'week',
+  current: {
+    bucket: '',
+    start_timestamp: 0,
+    end_timestamp: 0,
+    new_user_count: 0,
+    active_user_count: 0,
+    topup_user_count: 0,
+    request_count: 0,
+  },
+  previous: {
+    bucket: '',
+    start_timestamp: 0,
+    end_timestamp: 0,
+    new_user_count: 0,
+    active_user_count: 0,
+    topup_user_count: 0,
+    request_count: 0,
+  },
+  new_users: EMPTY_USER_GROWTH_COMPARISON,
+  active_users: EMPTY_USER_GROWTH_COMPARISON,
+  topup_users: EMPTY_USER_GROWTH_COMPARISON,
+};
+
 const EMPTY_DASHBOARD = {
   period: 'last_7_days',
   granularity: 'day',
@@ -118,6 +154,8 @@ const EMPTY_DASHBOARD = {
     spend_amount: 0,
   },
   usage_rank: [],
+  user_growth_summary: EMPTY_USER_GROWTH_SUMMARY,
+  user_growth_trend: [],
   model_summary: {
     selected_model_count: 0,
     tested_model_count: 0,
@@ -150,6 +188,12 @@ const CHANNEL_HEALTH_POINT_COLORS = {
   unknown: '#cbd5e1',
 };
 
+const USER_GROWTH_LINE_COLORS = {
+  new_user_count: '#2563eb',
+  active_user_count: '#16a34a',
+  topup_user_count: '#f59e0b',
+};
+
 const ACTIVE_CIRCUIT_BREAKER_STATES = new Set(['open', 'half_open']);
 
 const formatCount = (value) => {
@@ -167,6 +211,10 @@ const normalizeAdminDashboardPayload = (payload) => {
   const usageSummary = payload?.usage_summary || {};
   const usageTotals = payload?.usage_totals || {};
   const usageRank = Array.isArray(payload?.usage_rank) ? payload.usage_rank : [];
+  const userGrowthSummary = payload?.user_growth_summary || {};
+  const userGrowthTrend = Array.isArray(payload?.user_growth_trend)
+    ? payload.user_growth_trend
+    : [];
   const modelSummary = payload?.model_summary || {};
   const channelHealthSummary = payload?.channel_health_summary || {};
   const topModels = Array.isArray(payload?.top_models) ? payload.top_models : [];
@@ -232,6 +280,66 @@ const normalizeAdminDashboardPayload = (payload) => {
       spend_amount: Number(item?.spend_amount ?? item?.spend_quota ?? 0),
       share_rate: Number(item?.share_rate || 0),
       last_used_at: Number(item?.last_used_at || 0),
+    })),
+    user_growth_summary: {
+      ...EMPTY_USER_GROWTH_SUMMARY,
+      ...(userGrowthSummary || {}),
+      current: {
+        ...EMPTY_USER_GROWTH_SUMMARY.current,
+        ...(userGrowthSummary?.current || {}),
+        new_user_count: Number(userGrowthSummary?.current?.new_user_count || 0),
+        active_user_count: Number(userGrowthSummary?.current?.active_user_count || 0),
+        topup_user_count: Number(userGrowthSummary?.current?.topup_user_count || 0),
+        request_count: Number(userGrowthSummary?.current?.request_count || 0),
+        start_timestamp: Number(userGrowthSummary?.current?.start_timestamp || 0),
+        end_timestamp: Number(userGrowthSummary?.current?.end_timestamp || 0),
+      },
+      previous: {
+        ...EMPTY_USER_GROWTH_SUMMARY.previous,
+        ...(userGrowthSummary?.previous || {}),
+        new_user_count: Number(userGrowthSummary?.previous?.new_user_count || 0),
+        active_user_count: Number(userGrowthSummary?.previous?.active_user_count || 0),
+        topup_user_count: Number(userGrowthSummary?.previous?.topup_user_count || 0),
+        request_count: Number(userGrowthSummary?.previous?.request_count || 0),
+        start_timestamp: Number(userGrowthSummary?.previous?.start_timestamp || 0),
+        end_timestamp: Number(userGrowthSummary?.previous?.end_timestamp || 0),
+      },
+      new_users: {
+        ...EMPTY_USER_GROWTH_COMPARISON,
+        ...(userGrowthSummary?.new_users || {}),
+        current: Number(userGrowthSummary?.new_users?.current || 0),
+        previous: Number(userGrowthSummary?.new_users?.previous || 0),
+        delta: Number(userGrowthSummary?.new_users?.delta || 0),
+        growth_rate: Number(userGrowthSummary?.new_users?.growth_rate || 0),
+        has_baseline: Boolean(userGrowthSummary?.new_users?.has_baseline),
+      },
+      active_users: {
+        ...EMPTY_USER_GROWTH_COMPARISON,
+        ...(userGrowthSummary?.active_users || {}),
+        current: Number(userGrowthSummary?.active_users?.current || 0),
+        previous: Number(userGrowthSummary?.active_users?.previous || 0),
+        delta: Number(userGrowthSummary?.active_users?.delta || 0),
+        growth_rate: Number(userGrowthSummary?.active_users?.growth_rate || 0),
+        has_baseline: Boolean(userGrowthSummary?.active_users?.has_baseline),
+      },
+      topup_users: {
+        ...EMPTY_USER_GROWTH_COMPARISON,
+        ...(userGrowthSummary?.topup_users || {}),
+        current: Number(userGrowthSummary?.topup_users?.current || 0),
+        previous: Number(userGrowthSummary?.topup_users?.previous || 0),
+        delta: Number(userGrowthSummary?.topup_users?.delta || 0),
+        growth_rate: Number(userGrowthSummary?.topup_users?.growth_rate || 0),
+        has_baseline: Boolean(userGrowthSummary?.topup_users?.has_baseline),
+      },
+    },
+    user_growth_trend: userGrowthTrend.map((item) => ({
+      ...item,
+      start_timestamp: Number(item?.start_timestamp || 0),
+      end_timestamp: Number(item?.end_timestamp || 0),
+      new_user_count: Number(item?.new_user_count || 0),
+      active_user_count: Number(item?.active_user_count || 0),
+      topup_user_count: Number(item?.topup_user_count || 0),
+      request_count: Number(item?.request_count || 0),
     })),
     model_summary: {
       selected_model_count: Number(modelSummary?.selected_model_count || 0),
@@ -323,6 +431,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [trendMetric, setTrendMetric] = useState('spend_amount');
   const [modelSort, setModelSort] = useState('spend');
+  const [userGrowthGranularity, setUserGrowthGranularity] = useState('week');
   const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD);
   const [usageKeywordInput, setUsageKeywordInput] = useState('');
   const [usageKeyword, setUsageKeyword] = useState('');
@@ -378,12 +487,69 @@ const AdminDashboard = () => {
     [t],
   );
 
+  const userGrowthGranularityOptions = useMemo(
+    () =>
+      USER_GROWTH_GRANULARITY_OPTIONS.map((value) => ({
+        value,
+        label: t(`dashboard.admin.users.growth.granularity.${value}`),
+      })),
+    [t],
+  );
+
+  const formatPeriodRange = useCallback((startTimestamp, endTimestamp) => {
+    const start = Number(startTimestamp || 0);
+    const end = Number(endTimestamp || 0);
+    if (!start || !end) return '-';
+    const formatDate = (timestamp) =>
+      new Date(timestamp * 1000).toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+    return `${formatDate(start)} - ${formatDate(end)}`;
+  }, []);
+
+  const formatSignedCount = useCallback((value) => {
+    const num = Number(value || 0);
+    if (!Number.isFinite(num) || num === 0) return '0';
+    return `${num > 0 ? '+' : '-'}${formatCount(Math.abs(num))}`;
+  }, []);
+
+  const formatGrowthRate = useCallback(
+    (comparison) => {
+      const current = Number(comparison?.current || 0);
+      const hasBaseline = comparison?.has_baseline === true;
+      if (!hasBaseline) {
+        return current > 0
+          ? t('dashboard.admin.users.growth.no_baseline')
+          : '0.0%';
+      }
+      const rate = Number(comparison?.growth_rate || 0);
+      if (!Number.isFinite(rate) || rate === 0) return '0.0%';
+      return `${rate > 0 ? '+' : ''}${(rate * 100).toFixed(1)}%`;
+    },
+    [t],
+  );
+
+  const userGrowthLineConfig = useMemo(
+    () =>
+      USER_GROWTH_LINE_KEYS.map((key) => ({
+        dataKey: key,
+        label: t(`dashboard.admin.users.growth.lines.${key}`),
+        color: USER_GROWTH_LINE_COLORS[key],
+      })),
+    [t],
+  );
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = { period, section: activeSection };
       if (activeSection === 'users' && usageKeyword.trim() !== '') {
         params.user_keyword = usageKeyword.trim();
+      }
+      if (activeSection === 'users') {
+        params.user_growth_granularity = userGrowthGranularity;
       }
       const res = await API.get('/api/v1/admin/dashboard/', {
         params,
@@ -399,7 +565,7 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeSection, period, usageKeyword]);
+  }, [activeSection, period, usageKeyword, userGrowthGranularity]);
 
   useEffect(() => {
     loadData();
@@ -461,6 +627,62 @@ const AdminDashboard = () => {
       ...(dashboard.channel_health_summary || {}),
     }),
     [dashboard.channel_health_summary],
+  );
+
+  const userGrowthSummary = useMemo(
+    () => ({
+      ...EMPTY_USER_GROWTH_SUMMARY,
+      ...(dashboard.user_growth_summary || {}),
+    }),
+    [dashboard.user_growth_summary],
+  );
+
+  const userGrowthCards = useMemo(
+    () => [
+      {
+        key: 'new_users',
+        label: t('dashboard.admin.users.growth.metrics.new_users'),
+        value: Number(userGrowthSummary.current?.new_user_count || 0),
+        comparison: userGrowthSummary.new_users,
+        tone: Number(userGrowthSummary.new_users?.delta || 0) > 0
+          ? 'positive'
+          : Number(userGrowthSummary.new_users?.delta || 0) < 0
+            ? 'negative'
+            : 'neutral',
+      },
+      {
+        key: 'active_users',
+        label: t('dashboard.admin.users.growth.metrics.active_users'),
+        value: Number(userGrowthSummary.current?.active_user_count || 0),
+        comparison: userGrowthSummary.active_users,
+        tone: Number(userGrowthSummary.active_users?.delta || 0) > 0
+          ? 'positive'
+          : Number(userGrowthSummary.active_users?.delta || 0) < 0
+            ? 'negative'
+            : 'neutral',
+      },
+      {
+        key: 'topup_users',
+        label: t('dashboard.admin.users.growth.metrics.topup_users'),
+        value: Number(userGrowthSummary.current?.topup_user_count || 0),
+        comparison: userGrowthSummary.topup_users,
+        tone: Number(userGrowthSummary.topup_users?.delta || 0) > 0
+          ? 'positive'
+          : Number(userGrowthSummary.topup_users?.delta || 0) < 0
+            ? 'negative'
+            : 'neutral',
+      },
+    ],
+    [t, userGrowthSummary],
+  );
+
+  const userGrowthTrendData = useMemo(
+    () =>
+      (dashboard.user_growth_trend || []).map((item) => ({
+        ...item,
+        label: formatPeriodRange(item.start_timestamp, item.end_timestamp),
+      })),
+    [dashboard.user_growth_trend, formatPeriodRange],
   );
 
   const trendLineColor = useMemo(() => {
@@ -1313,64 +1535,191 @@ const AdminDashboard = () => {
 
   const renderUsersSection = () => (
     <AppSection className='admin-dashboard-section'>
-      <div className='admin-dashboard-subsection-header admin-dashboard-usage-rank-header'>
-        <div className='admin-dashboard-usage-rank-title-row'>
+      <div className='admin-dashboard-subsection-header'>
+        <div className='admin-dashboard-subsection-header-main'>
           <div className='admin-dashboard-subsection-title admin-dashboard-subsection-title-strong'>
-            {t('dashboard.admin.usage_rank.title')}
+            {t('dashboard.admin.users.growth.title')}
           </div>
-          {renderRefreshControls()}
-        </div>
-        <div className='admin-dashboard-usage-rank-filter-row'>
           <div className='admin-dashboard-subsection-description'>
-            {t('dashboard.admin.usage_rank.description')}
+            {t('dashboard.admin.users.growth.description')}
           </div>
-          <div className='admin-dashboard-usage-rank-filters'>
-            {renderPeriodControl()}
-            <div className='router-list-toolbar-query router-list-toolbar-query-compact'>
-              <AppInput
-                className='admin-dashboard-usage-rank-search'
-                value={usageKeywordInput}
-                placeholder={t('dashboard.admin.usage_rank.search.placeholder')}
-                onChange={(e, { value }) => setUsageKeywordInput(value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    applyUsageKeyword();
-                  }
-                }}
+        </div>
+        <AppToolbar
+          className='admin-dashboard-section-toolbar'
+          end={
+            <div className='admin-dashboard-section-controls'>
+              <AppSegmented
+                className='admin-dashboard-segmented'
+                options={userGrowthGranularityOptions}
+                value={userGrowthGranularity}
+                onChange={(e, { value }) => setUserGrowthGranularity(value)}
               />
-              <AppButton color='blue' type='button' onClick={applyUsageKeyword}>
-                {t('dashboard.admin.usage_rank.search.submit')}
-              </AppButton>
-              {usageKeyword ? (
-                <AppButton
-                  type='button'
-                  className='router-inline-button'
-                  onClick={clearUsageKeyword}
-                >
-                  {t('dashboard.admin.usage_rank.search.reset')}
+              {renderRefreshControls()}
+            </div>
+          }
+        />
+      </div>
+      <div className='admin-dashboard-user-growth-grid'>
+        {userGrowthCards.map((item) => (
+          <div key={item.key} className='admin-dashboard-user-growth-card'>
+            <div className='admin-dashboard-user-growth-card-label'>
+              {item.label}
+            </div>
+            <div className='admin-dashboard-user-growth-card-value'>
+              {formatCount(item.value)}
+            </div>
+            <div className={`admin-dashboard-user-growth-card-delta admin-dashboard-user-growth-card-delta-${item.tone}`}>
+              <span>{formatSignedCount(item.comparison?.delta)}</span>
+              <span>{formatGrowthRate(item.comparison)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className='admin-dashboard-user-growth-panel'>
+        <div className='admin-dashboard-user-growth-panel-header'>
+          <div>
+            <div className='admin-dashboard-card-title'>
+              {t('dashboard.admin.users.growth.trend_title')}
+            </div>
+            <div className='admin-dashboard-user-growth-period'>
+              {t('dashboard.admin.users.growth.current_period', {
+                range: formatPeriodRange(
+                  userGrowthSummary.current?.start_timestamp,
+                  userGrowthSummary.current?.end_timestamp,
+                ),
+              })}
+            </div>
+          </div>
+          <div className='admin-dashboard-user-growth-legend'>
+            {userGrowthLineConfig.map((item) => (
+              <span key={item.dataKey} className='admin-dashboard-user-growth-legend-item'>
+                <span
+                  className='admin-dashboard-user-growth-legend-dot'
+                  style={{ background: item.color }}
+                />
+                {item.label}
+              </span>
+            ))}
+          </div>
+        </div>
+        {userGrowthTrendData.length === 0 ? (
+          <div className='admin-dashboard-empty'>
+            {t('dashboard.admin.empty.trend')}
+          </div>
+        ) : (
+          <div className='chart-container'>
+            <ResponsiveContainer width='100%' height={240}>
+              <LineChart data={userGrowthTrendData}>
+                <CartesianGrid
+                  strokeDasharray='3 3'
+                  vertical={false}
+                  opacity={0.1}
+                />
+                <XAxis
+                  dataKey='bucket'
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#A3AED0' }}
+                  minTickGap={8}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  allowDecimals={false}
+                  tick={{ fontSize: 12, fill: '#A3AED0' }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  }}
+                  formatter={(value, name) => {
+                    const config = userGrowthLineConfig.find(
+                      (item) => item.dataKey === name,
+                    );
+                    return [formatCount(value), config?.label || name];
+                  }}
+                  labelFormatter={(label, payload) =>
+                    payload?.[0]?.payload?.label || label
+                  }
+                />
+                {userGrowthLineConfig.map((item) => (
+                  <Line
+                    key={item.dataKey}
+                    type='monotone'
+                    dataKey={item.dataKey}
+                    stroke={item.color}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+      <div className='admin-dashboard-usage-rank'>
+        <div className='admin-dashboard-subsection-header admin-dashboard-usage-rank-header'>
+          <div className='admin-dashboard-usage-rank-title-row'>
+            <div className='admin-dashboard-subsection-title admin-dashboard-subsection-title-strong'>
+              {t('dashboard.admin.usage_rank.title')}
+            </div>
+          </div>
+          <div className='admin-dashboard-usage-rank-filter-row'>
+            <div className='admin-dashboard-subsection-description'>
+              {t('dashboard.admin.usage_rank.description')}
+            </div>
+            <div className='admin-dashboard-usage-rank-filters'>
+              {renderPeriodControl()}
+              <div className='router-list-toolbar-query router-list-toolbar-query-compact'>
+                <AppInput
+                  className='admin-dashboard-usage-rank-search'
+                  value={usageKeywordInput}
+                  placeholder={t('dashboard.admin.usage_rank.search.placeholder')}
+                  onChange={(e, { value }) => setUsageKeywordInput(value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      applyUsageKeyword();
+                    }
+                  }}
+                />
+                <AppButton color='blue' type='button' onClick={applyUsageKeyword}>
+                  {t('dashboard.admin.usage_rank.search.submit')}
                 </AppButton>
-              ) : null}
+                {usageKeyword ? (
+                  <AppButton
+                    type='button'
+                    className='router-inline-button'
+                    onClick={clearUsageKeyword}
+                  >
+                    {t('dashboard.admin.usage_rank.search.reset')}
+                  </AppButton>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
+        {dashboard.usage_rank.length === 0 ? (
+          <div className='admin-dashboard-empty'>
+            {t('dashboard.admin.empty.usage_rank')}
+          </div>
+        ) : (
+          <AppTable
+            className='admin-dashboard-rank-table'
+            columns={usageRankColumns}
+            dataSource={dashboard.usage_rank}
+            pagination={false}
+            rowKey={(record) =>
+              record.user_id ||
+              `${record.username || 'unknown'}-${record.last_used_at || 0}`
+            }
+            scroll={{ x: 980 }}
+          />
+        )}
       </div>
-      {dashboard.usage_rank.length === 0 ? (
-        <div className='admin-dashboard-empty'>
-          {t('dashboard.admin.empty.usage_rank')}
-        </div>
-      ) : (
-        <AppTable
-          className='admin-dashboard-rank-table'
-          columns={usageRankColumns}
-          dataSource={dashboard.usage_rank}
-          pagination={false}
-          rowKey={(record) =>
-            record.user_id ||
-            `${record.username || 'unknown'}-${record.last_used_at || 0}`
-          }
-          scroll={{ x: 980 }}
-        />
-      )}
     </AppSection>
   );
 

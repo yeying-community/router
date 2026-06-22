@@ -191,6 +191,103 @@
   line-height: 1.5;
 }
 
+.admin-dashboard-user-growth-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-dashboard-user-growth-card {
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-dashboard-user-growth-card-label {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.admin-dashboard-user-growth-card-value {
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.admin-dashboard-user-growth-card-delta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.admin-dashboard-user-growth-card-delta-positive {
+  color: #15803d;
+}
+
+.admin-dashboard-user-growth-card-delta-negative {
+  color: #dc2626;
+}
+
+.admin-dashboard-user-growth-card-delta-neutral {
+  color: #64748b;
+}
+
+.admin-dashboard-user-growth-panel {
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-dashboard-user-growth-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-dashboard-user-growth-period {
+  margin-top: 3px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.admin-dashboard-user-growth-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-dashboard-user-growth-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.admin-dashboard-user-growth-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
 .admin-dashboard-channel-overview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -983,6 +1080,7 @@
   }
 
   .admin-dashboard-spending-overview-grid,
+  .admin-dashboard-user-growth-grid,
   .admin-dashboard-channel-overview-grid,
   .admin-dashboard-model-overview-grid {
     grid-template-columns: 1fr;

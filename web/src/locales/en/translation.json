@@ -2428,6 +2428,27 @@
         }
       },
       "users": {
+        "growth": {
+          "title": "User Growth",
+          "description": "Periodic movement of new, active, and top-up users.",
+          "trend_title": "Growth Trend",
+          "current_period": "Current period: {{range}}",
+          "no_baseline": "No baseline",
+          "granularity": {
+            "week": "Weekly",
+            "month": "Monthly"
+          },
+          "metrics": {
+            "new_users": "New Users",
+            "active_users": "Active Users",
+            "topup_users": "Top-up Users"
+          },
+          "lines": {
+            "new_user_count": "New Users",
+            "active_user_count": "Active Users",
+            "topup_user_count": "Top-up Users"
+          }
+        },
         "summary": {
           "user_count": "Matched Users",
           "request_count": "Matched Requests",

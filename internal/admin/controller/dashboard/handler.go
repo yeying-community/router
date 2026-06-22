@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"fmt"
 	"math"
 	"net/http"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/admin/monitor"
+	"gorm.io/gorm"
 )
 
 const (
@@ -35,6 +37,9 @@ const (
 	granularityHour           = "hour"
 	granularityDay            = "day"
 	granularityMonth          = "month"
+	userGrowthGranularityWeek = "week"
+	userGrowthTrendWeeks      = 8
+	userGrowthTrendMonths     = 12
 
 	channelHealthLevelHealthy  = "healthy"
 	channelHealthLevelWarning  = "warning"
@@ -155,6 +160,33 @@ type usageTotalSummary struct {
 	SpendAmount  int64 `json:"spend_amount"`
 }
 
+type userGrowthPeriodSummary struct {
+	Bucket          string `json:"bucket"`
+	StartAt         int64  `json:"start_timestamp"`
+	EndAt           int64  `json:"end_timestamp"`
+	NewUserCount    int64  `json:"new_user_count"`
+	ActiveUserCount int64  `json:"active_user_count"`
+	TopupUserCount  int64  `json:"topup_user_count"`
+	RequestCount    int64  `json:"request_count"`
+}
+
+type userGrowthComparison struct {
+	Current     int64   `json:"current"`
+	Previous    int64   `json:"previous"`
+	Delta       int64   `json:"delta"`
+	GrowthRate  float64 `json:"growth_rate"`
+	HasBaseline bool    `json:"has_baseline"`
+}
+
+type userGrowthSummaryData struct {
+	Granularity string                  `json:"granularity"`
+	Current     userGrowthPeriodSummary `json:"current"`
+	Previous    userGrowthPeriodSummary `json:"previous"`
+	NewUsers    userGrowthComparison    `json:"new_users"`
+	ActiveUsers userGrowthComparison    `json:"active_users"`
+	TopupUsers  userGrowthComparison    `json:"topup_users"`
+}
+
 type modelHealthItem struct {
 	Model                string   `json:"model"`
 	Provider             string   `json:"provider"`
@@ -191,22 +223,24 @@ type modelSummaryData struct {
 }
 
 type dashboardPayload struct {
-	Section              string                   `json:"section"`
-	Period               string                   `json:"period"`
-	Granularity          string                   `json:"granularity"`
-	StartAt              int64                    `json:"start_timestamp"`
-	EndAt                int64                    `json:"end_timestamp"`
-	Summary              summaryData              `json:"summary"`
-	Trend                []trendPoint             `json:"trend"`
-	TopChannels          []channelHealthItem      `json:"top_channels"`
-	ChannelHealthSummary channelHealthSummaryData `json:"channel_health_summary"`
-	UsageSummary         usageRankSummary         `json:"usage_summary"`
-	UsageTotals          usageTotalSummary        `json:"usage_totals"`
-	UsageRank            []usageRankingItem       `json:"usage_rank"`
-	ModelSummary         modelSummaryData         `json:"model_summary"`
-	TopModels            []modelHealthItem        `json:"top_models"`
-	RecentTasks          []model.AsyncTask        `json:"recent_tasks"`
-	GeneratedAt          int64                    `json:"generated_at"`
+	Section              string                    `json:"section"`
+	Period               string                    `json:"period"`
+	Granularity          string                    `json:"granularity"`
+	StartAt              int64                     `json:"start_timestamp"`
+	EndAt                int64                     `json:"end_timestamp"`
+	Summary              summaryData               `json:"summary"`
+	Trend                []trendPoint              `json:"trend"`
+	TopChannels          []channelHealthItem       `json:"top_channels"`
+	ChannelHealthSummary channelHealthSummaryData  `json:"channel_health_summary"`
+	UsageSummary         usageRankSummary          `json:"usage_summary"`
+	UsageTotals          usageTotalSummary         `json:"usage_totals"`
+	UsageRank            []usageRankingItem        `json:"usage_rank"`
+	UserGrowthSummary    userGrowthSummaryData     `json:"user_growth_summary"`
+	UserGrowthTrend      []userGrowthPeriodSummary `json:"user_growth_trend"`
+	ModelSummary         modelSummaryData          `json:"model_summary"`
+	TopModels            []modelHealthItem         `json:"top_models"`
+	RecentTasks          []model.AsyncTask         `json:"recent_tasks"`
+	GeneratedAt          int64                     `json:"generated_at"`
 }
 
 type usageRankingRow struct {
@@ -289,6 +323,208 @@ func periodGranularity(period string) string {
 	default:
 		return granularityMonth
 	}
+}
+
+func normalizeUserGrowthGranularity(raw string) string {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case granularityMonth, "monthly":
+		return granularityMonth
+	case userGrowthGranularityWeek, "weekly":
+		return userGrowthGranularityWeek
+	default:
+		return userGrowthGranularityWeek
+	}
+}
+
+func dashboardStartOfDay(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+func dashboardStartOfWeek(t time.Time) time.Time {
+	day := dashboardStartOfDay(t)
+	offset := (int(day.Weekday()) + 6) % 7
+	return day.AddDate(0, 0, -offset)
+}
+
+func dashboardStartOfMonth(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+}
+
+func nextUserGrowthBucketStart(start time.Time, granularity string) time.Time {
+	if normalizeUserGrowthGranularity(granularity) == granularityMonth {
+		return start.AddDate(0, 1, 0)
+	}
+	return start.AddDate(0, 0, 7)
+}
+
+func userGrowthBucketLabel(start time.Time, granularity string) string {
+	if normalizeUserGrowthGranularity(granularity) == granularityMonth {
+		return start.Format("2006-01")
+	}
+	return start.Format("2006-01-02")
+}
+
+func userGrowthBucketRange(start time.Time, granularity string, now time.Time) (time.Time, time.Time) {
+	next := nextUserGrowthBucketStart(start, granularity)
+	end := next.Add(-time.Second)
+	if now.Before(end) {
+		end = now
+	}
+	if end.Before(start) {
+		end = start
+	}
+	return start, end
+}
+
+func userGrowthTrendStart(granularity string, now time.Time) (time.Time, int) {
+	if normalizeUserGrowthGranularity(granularity) == granularityMonth {
+		return dashboardStartOfMonth(now).AddDate(0, -(userGrowthTrendMonths - 1), 0), userGrowthTrendMonths
+	}
+	return dashboardStartOfWeek(now).AddDate(0, 0, -7*(userGrowthTrendWeeks-1)), userGrowthTrendWeeks
+}
+
+func previousUserGrowthPeriod(currentStart time.Time, currentEnd time.Time, granularity string) (time.Time, time.Time) {
+	normalized := normalizeUserGrowthGranularity(granularity)
+	previousStart := currentStart.AddDate(0, 0, -7)
+	if normalized == granularityMonth {
+		previousStart = currentStart.AddDate(0, -1, 0)
+	}
+	elapsed := currentEnd.Sub(currentStart)
+	previousEnd := previousStart.Add(elapsed)
+	previousLimit := currentStart.Add(-time.Second)
+	if previousEnd.After(previousLimit) {
+		previousEnd = previousLimit
+	}
+	if previousEnd.Before(previousStart) {
+		previousEnd = previousStart
+	}
+	return previousStart, previousEnd
+}
+
+func compareUserGrowth(current int64, previous int64) userGrowthComparison {
+	comparison := userGrowthComparison{
+		Current:  current,
+		Previous: previous,
+		Delta:    current - previous,
+	}
+	if previous > 0 {
+		comparison.HasBaseline = true
+		comparison.GrowthRate = float64(comparison.Delta) / float64(previous)
+	}
+	return comparison
+}
+
+func countNewUsersWithDB(db *gorm.DB, startAt int64, endAt int64) (int64, error) {
+	if db == nil {
+		return 0, fmt.Errorf("database handle is nil")
+	}
+	count := int64(0)
+	err := db.Model(&model.User{}).
+		Where("created_at BETWEEN ? AND ? AND status != ?", startAt, endAt, model.UserStatusDeleted).
+		Count(&count).Error
+	return count, err
+}
+
+func countDistinctLogUsersWithDB(db *gorm.DB, logType int, startAt int64, endAt int64) (int64, error) {
+	if db == nil {
+		return 0, fmt.Errorf("log database handle is nil")
+	}
+	count := int64(0)
+	err := db.Table(model.EventLogsTableName).
+		Select("COUNT(DISTINCT user_id)").
+		Where("type = ? AND created_at BETWEEN ? AND ? AND COALESCE(NULLIF(TRIM(user_id), ''), '') <> ''", logType, startAt, endAt).
+		Scan(&count).Error
+	return count, err
+}
+
+func countLogRequestsWithDB(db *gorm.DB, startAt int64, endAt int64) (int64, error) {
+	if db == nil {
+		return 0, fmt.Errorf("log database handle is nil")
+	}
+	count := int64(0)
+	err := db.Table(model.EventLogsTableName).
+		Where("type = ? AND created_at BETWEEN ? AND ?", model.LogTypeConsume, startAt, endAt).
+		Count(&count).Error
+	return count, err
+}
+
+func buildUserGrowthPeriodWithDB(db *gorm.DB, logDB *gorm.DB, start time.Time, end time.Time, granularity string) (userGrowthPeriodSummary, error) {
+	point := userGrowthPeriodSummary{
+		Bucket:  userGrowthBucketLabel(start, granularity),
+		StartAt: start.Unix(),
+		EndAt:   end.Unix(),
+	}
+	newUsers, err := countNewUsersWithDB(db, point.StartAt, point.EndAt)
+	if err != nil {
+		return point, err
+	}
+	activeUsers, err := countDistinctLogUsersWithDB(logDB, model.LogTypeConsume, point.StartAt, point.EndAt)
+	if err != nil {
+		return point, err
+	}
+	topupUsers, err := countDistinctLogUsersWithDB(logDB, model.LogTypeTopup, point.StartAt, point.EndAt)
+	if err != nil {
+		return point, err
+	}
+	requestCount, err := countLogRequestsWithDB(logDB, point.StartAt, point.EndAt)
+	if err != nil {
+		return point, err
+	}
+	point.NewUserCount = newUsers
+	point.ActiveUserCount = activeUsers
+	point.TopupUserCount = topupUsers
+	point.RequestCount = requestCount
+	return point, nil
+}
+
+func buildUserGrowthDashboardWithDB(db *gorm.DB, logDB *gorm.DB, rawGranularity string, now time.Time) (userGrowthSummaryData, []userGrowthPeriodSummary, error) {
+	granularity := normalizeUserGrowthGranularity(rawGranularity)
+	if now.IsZero() {
+		now = time.Now()
+	}
+	trendStart, bucketCount := userGrowthTrendStart(granularity, now)
+	trend := make([]userGrowthPeriodSummary, 0, bucketCount)
+	for i := 0; i < bucketCount; i++ {
+		start := trendStart
+		if granularity == granularityMonth {
+			start = trendStart.AddDate(0, i, 0)
+		} else {
+			start = trendStart.AddDate(0, 0, i*7)
+		}
+		bucketStart, bucketEnd := userGrowthBucketRange(start, granularity, now)
+		point, err := buildUserGrowthPeriodWithDB(db, logDB, bucketStart, bucketEnd, granularity)
+		if err != nil {
+			return userGrowthSummaryData{}, nil, err
+		}
+		trend = append(trend, point)
+	}
+
+	currentStart := dashboardStartOfWeek(now)
+	if granularity == granularityMonth {
+		currentStart = dashboardStartOfMonth(now)
+	}
+	current, err := buildUserGrowthPeriodWithDB(db, logDB, currentStart, now, granularity)
+	if err != nil {
+		return userGrowthSummaryData{}, nil, err
+	}
+	previousStart, previousEnd := previousUserGrowthPeriod(currentStart, now, granularity)
+	previous, err := buildUserGrowthPeriodWithDB(db, logDB, previousStart, previousEnd, granularity)
+	if err != nil {
+		return userGrowthSummaryData{}, nil, err
+	}
+	summary := userGrowthSummaryData{
+		Granularity: granularity,
+		Current:     current,
+		Previous:    previous,
+		NewUsers:    compareUserGrowth(current.NewUserCount, previous.NewUserCount),
+		ActiveUsers: compareUserGrowth(current.ActiveUserCount, previous.ActiveUserCount),
+		TopupUsers:  compareUserGrowth(current.TopupUserCount, previous.TopupUserCount),
+	}
+	return summary, trend, nil
+}
+
+func buildUserGrowthDashboard(rawGranularity string, now time.Time) (userGrowthSummaryData, []userGrowthPeriodSummary, error) {
+	return buildUserGrowthDashboardWithDB(model.DB, model.LOG_DB, rawGranularity, now)
 }
 
 func sumQuotaByType(logType int, startAt int64, endAt int64) (int64, error) {
@@ -1413,6 +1649,7 @@ func GetDashboard(c *gin.Context) {
 	period := normalizePeriod(c.DefaultQuery("period", periodLast7Days))
 	section := normalizeSection(c.Query("section"))
 	userKeyword := strings.TrimSpace(c.Query("user_keyword"))
+	userGrowthGranularity := normalizeUserGrowthGranularity(c.DefaultQuery("user_growth_granularity", userGrowthGranularityWeek))
 	now := time.Now()
 	start, end := periodRange(period, now)
 	if period == periodAllTime {
@@ -1521,6 +1758,13 @@ func GetDashboard(c *gin.Context) {
 			payload.UsageSummary = summarizeUsageRanking(usageRank)
 			payload.UsageTotals = usageTotals
 			payload.UsageRank = usageRank
+			userGrowthSummary, userGrowthTrend, err := buildUserGrowthDashboard(userGrowthGranularity, now)
+			if err != nil {
+				c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+				return
+			}
+			payload.UserGrowthSummary = userGrowthSummary
+			payload.UserGrowthTrend = userGrowthTrend
 		}
 	}
 
