@@ -288,55 +288,6 @@
   flex-shrink: 0;
 }
 
-.admin-dashboard-channel-overview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.admin-dashboard-channel-panel {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 8px;
-  background: #fff;
-}
-
-.admin-dashboard-channel-panel-main {
-  min-width: 0;
-}
-
-.admin-dashboard-channel-panel-label-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: help;
-}
-
-.admin-dashboard-channel-panel-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.admin-dashboard-channel-panel-label {
-  color: #334155;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.admin-dashboard-channel-panel-value {
-  color: #0f172a;
-  font-size: 20px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
 .admin-dashboard-health-chart {
   margin-top: 4px;
 }
@@ -1081,7 +1032,6 @@
 
   .admin-dashboard-spending-overview-grid,
   .admin-dashboard-user-growth-grid,
-  .admin-dashboard-channel-overview-grid,
   .admin-dashboard-model-overview-grid {
     grid-template-columns: 1fr;
   }

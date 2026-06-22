@@ -1567,6 +1567,8 @@
     "unlimited": "Unlimited",
     "day": "Day",
     "never": "Never",
+    "created_at": "Created At",
+    "updated_at": "Updated At",
     "quota": {
       "display": "Equivalent: ${{amount}}",
       "display_short": "${{amount}}",

@@ -1567,6 +1567,8 @@
     "unlimited": "不限额",
     "day": "天",
     "never": "永久",
+    "created_at": "创建时间",
+    "updated_at": "更新时间",
     "quota": {
       "display": "等价金额：${{amount}}",
       "display_short": "${{amount}}",

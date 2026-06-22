@@ -957,39 +957,6 @@ const AdminDashboard = () => {
     });
   }, [formatCount, formatUsd, modelSort, sortedModels, t]);
 
-  const channelInsightData = useMemo(() => {
-    return [
-      {
-        key: 'retest',
-        label: t('dashboard.admin.channels.insights.retest'),
-        hint: t('dashboard.admin.channels.insights.retest_hint'),
-        count: Number(channelHealthSummary.needs_retest || 0),
-        color: '#2563eb',
-      },
-      {
-        key: 'risk',
-        label: t('dashboard.admin.channels.insights.risk'),
-        hint: t('dashboard.admin.channels.insights.risk_hint'),
-        count: Number(channelHealthSummary.risk_count || 0),
-        color: '#dc2626',
-      },
-      {
-        key: 'circuit',
-        label: t('dashboard.admin.channels.insights.circuit'),
-        hint: t('dashboard.admin.channels.insights.circuit_hint'),
-        count: Number(channelHealthSummary.active_circuit_breaker_count || 0),
-        color: '#7c3aed',
-      },
-      {
-        key: 'latency',
-        label: t('dashboard.admin.channels.insights.latency'),
-        hint: t('dashboard.admin.channels.insights.latency_hint'),
-        count: Number(channelHealthSummary.high_latency_count || 0),
-        color: '#f59e0b',
-      },
-    ];
-  }, [channelHealthSummary, t]);
-
   const spendingInsightData = useMemo(() => {
     const trendRows = Array.isArray(dashboard.trend) ? dashboard.trend : [];
     const peakSpend = trendRows.reduce(
@@ -1326,75 +1293,6 @@ const AdminDashboard = () => {
           </div>
         ) : (
           <>
-            <div className='admin-dashboard-channel-overview-grid'>
-              {channelInsightData.map((item) => (
-                <div
-                  key={item.key}
-                  className='admin-dashboard-channel-panel'
-                >
-                  <div className='admin-dashboard-channel-panel-main'>
-                    <AppTooltip title={item.hint}>
-                      <div className='admin-dashboard-channel-panel-label-row'>
-                        <span
-                          className='admin-dashboard-channel-panel-dot'
-                          style={{ background: item.color }}
-                        />
-                        <span className='admin-dashboard-channel-panel-label'>
-                          {item.label}
-                        </span>
-                      </div>
-                    </AppTooltip>
-                  </div>
-                  <div className='admin-dashboard-channel-panel-value'>
-                    {formatCount(item.count)}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className='admin-dashboard-health-summary-grid'>
-              <div className='admin-dashboard-kpi-item'>
-                <div className='admin-dashboard-kpi-label'>
-                  {t('dashboard.admin.health.summary.with_tests')}
-                </div>
-                <div className='admin-dashboard-kpi-value'>
-                  {formatCount(channelHealthSummary.with_tests)}
-                </div>
-              </div>
-              <div className='admin-dashboard-kpi-item'>
-                <div className='admin-dashboard-kpi-label'>
-                  {t('dashboard.admin.health.summary.without_tests')}
-                </div>
-                <div className='admin-dashboard-kpi-value'>
-                  {formatCount(channelHealthSummary.without_tests)}
-                </div>
-              </div>
-              <div className='admin-dashboard-kpi-item'>
-                <div className='admin-dashboard-kpi-label'>
-                  {t('dashboard.admin.health.summary.avg_pass_rate')}
-                </div>
-                <div className='admin-dashboard-kpi-value'>
-                  {formatPercent(channelHealthSummary.avg_pass_rate)}
-                </div>
-              </div>
-              <div className='admin-dashboard-kpi-item'>
-                <div className='admin-dashboard-kpi-label'>
-                  {t('dashboard.admin.health.summary.avg_coverage_rate')}
-                </div>
-                <div className='admin-dashboard-kpi-value'>
-                  {formatPercent(channelHealthSummary.avg_coverage_rate)}
-                </div>
-              </div>
-              <div className='admin-dashboard-kpi-item'>
-                <div className='admin-dashboard-kpi-label'>
-                  {t('dashboard.admin.health.summary.avg_latency')}
-                </div>
-                <div className='admin-dashboard-kpi-value'>
-                  {channelHealthSummary.avg_latency_ms > 0
-                    ? `${formatCount(channelHealthSummary.avg_latency_ms)} ms`
-                    : '-'}
-                </div>
-              </div>
-            </div>
             <div className='admin-dashboard-channel-health-list'>
               <div className='admin-dashboard-channel-health-list-header'>
                 <div className='admin-dashboard-channel-health-list-title'>
