@@ -81,7 +81,26 @@ function renderTokenPreview(key) {
   if (raw === '') {
     return '-';
   }
-  return raw.startsWith('sk-') ? raw : `sk-${raw}`;
+  const hasPrefix = raw.toLowerCase().startsWith('sk-');
+  const body = hasPrefix ? raw.slice(3) : raw;
+  if (body.includes('****')) {
+    return `sk-${body}`;
+  }
+  if (body.length <= 4) {
+    return 'sk-****';
+  }
+  if (body.length <= 8) {
+    return `sk-${body.slice(0, 2)}****${body.slice(-2)}`;
+  }
+  return `sk-${body.slice(0, 4)}****${body.slice(-4)}`;
+}
+
+function normalizeTokenCopyValue(key) {
+  const raw = typeof key === 'string' ? key.trim() : '';
+  if (raw === '' || raw.includes('****')) {
+    return '';
+  }
+  return raw.toLowerCase().startsWith('sk-') ? raw : `sk-${raw}`;
 }
 
 const TokensTable = () => {
@@ -409,6 +428,7 @@ const TokensTable = () => {
             ellipsis: true,
             render: (value) => {
               const preview = renderTokenPreview(value);
+              const copyValue = normalizeTokenCopyValue(value);
               return (
                 <span
                   className='router-action-group'
@@ -425,11 +445,11 @@ const TokensTable = () => {
                     className='router-icon-button'
                     title={t('token.buttons.copy')}
                     onClick={async () => {
-                      if (preview === '-') {
+                      if (copyValue === '') {
                         showError(t('token.messages.copy_failed'));
                         return;
                       }
-                      if (await copy(preview)) {
+                      if (await copy(copyValue)) {
                         showSuccess(t('token.messages.copy_success'));
                         return;
                       }
