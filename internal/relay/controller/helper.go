@@ -82,6 +82,7 @@ func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIR
 		}
 		err = model.PreConsumeTokenRemainQuota(meta.TokenId, preConsumedQuota)
 		if err != nil {
+			logTokenPreConsumeFailure(ctx, meta, preConsumedQuota, chargeUserBalance, err)
 			return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
 		}
 		return preConsumedQuota, nil
@@ -111,6 +112,7 @@ func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIR
 		if strings.TrimSpace(meta.TokenId) != "" {
 			err := model.PreConsumeTokenQuota(meta.TokenId, preConsumedQuota)
 			if err != nil {
+				logTokenPreConsumeFailure(ctx, meta, preConsumedQuota, chargeUserBalance, err)
 				return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
 			}
 		} else {
@@ -121,6 +123,60 @@ func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIR
 		}
 	}
 	return preConsumedQuota, nil
+}
+
+func logTokenPreConsumeFailure(ctx context.Context, meta *meta.Meta, quota int64, chargeUserBalance bool, cause error) {
+	if meta == nil {
+		logger.Warnf(ctx, "token pre-consume failed quota=%d charge_user_balance=%t error=%v", quota, chargeUserBalance, cause)
+		return
+	}
+	tokenID := strings.TrimSpace(meta.TokenId)
+	if tokenID == "" {
+		logger.Warnf(
+			ctx,
+			"token pre-consume failed token_id= user_id=%s group=%s model=%s channel_id=%s quota=%d charge_user_balance=%t error=%v",
+			strings.TrimSpace(meta.UserId),
+			strings.TrimSpace(meta.Group),
+			strings.TrimSpace(meta.OriginModelName),
+			strings.TrimSpace(meta.ChannelId),
+			quota,
+			chargeUserBalance,
+			cause,
+		)
+		return
+	}
+	token, err := model.GetTokenById(tokenID)
+	if err != nil {
+		logger.Warnf(
+			ctx,
+			"token pre-consume failed token_id=%s user_id=%s group=%s model=%s channel_id=%s quota=%d charge_user_balance=%t token_lookup_error=%v error=%v",
+			tokenID,
+			strings.TrimSpace(meta.UserId),
+			strings.TrimSpace(meta.Group),
+			strings.TrimSpace(meta.OriginModelName),
+			strings.TrimSpace(meta.ChannelId),
+			quota,
+			chargeUserBalance,
+			err,
+			cause,
+		)
+		return
+	}
+	logger.Warnf(
+		ctx,
+		"token pre-consume failed token_id=%s token_name=%s user_id=%s group=%s model=%s channel_id=%s quota=%d token_remain_quota=%d token_unlimited=%t charge_user_balance=%t error=%v",
+		tokenID,
+		strings.TrimSpace(token.Name),
+		strings.TrimSpace(meta.UserId),
+		strings.TrimSpace(meta.Group),
+		strings.TrimSpace(meta.OriginModelName),
+		strings.TrimSpace(meta.ChannelId),
+		quota,
+		token.RemainQuota,
+		token.UnlimitedQuota,
+		chargeUserBalance,
+		cause,
+	)
 }
 
 func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, groupRatio float64, estimateResult tokenestimate.EstimateResult, responsesImageTools []responsesImageToolSpec, systemPromptReset bool, chargeUserBalance bool, packageReservation model.PackageQuotaReservation) {

@@ -248,6 +248,46 @@ func TestNormalizeFinalRelayErrorKeepsUserQuotaExceeded(t *testing.T) {
 	}
 }
 
+func TestNormalizeFinalRelayErrorKeepsInsufficientUserQuota(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusForbidden,
+		Error: relaymodel.Error{
+			Message: "user quota is not enough",
+			Type:    "one_api_error",
+			Code:    "insufficient_user_quota",
+		},
+	}
+
+	normalizeFinalRelayError(err)
+
+	if err.StatusCode != http.StatusForbidden {
+		t.Fatalf("unexpected status code: got %d want %d", err.StatusCode, http.StatusForbidden)
+	}
+	if err.Message != "user quota is not enough" {
+		t.Fatalf("unexpected message: got %q", err.Message)
+	}
+}
+
+func TestNormalizeFinalRelayErrorKeepsTokenQuotaExceeded(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusForbidden,
+		Error: relaymodel.Error{
+			Message: "令牌额度不足",
+			Type:    "one_api_error",
+			Code:    "pre_consume_token_quota_failed",
+		},
+	}
+
+	normalizeFinalRelayError(err)
+
+	if err.StatusCode != http.StatusForbidden {
+		t.Fatalf("unexpected status code: got %d want %d", err.StatusCode, http.StatusForbidden)
+	}
+	if err.Message != "令牌额度不足" {
+		t.Fatalf("unexpected message: got %q", err.Message)
+	}
+}
+
 func TestNormalizeFinalRelayErrorForCapabilityMismatch(t *testing.T) {
 	err := &relaymodel.ErrorWithStatusCode{
 		StatusCode: http.StatusBadRequest,

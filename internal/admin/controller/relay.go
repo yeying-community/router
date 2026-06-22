@@ -299,7 +299,15 @@ func isLocalQuotaRelayError(err *model.ErrorWithStatusCode) bool {
 		return false
 	}
 	code := strings.ToLower(errorCodeString(err.Code))
-	return code == "group_daily_quota_exceeded" || code == "user_quota_limit_exceeded"
+	switch code {
+	case "group_daily_quota_exceeded",
+		"user_quota_limit_exceeded",
+		"insufficient_user_quota",
+		"pre_consume_token_quota_failed":
+		return true
+	default:
+		return false
+	}
 }
 
 func isUpstreamQuotaRelayError(err *model.ErrorWithStatusCode) bool {
