@@ -19,6 +19,37 @@ var metricRecoverTimers sync.Map
 var metricHalfOpenChannels sync.Map
 var metricConsumersOnce sync.Once
 
+func SnapshotChannelMetricHistory(channelIDs []string, limit int) map[string][]bool {
+	result := make(map[string][]bool, len(channelIDs))
+	normalizedIDs := make([]string, 0, len(channelIDs))
+	seen := make(map[string]struct{}, len(channelIDs))
+	for _, channelID := range channelIDs {
+		normalizedID := strings.TrimSpace(channelID)
+		if normalizedID == "" {
+			continue
+		}
+		if _, ok := seen[normalizedID]; ok {
+			continue
+		}
+		seen[normalizedID] = struct{}{}
+		normalizedIDs = append(normalizedIDs, normalizedID)
+		result[normalizedID] = []bool{}
+	}
+	if len(normalizedIDs) == 0 {
+		return result
+	}
+	metricStoreMu.Lock()
+	defer metricStoreMu.Unlock()
+	for _, channelID := range normalizedIDs {
+		history := store[channelID]
+		if limit > 0 && len(history) > limit {
+			history = history[len(history)-limit:]
+		}
+		result[channelID] = append([]bool(nil), history...)
+	}
+	return result
+}
+
 func consumeSuccess(channelId string) {
 	metricStoreMu.Lock()
 	defer metricStoreMu.Unlock()

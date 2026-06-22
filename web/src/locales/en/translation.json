@@ -2292,8 +2292,33 @@
           "retest_hint": "Channels whose selected models are not fully covered by tests, or whose pass rate or coverage has not reached 100%.",
           "risk": "Risky Channels",
           "risk_hint": "Channels already in critical health, or whose current test pass rate is below 80%.",
+          "circuit": "Circuit Open",
+          "circuit_hint": "Channels currently in open or half-open recovery state.",
           "latency": "High-Latency Channels",
           "latency_hint": "Channels whose current average latency is 8 seconds or higher."
+        },
+        "history": {
+          "title": "Recent Call Health",
+          "hint": "Each cell is one recent model call result; gray means there is no monitoring sample in the current process.",
+          "no_data": "No call sample",
+          "state": {
+            "success": "Success",
+            "failure": "Failure",
+            "unknown": "No Data"
+          }
+        },
+        "circuit": {
+          "reason": "Reason",
+          "success_rate": "Success Rate",
+          "disabled_at": "Disabled At",
+          "recover_after": "Expected Recovery",
+          "state": {
+            "open": "Open",
+            "half_open": "Half Open",
+            "recovered": "Recovered",
+            "canceled": "Canceled",
+            "unknown": "Unknown"
+          }
         }
       },
       "alerts": {

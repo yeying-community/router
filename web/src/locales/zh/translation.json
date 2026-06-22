@@ -2292,8 +2292,33 @@
           "retest_hint": "已选模型未覆盖测试，或通过率、覆盖率尚未达到 100% 的渠道。",
           "risk": "风险渠道",
           "risk_hint": "健康度已落入风险，或当前测试通过率低于 80% 的渠道。",
+          "circuit": "熔断中",
+          "circuit_hint": "当前处于熔断或半开恢复状态的渠道。",
           "latency": "延迟异常渠道",
           "latency_hint": "当前平均延迟达到 8 秒及以上的渠道。"
+        },
+        "history": {
+          "title": "最近调用健康",
+          "hint": "每个格子代表一次最近的模型调用结果；灰色表示当前进程没有监控样本。",
+          "no_data": "无调用样本",
+          "state": {
+            "success": "成功",
+            "failure": "失败",
+            "unknown": "无数据"
+          }
+        },
+        "circuit": {
+          "reason": "原因",
+          "success_rate": "成功率",
+          "disabled_at": "停用时间",
+          "recover_after": "预计恢复",
+          "state": {
+            "open": "熔断",
+            "half_open": "半开",
+            "recovered": "已恢复",
+            "canceled": "已取消",
+            "unknown": "未知"
+          }
         }
       },
       "alerts": {

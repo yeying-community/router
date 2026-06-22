@@ -10,43 +10,47 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/admin/monitor"
 )
 
 const (
-	channelTopLimit    = 8
-	taskRecentLimit    = 8
-	modelTopLimit      = 12
-	sectionAll         = "all"
-	sectionSpending    = "spending"
-	sectionChannels    = "channels"
-	sectionUsers       = "users"
-	sectionModels      = "models"
-	periodToday        = "today"
-	periodLast7Days    = "last_7_days"
-	periodLast30Days   = "last_30_days"
-	periodThisMonth    = "this_month"
-	periodLastMonth    = "last_month"
-	periodThisYear     = "this_year"
-	periodLastYear     = "last_year"
-	periodLast12Months = "last_12_months"
-	periodAllTime      = "all_time"
-	granularityHour    = "hour"
-	granularityDay     = "day"
-	granularityMonth   = "month"
+	channelTopLimit           = 8
+	channelHealthHistoryLimit = 60
+	taskRecentLimit           = 8
+	modelTopLimit             = 12
+	sectionAll                = "all"
+	sectionSpending           = "spending"
+	sectionChannels           = "channels"
+	sectionUsers              = "users"
+	sectionModels             = "models"
+	periodToday               = "today"
+	periodLast7Days           = "last_7_days"
+	periodLast30Days          = "last_30_days"
+	periodThisMonth           = "this_month"
+	periodLastMonth           = "last_month"
+	periodThisYear            = "this_year"
+	periodLastYear            = "last_year"
+	periodLast12Months        = "last_12_months"
+	periodAllTime             = "all_time"
+	granularityHour           = "hour"
+	granularityDay            = "day"
+	granularityMonth          = "month"
 
 	channelHealthLevelHealthy  = "healthy"
 	channelHealthLevelWarning  = "warning"
 	channelHealthLevelCritical = "critical"
 	channelHealthLevelUnknown  = "unknown"
+	channelHealthPointSuccess  = "success"
+	channelHealthPointFailure  = "failure"
 )
 
 type summaryData struct {
 	ConsumeQuota    int64 `json:"consume_quota"`
-	ConsumeAmount      int64 `json:"consume_amount"`
+	ConsumeAmount   int64 `json:"consume_amount"`
 	TopupQuota      int64 `json:"topup_quota"`
 	TopupAmount     int64 `json:"topup_amount"`
 	NetQuota        int64 `json:"net_quota"`
-	NetAmount          int64 `json:"net_amount"`
+	NetAmount       int64 `json:"net_amount"`
 	RequestCount    int64 `json:"request_count"`
 	ActiveUserCount int64 `json:"active_user_count"`
 
@@ -64,7 +68,7 @@ type summaryData struct {
 type trendPoint struct {
 	Bucket          string `json:"bucket"`
 	ConsumeQuota    int64  `json:"consume_quota"`
-	ConsumeAmount      int64  `json:"consume_amount"`
+	ConsumeAmount   int64  `json:"consume_amount"`
 	TopupQuota      int64  `json:"topup_quota"`
 	TopupAmount     int64  `json:"topup_amount"`
 	RequestCount    int64  `json:"request_count"`
@@ -72,26 +76,42 @@ type trendPoint struct {
 }
 
 type channelHealthItem struct {
-	ID                 string   `json:"id"`
-	Name               string   `json:"name"`
-	Protocol           string   `json:"protocol"`
-	Status             int      `json:"status"`
-	Capabilities       []string `json:"capabilities"`
-	UsedQuota          int64    `json:"used_quota"`
-	UsedAmount         int64    `json:"used_amount"`
-	Priority           int64    `json:"priority"`
-	SelectedModelCount int      `json:"selected_model_count"`
-	TestedModelCount   int      `json:"tested_model_count"`
-	TestedEndpointCnt  int      `json:"tested_endpoint_count"`
-	SupportedCount     int      `json:"supported_count"`
-	UnsupportedCount   int      `json:"unsupported_count"`
-	PassRate           float64  `json:"pass_rate"`
-	CoverageRate       float64  `json:"coverage_rate"`
-	AvgLatencyMs       int64    `json:"avg_latency_ms"`
-	LastTestedAt       int64    `json:"last_tested_at"`
-	HasTestData        bool     `json:"has_test_data"`
-	HealthScore        int      `json:"health_score"`
-	HealthLevel        string   `json:"health_level"`
+	ID                 string                              `json:"id"`
+	Name               string                              `json:"name"`
+	Protocol           string                              `json:"protocol"`
+	Status             int                                 `json:"status"`
+	Capabilities       []string                            `json:"capabilities"`
+	UsedQuota          int64                               `json:"used_quota"`
+	UsedAmount         int64                               `json:"used_amount"`
+	Priority           int64                               `json:"priority"`
+	SelectedModelCount int                                 `json:"selected_model_count"`
+	TestedModelCount   int                                 `json:"tested_model_count"`
+	TestedEndpointCnt  int                                 `json:"tested_endpoint_count"`
+	SupportedCount     int                                 `json:"supported_count"`
+	UnsupportedCount   int                                 `json:"unsupported_count"`
+	PassRate           float64                             `json:"pass_rate"`
+	CoverageRate       float64                             `json:"coverage_rate"`
+	AvgLatencyMs       int64                               `json:"avg_latency_ms"`
+	LastTestedAt       int64                               `json:"last_tested_at"`
+	HasTestData        bool                                `json:"has_test_data"`
+	HealthScore        int                                 `json:"health_score"`
+	HealthLevel        string                              `json:"health_level"`
+	CircuitBreaker     *channelCircuitBreakerDashboardItem `json:"circuit_breaker,omitempty"`
+	HealthPoints       []channelHealthPoint                `json:"health_points"`
+}
+
+type channelCircuitBreakerDashboardItem struct {
+	State        string  `json:"state"`
+	Reason       string  `json:"reason"`
+	SuccessRate  float64 `json:"success_rate"`
+	DisabledAt   int64   `json:"disabled_at"`
+	RecoverAfter int64   `json:"recover_after"`
+	RecoveredAt  int64   `json:"recovered_at"`
+	UpdatedAt    int64   `json:"updated_at"`
+}
+
+type channelHealthPoint struct {
+	State string `json:"state"`
 }
 
 type usageRankingItem struct {
@@ -100,7 +120,7 @@ type usageRankingItem struct {
 	RequestCount int64   `json:"request_count"`
 	TotalTokens  int64   `json:"total_tokens"`
 	SpendQuota   int64   `json:"spend_quota"`
-	SpendAmount     int64   `json:"spend_amount"`
+	SpendAmount  int64   `json:"spend_amount"`
 	ShareRate    float64 `json:"share_rate"`
 	LastUsedAt   int64   `json:"last_used_at"`
 }
@@ -110,7 +130,7 @@ type usageRankSummary struct {
 	RequestCount int64   `json:"request_count"`
 	TotalTokens  int64   `json:"total_tokens"`
 	SpendQuota   int64   `json:"spend_quota"`
-	SpendAmount     int64   `json:"spend_amount"`
+	SpendAmount  int64   `json:"spend_amount"`
 	TopUsername  string  `json:"top_username"`
 	TopUserShare float64 `json:"top_user_share"`
 }
@@ -120,7 +140,7 @@ type usageTotalSummary struct {
 	RequestCount int64 `json:"request_count"`
 	TotalTokens  int64 `json:"total_tokens"`
 	SpendQuota   int64 `json:"spend_quota"`
-	SpendAmount     int64 `json:"spend_amount"`
+	SpendAmount  int64 `json:"spend_amount"`
 }
 
 type modelHealthItem struct {
@@ -130,7 +150,7 @@ type modelHealthItem struct {
 	RequestCount         int64    `json:"request_count"`
 	TotalTokens          int64    `json:"total_tokens"`
 	SpendQuota           int64    `json:"spend_quota"`
-	SpendAmount             int64    `json:"spend_amount"`
+	SpendAmount          int64    `json:"spend_amount"`
 	ChannelCount         int      `json:"channel_count"`
 	TestedChannelCount   int      `json:"tested_channel_count"`
 	TestedEndpointCount  int      `json:"tested_endpoint_count"`
@@ -153,7 +173,7 @@ type modelSummaryData struct {
 	RequestCount       int64   `json:"request_count"`
 	TotalTokens        int64   `json:"total_tokens"`
 	SpendQuota         int64   `json:"spend_quota"`
-	SpendAmount           int64   `json:"spend_amount"`
+	SpendAmount        int64   `json:"spend_amount"`
 	AvgPassRate        float64 `json:"avg_pass_rate"`
 	AvgLatencyMs       int64   `json:"avg_latency_ms"`
 }
@@ -473,6 +493,39 @@ func collectCapabilities(channel *model.Channel) []string {
 	return result
 }
 
+func buildChannelCircuitBreakerDashboardItem(row model.ChannelCircuitBreakerState) *channelCircuitBreakerDashboardItem {
+	if strings.TrimSpace(row.ChannelId) == "" {
+		return nil
+	}
+	return &channelCircuitBreakerDashboardItem{
+		State:        strings.TrimSpace(row.State),
+		Reason:       strings.TrimSpace(row.Reason),
+		SuccessRate:  row.SuccessRate,
+		DisabledAt:   row.DisabledAt,
+		RecoverAfter: row.RecoverAfter,
+		RecoveredAt:  row.RecoveredAt,
+		UpdatedAt:    row.UpdatedAt,
+	}
+}
+
+func buildChannelHealthPoints(history []bool) []channelHealthPoint {
+	if len(history) == 0 {
+		return []channelHealthPoint{}
+	}
+	if len(history) > channelHealthHistoryLimit {
+		history = history[len(history)-channelHealthHistoryLimit:]
+	}
+	result := make([]channelHealthPoint, 0, len(history))
+	for _, success := range history {
+		state := channelHealthPointFailure
+		if success {
+			state = channelHealthPointSuccess
+		}
+		result = append(result, channelHealthPoint{State: state})
+	}
+	return result
+}
+
 func listTopChannels() ([]channelHealthItem, int64, int64, int64, error) {
 	total, enabled, disabled, err := countChannelSummary()
 	if err != nil {
@@ -493,6 +546,24 @@ func listTopChannels() ([]channelHealthItem, int64, int64, int64, error) {
 	if err := model.HydrateChannelsWithTests(model.DB, rows); err != nil {
 		return nil, 0, 0, 0, err
 	}
+	channelIDs := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		if channelID := strings.TrimSpace(row.Id); channelID != "" {
+			channelIDs = append(channelIDs, channelID)
+		}
+	}
+	circuitRows, err := model.ListChannelCircuitBreakerStatesByChannelIDsWithDB(model.DB, channelIDs)
+	if err != nil {
+		return nil, 0, 0, 0, err
+	}
+	circuitByChannelID := make(map[string]model.ChannelCircuitBreakerState, len(circuitRows))
+	for _, row := range circuitRows {
+		circuitByChannelID[strings.TrimSpace(row.ChannelId)] = row
+	}
+	metricHistoryByChannelID := monitor.SnapshotChannelMetricHistory(channelIDs, channelHealthHistoryLimit)
 	nowTs := helper.GetTimestamp()
 	items := make([]channelHealthItem, 0, len(rows))
 	for _, row := range rows {
@@ -501,8 +572,13 @@ func listTopChannels() ([]channelHealthItem, int64, int64, int64, error) {
 		}
 		row.NormalizeProtocol()
 		health := calcChannelHealth(row, nowTs)
+		channelID := strings.TrimSpace(row.Id)
+		var circuitBreaker *channelCircuitBreakerDashboardItem
+		if circuitRow, ok := circuitByChannelID[channelID]; ok {
+			circuitBreaker = buildChannelCircuitBreakerDashboardItem(circuitRow)
+		}
 		items = append(items, channelHealthItem{
-			ID:                 strings.TrimSpace(row.Id),
+			ID:                 channelID,
 			Name:               strings.TrimSpace(row.Name),
 			Protocol:           strings.TrimSpace(row.Protocol),
 			Status:             row.Status,
@@ -522,6 +598,8 @@ func listTopChannels() ([]channelHealthItem, int64, int64, int64, error) {
 			HasTestData:        health.HasTestData,
 			HealthScore:        health.HealthScore,
 			HealthLevel:        health.HealthLevel,
+			CircuitBreaker:     circuitBreaker,
+			HealthPoints:       buildChannelHealthPoints(metricHistoryByChannelID[channelID]),
 		})
 	}
 	return items, total, enabled, disabled, nil
@@ -833,7 +911,7 @@ func buildUsageRankingWithKeyword(startAt int64, endAt int64, totalConsumeQuota 
 				RequestCount: row.RequestCount,
 				TotalTokens:  totalTokens,
 				SpendQuota:   row.SpendQuota,
-				SpendAmount:     row.SpendQuota,
+				SpendAmount:  row.SpendQuota,
 				LastUsedAt:   row.LastUsedAt,
 			},
 			CreatedAt: userRow.CreatedAt,
@@ -1289,11 +1367,11 @@ func GetDashboard(c *gin.Context) {
 		}
 		payload.Summary = summaryData{
 			ConsumeQuota:    consumeQuota,
-			ConsumeAmount:      consumeQuota,
+			ConsumeAmount:   consumeQuota,
 			TopupQuota:      topupQuota,
 			TopupAmount:     topupQuota,
 			NetQuota:        topupQuota - consumeQuota,
-			NetAmount:          topupQuota - consumeQuota,
+			NetAmount:       topupQuota - consumeQuota,
 			RequestCount:    requestCount,
 			ActiveUserCount: activeUserCount,
 			ChannelTotal:    channelTotal,

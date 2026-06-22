@@ -129,6 +129,16 @@ const HEALTH_LEVEL_COLORS = {
   unknown: '#94a3b8',
 };
 
+const CHANNEL_HEALTH_HISTORY_SIZE = 60;
+
+const CHANNEL_HEALTH_POINT_COLORS = {
+  success: '#16a34a',
+  failure: '#dc2626',
+  unknown: '#cbd5e1',
+};
+
+const ACTIVE_CIRCUIT_BREAKER_STATES = new Set(['open', 'half_open']);
+
 const formatCount = (value) => {
   const num = Number(value || 0);
   if (!Number.isFinite(num)) return '0';
@@ -164,6 +174,15 @@ const normalizeAdminDashboardPayload = (payload) => {
     top_channels: topChannels.map((item) => ({
       ...item,
       usedYyc: Number(item?.used_amount ?? item?.used_quota ?? 0),
+      circuit_breaker:
+        item?.circuit_breaker && typeof item.circuit_breaker === 'object'
+          ? item.circuit_breaker
+          : null,
+      health_points: Array.isArray(item?.health_points)
+        ? item.health_points.map((point) => ({
+            state: normalizeChannelHealthPointState(point),
+          }))
+        : [],
     })),
     usage_summary: {
       user_count: Number(usageSummary?.user_count || 0),
@@ -227,6 +246,43 @@ const toPercent = (raw) => {
 };
 
 const formatPercent = (raw) => `${toPercent(raw).toFixed(1)}%`;
+
+const normalizeChannelHealthPointState = (point) => {
+  const raw = typeof point === 'string' ? point : point?.state;
+  const normalized = String(raw || '').trim().toLowerCase();
+  if (normalized === 'success' || normalized === 'ok') return 'success';
+  if (normalized === 'failure' || normalized === 'failed' || normalized === 'error') {
+    return 'failure';
+  }
+  return 'unknown';
+};
+
+const buildChannelHealthHistory = (points) => {
+  const normalized = Array.isArray(points)
+    ? points.map(normalizeChannelHealthPointState).slice(-CHANNEL_HEALTH_HISTORY_SIZE)
+    : [];
+  const paddingCount = Math.max(
+    0,
+    CHANNEL_HEALTH_HISTORY_SIZE - normalized.length,
+  );
+  const states = [
+    ...Array.from({ length: paddingCount }, () => 'unknown'),
+    ...normalized,
+  ];
+  return states.map((state, index) => ({
+    key: `${index}-${state}`,
+    state,
+    observed: index >= paddingCount,
+  }));
+};
+
+const normalizeCircuitBreakerState = (raw) =>
+  String(raw || '').trim().toLowerCase();
+
+const isActiveCircuitBreaker = (circuitBreaker) =>
+  ACTIVE_CIRCUIT_BREAKER_STATES.has(
+    normalizeCircuitBreakerState(circuitBreaker?.state),
+  );
 
 const AdminDashboard = () => {
   const { t } = useTranslation();
@@ -349,6 +405,7 @@ const AdminDashboard = () => {
     () =>
       (dashboard.top_channels || []).map((row, index) => ({
         id: row.id || `channel-${index}`,
+        channel_id: row.id || '',
         name: row.name || row.id || '-',
         status: Number(row.status || 0),
         capabilities: renderCapabilities(row.capabilities),
@@ -364,6 +421,9 @@ const AdminDashboard = () => {
         supported_count: Number(row.supported_count || 0),
         unsupported_count: Number(row.unsupported_count || 0),
         last_tested_at: Number(row.last_tested_at || 0),
+        circuit_breaker: row.circuit_breaker || null,
+        health_points: Array.isArray(row.health_points) ? row.health_points : [],
+        health_history: buildChannelHealthHistory(row.health_points),
       })),
     [dashboard.top_channels, renderCapabilities],
   );
@@ -499,6 +559,49 @@ const AdminDashboard = () => {
             defaultValue: t('dashboard.admin.health.level.unknown'),
           })}
         </AppTag>
+      );
+    },
+    [t],
+  );
+
+  const renderCircuitBreakerTag = useCallback(
+    (circuitBreaker) => {
+      const state = normalizeCircuitBreakerState(circuitBreaker?.state);
+      if (!state || state === 'recovered') {
+        return null;
+      }
+      const color =
+        state === 'open'
+          ? 'red'
+          : state === 'half_open'
+            ? 'orange'
+            : 'grey';
+      const details = [
+        t(`dashboard.admin.channels.circuit.state.${state}`, {
+          defaultValue: t('dashboard.admin.channels.circuit.state.unknown'),
+        }),
+        circuitBreaker?.reason
+          ? `${t('dashboard.admin.channels.circuit.reason')}: ${circuitBreaker.reason}`
+          : null,
+        circuitBreaker?.success_rate !== null &&
+        circuitBreaker?.success_rate !== undefined
+          ? `${t('dashboard.admin.channels.circuit.success_rate')}: ${formatPercent(circuitBreaker.success_rate)}`
+          : null,
+        circuitBreaker?.disabled_at
+          ? `${t('dashboard.admin.channels.circuit.disabled_at')}: ${formatUpdatedAt(circuitBreaker.disabled_at)}`
+          : null,
+        circuitBreaker?.recover_after
+          ? `${t('dashboard.admin.channels.circuit.recover_after')}: ${formatUpdatedAt(circuitBreaker.recover_after)}`
+          : null,
+      ].filter(Boolean);
+      return (
+        <AppTooltip title={details.join(' / ')}>
+          <AppTag color={color} className='router-tag'>
+            {t(`dashboard.admin.channels.circuit.state.${state}`, {
+              defaultValue: t('dashboard.admin.channels.circuit.state.unknown'),
+            })}
+          </AppTag>
+        </AppTooltip>
       );
     },
     [t],
@@ -664,10 +767,14 @@ const AdminDashboard = () => {
     const riskyCount = rows.filter(
       (item) =>
         item.health_level === 'critical' ||
+        isActiveCircuitBreaker(item.circuit_breaker) ||
         (item.has_test_data && item.pass_rate_percent < 80),
     ).length;
     const latencyCount = rows.filter(
       (item) => Number(item.avg_latency_ms || 0) >= 8000,
+    ).length;
+    const circuitCount = rows.filter((item) =>
+      isActiveCircuitBreaker(item.circuit_breaker),
     ).length;
     return [
       {
@@ -683,6 +790,13 @@ const AdminDashboard = () => {
         hint: t('dashboard.admin.channels.insights.risk_hint'),
         count: riskyCount,
         color: '#dc2626',
+      },
+      {
+        key: 'circuit',
+        label: t('dashboard.admin.channels.insights.circuit'),
+        hint: t('dashboard.admin.channels.insights.circuit_hint'),
+        count: circuitCount,
+        color: '#7c3aed',
       },
       {
         key: 'latency',
@@ -1081,153 +1195,136 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
-            <div className='chart-container admin-dashboard-health-chart'>
-              <ResponsiveContainer width='100%' height={300}>
-                <BarChart
-                  data={channelHealthData}
-                  margin={{ top: 8, right: 20, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray='3 3'
-                    vertical={false}
-                    opacity={0.1}
-                  />
-                  <XAxis
-                    dataKey='name'
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: '#A3AED0' }}
-                    minTickGap={8}
-                  />
-                  <YAxis
-                    yAxisId='score'
-                    domain={[0, 100]}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: '#A3AED0' }}
-                  />
-                  <YAxis
-                    yAxisId='latency'
-                    orientation='right'
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: '#A3AED0' }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: '#fff',
-                      border: 'none',
-                      borderRadius: '4px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    }}
-                    formatter={(value, name) => {
-                      if (name === 'health_score') {
-                        return [
-                          `${Number(value).toFixed(0)}`,
-                          t('dashboard.admin.health.chart.health_score'),
-                        ];
-                      }
-                      if (name === 'pass_rate_percent') {
-                        return [
-                          `${Number(value).toFixed(1)}%`,
-                          t('dashboard.admin.health.chart.pass_rate'),
-                        ];
-                      }
-                      if (name === 'coverage_rate_percent') {
-                        return [
-                          `${Number(value).toFixed(1)}%`,
-                          t('dashboard.admin.health.chart.coverage_rate'),
-                        ];
-                      }
-                      if (name === 'avg_latency_ms') {
-                        return [
-                          `${Number(value).toFixed(0)} ms`,
-                          t('dashboard.admin.health.chart.avg_latency'),
-                        ];
-                      }
-                      return [String(value ?? '-'), String(name)];
-                    }}
-                    labelFormatter={(label, payload) => {
-                      if (!Array.isArray(payload) || payload.length === 0) {
-                        return label;
-                      }
-                      const entry = payload[0]?.payload || {};
-                      const statusText = t(
-                        `dashboard.admin.channel_status.${Number(entry.status)}`,
-                        {
-                          defaultValue: t(
-                            'dashboard.admin.channel_status.default',
-                          ),
-                        },
-                      );
-                      const healthLevelText = t(
-                        `dashboard.admin.health.level.${
-                          entry.health_level || 'unknown'
-                        }`,
-                        {
-                          defaultValue: t(
-                            'dashboard.admin.health.level.unknown',
-                          ),
-                        },
-                      );
-                      const lastTested = entry.last_tested_at
-                        ? formatUpdatedAt(entry.last_tested_at)
-                        : '-';
-                      return `${label} | ${statusText} | ${healthLevelText} | ${t('dashboard.admin.health.chart.last_tested')}: ${lastTested}`;
-                    }}
-                  />
-                  <Bar
-                    yAxisId='score'
-                    dataKey='health_score'
-                    name='health_score'
-                    radius={[4, 4, 0, 0]}
-                    fill='#60a5fa'
-                  >
-                    {channelHealthData.map((item) => (
-                      <Cell
-                        key={item.id}
-                        fill={
-                          HEALTH_LEVEL_COLORS[item.health_level] ||
-                          HEALTH_LEVEL_COLORS.unknown
-                        }
+            <div className='admin-dashboard-channel-health-list'>
+              <div className='admin-dashboard-channel-health-list-header'>
+                <div className='admin-dashboard-channel-health-list-title'>
+                  <div className='admin-dashboard-card-title'>
+                    {t('dashboard.admin.channels.history.title')}
+                  </div>
+                  <div className='admin-dashboard-channel-health-hint'>
+                    {t('dashboard.admin.channels.history.hint')}
+                  </div>
+                </div>
+                <div className='admin-dashboard-health-strip-legend'>
+                  {['success', 'failure', 'unknown'].map((state) => (
+                    <span
+                      key={state}
+                      className='admin-dashboard-health-strip-legend-item'
+                    >
+                      <span
+                        className='admin-dashboard-health-strip-legend-dot'
+                        style={{
+                          background:
+                            CHANNEL_HEALTH_POINT_COLORS[state] ||
+                            CHANNEL_HEALTH_POINT_COLORS.unknown,
+                        }}
                       />
-                    ))}
-                  </Bar>
-                  <Line
-                    yAxisId='score'
-                    type='monotone'
-                    dataKey='pass_rate_percent'
-                    name='pass_rate_percent'
-                    stroke='#16a34a'
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    yAxisId='score'
-                    type='monotone'
-                    dataKey='coverage_rate_percent'
-                    name='coverage_rate_percent'
-                    stroke='#2563eb'
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    yAxisId='latency'
-                    type='monotone'
-                    dataKey='avg_latency_ms'
-                    name='avg_latency_ms'
-                    stroke='#ef4444'
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className='admin-dashboard-health-legend'>
-              <span>{t('dashboard.admin.health.chart.legend_health')}</span>
-              <span>{t('dashboard.admin.health.chart.legend_pass')}</span>
-              <span>{t('dashboard.admin.health.chart.legend_coverage')}</span>
-              <span>{t('dashboard.admin.health.chart.legend_latency')}</span>
+                      {t(`dashboard.admin.channels.history.state.${state}`)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              {channelHealthData.map((item) => {
+                const statusText = t(
+                  `dashboard.admin.channel_status.${Number(item.status)}`,
+                  {
+                    defaultValue: t('dashboard.admin.channel_status.default'),
+                  },
+                );
+                const lastTested = item.last_tested_at
+                  ? formatUpdatedAt(item.last_tested_at)
+                  : '-';
+                const activeCircuit = isActiveCircuitBreaker(
+                  item.circuit_breaker,
+                );
+                const canOpenDetail = Boolean(item.channel_id);
+                return (
+                  <div
+                    key={item.id}
+                    className={`admin-dashboard-channel-health-row${
+                      activeCircuit ? ' admin-dashboard-channel-health-row-circuit' : ''
+                    }`}
+                  >
+                    <div className='admin-dashboard-channel-health-info'>
+                      <div className='admin-dashboard-channel-health-title-row'>
+                        <button
+                          type='button'
+                          className='admin-dashboard-channel-health-name'
+                          title={item.name}
+                          disabled={!canOpenDetail}
+                          onClick={() => {
+                            if (!canOpenDetail) return;
+                            navigate(
+                              `/admin/channel/detail/${encodeURIComponent(
+                                item.channel_id,
+                              )}`,
+                            );
+                          }}
+                        >
+                          {item.name}
+                        </button>
+                        {renderHealthTag(item.health_level)}
+                        {renderCircuitBreakerTag(item.circuit_breaker)}
+                      </div>
+                      <div className='admin-dashboard-channel-health-subtitle'>
+                        <span>{statusText}</span>
+                        <span>{item.capabilities}</span>
+                        <span>
+                          {t('dashboard.admin.health.chart.last_tested')}:{' '}
+                          {lastTested}
+                        </span>
+                      </div>
+                    </div>
+                    <div className='admin-dashboard-channel-health-strip-wrap'>
+                      <div
+                        className='admin-dashboard-health-strip'
+                        aria-label={`${item.name} ${t(
+                          'dashboard.admin.channels.history.title',
+                        )}`}
+                      >
+                        {item.health_history.map((point, index) => {
+                          const stateLabel = t(
+                            `dashboard.admin.channels.history.state.${point.state}`,
+                          );
+                          const title = point.observed
+                            ? `${item.name} #${index + 1}: ${stateLabel}`
+                            : `${item.name}: ${t('dashboard.admin.channels.history.no_data')}`;
+                          return (
+                            <AppTooltip key={point.key} title={title}>
+                              <span
+                                className={`admin-dashboard-health-cell admin-dashboard-health-cell-${point.state}`}
+                                style={{
+                                  background:
+                                    CHANNEL_HEALTH_POINT_COLORS[point.state] ||
+                                    CHANNEL_HEALTH_POINT_COLORS.unknown,
+                                }}
+                              />
+                            </AppTooltip>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className='admin-dashboard-channel-health-metrics'>
+                      <div className='admin-dashboard-channel-health-metric'>
+                        <span>{t('dashboard.admin.health.chart.health_score')}</span>
+                        <strong>{Number(item.health_score || 0).toFixed(0)}</strong>
+                      </div>
+                      <div className='admin-dashboard-channel-health-metric'>
+                        <span>{t('dashboard.admin.health.chart.pass_rate')}</span>
+                        <strong>{formatPercent(item.pass_rate_percent)}</strong>
+                      </div>
+                      <div className='admin-dashboard-channel-health-metric'>
+                        <span>{t('dashboard.admin.health.chart.avg_latency')}</span>
+                        <strong>
+                          {item.avg_latency_ms > 0
+                            ? `${formatCount(item.avg_latency_ms)} ms`
+                            : '-'}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             <AdminChannelAlertsPanel embedded />
           </>

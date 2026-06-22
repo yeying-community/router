@@ -193,7 +193,7 @@
 
 .admin-dashboard-channel-overview-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 10px;
   margin-bottom: 10px;
 }
@@ -251,6 +251,174 @@
   gap: 8px;
   color: #6b7280;
   font-size: 12px;
+}
+
+.admin-dashboard-channel-health-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.admin-dashboard-channel-health-list-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 2px;
+}
+
+.admin-dashboard-channel-health-list-title {
+  min-width: 0;
+}
+
+.admin-dashboard-channel-health-hint {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-dashboard-health-strip-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.admin-dashboard-health-strip-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.admin-dashboard-health-strip-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.admin-dashboard-channel-health-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.9fr) minmax(280px, 1.5fr) minmax(220px, 0.9fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-dashboard-channel-health-row-circuit {
+  border-color: rgba(220, 38, 38, 0.36);
+  background: #fffafa;
+}
+
+.admin-dashboard-channel-health-info {
+  min-width: 0;
+}
+
+.admin-dashboard-channel-health-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.admin-dashboard-channel-health-name {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-dashboard-channel-health-name:hover {
+  color: #2563eb;
+}
+
+.admin-dashboard-channel-health-name:disabled {
+  color: #0f172a;
+  cursor: default;
+}
+
+.admin-dashboard-channel-health-subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-dashboard-channel-health-strip-wrap {
+  min-width: 0;
+}
+
+.admin-dashboard-health-strip {
+  display: grid;
+  grid-template-columns: repeat(60, minmax(3px, 1fr));
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+}
+
+.admin-dashboard-health-cell {
+  display: block;
+  width: 100%;
+  height: 34px;
+  border-radius: 2px;
+}
+
+.admin-dashboard-health-cell-unknown {
+  opacity: 0.72;
+}
+
+.admin-dashboard-channel-health-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.admin-dashboard-channel-health-metric {
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.admin-dashboard-channel-health-metric span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-dashboard-channel-health-metric strong {
+  display: block;
+  margin-top: 3px;
+  color: #0f172a;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .admin-dashboard-usage-rank {
@@ -820,7 +988,30 @@
     grid-template-columns: 1fr;
   }
 
+  .admin-dashboard-channel-health-list-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-dashboard-health-strip-legend {
+    justify-content: flex-start;
+  }
+
+  .admin-dashboard-channel-health-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-dashboard-health-cell {
+    height: 28px;
+  }
+
   .admin-dashboard-model-card-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-dashboard-channel-health-metrics {
     grid-template-columns: 1fr;
   }
 }
