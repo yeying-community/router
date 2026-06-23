@@ -814,6 +814,10 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		billingSnapshot.EstimateSource = imageEstimateSourceImageCountRatio
 		billingSnapshot.SettlementMode = imageSettlementModeEstimateOnly
 	}
+	if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, meta.ChannelId, imageRequest.Model); err != nil {
+		logger.Errorf(ctx, "image billing procurement cost estimate failed user_id=%s group=%s channel_id=%s model=%s err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), err.Error())
+		return openai.ErrorWrapper(err, "calculate_image_quota_failed", http.StatusInternalServerError)
+	}
 	quota := billingSnapshot.ChargeAmount
 	billingPlan, quotaErr := reserveRelayQuota(ctx, meta.Group, meta.UserId, quota)
 	if quotaErr != nil {
@@ -938,6 +942,9 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		finalSnapshot.UsageSource = imageUsageSourceProviderResponse
 		finalSnapshot.EstimateSource = imageEstimateSourceQwenImageOutputCount
 		finalSnapshot.SettlementMode = imageSettlementModeProviderUsageFinal
+		if err := billing.ApplyEstimatedProcurementCostFloor(&finalSnapshot, meta.ChannelId, imageRequest.Model); err != nil {
+			logger.Errorf(ctx, "qwen image final procurement cost estimate failed user_id=%s group=%s channel_id=%s model=%s output_count=%d err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), outputCount, err.Error())
+		}
 		billingSnapshot = finalSnapshot
 		quota = billingSnapshot.ChargeAmount
 	}

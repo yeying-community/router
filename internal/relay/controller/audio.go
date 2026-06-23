@@ -76,20 +76,24 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	billingSnapshot := billing.BillingSnapshot{}
 	switch relayMode {
 	case relaymode.AudioSpeech:
-		preConsumedQuota, err = billing.ComputeAudioSpeechQuota(len(ttsRequest.Input), pricing, groupRatio)
-		if err != nil {
-			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
-		}
-		quota = preConsumedQuota
 		billingSnapshot, err = billing.ComputeAudioSpeechBillingSnapshot(len(ttsRequest.Input), pricing, groupRatio)
 		if err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
+		if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, channelId, audioModel); err != nil {
+			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
+		}
+		preConsumedQuota = billingSnapshot.ChargeAmount
+		quota = preConsumedQuota
 	default:
-		preConsumedQuota, err = billing.ComputeAudioTextQuota(int(config.PreConsumedQuota), pricing, groupRatio)
+		billingSnapshot, err = billing.ComputeAudioTextBillingSnapshot(int(config.PreConsumedQuota), pricing, groupRatio)
 		if err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
+		if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, channelId, audioModel); err != nil {
+			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
+		}
+		preConsumedQuota = billingSnapshot.ChargeAmount
 	}
 	billingPlan, quotaErr := reserveRelayQuota(ctx, group, userId, preConsumedQuota)
 	if quotaErr != nil {
@@ -247,14 +251,15 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "get_text_from_body_err", http.StatusInternalServerError)
 		}
-		quota, err = billing.ComputeAudioTextQuota(openai.CountTokenText(text, audioModel), pricing, groupRatio)
+		textTokens := openai.CountTokenText(text, audioModel)
+		billingSnapshot, err = billing.ComputeAudioTextBillingSnapshot(textTokens, pricing, groupRatio)
 		if err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
-		billingSnapshot, err = billing.ComputeAudioTextBillingSnapshot(openai.CountTokenText(text, audioModel), pricing, groupRatio)
-		if err != nil {
-			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
+		if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, channelId, audioModel); err != nil {
+			logger.Errorf(ctx, "audio billing procurement cost estimate failed user_id=%s group=%s channel_id=%s model=%s err=%q", strings.TrimSpace(userId), strings.TrimSpace(group), strings.TrimSpace(channelId), strings.TrimSpace(audioModel), err.Error())
 		}
+		quota = billingSnapshot.ChargeAmount
 		resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
 	}
 	if resp.StatusCode != http.StatusOK {
