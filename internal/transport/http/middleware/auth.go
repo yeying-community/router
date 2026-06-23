@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/blacklist"
 	"github.com/yeying-community/router/common/config"
@@ -32,6 +33,44 @@ var (
 	getUserByIDFunc               = model.GetUserById
 	findOrCreateWalletUserFunc    = findOrCreateWalletUser
 )
+
+const realtimeBrowserAPIKeyProtocolPrefix = "openai-insecure-api-key."
+
+func extractRealtimeBrowserAPIKeyProtocol(header http.Header) string {
+	for key, values := range header {
+		if !strings.EqualFold(strings.TrimSpace(key), "Sec-WebSocket-Protocol") {
+			continue
+		}
+		for _, rawProtocolHeader := range values {
+			for _, rawProtocol := range strings.Split(rawProtocolHeader, ",") {
+				protocol := strings.TrimSpace(rawProtocol)
+				token := strings.TrimSpace(strings.TrimPrefix(protocol, realtimeBrowserAPIKeyProtocolPrefix))
+				if token != protocol && token != "" {
+					return token
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func resolveTokenAuthorization(c *gin.Context) string {
+	if c == nil || c.Request == nil {
+		return ""
+	}
+	rawAuth := strings.TrimSpace(c.GetHeader("Authorization"))
+	if rawAuth != "" {
+		return rawAuth
+	}
+	path := normalizeRelayPath(c.Request.URL.Path)
+	if !strings.HasPrefix(path, "/v1/realtime") || !websocket.IsWebSocketUpgrade(c.Request) {
+		return ""
+	}
+	if token := extractRealtimeBrowserAPIKeyProtocol(c.Request.Header); token != "" {
+		return "Bearer " + token
+	}
+	return ""
+}
 
 func computeEffectiveAuthRole(user *model.User) (int, bool) {
 	if user == nil {
@@ -256,7 +295,7 @@ func RootAuth() func(c *gin.Context) {
 func TokenAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
-		rawAuth := strings.TrimSpace(c.GetHeader("Authorization"))
+		rawAuth := resolveTokenAuthorization(c)
 		if rawAuth == "" {
 			abortWithMessage(c, http.StatusUnauthorized, "未提供令牌")
 			return

@@ -154,6 +154,47 @@ func TestHydrateResponsesRelayContext(t *testing.T) {
 	}
 }
 
+func TestExtractRealtimeBrowserAPIKeyProtocol(t *testing.T) {
+	tests := []struct {
+		name    string
+		headers []string
+		want    string
+	}{
+		{
+			name:    "single browser realtime protocol header",
+			headers: []string{"realtime, openai-insecure-api-key.sk-live-token, openai-beta.realtime-v1"},
+			want:    "sk-live-token",
+		},
+		{
+			name:    "multiple protocol header values",
+			headers: []string{"realtime", "openai-insecure-api-key.routertoken, openai-beta.realtime-v1"},
+			want:    "routertoken",
+		},
+		{
+			name:    "missing token protocol",
+			headers: []string{"realtime, openai-beta.realtime-v1"},
+			want:    "",
+		},
+		{
+			name:    "empty token protocol",
+			headers: []string{"realtime, openai-insecure-api-key., openai-beta.realtime-v1"},
+			want:    "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			header := http.Header{}
+			for _, value := range tt.headers {
+				header.Add("Sec-WebSocket-Protocol", value)
+			}
+			if got := extractRealtimeBrowserAPIKeyProtocol(header); got != tt.want {
+				t.Fatalf("extractRealtimeBrowserAPIKeyProtocol() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUserAuthAcceptsUcan(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -237,6 +278,93 @@ func TestUserAuthAcceptsUcan(t *testing.T) {
 	}
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("response code = %d, want %d", recorder.Code, http.StatusOK)
+	}
+}
+
+func TestTokenAuthExtractsRealtimeBrowserSubprotocolToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	prevIsUcanToken := isUcanTokenFunc
+	prevValidateUserToken := validateUserTokenFunc
+	defer func() {
+		isUcanTokenFunc = prevIsUcanToken
+		validateUserTokenFunc = prevValidateUserToken
+	}()
+
+	isUcanTokenFunc = func(token string) bool {
+		return false
+	}
+
+	validatorCalled := false
+	validateUserTokenFunc = func(key string) (*model.Token, error) {
+		validatorCalled = true
+		if key != "browserrealtimekey" {
+			t.Fatalf("validateUserTokenFunc key = %q, want %q", key, "browserrealtimekey")
+		}
+		return nil, errors.New("invalid token")
+	}
+
+	recorder := httptest.NewRecorder()
+	engine := gin.New()
+	engine.Use(TokenAuth())
+
+	called := false
+	engine.GET("/v1/realtime", func(ctx *gin.Context) {
+		called = true
+		ctx.Status(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/realtime?model=qwen3.5-omni-plus-realtime", nil)
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+	req.Header.Set("Sec-WebSocket-Version", "13")
+	req.Header.Set("Sec-WebSocket-Key", "test-key")
+	req.Header.Set("Sec-WebSocket-Protocol", "realtime, openai-insecure-api-key.browserrealtimekey, openai-beta.realtime-v1")
+	engine.ServeHTTP(recorder, req)
+
+	if !validatorCalled {
+		t.Fatal("expected validateUserTokenFunc to be called")
+	}
+	if called {
+		t.Fatal("expected TokenAuth to abort invalid token request")
+	}
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("response code = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+	if !bytes.Contains(recorder.Body.Bytes(), []byte("invalid token")) {
+		t.Fatalf("response body = %q, want invalid token message", recorder.Body.String())
+	}
+}
+
+func TestTokenAuthIgnoresRealtimeSubprotocolWithoutWebSocketUpgrade(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	prevValidateUserToken := validateUserTokenFunc
+	defer func() {
+		validateUserTokenFunc = prevValidateUserToken
+	}()
+
+	validateUserTokenFunc = func(key string) (*model.Token, error) {
+		t.Fatalf("validateUserTokenFunc should not be called for non-websocket request, got key %q", key)
+		return nil, errors.New("unexpected validation")
+	}
+
+	recorder := httptest.NewRecorder()
+	engine := gin.New()
+	engine.Use(TokenAuth())
+	engine.GET("/v1/realtime", func(ctx *gin.Context) {
+		ctx.Status(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/realtime?model=qwen3.5-omni-plus-realtime", nil)
+	req.Header.Set("Sec-WebSocket-Protocol", "realtime, openai-insecure-api-key.browserrealtimekey, openai-beta.realtime-v1")
+	engine.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("response code = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+	if !bytes.Contains(recorder.Body.Bytes(), []byte("未提供令牌")) {
+		t.Fatalf("response body = %q, want missing token message", recorder.Body.String())
 	}
 }
 
