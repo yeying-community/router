@@ -148,11 +148,16 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		logger.Errorf(ctx, "parse responses image tools failed: %s", responsesImageToolsErr.Error())
 		return openai.ErrorWrapper(responsesImageToolsErr, "parse_responses_image_tools_failed", http.StatusBadRequest)
 	}
-	groupReservedQuota, err := billing.ComputeTextPreConsumedQuota(promptTokens, textRequest.MaxTokens, pricing, groupRatio)
+	preConsumedSnapshot, err := billing.ComputeTextPreConsumedBillingSnapshot(promptTokens, textRequest.MaxTokens, pricing, groupRatio)
 	if err != nil {
 		logger.Errorf(ctx, "ComputeTextPreConsumedQuota failed: %s", err.Error())
 		return openai.ErrorWrapper(err, "calculate_text_quota_failed", http.StatusInternalServerError)
 	}
+	if err := billing.ApplyEstimatedProcurementCostFloor(&preConsumedSnapshot, meta.ChannelId, meta.ActualModelName); err != nil {
+		logger.Errorf(ctx, "estimate procurement cost for text pre-consume failed: %s", err.Error())
+		return openai.ErrorWrapper(err, "calculate_text_quota_failed", http.StatusInternalServerError)
+	}
+	groupReservedQuota := preConsumedSnapshot.ChargeAmount
 	billingPlan, quotaErr := reserveRelayQuota(ctx, meta.Group, meta.UserId, groupReservedQuota)
 	if quotaErr != nil {
 		return quotaErr
@@ -164,7 +169,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 			releasePackageQuotaReservation(ctx, packageReservation)
 		}
 	}()
-	preConsumedQuota, bizErr := preConsumeQuota(ctx, textRequest, promptTokens, pricing, groupRatio, meta, billingPlan.ChargeUserBalance())
+	preConsumedQuota, bizErr := preConsumeQuota(ctx, groupReservedQuota, meta, billingPlan.ChargeUserBalance())
 	if bizErr != nil {
 		logger.Warnf(ctx, "preConsumeQuota failed: %+v", *bizErr)
 		return bizErr

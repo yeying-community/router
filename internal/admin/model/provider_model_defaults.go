@@ -431,6 +431,9 @@ func IsChannelModelEndpointAllowedForModel(modelType string, modelName string, e
 	case isZhipuVisionChatModel(lowerModelName):
 		return normalizedEndpoint == ChannelModelEndpointChat
 	case strings.Contains(lowerModelName, "tts"):
+		if strings.Contains(lowerModelName, "realtime") {
+			return normalizedEndpoint == ChannelModelEndpointRealtime
+		}
 		return false
 	}
 	switch normalizeModelType(modelType, "") {

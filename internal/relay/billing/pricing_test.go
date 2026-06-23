@@ -254,3 +254,25 @@ func TestDecidePricingUsesCostFloorWhenHigher(t *testing.T) {
 		t.Fatalf("SelectedCharge.Currency=%q, want YYC", decision.SelectedCharge.Currency)
 	}
 }
+
+func TestProcurementConsumptionCandidatesFromSnapshotPreferCurrencyEquivalent(t *testing.T) {
+	snapshot := &BillingSnapshot{
+		PriceUnit:      adminmodel.ProviderPriceUnitPer1KTokens,
+		Currency:       adminmodel.ProviderPriceCurrencyUSD,
+		InputQuantity:  1000,
+		OutputQuantity: 2000,
+		Amount:         0.25,
+	}
+
+	got := procurementConsumptionCandidatesFromSnapshot(snapshot)
+
+	if len(got) != 2 {
+		t.Fatalf("candidates len=%d, want 2", len(got))
+	}
+	if got[0].CapacityUnit != "usd_equivalent" || got[0].Quantity != 0.25 {
+		t.Fatalf("first candidate=%+v, want usd_equivalent/0.25", got[0])
+	}
+	if got[1].CapacityUnit != "token" || got[1].Quantity != 3000 {
+		t.Fatalf("second candidate=%+v, want token/3000", got[1])
+	}
+}

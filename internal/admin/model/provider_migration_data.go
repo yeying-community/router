@@ -48,6 +48,8 @@ func explicitProviderModelSupportedEndpoints(provider string, modelType string, 
 	switch provider {
 	case "qwen":
 		return qwenProviderSupportedEndpoints(modelType, modelName, current)
+	case "zhipu":
+		return zhipuProviderSupportedEndpoints(modelType, modelName, current)
 	case "volcengine":
 		return volcengineProviderSupportedEndpoints(modelType, modelName, current)
 	default:
@@ -80,13 +82,13 @@ func qwenProviderSupportedEndpoints(modelType string, modelName string, current 
 		return nil, false
 	}
 	switch {
+	case strings.HasSuffix(normalizedModelName, "-realtime"),
+		strings.Contains(normalizedModelName, "omni-realtime"):
+		return []string{ChannelModelEndpointRealtime}, true
 	case strings.Contains(normalizedModelName, "tts"):
 		return []string{}, true
 	case strings.HasPrefix(normalizedModelName, "qwen-image"):
 		return []string{ChannelModelEndpointImages, ChannelModelEndpointImageEdit}, true
-	case strings.HasSuffix(normalizedModelName, "-realtime"),
-		strings.Contains(normalizedModelName, "omni-realtime"):
-		return []string{ChannelModelEndpointRealtime}, true
 	case strings.Contains(normalizedModelName, "omni"),
 		strings.Contains(normalizedModelName, "asr"),
 		strings.HasPrefix(normalizedModelName, "qwen-vl"),
@@ -102,6 +104,22 @@ func qwenProviderSupportedEndpoints(modelType string, modelName string, current 
 			return NormalizeProviderModelSupportedEndpointsForModel(modelType, modelName, current), true
 		}
 		return []string{ChannelModelEndpointChat}, true
+	default:
+		if len(current) > 0 {
+			return NormalizeProviderModelSupportedEndpointsForModel(modelType, modelName, current), true
+		}
+		return nil, false
+	}
+}
+
+func zhipuProviderSupportedEndpoints(modelType string, modelName string, current []string) ([]string, bool) {
+	normalizedModelName := strings.TrimSpace(strings.ToLower(modelName))
+	if normalizedModelName == "" {
+		return nil, false
+	}
+	switch {
+	case strings.HasPrefix(normalizedModelName, "glm-realtime"):
+		return []string{ChannelModelEndpointRealtime}, true
 	default:
 		if len(current) > 0 {
 			return NormalizeProviderModelSupportedEndpointsForModel(modelType, modelName, current), true

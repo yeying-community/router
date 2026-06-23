@@ -400,6 +400,71 @@ func TestBuildProviderMigrationSeeds_QwenUsesConcreteModelVersions(t *testing.T)
 	t.Fatalf("expected qwen provider to exist")
 }
 
+func TestBuildProviderMigrationSeeds_QwenIncludesRealtimeVoiceModels(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	expected := map[string]bool{
+		"qwen3.5-omni-plus-realtime":            false,
+		"qwen3.5-omni-flash-realtime":           false,
+		"qwen3.5-livetranslate-flash-realtime":  false,
+		"qwen-tts-realtime":                     false,
+		"qwen3-tts-flash-realtime":              false,
+		"qwen3-tts-instruct-flash-realtime":     false,
+	}
+	for _, seed := range seeds {
+		if seed.Provider != "qwen" {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			if _, ok := expected[detail.Model]; !ok {
+				continue
+			}
+			expected[detail.Model] = true
+			if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointRealtime {
+				t.Fatalf("%s supported_endpoints=%#v, want [%s]", detail.Model, detail.SupportedEndpoints, ChannelModelEndpointRealtime)
+			}
+			if !slices.Contains(detail.Tags, ProviderModelTagRealtime) {
+				t.Fatalf("%s tags=%#v, want realtime tag", detail.Model, detail.Tags)
+			}
+		}
+	}
+	for modelName, found := range expected {
+		if !found {
+			t.Fatalf("expected qwen provider migration seeds to include %s", modelName)
+		}
+	}
+}
+
+func TestBuildProviderMigrationSeeds_ZhipuIncludesRealtimeVoiceModels(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	expected := map[string]bool{
+		"glm-realtime":       false,
+		"glm-realtime-flash": false,
+		"glm-realtime-air":   false,
+	}
+	for _, seed := range seeds {
+		if seed.Provider != "zhipu" {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			if _, ok := expected[detail.Model]; !ok {
+				continue
+			}
+			expected[detail.Model] = true
+			if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointRealtime {
+				t.Fatalf("%s supported_endpoints=%#v, want [%s]", detail.Model, detail.SupportedEndpoints, ChannelModelEndpointRealtime)
+			}
+			if !slices.Contains(detail.Tags, ProviderModelTagRealtime) {
+				t.Fatalf("%s tags=%#v, want realtime tag", detail.Model, detail.Tags)
+			}
+		}
+	}
+	for modelName, found := range expected {
+		if !found {
+			t.Fatalf("expected zhipu provider migration seeds to include %s", modelName)
+		}
+	}
+}
+
 func TestBuildProviderMigrationSeeds_OpenAIIncludesGPT5xPricing(t *testing.T) {
 	seeds := mustLoadProviderMigrationSeeds(t)
 	expected := map[string]struct {

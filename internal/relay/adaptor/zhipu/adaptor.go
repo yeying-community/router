@@ -42,21 +42,25 @@ func (a *Adaptor) GetRequestURL(meta *meta.Meta) (string, error) {
 		baseURL := strings.TrimRight(strings.TrimSpace(meta.BaseURL), "/")
 		return baseURL + "/api/anthropic/v1/messages", nil
 	}
+	baseURL := strings.TrimRight(strings.TrimSpace(meta.BaseURL), "/")
+	if upstreamMode == relaymode.Realtime {
+		return baseURL + "/api/paas/v4/realtime", nil
+	}
 	switch meta.Mode {
 	case relaymode.ImagesGenerations:
-		return fmt.Sprintf("%s/api/paas/v4/images/generations", meta.BaseURL), nil
+		return fmt.Sprintf("%s/api/paas/v4/images/generations", baseURL), nil
 	case relaymode.Embeddings:
-		return fmt.Sprintf("%s/api/paas/v4/embeddings", meta.BaseURL), nil
+		return fmt.Sprintf("%s/api/paas/v4/embeddings", baseURL), nil
 	}
 	a.SetVersionByModeName(meta.ActualModelName)
 	if a.APIVersion == "v4" {
-		return fmt.Sprintf("%s/api/paas/v4/chat/completions", meta.BaseURL), nil
+		return fmt.Sprintf("%s/api/paas/v4/chat/completions", baseURL), nil
 	}
 	method := "invoke"
 	if meta.IsStream {
 		method = "sse-invoke"
 	}
-	return fmt.Sprintf("%s/api/paas/v3/model-api/%s/%s", meta.BaseURL, meta.ActualModelName, method), nil
+	return fmt.Sprintf("%s/api/paas/v3/model-api/%s/%s", baseURL, meta.ActualModelName, method), nil
 }
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Request, meta *meta.Meta) error {

@@ -71,11 +71,8 @@ func getPreConsumedQuota(textRequest *relaymodel.GeneralOpenAIRequest, promptTok
 	return int64(float64(preConsumedTokens) * ratio)
 }
 
-func preConsumeQuota(ctx context.Context, textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, pricing model.ResolvedModelPricing, groupRatio float64, meta *meta.Meta, chargeUserBalance bool) (int64, *relaymodel.ErrorWithStatusCode) {
-	preConsumedQuota, err := billing.ComputeTextPreConsumedQuota(promptTokens, textRequest.MaxTokens, pricing, groupRatio)
-	if err != nil {
-		return 0, openai.ErrorWrapper(err, "calculate_text_quota_failed", http.StatusInternalServerError)
-	}
+func preConsumeQuota(ctx context.Context, preConsumedQuota int64, meta *meta.Meta, chargeUserBalance bool) (int64, *relaymodel.ErrorWithStatusCode) {
+	var err error
 	if !chargeUserBalance {
 		if strings.TrimSpace(meta.TokenId) == "" {
 			return 0, nil
@@ -187,22 +184,21 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	}
 	promptTokens := usage.PromptTokens
 	completionTokens := usage.CompletionTokens
-	quota, err := billing.ComputeTextQuota(promptTokens, completionTokens, pricing, groupRatio)
+	quota := preConsumedQuota
 	billingSnapshot, snapshotErr := billing.ComputeTextBillingSnapshot(promptTokens, completionTokens, pricing, groupRatio)
 	if snapshotErr != nil {
 		logger.Error(ctx, "calculate text billing snapshot failed: "+snapshotErr.Error())
 	}
 	annotateTextBillingSnapshot(&billingSnapshot, pricing.Source, resolveTextEstimateSourceLabel(estimateResult), meta.UpstreamRequestPath, textRequest)
 	imageFeeNote := ""
-	imageFeeDetail, imageFeeNote, imageFeeErr := maybeApplyResponsesImageToolBilling(&billingSnapshot, usage, meta.ChannelProtocol, meta.ChannelModelConfigs, groupRatio, responsesImageTools)
+	_, imageFeeNote, imageFeeErr := maybeApplyResponsesImageToolBilling(&billingSnapshot, usage, meta.ChannelProtocol, meta.ChannelModelConfigs, groupRatio, responsesImageTools)
 	if imageFeeErr != nil {
 		logger.Error(ctx, "calculate responses image tool billing failed: "+imageFeeErr.Error())
 	}
-	if err != nil {
-		logger.Error(ctx, "calculate text quota failed: "+err.Error())
-		quota = preConsumedQuota
-	}
-	if imageFeeDetail.Applied {
+	if snapshotErr == nil {
+		if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, meta.ChannelId, meta.ActualModelName); err != nil {
+			logger.Error(ctx, "estimate procurement cost for text settlement failed: "+err.Error())
+		}
 		quota = billingSnapshot.ChargeAmount
 	}
 	totalTokens := promptTokens + completionTokens
@@ -211,6 +207,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		// we cannot just return, because we may have to return the pre-consumed quota
 		quota = 0
 	}
+	var err error
 	quotaDelta := quota - preConsumedQuota
 	if strings.TrimSpace(meta.TokenId) != "" {
 		if chargeUserBalance {

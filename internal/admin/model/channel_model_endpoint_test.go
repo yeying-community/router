@@ -80,9 +80,19 @@ func TestDefaultProviderModelSupportedEndpointsByProvider(t *testing.T) {
 		t.Fatalf("qwen realtime default endpoints = %#v, want realtime", qwenRealtime)
 	}
 
+	qwenRealtimeTTS := DefaultProviderModelSupportedEndpoints("qwen", ProviderModelTypeAudio, "qwen-tts-realtime")
+	if len(qwenRealtimeTTS) != 1 || qwenRealtimeTTS[0] != ChannelModelEndpointRealtime {
+		t.Fatalf("qwen realtime tts default endpoints = %#v, want realtime", qwenRealtimeTTS)
+	}
+
 	qwenTTS := DefaultProviderModelSupportedEndpoints("qwen", ProviderModelTypeAudio, "qwen-tts")
 	if len(qwenTTS) != 0 {
 		t.Fatalf("qwen tts default endpoints = %#v, want empty", qwenTTS)
+	}
+
+	zhipuRealtime := DefaultProviderModelSupportedEndpoints("zhipu", ProviderModelTypeAudio, "glm-realtime-flash")
+	if len(zhipuRealtime) != 1 || zhipuRealtime[0] != ChannelModelEndpointRealtime {
+		t.Fatalf("zhipu realtime default endpoints = %#v, want realtime", zhipuRealtime)
 	}
 
 	qwenImage := DefaultProviderModelSupportedEndpoints("qwen", ProviderModelTypeImage, "qwen-image-2.0")

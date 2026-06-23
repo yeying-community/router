@@ -102,6 +102,13 @@ type ProcurementConsumeResult struct {
 	CostSource      string
 }
 
+type ProcurementEstimateResult struct {
+	TotalCostAmount float64
+	CostSource      string
+	CoveredQuantity float64
+	MissingQuantity float64
+}
+
 type ProcurementBatchCostUpdate struct {
 	PurchaseCurrency   string
 	PurchaseAmount     float64
@@ -662,6 +669,66 @@ func ConsumeChannelProcurementBatches(input ProcurementConsumeInput) (Procuremen
 	return ConsumeChannelProcurementBatchesWithDB(DB, input)
 }
 
+func EstimateChannelProcurementCost(input ProcurementConsumeInput) (ProcurementEstimateResult, error) {
+	return EstimateChannelProcurementCostWithDB(DB, input)
+}
+
+func EstimateChannelProcurementCostWithDB(db *gorm.DB, input ProcurementConsumeInput) (ProcurementEstimateResult, error) {
+	if db == nil {
+		return ProcurementEstimateResult{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(input.ChannelID)
+	normalizedScopeType := normalizeProcurementScopeType(input.ScopeType)
+	normalizedScopeValue := strings.TrimSpace(input.ScopeValue)
+	normalizedCapacityUnit := strings.TrimSpace(strings.ToLower(input.CapacityUnit))
+	if normalizedChannelID == "" || normalizedCapacityUnit == "" || input.Quantity <= 0 {
+		return ProcurementEstimateResult{CostSource: ProcurementCostSourceNone, MissingQuantity: math.Max(input.Quantity, 0)}, nil
+	}
+	rows := make([]ChannelProcurementBatch, 0)
+	now := helper.GetTimestamp()
+	query := db.
+		Where("channel_id = ?", normalizedChannelID).
+		Where("capacity_unit = ?", normalizedCapacityUnit).
+		Where("cost_status = ?", ProcurementCostStatusActive).
+		Where("cost_source IN ?", []string{ProcurementCostSourceActual, ProcurementCostSourceEstimated, ProcurementCostSourceZeroCost}).
+		Where("capacity_remaining > 0").
+		Where("(expire_at = 0 OR expire_at > ?)", now)
+	query = query.Where("(scope_type = ? OR (scope_type = ? AND scope_value = ?))", "global", normalizedScopeType, normalizedScopeValue)
+	if err := query.Order(procurementBatchConsumeOrderSQL()).Find(&rows).Error; err != nil {
+		return ProcurementEstimateResult{}, err
+	}
+	result := ProcurementEstimateResult{MissingQuantity: input.Quantity}
+	remaining := input.Quantity
+	for _, row := range rows {
+		if remaining <= 0 {
+			break
+		}
+		quantity := math.Min(remaining, row.CapacityRemaining)
+		if quantity <= 0 {
+			continue
+		}
+		result.CoveredQuantity += quantity
+		result.TotalCostAmount += quantity * row.CostPerUnitAmount
+		if result.CostSource == "" {
+			result.CostSource = row.CostSource
+		} else if result.CostSource != row.CostSource {
+			result.CostSource = ProcurementCostSourceEstimated
+		}
+		remaining -= quantity
+	}
+	if result.CoveredQuantity <= 0 {
+		result.CostSource = ProcurementCostSourceNone
+		result.MissingQuantity = input.Quantity
+		return result, nil
+	}
+	result.MissingQuantity = math.Max(remaining, 0)
+	return result, nil
+}
+
+func procurementBatchConsumeOrderSQL() string {
+	return "CASE WHEN scope_type = 'model' THEN 0 ELSE 1 END ASC, CASE WHEN expire_at = 0 THEN 1 ELSE 0 END ASC, expire_at ASC, cost_per_unit_amount ASC, created_at ASC"
+}
+
 func ConsumeChannelProcurementBatchesWithDB(db *gorm.DB, input ProcurementConsumeInput) (ProcurementConsumeResult, error) {
 	if db == nil {
 		return ProcurementConsumeResult{}, fmt.Errorf("database handle is nil")
@@ -687,7 +754,7 @@ func ConsumeChannelProcurementBatchesWithDB(db *gorm.DB, input ProcurementConsum
 			Where("(expire_at = 0 OR expire_at > ?)", now)
 		query = query.Where("(scope_type = ? OR (scope_type = ? AND scope_value = ?))", "global", normalizedScopeType, normalizedScopeValue)
 		rows := make([]ChannelProcurementBatch, 0)
-		if err := query.Order("CASE WHEN scope_type = 'model' THEN 0 ELSE 1 END ASC, CASE WHEN expire_at = 0 THEN 1 ELSE 0 END ASC, expire_at ASC, cost_per_unit_amount ASC, created_at ASC").Find(&rows).Error; err != nil {
+		if err := query.Order(procurementBatchConsumeOrderSQL()).Find(&rows).Error; err != nil {
 			return err
 		}
 		remaining := input.Quantity

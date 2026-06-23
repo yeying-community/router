@@ -231,6 +231,148 @@ func TestConsumeChannelProcurementBatchesPrefersModelScope(t *testing.T) {
 	}
 }
 
+func TestEstimateChannelProcurementCostWithDBDoesNotConsume(t *testing.T) {
+	db := newProcurementTestDB(t)
+	batch, err := CreateChannelProcurementBatchWithDB(db, ChannelProcurementBatch{
+		ChannelId:         "channel-1",
+		ResourceType:      "quota",
+		QuotaType:         "total",
+		ScopeType:         "global",
+		CapacityUnit:      "usd_equivalent",
+		CapacityTotal:     100,
+		CapacityEffective: 100,
+		CapacityRemaining: 100,
+		CostPerUnitAmount: 7,
+		CostSource:        ProcurementCostSourceActual,
+		CostStatus:        ProcurementCostStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("create batch: %v", err)
+	}
+
+	result, err := EstimateChannelProcurementCostWithDB(db, ProcurementConsumeInput{
+		ChannelID:    "channel-1",
+		CapacityUnit: "usd_equivalent",
+		Quantity:     2,
+	})
+	if err != nil {
+		t.Fatalf("estimate procurement: %v", err)
+	}
+	if result.TotalCostAmount != 14 {
+		t.Fatalf("TotalCostAmount=%v, want 14", result.TotalCostAmount)
+	}
+	if result.CostSource != ProcurementCostSourceActual {
+		t.Fatalf("CostSource=%q, want actual", result.CostSource)
+	}
+	if result.CoveredQuantity != 2 || result.MissingQuantity != 0 {
+		t.Fatalf("coverage=%v missing=%v, want 2/0", result.CoveredQuantity, result.MissingQuantity)
+	}
+
+	var updated ChannelProcurementBatch
+	if err := db.Where("id = ?", batch.Id).Take(&updated).Error; err != nil {
+		t.Fatalf("load updated batch: %v", err)
+	}
+	if updated.CapacityRemaining != 100 {
+		t.Fatalf("CapacityRemaining=%v, want 100", updated.CapacityRemaining)
+	}
+	var count int64
+	if err := db.Model(&RequestProcurementConsumption{}).Count(&count).Error; err != nil {
+		t.Fatalf("count consumptions: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("consumption count=%d, want 0", count)
+	}
+}
+
+func TestEstimateChannelProcurementCostWithDBPrefersModelScope(t *testing.T) {
+	db := newProcurementTestDB(t)
+	_, err := CreateChannelProcurementBatchWithDB(db, ChannelProcurementBatch{
+		ChannelId:         "channel-1",
+		ResourceType:      "quota",
+		QuotaType:         "total",
+		ScopeType:         "global",
+		CapacityUnit:      "token",
+		CapacityTotal:     100,
+		CapacityEffective: 100,
+		CapacityRemaining: 100,
+		CostPerUnitAmount: 0.1,
+		CostSource:        ProcurementCostSourceActual,
+		CostStatus:        ProcurementCostStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("create global batch: %v", err)
+	}
+	_, err = CreateChannelProcurementBatchWithDB(db, ChannelProcurementBatch{
+		ChannelId:         "channel-1",
+		ResourceType:      "quota",
+		QuotaType:         "total",
+		ScopeType:         "model",
+		ScopeValue:        "gpt-5",
+		CapacityUnit:      "token",
+		CapacityTotal:     100,
+		CapacityEffective: 100,
+		CapacityRemaining: 100,
+		CostPerUnitAmount: 0.5,
+		CostSource:        ProcurementCostSourceActual,
+		CostStatus:        ProcurementCostStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("create model batch: %v", err)
+	}
+
+	result, err := EstimateChannelProcurementCostWithDB(db, ProcurementConsumeInput{
+		ChannelID:    "channel-1",
+		ScopeType:    "model",
+		ScopeValue:   "gpt-5",
+		CapacityUnit: "token",
+		Quantity:     10,
+	})
+	if err != nil {
+		t.Fatalf("estimate procurement: %v", err)
+	}
+	if result.TotalCostAmount != 5 {
+		t.Fatalf("TotalCostAmount=%v, want 5", result.TotalCostAmount)
+	}
+}
+
+func TestEstimateChannelProcurementCostWithDBReportsPartialCoverage(t *testing.T) {
+	db := newProcurementTestDB(t)
+	_, err := CreateChannelProcurementBatchWithDB(db, ChannelProcurementBatch{
+		ChannelId:         "channel-1",
+		ResourceType:      "quota",
+		QuotaType:         "total",
+		ScopeType:         "global",
+		CapacityUnit:      "token",
+		CapacityTotal:     20,
+		CapacityEffective: 20,
+		CapacityRemaining: 20,
+		CostPerUnitAmount: 0.25,
+		CostSource:        ProcurementCostSourceEstimated,
+		CostStatus:        ProcurementCostStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("create batch: %v", err)
+	}
+
+	result, err := EstimateChannelProcurementCostWithDB(db, ProcurementConsumeInput{
+		ChannelID:    "channel-1",
+		CapacityUnit: "token",
+		Quantity:     50,
+	})
+	if err != nil {
+		t.Fatalf("estimate procurement: %v", err)
+	}
+	if result.TotalCostAmount != 5 {
+		t.Fatalf("TotalCostAmount=%v, want 5", result.TotalCostAmount)
+	}
+	if result.CostSource != ProcurementCostSourceEstimated {
+		t.Fatalf("CostSource=%q, want estimated", result.CostSource)
+	}
+	if result.CoveredQuantity != 20 || result.MissingQuantity != 30 {
+		t.Fatalf("coverage=%v missing=%v, want 20/30", result.CoveredQuantity, result.MissingQuantity)
+	}
+}
+
 func TestUpdateLogProcurementCostObservationWithDB(t *testing.T) {
 	db := newProcurementTestDB(t)
 	logRow := Log{Id: "log-1", BillingSellBaseAmount: 10}

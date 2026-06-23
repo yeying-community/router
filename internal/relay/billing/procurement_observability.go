@@ -20,6 +20,7 @@ const (
 	ProcurementCostConfidenceUnitBased     = "unit_based"
 
 	PricingRuleVersionOfficialAnchorV1 = "official_anchor_v1"
+	PricingRuleVersionCostFloorV1      = "cost_floor_v1"
 	CostRuleVersionUnconfiguredV1      = "procurement_unconfigured_v1"
 )
 
@@ -72,28 +73,31 @@ func RecordProcurementConsumptionObservation(ctx context.Context, logRow *model.
 	if strings.TrimSpace(logRow.Id) == "" || strings.TrimSpace(logRow.ChannelId) == "" {
 		return
 	}
-	quantity := procurementConsumptionQuantity(logRow)
-	if quantity <= 0 {
+	candidates := procurementConsumptionCandidates(logRow)
+	if len(candidates) == 0 {
 		return
 	}
-	result, err := model.ConsumeChannelProcurementBatches(model.ProcurementConsumeInput{
-		RequestLogID:        logRow.Id,
-		ChannelID:           logRow.ChannelId,
-		ScopeType:           procurementScopeType(logRow),
-		ScopeValue:          strings.TrimSpace(logRow.ModelName),
-		CapacityUnit:        procurementCapacityUnit(logRow),
-		Quantity:            quantity,
-		SettlementTruthMode: strings.TrimSpace(logRow.BillingSettlementTruthMode),
-	})
-	if err != nil {
-		logger.Errorf(ctx, "procurement consumption observation failed log_id=%s channel_id=%s model=%s err=%q", strings.TrimSpace(logRow.Id), strings.TrimSpace(logRow.ChannelId), strings.TrimSpace(logRow.ModelName), err.Error())
+	for _, candidate := range candidates {
+		result, err := model.ConsumeChannelProcurementBatches(model.ProcurementConsumeInput{
+			RequestLogID:        logRow.Id,
+			ChannelID:           logRow.ChannelId,
+			ScopeType:           procurementScopeType(logRow),
+			ScopeValue:          strings.TrimSpace(logRow.ModelName),
+			CapacityUnit:        candidate.CapacityUnit,
+			Quantity:            candidate.Quantity,
+			SettlementTruthMode: strings.TrimSpace(logRow.BillingSettlementTruthMode),
+		})
+		if err != nil {
+			logger.Errorf(ctx, "procurement consumption observation failed log_id=%s channel_id=%s model=%s capacity_unit=%s quantity=%f err=%q", strings.TrimSpace(logRow.Id), strings.TrimSpace(logRow.ChannelId), strings.TrimSpace(logRow.ModelName), strings.TrimSpace(candidate.CapacityUnit), candidate.Quantity, err.Error())
+			return
+		}
+		if len(result.Consumptions) == 0 {
+			continue
+		}
+		if err := model.UpdateLogProcurementCostObservation(logRow.Id, result.TotalCostAmount, result.CostSource, logRow.BillingSellBaseAmount); err != nil {
+			logger.Errorf(ctx, "procurement cost log update failed log_id=%s channel_id=%s model=%s err=%q", strings.TrimSpace(logRow.Id), strings.TrimSpace(logRow.ChannelId), strings.TrimSpace(logRow.ModelName), err.Error())
+		}
 		return
-	}
-	if len(result.Consumptions) == 0 {
-		return
-	}
-	if err := model.UpdateLogProcurementCostObservation(logRow.Id, result.TotalCostAmount, result.CostSource, logRow.BillingSellBaseAmount); err != nil {
-		logger.Errorf(ctx, "procurement cost log update failed log_id=%s channel_id=%s model=%s err=%q", strings.TrimSpace(logRow.Id), strings.TrimSpace(logRow.ChannelId), strings.TrimSpace(logRow.ModelName), err.Error())
 	}
 }
 
@@ -161,6 +165,47 @@ func procurementCapacityUnit(logRow *model.Log) string {
 	default:
 		return strings.TrimSpace(strings.ToLower(logRow.BillingPriceUnit))
 	}
+}
+
+type procurementConsumptionCandidate struct {
+	CapacityUnit string
+	Quantity     float64
+}
+
+func procurementConsumptionCandidates(logRow *model.Log) []procurementConsumptionCandidate {
+	if logRow == nil {
+		return nil
+	}
+	candidates := make([]procurementConsumptionCandidate, 0, 2)
+	seen := map[string]struct{}{}
+	appendCandidate := func(capacityUnit string, quantity float64) {
+		normalizedUnit := strings.TrimSpace(strings.ToLower(capacityUnit))
+		if normalizedUnit == "" || quantity <= 0 {
+			return
+		}
+		if _, ok := seen[normalizedUnit]; ok {
+			return
+		}
+		seen[normalizedUnit] = struct{}{}
+		candidates = append(candidates, procurementConsumptionCandidate{
+			CapacityUnit: normalizedUnit,
+			Quantity:     quantity,
+		})
+	}
+	appendCandidate(procurementCurrencyEquivalentCapacityUnit(logRow), logRow.BillingAmount)
+	appendCandidate(procurementCapacityUnit(logRow), procurementConsumptionQuantity(logRow))
+	return candidates
+}
+
+func procurementCurrencyEquivalentCapacityUnit(logRow *model.Log) string {
+	if logRow == nil {
+		return ""
+	}
+	currency := strings.TrimSpace(strings.ToLower(logRow.BillingCurrency))
+	if currency == "" {
+		return ""
+	}
+	return currency + "_equivalent"
 }
 
 func procurementConsumptionQuantity(logRow *model.Log) float64 {

@@ -1497,6 +1497,33 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return ensureUserBalanceLotAmountColumnsWithDB(tx)
 			},
 		},
+		{
+			Version:     "202606231030_openai_realtime_model_tags",
+			Description: "refresh openai provider migration rows to mark realtime voice models with realtime capability tags",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderMigrationProvidersWithDB(tx, "openai")
+			},
+		},
+		{
+			Version:     "202606231130_qwen_realtime_voice_models",
+			Description: "upsert qwen official realtime voice and omni websocket models and refresh channel endpoint baseline",
+			Up: func(tx *gorm.DB) error {
+				if err := upsertProviderMigrationProvidersWithDB(tx, "qwen"); err != nil {
+					return err
+				}
+				return cleanupChannelEndpointBaselineWithDB(tx, "ali", "qwen", false)
+			},
+		},
+		{
+			Version:     "202606231230_zhipu_realtime_voice_models",
+			Description: "upsert zhipu official realtime voice models and refresh channel endpoint baseline",
+			Up: func(tx *gorm.DB) error {
+				if err := upsertProviderMigrationProvidersWithDB(tx, "zhipu"); err != nil {
+					return err
+				}
+				return cleanupChannelEndpointBaselineWithDB(tx, "zhipu", "zhipu", true)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

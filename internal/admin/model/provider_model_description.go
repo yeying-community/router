@@ -338,6 +338,18 @@ func qwenProviderModelDescription(modelName string) string {
 		return "Qwen3.5-Flash 是上一代低成本通用模型。"
 	case "qwen3-max":
 		return "Qwen3-Max 是高能力通用模型，适合复杂任务。"
+	case "qwen3.5-omni-plus-realtime":
+		return "Qwen3.5-Omni-Plus-Realtime 是 Qwen 的实时全模态模型，支持 WebSocket 语音、图像和视频实时交互，并支持工具调用。"
+	case "qwen3.5-omni-flash-realtime":
+		return "Qwen3.5-Omni-Flash-Realtime 是低延迟实时全模态模型，适合实时语音和多模态对话。"
+	case "qwen3.5-livetranslate-flash-realtime":
+		return "Qwen3.5-LiveTranslate-Flash-Realtime 是实时语音同传模型，适合低延迟跨语言口语翻译。"
+	case "qwen-tts-realtime":
+		return "Qwen-TTS-Realtime 是实时语音合成模型，支持基于 WebSocket 的流式文本转语音。"
+	case "qwen3-tts-flash-realtime":
+		return "Qwen3-TTS-Flash-Realtime 是更快的实时语音合成模型，适合低延迟语音播报场景。"
+	case "qwen3-tts-instruct-flash-realtime":
+		return "Qwen3-TTS-Instruct-Flash-Realtime 是支持风格指令控制的实时语音合成模型。"
 	case "qwen-image-2.0":
 		return "Qwen-Image 2.0 是图像生成模型。"
 	case "qwen-image-2.0-pro":
@@ -469,6 +481,12 @@ func zhipuProviderModelDescription(modelName string) string {
 		return "GLM-4V-Plus 是智谱的视觉语言模型。"
 	case "glm-4-voice":
 		return "GLM-4-Voice 是智谱的语音模型。"
+	case "glm-realtime":
+		return "GLM-Realtime 是智谱的实时音视频通话模型，支持文本、音频和视频输入，以及音频输出。"
+	case "glm-realtime-flash":
+		return "GLM-Realtime-Flash 是智谱的低成本实时音视频模型，适合实时语音通话与陪练场景。"
+	case "glm-realtime-air":
+		return "GLM-Realtime-Air 是智谱的高能力实时音视频模型，适合更复杂的多模态实时交互。"
 	case "glm-image":
 		return "GLM-Image 是智谱的图像生成模型。"
 	case "cogview-4-250304":

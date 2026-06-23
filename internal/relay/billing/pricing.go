@@ -68,6 +68,14 @@ func (snapshot BillingSnapshot) ApplyToLog(log *model.Log) {
 	log.BillingImageToolOutputTokens = snapshot.ImageToolOutputTokens
 	log.BillingImageToolAmount = snapshot.ImageToolAmount
 	log.BillingImageToolChargeAmount = snapshot.ImageToolChargeAmount
+	if snapshot.PricingDecision != nil {
+		switch snapshot.PricingDecision.Reason {
+		case PricingDecisionReasonCostFloor:
+			log.BillingPricingRuleVersion = PricingRuleVersionCostFloorV1
+		default:
+			log.BillingPricingRuleVersion = PricingRuleVersionOfficialAnchorV1
+		}
+	}
 }
 
 func ComputeTextPreConsumedQuota(promptTokens int, maxCompletionTokens int, pricing model.ResolvedModelPricing, groupRatio float64) (int64, error) {
@@ -391,6 +399,10 @@ func buildBillingSnapshot(inputQuantity float64, outputQuantity float64, inputPr
 }
 
 func applyPricingDecision(snapshot *BillingSnapshot) {
+	applyPricingDecisionWithProcurementCost(snapshot, MoneyAmount{})
+}
+
+func applyPricingDecisionWithProcurementCost(snapshot *BillingSnapshot, procurementCost MoneyAmount) {
 	if snapshot == nil {
 		return
 	}
@@ -403,12 +415,111 @@ func applyPricingDecision(snapshot *BillingSnapshot) {
 			Amount:   float64(snapshot.ChargeAmount),
 			Currency: model.BillingCurrencyCodeYYC,
 		},
-		Policy: CurrentPricingPolicy(),
+		ProcurementCost: procurementCost,
+		Policy:          CurrentPricingPolicy(),
 	})
 	snapshot.PricingDecision = &decision
 	if decision.SelectedCharge.Amount > float64(snapshot.ChargeAmount) {
 		snapshot.ChargeAmount = int64(decision.SelectedCharge.Amount)
 	}
+}
+
+func ApplyEstimatedProcurementCostFloor(snapshot *BillingSnapshot, channelID string, modelName string) error {
+	if snapshot == nil {
+		return nil
+	}
+	candidates := procurementConsumptionCandidatesFromSnapshot(snapshot)
+	if len(candidates) == 0 {
+		return nil
+	}
+	for _, candidate := range candidates {
+		result, err := model.EstimateChannelProcurementCost(model.ProcurementConsumeInput{
+			ChannelID:    channelID,
+			ScopeType:    procurementScopeTypeFromModelName(modelName),
+			ScopeValue:   strings.TrimSpace(modelName),
+			CapacityUnit: candidate.CapacityUnit,
+			Quantity:     candidate.Quantity,
+		})
+		if err != nil {
+			return err
+		}
+		if result.CoveredQuantity <= 0 || result.TotalCostAmount <= 0 {
+			continue
+		}
+		applyPricingDecisionWithProcurementCost(snapshot, MoneyAmount{
+			Amount:   result.TotalCostAmount,
+			Currency: model.BillingCurrencyCodeCNY,
+		})
+		return nil
+	}
+	return nil
+}
+
+func procurementConsumptionCandidatesFromSnapshot(snapshot *BillingSnapshot) []procurementConsumptionCandidate {
+	if snapshot == nil {
+		return nil
+	}
+	candidates := make([]procurementConsumptionCandidate, 0, 2)
+	seen := map[string]struct{}{}
+	appendCandidate := func(capacityUnit string, quantity float64) {
+		normalizedUnit := strings.TrimSpace(strings.ToLower(capacityUnit))
+		if normalizedUnit == "" || quantity <= 0 {
+			return
+		}
+		if _, ok := seen[normalizedUnit]; ok {
+			return
+		}
+		seen[normalizedUnit] = struct{}{}
+		candidates = append(candidates, procurementConsumptionCandidate{
+			CapacityUnit: normalizedUnit,
+			Quantity:     quantity,
+		})
+	}
+	appendCandidate(procurementCurrencyEquivalentCapacityUnitFromSnapshot(snapshot), snapshot.Amount)
+	appendCandidate(procurementCapacityUnitFromSnapshot(snapshot), snapshot.InputQuantity+snapshot.OutputQuantity)
+	return candidates
+}
+
+func procurementCurrencyEquivalentCapacityUnitFromSnapshot(snapshot *BillingSnapshot) string {
+	if snapshot == nil {
+		return ""
+	}
+	currency := strings.TrimSpace(strings.ToLower(snapshot.Currency))
+	if currency == "" {
+		return ""
+	}
+	return currency + "_equivalent"
+}
+
+func procurementCapacityUnitFromSnapshot(snapshot *BillingSnapshot) string {
+	if snapshot == nil {
+		return ""
+	}
+	switch strings.TrimSpace(strings.ToLower(snapshot.PriceUnit)) {
+	case model.ProviderPriceUnitPerImage:
+		return "image"
+	case model.ProviderPriceUnitPerRequest, model.ProviderPriceUnitPerTask:
+		return "request"
+	case model.ProviderPriceUnitPer1KChars:
+		return "char"
+	case model.ProviderPriceUnitPerSecond:
+		return "second"
+	case model.ProviderPriceUnitPerMinute:
+		return "minute"
+	case model.ProviderPriceUnitPerVideo:
+		return "video"
+	case "", model.ProviderPriceUnitPer1KTokens:
+		return "token"
+	default:
+		return "token"
+	}
+}
+
+func procurementScopeTypeFromModelName(modelName string) string {
+	if strings.TrimSpace(modelName) == "" {
+		return "global"
+	}
+	return "model"
 }
 
 func primaryUnitPrice(pricing model.ResolvedModelPricing) float64 {

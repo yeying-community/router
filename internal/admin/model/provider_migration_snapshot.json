@@ -1095,6 +1095,9 @@
       {
         "model": "gpt-realtime",
         "type": "audio",
+        "tags": [
+          "realtime"
+        ],
         "status": "active",
         "description": "GPT Realtime 是 OpenAI 的实时多模态会话模型，适合低延迟语音与文本交互。",
         "supported_endpoints": [
@@ -1110,6 +1113,9 @@
       {
         "model": "gpt-realtime-1.5",
         "type": "audio",
+        "tags": [
+          "realtime"
+        ],
         "status": "active",
         "description": "GPT Realtime 1.5 是较轻量的实时模型，适合延迟敏感的会话场景。",
         "supported_endpoints": [
@@ -1125,6 +1131,9 @@
       {
         "model": "gpt-realtime-2",
         "type": "audio",
+        "tags": [
+          "realtime"
+        ],
         "status": "active",
         "description": "GPT Realtime 2 是更高能力的实时多模态模型，适合实时语音与文本对话。",
         "supported_endpoints": [
@@ -1140,6 +1149,9 @@
       {
         "model": "gpt-realtime-mini",
         "type": "audio",
+        "tags": [
+          "realtime"
+        ],
         "status": "active",
         "description": "GPT Realtime Mini 是低成本实时模型，适合高并发语音和文本交互。",
         "supported_endpoints": [
@@ -1155,6 +1167,9 @@
       {
         "model": "gpt-realtime-translate",
         "type": "audio",
+        "tags": [
+          "realtime"
+        ],
         "status": "active",
         "description": "GPT Realtime Translate 是实时翻译模型，适合低延迟语音翻译场景。",
         "supported_endpoints": [
@@ -3954,6 +3969,102 @@
         "updated_at": 1700000000
       },
       {
+        "model": "qwen3.5-omni-plus-realtime",
+        "type": "audio",
+        "tags": [
+          "realtime"
+        ],
+        "status": "active",
+        "description": "Qwen3.5-Omni-Plus-Realtime 是 Qwen 的实时全模态模型，支持 WebSocket 语音、图像和视频实时交互，并支持工具调用。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen3.5-omni-flash-realtime",
+        "type": "audio",
+        "tags": [
+          "realtime"
+        ],
+        "status": "active",
+        "description": "Qwen3.5-Omni-Flash-Realtime 是低延迟实时全模态模型，适合实时语音和多模态对话。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen3.5-livetranslate-flash-realtime",
+        "type": "audio",
+        "tags": [
+          "realtime"
+        ],
+        "status": "active",
+        "description": "Qwen3.5-LiveTranslate-Flash-Realtime 是实时语音同传模型，适合低延迟跨语言口语翻译。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen-tts-realtime",
+        "type": "audio",
+        "tags": [
+          "realtime"
+        ],
+        "status": "active",
+        "description": "Qwen-TTS-Realtime 是实时语音合成模型，支持基于 WebSocket 的流式文本转语音。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen3-tts-flash-realtime",
+        "type": "audio",
+        "tags": [
+          "realtime"
+        ],
+        "status": "active",
+        "description": "Qwen3-TTS-Flash-Realtime 是更快的实时语音合成模型，适合低延迟语音播报场景。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "qwen3-tts-instruct-flash-realtime",
+        "type": "audio",
+        "tags": [
+          "realtime"
+        ],
+        "status": "active",
+        "description": "Qwen3-TTS-Instruct-Flash-Realtime 是支持风格指令控制的实时语音合成模型。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
         "model": "qwen-image-2.0",
         "type": "image",
         "status": "active",
@@ -4443,6 +4554,56 @@
         ],
         "input_price": 0.08,
         "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "glm-realtime",
+        "tags": [
+          "audio",
+          "realtime"
+        ],
+        "status": "active",
+        "description": "GLM-Realtime 是智谱的实时音视频通话模型，支持文本、音频和视频输入，以及音频输出。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "price_unit": "per_minute",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "glm-realtime-flash",
+        "tags": [
+          "audio",
+          "realtime"
+        ],
+        "status": "active",
+        "description": "GLM-Realtime-Flash 是智谱的低成本实时音视频模型，适合实时语音通话与陪练场景。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "input_price": 0.18,
+        "price_unit": "per_minute",
+        "currency": "CNY",
+        "source": "migration",
+        "updated_at": 1700000000
+      },
+      {
+        "model": "glm-realtime-air",
+        "tags": [
+          "audio",
+          "realtime"
+        ],
+        "status": "active",
+        "description": "GLM-Realtime-Air 是智谱的高能力实时音视频模型，适合更复杂的多模态实时交互。",
+        "supported_endpoints": [
+          "/v1/realtime"
+        ],
+        "input_price": 0.3,
+        "price_unit": "per_minute",
         "currency": "CNY",
         "source": "migration",
         "updated_at": 1700000000

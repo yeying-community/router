@@ -107,3 +107,42 @@ func TestProcurementCapacityUnit(t *testing.T) {
 		})
 	}
 }
+
+func TestProcurementConsumptionCandidatesPreferCurrencyEquivalent(t *testing.T) {
+	logRow := &adminmodel.Log{
+		BillingPriceUnit:      adminmodel.ProviderPriceUnitPer1KTokens,
+		BillingCurrency:       adminmodel.ProviderPriceCurrencyUSD,
+		BillingAmount:         0.25,
+		BillingInputQuantity:  1000,
+		BillingOutputQuantity: 2000,
+	}
+
+	got := procurementConsumptionCandidates(logRow)
+
+	if len(got) != 2 {
+		t.Fatalf("candidates len=%d, want 2", len(got))
+	}
+	if got[0].CapacityUnit != "usd_equivalent" || got[0].Quantity != 0.25 {
+		t.Fatalf("first candidate=%+v, want usd_equivalent/0.25", got[0])
+	}
+	if got[1].CapacityUnit != "token" || got[1].Quantity != 3000 {
+		t.Fatalf("second candidate=%+v, want token/3000", got[1])
+	}
+}
+
+func TestProcurementConsumptionCandidatesFallbackToUsageUnit(t *testing.T) {
+	logRow := &adminmodel.Log{
+		BillingPriceUnit:      adminmodel.ProviderPriceUnitPerImage,
+		BillingInputQuantity:  2,
+		BillingOutputQuantity: 0,
+	}
+
+	got := procurementConsumptionCandidates(logRow)
+
+	if len(got) != 1 {
+		t.Fatalf("candidates len=%d, want 1", len(got))
+	}
+	if got[0].CapacityUnit != "image" || got[0].Quantity != 2 {
+		t.Fatalf("candidate=%+v, want image/2", got[0])
+	}
+}
