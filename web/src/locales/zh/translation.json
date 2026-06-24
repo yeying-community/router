@@ -1715,8 +1715,29 @@
       },
       "sections": {
         "basic": "基础信息",
+        "route": "路由说明",
         "billing": "计费快照",
         "content": "详情内容"
+      },
+      "route": {
+        "summary_title": "本次路由摘要",
+        "summary": "本次请求命中渠道 {{channel}}，请求模型为 {{model}}，估算来源为 {{source}}，结算模式为 {{settlement}}。",
+        "fields": {
+          "channel_target": "命中渠道",
+          "request_model": "请求模型",
+          "stream_mode": "流式模式",
+          "elapsed_time": "请求耗时",
+          "estimate_source": "估算来源",
+          "estimate_estimator": "估算器",
+          "estimate_precision": "估算精度",
+          "settlement_mode": "结算模式",
+          "trace_id": "Trace ID"
+        },
+        "precision": {
+          "high": "高",
+          "medium": "中",
+          "low": "低"
+        }
       },
       "fields": {
         "id": "日志 ID",
@@ -2309,6 +2330,19 @@
             "unknown": "无数据"
           }
         },
+        "events": {
+          "title": "最近熔断事件",
+          "hint": "汇总全局渠道熔断、半开、恢复和取消记录，方便直接进入渠道详情继续排查。",
+          "empty": "暂无熔断事件",
+          "columns": {
+            "time": "发生时间",
+            "channel": "渠道",
+            "state": "状态",
+            "reason": "原因",
+            "success_rate": "触发成功率",
+            "recover_after": "预计恢复"
+          }
+        },
         "circuit": {
           "reason": "原因",
           "success_rate": "成功率",
@@ -2435,7 +2469,16 @@
           "description": "新增、活跃、充值用户的周期变化。",
           "trend_title": "增长趋势",
           "current_period": "当前周期：{{range}}",
+          "previous_period": "上一周期：{{range}}",
           "no_baseline": "无上期基准",
+          "period_labels": {
+            "current_week": "本周",
+            "previous_week": "上周",
+            "compare_previous_week": "较上周",
+            "current_month": "本月",
+            "previous_month": "上月",
+            "compare_previous_month": "较上月"
+          },
           "granularity": {
             "week": "按周",
             "month": "按月"

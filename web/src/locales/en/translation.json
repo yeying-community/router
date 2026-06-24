@@ -1715,8 +1715,29 @@
       },
       "sections": {
         "basic": "Basic Info",
+        "route": "Route Explanation",
         "billing": "Billing Snapshot",
         "content": "Detail Content"
+      },
+      "route": {
+        "summary_title": "Route Summary",
+        "summary": "This request hit channel {{channel}}, requested model {{model}}, used estimate source {{source}}, and settled with mode {{settlement}}.",
+        "fields": {
+          "channel_target": "Matched Channel",
+          "request_model": "Requested Model",
+          "stream_mode": "Stream Mode",
+          "elapsed_time": "Request Latency",
+          "estimate_source": "Estimate Source",
+          "estimate_estimator": "Estimator",
+          "estimate_precision": "Estimate Precision",
+          "settlement_mode": "Settlement Mode",
+          "trace_id": "Trace ID"
+        },
+        "precision": {
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        }
       },
       "fields": {
         "id": "Log ID",
@@ -2309,6 +2330,19 @@
             "unknown": "No Data"
           }
         },
+        "events": {
+          "title": "Recent Circuit Breaker Events",
+          "hint": "Shows recent open, half-open, recovered, and canceled events across channels so operators can jump into channel detail directly.",
+          "empty": "No circuit breaker events yet",
+          "columns": {
+            "time": "Occurred At",
+            "channel": "Channel",
+            "state": "State",
+            "reason": "Reason",
+            "success_rate": "Trigger Success Rate",
+            "recover_after": "Expected Recovery"
+          }
+        },
         "circuit": {
           "reason": "Reason",
           "success_rate": "Success Rate",
@@ -2436,6 +2470,15 @@
           "trend_title": "Growth Trend",
           "current_period": "Current period: {{range}}",
           "no_baseline": "No baseline",
+          "previous_period": "Previous period: {{range}}",
+          "period_labels": {
+            "current_week": "This week",
+            "previous_week": "Last week",
+            "compare_previous_week": "vs last week",
+            "current_month": "This month",
+            "previous_month": "Last month",
+            "compare_previous_month": "vs last month"
+          },
           "granularity": {
             "week": "Weekly",
             "month": "Monthly"

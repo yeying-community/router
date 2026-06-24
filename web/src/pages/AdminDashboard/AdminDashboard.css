@@ -218,6 +218,17 @@
   line-height: 1.2;
 }
 
+.admin-dashboard-user-growth-card-periods {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .admin-dashboard-user-growth-card-delta {
   display: flex;
   align-items: center;

@@ -33,6 +33,7 @@ import {
   AppToolbar,
 } from '../../router-ui';
 import AdminChannelAlertsPanel from '../../components/AdminChannelAlertsPanel';
+import AdminCircuitBreakerEventsPanel from '../../components/AdminCircuitBreakerEventsPanel';
 import '../Dashboard/Dashboard.css';
 import './AdminDashboard.css';
 
@@ -637,12 +638,45 @@ const AdminDashboard = () => {
     [dashboard.user_growth_summary],
   );
 
+  const resolvedUserGrowthGranularity = useMemo(() => {
+    const value = (userGrowthSummary?.granularity || userGrowthGranularity || '')
+      .toString()
+      .trim()
+      .toLowerCase();
+    return value === 'month' ? 'month' : 'week';
+  }, [userGrowthGranularity, userGrowthSummary?.granularity]);
+
+  const userGrowthCurrentLabel = useMemo(
+    () =>
+      resolvedUserGrowthGranularity === 'month'
+        ? t('dashboard.admin.users.growth.period_labels.current_month')
+        : t('dashboard.admin.users.growth.period_labels.current_week'),
+    [resolvedUserGrowthGranularity, t],
+  );
+
+  const userGrowthPreviousLabel = useMemo(
+    () =>
+      resolvedUserGrowthGranularity === 'month'
+        ? t('dashboard.admin.users.growth.period_labels.previous_month')
+        : t('dashboard.admin.users.growth.period_labels.previous_week'),
+    [resolvedUserGrowthGranularity, t],
+  );
+
+  const userGrowthComparisonLabel = useMemo(
+    () =>
+      resolvedUserGrowthGranularity === 'month'
+        ? t('dashboard.admin.users.growth.period_labels.compare_previous_month')
+        : t('dashboard.admin.users.growth.period_labels.compare_previous_week'),
+    [resolvedUserGrowthGranularity, t],
+  );
+
   const userGrowthCards = useMemo(
     () => [
       {
         key: 'new_users',
         label: t('dashboard.admin.users.growth.metrics.new_users'),
         value: Number(userGrowthSummary.current?.new_user_count || 0),
+        previousValue: Number(userGrowthSummary.previous?.new_user_count || 0),
         comparison: userGrowthSummary.new_users,
         tone: Number(userGrowthSummary.new_users?.delta || 0) > 0
           ? 'positive'
@@ -654,6 +688,7 @@ const AdminDashboard = () => {
         key: 'active_users',
         label: t('dashboard.admin.users.growth.metrics.active_users'),
         value: Number(userGrowthSummary.current?.active_user_count || 0),
+        previousValue: Number(userGrowthSummary.previous?.active_user_count || 0),
         comparison: userGrowthSummary.active_users,
         tone: Number(userGrowthSummary.active_users?.delta || 0) > 0
           ? 'positive'
@@ -665,6 +700,7 @@ const AdminDashboard = () => {
         key: 'topup_users',
         label: t('dashboard.admin.users.growth.metrics.topup_users'),
         value: Number(userGrowthSummary.current?.topup_user_count || 0),
+        previousValue: Number(userGrowthSummary.previous?.topup_user_count || 0),
         comparison: userGrowthSummary.topup_users,
         tone: Number(userGrowthSummary.topup_users?.delta || 0) > 0
           ? 'positive'
@@ -1424,6 +1460,7 @@ const AdminDashboard = () => {
                 );
               })}
             </div>
+            <AdminCircuitBreakerEventsPanel embedded />
             <AdminChannelAlertsPanel embedded />
           </>
         )}
@@ -1466,8 +1503,18 @@ const AdminDashboard = () => {
             <div className='admin-dashboard-user-growth-card-value'>
               {formatCount(item.value)}
             </div>
+            <div className='admin-dashboard-user-growth-card-periods'>
+              <span>
+                {userGrowthCurrentLabel} {formatCount(item.value)}
+              </span>
+              <span>
+                {userGrowthPreviousLabel} {formatCount(item.previousValue)}
+              </span>
+            </div>
             <div className={`admin-dashboard-user-growth-card-delta admin-dashboard-user-growth-card-delta-${item.tone}`}>
-              <span>{formatSignedCount(item.comparison?.delta)}</span>
+              <span>
+                {userGrowthComparisonLabel} {formatSignedCount(item.comparison?.delta)}
+              </span>
               <span>{formatGrowthRate(item.comparison)}</span>
             </div>
           </div>
@@ -1484,6 +1531,14 @@ const AdminDashboard = () => {
                 range: formatPeriodRange(
                   userGrowthSummary.current?.start_timestamp,
                   userGrowthSummary.current?.end_timestamp,
+                ),
+              })}
+            </div>
+            <div className='admin-dashboard-user-growth-period'>
+              {t('dashboard.admin.users.growth.previous_period', {
+                range: formatPeriodRange(
+                  userGrowthSummary.previous?.start_timestamp,
+                  userGrowthSummary.previous?.end_timestamp,
                 ),
               })}
             </div>

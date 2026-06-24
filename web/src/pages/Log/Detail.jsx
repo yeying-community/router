@@ -77,6 +77,34 @@ function renderBillingSource(value, t) {
   return renderText(value);
 }
 
+function renderEstimatePrecision(value, t) {
+  const normalized = (value || '').toString().trim().toLowerCase();
+  if (normalized === 'high') {
+    return t('log.detail.route.precision.high');
+  }
+  if (normalized === 'medium') {
+    return t('log.detail.route.precision.medium');
+  }
+  if (normalized === 'low') {
+    return t('log.detail.route.precision.low');
+  }
+  return renderText(value);
+}
+
+function renderRouteExplanationSummary(log, t) {
+  if (!log) return '-';
+  const channel = renderText(log.channel_name || log.channel);
+  const model = renderText(log.model_name);
+  const source = renderText(log.billing_estimate_source);
+  const settlement = renderText(log.billing_settlement_mode);
+  return t('log.detail.route.summary', {
+    channel,
+    model,
+    source,
+    settlement,
+  });
+}
+
 function formatNumber(value, maximumFractionDigits = 6) {
   if (
     typeof value !== 'number' ||
@@ -153,6 +181,72 @@ const LogDetail = () => {
     () =>
       `${isAdminPage ? '/admin/log' : '/workspace/log'}${location.search || ''}`,
     [isAdminPage, location.search],
+  );
+
+  const routeExplanationItems = useMemo(
+    () => [
+      {
+        key: 'channel',
+        label: t('log.detail.route.fields.channel_target'),
+        value: isAdminPage ? (
+          log?.channel ? (
+            <AppTag
+              className='router-tag'
+              as={Link}
+              to={`/admin/channel/detail/${log.channel}`}
+              state={{ from: currentPagePath }}
+            >
+              {log?.channel_name || log?.channel}
+            </AppTag>
+          ) : (
+            '-'
+          )
+        ) : (
+          renderText(log?.channel_name || log?.channel)
+        ),
+      },
+      {
+        key: 'model',
+        label: t('log.detail.route.fields.request_model'),
+        value: renderText(log?.model_name),
+      },
+      {
+        key: 'stream',
+        label: t('log.detail.route.fields.stream_mode'),
+        value: renderBoolean(log?.is_stream),
+      },
+      {
+        key: 'latency',
+        label: t('log.detail.route.fields.elapsed_time'),
+        value: log?.elapsed_time ? `${log.elapsed_time} ms` : '-',
+      },
+      {
+        key: 'estimate_source',
+        label: t('log.detail.route.fields.estimate_source'),
+        value: renderText(log?.billing_estimate_source),
+      },
+      {
+        key: 'estimate_estimator',
+        label: t('log.detail.route.fields.estimate_estimator'),
+        value: renderText(log?.billing_estimate_estimator),
+      },
+      {
+        key: 'estimate_precision',
+        label: t('log.detail.route.fields.estimate_precision'),
+        value: renderEstimatePrecision(log?.billing_estimate_precision, t),
+      },
+      {
+        key: 'settlement_mode',
+        label: t('log.detail.route.fields.settlement_mode'),
+        value: renderText(log?.billing_settlement_mode),
+      },
+      {
+        key: 'trace_id',
+        label: t('log.detail.route.fields.trace_id'),
+        value: renderText(log?.trace_id),
+      },
+    ],
+    [currentPagePath, isAdminPage, log, t],
   );
 
   const loadDetail = useCallback(async () => {
@@ -383,6 +477,25 @@ const LogDetail = () => {
                         {renderBoolean(log?.is_stream)}
                       </pre>
                     </div>
+                  </div>
+            </AppDetailSection>
+
+            <AppDetailSection title={t('log.detail.sections.route')} titleTag='div'>
+                  <div className='router-detail-grid'>
+                    <div className='router-detail-item router-detail-item-span-2'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.route.summary_title')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {renderRouteExplanationSummary(log, t)}
+                      </pre>
+                    </div>
+                    {routeExplanationItems.map((item) => (
+                      <div key={item.key} className='router-detail-item'>
+                        <div className='router-detail-label'>{item.label}</div>
+                        <div className='router-detail-value'>{item.value}</div>
+                      </div>
+                    ))}
                   </div>
             </AppDetailSection>
 

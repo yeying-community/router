@@ -1676,6 +1676,10 @@ body,
     padding: 10px 12px;
 }
 
+.router-detail-item-span-2 {
+    grid-column: span 2;
+}
+
 .router-detail-label {
     font-size: 12px;
     font-weight: 600;
@@ -1693,6 +1697,12 @@ body,
     font-size: 12px;
     line-height: 1.6;
     color: #1f2937;
+}
+
+@media (max-width: 768px) {
+    .router-detail-item-span-2 {
+        grid-column: span 1;
+    }
 }
 
 .router-detail-pre {
