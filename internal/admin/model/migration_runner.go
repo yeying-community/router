@@ -1506,6 +1506,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			},
 		},
 		{
+			Version:     "202606271700_user_balance_lot_transaction_amount_columns",
+			Description: "ensure user balance lot transaction amount columns exist and backfill legacy yyc columns",
+			Up: func(tx *gorm.DB) error {
+				return ensureUserBalanceLotTransactionAmountColumnsWithDB(tx)
+			},
+		},
+		{
 			Version:     "202606231030_openai_realtime_model_tags",
 			Description: "refresh openai provider migration rows to mark realtime voice models with realtime capability tags",
 			Up: func(tx *gorm.DB) error {
