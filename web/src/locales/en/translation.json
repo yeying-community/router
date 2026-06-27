@@ -3260,6 +3260,60 @@
     "license": ", source code is licensed under the",
     "mit": "MIT License"
   },
+  "workspace_models": {
+    "title": "Models",
+    "refresh": "Refresh model status",
+    "search_placeholder": "Search models, providers, endpoints, or tags",
+    "generated_at": "Updated at: {{time}}",
+    "empty": "No available model status",
+    "history_label": "{{model}} recent model status",
+    "summary": {
+      "total": "Available models",
+      "healthy": "Healthy",
+      "warning": "Warning",
+      "critical": "Critical",
+      "pass_rate": "Average pass rate",
+      "latency": "Average latency"
+    },
+    "filters": {
+      "health": {
+        "all": "All",
+        "healthy": "Healthy",
+        "warning": "Warning",
+        "critical": "Critical",
+        "unknown": "Unknown"
+      }
+    },
+    "sort": {
+      "health": "Health first",
+      "name": "Name",
+      "latency": "Latency",
+      "pass_rate": "Pass rate"
+    },
+    "health": {
+      "healthy": "Healthy",
+      "warning": "Warning",
+      "critical": "Critical",
+      "unknown": "Unknown"
+    },
+    "history": {
+      "success": "Success",
+      "warning": "Skipped",
+      "failure": "Failure",
+      "unknown": "No sample",
+      "no_data": "No sample yet",
+      "past": "Past",
+      "now": "Now"
+    },
+    "card": {
+      "health_score": "Health score",
+      "pass_rate": "Pass rate",
+      "latency": "Latency",
+      "channels": "Tested channels",
+      "last_tested": "Last tested: {{time}}",
+      "no_endpoints": "No available endpoints"
+    }
+  },
   "auth": {
     "login": {
       "title": "User Login",

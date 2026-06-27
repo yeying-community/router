@@ -54,6 +54,20 @@ type User struct {
 	CanManageUsers             bool   `json:"can_manage_users" gorm:"-"`
 }
 
+type WalletAddressCleanupAuditLog struct {
+	Id                      string `json:"id" gorm:"type:char(36);primaryKey"`
+	NormalizedWalletAddress string `json:"normalized_wallet_address" gorm:"type:varchar(128);not null;index"`
+	OriginalWalletAddress   string `json:"original_wallet_address" gorm:"type:varchar(128);not null;default:''"`
+	UserID                  string `json:"user_id" gorm:"type:char(36);not null;index"`
+	KeptUserID              string `json:"kept_user_id" gorm:"type:char(36);not null;index"`
+	Reason                  string `json:"reason" gorm:"type:varchar(64);not null;default:''"`
+	CreatedAt               int64  `json:"created_at" gorm:"bigint;index"`
+}
+
+func (WalletAddressCleanupAuditLog) TableName() string {
+	return "wallet_address_cleanup_audit_logs"
+}
+
 func NormalizeWalletAddress(address string) string {
 	return strings.ToLower(strings.TrimSpace(address))
 }

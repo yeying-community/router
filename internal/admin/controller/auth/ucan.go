@@ -29,11 +29,11 @@ func PublicProfile(c *gin.Context) {
 	}
 
 	if claims, err := common.VerifyWalletJWT(bearer); err == nil {
-		addr := strings.ToLower(claims.WalletAddress)
+		addr := model.NormalizeWalletAddress(claims.WalletAddress)
 		if addr == "" && strings.TrimSpace(claims.UserID) != "" {
 			user := model.User{Id: claims.UserID}
 			if err := user.FillUserById(); err == nil && user.WalletAddress != nil {
-				addr = strings.ToLower(*user.WalletAddress)
+				addr = model.NormalizeWalletAddress(*user.WalletAddress)
 			}
 		}
 		if addr == "" {

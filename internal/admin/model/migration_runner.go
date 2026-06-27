@@ -8,6 +8,7 @@ import (
 
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
+	"github.com/yeying-community/router/common/random"
 	"gorm.io/gorm"
 )
 
@@ -1566,12 +1567,159 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return ensureProcurementCostTablesWithDB(tx)
 			},
 		},
+		{
+			Version:     "202606271030_user_wallet_address_case_insensitive_unique",
+			Description: "normalize wallet addresses, clean duplicate bindings, and add case-insensitive unique index",
+			Up: func(tx *gorm.DB) error {
+				return ensureUserWalletAddressCaseInsensitiveUniqueWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
 
 func ensureProcurementCostTablesWithDB(db *gorm.DB) error {
 	return db.AutoMigrate(&ChannelProcurementBatch{}, &RequestProcurementConsumption{})
+}
+
+func ensureUserWalletAddressCaseInsensitiveUniqueWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if err := db.AutoMigrate(&WalletAddressCleanupAuditLog{}); err != nil {
+		return err
+	}
+	if err := cleanupDuplicateWalletAddressesWithDB(db); err != nil {
+		return err
+	}
+	if err := db.Exec(
+		"UPDATE users SET wallet_address = LOWER(TRIM(wallet_address)) WHERE wallet_address IS NOT NULL AND TRIM(wallet_address) <> '' AND wallet_address <> LOWER(TRIM(wallet_address))",
+	).Error; err != nil {
+		return err
+	}
+	if err := db.Exec(
+		"UPDATE users SET wallet_address = NULL WHERE wallet_address IS NOT NULL AND TRIM(wallet_address) = ''",
+	).Error; err != nil {
+		return err
+	}
+	if db.Dialector != nil && db.Dialector.Name() == "postgres" {
+		if err := db.Exec(
+			"CREATE UNIQUE INDEX IF NOT EXISTS idx_users_wallet_address_lower_unique ON users ((LOWER(TRIM(wallet_address)))) WHERE wallet_address IS NOT NULL AND TRIM(wallet_address) <> ''",
+		).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type walletAddressCleanupCandidate struct {
+	ID                      string `gorm:"column:id"`
+	WalletAddress           string `gorm:"column:wallet_address"`
+	NormalizedWalletAddress string `gorm:"column:normalized_wallet_address"`
+	Role                    int    `gorm:"column:role"`
+	Status                  int    `gorm:"column:status"`
+	CreatedAt               int64  `gorm:"column:created_at"`
+}
+
+func cleanupDuplicateWalletAddressesWithDB(db *gorm.DB) error {
+	candidates := make([]walletAddressCleanupCandidate, 0)
+	if err := db.Table("users").
+		Select("id, wallet_address, LOWER(TRIM(wallet_address)) AS normalized_wallet_address, role, status, created_at").
+		Where("wallet_address IS NOT NULL AND TRIM(wallet_address) <> ''").
+		Order("LOWER(TRIM(wallet_address)) ASC, status ASC, created_at ASC, id ASC").
+		Scan(&candidates).Error; err != nil {
+		return err
+	}
+	grouped := make(map[string][]walletAddressCleanupCandidate)
+	for _, candidate := range candidates {
+		normalized := NormalizeWalletAddress(candidate.NormalizedWalletAddress)
+		if normalized == "" {
+			continue
+		}
+		candidate.NormalizedWalletAddress = normalized
+		grouped[normalized] = append(grouped[normalized], candidate)
+	}
+	now := helper.GetTimestamp()
+	for normalized, rows := range grouped {
+		if len(rows) <= 1 {
+			continue
+		}
+		kept := selectWalletAddressDuplicateKeeper(rows)
+		for _, row := range rows {
+			if row.ID == kept.ID {
+				continue
+			}
+			if err := db.Create(&WalletAddressCleanupAuditLog{
+				Id:                      random.GetUUID(),
+				NormalizedWalletAddress: normalized,
+				OriginalWalletAddress:   strings.TrimSpace(row.WalletAddress),
+				UserID:                  row.ID,
+				KeptUserID:              kept.ID,
+				Reason:                  "duplicate_wallet_address",
+				CreatedAt:               now,
+			}).Error; err != nil {
+				return err
+			}
+			if err := db.Model(&User{}).
+				Where("id = ?", row.ID).
+				Updates(map[string]any{
+					"wallet_address": nil,
+					"updated_at":     now,
+				}).Error; err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func selectWalletAddressDuplicateKeeper(rows []walletAddressCleanupCandidate) walletAddressCleanupCandidate {
+	if len(rows) == 0 {
+		return walletAddressCleanupCandidate{}
+	}
+	kept := rows[0]
+	for _, row := range rows[1:] {
+		if walletAddressCleanupCandidateLess(row, kept) {
+			kept = row
+		}
+	}
+	return kept
+}
+
+func walletAddressCleanupCandidateLess(left walletAddressCleanupCandidate, right walletAddressCleanupCandidate) bool {
+	leftRoot := IsRootWalletAddress(left.WalletAddress)
+	rightRoot := IsRootWalletAddress(right.WalletAddress)
+	if leftRoot != rightRoot {
+		return leftRoot
+	}
+	leftStatusRank := walletAddressStatusKeeperRank(left.Status)
+	rightStatusRank := walletAddressStatusKeeperRank(right.Status)
+	if leftStatusRank != rightStatusRank {
+		return leftStatusRank < rightStatusRank
+	}
+	if left.CreatedAt != right.CreatedAt {
+		if left.CreatedAt <= 0 {
+			return false
+		}
+		if right.CreatedAt <= 0 {
+			return true
+		}
+		return left.CreatedAt < right.CreatedAt
+	}
+	return strings.TrimSpace(left.ID) < strings.TrimSpace(right.ID)
+}
+
+func walletAddressStatusKeeperRank(status int) int {
+	switch status {
+	case UserStatusEnabled:
+		return 0
+	case UserStatusDisabled:
+		return 1
+	case UserStatusDeleted:
+		return 3
+	default:
+		return 2
+	}
 }
 
 func volcengineOldModelNameToOfficialModelMap() map[string]string {

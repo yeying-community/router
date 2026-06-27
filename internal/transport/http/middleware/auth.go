@@ -161,7 +161,7 @@ func authHelper(c *gin.Context, minRole int) {
 				}
 
 				if !foundById && claims.WalletAddress != "" {
-					addr := strings.ToLower(claims.WalletAddress)
+					addr := model.NormalizeWalletAddress(claims.WalletAddress)
 					user = model.User{WalletAddress: &addr}
 					if err := user.FillUserByWalletAddress(); err == nil {
 						logger.Loginf(c.Request.Context(), "auth wallet jwt fallback by address success addr=%s uid=%s", claims.WalletAddress, user.Id)
@@ -172,7 +172,7 @@ func authHelper(c *gin.Context, minRole int) {
 				}
 
 				if foundById {
-					matched := user.WalletAddress != nil && strings.ToLower(*user.WalletAddress) == strings.ToLower(claims.WalletAddress)
+					matched := user.WalletAddress != nil && model.NormalizeWalletAddress(*user.WalletAddress) == model.NormalizeWalletAddress(claims.WalletAddress)
 					enabled := user.Status == model.UserStatusEnabled
 					notBanned := !blacklist.IsUserBanned(user.Id)
 					if matched && enabled && notBanned {
@@ -195,7 +195,7 @@ func authHelper(c *gin.Context, minRole int) {
 			requiredSets := resolveUcanCapabilitySetsFunc()
 			address, err := verifyUcanInvocationAnyFunc(bearer, resolveUcanAudienceFunc(), requiredSets)
 			if err == nil {
-				addr := strings.ToLower(address)
+				addr := model.NormalizeWalletAddress(address)
 				user, findErr := findOrCreateWalletUserFunc(addr, c.Request.Context())
 				if findErr == nil && user != nil {
 					effectiveRole, _ := computeEffectiveAuthRole(user)

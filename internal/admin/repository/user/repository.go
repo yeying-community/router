@@ -393,8 +393,11 @@ func FillByWalletAddress(user *model.User) error {
 	if user.WalletAddress == nil || *user.WalletAddress == "" {
 		return errors.New("wallet address 为空！")
 	}
-	model.DB.Where(model.User{WalletAddress: user.WalletAddress}).First(user)
-	return nil
+	normalized := model.NormalizeWalletAddress(*user.WalletAddress)
+	if normalized == "" {
+		return errors.New("wallet address 为空！")
+	}
+	return model.DB.Where("LOWER(TRIM(wallet_address)) = ?", normalized).First(user).Error
 }
 
 func IsEmailAlreadyTaken(email string) bool {
@@ -418,10 +421,11 @@ func IsOidcIdAlreadyTaken(oidcId string) bool {
 }
 
 func IsWalletAddressAlreadyTaken(address string) bool {
-	if address == "" {
+	normalized := model.NormalizeWalletAddress(address)
+	if normalized == "" {
 		return false
 	}
-	return model.DB.Where("wallet_address = ?", address).Find(&model.User{}).RowsAffected == 1
+	return model.DB.Where("LOWER(TRIM(wallet_address)) = ?", normalized).Find(&model.User{}).RowsAffected > 0
 }
 
 func IsUsernameAlreadyTaken(username string) bool {

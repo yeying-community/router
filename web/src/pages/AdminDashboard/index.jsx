@@ -58,12 +58,11 @@ const USER_GROWTH_GRANULARITY_OPTIONS = ['week', 'month'];
 const USER_GROWTH_LINE_KEYS = ['new_user_count', 'active_user_count', 'topup_user_count'];
 const USER_SEGMENT_FOCUS_LIMIT = 100;
 
-const DASHBOARD_SECTIONS = ['spending', 'channels', 'users', 'models'];
+const DASHBOARD_SECTIONS = ['spending', 'channels', 'users'];
 const DASHBOARD_SECTION_TITLES = {
   spending: 'dashboard.admin.nav.spending',
   channels: 'dashboard.admin.nav.channels',
   users: 'dashboard.admin.nav.users',
-  models: 'dashboard.admin.nav.models',
 };
 
 const MODEL_SORT_OPTIONS = [

@@ -62,6 +62,7 @@ const TopUpOrderDetail = lazy(() => import('./pages/TopUp/TopUpOrderDetail'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ServicePricing = lazy(() => import('./pages/ServicePricing'));
+const WorkspaceModels = lazy(() => import('./pages/WorkspaceModels'));
 const HelpDoc = lazy(() => import('./pages/HelpDoc'));
 const WorkspaceStart = lazy(() => import('./pages/WorkspaceStart'));
 
@@ -587,6 +588,14 @@ function App() {
           element={
             <Suspense fallback={<Loading />}>
               <ServicePricing />
+            </Suspense>
+          }
+        />
+        <Route
+          path='/workspace/service/models'
+          element={
+            <Suspense fallback={<Loading />}>
+              <WorkspaceModels />
             </Suspense>
           }
         />

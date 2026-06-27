@@ -38,6 +38,11 @@ export const buildUserWorkspaceMenuItems = () => {
           icon: 'tags',
         },
         {
+          name: 'workspace_models.title',
+          to: '/workspace/service/models',
+          icon: 'cube',
+        },
+        {
           name: 'header.task',
           to: '/workspace/task',
           icon: 'tasks',
