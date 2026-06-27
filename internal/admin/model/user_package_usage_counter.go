@@ -69,6 +69,7 @@ type RequestPackageReservation struct {
 	PeriodKey      string
 	ReservedAmount int64
 	LimitAmount    int64
+	Concurrency    EntitlementConcurrencyReservation
 }
 
 func (reservation RequestPackageReservation) Active() bool {
@@ -82,6 +83,7 @@ type RequestPackageReserveResult struct {
 	Allowed      bool
 	Subscription UserPackageSubscription
 	Reservation  RequestPackageReservation
+	Concurrency  EntitlementConcurrencyReservation
 	Reason       string
 	Remaining    int64
 }
@@ -290,21 +292,6 @@ func GetRequestPackageUsageSnapshot(subscription UserPackageSubscription) (Reque
 	return GetRequestPackageUsageSnapshotWithDB(DB, subscription, time.Now())
 }
 
-func sumReservedRequestPackageByPackageWithDB(tx *gorm.DB, packageID string, periodType string, periodKey string) (int64, error) {
-	total := int64(0)
-	err := tx.Table(UserPackageUsageCountersTableName+" AS c").
-		Joins("JOIN "+UserPackageSubscriptionsTableName+" AS s ON s.id = c.subscription_id").
-		Where("s.package_id = ? AND c.metric = ? AND c.period_type = ? AND c.period_key = ?",
-			strings.TrimSpace(packageID),
-			ServicePackageQuotaMetricRequestCount,
-			strings.TrimSpace(periodType),
-			strings.TrimSpace(periodKey),
-		).
-		Select("COALESCE(SUM(c.reserved_amount), 0)").
-		Scan(&total).Error
-	return total, err
-}
-
 func ReserveRequestPackageWithDB(db *gorm.DB, input PackageScopeRequest) (RequestPackageReserveResult, error) {
 	req := normalizePackageScopeRequest(input)
 	if db == nil {
@@ -362,19 +349,26 @@ func reserveRequestPackageSubscriptionWithDB(db *gorm.DB, subscription UserPacka
 		if counter.ConsumedAmount+counter.ReservedAmount+req.RequestAmount > limit {
 			return nil
 		}
-		if subscription.MaxConcurrencyPerUser > 0 && counter.ReservedAmount+req.RequestAmount > int64(subscription.MaxConcurrencyPerUser) {
-			result.Reason = "request_concurrency_per_user_exceeded"
-			return nil
+		concurrencyResult, err := ReserveEntitlementConcurrencyWithDB(tx, EntitlementConcurrencyReserveInput{
+			SourceType:               EntitlementConcurrencySourceServicePackage,
+			SourceID:                 strings.TrimSpace(subscription.PackageID),
+			SourceName:               strings.TrimSpace(subscription.PackageName),
+			UserID:                   strings.TrimSpace(subscription.UserID),
+			RequestCount:             req.RequestAmount,
+			MaxConcurrencyPerUser:    subscription.MaxConcurrencyPerUser,
+			MaxConcurrencyPerPackage: subscription.MaxConcurrencyPerPackage,
+		})
+		if err != nil {
+			return err
 		}
-		if subscription.MaxConcurrencyPerPackage > 0 {
-			totalReserved, err := sumReservedRequestPackageByPackageWithDB(tx, subscription.PackageID, subscription.PeriodType, periodKey)
-			if err != nil {
-				return err
-			}
-			if totalReserved+req.RequestAmount > int64(subscription.MaxConcurrencyPerPackage) {
+		if !concurrencyResult.Allowed {
+			switch concurrencyResult.Reason {
+			case EntitlementConcurrencyReasonPerUserExceeded:
+				result.Reason = "request_concurrency_per_user_exceeded"
+			case EntitlementConcurrencyReasonPerSourceExceeded:
 				result.Reason = "request_concurrency_per_package_exceeded"
-				return nil
 			}
+			return nil
 		}
 		updatedAt := helper.GetTimestamp()
 		if err := tx.Model(&UserPackageUsageCounter{}).
@@ -388,6 +382,7 @@ func reserveRequestPackageSubscriptionWithDB(db *gorm.DB, subscription UserPacka
 		}
 		result.Allowed = true
 		result.Reason = ""
+		result.Concurrency = concurrencyResult.Reservation
 		result.Remaining = limit - counter.ConsumedAmount - counter.ReservedAmount - req.RequestAmount
 		if result.Remaining < 0 {
 			result.Remaining = 0
@@ -407,6 +402,7 @@ func reserveRequestPackageSubscriptionWithDB(db *gorm.DB, subscription UserPacka
 			PeriodKey:      strings.TrimSpace(periodKey),
 			ReservedAmount: req.RequestAmount,
 			LimitAmount:    limit,
+			Concurrency:    concurrencyResult.Reservation,
 		}
 		return nil
 	})
@@ -424,12 +420,17 @@ func ReleaseRequestPackageReservationWithDB(db *gorm.DB, reservation RequestPack
 	if !reservation.Active() {
 		return nil
 	}
-	return db.Model(&UserPackageUsageCounter{}).
-		Where("id = ?", strings.TrimSpace(reservation.CounterID)).
-		Updates(map[string]any{
-			"reserved_amount": gorm.Expr("CASE WHEN reserved_amount >= ? THEN reserved_amount - ? ELSE 0 END", reservation.ReservedAmount, reservation.ReservedAmount),
-			"updated_at":      helper.GetTimestamp(),
-		}).Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&UserPackageUsageCounter{}).
+			Where("id = ?", strings.TrimSpace(reservation.CounterID)).
+			Updates(map[string]any{
+				"reserved_amount": gorm.Expr("CASE WHEN reserved_amount >= ? THEN reserved_amount - ? ELSE 0 END", reservation.ReservedAmount, reservation.ReservedAmount),
+				"updated_at":      helper.GetTimestamp(),
+			}).Error; err != nil {
+			return err
+		}
+		return ReleaseEntitlementConcurrencyReservationWithDB(tx, reservation.Concurrency)
+	})
 }
 
 func ReleaseRequestPackageReservation(reservation RequestPackageReservation) error {
@@ -472,6 +473,9 @@ func SettleRequestPackageReservationWithDB(db *gorm.DB, reservation RequestPacka
 				"updated_at":      helper.GetTimestamp(),
 			}).Error
 	})
+	if err == nil {
+		err = ReleaseEntitlementConcurrencyReservationWithDB(db, reservation.Concurrency)
+	}
 	return settled, err
 }
 

@@ -1588,6 +1588,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return migrateServicePackageScopeAndUsageCountersWithDB(tx)
 			},
 		},
+		{
+			Version:     "202606281130_entitlement_concurrency_counters",
+			Description: "add shared entitlement concurrency counters and topup concurrency fields",
+			Up: func(tx *gorm.DB) error {
+				return migrateEntitlementConcurrencyWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -1603,6 +1610,51 @@ func migrateServicePackageScopeAndUsageCountersWithDB(db *gorm.DB) error {
 		return err
 	}
 	return backfillUserPackageSubscriptionScopeFieldsWithDB(db)
+}
+
+func migrateEntitlementConcurrencyWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if err := db.AutoMigrate(&TopupPlan{}, &TopupOrder{}, &EntitlementConcurrencyCounter{}); err != nil {
+		return err
+	}
+	if err := db.Exec(`
+		UPDATE topup_plans
+		SET
+			max_concurrency_per_user = CASE
+				WHEN COALESCE(max_concurrency_per_user, 0) < 0 THEN 0
+				ELSE COALESCE(max_concurrency_per_user, 0)
+			END,
+			max_concurrency_per_package = CASE
+				WHEN COALESCE(max_concurrency_per_package, 0) < 0 THEN 0
+				ELSE COALESCE(max_concurrency_per_package, 0)
+			END
+	`).Error; err != nil {
+		return err
+	}
+	return db.Exec(`
+		UPDATE topup_orders AS o
+		SET
+			group_id = CASE
+				WHEN COALESCE(TRIM(o.group_id), '') = '' THEN COALESCE(NULLIF(TRIM(p.group_id), ''), '')
+				ELSE o.group_id
+			END,
+			max_concurrency_per_user = CASE
+				WHEN COALESCE(o.max_concurrency_per_user, 0) = 0 AND COALESCE(p.max_concurrency_per_user, 0) < 0 THEN 0
+				WHEN COALESCE(o.max_concurrency_per_user, 0) = 0 THEN COALESCE(p.max_concurrency_per_user, 0)
+				WHEN o.max_concurrency_per_user < 0 THEN 0
+				ELSE o.max_concurrency_per_user
+			END,
+			max_concurrency_per_package = CASE
+				WHEN COALESCE(o.max_concurrency_per_package, 0) = 0 AND COALESCE(p.max_concurrency_per_package, 0) < 0 THEN 0
+				WHEN COALESCE(o.max_concurrency_per_package, 0) = 0 THEN COALESCE(p.max_concurrency_per_package, 0)
+				WHEN o.max_concurrency_per_package < 0 THEN 0
+				ELSE o.max_concurrency_per_package
+			END
+		FROM topup_plans p
+		WHERE p.id = o.topup_plan_id
+	`).Error
 }
 
 func backfillServicePackageScopeFieldsWithDB(db *gorm.DB) error {

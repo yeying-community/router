@@ -21,6 +21,7 @@ func newServicePackageScopeTestDB(t *testing.T) *gorm.DB {
 		&ServicePackageVisibleUser{},
 		&UserPackageSubscription{},
 		&UserPackageUsageCounter{},
+		&EntitlementConcurrencyCounter{},
 	); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}

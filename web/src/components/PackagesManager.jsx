@@ -702,8 +702,8 @@ const PackagesManager = () => {
         ? normalizeServicePackagePeriodType(form.period_type)
         : SERVICE_PACKAGE_PERIOD_DAILY,
       period_limit: requestQuota ? periodLimit : 0,
-      max_concurrency_per_user: requestQuota ? maxConcurrencyPerUser : 0,
-      max_concurrency_per_package: requestQuota ? maxConcurrencyPerPackage : 0,
+      max_concurrency_per_user: maxConcurrencyPerUser,
+      max_concurrency_per_package: maxConcurrencyPerPackage,
       allow_balance_fallback: requestQuota
         ? Boolean(form.allow_balance_fallback)
         : true,
@@ -1216,41 +1216,6 @@ const PackagesManager = () => {
           </AppFormRow>
 
           <AppFormRow className='router-modal-form-row'>
-            <AppField label={t('package_manage.form.max_concurrency_per_user')}>
-              <AppInputNumber
-                className='router-section-input'
-                min={0}
-                step={1}
-                precision={0}
-                fluid
-                value={form.max_concurrency_per_user}
-                onChange={(e, { value }) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    max_concurrency_per_user: value ?? 0,
-                  }))
-                }
-              />
-            </AppField>
-            <AppField label={t('package_manage.form.max_concurrency_per_package')}>
-              <AppInputNumber
-                className='router-section-input'
-                min={0}
-                step={1}
-                precision={0}
-                fluid
-                value={form.max_concurrency_per_package}
-                onChange={(e, { value }) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    max_concurrency_per_package: value ?? 0,
-                  }))
-                }
-              />
-            </AppField>
-          </AppFormRow>
-
-          <AppFormRow className='router-modal-form-row'>
             <AppField label={t('package_manage.form.allow_balance_fallback')}>
               <AppSwitch
                 checked={Boolean(form.allow_balance_fallback)}
@@ -1345,6 +1310,41 @@ const PackagesManager = () => {
           </AppField>
         </AppFormRow>
       )}
+
+      <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('package_manage.form.max_concurrency_per_user')}>
+          <AppInputNumber
+            className='router-section-input'
+            min={0}
+            step={1}
+            precision={0}
+            fluid
+            value={form.max_concurrency_per_user}
+            onChange={(e, { value }) =>
+              setForm((prev) => ({
+                ...prev,
+                max_concurrency_per_user: value ?? 0,
+              }))
+            }
+          />
+        </AppField>
+        <AppField label={t('package_manage.form.max_concurrency_per_package')}>
+          <AppInputNumber
+            className='router-section-input'
+            min={0}
+            step={1}
+            precision={0}
+            fluid
+            value={form.max_concurrency_per_package}
+            onChange={(e, { value }) =>
+              setForm((prev) => ({
+                ...prev,
+                max_concurrency_per_package: value ?? 0,
+              }))
+            }
+          />
+        </AppField>
+      </AppFormRow>
 
       <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.duration_days')}>

@@ -40,34 +40,37 @@ const (
 )
 
 type TopupOrder struct {
-	Id              string  `json:"id" gorm:"type:char(36);primaryKey"`
-	UserID          string  `json:"user_id" gorm:"type:char(36);index"`
-	Username        string  `json:"username" gorm:"type:varchar(255);default:'';index"`
-	Status          string  `json:"status" gorm:"type:varchar(32);default:'created';index"`
-	Source          string  `json:"source" gorm:"type:varchar(64);default:'top_up_link';index"`
-	ProviderName    string  `json:"provider_name" gorm:"type:varchar(128);default:''"`
-	ProviderOrderID string  `json:"provider_order_id" gorm:"type:varchar(255);default:'';index"`
-	TransactionID   string  `json:"transaction_id" gorm:"type:varchar(64);uniqueIndex"`
-	BusinessType    string  `json:"business_type" gorm:"type:varchar(32);default:'balance_topup';index"`
-	OperationType   string  `json:"operation_type" gorm:"type:varchar(32);default:'';index"`
-	Title           string  `json:"title" gorm:"type:varchar(255);default:''"`
-	Amount          float64 `json:"amount" gorm:"type:decimal(10,2);default:0"`
-	Currency        string  `json:"currency" gorm:"type:varchar(16);default:'CNY'"`
-	Quota           int64   `json:"quota" gorm:"type:bigint;default:0"`
-	TopupPlanID     string  `json:"topup_plan_id" gorm:"type:char(36);default:'';index"`
-	ValidityDays    int     `json:"validity_days" gorm:"type:int;not null;default:0"`
-	CreditExpiresAt int64   `json:"credit_expires_at" gorm:"bigint;not null;default:0;index"`
-	PackageID       string  `json:"package_id" gorm:"type:char(36);default:'';index"`
-	PackageName     string  `json:"package_name" gorm:"type:varchar(255);default:''"`
-	ClientType      string  `json:"client_type" gorm:"-"`
-	CallbackURL     string  `json:"callback_url" gorm:"type:text;default:''"`
-	ReturnURL       string  `json:"return_url" gorm:"type:text;default:''"`
-	StatusMessage   string  `json:"status_message" gorm:"type:text;default:''"`
-	RedirectURL     string  `json:"redirect_url" gorm:"type:text;default:''"`
-	PaidAt          int64   `json:"paid_at" gorm:"bigint;index"`
-	RedeemedAt      int64   `json:"redeemed_at" gorm:"bigint;index"`
-	CreatedAt       int64   `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt       int64   `json:"updated_at" gorm:"bigint;index"`
+	Id                       string  `json:"id" gorm:"type:char(36);primaryKey"`
+	UserID                   string  `json:"user_id" gorm:"type:char(36);index"`
+	Username                 string  `json:"username" gorm:"type:varchar(255);default:'';index"`
+	Status                   string  `json:"status" gorm:"type:varchar(32);default:'created';index"`
+	Source                   string  `json:"source" gorm:"type:varchar(64);default:'top_up_link';index"`
+	ProviderName             string  `json:"provider_name" gorm:"type:varchar(128);default:''"`
+	ProviderOrderID          string  `json:"provider_order_id" gorm:"type:varchar(255);default:'';index"`
+	TransactionID            string  `json:"transaction_id" gorm:"type:varchar(64);uniqueIndex"`
+	BusinessType             string  `json:"business_type" gorm:"type:varchar(32);default:'balance_topup';index"`
+	OperationType            string  `json:"operation_type" gorm:"type:varchar(32);default:'';index"`
+	Title                    string  `json:"title" gorm:"type:varchar(255);default:''"`
+	Amount                   float64 `json:"amount" gorm:"type:decimal(10,2);default:0"`
+	Currency                 string  `json:"currency" gorm:"type:varchar(16);default:'CNY'"`
+	Quota                    int64   `json:"quota" gorm:"type:bigint;default:0"`
+	TopupPlanID              string  `json:"topup_plan_id" gorm:"type:char(36);default:'';index"`
+	GroupID                  string  `json:"group_id" gorm:"type:char(36);default:'';index"`
+	ValidityDays             int     `json:"validity_days" gorm:"type:int;not null;default:0"`
+	CreditExpiresAt          int64   `json:"credit_expires_at" gorm:"bigint;not null;default:0;index"`
+	MaxConcurrencyPerUser    int     `json:"max_concurrency_per_user" gorm:"type:int;not null;default:0"`
+	MaxConcurrencyPerPackage int     `json:"max_concurrency_per_package" gorm:"type:int;not null;default:0"`
+	PackageID                string  `json:"package_id" gorm:"type:char(36);default:'';index"`
+	PackageName              string  `json:"package_name" gorm:"type:varchar(255);default:''"`
+	ClientType               string  `json:"client_type" gorm:"-"`
+	CallbackURL              string  `json:"callback_url" gorm:"type:text;default:''"`
+	ReturnURL                string  `json:"return_url" gorm:"type:text;default:''"`
+	StatusMessage            string  `json:"status_message" gorm:"type:text;default:''"`
+	RedirectURL              string  `json:"redirect_url" gorm:"type:text;default:''"`
+	PaidAt                   int64   `json:"paid_at" gorm:"bigint;index"`
+	RedeemedAt               int64   `json:"redeemed_at" gorm:"bigint;index"`
+	CreatedAt                int64   `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt                int64   `json:"updated_at" gorm:"bigint;index"`
 }
 
 type CreateTopupOrderInput struct {
@@ -137,10 +140,13 @@ func normalizeTopupOrderRow(row *TopupOrder) {
 	row.Currency = normalizeTopupOrderCurrency(row.Currency)
 	row.Quota = normalizeTopupOrderQuota(row.Quota)
 	row.TopupPlanID = strings.TrimSpace(row.TopupPlanID)
+	row.GroupID = strings.TrimSpace(row.GroupID)
 	row.ValidityDays = normalizeTopupPlanValidityDays(row.ValidityDays)
 	if row.CreditExpiresAt < 0 {
 		row.CreditExpiresAt = 0
 	}
+	row.MaxConcurrencyPerUser = normalizeServicePackageConcurrencyLimit(row.MaxConcurrencyPerUser)
+	row.MaxConcurrencyPerPackage = normalizeServicePackageConcurrencyLimit(row.MaxConcurrencyPerPackage)
 	row.PackageID = strings.TrimSpace(row.PackageID)
 	row.PackageName = strings.TrimSpace(row.PackageName)
 	row.ClientType = strings.TrimSpace(strings.ToLower(row.ClientType))
@@ -769,10 +775,13 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 				return TopupOrder{}, err
 			}
 			order.TopupPlanID = strings.TrimSpace(resolvedPlan.Id)
+			order.GroupID = strings.TrimSpace(resolvedPlan.GroupID)
 			order.Amount = normalizeTopupOrderAmount(resolvedPlan.Amount)
 			order.Currency = normalizeTopupOrderCurrency(resolvedPlan.AmountCurrency)
 			order.Quota = normalizeTopupOrderQuota(resolvedPlan.ChargeAmount)
 			order.ValidityDays = normalizeTopupPlanValidityDays(resolvedPlan.ValidityDays)
+			order.MaxConcurrencyPerUser = resolvedPlan.MaxConcurrencyPerUser
+			order.MaxConcurrencyPerPackage = resolvedPlan.MaxConcurrencyPerPackage
 			if strings.TrimSpace(input.Title) != "" {
 				order.Title = strings.TrimSpace(input.Title)
 			} else {
@@ -780,6 +789,7 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 			}
 		} else {
 			order.TopupPlanID = ""
+			order.GroupID = ""
 			order.Currency = BillingCurrencyCodeCNY
 			if order.Amount <= 0 {
 				return TopupOrder{}, fmt.Errorf("充值金额必须大于 0")
@@ -1345,25 +1355,28 @@ func GrantTopupPlanToUserWithDB(db *gorm.DB, userID string, username string, pla
 			return err
 		}
 		order := TopupOrder{
-			Id:            random.GetUUID(),
-			UserID:        normalizedUserID,
-			Username:      normalizedUsername,
-			Status:        TopupOrderStatusFulfilled,
-			Source:        TopupOrderSourceTopUpAPI,
-			ProviderName:  "admin",
-			TransactionID: random.GetUUID(),
-			BusinessType:  TopupOrderBusinessBalance,
-			OperationType: TopupOrderOperationTopup,
-			Title:         buildTopupOrderPlanTitle(resolvedPlan),
-			Amount:        normalizeTopupOrderAmount(resolvedPlan.Amount),
-			Currency:      normalizeTopupOrderCurrency(resolvedPlan.AmountCurrency),
-			Quota:         normalizeTopupOrderQuota(resolvedPlan.ChargeAmount),
-			TopupPlanID:   strings.TrimSpace(resolvedPlan.Id),
-			ValidityDays:  normalizeTopupPlanValidityDays(resolvedPlan.ValidityDays),
-			PaidAt:        now,
-			RedeemedAt:    now,
-			CreatedAt:     now,
-			UpdatedAt:     now,
+			Id:                       random.GetUUID(),
+			UserID:                   normalizedUserID,
+			Username:                 normalizedUsername,
+			Status:                   TopupOrderStatusFulfilled,
+			Source:                   TopupOrderSourceTopUpAPI,
+			ProviderName:             "admin",
+			TransactionID:            random.GetUUID(),
+			BusinessType:             TopupOrderBusinessBalance,
+			OperationType:            TopupOrderOperationTopup,
+			Title:                    buildTopupOrderPlanTitle(resolvedPlan),
+			Amount:                   normalizeTopupOrderAmount(resolvedPlan.Amount),
+			Currency:                 normalizeTopupOrderCurrency(resolvedPlan.AmountCurrency),
+			Quota:                    normalizeTopupOrderQuota(resolvedPlan.ChargeAmount),
+			TopupPlanID:              strings.TrimSpace(resolvedPlan.Id),
+			GroupID:                  strings.TrimSpace(resolvedPlan.GroupID),
+			ValidityDays:             normalizeTopupPlanValidityDays(resolvedPlan.ValidityDays),
+			MaxConcurrencyPerUser:    resolvedPlan.MaxConcurrencyPerUser,
+			MaxConcurrencyPerPackage: resolvedPlan.MaxConcurrencyPerPackage,
+			PaidAt:                   now,
+			RedeemedAt:               now,
+			CreatedAt:                now,
+			UpdatedAt:                now,
 		}
 		if order.Quota <= 0 {
 			return fmt.Errorf("充值额度不能为空")

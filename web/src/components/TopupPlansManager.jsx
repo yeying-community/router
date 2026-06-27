@@ -38,6 +38,8 @@ const createEmptyPlan = () => ({
   quota_amount: 0,
   quota_currency: 'USD',
   validity_days: 0,
+  max_concurrency_per_user: 0,
+  max_concurrency_per_package: 0,
   enabled: true,
   public_visible: true,
 });
@@ -286,6 +288,8 @@ const TopupPlansManager = () => {
       quota_amount: Number(row?.quota_amount || 0),
       quota_currency: row?.quota_currency || 'USD',
       validity_days: Number(row?.validity_days || 0),
+      max_concurrency_per_user: Number(row?.max_concurrency_per_user || 0),
+      max_concurrency_per_package: Number(row?.max_concurrency_per_package || 0),
       enabled: Boolean(row?.enabled),
       public_visible: row?.public_visible !== false,
     });
@@ -304,6 +308,8 @@ const TopupPlansManager = () => {
         quota_amount: Number(form.quota_amount || 0),
         quota_currency: form.quota_currency || 'USD',
         validity_days: Number(form.validity_days || 0),
+        max_concurrency_per_user: Number(form.max_concurrency_per_user || 0),
+        max_concurrency_per_package: Number(form.max_concurrency_per_package || 0),
         enabled: Boolean(form.enabled),
         public_visible: Boolean(form.public_visible),
         sort_order: Number(activeRow?.sort_order || 0),
@@ -375,6 +381,8 @@ const TopupPlansManager = () => {
         quota_amount: Number(row?.quota_amount || 0),
         quota_currency: row?.quota_currency || 'USD',
         validity_days: Number(row?.validity_days || 0),
+        max_concurrency_per_user: Number(row?.max_concurrency_per_user || 0),
+        max_concurrency_per_package: Number(row?.max_concurrency_per_package || 0),
         enabled: Boolean(row?.enabled),
         public_visible: Boolean(checked),
         sort_order: Number(row?.sort_order || 0),
@@ -412,6 +420,8 @@ const TopupPlansManager = () => {
         quota_amount: Number(row?.quota_amount || 0),
         quota_currency: row?.quota_currency || 'USD',
         validity_days: Number(row?.validity_days || 0),
+        max_concurrency_per_user: Number(row?.max_concurrency_per_user || 0),
+        max_concurrency_per_package: Number(row?.max_concurrency_per_package || 0),
         enabled: Boolean(checked),
         public_visible: row?.public_visible !== false,
         sort_order: Number(row?.sort_order || 0),
@@ -744,6 +754,38 @@ const TopupPlansManager = () => {
                   setForm((current) => ({
                     ...current,
                     validity_days: Number(value || 0),
+                  }))
+                }
+              />
+            </AppField>
+          </AppFormRow>
+          <AppFormRow className='router-topup-plan-form-row'>
+            <AppField label={t('package_manage.form.max_concurrency_per_user')}>
+              <AppInputNumber
+                min={0}
+                step={1}
+                precision={0}
+                fluid
+                value={form.max_concurrency_per_user}
+                onChange={(_, { value }) =>
+                  setForm((current) => ({
+                    ...current,
+                    max_concurrency_per_user: Number(value || 0),
+                  }))
+                }
+              />
+            </AppField>
+            <AppField label={t('package_manage.form.max_concurrency_per_package')}>
+              <AppInputNumber
+                min={0}
+                step={1}
+                precision={0}
+                fluid
+                value={form.max_concurrency_per_package}
+                onChange={(_, { value }) =>
+                  setForm((current) => ({
+                    ...current,
+                    max_concurrency_per_package: Number(value || 0),
                   }))
                 }
               />

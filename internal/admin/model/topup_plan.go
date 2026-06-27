@@ -18,20 +18,22 @@ const (
 )
 
 type TopupPlan struct {
-	Id             string  `json:"id" gorm:"primaryKey;type:char(36)"`
-	Name           string  `json:"name" gorm:"type:varchar(64);not null"`
-	GroupID        string  `json:"group_id" gorm:"type:char(36);not null;index"`
-	Amount         float64 `json:"amount" gorm:"type:decimal(10,2);not null;default:0"`
-	AmountCurrency string  `json:"amount_currency" gorm:"type:varchar(16);not null;default:'CNY'"`
-	QuotaAmount    float64 `json:"quota_amount" gorm:"type:numeric(18,6);not null;default:0"`
-	QuotaCurrency  string  `json:"quota_currency" gorm:"type:varchar(16);not null;default:'USD'"`
-	ValidityDays   int     `json:"validity_days" gorm:"type:int;not null;default:0"`
-	Enabled        bool    `json:"enabled" gorm:"index"`
-	PublicVisible  bool    `json:"public_visible" gorm:"not null;index"`
-	SortOrder      int     `json:"sort_order" gorm:"default:0;index"`
-	CreatedAt      int64   `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt      int64   `json:"updated_at" gorm:"bigint;index"`
-	GroupName      string  `json:"group_name,omitempty" gorm:"-"`
+	Id                       string  `json:"id" gorm:"primaryKey;type:char(36)"`
+	Name                     string  `json:"name" gorm:"type:varchar(64);not null"`
+	GroupID                  string  `json:"group_id" gorm:"type:char(36);not null;index"`
+	Amount                   float64 `json:"amount" gorm:"type:decimal(10,2);not null;default:0"`
+	AmountCurrency           string  `json:"amount_currency" gorm:"type:varchar(16);not null;default:'CNY'"`
+	QuotaAmount              float64 `json:"quota_amount" gorm:"type:numeric(18,6);not null;default:0"`
+	QuotaCurrency            string  `json:"quota_currency" gorm:"type:varchar(16);not null;default:'USD'"`
+	ValidityDays             int     `json:"validity_days" gorm:"type:int;not null;default:0"`
+	MaxConcurrencyPerUser    int     `json:"max_concurrency_per_user" gorm:"type:int;not null;default:0"`
+	MaxConcurrencyPerPackage int     `json:"max_concurrency_per_package" gorm:"type:int;not null;default:0"`
+	Enabled                  bool    `json:"enabled" gorm:"index"`
+	PublicVisible            bool    `json:"public_visible" gorm:"not null;index"`
+	SortOrder                int     `json:"sort_order" gorm:"default:0;index"`
+	CreatedAt                int64   `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt                int64   `json:"updated_at" gorm:"bigint;index"`
+	GroupName                string  `json:"group_name,omitempty" gorm:"-"`
 }
 
 type ResolvedTopupPlan struct {
@@ -199,6 +201,8 @@ func normalizeTopupPlanRowWithDB(db *gorm.DB, row *TopupPlan) error {
 	row.QuotaAmount = normalizeTopupPlanQuotaAmount(row.QuotaAmount)
 	row.QuotaCurrency = normalizeBillingCurrencyCode(row.QuotaCurrency)
 	row.ValidityDays = normalizeTopupPlanValidityDays(row.ValidityDays)
+	row.MaxConcurrencyPerUser = normalizeServicePackageConcurrencyLimit(row.MaxConcurrencyPerUser)
+	row.MaxConcurrencyPerPackage = normalizeServicePackageConcurrencyLimit(row.MaxConcurrencyPerPackage)
 	row.SortOrder = max(row.SortOrder, 0)
 	groupID, err := resolveTopupPlanGroupWithDB(db, row.GroupID)
 	if err != nil {
