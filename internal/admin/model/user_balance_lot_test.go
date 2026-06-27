@@ -78,6 +78,75 @@ func TestEnsureUserBalanceLotAmountColumnsBackfillsLegacyYYCColumns(t *testing.T
 	}
 }
 
+func TestEnsureUserBalanceLotTransactionAmountColumnsBackfillsLegacyYYCColumn(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.Exec(`
+		CREATE TABLE user_balance_lot_transactions (
+			id char(36) PRIMARY KEY,
+			user_id char(36) NOT NULL,
+			lot_id char(36) NOT NULL,
+			source_type varchar(32) NOT NULL,
+			source_id char(36) NOT NULL,
+			tx_type varchar(16) NOT NULL,
+			delta_yyc bigint NOT NULL DEFAULT 0,
+			lot_remaining_before bigint NOT NULL DEFAULT 0,
+			lot_remaining_after bigint NOT NULL DEFAULT 0,
+			occurred_at bigint NOT NULL DEFAULT 0,
+			created_at bigint,
+			updated_at bigint
+		)
+	`).Error; err != nil {
+		t.Fatalf("create legacy transaction table: %v", err)
+	}
+	if err := db.Exec(`
+		INSERT INTO user_balance_lot_transactions (
+			id, user_id, lot_id, source_type, source_id, tx_type, delta_yyc,
+			lot_remaining_before, lot_remaining_after, occurred_at
+		) VALUES (
+			'tx-1', 'user-1', 'lot-1', 'redemption', 'source-1', 'credit', 1000,
+			0, 1000, 1776073942
+		)
+	`).Error; err != nil {
+		t.Fatalf("insert legacy transaction row: %v", err)
+	}
+
+	if err := ensureUserBalanceLotTransactionAmountColumnsWithDB(db); err != nil {
+		t.Fatalf("ensure transaction columns: %v", err)
+	}
+	if !db.Migrator().HasColumn(UserBalanceLotTransactionsTableName, "delta_amount") {
+		t.Fatalf("expected delta_amount column to exist")
+	}
+
+	row := UserBalanceLotTransaction{}
+	if err := db.First(&row, "id = ?", "tx-1").Error; err != nil {
+		t.Fatalf("load migrated transaction row: %v", err)
+	}
+	if row.DeltaAmount != 1000 {
+		t.Fatalf("DeltaAmount=%d, want 1000", row.DeltaAmount)
+	}
+
+	created, err := CreateUserBalanceLotTransactionWithDB(db, UserBalanceLotTransactionInput{
+		UserID:             "user-1",
+		LotID:              "lot-1",
+		SourceType:         UserBalanceLotSourceRedeem,
+		SourceID:           "source-2",
+		TxType:             UserBalanceLotTxTypeCredit,
+		DeltaAmount:        2000,
+		LotRemainingBefore: 1000,
+		LotRemainingAfter:  3000,
+		OccurredAt:         1776073943,
+	})
+	if err != nil {
+		t.Fatalf("create transaction with migrated schema: %v", err)
+	}
+	if created.DeltaAmount != 2000 {
+		t.Fatalf("created DeltaAmount=%d, want 2000", created.DeltaAmount)
+	}
+}
+
 func TestListUserBalanceLotsPageWithDBAllowsAllHistoricalStatuses(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
 	if err != nil {

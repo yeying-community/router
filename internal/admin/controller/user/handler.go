@@ -41,24 +41,49 @@ type LoginRequest struct {
 }
 
 type activeUserPackageSubscriptionView struct {
-	Id                         string `json:"id"`
-	UserID                     string `json:"user_id"`
-	PackageID                  string `json:"package_id"`
-	PackageName                string `json:"package_name"`
-	GroupID                    string `json:"group_id"`
-	GroupName                  string `json:"group_name,omitempty"`
-	DailyQuotaLimit            int64  `json:"daily_quota_limit"`
-	PackageEmergencyQuotaLimit int64  `json:"package_emergency_quota_limit"`
-	QuotaResetTimezone         string `json:"quota_reset_timezone"`
-	StartedAt                  int64  `json:"started_at"`
-	ExpiresAt                  int64  `json:"expires_at"`
-	Status                     int    `json:"status"`
-	Source                     string `json:"source,omitempty"`
+	Id                         string                      `json:"id"`
+	UserID                     string                      `json:"user_id"`
+	PackageID                  string                      `json:"package_id"`
+	PackageName                string                      `json:"package_name"`
+	GroupID                    string                      `json:"group_id"`
+	GroupName                  string                      `json:"group_name,omitempty"`
+	PackageType                string                      `json:"package_type"`
+	ScopeType                  string                      `json:"scope_type"`
+	ScopeProvider              string                      `json:"scope_provider"`
+	ScopeModel                 string                      `json:"scope_model"`
+	ScopeEndpoint              string                      `json:"scope_endpoint"`
+	QuotaMetric                string                      `json:"quota_metric"`
+	PeriodType                 string                      `json:"period_type"`
+	PeriodLimit                int64                       `json:"period_limit"`
+	MaxConcurrencyPerUser      int                         `json:"max_concurrency_per_user"`
+	MaxConcurrencyPerPackage   int                         `json:"max_concurrency_per_package"`
+	AllowBalanceFallback       bool                        `json:"allow_balance_fallback"`
+	DailyQuotaLimit            int64                       `json:"daily_quota_limit"`
+	PackageEmergencyQuotaLimit int64                       `json:"package_emergency_quota_limit"`
+	QuotaResetTimezone         string                      `json:"quota_reset_timezone"`
+	StartedAt                  int64                       `json:"started_at"`
+	ExpiresAt                  int64                       `json:"expires_at"`
+	Status                     int                         `json:"status"`
+	Source                     string                      `json:"source,omitempty"`
+	Usage                      *activeUserPackageUsageView `json:"usage,omitempty"`
+}
+
+type activeUserPackageUsageView struct {
+	Metric          string `json:"metric"`
+	PeriodType      string `json:"period_type"`
+	PeriodKey       string `json:"period_key"`
+	LimitAmount     int64  `json:"limit_amount"`
+	ConsumedAmount  int64  `json:"consumed_amount"`
+	ReservedAmount  int64  `json:"reserved_amount"`
+	RemainingAmount int64  `json:"remaining_amount"`
+	Unlimited       bool   `json:"unlimited"`
+	UpdatedAt       int64  `json:"updated_at"`
 }
 
 type activeUserPackageSubscriptionPayload struct {
-	HasActiveSubscription bool                               `json:"has_active_subscription"`
-	Subscription          *activeUserPackageSubscriptionView `json:"subscription,omitempty"`
+	HasActiveSubscription bool                                 `json:"has_active_subscription"`
+	Subscription          *activeUserPackageSubscriptionView   `json:"subscription,omitempty"`
+	Subscriptions         []*activeUserPackageSubscriptionView `json:"subscriptions,omitempty"`
 }
 
 type userRecentRedemptionsPayload struct {
@@ -144,7 +169,21 @@ func requesterCanReadUser(c *gin.Context, targetUser *model.User) bool {
 	return c.GetInt(ctxkey.Role) >= model.EffectiveRole(targetUser)
 }
 
-func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscription) *activeUserPackageSubscriptionView {
+func buildActiveUserPackageUsageView(snapshot model.RequestPackageUsageSnapshot) *activeUserPackageUsageView {
+	return &activeUserPackageUsageView{
+		Metric:          strings.TrimSpace(snapshot.Metric),
+		PeriodType:      strings.TrimSpace(snapshot.PeriodType),
+		PeriodKey:       strings.TrimSpace(snapshot.PeriodKey),
+		LimitAmount:     snapshot.LimitAmount,
+		ConsumedAmount:  snapshot.ConsumedAmount,
+		ReservedAmount:  snapshot.ReservedAmount,
+		RemainingAmount: snapshot.RemainingAmount,
+		Unlimited:       snapshot.Unlimited,
+		UpdatedAt:       snapshot.UpdatedAt,
+	}
+}
+
+func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscription) (*activeUserPackageSubscriptionView, error) {
 	groupID := strings.TrimSpace(subscription.GroupID)
 	groupName := ""
 	if groupID != "" {
@@ -158,6 +197,14 @@ func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscr
 			source = strings.TrimSpace(servicePackage.Source)
 		}
 	}
+	var usage *activeUserPackageUsageView
+	if strings.TrimSpace(subscription.QuotaMetric) == model.ServicePackageQuotaMetricRequestCount {
+		snapshot, err := model.GetRequestPackageUsageSnapshot(subscription)
+		if err != nil {
+			return nil, err
+		}
+		usage = buildActiveUserPackageUsageView(snapshot)
+	}
 	return &activeUserPackageSubscriptionView{
 		Id:                         strings.TrimSpace(subscription.Id),
 		UserID:                     strings.TrimSpace(subscription.UserID),
@@ -165,6 +212,17 @@ func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscr
 		PackageName:                strings.TrimSpace(subscription.PackageName),
 		GroupID:                    groupID,
 		GroupName:                  groupName,
+		PackageType:                strings.TrimSpace(subscription.PackageType),
+		ScopeType:                  strings.TrimSpace(subscription.ScopeType),
+		ScopeProvider:              strings.TrimSpace(subscription.ScopeProvider),
+		ScopeModel:                 strings.TrimSpace(subscription.ScopeModel),
+		ScopeEndpoint:              strings.TrimSpace(subscription.ScopeEndpoint),
+		QuotaMetric:                strings.TrimSpace(subscription.QuotaMetric),
+		PeriodType:                 strings.TrimSpace(subscription.PeriodType),
+		PeriodLimit:                subscription.PeriodLimit,
+		MaxConcurrencyPerUser:      subscription.MaxConcurrencyPerUser,
+		MaxConcurrencyPerPackage:   subscription.MaxConcurrencyPerPackage,
+		AllowBalanceFallback:       subscription.AllowBalanceFallback,
 		DailyQuotaLimit:            subscription.DailyQuotaLimit,
 		PackageEmergencyQuotaLimit: subscription.PackageEmergencyQuotaLimit,
 		QuotaResetTimezone:         strings.TrimSpace(subscription.QuotaResetTimezone),
@@ -172,22 +230,48 @@ func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscr
 		ExpiresAt:                  subscription.ExpiresAt,
 		Status:                     subscription.Status,
 		Source:                     source,
+		Usage:                      usage,
+	}, nil
+}
+
+func selectPrimaryActiveUserPackageSubscriptionView(views []*activeUserPackageSubscriptionView) *activeUserPackageSubscriptionView {
+	for _, view := range views {
+		if view == nil {
+			continue
+		}
+		if strings.TrimSpace(view.PackageType) == model.ServicePackageTypeYYCQuota &&
+			strings.TrimSpace(view.QuotaMetric) == model.ServicePackageQuotaMetricYYC {
+			return view
+		}
 	}
+	if len(views) == 0 {
+		return nil
+	}
+	return views[0]
 }
 
 func loadActiveUserPackageSubscriptionPayload(userID string) (activeUserPackageSubscriptionPayload, error) {
-	subscription, err := model.GetActiveUserPackageSubscription(strings.TrimSpace(userID))
+	subscriptions, err := model.ListActiveUserPackageSubscriptions(strings.TrimSpace(userID))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return activeUserPackageSubscriptionPayload{
-				HasActiveSubscription: false,
-			}, nil
-		}
 		return activeUserPackageSubscriptionPayload{}, err
+	}
+	if len(subscriptions) == 0 {
+		return activeUserPackageSubscriptionPayload{
+			HasActiveSubscription: false,
+		}, nil
+	}
+	views := make([]*activeUserPackageSubscriptionView, 0, len(subscriptions))
+	for _, subscription := range subscriptions {
+		view, err := buildActiveUserPackageSubscriptionView(subscription)
+		if err != nil {
+			return activeUserPackageSubscriptionPayload{}, err
+		}
+		views = append(views, view)
 	}
 	return activeUserPackageSubscriptionPayload{
 		HasActiveSubscription: true,
-		Subscription:          buildActiveUserPackageSubscriptionView(subscription),
+		Subscription:          selectPrimaryActiveUserPackageSubscriptionView(views),
+		Subscriptions:         views,
 	}, nil
 }
 

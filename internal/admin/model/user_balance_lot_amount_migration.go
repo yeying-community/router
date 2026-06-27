@@ -50,3 +50,29 @@ func ensureUserBalanceLotAmountColumnsWithDB(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+func ensureUserBalanceLotTransactionAmountColumnsWithDB(tx *gorm.DB) error {
+	if tx == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if !tx.Migrator().HasTable(UserBalanceLotTransactionsTableName) {
+		return tx.AutoMigrate(&UserBalanceLotTransaction{})
+	}
+	amountColumns := []string{"DeltaAmount", "LotRemainingBefore", "LotRemainingAfter"}
+	for _, column := range amountColumns {
+		if tx.Migrator().HasColumn(&UserBalanceLotTransaction{}, column) {
+			continue
+		}
+		if err := tx.Migrator().AddColumn(&UserBalanceLotTransaction{}, column); err != nil {
+			return err
+		}
+	}
+	if tx.Migrator().HasColumn(UserBalanceLotTransactionsTableName, "delta_yyc") {
+		if err := tx.Exec(
+			"UPDATE user_balance_lot_transactions SET delta_amount = delta_yyc WHERE COALESCE(delta_amount, 0) = 0 AND COALESCE(delta_yyc, 0) <> 0",
+		).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}

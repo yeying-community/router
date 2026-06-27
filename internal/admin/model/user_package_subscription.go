@@ -26,6 +26,17 @@ type UserPackageSubscription struct {
 	PackageID                  string `json:"package_id" gorm:"type:char(36);not null;index"`
 	PackageName                string `json:"package_name" gorm:"type:varchar(64);not null;default:''"`
 	GroupID                    string `json:"group_id" gorm:"type:char(36);not null;index"`
+	PackageType                string `json:"package_type" gorm:"type:varchar(32);not null;default:'yyc_quota';index"`
+	ScopeType                  string `json:"scope_type" gorm:"type:varchar(32);not null;default:'all';index"`
+	ScopeProvider              string `json:"scope_provider" gorm:"type:varchar(64);not null;default:'';index"`
+	ScopeModel                 string `json:"scope_model" gorm:"type:varchar(191);not null;default:'';index"`
+	ScopeEndpoint              string `json:"scope_endpoint" gorm:"type:varchar(191);not null;default:''"`
+	QuotaMetric                string `json:"quota_metric" gorm:"type:varchar(32);not null;default:'yyc';index"`
+	PeriodType                 string `json:"period_type" gorm:"type:varchar(32);not null;default:'daily';index"`
+	PeriodLimit                int64  `json:"period_limit" gorm:"type:bigint;not null;default:0"`
+	MaxConcurrencyPerUser      int    `json:"max_concurrency_per_user" gorm:"type:int;not null;default:0"`
+	MaxConcurrencyPerPackage   int    `json:"max_concurrency_per_package" gorm:"type:int;not null;default:0"`
+	AllowBalanceFallback       bool   `json:"allow_balance_fallback" gorm:"not null;default:false"`
 	DailyQuotaLimit            int64  `json:"daily_quota_limit" gorm:"type:bigint;not null;default:0"`
 	PackageEmergencyQuotaLimit int64  `json:"package_emergency_quota_limit" gorm:"column:package_emergency_quota_limit;type:bigint;not null;default:0"`
 	QuotaResetTimezone         string `json:"quota_reset_timezone" gorm:"type:varchar(64);not null;default:'Asia/Shanghai'"`
@@ -79,22 +90,7 @@ func syncUserPackageSubscriptionsWithDB(db *gorm.DB, userID string, now int64) e
 		if err := markExpiredUserPackageSubscriptionsWithDB(tx, normalizedUserID, effectiveNow); err != nil {
 			return err
 		}
-		activeCount := int64(0)
-		if err := tx.Model(&UserPackageSubscription{}).
-			Where("user_id = ? AND status = ? AND started_at <= ? AND (expires_at = 0 OR expires_at > ?)",
-				normalizedUserID,
-				UserPackageSubscriptionStatusActive,
-				effectiveNow,
-				effectiveNow,
-			).
-			Count(&activeCount).Error; err != nil {
-			return err
-		}
-		if activeCount > 0 {
-			return nil
-		}
-
-		pending := UserPackageSubscription{}
+		pendingRows := make([]UserPackageSubscription, 0)
 		if err := tx.
 			Where("user_id = ? AND status = ? AND started_at <= ?",
 				normalizedUserID,
@@ -102,27 +98,55 @@ func syncUserPackageSubscriptionsWithDB(db *gorm.DB, userID string, now int64) e
 				effectiveNow,
 			).
 			Order("started_at asc, updated_at desc, id desc").
-			First(&pending).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil
+			Find(&pendingRows).Error; err != nil {
+			return err
+		}
+		for _, pending := range pendingRows {
+			normalizeServicePackageSubscriptionScopeAndQuota(&pending)
+			activeCount := int64(0)
+			query := tx.Model(&UserPackageSubscription{}).
+				Where("user_id = ? AND status = ? AND started_at <= ? AND (expires_at = 0 OR expires_at > ?)",
+					normalizedUserID,
+					UserPackageSubscriptionStatusActive,
+					effectiveNow,
+					effectiveNow,
+				)
+			query = applyUserPackageSubscriptionScopeIdentityFilter(query, pending)
+			if err := query.Count(&activeCount).Error; err != nil {
+				return err
 			}
-			return err
+			if activeCount > 0 {
+				continue
+			}
+			if err := tx.Model(&UserPackageSubscription{}).
+				Where("id = ?", strings.TrimSpace(pending.Id)).
+				Updates(map[string]any{
+					"status":     UserPackageSubscriptionStatusActive,
+					"updated_at": effectiveNow,
+				}).Error; err != nil {
+				return err
+			}
+			if err := syncUserFieldsForActivePackageSubscriptionWithDB(tx, normalizedUserID, pending); err != nil {
+				return err
+			}
 		}
-
-		if err := tx.Model(&UserPackageSubscription{}).
-			Where("id = ?", strings.TrimSpace(pending.Id)).
-			Updates(map[string]any{
-				"status":     UserPackageSubscriptionStatusActive,
-				"updated_at": effectiveNow,
-			}).Error; err != nil {
-			return err
-		}
-
-		return tx.Model(&User{}).Where("id = ?", normalizedUserID).Updates(map[string]any{
-			"group":                strings.TrimSpace(pending.GroupID),
-			"quota_reset_timezone": normalizeUserQuotaResetTimezone(pending.QuotaResetTimezone),
-		}).Error
+		return nil
 	})
+}
+
+func applyUserPackageSubscriptionScopeIdentityFilter(query *gorm.DB, subscription UserPackageSubscription) *gorm.DB {
+	normalizeServicePackageSubscriptionScopeAndQuota(&subscription)
+	return query.
+		Where("package_type = ?", strings.TrimSpace(subscription.PackageType)).
+		Where("quota_metric = ?", strings.TrimSpace(subscription.QuotaMetric)).
+		Where("COALESCE(group_id, '') = ?", strings.TrimSpace(subscription.GroupID))
+}
+
+func syncUserFieldsForActivePackageSubscriptionWithDB(tx *gorm.DB, userID string, subscription UserPackageSubscription) error {
+	return tx.Model(&User{}).Where("id = ?", strings.TrimSpace(userID)).Updates(map[string]any{
+		"group":                strings.TrimSpace(subscription.GroupID),
+		"quota_reset_timezone": normalizeUserQuotaResetTimezone(subscription.QuotaResetTimezone),
+	}).Error
 }
 
 func getActiveUserPackageSubscriptionWithDB(db *gorm.DB, userID string) (UserPackageSubscription, error) {
@@ -165,6 +189,86 @@ func getActiveUserPackageSubscriptionForGroupWithDB(db *gorm.DB, userID string, 
 	}
 	row := UserPackageSubscription{}
 	err := db.Where("user_id = ? AND group_id = ? AND status = ? AND started_at <= ? AND (expires_at = 0 OR expires_at > ?)", normalizedUserID, normalizedGroupID, UserPackageSubscriptionStatusActive, now, now).
+		Order("updated_at desc").
+		First(&row).Error
+	if err != nil {
+		return UserPackageSubscription{}, err
+	}
+	return row, nil
+}
+
+func getActiveUserPackageSubscriptionForPackageGroupWithDB(db *gorm.DB, userID string, servicePackage ServicePackage, now int64) (UserPackageSubscription, error) {
+	if db == nil {
+		return UserPackageSubscription{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return UserPackageSubscription{}, fmt.Errorf("用户 ID 不能为空")
+	}
+	normalizeServicePackageScopeAndQuota(&servicePackage)
+	effectiveNow := now
+	if effectiveNow <= 0 {
+		effectiveNow = helper.GetTimestamp()
+	}
+	if err := syncUserPackageSubscriptionsWithDB(db, normalizedUserID, effectiveNow); err != nil {
+		return UserPackageSubscription{}, err
+	}
+	probe := UserPackageSubscription{
+		PackageType: servicePackage.PackageType,
+		GroupID:     servicePackage.GroupID,
+		QuotaMetric: servicePackage.QuotaMetric,
+	}
+	query := db.
+		Where("user_id = ? AND status = ? AND started_at <= ? AND (expires_at = 0 OR expires_at > ?)",
+			normalizedUserID,
+			UserPackageSubscriptionStatusActive,
+			effectiveNow,
+			effectiveNow,
+		)
+	query = applyUserPackageSubscriptionScopeIdentityFilter(query, probe)
+	row := UserPackageSubscription{}
+	if err := query.Order("updated_at desc, started_at desc, id desc").First(&row).Error; err != nil {
+		return UserPackageSubscription{}, err
+	}
+	return row, nil
+}
+
+func getActiveYYCUserPackageSubscriptionForGroupWithDB(db *gorm.DB, userID string, groupID string) (UserPackageSubscription, error) {
+	if db == nil {
+		return UserPackageSubscription{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return UserPackageSubscription{}, fmt.Errorf("用户 ID 不能为空")
+	}
+	normalizedGroupID := strings.TrimSpace(groupID)
+	now := helper.GetTimestamp()
+	if err := syncUserPackageSubscriptionsWithDB(db, normalizedUserID, now); err != nil {
+		return UserPackageSubscription{}, err
+	}
+	row := UserPackageSubscription{}
+	query := db.Where(
+		"user_id = ? AND group_id = ? AND status = ? AND package_type = ? AND quota_metric = ? AND started_at <= ? AND (expires_at = 0 OR expires_at > ?)",
+		normalizedUserID,
+		normalizedGroupID,
+		UserPackageSubscriptionStatusActive,
+		ServicePackageTypeYYCQuota,
+		ServicePackageQuotaMetricYYC,
+		now,
+		now,
+	)
+	if normalizedGroupID == "" {
+		query = db.Where(
+			"user_id = ? AND status = ? AND package_type = ? AND quota_metric = ? AND started_at <= ? AND (expires_at = 0 OR expires_at > ?)",
+			normalizedUserID,
+			UserPackageSubscriptionStatusActive,
+			ServicePackageTypeYYCQuota,
+			ServicePackageQuotaMetricYYC,
+			now,
+			now,
+		)
+	}
+	err := query.
 		Order("updated_at desc").
 		First(&row).Error
 	if err != nil {
@@ -216,11 +320,23 @@ func AssignServicePackageToUserWithDB(db *gorm.DB, packageID string, userID stri
 	if effectiveDurationDays > 0 {
 		expiresAt = effectiveStartAt + int64(effectiveDurationDays)*86400
 	}
+	normalizeServicePackageScopeAndQuota(&servicePackage)
 	subscription := UserPackageSubscription{
 		UserID:                     normalizedUserID,
 		PackageID:                  strings.TrimSpace(servicePackage.Id),
 		PackageName:                strings.TrimSpace(servicePackage.Name),
 		GroupID:                    strings.TrimSpace(servicePackage.GroupID),
+		PackageType:                servicePackage.PackageType,
+		ScopeType:                  servicePackage.ScopeType,
+		ScopeProvider:              servicePackage.ScopeProvider,
+		ScopeModel:                 servicePackage.ScopeModel,
+		ScopeEndpoint:              servicePackage.ScopeEndpoint,
+		QuotaMetric:                servicePackage.QuotaMetric,
+		PeriodType:                 servicePackage.PeriodType,
+		PeriodLimit:                servicePackage.PeriodLimit,
+		MaxConcurrencyPerUser:      servicePackage.MaxConcurrencyPerUser,
+		MaxConcurrencyPerPackage:   servicePackage.MaxConcurrencyPerPackage,
+		AllowBalanceFallback:       servicePackage.AllowBalanceFallback,
 		DailyQuotaLimit:            normalizeServicePackageDailyQuotaLimit(servicePackage.DailyQuotaLimit),
 		PackageEmergencyQuotaLimit: normalizeServicePackagePackageEmergencyQuotaLimit(servicePackage.PackageEmergencyQuotaLimit),
 		QuotaResetTimezone:         normalizeServicePackageTimezone(servicePackage.QuotaResetTimezone),
@@ -235,13 +351,15 @@ func AssignServicePackageToUserWithDB(db *gorm.DB, packageID string, userID stri
 		if err := markExpiredUserPackageSubscriptionsWithDB(tx, normalizedUserID, now); err != nil {
 			return err
 		}
-		if err := tx.Model(&UserPackageSubscription{}).
+		replaceQuery := tx.Model(&UserPackageSubscription{}).
 			Where("user_id = ? AND status IN ? AND started_at <= ? AND (expires_at = 0 OR expires_at > ?)",
 				normalizedUserID,
 				[]int{UserPackageSubscriptionStatusActive, UserPackageSubscriptionStatusPending},
 				effectiveStartAt,
 				effectiveStartAt,
-			).
+			)
+		replaceQuery = applyUserPackageSubscriptionScopeIdentityFilter(replaceQuery, subscription)
+		if err := replaceQuery.
 			Updates(map[string]any{
 				"status":     UserPackageSubscriptionStatusReplaced,
 				"updated_at": now,
@@ -254,10 +372,7 @@ func AssignServicePackageToUserWithDB(db *gorm.DB, packageID string, userID stri
 		if subscription.Status != UserPackageSubscriptionStatusActive {
 			return nil
 		}
-		return tx.Model(&User{}).Where("id = ?", normalizedUserID).Updates(map[string]any{
-			"group":                strings.TrimSpace(servicePackage.GroupID),
-			"quota_reset_timezone": normalizeUserQuotaResetTimezone(subscription.QuotaResetTimezone),
-		}).Error
+		return syncUserFieldsForActivePackageSubscriptionWithDB(tx, normalizedUserID, subscription)
 	})
 	if err != nil {
 		return UserPackageSubscription{}, err
@@ -292,6 +407,39 @@ func latestUserPackageSubscriptionTailWithDB(db *gorm.DB, userID string) (int64,
 	return tailEnd, false, nil
 }
 
+func latestUserPackageSubscriptionTailForPackageGroupWithDB(db *gorm.DB, userID string, servicePackage ServicePackage) (int64, bool, error) {
+	if db == nil {
+		return 0, false, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return 0, false, fmt.Errorf("用户 ID 不能为空")
+	}
+	normalizeServicePackageScopeAndQuota(&servicePackage)
+	probe := UserPackageSubscription{
+		PackageType: servicePackage.PackageType,
+		GroupID:     servicePackage.GroupID,
+		QuotaMetric: servicePackage.QuotaMetric,
+	}
+	query := db.
+		Where("user_id = ? AND status IN ?", normalizedUserID, []int{UserPackageSubscriptionStatusActive, UserPackageSubscriptionStatusPending})
+	query = applyUserPackageSubscriptionScopeIdentityFilter(query, probe)
+	rows := make([]UserPackageSubscription, 0)
+	if err := query.Order("expires_at desc, started_at desc, updated_at desc, id desc").Find(&rows).Error; err != nil {
+		return 0, false, err
+	}
+	tailEnd := int64(0)
+	for _, row := range rows {
+		if row.ExpiresAt <= 0 {
+			return 0, true, nil
+		}
+		if row.ExpiresAt > tailEnd {
+			tailEnd = row.ExpiresAt
+		}
+	}
+	return tailEnd, false, nil
+}
+
 func RenewServicePackageForUserWithDB(db *gorm.DB, packageID string, userID string, now int64) (UserPackageSubscription, error) {
 	if db == nil {
 		return UserPackageSubscription{}, fmt.Errorf("database handle is nil")
@@ -311,7 +459,17 @@ func RenewServicePackageForUserWithDB(db *gorm.DB, packageID string, userID stri
 	if err := syncUserPackageSubscriptionsWithDB(db, normalizedUserID, effectiveNow); err != nil {
 		return UserPackageSubscription{}, err
 	}
-	active, err := getActiveUserPackageSubscriptionWithDB(db, normalizedUserID)
+	servicePackage, err := getServicePackageByIDWithDB(db, normalizedPackageID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return UserPackageSubscription{}, fmt.Errorf("套餐不存在")
+		}
+		return UserPackageSubscription{}, err
+	}
+	if !servicePackage.Enabled {
+		return UserPackageSubscription{}, fmt.Errorf("套餐已禁用")
+	}
+	active, err := getActiveUserPackageSubscriptionForPackageGroupWithDB(db, normalizedUserID, servicePackage, effectiveNow)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return AssignServicePackageToUserWithDB(db, normalizedPackageID, normalizedUserID, effectiveNow)
@@ -324,7 +482,7 @@ func RenewServicePackageForUserWithDB(db *gorm.DB, packageID string, userID stri
 	if active.ExpiresAt <= 0 {
 		return UserPackageSubscription{}, fmt.Errorf("当前生效套餐无到期时间，无法续费")
 	}
-	tailEnd, hasUnlimitedTail, err := latestUserPackageSubscriptionTailWithDB(db, normalizedUserID)
+	tailEnd, hasUnlimitedTail, err := latestUserPackageSubscriptionTailForPackageGroupWithDB(db, normalizedUserID, servicePackage)
 	if err != nil {
 		return UserPackageSubscription{}, err
 	}
@@ -354,30 +512,7 @@ func UpgradeServicePackageForUserWithDB(db *gorm.DB, packageID string, userID st
 	if normalizedUserID == "" {
 		return UserPackageSubscription{}, fmt.Errorf("用户 ID 不能为空")
 	}
-	returnSubscription := UserPackageSubscription{}
-	err := db.Transaction(func(tx *gorm.DB) error {
-		if err := syncUserPackageSubscriptionsWithDB(tx, normalizedUserID, effectiveNow); err != nil {
-			return err
-		}
-		if err := tx.Model(&UserPackageSubscription{}).
-			Where("user_id = ? AND status = ?", normalizedUserID, UserPackageSubscriptionStatusPending).
-			Updates(map[string]any{
-				"status":     UserPackageSubscriptionStatusReplaced,
-				"updated_at": effectiveNow,
-			}).Error; err != nil {
-			return err
-		}
-		row, err := AssignServicePackageToUserWithDB(tx, normalizedPackageID, normalizedUserID, effectiveNow)
-		if err != nil {
-			return err
-		}
-		returnSubscription = row
-		return nil
-	})
-	if err != nil {
-		return UserPackageSubscription{}, err
-	}
-	return returnSubscription, nil
+	return AssignServicePackageToUserWithDB(db, normalizedPackageID, normalizedUserID, effectiveNow)
 }
 
 func GetActiveUserPackageSubscription(userID string) (UserPackageSubscription, error) {
@@ -386,6 +521,44 @@ func GetActiveUserPackageSubscription(userID string) (UserPackageSubscription, e
 
 func GetActiveUserPackageSubscriptionForGroup(userID string, groupID string) (UserPackageSubscription, error) {
 	return getActiveUserPackageSubscriptionForGroupWithDB(DB, userID, groupID)
+}
+
+func GetActiveYYCUserPackageSubscriptionForGroup(userID string, groupID string) (UserPackageSubscription, error) {
+	return getActiveYYCUserPackageSubscriptionForGroupWithDB(DB, userID, groupID)
+}
+
+func listActiveUserPackageSubscriptionsWithDB(db *gorm.DB, userID string) ([]UserPackageSubscription, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return nil, fmt.Errorf("用户 ID 不能为空")
+	}
+	now := helper.GetTimestamp()
+	if err := syncUserPackageSubscriptionsWithDB(db, normalizedUserID, now); err != nil {
+		return nil, err
+	}
+	rows := make([]UserPackageSubscription, 0)
+	if err := db.
+		Where("user_id = ? AND status = ? AND started_at <= ? AND (expires_at = 0 OR expires_at > ?)",
+			normalizedUserID,
+			UserPackageSubscriptionStatusActive,
+			now,
+			now,
+		).
+		Order("updated_at desc, started_at desc, id desc").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		normalizeServicePackageSubscriptionScopeAndQuota(&rows[i])
+	}
+	return rows, nil
+}
+
+func ListActiveUserPackageSubscriptions(userID string) ([]UserPackageSubscription, error) {
+	return listActiveUserPackageSubscriptionsWithDB(DB, userID)
 }
 
 func ListActiveUserPackageSubscriptionsByUserIDs(userIDs []string) ([]UserPackageSubscription, error) {

@@ -40,10 +40,10 @@ func ReturnPreConsumedQuota(ctx context.Context, preConsumedQuota int64, tokenId
 
 type LogRouteObserver func(entry *model.Log)
 
-func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, totalQuota int64, userId string, groupID string, channelId string, pricing model.ResolvedModelPricing, groupRatio float64, modelName string, tokenName string, chargeUserBalance bool, packageReservation model.PackageQuotaReservation, snapshot BillingSnapshot, routeObservers ...LogRouteObserver) {
+func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, totalQuota int64, userId string, groupID string, channelId string, pricing model.ResolvedModelPricing, groupRatio float64, modelName string, tokenName string, chargeUserBalance bool, chargeTokenQuota bool, packageReservation model.PackageQuotaReservation, snapshot BillingSnapshot, routeObservers ...LogRouteObserver) {
 	// quotaDelta is remaining quota to be consumed
 	var err error
-	if strings.TrimSpace(tokenId) != "" {
+	if strings.TrimSpace(tokenId) != "" && chargeTokenQuota {
 		if chargeUserBalance {
 			err = model.PostConsumeTokenQuota(tokenId, quotaDelta)
 		} else {

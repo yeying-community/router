@@ -96,7 +96,7 @@ func resolveEffectiveGroupDailyQuotaPolicyWithDB(db *gorm.DB, groupID string, us
 	if normalizedUserID == "" {
 		return effective, nil
 	}
-	subscription, err := getActiveUserPackageSubscriptionForGroupWithDB(db, normalizedUserID, normalizedGroupID)
+	subscription, err := getActiveYYCUserPackageSubscriptionForGroupWithDB(db, normalizedUserID, normalizedGroupID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return effective, nil

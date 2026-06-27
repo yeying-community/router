@@ -95,15 +95,14 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 		preConsumedQuota = billingSnapshot.ChargeAmount
 	}
-	billingPlan, quotaErr := reserveRelayQuota(ctx, group, userId, preConsumedQuota)
+	billingPlan, quotaErr := reserveRelayQuota(ctx, meta, preConsumedQuota)
 	if quotaErr != nil {
 		return quotaErr
 	}
-	packageReservation := billingPlan.PackageReservation
 	groupQuotaSettled := false
 	defer func() {
 		if !groupQuotaSettled {
-			releasePackageQuotaReservation(ctx, packageReservation)
+			releaseRelayBillingPlan(ctx, billingPlan)
 		}
 	}()
 	if billingPlan.ChargeUserBalance() {
@@ -141,7 +140,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 				}
 			}
 		}
-	} else if preConsumedQuota > 0 && strings.TrimSpace(tokenId) != "" {
+	} else if preConsumedQuota > 0 && strings.TrimSpace(tokenId) != "" && billingPlan.ChargeTokenQuota() {
 		if err := model.PreConsumeTokenRemainQuota(tokenId, preConsumedQuota); err != nil {
 			return openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
 		}
@@ -152,7 +151,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return
 		}
 		if preConsumedQuota > 0 {
-			billing.ReturnPreConsumedQuota(c.Request.Context(), preConsumedQuota, tokenId, userId, billingPlan.ChargeUserBalance())
+			billing.ReturnPreConsumedQuota(c.Request.Context(), preConsumedQuota, tokenId, userId, billingPlan.ChargeUserBalance() && billingPlan.ChargeTokenQuota())
 		}
 	}()
 
@@ -282,12 +281,16 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			audioModel,
 			tokenName,
 			billingPlan.ChargeUserBalance(),
-			packageReservation,
+			billingPlan.ChargeTokenQuota(),
+			billingPlan.PackageReservation,
 			billingSnapshot,
 			func(entry *model.Log) {
 				applyRouteObservabilityToLog(entry, meta, audioModel)
 			},
 		)
+		if billingPlan.UsesRequestPackage() {
+			settleRelayBillingPlan(ctx, billingPlan, quota)
+		}
 	}(c.Request.Context())
 	groupQuotaSettled = true
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/config"
+	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/relay"
@@ -94,6 +95,63 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 			strings.TrimSpace(meta.ActualModelName),
 		)
 	}
+	if requestPackagePlan, matched, quotaErr := tryBuildRequestPackageBillingPlan(ctx, meta); quotaErr != nil || (matched && requestPackagePlan.UsesRequestPackage()) {
+		if quotaErr != nil {
+			return quotaErr
+		}
+		groupQuotaSettled := false
+		defer func() {
+			if !groupQuotaSettled {
+				releaseRelayBillingPlan(ctx, requestPackagePlan)
+			}
+		}()
+		rawRequestBody := validatedRawBody
+		if len(rawRequestBody) == 0 {
+			var rawBodyErr error
+			rawRequestBody, rawBodyErr = common.GetRequestBody(c)
+			if rawBodyErr != nil {
+				logger.Errorf(ctx, "get request body for request package text relay failed: %s", rawBodyErr.Error())
+				return openai.ErrorWrapper(rawBodyErr, "read_request_body_failed", http.StatusBadRequest)
+			}
+		}
+		upstreamRequest, err := convertTextRequestForUpstream(textRequest, meta.Mode, upstreamMode)
+		if err != nil {
+			return openai.ErrorWrapper(err, "convert_request_failed", http.StatusBadRequest)
+		}
+		adaptor := relay.GetAdaptor(meta.APIType)
+		if adaptor == nil {
+			return openai.ErrorWrapper(fmt.Errorf("invalid api type: %d", meta.APIType), "invalid_api_type", http.StatusBadRequest)
+		}
+		adaptor.Init(meta)
+		requestBody, err := getRequestBody(c, meta, upstreamRequest, adaptor, rawRequestBody)
+		if err != nil {
+			var policyErr *endpointPolicyError
+			if errors.As(err, &policyErr) {
+				return openai.ErrorWrapper(policyErr, policyErr.ErrorCode(), policyErr.StatusCode())
+			}
+			return openai.ErrorWrapper(err, "convert_request_failed", http.StatusInternalServerError)
+		}
+		resp, err := adaptor.DoRequest(c, meta, requestBody)
+		if err != nil {
+			return openai.ErrorWrapper(err, "do_request_failed", http.StatusInternalServerError)
+		}
+		if isErrorHappened(meta, resp) {
+			return RelayErrorHandler(meta, resp)
+		}
+		usage, respErr := adaptor.DoResponse(c, resp, meta)
+		if respErr != nil {
+			return respErr
+		}
+		promptTokens := 0
+		completionTokens := 0
+		if usage != nil {
+			promptTokens = usage.PromptTokens
+			completionTokens = usage.CompletionTokens
+		}
+		go settleRequestPackageOnlyConsumption(ctx, meta, upstreamRequest.Model, meta.TokenName, promptTokens, completionTokens, helper.CalcElapsedTime(meta.StartTime), meta.IsStream, requestPackagePlan)
+		groupQuotaSettled = true
+		return nil
+	}
 	groupRatio := adminmodel.GetGroupChannelBillingRatio(meta.Group, meta.ChannelId)
 	pricing, err := adminmodel.ResolveChannelModelPricing(meta.ChannelProtocol, meta.ChannelModelConfigs, textRequest.Model)
 	if err != nil {
@@ -158,18 +216,17 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return openai.ErrorWrapper(err, "calculate_text_quota_failed", http.StatusInternalServerError)
 	}
 	groupReservedQuota := preConsumedSnapshot.ChargeAmount
-	billingPlan, quotaErr := reserveRelayQuota(ctx, meta.Group, meta.UserId, groupReservedQuota)
+	billingPlan, quotaErr := reserveRelayQuota(ctx, meta, groupReservedQuota)
 	if quotaErr != nil {
 		return quotaErr
 	}
-	packageReservation := billingPlan.PackageReservation
 	groupQuotaSettled := false
 	defer func() {
 		if !groupQuotaSettled {
-			releasePackageQuotaReservation(ctx, packageReservation)
+			releaseRelayBillingPlan(ctx, billingPlan)
 		}
 	}()
-	preConsumedQuota, bizErr := preConsumeQuota(ctx, groupReservedQuota, meta, billingPlan.ChargeUserBalance())
+	preConsumedQuota, bizErr := preConsumeQuota(ctx, groupReservedQuota, meta, billingPlan)
 	if bizErr != nil {
 		logger.Warnf(ctx, "preConsumeQuota failed: %+v", *bizErr)
 		return bizErr
@@ -177,7 +234,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	preConsumedQuotaSettled := false
 	defer func() {
 		if !preConsumedQuotaSettled && preConsumedQuota > 0 {
-			billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId, meta.UserId, billingPlan.ChargeUserBalance())
+			billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId, meta.UserId, billingPlan.ChargeUserBalance() && billingPlan.ChargeTokenQuota())
 		}
 	}()
 
@@ -217,7 +274,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return respErr
 	}
 	// post-consume quota
-	go postConsumeQuota(ctx, usage, meta, upstreamRequest, pricing, preConsumedQuota, groupRatio, estimateResult, responsesImageTools, false, billingPlan.ChargeUserBalance(), packageReservation)
+	go postConsumeQuota(ctx, usage, meta, upstreamRequest, pricing, preConsumedQuota, groupRatio, estimateResult, responsesImageTools, false, billingPlan)
 	preConsumedQuotaSettled = true
 	groupQuotaSettled = true
 	return nil

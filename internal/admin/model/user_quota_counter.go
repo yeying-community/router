@@ -236,7 +236,7 @@ func ReservePackageQuotaWithDB(db *gorm.DB, groupID string, userID string, quota
 	if normalizedUserID == "" {
 		return PackageQuotaReservation{}, false, fmt.Errorf("用户 ID 不能为空")
 	}
-	subscription, err := getActiveUserPackageSubscriptionForGroupWithDB(db, normalizedUserID, normalizedGroupID)
+	subscription, err := getActiveYYCUserPackageSubscriptionForGroupWithDB(db, normalizedUserID, normalizedGroupID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return PackageQuotaReservation{}, true, nil

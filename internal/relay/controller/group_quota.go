@@ -95,6 +95,15 @@ func releasePackageQuotaReservation(ctx context.Context, reservation model.Packa
 	}
 }
 
+func releaseRelayBillingPlan(ctx context.Context, plan relayBillingPlan) {
+	releasePackageQuotaReservation(ctx, plan.PackageReservation)
+	if plan.RequestPackageReservation.Active() {
+		if err := model.ReleaseRequestPackageReservation(plan.RequestPackageReservation); err != nil {
+			logger.Errorf(ctx, "request package release failed code=release_request_package_reservation_failed user_id=%s subscription_id=%s counter_id=%s reserved=%d err=%q", strings.TrimSpace(plan.RequestPackageReservation.UserID), strings.TrimSpace(plan.RequestPackageReservation.SubscriptionID), strings.TrimSpace(plan.RequestPackageReservation.CounterID), plan.RequestPackageReservation.ReservedAmount, err.Error())
+		}
+	}
+}
+
 func settlePackageQuotaReservation(ctx context.Context, reservation model.PackageQuotaReservation, consumedQuota int64) (int64, int64) {
 	if !reservation.Active() {
 		return 0, 0
@@ -105,6 +114,17 @@ func settlePackageQuotaReservation(ctx context.Context, reservation model.Packag
 		return 0, 0
 	}
 	return dailyConsumed, emergencyConsumed
+}
+
+func settleRelayBillingPlan(ctx context.Context, plan relayBillingPlan, consumedQuota int64) (int64, int64) {
+	if plan.RequestPackageReservation.Active() {
+		_, err := model.SettleRequestPackageReservation(plan.RequestPackageReservation, 1)
+		if err != nil {
+			logger.Errorf(ctx, "request package settle failed code=settle_request_package_reservation_failed user_id=%s subscription_id=%s counter_id=%s err=%q", strings.TrimSpace(plan.RequestPackageReservation.UserID), strings.TrimSpace(plan.RequestPackageReservation.SubscriptionID), strings.TrimSpace(plan.RequestPackageReservation.CounterID), err.Error())
+		}
+		return 0, 0
+	}
+	return settlePackageQuotaReservation(ctx, plan.PackageReservation, consumedQuota)
 }
 
 func IsGroupDailyQuotaExceededError(err *relaymodel.ErrorWithStatusCode) bool {

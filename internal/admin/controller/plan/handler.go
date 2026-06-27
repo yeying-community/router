@@ -28,6 +28,13 @@ type upsertServicePackageRequest struct {
 	Name                       *string  `json:"name"`
 	Description                *string  `json:"description"`
 	GroupID                    *string  `json:"group_id"`
+	PackageType                *string  `json:"package_type"`
+	QuotaMetric                *string  `json:"quota_metric"`
+	PeriodType                 *string  `json:"period_type"`
+	PeriodLimit                *int64   `json:"period_limit"`
+	MaxConcurrencyPerUser      *int     `json:"max_concurrency_per_user"`
+	MaxConcurrencyPerPackage   *int     `json:"max_concurrency_per_package"`
+	AllowBalanceFallback       *bool    `json:"allow_balance_fallback"`
 	VisibilityScope            *string  `json:"visibility_scope"`
 	VisibleUserIDs             []string `json:"visible_user_ids"`
 	SalePrice                  *float64 `json:"sale_price"`
@@ -181,6 +188,14 @@ func CreatePackage(c *gin.Context) {
 		Name:                       optionalStringValue(req.Name, ""),
 		Description:                optionalStringValue(req.Description, ""),
 		GroupID:                    optionalStringValue(req.GroupID, ""),
+		PackageType:                optionalStringValue(req.PackageType, ""),
+		ScopeType:                  model.ServicePackageScopeAll,
+		QuotaMetric:                optionalStringValue(req.QuotaMetric, ""),
+		PeriodType:                 optionalStringValue(req.PeriodType, ""),
+		PeriodLimit:                optionalInt64Value(req.PeriodLimit, 0),
+		MaxConcurrencyPerUser:      optionalIntValue(req.MaxConcurrencyPerUser, 0),
+		MaxConcurrencyPerPackage:   optionalIntValue(req.MaxConcurrencyPerPackage, 0),
+		AllowBalanceFallback:       optionalBoolValue(req.AllowBalanceFallback, false),
 		VisibilityScope:            optionalStringValue(req.VisibilityScope, model.ServicePackageVisibilityScopeAll),
 		VisibleUserIDs:             req.VisibleUserIDs,
 		SalePrice:                  optionalFloat64Value(req.SalePrice, 0),
@@ -242,6 +257,14 @@ func UpdatePackage(c *gin.Context) {
 		Name:                       optionalStringValue(req.Name, current.Name),
 		Description:                optionalStringValue(req.Description, current.Description),
 		GroupID:                    optionalStringValue(req.GroupID, current.GroupID),
+		PackageType:                optionalStringValue(req.PackageType, current.PackageType),
+		ScopeType:                  model.ServicePackageScopeAll,
+		QuotaMetric:                optionalStringValue(req.QuotaMetric, current.QuotaMetric),
+		PeriodType:                 optionalStringValue(req.PeriodType, current.PeriodType),
+		PeriodLimit:                optionalInt64Value(req.PeriodLimit, current.PeriodLimit),
+		MaxConcurrencyPerUser:      optionalIntValue(req.MaxConcurrencyPerUser, current.MaxConcurrencyPerUser),
+		MaxConcurrencyPerPackage:   optionalIntValue(req.MaxConcurrencyPerPackage, current.MaxConcurrencyPerPackage),
+		AllowBalanceFallback:       optionalBoolValue(req.AllowBalanceFallback, current.AllowBalanceFallback),
 		VisibilityScope:            optionalStringValue(req.VisibilityScope, current.VisibilityScope),
 		VisibleUserIDs:             req.VisibleUserIDs,
 		SalePrice:                  optionalFloat64Value(req.SalePrice, current.SalePrice),

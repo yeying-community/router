@@ -71,9 +71,14 @@ func getPreConsumedQuota(textRequest *relaymodel.GeneralOpenAIRequest, promptTok
 	return int64(float64(preConsumedTokens) * ratio)
 }
 
-func preConsumeQuota(ctx context.Context, preConsumedQuota int64, meta *meta.Meta, chargeUserBalance bool) (int64, *relaymodel.ErrorWithStatusCode) {
+func preConsumeQuota(ctx context.Context, preConsumedQuota int64, meta *meta.Meta, billingPlan relayBillingPlan) (int64, *relaymodel.ErrorWithStatusCode) {
 	var err error
+	chargeUserBalance := billingPlan.ChargeUserBalance()
+	chargeTokenQuota := billingPlan.ChargeTokenQuota()
 	if !chargeUserBalance {
+		if !chargeTokenQuota {
+			return 0, nil
+		}
 		if strings.TrimSpace(meta.TokenId) == "" {
 			return 0, nil
 		}
@@ -176,12 +181,14 @@ func logTokenPreConsumeFailure(ctx context.Context, meta *meta.Meta, quota int64
 	)
 }
 
-func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, groupRatio float64, estimateResult tokenestimate.EstimateResult, responsesImageTools []responsesImageToolSpec, systemPromptReset bool, chargeUserBalance bool, packageReservation model.PackageQuotaReservation) {
+func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, groupRatio float64, estimateResult tokenestimate.EstimateResult, responsesImageTools []responsesImageToolSpec, systemPromptReset bool, billingPlan relayBillingPlan) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
-		releasePackageQuotaReservation(ctx, packageReservation)
+		releaseRelayBillingPlan(ctx, billingPlan)
 		return
 	}
+	chargeUserBalance := billingPlan.ChargeUserBalance()
+	chargeTokenQuota := billingPlan.ChargeTokenQuota()
 	promptTokens := usage.PromptTokens
 	completionTokens := usage.CompletionTokens
 	quota := preConsumedQuota
@@ -209,7 +216,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	}
 	var err error
 	quotaDelta := quota - preConsumedQuota
-	if strings.TrimSpace(meta.TokenId) != "" {
+	if strings.TrimSpace(meta.TokenId) != "" && chargeTokenQuota {
 		if chargeUserBalance {
 			err = model.PostConsumeTokenQuota(meta.TokenId, quotaDelta)
 		} else {
@@ -245,7 +252,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	userDailyQuota := 0
 	userEmergencyQuota := 0
 	if !chargeUserBalance {
-		dailyConsumed, emergencyConsumed := settlePackageQuotaReservation(ctx, packageReservation, quota)
+		dailyConsumed, emergencyConsumed := settleRelayBillingPlan(ctx, billingPlan, quota)
 		userDailyQuota = int(dailyConsumed)
 		userEmergencyQuota = int(emergencyConsumed)
 	}
@@ -274,6 +281,34 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	billing.RecordProcurementConsumptionObservation(ctx, entry)
 	model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 	model.UpdateChannelUsedQuota(meta.ChannelId, quota)
+}
+
+func settleRequestPackageOnlyConsumption(ctx context.Context, meta *meta.Meta, modelName string, tokenName string, promptTokens int, completionTokens int, elapsedTime int64, isStream bool, billingPlan relayBillingPlan) {
+	if !billingPlan.UsesRequestPackage() {
+		return
+	}
+	settleRelayBillingPlan(ctx, billingPlan, 0)
+	entry := &model.Log{
+		UserId:                meta.UserId,
+		GroupId:               meta.Group,
+		ChannelId:             meta.ChannelId,
+		PromptTokens:          promptTokens,
+		CompletionTokens:      completionTokens,
+		ModelName:             strings.TrimSpace(modelName),
+		TokenName:             strings.TrimSpace(tokenName),
+		Quota:                 0,
+		BillingSource:         model.LogBillingSourcePackage,
+		Content:               "request_count package",
+		IsStream:              isStream,
+		ElapsedTime:           elapsedTime,
+		BillingUsageSource:    billingUsageSourceUpstreamUsage,
+		BillingSettlementMode: "request_count_final",
+		BillingChargeAmount:   0,
+	}
+	applyRouteObservabilityToLog(entry, meta, modelName)
+	model.RecordConsumeLog(ctx, entry)
+	model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, 0)
+	model.UpdateChannelUsedQuota(meta.ChannelId, 0)
 }
 
 func getMappedModelName(modelName string, mapping map[string]string) (string, bool) {
