@@ -35,6 +35,8 @@ func init() {
 	})
 }
 
+var invalidateTokenCacheFn = model.InvalidateTokenCache
+
 func GetAll(userId string, start, num int, order string) ([]*model.Token, error) {
 	var tokens []*model.Token
 	query := model.DB.Where("user_id = ?", userId)
@@ -150,7 +152,10 @@ func Create(token *model.Token) error {
 }
 
 func Update(token *model.Token) error {
-	return model.DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota", "models", "subnet", "updated_time").Updates(token).Error
+	if err := model.DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota", "models", "subnet", "updated_time").Updates(token).Error; err != nil {
+		return err
+	}
+	return invalidateTokenCacheFn(token.Key)
 }
 
 func SelectUpdate(token *model.Token) error {
@@ -158,7 +163,10 @@ func SelectUpdate(token *model.Token) error {
 }
 
 func Delete(token *model.Token) error {
-	return model.DB.Delete(token).Error
+	if err := model.DB.Delete(token).Error; err != nil {
+		return err
+	}
+	return invalidateTokenCacheFn(token.Key)
 }
 
 func DeleteByID(tokenId, userId string) error {

@@ -51,6 +51,14 @@ func CacheGetTokenByKey(key string) (*Token, error) {
 	return &token, err
 }
 
+func InvalidateTokenCache(key string) error {
+	normalizedKey := strings.TrimSpace(key)
+	if normalizedKey == "" || !common.RedisEnabled {
+		return nil
+	}
+	return common.RedisDel(fmt.Sprintf("token:%s", normalizedKey))
+}
+
 func CacheGetUserGroup(id string) (group string, err error) {
 	if !common.RedisEnabled {
 		return GetUserEffectiveGroup(id)
