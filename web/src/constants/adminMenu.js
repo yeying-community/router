@@ -20,11 +20,6 @@ export const ADMIN_MENU_GROUPS = [
         icon: 'users',
       },
       {
-        name: 'dashboard.admin.nav.models',
-        to: '/admin/dashboard?section=models',
-        icon: 'cube',
-      },
-      {
         name: 'dashboard.admin.nav.alerts',
         to: '/admin/alerts',
         icon: 'heartbeat',

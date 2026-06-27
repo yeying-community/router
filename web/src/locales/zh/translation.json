@@ -3255,6 +3255,60 @@
     "license": "构建，源代码遵循",
     "mit": "MIT 协议"
   },
+  "workspace_models": {
+    "title": "模型",
+    "refresh": "刷新模型状态",
+    "search_placeholder": "搜索模型、供应商、端点或能力",
+    "generated_at": "更新时间：{{time}}",
+    "empty": "暂无可用模型状态",
+    "history_label": "{{model}} 最近模型状态",
+    "summary": {
+      "total": "可用模型",
+      "healthy": "正常",
+      "warning": "预警",
+      "critical": "异常",
+      "pass_rate": "平均通过率",
+      "latency": "平均延迟"
+    },
+    "filters": {
+      "health": {
+        "all": "全部",
+        "healthy": "正常",
+        "warning": "预警",
+        "critical": "异常",
+        "unknown": "未知"
+      }
+    },
+    "sort": {
+      "health": "健康优先",
+      "name": "名称",
+      "latency": "延迟",
+      "pass_rate": "通过率"
+    },
+    "health": {
+      "healthy": "正常",
+      "warning": "预警",
+      "critical": "异常",
+      "unknown": "未知"
+    },
+    "history": {
+      "success": "成功",
+      "warning": "跳过",
+      "failure": "失败",
+      "unknown": "无样本",
+      "no_data": "暂无样本",
+      "past": "过去",
+      "now": "现在"
+    },
+    "card": {
+      "health_score": "健康分",
+      "pass_rate": "通过率",
+      "latency": "延迟",
+      "channels": "测试渠道",
+      "last_tested": "最近测试：{{time}}",
+      "no_endpoints": "暂无可用端点"
+    }
+  },
   "auth": {
     "login": {
       "title": "用户登录",

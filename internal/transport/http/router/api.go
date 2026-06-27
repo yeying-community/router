@@ -82,6 +82,7 @@ func SetApiRouter(engine *gin.Engine) {
 				publicSelfRoute.GET("/quota/daily", user.GetCurrentUserDailyQuota)
 				publicSelfRoute.GET("/quota/summary", user.GetCurrentUserQuotaSummary)
 				publicSelfRoute.GET("/available_models", admin.GetUserAvailableModels)
+				publicSelfRoute.GET("/model_status", admin.GetUserModelStatus)
 				publicSelfRoute.GET("/tasks/options", task.GetCurrentUserTaskFilterOptions)
 				publicSelfRoute.GET("/tasks", task.GetCurrentUserTasks)
 				publicSelfRoute.GET("/tasks/:id", task.GetCurrentUserTask)

@@ -1,0 +1,340 @@
+.workspace-models-page {
+  max-width: 1440px;
+}
+
+.workspace-models-section {
+  margin-top: 10px;
+}
+
+.workspace-models-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspace-models-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 8px;
+}
+
+.workspace-models-summary-item {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.workspace-models-summary-item span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.workspace-models-summary-item strong {
+  display: block;
+  margin-top: 5px;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.workspace-models-summary-item-green strong {
+  color: #16a34a;
+}
+
+.workspace-models-summary-item-orange strong {
+  color: #d97706;
+}
+
+.workspace-models-summary-item-red strong {
+  color: #dc2626;
+}
+
+.workspace-models-controls {
+  margin-bottom: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.workspace-models-controls.router-toolbar {
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace-models-search-row,
+.workspace-models-filter-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.workspace-models-search {
+  width: 260px;
+  min-width: 220px;
+}
+
+.workspace-models-refresh {
+  width: 32px !important;
+  min-width: 32px !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.workspace-models-segmented {
+  max-width: 100%;
+}
+
+.workspace-models-meta {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.workspace-models-legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.workspace-models-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.workspace-models-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.workspace-models-empty {
+  padding: 18px 0;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.workspace-models-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.workspace-model-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.workspace-model-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-model-card-title-block {
+  min-width: 0;
+  flex: 1;
+}
+
+.workspace-model-card-title {
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.workspace-model-card-subtitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workspace-model-card-status {
+  flex-shrink: 0;
+}
+
+.workspace-model-tag,
+.workspace-model-endpoint-tag {
+  max-width: 100%;
+}
+
+.workspace-model-health-row {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(260px, 0.65fr);
+  align-items: stretch;
+  gap: 12px;
+}
+
+.workspace-model-health-strip-wrap {
+  min-width: 0;
+}
+
+.workspace-model-health-strip {
+  display: grid;
+  grid-template-columns: repeat(60, minmax(3px, 1fr));
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+}
+
+.workspace-model-health-cell {
+  display: block;
+  width: 100%;
+  height: 34px;
+  border-radius: 2px;
+}
+
+.workspace-model-health-cell-unknown {
+  opacity: 0.72;
+}
+
+.workspace-model-health-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.workspace-model-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.workspace-model-metric {
+  min-width: 0;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.workspace-model-metric span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-model-metric strong {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.workspace-model-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  padding-top: 10px;
+}
+
+.workspace-model-endpoints {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.workspace-model-last-tested {
+  flex-shrink: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .workspace-model-health-row {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-model-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .workspace-models-search-row,
+  .workspace-models-filter-row,
+  .workspace-models-controls.router-toolbar {
+    width: 100%;
+  }
+
+  .workspace-models-search {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .workspace-models-filter-row {
+    align-items: stretch;
+  }
+
+  .workspace-models-segmented {
+    width: 100%;
+  }
+
+  .workspace-models-legend {
+    justify-content: flex-start;
+  }
+
+  .workspace-model-card-header,
+  .workspace-model-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workspace-model-last-tested {
+    white-space: normal;
+  }
+
+  .workspace-model-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace-model-health-cell {
+    height: 28px;
+  }
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/yeying-community/router/common/ctxkey"
 	"github.com/yeying-community/router/internal/admin/model"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -392,5 +393,131 @@ func TestRetrieveModelFailsWhenProviderMissing(t *testing.T) {
 	}
 	if _, ok := payload["error"]; !ok {
 		t.Fatalf("expected error field in payload, got %v", payload)
+	}
+}
+
+func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Set(ctxkey.AvailableModels, "gpt-5.4,claude-sonnet-4-6")
+
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&model.ChannelTest{}); err != nil {
+		t.Fatalf("auto migrate channel tests: %v", err)
+	}
+	if err := db.Create(&[]model.ChannelTest{
+		{
+			ChannelId: "channel-1",
+			Model:     "gpt-5.4",
+			Round:     1,
+			Type:      "text",
+			Endpoint:  model.ChannelModelEndpointChat,
+			Status:    model.ChannelTestStatusSupported,
+			Supported: true,
+			LatencyMs: 1200,
+			TestedAt:  100,
+		},
+		{
+			ChannelId: "channel-2",
+			Model:     "gpt-5.4",
+			Round:     1,
+			Type:      "text",
+			Endpoint:  model.ChannelModelEndpointResponses,
+			Status:    model.ChannelTestStatusUnsupported,
+			Supported: false,
+			LatencyMs: 3000,
+			TestedAt:  110,
+		},
+		{
+			ChannelId: "channel-3",
+			Model:     "claude-sonnet-4-6",
+			Round:     1,
+			Type:      "text",
+			Endpoint:  model.ChannelModelEndpointMessages,
+			Status:    model.ChannelTestStatusSkipped,
+			Supported: false,
+			LatencyMs: 0,
+			TestedAt:  90,
+		},
+	}).Error; err != nil {
+		t.Fatalf("create channel tests: %v", err)
+	}
+
+	originalDB := model.DB
+	originalProviders := loadGroupModelProvidersFn
+	originalEndpoints := loadGroupModelSupportedEndpointsFn
+	originalTags := loadProviderModelTagsFn
+	originalChannels := loadSatisfiedChannelsFn
+	model.DB = db
+	loadGroupModelProvidersFn = func(groupID string, modelNames []string) (map[string]string, error) {
+		return map[string]string{
+			"gpt-5.4":           "openai",
+			"claude-sonnet-4-6": "anthropic",
+		}, nil
+	}
+	loadGroupModelSupportedEndpointsFn = func(groupID string, modelNames []string) (map[string][]string, error) {
+		return map[string][]string{
+			"gpt-5.4":           {model.ChannelModelEndpointResponses, model.ChannelModelEndpointChat},
+			"claude-sonnet-4-6": {model.ChannelModelEndpointMessages},
+		}, nil
+	}
+	loadProviderModelTagsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string][]string, error) {
+		return map[string][]string{
+			"gpt-5.4":           {"text"},
+			"claude-sonnet-4-6": {"text", "tool_calling"},
+		}, nil
+	}
+	loadSatisfiedChannelsFn = func(groupID string, modelName string) ([]*model.Channel, error) {
+		switch modelName {
+		case "gpt-5.4":
+			return []*model.Channel{{Id: "channel-1"}, {Id: "channel-2"}}, nil
+		case "claude-sonnet-4-6":
+			return []*model.Channel{{Id: "channel-3"}}, nil
+		default:
+			return []*model.Channel{}, nil
+		}
+	}
+	t.Cleanup(func() {
+		model.DB = originalDB
+		loadGroupModelProvidersFn = originalProviders
+		loadGroupModelSupportedEndpointsFn = originalEndpoints
+		loadProviderModelTagsFn = originalTags
+		loadSatisfiedChannelsFn = originalChannels
+	})
+
+	payload, err := buildUserModelStatusPayload(c)
+	if err != nil {
+		t.Fatalf("buildUserModelStatusPayload returned error: %v", err)
+	}
+	if payload.Summary.ModelCount != 2 {
+		t.Fatalf("model count = %d, want 2", payload.Summary.ModelCount)
+	}
+	byModel := map[string]UserModelStatusItem{}
+	for _, item := range payload.Models {
+		byModel[item.Model] = item
+	}
+	gpt := byModel["gpt-5.4"]
+	if gpt.Provider != "openai" {
+		t.Fatalf("gpt provider = %q, want openai", gpt.Provider)
+	}
+	if gpt.SupportedCount != 1 || gpt.UnsupportedCount != 1 {
+		t.Fatalf("gpt supported/unsupported = %d/%d, want 1/1", gpt.SupportedCount, gpt.UnsupportedCount)
+	}
+	if len(gpt.HealthPoints) != 2 {
+		t.Fatalf("gpt health points = %d, want 2", len(gpt.HealthPoints))
+	}
+	if gpt.HealthPoints[0].State != userModelStatusPointFailure || gpt.HealthPoints[1].State != userModelStatusPointSuccess {
+		t.Fatalf("gpt point states = %#v, want failure then success", gpt.HealthPoints)
+	}
+	claude := byModel["claude-sonnet-4-6"]
+	if claude.HealthPoints[0].State != userModelStatusPointWarning {
+		t.Fatalf("claude point state = %q, want warning", claude.HealthPoints[0].State)
+	}
+	if len(claude.SupportedEndpoints) != 1 || claude.SupportedEndpoints[0] != model.ChannelModelEndpointMessages {
+		t.Fatalf("claude endpoints = %#v, want messages", claude.SupportedEndpoints)
 	}
 }
