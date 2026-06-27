@@ -19,11 +19,39 @@ const (
 	ServicePackageVisibilityScopeUser = "partial_users"
 )
 
+const (
+	ServicePackageTypeYYCQuota     = "yyc_quota"
+	ServicePackageTypeRequestQuota = "request_quota"
+
+	ServicePackageScopeAll = "all"
+
+	ServicePackageQuotaMetricYYC          = "yyc"
+	ServicePackageQuotaMetricRequestCount = "request_count"
+
+	ServicePackagePeriodNone         = "none"
+	ServicePackagePeriodDaily        = "daily"
+	ServicePackagePeriodMonthly      = "monthly"
+	ServicePackagePeriodPackageTotal = "package_total"
+)
+
+const servicePackageDefaultScopeType = ServicePackageScopeAll
+
 type ServicePackage struct {
 	Id                         string                             `json:"id" gorm:"primaryKey;type:char(36)"`
 	Name                       string                             `json:"name" gorm:"type:varchar(64);not null;uniqueIndex"`
 	Description                string                             `json:"description" gorm:"type:varchar(255);default:''"`
 	GroupID                    string                             `json:"group_id" gorm:"type:char(36);not null;index"`
+	PackageType                string                             `json:"package_type" gorm:"type:varchar(32);not null;default:'yyc_quota';index"`
+	ScopeType                  string                             `json:"scope_type" gorm:"type:varchar(32);not null;default:'all';index"`
+	ScopeProvider              string                             `json:"scope_provider" gorm:"type:varchar(64);not null;default:'';index"`
+	ScopeModel                 string                             `json:"scope_model" gorm:"type:varchar(191);not null;default:'';index"`
+	ScopeEndpoint              string                             `json:"scope_endpoint" gorm:"type:varchar(191);not null;default:''"`
+	QuotaMetric                string                             `json:"quota_metric" gorm:"type:varchar(32);not null;default:'yyc';index"`
+	PeriodType                 string                             `json:"period_type" gorm:"type:varchar(32);not null;default:'daily';index"`
+	PeriodLimit                int64                              `json:"period_limit" gorm:"type:bigint;not null;default:0"`
+	MaxConcurrencyPerUser      int                                `json:"max_concurrency_per_user" gorm:"type:int;not null;default:0"`
+	MaxConcurrencyPerPackage   int                                `json:"max_concurrency_per_package" gorm:"type:int;not null;default:0"`
+	AllowBalanceFallback       bool                               `json:"allow_balance_fallback" gorm:"not null;default:false"`
 	VisibilityScope            string                             `json:"visibility_scope" gorm:"type:varchar(32);not null;default:'all';index"`
 	SalePrice                  float64                            `json:"sale_price" gorm:"type:decimal(10,2);not null;default:0"`
 	SaleCurrency               string                             `json:"sale_currency" gorm:"type:varchar(16);not null;default:'CNY'"`
@@ -89,6 +117,145 @@ func normalizeServicePackageVisibilityScope(value string) string {
 	default:
 		return ServicePackageVisibilityScopeAll
 	}
+}
+
+func normalizeServicePackagePackageType(value string, quotaMetric string) string {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	switch normalized {
+	case ServicePackageTypeYYCQuota, ServicePackageTypeRequestQuota:
+		return normalized
+	}
+	switch strings.TrimSpace(strings.ToLower(quotaMetric)) {
+	case ServicePackageQuotaMetricRequestCount:
+		return ServicePackageTypeRequestQuota
+	default:
+		return ServicePackageTypeYYCQuota
+	}
+}
+
+func normalizeServicePackageQuotaMetric(value string, packageType string) string {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	switch normalized {
+	case ServicePackageQuotaMetricYYC, ServicePackageQuotaMetricRequestCount:
+		return normalized
+	}
+	if packageType == ServicePackageTypeRequestQuota {
+		return ServicePackageQuotaMetricRequestCount
+	}
+	return ServicePackageQuotaMetricYYC
+}
+
+func normalizeServicePackageScopeFields(scopeType string, provider string, model string, endpoint string) (string, string, string, string) {
+	return servicePackageDefaultScopeType, "", "", ""
+}
+
+func normalizeServicePackagePeriodType(value string, quotaMetric string) string {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	switch normalized {
+	case ServicePackagePeriodNone, ServicePackagePeriodDaily, ServicePackagePeriodMonthly, ServicePackagePeriodPackageTotal:
+		return normalized
+	}
+	if quotaMetric == ServicePackageQuotaMetricRequestCount {
+		return ServicePackagePeriodMonthly
+	}
+	return ServicePackagePeriodDaily
+}
+
+func normalizeServicePackagePeriodLimit(value int64, quotaMetric string, periodType string, dailyQuotaLimit int64) int64 {
+	if value > 0 {
+		return value
+	}
+	if quotaMetric == ServicePackageQuotaMetricYYC && periodType == ServicePackagePeriodDaily {
+		return normalizeServicePackageDailyQuotaLimit(dailyQuotaLimit)
+	}
+	return 0
+}
+
+func normalizeServicePackageConcurrencyLimit(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func DefaultServicePackageAllowBalanceFallback(packageType string, quotaMetric string) bool {
+	return packageType == ServicePackageTypeYYCQuota && quotaMetric == ServicePackageQuotaMetricYYC
+}
+
+func normalizeServicePackageAllowBalanceFallback(value bool, rawPackageType string, rawQuotaMetric string, packageType string, quotaMetric string) bool {
+	if value {
+		return true
+	}
+	if strings.TrimSpace(rawPackageType) == "" && strings.TrimSpace(rawQuotaMetric) == "" {
+		return DefaultServicePackageAllowBalanceFallback(packageType, quotaMetric)
+	}
+	return false
+}
+
+func validateServicePackageScopeFields(scopeType string, provider string, model string, endpoint string) error {
+	return nil
+}
+
+func validateServicePackageQuotaFields(packageType string, quotaMetric string, periodType string, periodLimit int64) error {
+	switch packageType {
+	case ServicePackageTypeYYCQuota:
+		if quotaMetric != ServicePackageQuotaMetricYYC {
+			return fmt.Errorf("YYC 套餐只能使用 yyc 额度指标")
+		}
+	case ServicePackageTypeRequestQuota:
+		if quotaMetric != ServicePackageQuotaMetricRequestCount {
+			return fmt.Errorf("请求次数套餐只能使用 request_count 额度指标")
+		}
+		if periodType == ServicePackagePeriodNone {
+			return fmt.Errorf("请求次数套餐必须配置周期类型")
+		}
+		if periodLimit <= 0 {
+			return fmt.Errorf("请求次数套餐必须配置周期额度")
+		}
+	}
+	return nil
+}
+
+func normalizeServicePackageScopeAndQuota(item *ServicePackage) {
+	if item == nil {
+		return
+	}
+	rawPackageType := item.PackageType
+	rawQuotaMetric := item.QuotaMetric
+	packageType := normalizeServicePackagePackageType(item.PackageType, item.QuotaMetric)
+	quotaMetric := normalizeServicePackageQuotaMetric(item.QuotaMetric, packageType)
+	scopeType, scopeProvider, scopeModel, scopeEndpoint := normalizeServicePackageScopeFields(
+		item.ScopeType,
+		item.ScopeProvider,
+		item.ScopeModel,
+		item.ScopeEndpoint,
+	)
+	periodType := normalizeServicePackagePeriodType(item.PeriodType, quotaMetric)
+	periodLimit := normalizeServicePackagePeriodLimit(item.PeriodLimit, quotaMetric, periodType, item.DailyQuotaLimit)
+	item.PackageType = packageType
+	item.ScopeType = scopeType
+	item.ScopeProvider = scopeProvider
+	item.ScopeModel = scopeModel
+	item.ScopeEndpoint = scopeEndpoint
+	item.QuotaMetric = quotaMetric
+	item.PeriodType = periodType
+	item.PeriodLimit = periodLimit
+	item.MaxConcurrencyPerUser = normalizeServicePackageConcurrencyLimit(item.MaxConcurrencyPerUser)
+	item.MaxConcurrencyPerPackage = normalizeServicePackageConcurrencyLimit(item.MaxConcurrencyPerPackage)
+	item.AllowBalanceFallback = normalizeServicePackageAllowBalanceFallback(
+		item.AllowBalanceFallback,
+		rawPackageType,
+		rawQuotaMetric,
+		packageType,
+		quotaMetric,
+	)
+}
+
+func validateServicePackageScopeAndQuota(item ServicePackage) error {
+	if err := validateServicePackageScopeFields(item.ScopeType, item.ScopeProvider, item.ScopeModel, item.ScopeEndpoint); err != nil {
+		return err
+	}
+	return validateServicePackageQuotaFields(item.PackageType, item.QuotaMetric, item.PeriodType, item.PeriodLimit)
 }
 
 func normalizeServicePackageVisibleUserIDs(values []string) []string {
@@ -485,15 +652,32 @@ func createServicePackageWithDB(db *gorm.DB, item ServicePackage) (ServicePackag
 		return ServicePackage{}, err
 	}
 	now := helper.GetTimestamp()
+	normalizedItem := item
+	normalizedItem.DailyQuotaLimit = normalizeServicePackageDailyQuotaLimit(item.DailyQuotaLimit)
+	normalizeServicePackageScopeAndQuota(&normalizedItem)
+	if err := validateServicePackageScopeAndQuota(normalizedItem); err != nil {
+		return ServicePackage{}, err
+	}
 	row := ServicePackage{
 		Id:                         strings.TrimSpace(item.Id),
 		Name:                       name,
 		Description:                normalizeServicePackageDescription(item.Description),
 		GroupID:                    groupID,
+		PackageType:                normalizedItem.PackageType,
+		ScopeType:                  normalizedItem.ScopeType,
+		ScopeProvider:              normalizedItem.ScopeProvider,
+		ScopeModel:                 normalizedItem.ScopeModel,
+		ScopeEndpoint:              normalizedItem.ScopeEndpoint,
+		QuotaMetric:                normalizedItem.QuotaMetric,
+		PeriodType:                 normalizedItem.PeriodType,
+		PeriodLimit:                normalizedItem.PeriodLimit,
+		MaxConcurrencyPerUser:      normalizedItem.MaxConcurrencyPerUser,
+		MaxConcurrencyPerPackage:   normalizedItem.MaxConcurrencyPerPackage,
+		AllowBalanceFallback:       normalizedItem.AllowBalanceFallback,
 		VisibilityScope:            visibilityScope,
 		SalePrice:                  normalizeServicePackageSalePrice(item.SalePrice),
 		SaleCurrency:               normalizeServicePackageSaleCurrency(item.SaleCurrency),
-		DailyQuotaLimit:            normalizeServicePackageDailyQuotaLimit(item.DailyQuotaLimit),
+		DailyQuotaLimit:            normalizedItem.DailyQuotaLimit,
 		PackageEmergencyQuotaLimit: normalizeServicePackagePackageEmergencyQuotaLimit(item.PackageEmergencyQuotaLimit),
 		DurationDays:               normalizeServicePackageDurationDays(item.DurationDays),
 		QuotaResetTimezone:         normalizeServicePackageTimezone(item.QuotaResetTimezone),
@@ -570,6 +754,17 @@ func updateServicePackageWithDB(db *gorm.DB, item ServicePackage) (ServicePackag
 	row.Name = nextName
 	row.Description = normalizeServicePackageDescription(item.Description)
 	row.GroupID = groupID
+	row.PackageType = item.PackageType
+	row.ScopeType = item.ScopeType
+	row.ScopeProvider = item.ScopeProvider
+	row.ScopeModel = item.ScopeModel
+	row.ScopeEndpoint = item.ScopeEndpoint
+	row.QuotaMetric = item.QuotaMetric
+	row.PeriodType = item.PeriodType
+	row.PeriodLimit = item.PeriodLimit
+	row.MaxConcurrencyPerUser = item.MaxConcurrencyPerUser
+	row.MaxConcurrencyPerPackage = item.MaxConcurrencyPerPackage
+	row.AllowBalanceFallback = item.AllowBalanceFallback
 	row.VisibilityScope = visibilityScope
 	row.SalePrice = normalizeServicePackageSalePrice(item.SalePrice)
 	row.SaleCurrency = normalizeServicePackageSaleCurrency(item.SaleCurrency)
@@ -577,6 +772,10 @@ func updateServicePackageWithDB(db *gorm.DB, item ServicePackage) (ServicePackag
 	row.PackageEmergencyQuotaLimit = normalizeServicePackagePackageEmergencyQuotaLimit(item.PackageEmergencyQuotaLimit)
 	row.DurationDays = normalizeServicePackageDurationDays(item.DurationDays)
 	row.QuotaResetTimezone = normalizeServicePackageTimezone(item.QuotaResetTimezone)
+	normalizeServicePackageScopeAndQuota(&row)
+	if err := validateServicePackageScopeAndQuota(row); err != nil {
+		return ServicePackage{}, err
+	}
 	row.Enabled = item.Enabled
 	if item.SortOrder > 0 {
 		row.SortOrder = item.SortOrder

@@ -1574,8 +1574,175 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return ensureUserWalletAddressCaseInsensitiveUniqueWithDB(tx)
 			},
 		},
+		{
+			Version:     "202606271430_service_package_scope_usage_counters",
+			Description: "extend service packages with request quota, period, concurrency, and usage counters",
+			Up: func(tx *gorm.DB) error {
+				return migrateServicePackageScopeAndUsageCountersWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
+}
+
+func migrateServicePackageScopeAndUsageCountersWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if err := db.AutoMigrate(&ServicePackage{}, &UserPackageSubscription{}, &UserPackageUsageCounter{}); err != nil {
+		return err
+	}
+	if err := backfillServicePackageScopeFieldsWithDB(db); err != nil {
+		return err
+	}
+	return backfillUserPackageSubscriptionScopeFieldsWithDB(db)
+}
+
+func backfillServicePackageScopeFieldsWithDB(db *gorm.DB) error {
+	if err := db.Exec(`
+		UPDATE service_packages
+		SET
+			package_type = CASE
+				WHEN COALESCE(TRIM(package_type), '') = '' THEN ?
+				ELSE package_type
+			END,
+			scope_type = ?,
+			scope_provider = '',
+			scope_model = '',
+			scope_endpoint = '',
+			quota_metric = CASE
+				WHEN COALESCE(TRIM(quota_metric), '') = '' THEN ?
+				ELSE quota_metric
+			END,
+			period_type = CASE
+				WHEN COALESCE(TRIM(period_type), '') = '' THEN ?
+				ELSE period_type
+			END,
+			period_limit = CASE
+				WHEN COALESCE(period_limit, 0) = 0 AND COALESCE(daily_quota_limit, 0) > 0 THEN daily_quota_limit
+				ELSE COALESCE(period_limit, 0)
+			END,
+			max_concurrency_per_user = CASE
+				WHEN COALESCE(max_concurrency_per_user, 0) < 0 THEN 0
+				ELSE COALESCE(max_concurrency_per_user, 0)
+			END,
+			max_concurrency_per_package = CASE
+				WHEN COALESCE(max_concurrency_per_package, 0) < 0 THEN 0
+				ELSE COALESCE(max_concurrency_per_package, 0)
+			END,
+			allow_balance_fallback = CASE
+				WHEN COALESCE(TRIM(package_type), '') IN ('', ?) AND COALESCE(TRIM(quota_metric), '') IN ('', ?) THEN TRUE
+				ELSE COALESCE(allow_balance_fallback, FALSE)
+			END
+	`,
+		ServicePackageTypeYYCQuota,
+		ServicePackageScopeAll,
+		ServicePackageQuotaMetricYYC,
+		ServicePackagePeriodDaily,
+		ServicePackageTypeYYCQuota,
+		ServicePackageQuotaMetricYYC,
+	).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func backfillUserPackageSubscriptionScopeFieldsWithDB(db *gorm.DB) error {
+	if err := db.Exec(`
+		UPDATE user_package_subscriptions AS s
+		SET
+			package_type = CASE
+				WHEN COALESCE(TRIM(s.package_type), '') = '' THEN COALESCE(NULLIF(TRIM(p.package_type), ''), ?)
+				ELSE s.package_type
+			END,
+			scope_type = ?,
+			scope_provider = '',
+			scope_model = '',
+			scope_endpoint = '',
+			quota_metric = CASE
+				WHEN COALESCE(TRIM(s.quota_metric), '') = '' THEN COALESCE(NULLIF(TRIM(p.quota_metric), ''), ?)
+				ELSE s.quota_metric
+			END,
+			period_type = CASE
+				WHEN COALESCE(TRIM(s.period_type), '') = '' THEN COALESCE(NULLIF(TRIM(p.period_type), ''), ?)
+				ELSE s.period_type
+			END,
+			period_limit = CASE
+				WHEN COALESCE(s.period_limit, 0) = 0 AND COALESCE(p.period_limit, 0) > 0 THEN p.period_limit
+				WHEN COALESCE(s.period_limit, 0) = 0 AND COALESCE(s.daily_quota_limit, 0) > 0 THEN s.daily_quota_limit
+				ELSE COALESCE(s.period_limit, 0)
+			END,
+			max_concurrency_per_user = CASE
+				WHEN COALESCE(s.max_concurrency_per_user, 0) = 0 AND COALESCE(p.max_concurrency_per_user, 0) < 0 THEN 0
+				WHEN COALESCE(s.max_concurrency_per_user, 0) = 0 THEN COALESCE(p.max_concurrency_per_user, 0)
+				WHEN s.max_concurrency_per_user < 0 THEN 0
+				ELSE s.max_concurrency_per_user
+			END,
+			max_concurrency_per_package = CASE
+				WHEN COALESCE(s.max_concurrency_per_package, 0) = 0 AND COALESCE(p.max_concurrency_per_package, 0) < 0 THEN 0
+				WHEN COALESCE(s.max_concurrency_per_package, 0) = 0 THEN COALESCE(p.max_concurrency_per_package, 0)
+				WHEN s.max_concurrency_per_package < 0 THEN 0
+				ELSE s.max_concurrency_per_package
+			END,
+			allow_balance_fallback = CASE
+				WHEN COALESCE(TRIM(s.package_type), '') IN ('', ?) AND COALESCE(TRIM(s.quota_metric), '') IN ('', ?) THEN TRUE
+				ELSE COALESCE(s.allow_balance_fallback, p.allow_balance_fallback, FALSE)
+			END
+		FROM service_packages p
+		WHERE p.id = s.package_id
+	`,
+		ServicePackageTypeYYCQuota,
+		ServicePackageScopeAll,
+		ServicePackageQuotaMetricYYC,
+		ServicePackagePeriodDaily,
+		ServicePackageTypeYYCQuota,
+		ServicePackageQuotaMetricYYC,
+	).Error; err != nil {
+		return err
+	}
+	return db.Exec(`
+		UPDATE user_package_subscriptions
+		SET
+			package_type = CASE
+				WHEN COALESCE(TRIM(package_type), '') = '' THEN ?
+				ELSE package_type
+			END,
+			scope_type = ?,
+			scope_provider = '',
+			scope_model = '',
+			scope_endpoint = '',
+			quota_metric = CASE
+				WHEN COALESCE(TRIM(quota_metric), '') = '' THEN ?
+				ELSE quota_metric
+			END,
+			period_type = CASE
+				WHEN COALESCE(TRIM(period_type), '') = '' THEN ?
+				ELSE period_type
+			END,
+			period_limit = CASE
+				WHEN COALESCE(period_limit, 0) = 0 AND COALESCE(daily_quota_limit, 0) > 0 THEN daily_quota_limit
+				ELSE COALESCE(period_limit, 0)
+			END,
+			max_concurrency_per_user = CASE
+				WHEN COALESCE(max_concurrency_per_user, 0) < 0 THEN 0
+				ELSE COALESCE(max_concurrency_per_user, 0)
+			END,
+			max_concurrency_per_package = CASE
+				WHEN COALESCE(max_concurrency_per_package, 0) < 0 THEN 0
+				ELSE COALESCE(max_concurrency_per_package, 0)
+			END,
+			allow_balance_fallback = CASE
+				WHEN COALESCE(TRIM(package_type), '') IN ('', ?) AND COALESCE(TRIM(quota_metric), '') IN ('', ?) THEN TRUE
+				ELSE COALESCE(allow_balance_fallback, FALSE)
+			END
+	`,
+		ServicePackageTypeYYCQuota,
+		ServicePackageScopeAll,
+		ServicePackageQuotaMetricYYC,
+		ServicePackagePeriodDaily,
+		ServicePackageTypeYYCQuota,
+		ServicePackageQuotaMetricYYC,
+	).Error
 }
 
 func ensureProcurementCostTablesWithDB(db *gorm.DB) error {

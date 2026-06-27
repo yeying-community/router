@@ -456,7 +456,7 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 		return PackagePurchasePreview{}, err
 	}
 	var active *UserPackageSubscription
-	activeSubscription, activeErr := getActiveUserPackageSubscriptionWithDB(db, normalizedUserID)
+	activeSubscription, activeErr := getActiveUserPackageSubscriptionForPackageGroupWithDB(db, normalizedUserID, targetPackage, effectiveNow)
 	if activeErr == nil {
 		active = &activeSubscription
 	} else if !errors.Is(activeErr, gorm.ErrRecordNotFound) {
@@ -484,7 +484,7 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 		if strings.TrimSpace(active.PackageID) != normalizedPackageID {
 			return PackagePurchasePreview{}, fmt.Errorf("当前生效套餐与续费套餐不一致")
 		}
-		tailEnd, hasUnlimitedTail, err := latestUserPackageSubscriptionTailWithDB(db, normalizedUserID)
+		tailEnd, hasUnlimitedTail, err := latestUserPackageSubscriptionTailForPackageGroupWithDB(db, normalizedUserID, targetPackage)
 		if err != nil {
 			return PackagePurchasePreview{}, err
 		}
