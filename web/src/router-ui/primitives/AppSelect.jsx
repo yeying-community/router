@@ -41,6 +41,8 @@ const normalizeLabelInValueItem = (rawValue, normalizedOptions) => {
   };
 };
 
+// Keep Select controlled values label-aware so async option sources do not
+// regress to showing raw IDs after the popup closes or options refresh.
 const normalizeControlledValue = (rawValue, normalizedOptions, multiple) => {
   if (multiple === true) {
     return (Array.isArray(rawValue) ? rawValue : [])
