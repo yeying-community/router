@@ -732,21 +732,12 @@ const CurrentPackagePage = () => {
       showInfo(t(messageKey));
       return;
     }
-    if (candidates.length === 1) {
-      setSubmittingChange(true);
-      try {
-        await openPackagePurchasePreview(candidates[0]?.id, operationType);
-      } finally {
-        setSubmittingChange(false);
-      }
-      return;
-    }
     const defaultTargetID = String(candidates[0]?.id || '').trim();
     setChangeTargets(candidates);
     setSelectedChangePackageId(defaultTargetID);
     setChangeOperationType(operationType);
     setChangeModalOpen(true);
-  }, [loadPackageChangeTargets, openPackagePurchasePreview, t]);
+  }, [loadPackageChangeTargets, t]);
 
   const handleUpgrade = useCallback(async () => {
     await openPackageChangeModal('upgrade');
@@ -782,10 +773,30 @@ const CurrentPackagePage = () => {
       (changeTargets || []).map((item) => ({
         key: String(item?.id || ''),
         value: String(item?.id || ''),
-        text: buildPackageOptionText(item),
+        label: buildPackageOptionText(item),
       })),
     [buildPackageOptionText, changeTargets],
   );
+
+  const selectedChangePackageOption = useMemo(() => {
+    const normalizedPackageID = String(selectedChangePackageId || '').trim();
+    if (normalizedPackageID === '') {
+      return undefined;
+    }
+    const matchedOption = changeOptions.find(
+      (item) => String(item?.value || '').trim() === normalizedPackageID,
+    );
+    if (matchedOption) {
+      return {
+        value: matchedOption.value,
+        label: matchedOption.label || matchedOption.text || matchedOption.value,
+      };
+    }
+    return {
+      value: normalizedPackageID,
+      label: normalizedPackageID,
+    };
+  }, [changeOptions, selectedChangePackageId]);
 
   const changeTitleKey =
     changeOperationType === 'downgrade'
@@ -989,11 +1000,16 @@ const CurrentPackagePage = () => {
           </div>
           <AppSelect
             className='router-page-dropdown'
+            labelInValue
             options={changeOptions}
-            value={selectedChangePackageId}
-            onChange={(_, data) =>
-              setSelectedChangePackageId(String(data?.value || ''))
-            }
+            value={selectedChangePackageOption}
+            onChange={(_, data) => {
+              const nextValue =
+                typeof data?.value === 'object'
+                  ? (data?.value?.value || '').toString()
+                  : (data?.value || '').toString();
+              setSelectedChangePackageId(nextValue);
+            }}
           />
         </div>
       </AppModal>
