@@ -2,7 +2,8 @@ body {
     margin: 0;
     padding-top: 0;
     overflow-y: scroll;
-    font-family: 'Helvetica Neue', Arial, Helvetica, "Microsoft YaHei", sans-serif;
+    font-family: "Noto Sans", "SF Pro SC", "SF Pro Text", "SF Pro Icons",
+      "PingFang SC", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     scrollbar-width: none;
@@ -10,7 +11,8 @@ body {
 
 :root {
     --router-shell-horizontal-padding: 24px;
-    --router-font-family: 'Helvetica Neue', Arial, Helvetica, "Microsoft YaHei", sans-serif;
+    --router-font-family: "Noto Sans", "SF Pro SC", "SF Pro Text", "SF Pro Icons",
+      "PingFang SC", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
     --router-font-weight-normal: 400;
     --router-font-weight-medium: 500;
 }

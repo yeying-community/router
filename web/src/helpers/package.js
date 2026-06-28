@@ -124,6 +124,22 @@ export const formatPackageConcurrencyLimit = (item, t, emptyLabel = '-') => {
   return parts.join(' / ');
 };
 
+export const formatUserFacingPackageConcurrency = (
+  item,
+  t,
+  emptyLabel = '-',
+) => {
+  const perPackage = Number(item?.max_concurrency_per_package || 0);
+  if (Number.isFinite(perPackage) && perPackage > 0) {
+    return `${perPackage}`;
+  }
+  const perUser = Number(item?.max_concurrency_per_user || 0);
+  if (Number.isFinite(perUser) && perUser > 0) {
+    return `${perUser}`;
+  }
+  return emptyLabel === t?.('common.unlimited') ? emptyLabel : emptyLabel;
+};
+
 export const formatPackageExtraEntitlement = (item, t, emergencyValue = '') => {
   if (isRequestQuotaPackage(item)) {
     return formatRequestQuotaConcurrency(item, t);

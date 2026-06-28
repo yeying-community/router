@@ -3370,7 +3370,11 @@
       "other_methods": "使用其他方式登录",
       "wallet_title": "钱包登录",
       "wallet_button": "使用钱包登录",
+      "wallet_action": "钱包登陆",
+      "wallet_pending": "请在钱包中确认签名",
+      "wallet_address_placeholder": "选择钱包地址",
       "password_button": "使用账密登录",
+      "password_action": "密码登陆",
       "password_disabled": "用户名密码登录未开启",
       "wallet_disabled": "钱包登录未开启",
       "wechat": {

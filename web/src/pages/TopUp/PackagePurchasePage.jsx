@@ -4,8 +4,8 @@ import { API, showError, showInfo, timestamp2string } from '../../helpers';
 import { buildTopUpReturnURL, useTopUpWorkspace } from './shared.jsx';
 import { AppButton, AppModal, AppSection, AppTag } from '../../router-ui';
 import {
-  formatPackageConcurrencyLimit,
   formatRequestQuotaEntitlement,
+  formatUserFacingPackageConcurrency,
   getServicePackageTypeLabel,
   isRequestQuotaPackage,
   normalizeServicePackageType,
@@ -316,7 +316,11 @@ const PackagePurchasePage = () => {
                               {t('package_manage.table.concurrency_limit')}
                             </div>
                             <div className='router-package-purchase-meta-value'>
-                              {formatPackageConcurrencyLimit(item, t)}
+                              {formatUserFacingPackageConcurrency(
+                                item,
+                                t,
+                                t('common.unlimited'),
+                              )}
                             </div>
                           </div>
                         </div>

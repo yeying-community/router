@@ -67,10 +67,17 @@ export async function requireWalletProvider() {
   return provider;
 }
 
-export async function getWalletContext() {
+export async function getWalletContext(preferredAddress = '') {
   const provider = await requireWalletProvider();
   const accounts = await requestAccounts({ provider });
-  const address = accounts?.[0];
+  const normalizedPreferredAddress = String(preferredAddress || '').trim().toLowerCase();
+  const matchedAddress = Array.isArray(accounts)
+    ? accounts.find(
+        (item) =>
+          String(item || '').trim().toLowerCase() === normalizedPreferredAddress,
+      )
+    : '';
+  const address = matchedAddress || accounts?.[0];
   if (!address) {
     throw new Error('未获取到钱包账户');
   }
@@ -78,8 +85,8 @@ export async function getWalletContext() {
   return { provider, address, chainId };
 }
 
-async function loginWithWalletOnce() {
-  const { provider, address } = await getWalletContext();
+async function loginWithWalletOnce(preferredAddress = '') {
+  const { provider, address } = await getWalletContext(preferredAddress);
   const loginResult = await loginWithChallenge({
     provider,
     address,
@@ -88,15 +95,15 @@ async function loginWithWalletOnce() {
   return { ...loginResult, provider, address };
 }
 
-export async function loginWithWallet() {
+export async function loginWithWallet(preferredAddress = '') {
   try {
-    return await loginWithWalletOnce();
+    return await loginWithWalletOnce(preferredAddress);
   } catch (error) {
     if (!isWalletReconnectError(error) || isUserRejectedWalletAction(error)) {
       throw error;
     }
     await waitForWalletProviderReconnect();
-    return await loginWithWalletOnce();
+    return await loginWithWalletOnce(preferredAddress);
   }
 }
 

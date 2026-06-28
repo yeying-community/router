@@ -11,8 +11,85 @@ import {
   loginWithWallet,
 } from '../services/web3Auth';
 import { useWalletProviderStatus } from '../hooks/useWalletProviderStatus';
-import { AppAlert, AppButton, AppDivider, AppInput } from '../router-ui';
+import {
+  AppAlert,
+  AppButton,
+  AppDivider,
+  AppInput,
+  AppSelect,
+} from '../router-ui';
 import './LoginForm.css';
+
+const WALLET_LOGIN_HISTORY_STORAGE_KEY = 'wallet_login_history';
+const LAST_WALLET_LOGIN_ADDRESS_STORAGE_KEY = 'last_wallet_login_address';
+
+const maskWalletAddress = (value) => {
+  const normalized = String(value || '').trim();
+  if (normalized.length <= 15) {
+    return normalized;
+  }
+  return `${normalized.slice(0, 6)}...${normalized.slice(-6)}`;
+};
+
+const normalizeWalletAddressList = (items) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  const result = [];
+  const seen = new Set();
+  items.forEach((item) => {
+    const normalized = String(item || '').trim();
+    if (normalized === '' || seen.has(normalized.toLowerCase())) {
+      return;
+    }
+    seen.add(normalized.toLowerCase());
+    result.push(normalized);
+  });
+  return result;
+};
+
+const getStoredWalletLoginHistory = () => {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+  try {
+    const raw = window.localStorage.getItem(WALLET_LOGIN_HISTORY_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+    return normalizeWalletAddressList(JSON.parse(raw));
+  } catch (error) {
+    return [];
+  }
+};
+
+const getStoredLastWalletAddress = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return String(
+    window.localStorage.getItem(LAST_WALLET_LOGIN_ADDRESS_STORAGE_KEY) || '',
+  ).trim();
+};
+
+const persistWalletLoginHistory = (address) => {
+  const normalizedAddress = String(address || '').trim();
+  if (normalizedAddress === '' || typeof window === 'undefined') {
+    return;
+  }
+  const nextHistory = normalizeWalletAddressList([
+    normalizedAddress,
+    ...getStoredWalletLoginHistory(),
+  ]).slice(0, 8);
+  window.localStorage.setItem(
+    WALLET_LOGIN_HISTORY_STORAGE_KEY,
+    JSON.stringify(nextHistory),
+  );
+  window.localStorage.setItem(
+    LAST_WALLET_LOGIN_ADDRESS_STORAGE_KEY,
+    normalizedAddress,
+  );
+};
 
 const LoginForm = () => {
   const { t } = useTranslation();
@@ -20,6 +97,10 @@ const LoginForm = () => {
     username: '',
     password: '',
   });
+  const [walletAddressOptions, setWalletAddressOptions] = useState([]);
+  const [selectedWalletAddress, setSelectedWalletAddress] = useState(
+    getStoredLastWalletAddress(),
+  );
   const [searchParams] = useSearchParams();
   const { username, password } = inputs;
   const [, userDispatch] = useContext(UserContext);
@@ -56,6 +137,41 @@ const LoginForm = () => {
   const walletProviderStatus = useWalletProviderStatus();
   const resolveLandingPath = (role) =>
     Number(role) >= 10 ? '/admin/dashboard' : '/workspace/entry';
+
+  useEffect(() => {
+    const mergedAddresses = normalizeWalletAddressList([
+      ...walletProviderStatus.accounts,
+      ...getStoredWalletLoginHistory(),
+    ]);
+    setWalletAddressOptions(
+      mergedAddresses.map((address) => ({
+        key: address,
+        value: address,
+        label: maskWalletAddress(address),
+      })),
+    );
+    setSelectedWalletAddress((current) => {
+      const normalizedCurrent = String(current || '').trim();
+      if (
+        normalizedCurrent !== '' &&
+        mergedAddresses.some(
+          (address) => address.toLowerCase() === normalizedCurrent.toLowerCase(),
+        )
+      ) {
+        return normalizedCurrent;
+      }
+      const storedAddress = getStoredLastWalletAddress();
+      if (
+        storedAddress !== '' &&
+        mergedAddresses.some(
+          (address) => address.toLowerCase() === storedAddress.toLowerCase(),
+        )
+      ) {
+        return storedAddress;
+      }
+      return mergedAddresses[0] || '';
+    });
+  }, [walletProviderStatus.accounts]);
 
   useEffect(() => {
     const expiredMarker = searchParams.get('expired');
@@ -99,11 +215,12 @@ const LoginForm = () => {
       }
       await walletProviderStatus.refresh();
       setWalletLoginAwaitingApproval(true);
-      const loginTask = loginWithWallet();
+      const loginTask = loginWithWallet(selectedWalletAddress);
       walletLoginPromiseRef.current = loginTask;
       setWalletLoginSubmitting(false);
       const loginResult = await loginTask;
       setWalletLoginAwaitingApproval(false);
+      persistWalletLoginHistory(loginResult?.address || selectedWalletAddress);
       const payload = loginResult?.response?.data || loginResult?.response;
       if (payload?.expiresAt) {
         localStorage.setItem(
@@ -190,21 +307,38 @@ const LoginForm = () => {
         <div className='router-login-hero'>
           <div className='router-login-card'>
             <div className='router-login-section'>
-              <AppButton
-                fluid
-                className='router-login-main-btn router-auth-button router-wallet-button'
-                onClick={onWalletLoginClicked}
-                disabled={
-                  walletLoginDisabled ||
-                  walletLoginSubmitting ||
-                  (!walletProviderStatus.detecting && !walletProviderStatus.available)
-                }
-                loading={walletLoginSubmitting || walletProviderStatus.detecting}
-              >
-                {walletLoginAwaitingApproval
-                  ? '请在钱包中确认签名'
-                  : t('auth.login.wallet_button', '使用钱包登录')}
-              </AppButton>
+              <div className='router-wallet-login-row'>
+                <AppSelect
+                  className='router-wallet-address-select'
+                  fluid
+                  search
+                  clearable={false}
+                  options={walletAddressOptions}
+                  value={selectedWalletAddress || undefined}
+                  placeholder={t(
+                    'auth.login.wallet_address_placeholder',
+                    '选择钱包地址',
+                  )}
+                  disabled={walletLoginSubmitting}
+                  onChange={(_, { value }) =>
+                    setSelectedWalletAddress(String(value || '').trim())
+                  }
+                />
+                <AppButton
+                  className='router-login-main-btn router-auth-button router-wallet-button'
+                  onClick={onWalletLoginClicked}
+                  disabled={
+                    walletLoginDisabled ||
+                    walletLoginSubmitting ||
+                    selectedWalletAddress === '' ||
+                    (!walletProviderStatus.detecting &&
+                      !walletProviderStatus.available)
+                  }
+                  loading={walletLoginSubmitting || walletProviderStatus.detecting}
+                >
+                  {t('auth.login.wallet_action', '钱包登陆')}
+                </AppButton>
+              </div>
               {walletLoginDisabled && (
                 <AppAlert
                   type='warning'
@@ -231,19 +365,22 @@ const LoginForm = () => {
                 )}
             </div>
 
-            <AppDivider horizontal>或</AppDivider>
+            <div className='router-login-divider-wrap'>
+              <AppDivider className='router-login-divider' horizontal>
+                或
+              </AppDivider>
+            </div>
 
             <div className='router-login-section'>
               {walletLoginEnabled && passwordLoginEnabled && (
                 <AppButton
-                  basic
                   fluid
                   className='router-login-main-btn router-auth-button router-password-toggle'
                   onClick={() =>
                     setShowPasswordLogin((previousState) => !previousState)
                   }
                 >
-                  {t('auth.login.password_button', '使用账密登录')}
+                  {t('auth.login.password_action', '密码登陆')}
                 </AppButton>
               )}
 

@@ -16,7 +16,7 @@ import {
   useTopUpWorkspace,
 } from './shared.jsx';
 import {
-  formatPackageConcurrencyLimit,
+  formatUserFacingPackageConcurrency,
   formatRequestCount,
   getServicePackagePeriodLabel,
   getServicePackageTypeLabel,
@@ -373,7 +373,11 @@ const CurrentPackagePage = () => {
         {
           key: 'concurrency',
           label: t('package_manage.table.concurrency_limit'),
-          value: formatPackageConcurrencyLimit(activeSubscription, t, t('common.unlimited')),
+          value: formatUserFacingPackageConcurrency(
+            activeSubscription,
+            t,
+            t('common.unlimited'),
+          ),
         },
       ]
       : [
@@ -392,7 +396,11 @@ const CurrentPackagePage = () => {
         {
           key: 'concurrency',
           label: t('package_manage.table.concurrency_limit'),
-          value: formatPackageConcurrencyLimit(activeSubscription, t, t('common.unlimited')),
+          value: formatUserFacingPackageConcurrency(
+            activeSubscription,
+            t,
+            t('common.unlimited'),
+          ),
         },
       ];
     return [
@@ -436,7 +444,11 @@ const CurrentPackagePage = () => {
         {
           key: 'concurrency',
           label: t('package_manage.table.concurrency_limit'),
-          value: formatPackageConcurrencyLimit(nextSubscription, t, t('common.unlimited')),
+          value: formatUserFacingPackageConcurrency(
+            nextSubscription,
+            t,
+            t('common.unlimited'),
+          ),
         },
       ]
       : [
@@ -453,7 +465,11 @@ const CurrentPackagePage = () => {
         {
           key: 'concurrency',
           label: t('package_manage.table.concurrency_limit'),
-          value: formatPackageConcurrencyLimit(nextSubscription, t, t('common.unlimited')),
+          value: formatUserFacingPackageConcurrency(
+            nextSubscription,
+            t,
+            t('common.unlimited'),
+          ),
         },
       ];
     return [

@@ -84,14 +84,14 @@
 }
 
 .router-login-card {
-  width: min(430px, 100%);
+  width: min(820px, 100%);
   background: #fff;
   border: none;
   border-radius: 14px;
-  padding: 18px;
+  padding: 24px 32px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
   box-shadow: none;
   margin-top: -20px;
 }
@@ -99,42 +99,125 @@
 .router-login-section {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+  width: min(420px, 100%);
+  margin: 0 auto;
+}
+
+.router-wallet-login-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
   gap: 10px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.router-wallet-address-select {
+  width: 100%;
+}
+
+.router-wallet-address-select .ant-select-selector {
+  min-height: 36px !important;
+  border-radius: 10px !important;
+  border: 2px solid #a9c3f6 !important;
+  padding: 0 10px !important;
+  box-shadow: none !important;
+}
+
+.router-wallet-address-select.ant-select-focused .ant-select-selector,
+.router-wallet-address-select .ant-select-selector:hover {
+  border-color: #8ab1f3 !important;
+}
+
+.router-wallet-address-select .ant-select-selection-wrap {
+  min-height: 32px;
+}
+
+.router-wallet-address-select .ant-select-selection-item,
+.router-wallet-address-select .ant-select-selection-placeholder {
+  align-self: center;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.router-wallet-address-select .ant-select-selection-item {
+  color: #5c6575;
+}
+
+.router-wallet-address-select .ant-select-arrow {
+  color: #98a2b3;
+  font-size: 12px;
+  inset-inline-end: 10px;
 }
 
 .router-login-main-btn {
-  width: min(220px, 100%);
-  min-height: 40px;
-  font-size: 1.14285714rem !important;
+  width: 100%;
+  min-height: 36px;
+  font-size: 14px !important;
   border-radius: 10px !important;
-  align-self: center;
-  font-weight: 500 !important;
+  align-self: stretch;
+  font-weight: 600 !important;
   margin: 0 !important;
 }
 
 .router-wallet-button {
-  background: #111827 !important;
+  background: #3f7fdf !important;
   color: #ffffff !important;
+  border: 0 !important;
 }
 
 .router-wallet-button:hover {
-  background: #1f2937 !important;
+  background: #2f73d8 !important;
 }
 
 .router-password-toggle {
   border-radius: 10px !important;
+  min-height: 36px;
+  background: #eef4ff !important;
+  border: 2px solid #b7cdf7 !important;
+  color: #3d6fc4 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  width: 100% !important;
 }
 
-.router-login-card .ant-divider-horizontal {
-  margin: 2px 0 !important;
-  color: #9aa5b5 !important;
+.router-password-toggle:hover {
+  background: #e6efff !important;
+  color: #2f63be !important;
+  border-color: #a8c2f4 !important;
+}
+
+.router-login-divider-wrap {
+  width: min(420px, 100%);
+  margin: 2px auto;
+}
+
+.router-login-divider.ant-divider,
+.router-login-divider.ant-divider-horizontal,
+.router-login-divider.ant-divider-with-text {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 2px auto !important;
+}
+
+.router-login-card .router-login-divider.ant-divider-horizontal {
+  color: #a6afbf !important;
   font-size: 12px !important;
+}
+
+.router-login-card .router-login-divider.ant-divider-horizontal::before,
+.router-login-card .router-login-divider.ant-divider-horizontal::after,
+.router-login-card .router-login-divider.ant-divider-with-text::before,
+.router-login-card .router-login-divider.ant-divider-with-text::after {
+  flex: 1 1 0 !important;
 }
 
 .router-login-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  width: 100%;
 }
 
 .router-password-submit {
@@ -156,8 +239,9 @@
   justify-content: space-between;
   gap: 12px;
   color: #667085;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
+  width: 100%;
 }
 
 .router-login-links a {
@@ -208,6 +292,28 @@
     width: 100%;
     padding: 14px;
     margin-top: -8px;
+  }
+
+  .router-wallet-login-row {
+    grid-template-columns: 1fr;
+  }
+
+  .router-wallet-address-select .ant-select-selector,
+  .router-login-main-btn,
+  .router-password-toggle {
+    min-height: 34px !important;
+    border-radius: 8px !important;
+  }
+
+  .router-wallet-address-select .ant-select-selection-wrap {
+    min-height: 30px;
+  }
+
+  .router-wallet-address-select .ant-select-selection-item,
+  .router-wallet-address-select .ant-select-selection-placeholder,
+  .router-login-main-btn,
+  .router-password-toggle {
+    font-size: 13px !important;
   }
 
   .router-login-links {
