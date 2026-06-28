@@ -98,17 +98,23 @@ type TopupOrderCallbackInput struct {
 }
 
 type PackagePurchasePreview struct {
-	OperationType       string  `json:"operation_type"`
-	StartAt             int64   `json:"start_at"`
-	ExpiresAt           int64   `json:"expires_at"`
-	CurrentExpiresAt    int64   `json:"current_expires_at"`
-	TargetPackageID     string  `json:"target_package_id"`
-	TargetPackageName   string  `json:"target_package_name"`
-	CurrentPackageID    string  `json:"current_package_id"`
-	CurrentPackageName  string  `json:"current_package_name"`
-	PayableAmount       float64 `json:"payable_amount"`
-	PayableCurrency     string  `json:"payable_currency"`
-	PayableChargeAmount int64   `json:"payable_charge_amount"`
+	OperationType              string  `json:"operation_type"`
+	StartAt                    int64   `json:"start_at"`
+	ExpiresAt                  int64   `json:"expires_at"`
+	CurrentExpiresAt           int64   `json:"current_expires_at"`
+	TargetPackageID            string  `json:"target_package_id"`
+	TargetPackageName          string  `json:"target_package_name"`
+	TargetPackageType          string  `json:"target_package_type"`
+	TargetQuotaMetric          string  `json:"target_quota_metric"`
+	CurrentPackageID           string  `json:"current_package_id"`
+	CurrentPackageName         string  `json:"current_package_name"`
+	CurrentPackageType         string  `json:"current_package_type"`
+	CurrentQuotaMetric         string  `json:"current_quota_metric"`
+	TargetPackageAmount        float64 `json:"target_package_amount"`
+	CurrentPackageCreditAmount float64 `json:"current_package_credit_amount"`
+	PayableAmount              float64 `json:"payable_amount"`
+	PayableCurrency            string  `json:"payable_currency"`
+	PayableChargeAmount        int64   `json:"payable_charge_amount"`
 }
 
 func (TopupOrder) TableName() string {
@@ -391,6 +397,10 @@ func calcPayableAmountByChargeAmount(payableAmount int64, currency string) (floa
 	return amount, nil
 }
 
+func normalizePackagePreviewAmount(value float64) float64 {
+	return normalizeTopupOrderAmount(value)
+}
+
 func calcUpgradePayableAmountWithDB(db *gorm.DB, activeSubscription UserPackageSubscription, targetPackage ServicePackage, now int64) (int64, error) {
 	if db == nil {
 		return 0, fmt.Errorf("database handle is nil")
@@ -482,14 +492,19 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 
 	operationType := resolvePackagePurchaseOperationType(requestedOperationType, active, normalizedPackageID)
 	preview := PackagePurchasePreview{
-		OperationType:     operationType,
-		TargetPackageID:   strings.TrimSpace(targetPackage.Id),
-		TargetPackageName: strings.TrimSpace(targetPackage.Name),
-		PayableCurrency:   normalizeTopupOrderCurrency(targetPackage.SaleCurrency),
+		OperationType:       operationType,
+		TargetPackageID:     strings.TrimSpace(targetPackage.Id),
+		TargetPackageName:   strings.TrimSpace(targetPackage.Name),
+		TargetPackageType:   strings.TrimSpace(targetPackage.PackageType),
+		TargetQuotaMetric:   strings.TrimSpace(targetPackage.QuotaMetric),
+		PayableCurrency:     normalizeTopupOrderCurrency(targetPackage.SaleCurrency),
+		TargetPackageAmount: normalizePackagePreviewAmount(targetPackage.SalePrice),
 	}
 	if active != nil {
 		preview.CurrentPackageID = strings.TrimSpace(active.PackageID)
 		preview.CurrentPackageName = strings.TrimSpace(active.PackageName)
+		preview.CurrentPackageType = strings.TrimSpace(active.PackageType)
+		preview.CurrentQuotaMetric = strings.TrimSpace(active.QuotaMetric)
 		preview.CurrentExpiresAt = active.ExpiresAt
 	}
 
@@ -519,7 +534,7 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 		}
 		preview.StartAt = startAt
 		preview.ExpiresAt = expiresAt
-		preview.PayableAmount = normalizeTopupOrderAmount(targetPackage.SalePrice)
+		preview.PayableAmount = normalizePackagePreviewAmount(targetPackage.SalePrice)
 		payableChargeAmount, err := calcPackageChargeAmount(preview.PayableAmount, preview.PayableCurrency)
 		if err != nil {
 			return PackagePurchasePreview{}, err
@@ -546,6 +561,7 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 			}
 			preview.PayableChargeAmount = payableChargeAmount
 			preview.PayableAmount = normalizeTopupOrderAmount(payableAmount)
+			preview.CurrentPackageCreditAmount = normalizePackagePreviewAmount(preview.TargetPackageAmount - preview.PayableAmount)
 			preview.StartAt = effectiveNow
 			preview.ExpiresAt = active.ExpiresAt
 			break
@@ -572,7 +588,7 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 			}
 			preview.StartAt = active.ExpiresAt
 			preview.ExpiresAt = expiresAt
-			preview.PayableAmount = normalizeTopupOrderAmount(targetPackage.SalePrice)
+			preview.PayableAmount = normalizePackagePreviewAmount(targetPackage.SalePrice)
 			payableChargeAmount, err := calcPackageChargeAmount(preview.PayableAmount, preview.PayableCurrency)
 			if err != nil {
 				return PackagePurchasePreview{}, err
@@ -589,7 +605,7 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 		}
 		preview.StartAt = effectiveNow
 		preview.ExpiresAt = expiresAt
-		preview.PayableAmount = normalizeTopupOrderAmount(targetPackage.SalePrice)
+		preview.PayableAmount = normalizePackagePreviewAmount(targetPackage.SalePrice)
 		payableChargeAmount, err := calcPackageChargeAmount(preview.PayableAmount, preview.PayableCurrency)
 		if err != nil {
 			return PackagePurchasePreview{}, err
@@ -608,6 +624,9 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 			return PackagePurchasePreview{}, err
 		}
 		preview.PayableChargeAmount = payableChargeAmount
+	}
+	if preview.CurrentPackageCreditAmount < 0 {
+		preview.CurrentPackageCreditAmount = 0
 	}
 	return preview, nil
 }

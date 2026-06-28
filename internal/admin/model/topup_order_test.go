@@ -379,6 +379,18 @@ func TestPreviewPackagePurchaseUsesCurrentActiveSubscriptionAcrossGroups(t *test
 	if preview.CurrentExpiresAt != subscription.ExpiresAt {
 		t.Fatalf("current_expires_at=%d, want %d", preview.CurrentExpiresAt, subscription.ExpiresAt)
 	}
+	if preview.TargetPackageAmount != normalizeTopupOrderAmount(targetPackage.SalePrice) {
+		t.Fatalf("target_package_amount=%.2f, want %.2f", preview.TargetPackageAmount, normalizeTopupOrderAmount(targetPackage.SalePrice))
+	}
+	if preview.PayableAmount <= 0 || preview.PayableAmount >= preview.TargetPackageAmount {
+		t.Fatalf("payable_amount=%.2f, want between 0 and target price %.2f", preview.PayableAmount, preview.TargetPackageAmount)
+	}
+	if preview.CurrentPackageCreditAmount <= 0 {
+		t.Fatalf("current_package_credit_amount=%.2f, want > 0", preview.CurrentPackageCreditAmount)
+	}
+	if normalizeTopupOrderAmount(preview.PayableAmount+preview.CurrentPackageCreditAmount) != preview.TargetPackageAmount {
+		t.Fatalf("payable + credit = %.2f, want target %.2f", normalizeTopupOrderAmount(preview.PayableAmount+preview.CurrentPackageCreditAmount), preview.TargetPackageAmount)
+	}
 }
 
 func TestPreviewPackagePurchaseRenewRequiresCurrentActivePackage(t *testing.T) {
