@@ -3099,6 +3099,12 @@ body,
     gap: 0.8rem;
 }
 
+.router-current-package-model-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
 .router-balance-topup-panel {
     width: 100%;
 }

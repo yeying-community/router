@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,6 +30,11 @@ import (
 )
 
 const batchGrantUserTopUpPlanLimit = 200
+
+var (
+	cacheGetGroupModelsFn = model.CacheGetGroupModels
+	getGroupCatalogByIDFn = model.GetGroupCatalogByID
+)
 
 type updateSelfPasswordRequest struct {
 	CurrentPassword string `json:"current_password"`
@@ -65,6 +71,7 @@ type activeUserPackageSubscriptionView struct {
 	ExpiresAt                  int64                       `json:"expires_at"`
 	Status                     int                         `json:"status"`
 	Source                     string                      `json:"source,omitempty"`
+	SupportedModels            []string                    `json:"supported_models,omitempty"`
 	Usage                      *activeUserPackageUsageView `json:"usage,omitempty"`
 }
 
@@ -188,10 +195,16 @@ func buildActiveUserPackageUsageView(snapshot model.RequestPackageUsageSnapshot)
 func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscription) (*activeUserPackageSubscriptionView, error) {
 	groupID := strings.TrimSpace(subscription.GroupID)
 	groupName := ""
+	supportedModels := []string{}
 	if groupID != "" {
-		if groupCatalog, err := model.GetGroupCatalogByID(groupID); err == nil {
+		if groupCatalog, err := getGroupCatalogByIDFn(groupID); err == nil {
 			groupName = strings.TrimSpace(groupCatalog.Name)
 		}
+		models, err := cacheGetGroupModelsFn(context.Background(), groupID)
+		if err != nil {
+			return nil, err
+		}
+		supportedModels = append(supportedModels, models...)
 	}
 	source := ""
 	if packageID := strings.TrimSpace(subscription.PackageID); packageID != "" {
@@ -232,6 +245,7 @@ func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscr
 		ExpiresAt:                  subscription.ExpiresAt,
 		Status:                     subscription.Status,
 		Source:                     source,
+		SupportedModels:            supportedModels,
 		Usage:                      usage,
 	}, nil
 }

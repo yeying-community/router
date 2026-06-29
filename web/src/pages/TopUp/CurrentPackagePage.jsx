@@ -57,6 +57,11 @@ const normalizePackageView = (raw) => {
   if (!raw) {
     return null;
   }
+  const supportedModels = Array.isArray(raw.supported_models)
+    ? raw.supported_models
+        .map((item) => (item || '').toString().trim())
+        .filter((item) => item !== '')
+    : [];
   return {
     id: (raw.id || '').toString().trim(),
     package_id: (raw.package_id || '').toString().trim(),
@@ -80,6 +85,7 @@ const normalizePackageView = (raw) => {
     quota_reset_timezone: (raw.quota_reset_timezone || '').toString().trim(),
     started_at: Number(raw.started_at || 0),
     expires_at: Number(raw.expires_at || 0),
+    supported_models: supportedModels,
   };
 };
 
@@ -231,6 +237,34 @@ const PackageUsageCard = ({ title, period, timezone, items, footer }) => (
     </div>
   </AppSection>
 );
+
+const PackageSupportedModelsSection = ({ title, models, t }) => {
+  const normalizedModels = Array.isArray(models) ? models : [];
+  return (
+    <AppSection
+      title={title}
+      extra={
+        normalizedModels.length > 0
+          ? `${normalizedModels.length} ${t('user.detail.package_supported_models_count_unit')}`
+          : null
+      }
+    >
+      {normalizedModels.length === 0 ? (
+        <div className='router-text-muted'>
+          {t('user.detail.package_supported_models_empty')}
+        </div>
+      ) : (
+        <div className='router-current-package-model-list'>
+          {normalizedModels.map((modelName) => (
+            <AppTag key={modelName} className='router-tag'>
+              {modelName}
+            </AppTag>
+          ))}
+        </div>
+      )}
+    </AppSection>
+  );
+};
 
 const CurrentPackagePage = () => {
   const { t, i18n } = useTranslation();
@@ -913,6 +947,14 @@ const CurrentPackagePage = () => {
         )}
       </AppSection>
 
+      {activeSubscription ? (
+        <PackageSupportedModelsSection
+          title={t('user.detail.package_supported_models')}
+          models={activeSubscription.supported_models}
+          t={t}
+        />
+      ) : null}
+
       {nextSubscription ? (
         <AppSection
           title={
@@ -932,6 +974,14 @@ const CurrentPackagePage = () => {
             ))}
           </div>
         </AppSection>
+      ) : null}
+
+      {nextSubscription ? (
+        <PackageSupportedModelsSection
+          title={t('topup.package_status.next_package_supported_models')}
+          models={nextSubscription.supported_models}
+          t={t}
+        />
       ) : null}
 
       {activeSubscription && activeRequestQuotaPackage ? (

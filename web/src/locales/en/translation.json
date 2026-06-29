@@ -252,6 +252,7 @@
       "select_convert_target_hint": "Choose a target package of a different type.",
       "convert_next_cycle": "Next",
       "next_package_title": "Next Package",
+      "next_package_supported_models": "Next Package Models",
       "next_effective_at": "Next Effective At",
       "empty_description": "There is no active package right now. You can buy a package from the pricing page or top up balance to try the service first.",
       "daily_title": "Today's Package Quota",
@@ -2022,6 +2023,9 @@
       "package_timezone": "Reset Timezone",
       "package_started_at": "Started At",
       "package_expires_at": "Expires At",
+      "package_supported_models": "Supported Models",
+      "package_supported_models_empty": "This package has no configured models",
+      "package_supported_models_count_unit": "models",
       "quota_reset_timezone": "Reset Timezone",
       "balance_lots": {
         "title": "Balance Lots",

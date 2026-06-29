@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -153,5 +154,41 @@ func TestNormalizeBatchGrantUserIDsRejectsEmpty(t *testing.T) {
 func TestNormalizeBatchGrantUserIDsRejectsOverLimit(t *testing.T) {
 	if _, err := normalizeBatchGrantUserIDs([]string{"user-1", "user-2", "user-3"}, 2); err == nil {
 		t.Fatalf("over limit ids accepted, want error")
+	}
+}
+
+func TestBuildActiveUserPackageSubscriptionViewIncludesSupportedModels(t *testing.T) {
+	originalCacheGetGroupModels := cacheGetGroupModelsFn
+	originalGetGroupCatalogByID := getGroupCatalogByIDFn
+	cacheGetGroupModelsFn = func(_ context.Context, groupID string) ([]string, error) {
+		if groupID != "group-1" {
+			t.Fatalf("groupID=%q, want group-1", groupID)
+		}
+		return []string{"glm-5.2", "glm-image"}, nil
+	}
+	getGroupCatalogByIDFn = func(groupID string) (model.GroupCatalog, error) {
+		return model.GroupCatalog{Id: groupID, Name: "Group 1"}, nil
+	}
+	t.Cleanup(func() {
+		cacheGetGroupModelsFn = originalCacheGetGroupModels
+		getGroupCatalogByIDFn = originalGetGroupCatalogByID
+	})
+
+	view, err := buildActiveUserPackageSubscriptionView(model.UserPackageSubscription{
+		Id:          "subscription-1",
+		UserID:      "user-1",
+		PackageID:   "package-1",
+		PackageName: "Starter",
+		GroupID:     "group-1",
+		Status:      model.UserPackageSubscriptionStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("buildActiveUserPackageSubscriptionView: %v", err)
+	}
+	if len(view.SupportedModels) != 2 {
+		t.Fatalf("supported_models len=%d, want 2", len(view.SupportedModels))
+	}
+	if view.SupportedModels[0] != "glm-5.2" || view.SupportedModels[1] != "glm-image" {
+		t.Fatalf("supported_models=%#v, want [glm-5.2 glm-image]", view.SupportedModels)
 	}
 }
