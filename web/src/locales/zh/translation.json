@@ -216,8 +216,7 @@
       },
       "source": {
         "topup_order": "充值",
-        "redemption": "兑换",
-        "legacy_migration": "历史迁移"
+        "redemption": "兑换"
       },
       "status": {
         "active": "有效",
@@ -1581,17 +1580,23 @@
       "name_placeholder": "请输入名称",
       "models": "模型范围",
       "models_placeholder": "请选择允许使用的模型，留空则不进行限制",
-      "models_table_notice": "默认全部选中。全部选中时表示不额外限制，后续账号新增可用模型时该令牌会自动继承。",
+      "models_mode_unrestricted": "跟随账号可用模型",
+      "models_mode_manual": "手动限制模型范围",
+      "models_unrestricted_notice": "账号后续新增可用模型时，该令牌会自动可用。",
+      "models_manual_notice": "该令牌只能使用已选模型。表头复选框只影响当前筛选结果。",
+      "models_selected_summary": "已选 {{selected}} / {{total}}",
       "models_select_all": "全选",
       "models_table_name": "模型名称",
       "models_table_sources": "来源",
       "model_source_package": "套餐",
-      "model_source_topup": "充值",
-      "model_source_redemption": "兑换",
-      "model_source_legacy": "默认",
+      "model_source_balance": "账户余额",
       "models_table_empty": "暂无可选模型",
       "models_search_placeholder": "搜索模型名称",
       "models_search_empty": "没有匹配的模型",
+      "filters": {
+        "all_providers": "全部供应商",
+        "all_sources": "全部来源"
+      },
       "ip_limit": "IP 限制",
       "ip_limit_placeholder": "请输入允许访问的网段，例如：192.168.0.0/24，请使用英文逗号分隔多个网段",
       "expire_time": "过期时间",
@@ -2985,8 +2990,6 @@
         "new_user_reward": "新客奖励",
         "new_user_reward_description": "新用户注册成功后发放奖励。请选择一个充值额度作为奖励来源，留空表示不发放。",
         "reward_plan_placeholder": "请选择充值额度（默认不发放）",
-        "default_group": "默认用户分组",
-        "default_group_placeholder": "未配置则不自动分配",
         "pre_consume": "请求预扣金额",
         "pre_consume_placeholder": "请求结束后多退少补",
         "pre_consume_description": "用于请求开始时的预估预扣，成功后按实际消耗结算，多退少补。",

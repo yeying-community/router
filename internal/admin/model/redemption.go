@@ -6,7 +6,6 @@ import (
 	"math"
 	"strings"
 
-	"github.com/yeying-community/router/common/config"
 	"gorm.io/gorm"
 )
 
@@ -160,37 +159,7 @@ func NormalizeRedemptionFaceValueFieldsWithDB(db *gorm.DB, redemption *Redemptio
 }
 
 func backfillRedemptionGroupWithDefaultGroupWithDB(db *gorm.DB) error {
-	if db == nil {
-		return fmt.Errorf("database handle is nil")
-	}
-	groupRef := strings.TrimSpace(configuredDefaultUserGroupFromDB(db))
-	if groupRef == "" {
-		groupRef = strings.TrimSpace(config.DefaultUserGroup)
-	}
-	if groupRef == "" {
-		return nil
-	}
-	groupID, err := validateDefaultUserGroupOptionValueWithDB(db, groupRef)
-	if err != nil {
-		return err
-	}
-	if groupID == "" {
-		return nil
-	}
-	return db.Model(&Redemption{}).
-		Where("COALESCE(group_id, '') = ''").
-		Update("group_id", groupID).Error
-}
-
-func configuredDefaultUserGroupFromDB(db *gorm.DB) string {
-	if db == nil {
-		return ""
-	}
-	row := Option{}
-	if err := db.Where("key = ?", "DefaultUserGroup").Take(&row).Error; err != nil {
-		return ""
-	}
-	return strings.TrimSpace(row.Value)
+	return nil
 }
 
 func isValidRedemptionFaceValueAmount(value float64) bool {

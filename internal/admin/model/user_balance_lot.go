@@ -18,7 +18,6 @@ const (
 	UserBalanceLotStatusExpired  = "expired"
 	UserBalanceLotSourceTopup    = "topup_order"
 	UserBalanceLotSourceRedeem   = "redemption"
-	UserBalanceLotSourceLegacy   = "legacy_migration"
 	UserBalanceLotMaxValidityDay = 3650
 )
 
@@ -98,8 +97,6 @@ func normalizeUserBalanceLotSourceType(value string) string {
 		return UserBalanceLotSourceTopup
 	case UserBalanceLotSourceRedeem:
 		return UserBalanceLotSourceRedeem
-	case UserBalanceLotSourceLegacy:
-		return UserBalanceLotSourceLegacy
 	default:
 		return strings.TrimSpace(strings.ToLower(value))
 	}
@@ -107,7 +104,7 @@ func normalizeUserBalanceLotSourceType(value string) string {
 
 func normalizeUserBalanceLotSourceFilter(value string) string {
 	switch normalizeUserBalanceLotSourceType(value) {
-	case UserBalanceLotSourceTopup, UserBalanceLotSourceRedeem, UserBalanceLotSourceLegacy:
+	case UserBalanceLotSourceTopup, UserBalanceLotSourceRedeem:
 		return normalizeUserBalanceLotSourceType(value)
 	default:
 		return ""

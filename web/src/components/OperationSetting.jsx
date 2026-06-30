@@ -54,7 +54,6 @@ const formatPlanNumber = (value) => {
 
 const BALANCE_OPTION_KEYS = {
   newUserRewardPlan: 'NewUserRewardTopupPlanID',
-  defaultGroup: 'DefaultUserGroup',
   inviterRewardPlan: 'InviterRewardTopupPlanID',
   balanceReminderThreshold: 'QuotaRemindThreshold',
   preConsumedAmount: 'PreConsumedQuota',
@@ -71,7 +70,6 @@ const OperationSetting = ({ section = '' }) => {
   const now = new Date();
   const [inputs, setInputs] = useState({
     [BALANCE_OPTION_KEYS.newUserRewardPlan]: '',
-    [BALANCE_OPTION_KEYS.defaultGroup]: '',
     [BALANCE_OPTION_KEYS.inviterRewardPlan]: '',
     [BALANCE_OPTION_KEYS.balanceReminderThreshold]: 0,
     [BALANCE_OPTION_KEYS.preConsumedAmount]: 0,
@@ -88,7 +86,6 @@ const OperationSetting = ({ section = '' }) => {
     [PRICING_POLICY_KEYS.riskBuffer]: 0,
   });
   const [originInputs, setOriginInputs] = useState({});
-  const [groupOptions, setGroupOptions] = useState([]);
   const [topupPlanOptions, setTopupPlanOptions] = useState([]);
   const [topupPlanById, setTopupPlanById] = useState({});
   const [billingCurrencyIndex, setBillingCurrencyIndex] = useState(
@@ -152,7 +149,6 @@ const OperationSetting = ({ section = '' }) => {
 
   useEffect(() => {
     getOptions().then();
-    loadGroups().then();
     loadTopupPlans().then();
     loadBillingCurrencies().then();
   }, []);
@@ -161,46 +157,6 @@ const OperationSetting = ({ section = '' }) => {
     () => buildBillingUnitOptions(billingCurrencyIndex),
     [billingCurrencyIndex]
   );
-
-  const loadGroups = async () => {
-    try {
-      const rows = [];
-      let page = 1;
-      while (page <= 50) {
-        const res = await API.get('/api/v1/admin/groups', {
-          params: {
-            page,
-            page_size: 100,
-          },
-        });
-        const { success, message, data } = res.data || {};
-        if (!success) {
-          showError(message);
-          return;
-        }
-        const pageItems = Array.isArray(data?.items) ? data.items : [];
-        rows.push(...pageItems);
-        const total = Number(data?.total || pageItems.length || 0);
-        if (
-          pageItems.length === 0 ||
-          rows.length >= total ||
-          pageItems.length < 100
-        ) {
-          break;
-        }
-        page += 1;
-      }
-      setGroupOptions(
-        rows.map((group) => ({
-          key: group.id,
-          value: group.id,
-          text: group.name || group.id,
-        })),
-      );
-    } catch (error) {
-      showError(error?.message || error);
-    }
-  };
 
   const loadTopupPlans = async () => {
     try {
@@ -392,15 +348,6 @@ const OperationSetting = ({ section = '' }) => {
               inviterRewardPlanID
             );
           }
-        }
-        if (
-          originInputs[BALANCE_OPTION_KEYS.defaultGroup] !==
-          inputs[BALANCE_OPTION_KEYS.defaultGroup]
-        ) {
-          await updateOption(
-            BALANCE_OPTION_KEYS.defaultGroup,
-            inputs[BALANCE_OPTION_KEYS.defaultGroup]
-          );
         }
         break;
       case 'retry':
@@ -625,20 +572,6 @@ const OperationSetting = ({ section = '' }) => {
                   'setting.operation.quota.reward_plan_placeholder',
                   'setting.operation.quota.inviter_reward_description'
                 )}
-              </AppFormRow>
-              <AppFormRow>
-                <AppField label={t('setting.operation.quota.default_group')}>
-                  <AppSelect
-                    className='router-section-input'
-                    name={BALANCE_OPTION_KEYS.defaultGroup}
-                    clearable
-                    search
-                    options={groupOptions}
-                    onChange={handleInputChange}
-                    value={inputs[BALANCE_OPTION_KEYS.defaultGroup] || ''}
-                    placeholder={t('setting.operation.quota.default_group_placeholder')}
-                  />
-                </AppField>
               </AppFormRow>
               <AppFormActions align='start'>
                 <AppButton

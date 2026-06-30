@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/random"
 	"gorm.io/gorm"
@@ -152,16 +151,6 @@ func normalizeTopupPlanQuotaAmount(value float64) float64 {
 func resolveDefaultTopupPlanGroupWithDB(db *gorm.DB) (string, error) {
 	if db == nil {
 		return "", fmt.Errorf("database handle is nil")
-	}
-	groupRef := strings.TrimSpace(configuredDefaultUserGroupFromDB(db))
-	if groupRef == "" {
-		groupRef = strings.TrimSpace(config.DefaultUserGroup)
-	}
-	if groupRef != "" {
-		groupID, err := validateDefaultUserGroupOptionValueWithDB(db, groupRef)
-		if err == nil && strings.TrimSpace(groupID) != "" {
-			return strings.TrimSpace(groupID), nil
-		}
 	}
 	row := GroupCatalog{}
 	if err := db.Where("enabled = ?", true).Order("sort_order asc, name asc").First(&row).Error; err != nil {

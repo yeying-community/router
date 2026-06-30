@@ -149,7 +149,6 @@ var TurnstileSiteKey = ""
 var TurnstileSecretKey = ""
 
 var NewUserRewardTopupPlanID = ""
-var DefaultUserGroup = ""
 var InviterRewardTopupPlanID = ""
 var ChannelDisableThreshold = 5.0
 var AutomaticDisableChannelEnabled = false

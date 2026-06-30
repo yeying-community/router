@@ -4262,9 +4262,52 @@ body,
     min-width: 170px;
 }
 
+.router-token-model-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.router-token-model-mode-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.router-token-model-mode {
+    width: min(360px, 100%);
+    flex: 0 0 auto;
+}
+
+.router-token-model-mode-hint {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+    flex: 1 1 260px;
+    min-width: 220px;
+}
+
+.router-token-model-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
 .router-token-model-search {
-    max-width: 320px;
-    margin-bottom: 10px;
+    width: min(320px, 100%);
+}
+
+.router-token-model-filter {
+    min-width: 180px;
+}
+
+.router-token-model-selection-summary {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 32px;
+    white-space: nowrap;
 }
 
 .router-token-model-table-wrap {
@@ -4276,13 +4319,18 @@ body,
 
 .router-ui-table.router-token-model-table .ant-table-thead > tr > th:first-child,
 .router-ui-table.router-token-model-table .ant-table-tbody > tr > td:first-child {
-    width: 72px !important;
+    width: 56px !important;
 }
 
 .router-ui-table.router-token-model-table .ant-table-thead > tr > th,
 .router-ui-table.router-token-model-table .ant-table-tbody > tr > td {
     padding-top: 10px !important;
     padding-bottom: 10px !important;
+}
+
+.router-token-model-select-all-checkbox {
+    display: inline-flex;
+    align-items: center;
 }
 
 .router-token-basic-info-row {

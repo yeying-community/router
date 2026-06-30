@@ -43,11 +43,7 @@ func UpdateOption(key string, value string) error {
 		return fmt.Errorf("配置项 %s 仅支持通过配置文件设置", strings.TrimSpace(key))
 	}
 	if strings.TrimSpace(key) == "DefaultUserGroup" {
-		normalizedValue, err := model.ValidateDefaultUserGroupOptionValue(value)
-		if err != nil {
-			return err
-		}
-		value = normalizedValue
+		return fmt.Errorf("DefaultUserGroup 已废弃，请通过套餐、充值或兑换码配置用户权益")
 	}
 	return optionrepo.Update(key, value)
 }
