@@ -3105,6 +3105,64 @@ body,
     gap: 0.5rem;
 }
 
+.router-supported-models-summary {
+    display: grid;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.router-supported-models-summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    color: #6b7280;
+    font-size: 0.78rem;
+}
+
+.router-supported-models-count-button {
+    color: #1677ff;
+    font-weight: 600;
+}
+
+.router-supported-models-dialog {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.router-supported-models-search {
+    width: 100%;
+}
+
+.router-supported-models-dialog-meta {
+    color: #6b7280;
+    font-size: 0.85rem;
+}
+
+.router-supported-models-dialog-list {
+    display: grid;
+    gap: 0.45rem;
+    max-height: 48vh;
+    overflow-y: auto;
+}
+
+.router-supported-models-dialog-item {
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #111827;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+}
+
+.router-supported-models-empty {
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
 .router-token-model-source-list {
     display: flex;
     flex-wrap: wrap;

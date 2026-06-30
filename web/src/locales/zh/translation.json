@@ -234,7 +234,14 @@
       "balance_mode_title": "余额使用",
       "balance_hint": "适合快速试用或弹性消耗，先充值后使用，用多少扣多少。",
       "selected": "已选中",
-      "select": "点击选择"
+      "select": "点击选择",
+      "supported_models": "支持模型",
+      "supported_models_count": "{{count}} 个",
+      "supported_models_empty": "未配置",
+      "supported_models_dialog_title": "支持模型",
+      "supported_models_search_placeholder": "搜索模型",
+      "supported_models_dialog_count": "显示 {{count}} / {{total}} 个模型",
+      "supported_models_search_empty": "没有匹配的模型"
     },
     "package_status": {
       "view_pricing": "查看报价",
@@ -1639,6 +1646,7 @@
     "basic_info": "基础信息",
     "cancel": "取消",
     "confirm": "确认",
+    "close": "关闭",
     "edit": "编辑",
     "refresh": "刷新",
     "enabled": "启用",
