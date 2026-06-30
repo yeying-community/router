@@ -3105,6 +3105,12 @@ body,
     gap: 0.5rem;
 }
 
+.router-token-model-source-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
 .router-balance-topup-panel {
     width: 100%;
 }

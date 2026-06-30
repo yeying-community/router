@@ -68,7 +68,7 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 			logger.Errorf(ctx, "billing cache update failed code=update_user_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s quota_delta=%d total_quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), quotaDelta, totalQuota, chargeUserBalance, err.Error())
 		}
 		if totalQuota > 0 {
-			consumedFromLots, consumeErr := model.ConsumeUserBalanceLots(userId, totalQuota)
+			consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(userId, groupID, totalQuota)
 			if consumeErr != nil {
 				logger.Errorf(ctx, "billing lots consume failed code=consume_user_balance_lots_failed user_id=%s group=%s channel_id=%s model=%s total_quota=%d err=%q", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), totalQuota, consumeErr.Error())
 			} else if consumedFromLots < totalQuota {

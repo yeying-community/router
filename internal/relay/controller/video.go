@@ -511,7 +511,7 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 				logger.Errorf(ctx, "video billing failed code=update_user_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), quota, billingPlan.ChargeUserBalance(), err.Error())
 			}
 			if quota > 0 {
-				consumedFromLots, consumeErr := model.ConsumeUserBalanceLots(meta.UserId, quota)
+				consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(meta.UserId, meta.Group, quota)
 				if consumeErr != nil {
 					logger.Errorf(ctx, "video billing lots consume failed user_id=%s group=%s channel_id=%s model=%s quota=%d err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), quota, consumeErr.Error())
 				} else if consumedFromLots < quota {

@@ -140,6 +140,25 @@ const EditToken = () => {
   );
   const selectedModels = isEveryModelSelected ? allModelValues : inputs.models;
 
+  const formatEntitlementSourceLabel = useCallback(
+    (source) => {
+      const sourceName = (source?.source_name || '').toString().trim();
+      const sourceType = (source?.source_type || '').toString().trim();
+      let typeLabel = '';
+      if (sourceType === 'package') {
+        typeLabel = t('token.edit.model_source_package');
+      } else if (sourceType === 'topup') {
+        typeLabel = t('token.edit.model_source_topup');
+      } else if (sourceType === 'redemption') {
+        typeLabel = t('token.edit.model_source_redemption');
+      } else {
+        typeLabel = t('token.edit.model_source_legacy');
+      }
+      return sourceName ? `${typeLabel}: ${sourceName}` : typeLabel;
+    },
+    [t]
+  );
+
   const renderStatus = (status) => {
     switch (status) {
       case 1:
@@ -371,11 +390,19 @@ const EditToken = () => {
       let res = await API.get(`/api/v1/public/user/available_models`);
       const { success, message, data } = res.data || {};
       if (success && data) {
+        const sourceItemsByModel = new Map(
+          (Array.isArray(res.data?.items) ? res.data.items : []).map((item) => [
+            (item?.model || '').toString().trim(),
+            Array.isArray(item?.sources) ? item.sources : [],
+          ])
+        );
         let options = data.map((model) => {
+          const normalizedModel = (model || '').toString().trim();
           return {
-            key: model,
-            text: model,
-            value: model,
+            key: normalizedModel,
+            text: normalizedModel,
+            value: normalizedModel,
+            sources: sourceItemsByModel.get(normalizedModel) || [],
           };
         });
         setModelOptions(options);
@@ -579,6 +606,37 @@ const EditToken = () => {
             render: (value) => (
               <span className='router-monospace-value'>{value}</span>
             ),
+          },
+          {
+            title: t('token.edit.models_table_sources'),
+            dataIndex: 'sources',
+            key: 'sources',
+            render: (sources) => {
+              const normalizedSources = Array.isArray(sources) ? sources : [];
+              if (normalizedSources.length === 0) {
+                return <span className='router-text-muted'>-</span>;
+              }
+              return (
+                <div className='router-token-model-source-list'>
+                  {normalizedSources.slice(0, 3).map((source, index) => (
+                    <AppTag
+                      key={[
+                        source?.source_type || 'source',
+                        source?.source_id || source?.group_id || index,
+                      ].join('-')}
+                      className='router-tag'
+                    >
+                      {formatEntitlementSourceLabel(source)}
+                    </AppTag>
+                  ))}
+                  {normalizedSources.length > 3 ? (
+                    <AppTag className='router-tag'>
+                      +{normalizedSources.length - 3}
+                    </AppTag>
+                  ) : null}
+                </div>
+              );
+            },
           },
         ]}
       />

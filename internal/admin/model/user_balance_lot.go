@@ -323,7 +323,7 @@ func ExpireUserBalanceLots(userID string) (int64, error) {
 	return ExpireUserBalanceLotsWithDB(DB, userID, helper.GetTimestamp())
 }
 
-func ConsumeUserBalanceLotsWithDB(db *gorm.DB, userID string, quota int64, now int64) (int64, error) {
+func ConsumeUserBalanceLotsForGroupWithDB(db *gorm.DB, userID string, groupID string, quota int64, now int64) (int64, error) {
 	if db == nil {
 		return 0, fmt.Errorf("database handle is nil")
 	}
@@ -331,6 +331,7 @@ func ConsumeUserBalanceLotsWithDB(db *gorm.DB, userID string, quota int64, now i
 	if normalizedUserID == "" || quota <= 0 {
 		return 0, nil
 	}
+	normalizedGroupID := strings.TrimSpace(groupID)
 	consumed := int64(0)
 	err := db.Transaction(func(tx *gorm.DB) error {
 		effectiveNow := now
@@ -340,11 +341,31 @@ func ConsumeUserBalanceLotsWithDB(db *gorm.DB, userID string, quota int64, now i
 		if _, err := expireUserBalanceLotsInTx(tx, normalizedUserID, effectiveNow); err != nil {
 			return err
 		}
-		rows := make([]UserBalanceLot, 0)
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		query := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where("user_id = ? AND status = ? AND remaining_amount > 0 AND (expires_at = 0 OR expires_at > ?)", normalizedUserID, UserBalanceLotStatusActive, effectiveNow).
-			Order("CASE WHEN expires_at = 0 THEN 1 ELSE 0 END asc, expires_at asc, created_at asc, id asc").
-			Find(&rows).Error; err != nil {
+			Order("CASE WHEN expires_at = 0 THEN 1 ELSE 0 END asc, expires_at asc, created_at asc, id asc")
+		if normalizedGroupID != "" {
+			query = query.Where(`
+				(
+					source_type = ? AND EXISTS (
+						SELECT 1 FROM topup_orders o
+						WHERE o.id = user_balance_lots.source_id
+						  AND o.business_type = ?
+						  AND COALESCE(o.group_id, '') = ?
+					)
+				)
+				OR
+				(
+					source_type = ? AND EXISTS (
+						SELECT 1 FROM redemptions r
+						WHERE r.id = user_balance_lots.source_id
+						  AND COALESCE(r.group_id, '') = ?
+					)
+				)
+			`, UserBalanceLotSourceTopup, TopupOrderBusinessBalance, normalizedGroupID, UserBalanceLotSourceRedeem, normalizedGroupID)
+		}
+		rows := make([]UserBalanceLot, 0)
+		if err := query.Find(&rows).Error; err != nil {
 			return err
 		}
 		remainingToConsume := quota
@@ -393,6 +414,14 @@ func ConsumeUserBalanceLotsWithDB(db *gorm.DB, userID string, quota int64, now i
 		return 0, err
 	}
 	return consumed, nil
+}
+
+func ConsumeUserBalanceLotsWithDB(db *gorm.DB, userID string, quota int64, now int64) (int64, error) {
+	return ConsumeUserBalanceLotsForGroupWithDB(db, userID, "", quota, now)
+}
+
+func ConsumeUserBalanceLotsForGroup(userID string, groupID string, quota int64) (int64, error) {
+	return ConsumeUserBalanceLotsForGroupWithDB(DB, userID, groupID, quota, helper.GetTimestamp())
 }
 
 func ConsumeUserBalanceLots(userID string, quota int64) (int64, error) {

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -93,13 +94,86 @@ func selectPinnedResponsesChannel(c *gin.Context, userGroup string, requestModel
 	return channel, true
 }
 
+func selectEntitlementChannelForRequest(ctx context.Context, c *gin.Context, userID string, initialGroup string, initialSource *model.UserEntitlementSource, requestModel string) (*model.Channel, string, *model.UserEntitlementSource, error) {
+	requestPath := c.Request.URL.Path
+	if pinnedChannel, ok := selectPinnedResponsesChannel(c, initialGroup, requestModel, requestPath); ok {
+		return pinnedChannel, initialGroup, initialSource, nil
+	}
+	type candidateSource struct {
+		groupID string
+		source  *model.UserEntitlementSource
+	}
+	candidateSources := []candidateSource{{groupID: initialGroup, source: initialSource}}
+	if strings.TrimSpace(requestModel) != "" {
+		if payload, err := model.BuildUserEntitlementModels(ctx, userID); err == nil {
+			candidateSources = candidateSources[:0]
+			for _, source := range payload.ByModel[strings.TrimSpace(requestModel)] {
+				next := source
+				candidateSources = append(candidateSources, candidateSource{
+					groupID: strings.TrimSpace(source.GroupID),
+					source:  &next,
+				})
+			}
+		} else {
+			logger.RelayWarnf(ctx, "DISTRIBUTE entitlement source reload failed user_id=%s model=%s endpoint=%s error=%q", userID, requestModel, requestPath, err.Error())
+		}
+	}
+	if len(candidateSources) == 0 {
+		candidateSources = append(candidateSources, candidateSource{groupID: initialGroup, source: initialSource})
+	}
+	var lastStats model.ChannelCandidateStats
+	var lastErr error
+	for _, candidate := range candidateSources {
+		groupID := strings.TrimSpace(candidate.groupID)
+		if groupID == "" {
+			continue
+		}
+		if pinnedChannel, ok := selectPinnedResponsesChannel(c, groupID, requestModel, requestPath); ok {
+			return pinnedChannel, groupID, candidate.source, nil
+		}
+		candidates, stats, err := model.CacheListSatisfiedChannelsForRequestWithStats(groupID, requestModel, requestPath)
+		lastStats = stats
+		if err != nil {
+			lastErr = err
+			logger.RelayWarnf(ctx, "DISTRIBUTE decision=skip reason=list_candidates_failed user_id=%s group=%s model=%s endpoint=%s listed_candidates=%d endpoint_filtered_candidates=%d error=%q", userID, groupID, requestModel, requestPath, stats.ListedCount, stats.EndpointFilteredCount, err.Error())
+			continue
+		}
+		channel := pickChannelByPriority(candidates, false)
+		if channel == nil {
+			logger.RelayWarnf(ctx, "DISTRIBUTE decision=skip reason=no_available_channel user_id=%s group=%s model=%s endpoint=%s listed_candidates=%d endpoint_filtered_candidates=%d", userID, groupID, requestModel, requestPath, stats.ListedCount, stats.EndpointFilteredCount)
+			continue
+		}
+		return channel, groupID, candidate.source, nil
+	}
+	message := fmt.Sprintf("当前权益下对于模型 %s 无可用渠道", requestModel)
+	if strings.TrimSpace(initialGroup) != "" {
+		message = fmt.Sprintf("当前分组 %s 下对于模型 %s 无可用渠道", initialGroup, requestModel)
+	}
+	if lastErr != nil {
+		logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=no_entitlement_channel user_id=%s group=%s model=%s endpoint=%s listed_candidates=%d endpoint_filtered_candidates=%d message=%q error=%q", userID, initialGroup, requestModel, requestPath, lastStats.ListedCount, lastStats.EndpointFilteredCount, message, lastErr.Error())
+	} else {
+		logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=no_entitlement_channel user_id=%s group=%s model=%s endpoint=%s message=%q", userID, initialGroup, requestModel, requestPath, message)
+	}
+	return nil, "", nil, fmt.Errorf("%s", message)
+}
+
 func Distribute() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 		userId := c.GetString(ctxkey.Id)
-		userGroup, _ := model.CacheGetUserGroup(userId)
-		c.Set(ctxkey.Group, userGroup)
 		requestModel := c.GetString(ctxkey.RequestModel)
+		userGroup, entitlementSource, groupErr := model.ResolveUserEntitlementGroupForModel(ctx, userId, requestModel)
+		if groupErr != nil {
+			logger.RelayWarnf(ctx, "DISTRIBUTE decision=abort reason=entitlement_group_missing user_id=%s model=%s endpoint=%s error=%q", userId, requestModel, c.Request.URL.Path, groupErr.Error())
+			abortWithMessage(c, http.StatusServiceUnavailable, groupErr.Error())
+			return
+		}
+		c.Set(ctxkey.Group, userGroup)
+		if entitlementSource != nil {
+			c.Set(ctxkey.EntitlementSourceType, entitlementSource.SourceType)
+			c.Set(ctxkey.EntitlementSourceId, entitlementSource.SourceID)
+			c.Set(ctxkey.EntitlementSourceName, entitlementSource.SourceName)
+		}
 		var channel *model.Channel
 		var err error
 		channelId, ok := c.Get(ctxkey.SpecificChannelId)
@@ -117,28 +191,15 @@ func Distribute() func(c *gin.Context) {
 				return
 			}
 		} else {
-			if pinnedChannel, ok := selectPinnedResponsesChannel(c, userGroup, requestModel, c.Request.URL.Path); ok {
-				channel = pinnedChannel
+			if channel, userGroup, entitlementSource, err = selectEntitlementChannelForRequest(ctx, c, userId, userGroup, entitlementSource, requestModel); err != nil {
+				abortWithMessage(c, http.StatusServiceUnavailable, err.Error())
+				return
 			}
-			if channel == nil {
-				candidates, stats, err := model.CacheListSatisfiedChannelsForRequestWithStats(userGroup, requestModel, c.Request.URL.Path)
-				if err != nil {
-					message := fmt.Sprintf("当前分组 %s 下对于模型 %s 无可用渠道", userGroup, requestModel)
-					if channel != nil {
-						logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=channel_missing user_id=%s group=%s model=%s endpoint=%s channel_id=%s", userId, userGroup, requestModel, c.Request.URL.Path, channel.Id)
-						message = "数据库一致性已被破坏，请联系管理员"
-					}
-					logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=list_candidates_failed user_id=%s group=%s model=%s endpoint=%s listed_candidates=%d endpoint_filtered_candidates=%d message=%q error=%q", userId, userGroup, requestModel, c.Request.URL.Path, stats.ListedCount, stats.EndpointFilteredCount, message, err.Error())
-					abortWithMessage(c, http.StatusServiceUnavailable, message)
-					return
-				}
-				channel = pickChannelByPriority(candidates, false)
-				if channel == nil {
-					message := fmt.Sprintf("当前分组 %s 下对于模型 %s 无可用渠道", userGroup, requestModel)
-					logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=no_available_channel user_id=%s group=%s model=%s endpoint=%s listed_candidates=%d endpoint_filtered_candidates=%d message=%q", userId, userGroup, requestModel, c.Request.URL.Path, stats.ListedCount, stats.EndpointFilteredCount, message)
-					abortWithMessage(c, http.StatusServiceUnavailable, message)
-					return
-				}
+			c.Set(ctxkey.Group, userGroup)
+			if entitlementSource != nil {
+				c.Set(ctxkey.EntitlementSourceType, entitlementSource.SourceType)
+				c.Set(ctxkey.EntitlementSourceId, entitlementSource.SourceID)
+				c.Set(ctxkey.EntitlementSourceName, entitlementSource.SourceName)
 			}
 		}
 		logger.Debugf(ctx, "user id %s, user group: %s, request model: %s, using channel #%s", userId, userGroup, requestModel, channel.Id)

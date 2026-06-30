@@ -820,15 +820,7 @@ func RetrieveModel(c *gin.Context) {
 func GetUserAvailableModels(c *gin.Context) {
 	ctx := c.Request.Context()
 	id := c.GetString(ctxkey.Id)
-	userGroup, err := model.CacheGetUserGroup(id)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
-		return
-	}
-	models, err := model.CacheGetGroupModels(ctx, userGroup)
+	payload, err := model.BuildUserEntitlementModels(ctx, id)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -846,26 +838,32 @@ func GetUserAvailableModels(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "",
-			"data":    models,
+			"data":    payload.Models,
+			"items":   payload.Items,
+			"sources": payload.Sources,
 		})
 		return
 	}
 
 	filtered := make([]string, 0)
-	for _, m := range models {
-		ch, err := model.GetTopChannelByModel(userGroup, m)
-		if err != nil {
-			continue
-		}
-		name := ch.GetProtocol()
-		if strings.ToLower(name) == provider && modelBelongsToProvider(provider, m) {
-			filtered = append(filtered, m)
-			continue
-		}
-		// If the channel protocol is configured as generic OpenAI,
-		// still allow provider classification by model name.
-		if modelBelongsToProvider(provider, m) {
-			filtered = append(filtered, m)
+	for _, item := range payload.Items {
+		modelName := strings.TrimSpace(item.Model)
+		for _, source := range item.Sources {
+			ch, err := model.GetTopChannelByModel(source.GroupID, modelName)
+			if err != nil {
+				continue
+			}
+			name := ch.GetProtocol()
+			if strings.ToLower(name) == provider && modelBelongsToProvider(provider, modelName) {
+				filtered = append(filtered, modelName)
+				break
+			}
+			// If the channel protocol is configured as generic OpenAI,
+			// still allow provider classification by model name.
+			if modelBelongsToProvider(provider, modelName) {
+				filtered = append(filtered, modelName)
+				break
+			}
 		}
 	}
 	if len(filtered) == 0 {

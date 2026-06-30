@@ -13,16 +13,19 @@ import (
 )
 
 type Meta struct {
-	Mode                int
-	ChannelProtocol     int
-	ChannelId           string
-	TokenId             string
-	TokenName           string
-	UserId              string
-	Group               string
-	ModelMapping        map[string]string
-	ChannelModelConfigs []model.ChannelModel
-	EndpointPolicy      *model.ChannelModelEndpointPolicy
+	Mode                  int
+	ChannelProtocol       int
+	ChannelId             string
+	TokenId               string
+	TokenName             string
+	UserId                string
+	Group                 string
+	EntitlementSourceType string
+	EntitlementSourceID   string
+	EntitlementSourceName string
+	ModelMapping          map[string]string
+	ChannelModelConfigs   []model.ChannelModel
+	EndpointPolicy        *model.ChannelModelEndpointPolicy
 	// BaseURL is the proxy url set in the channel config
 	BaseURL  string
 	APIKey   string
@@ -48,26 +51,29 @@ type Meta struct {
 func GetByContext(c *gin.Context) *Meta {
 	normalizedPath := relaymode.NormalizePath(c.Request.URL.String())
 	meta := Meta{
-		Mode:                relaymode.GetByPath(c.Request.URL.Path),
-		ChannelProtocol:     c.GetInt(ctxkey.Channel),
-		ChannelId:           c.GetString(ctxkey.ChannelId),
-		TokenId:             c.GetString(ctxkey.TokenId),
-		TokenName:           c.GetString(ctxkey.TokenName),
-		UserId:              c.GetString(ctxkey.Id),
-		Group:               c.GetString(ctxkey.Group),
-		ModelMapping:        c.GetStringMapString(ctxkey.ModelMapping),
-		OriginModelName:     c.GetString(ctxkey.RequestModel),
-		BaseURL:             c.GetString(ctxkey.BaseURL),
-		APIKey:              strings.TrimPrefix(c.Request.Header.Get("Authorization"), "Bearer "),
-		RequestURLPath:      normalizedPath,
-		UpstreamMode:        relaymode.GetByPath(c.Request.URL.Path),
-		UpstreamRequestPath: normalizedPath,
-		StartTime:           time.Now(),
-		FallbackCount:       c.GetInt(ctxkey.RelayRetryCount),
-		FallbackAttempts:    c.GetString(ctxkey.RelayFallbackAttempts),
-		RelayErrorType:      c.GetString(ctxkey.RelayErrorType),
-		RelayErrorCode:      c.GetString(ctxkey.RelayErrorCode),
-		RelayErrorMessage:   c.GetString(ctxkey.RelayError),
+		Mode:                  relaymode.GetByPath(c.Request.URL.Path),
+		ChannelProtocol:       c.GetInt(ctxkey.Channel),
+		ChannelId:             c.GetString(ctxkey.ChannelId),
+		TokenId:               c.GetString(ctxkey.TokenId),
+		TokenName:             c.GetString(ctxkey.TokenName),
+		UserId:                c.GetString(ctxkey.Id),
+		Group:                 c.GetString(ctxkey.Group),
+		EntitlementSourceType: c.GetString(ctxkey.EntitlementSourceType),
+		EntitlementSourceID:   c.GetString(ctxkey.EntitlementSourceId),
+		EntitlementSourceName: c.GetString(ctxkey.EntitlementSourceName),
+		ModelMapping:          c.GetStringMapString(ctxkey.ModelMapping),
+		OriginModelName:       c.GetString(ctxkey.RequestModel),
+		BaseURL:               c.GetString(ctxkey.BaseURL),
+		APIKey:                strings.TrimPrefix(c.Request.Header.Get("Authorization"), "Bearer "),
+		RequestURLPath:        normalizedPath,
+		UpstreamMode:          relaymode.GetByPath(c.Request.URL.Path),
+		UpstreamRequestPath:   normalizedPath,
+		StartTime:             time.Now(),
+		FallbackCount:         c.GetInt(ctxkey.RelayRetryCount),
+		FallbackAttempts:      c.GetString(ctxkey.RelayFallbackAttempts),
+		RelayErrorType:        c.GetString(ctxkey.RelayErrorType),
+		RelayErrorCode:        c.GetString(ctxkey.RelayErrorCode),
+		RelayErrorMessage:     c.GetString(ctxkey.RelayError),
 	}
 	cfg, ok := c.Get(ctxkey.Config)
 	if ok {

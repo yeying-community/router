@@ -241,7 +241,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 			logger.Error(ctx, "error update user quota cache: "+err.Error())
 		}
 		if quota > 0 {
-			consumedFromLots, consumeErr := model.ConsumeUserBalanceLots(meta.UserId, quota)
+			consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(meta.UserId, meta.Group, quota)
 			if consumeErr != nil {
 				logger.Error(ctx, "error consuming user balance lots: "+consumeErr.Error())
 			} else if consumedFromLots < quota {
