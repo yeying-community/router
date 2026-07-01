@@ -216,8 +216,7 @@
       },
       "source": {
         "topup_order": "Top-up",
-        "redemption": "Redemption",
-        "legacy_migration": "Legacy Migration"
+        "redemption": "Redemption"
       },
       "status": {
         "active": "Active",
@@ -234,7 +233,14 @@
       "balance_mode_title": "Balance Usage",
       "balance_hint": "Best for quick trials or elastic usage. Top up first, then pay as you go.",
       "selected": "Selected",
-      "select": "Select"
+      "select": "Select",
+      "supported_models": "Models",
+      "supported_models_count": "{{count}}",
+      "supported_models_empty": "Not configured",
+      "supported_models_dialog_title": "Supported Models",
+      "supported_models_search_placeholder": "Search models",
+      "supported_models_dialog_count": "Showing {{count}} / {{total}} models",
+      "supported_models_search_empty": "No matching models"
     },
     "package_status": {
       "view_pricing": "View Pricing",
@@ -1574,17 +1580,23 @@
       "name_placeholder": "Please enter name",
       "models": "Model Scope",
       "models_placeholder": "Please select allowed models, leave empty for no restrictions",
-      "models_table_notice": "All models are selected by default. Keeping all selected means no extra restriction, so newly available account models remain accessible to this token.",
+      "models_mode_unrestricted": "Follow account models",
+      "models_mode_manual": "Manually restrict models",
+      "models_unrestricted_notice": "New account-available models will automatically become available to this token.",
+      "models_manual_notice": "This token can only use selected models. The header checkbox only affects the current filtered results.",
+      "models_selected_summary": "{{selected}} / {{total}} selected",
       "models_select_all": "Select All",
       "models_table_name": "Model",
       "models_table_sources": "Sources",
       "model_source_package": "Package",
-      "model_source_topup": "Top-up",
-      "model_source_redemption": "Redemption",
-      "model_source_legacy": "Default",
+      "model_source_balance": "Account Balance",
       "models_table_empty": "No available models",
       "models_search_placeholder": "Search models",
       "models_search_empty": "No matching models",
+      "filters": {
+        "all_providers": "All providers",
+        "all_sources": "All sources"
+      },
       "ip_limit": "IP Restriction",
       "ip_limit_placeholder": "Please enter allowed subnets, e.g.: 192.168.0.0/24, use commas to separate multiple subnets",
       "expire_time": "Expiry Time",
@@ -1639,6 +1651,7 @@
     "basic_info": "Basic Information",
     "cancel": "Cancel",
     "confirm": "Confirm",
+    "close": "Close",
     "edit": "Edit",
     "refresh": "Refresh",
     "enabled": "Enabled",
@@ -2979,8 +2992,6 @@
         "new_user_reward": "New User Reward",
         "new_user_reward_description": "Granted after a new user completes registration. Select a topup plan as reward source; leave empty to disable.",
         "reward_plan_placeholder": "Select a topup plan (empty means disabled)",
-        "default_group": "Default User Group",
-        "default_group_placeholder": "No automatic assignment when unset",
         "pre_consume": "Pre-consumed Amount per Request",
         "pre_consume_placeholder": "Refund or charge difference after request",
         "pre_consume_description": "Reserve estimated quota at request start, then settle by actual usage with refund/charge delta.",

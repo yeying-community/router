@@ -193,8 +193,6 @@ const formatBalanceLotSource = (sourceType, t) => {
       return t('topup.balance_lots.source.topup_order');
     case 'redemption':
       return t('topup.balance_lots.source.redemption');
-    case 'legacy_migration':
-      return t('topup.balance_lots.source.legacy_migration');
     default:
       return readOnlyValue(sourceType);
   }
@@ -699,11 +697,6 @@ const UserDetail = () => {
         key: 'redemption',
         value: 'redemption',
         text: t('topup.balance_lots.source.redemption'),
-      },
-      {
-        key: 'legacy_migration',
-        value: 'legacy_migration',
-        text: t('topup.balance_lots.source.legacy_migration'),
       },
     ],
     [t],

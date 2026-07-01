@@ -1608,8 +1608,126 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return renameVolcengineRealtimeChannelsToVolcengineWithDB(tx)
 			},
 		},
+		{
+			Version:     "202606301030_remove_default_user_group_and_legacy_balance_sources",
+			Description: "remove deprecated default user group option and migrate legacy balance lot sources to topup orders",
+			Up: func(tx *gorm.DB) error {
+				return removeDefaultUserGroupAndLegacyBalanceSourcesWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
+}
+
+func removeDefaultUserGroupAndLegacyBalanceSourcesWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if err := db.AutoMigrate(&TopupOrder{}, &UserBalanceLot{}, &UserBalanceLotTransaction{}); err != nil {
+		return err
+	}
+	if err := db.Where("key = ?", "DefaultUserGroup").Delete(&Option{}).Error; err != nil {
+		return err
+	}
+	const legacyBalanceSource = "legacy_migration"
+	lots := make([]UserBalanceLot, 0)
+	if err := db.
+		Where("source_type = ?", legacyBalanceSource).
+		Order("created_at asc, id asc").
+		Find(&lots).Error; err != nil {
+		return err
+	}
+	if len(lots) == 0 {
+		return nil
+	}
+	now := helper.GetTimestamp()
+	for _, lot := range lots {
+		normalizeUserBalanceLotRow(&lot)
+		if strings.TrimSpace(lot.Id) == "" || strings.TrimSpace(lot.UserID) == "" {
+			continue
+		}
+		transactionID := "legacy-balance-" + strings.TrimSpace(lot.Id)
+		createdAt := lot.CreatedAt
+		if createdAt <= 0 {
+			createdAt = lot.GrantedAt
+		}
+		if createdAt <= 0 {
+			createdAt = now
+		}
+		paidAt := lot.GrantedAt
+		if paidAt <= 0 {
+			paidAt = createdAt
+		}
+		groupID := ""
+		if group, ok, err := scanSingleGroupID(db.Raw(`
+			SELECT u."group"
+			FROM users u
+			JOIN groups g ON g.id = u."group" AND g.enabled = TRUE
+			WHERE u.id = ?
+			  AND COALESCE(TRIM(u."group"), '') <> ''
+			LIMIT 1
+		`, lot.UserID).Row()); err != nil {
+			return err
+		} else if ok {
+			groupID = group
+		}
+		order := TopupOrder{
+			Id:            random.GetUUID(),
+			UserID:        strings.TrimSpace(lot.UserID),
+			Status:        TopupOrderStatusFulfilled,
+			Source:        TopupOrderSourceTopUpAPI,
+			ProviderName:  "migration",
+			TransactionID: transactionID,
+			BusinessType:  TopupOrderBusinessBalance,
+			OperationType: TopupOrderOperationTopup,
+			Title:         "历史账户余额",
+			Quota:         lot.TotalAmount,
+			GroupID:       groupID,
+			PaidAt:        paidAt,
+			RedeemedAt:    paidAt,
+			CreatedAt:     createdAt,
+			UpdatedAt:     now,
+		}
+		if order.Quota <= 0 {
+			order.Quota = lot.UsedAmount + lot.RemainingAmount
+		}
+		if order.Quota <= 0 {
+			order.Quota = lot.RemainingAmount
+		}
+		normalizeTopupOrderRow(&order)
+		existingOrder := TopupOrder{}
+		if err := db.Where("transaction_id = ?", transactionID).Take(&existingOrder).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				if err := db.Create(&order).Error; err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+		} else {
+			order = existingOrder
+			normalizeTopupOrderRow(&order)
+		}
+		if err := db.Model(&UserBalanceLot{}).
+			Where("id = ? AND source_type = ?", lot.Id, legacyBalanceSource).
+			Updates(map[string]any{
+				"source_type": UserBalanceLotSourceTopup,
+				"source_id":   order.Id,
+				"updated_at":  now,
+			}).Error; err != nil {
+			return err
+		}
+		if err := db.Model(&UserBalanceLotTransaction{}).
+			Where("lot_id = ? AND source_type = ?", lot.Id, legacyBalanceSource).
+			Updates(map[string]any{
+				"source_type": UserBalanceLotSourceTopup,
+				"source_id":   order.Id,
+				"updated_at":  now,
+			}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func migrateServicePackageScopeAndUsageCountersWithDB(db *gorm.DB) error {

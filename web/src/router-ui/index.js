@@ -1,5 +1,6 @@
 export { default as AppButton } from './primitives/AppButton';
 export { default as AppAlert } from './primitives/AppAlert';
+export { default as AppCheckbox } from './primitives/AppCheckbox';
 export { default as AppCompact } from './primitives/AppCompact';
 export { default as AppDivider } from './primitives/AppDivider';
 export { default as AppDrawer } from './primitives/AppDrawer';

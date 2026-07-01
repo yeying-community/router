@@ -67,6 +67,7 @@ type ServicePackage struct {
 	GroupName                  string                             `json:"group_name,omitempty" gorm:"-"`
 	VisibleUserIDs             []string                           `json:"visible_user_ids,omitempty" gorm:"-"`
 	VisibleUsers               []ServicePackageVisibleUserSummary `json:"visible_users,omitempty" gorm:"-"`
+	SupportedModels            []string                           `json:"supported_models,omitempty" gorm:"-"`
 }
 
 func (ServicePackage) TableName() string {
@@ -530,6 +531,9 @@ func listServicePackagesPageWithDB(db *gorm.DB, page int, pageSize int, keyword 
 	if err := hydrateServicePackageGroupNamesWithDB(db, rows); err != nil {
 		return nil, 0, err
 	}
+	if err := hydrateServicePackageSupportedModelsWithDB(db, rows); err != nil {
+		return nil, 0, err
+	}
 	if err := hydrateServicePackageVisibilityWithDB(db, rows); err != nil {
 		return nil, 0, err
 	}
@@ -586,6 +590,38 @@ func hydrateServicePackageGroupNamesWithDB(db *gorm.DB, rows []ServicePackage) e
 	return nil
 }
 
+func hydrateServicePackageSupportedModelsWithDB(db *gorm.DB, rows []ServicePackage) error {
+	if len(rows) == 0 || db == nil {
+		return nil
+	}
+	modelsByGroupID := make(map[string][]string)
+	for index := range rows {
+		groupID := strings.TrimSpace(rows[index].GroupID)
+		if groupID == "" {
+			rows[index].SupportedModels = []string{}
+			continue
+		}
+		models, ok := modelsByGroupID[groupID]
+		if !ok {
+			var err error
+			models, err = listGroupModelNamesWithDB(db, groupID, true)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					models = []string{}
+				} else {
+					return err
+				}
+			}
+			if models == nil {
+				models = []string{}
+			}
+			modelsByGroupID[groupID] = models
+		}
+		rows[index].SupportedModels = models
+	}
+	return nil
+}
+
 func getServicePackageByIDWithDB(db *gorm.DB, id string) (ServicePackage, error) {
 	if db == nil {
 		return ServicePackage{}, fmt.Errorf("database handle is nil")
@@ -597,6 +633,10 @@ func getServicePackageByIDWithDB(db *gorm.DB, id string) (ServicePackage, error)
 	_ = hydrateServicePackageGroupNamesWithDB(db, []ServicePackage{row})
 	if groupCatalog, err := getGroupCatalogByIDWithDB(db, row.GroupID); err == nil {
 		row.GroupName = strings.TrimSpace(groupCatalog.Name)
+	}
+	rows := []ServicePackage{row}
+	if err := hydrateServicePackageSupportedModelsWithDB(db, rows); err == nil && len(rows) > 0 {
+		row.SupportedModels = rows[0].SupportedModels
 	}
 	if visibleUsers, err := resolveServicePackageVisibleUsersByPackageIDWithDB(db, row.Id); err == nil {
 		row.VisibilityScope = normalizeServicePackageVisibilityScope(row.VisibilityScope)
@@ -868,6 +908,9 @@ func ListEnabledServicePackagesForUser(userID string) ([]ServicePackage, error) 
 		return nil, err
 	}
 	if err := hydrateServicePackageGroupNamesWithDB(DB, rows); err != nil {
+		return nil, err
+	}
+	if err := hydrateServicePackageSupportedModelsWithDB(DB, rows); err != nil {
 		return nil, err
 	}
 	if err := hydrateServicePackageVisibilityWithDB(DB, rows); err != nil {

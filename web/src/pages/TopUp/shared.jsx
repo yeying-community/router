@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useMemo, useState, useContext } from 'react';
 import {
   convertChargeAmountToDisplayAmount,
   DEFAULT_FIAT_DISPLAY_CODE,
@@ -8,7 +8,7 @@ import {
   YYC_DISPLAY_CODE,
 } from '../../helpers/billing';
 import { formatAmountWithUnit } from '../../helpers/render';
-import { AppTag, AppTooltip } from '../../router-ui';
+import { AppButton, AppInput, AppModal, AppTag, AppTooltip } from '../../router-ui';
 
 export const TOPUP_DISPLAY_CURRENCY_STORAGE_KEY = 'topup_display_currency';
 export const TOPUP_DEFAULT_TAB = 'balance';
@@ -350,6 +350,105 @@ export const renderTopupIntegerAmountWithExactPopup = ({
     <AppTooltip title={exactText}>
       {renderTopupAmountTrigger(displayText)}
     </AppTooltip>
+  );
+};
+
+export const normalizeSupportedModels = (models) => {
+  if (!Array.isArray(models)) {
+    return [];
+  }
+  const seen = new Set();
+  const result = [];
+  models.forEach((item) => {
+    const modelName = String(item || '').trim();
+    if (!modelName || seen.has(modelName)) {
+      return;
+    }
+    seen.add(modelName);
+    result.push(modelName);
+  });
+  return result;
+};
+
+export const SupportedModelsSummary = ({ models, t }) => {
+  const [open, setOpen] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const normalizedModels = useMemo(() => normalizeSupportedModels(models), [models]);
+  const closeDialog = () => {
+    setOpen(false);
+    setKeyword('');
+  };
+  const filteredModels = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    if (!normalizedKeyword) {
+      return normalizedModels;
+    }
+    return normalizedModels.filter((modelName) =>
+      modelName.toLowerCase().includes(normalizedKeyword),
+    );
+  }, [keyword, normalizedModels]);
+  return (
+    <div className='router-supported-models-summary'>
+      <div className='router-supported-models-summary-header'>
+        <span>{t('topup.pricing.supported_models')}</span>
+        {normalizedModels.length > 0 ? (
+          <button
+            className='router-link-button router-supported-models-count-button'
+            type='button'
+            onClick={() => setOpen(true)}
+          >
+            {t('topup.pricing.supported_models_count', {
+              count: normalizedModels.length,
+            })}
+          </button>
+        ) : null}
+      </div>
+      {normalizedModels.length === 0 ? (
+        <div className='router-text-muted router-supported-models-empty'>
+          {t('topup.pricing.supported_models_empty')}
+        </div>
+      ) : null}
+      <AppModal
+        size='small'
+        open={open}
+        onClose={closeDialog}
+        title={t('topup.pricing.supported_models_dialog_title')}
+        footer={[
+          <AppButton key='close' onClick={closeDialog}>
+            {t('common.close')}
+          </AppButton>,
+        ]}
+      >
+        <div className='router-supported-models-dialog'>
+          <AppInput
+            className='router-supported-models-search'
+            type='search'
+            value={keyword}
+            placeholder={t('topup.pricing.supported_models_search_placeholder')}
+            onChange={(_, { value }) => setKeyword(value)}
+          />
+          <div className='router-supported-models-dialog-meta'>
+            {t('topup.pricing.supported_models_dialog_count', {
+              count: filteredModels.length,
+              total: normalizedModels.length,
+            })}
+          </div>
+          {filteredModels.length === 0 ? (
+            <div className='router-text-muted router-supported-models-empty'>
+              {t('topup.pricing.supported_models_search_empty')}
+            </div>
+          ) : (
+            <div className='router-supported-models-dialog-list'>
+              {filteredModels.map((modelName) => (
+                <div key={modelName} className='router-supported-models-dialog-item'>
+                  {modelName}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </AppModal>
+    </div>
   );
 };
 

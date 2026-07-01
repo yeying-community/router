@@ -178,6 +178,101 @@ func TestEnsureUserWalletAddressCaseInsensitiveUniqueCleansDuplicates(t *testing
 	}
 }
 
+func TestRemoveDefaultUserGroupAndLegacyBalanceSourcesWithDB(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(
+		&Option{},
+		&User{},
+		&GroupCatalog{},
+		&TopupOrder{},
+		&UserBalanceLot{},
+		&UserBalanceLotTransaction{},
+	); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	if err := db.Create(&Option{Key: "DefaultUserGroup", Value: "group-1"}).Error; err != nil {
+		t.Fatalf("create option: %v", err)
+	}
+	if err := db.Create(&GroupCatalog{Id: "group-1", Name: "Group 1", Enabled: true}).Error; err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+	if err := db.Create(&User{Id: "user-1", Username: "user-1", Group: "group-1", Status: UserStatusEnabled}).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	lot := UserBalanceLot{
+		Id:              "lot-1",
+		UserID:          "user-1",
+		SourceType:      "legacy_migration",
+		SourceID:        "legacy-source-1",
+		TotalAmount:     1000,
+		UsedAmount:      200,
+		RemainingAmount: 800,
+		Status:          UserBalanceLotStatusActive,
+		GrantedAt:       100,
+		CreatedAt:       90,
+	}
+	if err := db.Create(&lot).Error; err != nil {
+		t.Fatalf("create lot: %v", err)
+	}
+	tx := UserBalanceLotTransaction{
+		Id:                 "tx-1",
+		UserID:             "user-1",
+		LotID:              "lot-1",
+		SourceType:         "legacy_migration",
+		SourceID:           "legacy-source-1",
+		TxType:             UserBalanceLotTxTypeCredit,
+		DeltaAmount:        1000,
+		LotRemainingBefore: 0,
+		LotRemainingAfter:  1000,
+		OccurredAt:         100,
+	}
+	if err := db.Create(&tx).Error; err != nil {
+		t.Fatalf("create transaction: %v", err)
+	}
+
+	if err := removeDefaultUserGroupAndLegacyBalanceSourcesWithDB(db); err != nil {
+		t.Fatalf("remove legacy sources: %v", err)
+	}
+
+	optionCount := int64(0)
+	if err := db.Model(&Option{}).Where("key = ?", "DefaultUserGroup").Count(&optionCount).Error; err != nil {
+		t.Fatalf("count option: %v", err)
+	}
+	if optionCount != 0 {
+		t.Fatalf("DefaultUserGroup option count=%d, want 0", optionCount)
+	}
+	migratedLot := UserBalanceLot{}
+	if err := db.First(&migratedLot, "id = ?", "lot-1").Error; err != nil {
+		t.Fatalf("load migrated lot: %v", err)
+	}
+	if migratedLot.SourceType != UserBalanceLotSourceTopup {
+		t.Fatalf("lot source_type=%q, want %q", migratedLot.SourceType, UserBalanceLotSourceTopup)
+	}
+	if migratedLot.SourceID == "" || migratedLot.SourceID == "legacy-source-1" {
+		t.Fatalf("lot source_id=%q, want generated topup order id", migratedLot.SourceID)
+	}
+	order := TopupOrder{}
+	if err := db.First(&order, "id = ?", migratedLot.SourceID).Error; err != nil {
+		t.Fatalf("load migration order: %v", err)
+	}
+	if order.BusinessType != TopupOrderBusinessBalance || order.Status != TopupOrderStatusFulfilled {
+		t.Fatalf("order business/status=%q/%q, want balance fulfilled", order.BusinessType, order.Status)
+	}
+	if order.GroupID != "group-1" {
+		t.Fatalf("order group_id=%q, want group-1", order.GroupID)
+	}
+	migratedTx := UserBalanceLotTransaction{}
+	if err := db.First(&migratedTx, "id = ?", "tx-1").Error; err != nil {
+		t.Fatalf("load migrated transaction: %v", err)
+	}
+	if migratedTx.SourceType != UserBalanceLotSourceTopup || migratedTx.SourceID != migratedLot.SourceID {
+		t.Fatalf("tx source=%q/%q, want topup/%q", migratedTx.SourceType, migratedTx.SourceID, migratedLot.SourceID)
+	}
+}
+
 func TestSelectWalletAddressDuplicateKeeperPrefersEnabledOldest(t *testing.T) {
 	got := selectWalletAddressDuplicateKeeper([]walletAddressCleanupCandidate{
 		{ID: "disabled-oldest", WalletAddress: "0x2222222222222222222222222222222222222222", Status: UserStatusDisabled, CreatedAt: 1},

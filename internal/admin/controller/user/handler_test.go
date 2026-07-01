@@ -93,11 +93,6 @@ func TestBuildAdminTopUpBalanceLotListItemsWithSources(t *testing.T) {
 			SourceType: model.UserBalanceLotSourceRedeem,
 			SourceID:   "redemption-1",
 		},
-		{
-			Id:         "lot-legacy",
-			SourceType: model.UserBalanceLotSourceLegacy,
-			SourceID:   "legacy-1",
-		},
 	}
 	items, err := buildAdminTopUpBalanceLotListItemsWithSources(db, lots)
 	if err != nil {
@@ -123,9 +118,6 @@ func TestBuildAdminTopUpBalanceLotListItemsWithSources(t *testing.T) {
 	}
 	if items[1].SourceDetail.Title != "Gift code" {
 		t.Fatalf("redemption title=%q", items[1].SourceDetail.Title)
-	}
-	if items[2].SourceDetail != nil {
-		t.Fatalf("legacy source detail=%#v, want nil", items[2].SourceDetail)
 	}
 }
 

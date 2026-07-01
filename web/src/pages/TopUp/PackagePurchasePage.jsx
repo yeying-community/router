@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showInfo, timestamp2string } from '../../helpers';
-import { buildTopUpReturnURL, useTopUpWorkspace } from './shared.jsx';
+import {
+  SupportedModelsSummary,
+  buildTopUpReturnURL,
+  useTopUpWorkspace,
+} from './shared.jsx';
 import { AppButton, AppModal, AppSection, AppTag } from '../../router-ui';
 import {
   formatRequestQuotaEntitlement,
@@ -324,6 +328,8 @@ const PackagePurchasePage = () => {
                             </div>
                           </div>
                         </div>
+
+                        <SupportedModelsSummary models={item?.supported_models} t={t} />
 
                         <AppButton
                           className='router-section-button'

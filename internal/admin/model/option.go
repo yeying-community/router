@@ -17,6 +17,10 @@ var deprecatedRewardOptionKeys = map[string]struct{}{
 	"QuotaForInvitee": {},
 }
 
+var deprecatedOptionKeys = map[string]struct{}{
+	"DefaultUserGroup": {},
+}
+
 type Option struct {
 	Key   string `json:"key" gorm:"primaryKey"`
 	Value string `json:"value"`
@@ -65,7 +69,6 @@ func InitOptionMap() {
 	config.OptionMap["Logo"] = config.Logo
 	config.OptionMap["ChatLink"] = config.ChatLink
 	config.OptionMap["NewUserRewardTopupPlanID"] = config.NewUserRewardTopupPlanID
-	config.OptionMap["DefaultUserGroup"] = config.DefaultUserGroup
 	config.OptionMap["InviterRewardTopupPlanID"] = config.InviterRewardTopupPlanID
 	config.OptionMap["QuotaRemindThreshold"] = strconv.FormatInt(config.QuotaRemindThreshold, 10)
 	config.OptionMap["PreConsumedQuota"] = strconv.FormatInt(config.PreConsumedQuota, 10)
@@ -115,6 +118,14 @@ func UpdateOption(key string, value string) error {
 		}
 		return UpdateOptionMap(normalizedKey, "")
 	}
+	if _, ok := deprecatedOptionKeys[normalizedKey]; ok {
+		if DB != nil {
+			if err := DB.Where("key = ?", normalizedKey).Delete(&Option{}).Error; err != nil {
+				return err
+			}
+		}
+		return UpdateOptionMap(normalizedKey, "")
+	}
 	return mustOptionRepo().UpdateOption(key, value)
 }
 
@@ -138,6 +149,10 @@ func UpdateOptionMap(key string, value string) (err error) {
 	switch key {
 	case "WalletLoginEnabled", "WalletAutoRegisterEnabled", "WalletAllowedChains", "AutoRegisterEnabled", "Theme",
 		"ServerAddress", "TopUpLink", "TopUpSignSecret", "TopUpCallbackToken":
+		delete(config.OptionMap, key)
+		return nil
+	}
+	if _, ok := deprecatedOptionKeys[key]; ok {
 		delete(config.OptionMap, key)
 		return nil
 	}
@@ -190,8 +205,6 @@ func UpdateOptionMap(key string, value string) (err error) {
 		config.OptionMap[key] = config.ChatLink
 	case "NewUserRewardTopupPlanID":
 		config.NewUserRewardTopupPlanID = strings.TrimSpace(value)
-	case "DefaultUserGroup":
-		config.DefaultUserGroup = strings.TrimSpace(value)
 	case "InviterRewardTopupPlanID":
 		config.InviterRewardTopupPlanID = strings.TrimSpace(value)
 	case "QuotaRemindThreshold":

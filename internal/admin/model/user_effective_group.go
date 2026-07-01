@@ -73,17 +73,6 @@ func getActiveRedemptionEntitlementGroupWithDB(db *gorm.DB, userID string, now i
 	`, userID, UserBalanceLotSourceRedeem, UserBalanceLotStatusActive, now).Row())
 }
 
-func getLegacyUserGroupWithDB(db *gorm.DB, userID string) (string, bool, error) {
-	return scanSingleGroupID(db.Raw(`
-		SELECT u."group"
-		FROM users u
-		JOIN groups g ON g.id = u."group" AND g.enabled = TRUE
-		WHERE u.id = ?
-		  AND COALESCE(TRIM(u."group"), '') <> ''
-		LIMIT 1
-	`, userID).Row())
-}
-
 func getUserEffectiveGroupWithDB(db *gorm.DB, userID string) (string, error) {
 	if db == nil {
 		return "", fmt.Errorf("database handle is nil")
@@ -106,13 +95,6 @@ func getUserEffectiveGroupWithDB(db *gorm.DB, userID string) (string, error) {
 		if ok {
 			return groupID, nil
 		}
-	}
-	groupID, ok, err := getLegacyUserGroupWithDB(db, normalizedUserID)
-	if err != nil {
-		return "", err
-	}
-	if ok {
-		return groupID, nil
 	}
 	return "", nil
 }

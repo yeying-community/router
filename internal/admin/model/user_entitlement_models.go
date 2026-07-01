@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/yeying-community/router/common/helper"
+	commonutils "github.com/yeying-community/router/common/utils"
 	"gorm.io/gorm"
 )
 
@@ -14,7 +15,6 @@ const (
 	UserEntitlementSourcePackage    = "package"
 	UserEntitlementSourceTopup      = "topup"
 	UserEntitlementSourceRedemption = "redemption"
-	UserEntitlementSourceLegacy     = "legacy"
 )
 
 type UserEntitlementSource struct {
@@ -28,17 +28,21 @@ type UserEntitlementSource struct {
 }
 
 type UserEntitlementModelSource struct {
-	SourceType string `json:"source_type"`
-	SourceID   string `json:"source_id,omitempty"`
-	SourceName string `json:"source_name,omitempty"`
-	GroupID    string `json:"group_id"`
-	GroupName  string `json:"group_name,omitempty"`
-	Priority   int    `json:"priority"`
+	SourceType    string `json:"source_type"`
+	SourceID      string `json:"source_id,omitempty"`
+	SourceName    string `json:"source_name,omitempty"`
+	GroupID       string `json:"group_id"`
+	GroupName     string `json:"group_name,omitempty"`
+	Provider      string `json:"provider,omitempty"`
+	ProviderLabel string `json:"provider_label,omitempty"`
+	Priority      int    `json:"priority"`
 }
 
 type UserAvailableModel struct {
-	Model   string                       `json:"model"`
-	Sources []UserEntitlementModelSource `json:"sources"`
+	Model         string                       `json:"model"`
+	Provider      string                       `json:"provider,omitempty"`
+	ProviderLabel string                       `json:"provider_label,omitempty"`
+	Sources       []UserEntitlementModelSource `json:"sources"`
 }
 
 type UserEntitlementModelsPayload struct {
@@ -174,18 +178,6 @@ func listUserEntitlementSourcesWithDB(db *gorm.DB, userID string, now int64) ([]
 		}))
 	}
 
-	legacyGroup, ok, err := getLegacyUserGroupWithDB(db, normalizedUserID)
-	if err != nil {
-		return nil, err
-	}
-	if ok {
-		sources = append(sources, normalizeEntitlementSource(UserEntitlementSource{
-			SourceType: UserEntitlementSourceLegacy,
-			GroupID:    legacyGroup,
-			Priority:   40,
-		}))
-	}
-
 	seen := make(map[string]struct{}, len(sources))
 	result := make([]UserEntitlementSource, 0, len(sources))
 	for _, source := range sources {
@@ -224,12 +216,120 @@ func listEntitlementGroupModels(ctx context.Context, db *gorm.DB, groupID string
 	return listGroupModelNamesWithDB(db, groupID, true)
 }
 
+func providerLabel(provider string) string {
+	switch commonutils.NormalizeProvider(provider) {
+	case "openai":
+		return "OpenAI"
+	case "anthropic":
+		return "Anthropic"
+	case "google":
+		return "Google"
+	case "deepseek":
+		return "DeepSeek"
+	case "qwen":
+		return "QianWen"
+	case "zhipu":
+		return "ZhiPu"
+	case "volcengine":
+		return "VolcEngine"
+	case "hunyuan":
+		return "Hunyuan"
+	case "baidu":
+		return "BaiDu"
+	case "xai":
+		return "xAI"
+	case "mistral":
+		return "Mistral"
+	case "cohere":
+		return "Cohere"
+	case "minimax":
+		return "MiniMax"
+	case "meta":
+		return "Meta"
+	case "black-forest-labs":
+		return "Black Forest Labs"
+	default:
+		normalized := commonutils.NormalizeProvider(provider)
+		if normalized == "" || normalized == "unknown" {
+			return ""
+		}
+		return normalized
+	}
+}
+
+func listEntitlementGroupModelProviders(db *gorm.DB, groupID string, models []string) (map[string]string, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	normalizedModels := NormalizeChannelModelIDsPreserveOrder(models)
+	result := make(map[string]string, len(normalizedModels))
+	if strings.TrimSpace(groupID) == "" || len(normalizedModels) == 0 {
+		return result, nil
+	}
+	if db == DB {
+		groupProviders, err := ListGroupModelProviderMapByModels(groupID, normalizedModels)
+		if err != nil {
+			return nil, err
+		}
+		for modelName, provider := range groupProviders {
+			result[modelName] = NormalizeGroupModelProviderValue(provider)
+		}
+	} else {
+		rows := make([]GroupModel, 0, len(normalizedModels))
+		groupCol := `"group"`
+		if err := db.
+			Select(groupCol, "model", "provider").
+			Where(groupCol+" = ?", strings.TrimSpace(groupID)).
+			Where("enabled = ?", true).
+			Where("model IN ?", normalizedModels).
+			Find(&rows).Error; err != nil {
+			return nil, err
+		}
+		groupProviders, err := buildGroupModelProviderMap(rows)
+		if err != nil {
+			return nil, err
+		}
+		for modelName, provider := range groupProviders {
+			result[modelName] = NormalizeGroupModelProviderValue(provider)
+		}
+	}
+	missingModels := make([]string, 0)
+	for _, modelName := range normalizedModels {
+		if NormalizeGroupModelProviderValue(result[modelName]) == "" {
+			missingModels = append(missingModels, modelName)
+		}
+	}
+	if len(missingModels) == 0 {
+		return result, nil
+	}
+	fallbackProviders, err := LoadUniqueProviderMapByModelsWithDB(db, missingModels)
+	if err != nil {
+		return nil, err
+	}
+	for modelName, provider := range fallbackProviders {
+		if NormalizeGroupModelProviderValue(result[modelName]) == "" {
+			result[modelName] = NormalizeGroupModelProviderValue(provider)
+		}
+	}
+	for _, modelName := range missingModels {
+		if NormalizeGroupModelProviderValue(result[modelName]) == "" {
+			resolved := commonutils.ResolveProvider(modelName)
+			if resolved != "unknown" {
+				result[modelName] = NormalizeGroupModelProviderValue(resolved)
+			}
+		}
+	}
+	return result, nil
+}
+
 func BuildUserEntitlementModelsWithDB(ctx context.Context, db *gorm.DB, userID string) (UserEntitlementModelsPayload, error) {
 	sources, err := listUserEntitlementSourcesWithDB(db, userID, helper.GetTimestamp())
 	if err != nil {
 		return UserEntitlementModelsPayload{}, err
 	}
 	byModel := make(map[string][]UserEntitlementSource)
+	providerByModel := make(map[string]string)
+	providerByModelSource := make(map[string]map[string]string)
 	modelSet := make(map[string]struct{})
 	enrichedSources := make([]UserEntitlementSource, 0, len(sources))
 	for _, source := range sources {
@@ -238,10 +338,25 @@ func BuildUserEntitlementModelsWithDB(ctx context.Context, db *gorm.DB, userID s
 			return UserEntitlementModelsPayload{}, err
 		}
 		source.Models = NormalizeChannelModelIDsPreserveOrder(models)
+		providers, err := listEntitlementGroupModelProviders(db, source.GroupID, source.Models)
+		if err != nil {
+			return UserEntitlementModelsPayload{}, err
+		}
 		enrichedSources = append(enrichedSources, source)
 		for _, modelName := range source.Models {
 			if strings.TrimSpace(modelName) == "" {
 				continue
+			}
+			provider := NormalizeGroupModelProviderValue(providers[modelName])
+			if provider != "" && providerByModel[modelName] == "" {
+				providerByModel[modelName] = provider
+			}
+			if provider != "" {
+				if _, ok := providerByModelSource[modelName]; !ok {
+					providerByModelSource[modelName] = make(map[string]string)
+				}
+				sourceKey := source.SourceType + "::" + source.SourceID + "::" + source.GroupID
+				providerByModelSource[modelName][sourceKey] = provider
 			}
 			modelSet[modelName] = struct{}{}
 			byModel[modelName] = append(byModel[modelName], source)
@@ -266,16 +381,26 @@ func BuildUserEntitlementModelsWithDB(ctx context.Context, db *gorm.DB, userID s
 		})
 		modelSources := make([]UserEntitlementModelSource, 0, len(sourceItems))
 		for _, source := range sourceItems {
+			sourceKey := source.SourceType + "::" + source.SourceID + "::" + source.GroupID
+			sourceProvider := NormalizeGroupModelProviderValue(providerByModelSource[modelName][sourceKey])
 			modelSources = append(modelSources, UserEntitlementModelSource{
-				SourceType: source.SourceType,
-				SourceID:   source.SourceID,
-				SourceName: source.SourceName,
-				GroupID:    source.GroupID,
-				GroupName:  source.GroupName,
-				Priority:   source.Priority,
+				SourceType:    source.SourceType,
+				SourceID:      source.SourceID,
+				SourceName:    source.SourceName,
+				GroupID:       source.GroupID,
+				GroupName:     source.GroupName,
+				Provider:      sourceProvider,
+				ProviderLabel: providerLabel(sourceProvider),
+				Priority:      source.Priority,
 			})
 		}
-		items = append(items, UserAvailableModel{Model: modelName, Sources: modelSources})
+		provider := NormalizeGroupModelProviderValue(providerByModel[modelName])
+		items = append(items, UserAvailableModel{
+			Model:         modelName,
+			Provider:      provider,
+			ProviderLabel: providerLabel(provider),
+			Sources:       modelSources,
+		})
 	}
 	return UserEntitlementModelsPayload{
 		Models:  models,
@@ -292,7 +417,7 @@ func BuildUserEntitlementModels(ctx context.Context, userID string) (UserEntitle
 func ResolveUserEntitlementGroupForModelWithDB(ctx context.Context, db *gorm.DB, userID string, modelName string) (string, *UserEntitlementSource, error) {
 	normalizedModel := strings.TrimSpace(modelName)
 	if normalizedModel == "" {
-		groupID, err := CacheGetUserGroup(userID)
+		groupID, err := getUserEffectiveGroupWithDB(db, userID)
 		if err != nil {
 			return "", nil, err
 		}

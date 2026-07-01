@@ -25,8 +25,6 @@ const formatLotSource = (source, t) => {
       return t('topup.balance_lots.source.topup_order');
     case 'redemption':
       return t('topup.balance_lots.source.redemption');
-    case 'legacy_migration':
-      return t('topup.balance_lots.source.legacy_migration');
     default:
       return source || '-';
   }

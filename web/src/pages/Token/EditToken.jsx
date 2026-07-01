@@ -25,6 +25,7 @@ import {
 } from '../../helpers/billing';
 import {
   AppButton,
+  AppCheckbox,
   AppCompact,
   AppDetailSection,
   AppField,
@@ -33,6 +34,7 @@ import {
   AppFormRow,
   AppInput,
   AppInputNumber,
+  AppSegmented,
   AppSelect,
   AppSwitch,
   AppTable,
@@ -58,8 +60,10 @@ const EditToken = () => {
   })();
   const [loading, setLoading] = useState(isDetailMode);
   const [modelOptions, setModelOptions] = useState([]);
-  const [allModelsSelected, setAllModelsSelected] = useState(isCreateMode);
+  const [unrestrictedModels, setUnrestrictedModels] = useState(isCreateMode);
   const [modelKeyword, setModelKeyword] = useState('');
+  const [modelProviderFilter, setModelProviderFilter] = useState('all');
+  const [modelSourceFilter, setModelSourceFilter] = useState('all');
   const [detailEditingSection, setDetailEditingSection] = useState('');
   const [activeDetailTab, setActiveDetailTab] = useState('basic');
   const [createdToken, setCreatedToken] = useState(null);
@@ -91,9 +95,114 @@ const EditToken = () => {
   } = inputs;
   const navigate = useNavigate();
   const allModelValues = modelOptions.map((option) => option.value);
-  const filteredModelOptions = modelOptions.filter((option) =>
-    option.value.toLowerCase().includes(modelKeyword.trim().toLowerCase())
+  const formatEntitlementSourceLabel = useCallback(
+    (source) => {
+      const sourceName = (source?.source_name || '').toString().trim();
+      const sourceType = (source?.source_type || '').toString().trim();
+      let typeLabel = '';
+      if (sourceType === 'package') {
+        typeLabel = t('token.edit.model_source_package');
+      } else if (sourceType === 'topup' || sourceType === 'redemption') {
+        typeLabel = t('token.edit.model_source_balance');
+      } else {
+        return '';
+      }
+      return sourceName ? `${typeLabel}: ${sourceName}` : typeLabel;
+    },
+    [t]
   );
+  const getSourceFilterValue = (source) => [
+    source?.source_type || '',
+    source?.source_id || '',
+    source?.group_id || '',
+  ].join('::');
+  const providerFilterOptions = useMemo(() => {
+    const optionByValue = new Map();
+    modelOptions.forEach((option) => {
+      const provider = (option.provider || '').toString().trim();
+      if (provider === '') {
+        return;
+      }
+      optionByValue.set(provider, {
+        key: provider,
+        value: provider,
+        text: option.providerLabel || provider,
+      });
+    });
+    return [
+      { key: 'all', value: 'all', text: t('token.edit.filters.all_providers') },
+      ...Array.from(optionByValue.values()).sort((left, right) =>
+        left.text.localeCompare(right.text)
+      ),
+    ];
+  }, [modelOptions, t]);
+  const sourceFilterOptions = useMemo(() => {
+    const optionByValue = new Map();
+    modelOptions.forEach((option) => {
+      (Array.isArray(option.sources) ? option.sources : []).forEach((source) => {
+        const label = formatEntitlementSourceLabel(source);
+        if (label === '') {
+          return;
+        }
+        const value = getSourceFilterValue(source);
+        if (value === '::::') {
+          return;
+        }
+        optionByValue.set(value, {
+          key: value,
+          value,
+          text: label,
+        });
+      });
+    });
+    return [
+      { key: 'all', value: 'all', text: t('token.edit.filters.all_sources') },
+      ...Array.from(optionByValue.values()).sort((left, right) =>
+        left.text.localeCompare(right.text)
+      ),
+    ];
+  }, [formatEntitlementSourceLabel, modelOptions, t]);
+  const filteredModelOptions = modelOptions.filter((option) => {
+    const keyword = modelKeyword.trim().toLowerCase();
+    if (keyword !== '' && !option.value.toLowerCase().includes(keyword)) {
+      return false;
+    }
+    if (modelProviderFilter !== 'all' && option.provider !== modelProviderFilter) {
+      return false;
+    }
+    if (modelSourceFilter !== 'all') {
+      const matchedSource = (Array.isArray(option.sources) ? option.sources : []).some(
+        (source) => getSourceFilterValue(source) === modelSourceFilter
+      );
+      if (!matchedSource) {
+        return false;
+      }
+    }
+    return true;
+  });
+  const filteredModelValues = filteredModelOptions.map((option) => option.value);
+  const selectedModels = unrestrictedModels ? allModelValues : inputs.models;
+  const selectedModelSet = new Set(selectedModels);
+  const hasFilteredModels = filteredModelValues.length > 0;
+  const selectedFilteredModelCount = filteredModelValues.filter((value) =>
+    selectedModelSet.has(value)
+  ).length;
+  const isFilteredModelsSelected =
+    hasFilteredModels && selectedFilteredModelCount === filteredModelValues.length;
+  const isFilteredModelsIndeterminate =
+    hasFilteredModels &&
+    selectedFilteredModelCount > 0 &&
+    selectedFilteredModelCount < filteredModelValues.length;
+  const explicitModelsSelected = inputs.models.length > 0;
+  const selectedModelCount = unrestrictedModels ? allModelValues.length : inputs.models.length;
+  const selectedModelSummary = t('token.edit.models_selected_summary', {
+    selected: selectedModelCount,
+    total: allModelValues.length,
+  });
+  const manualSelectionDisabled = unrestrictedModels;
+  const modelsNotice = unrestrictedModels
+    ? t('token.edit.models_unrestricted_notice')
+    : t('token.edit.models_manual_notice');
   const quotaUnitOptions = useMemo(
     () => buildBillingUnitOptions(billingCurrencyIndex),
     [billingCurrencyIndex]
@@ -135,29 +244,6 @@ const EditToken = () => {
   );
   const basicReadonly = isDetailMode && detailEditingSection !== 'basic';
   const modelsReadonly = isDetailMode && detailEditingSection !== 'models';
-  const isEveryModelSelected = modelOptions.length > 0 && (
-    allModelsSelected || inputs.models.length === modelOptions.length
-  );
-  const selectedModels = isEveryModelSelected ? allModelValues : inputs.models;
-
-  const formatEntitlementSourceLabel = useCallback(
-    (source) => {
-      const sourceName = (source?.source_name || '').toString().trim();
-      const sourceType = (source?.source_type || '').toString().trim();
-      let typeLabel = '';
-      if (sourceType === 'package') {
-        typeLabel = t('token.edit.model_source_package');
-      } else if (sourceType === 'topup') {
-        typeLabel = t('token.edit.model_source_topup');
-      } else if (sourceType === 'redemption') {
-        typeLabel = t('token.edit.model_source_redemption');
-      } else {
-        typeLabel = t('token.edit.model_source_legacy');
-      }
-      return sourceName ? `${typeLabel}: ${sourceName}` : typeLabel;
-    },
-    [t]
-  );
 
   const renderStatus = (status) => {
     switch (status) {
@@ -224,10 +310,10 @@ const EditToken = () => {
       normalizedData.models === undefined
     ) {
       normalizedData.models = [];
-      setAllModelsSelected(true);
+      setUnrestrictedModels(true);
     } else {
       normalizedData.models = normalizedData.models.split(',');
-      setAllModelsSelected(false);
+      setUnrestrictedModels(false);
     }
     setInputs(normalizedData);
     setPersistedInputs(normalizedData);
@@ -270,7 +356,7 @@ const EditToken = () => {
         billingCurrencyIndex
       )
     );
-    setAllModelsSelected(
+    setUnrestrictedModels(
       Array.isArray(persistedInputs.models)
         ? persistedInputs.models.length === 0
         : true
@@ -390,24 +476,30 @@ const EditToken = () => {
       let res = await API.get(`/api/v1/public/user/available_models`);
       const { success, message, data } = res.data || {};
       if (success && data) {
-        const sourceItemsByModel = new Map(
+        const itemByModel = new Map(
           (Array.isArray(res.data?.items) ? res.data.items : []).map((item) => [
             (item?.model || '').toString().trim(),
-            Array.isArray(item?.sources) ? item.sources : [],
+            item,
           ])
         );
-        let options = data.map((model) => {
+        const modelNames = Array.isArray(data) ? data : [];
+        let options = modelNames.map((model) => {
           const normalizedModel = (model || '').toString().trim();
+          const item = itemByModel.get(normalizedModel) || {};
+          const provider = (item?.provider || '').toString().trim();
+          const providerLabel = (item?.provider_label || provider).toString().trim();
           return {
             key: normalizedModel,
             text: normalizedModel,
             value: normalizedModel,
-            sources: sourceItemsByModel.get(normalizedModel) || [],
+            provider,
+            providerLabel,
+            sources: Array.isArray(item?.sources) ? item.sources : [],
           };
         });
         setModelOptions(options);
         if (isCreateMode) {
-          setAllModelsSelected(true);
+          setUnrestrictedModels(true);
           setInputs((prev) => ({
             ...prev,
             models: options.map((option) => option.value),
@@ -477,11 +569,11 @@ const EditToken = () => {
     } else {
       localInputs.expired_time = -1;
     }
-    if (!isEveryModelSelected && localInputs.models.length === 0 && modelOptions.length > 0) {
+    if (!unrestrictedModels && localInputs.models.length === 0 && modelOptions.length > 0) {
       showError(t('token.edit.messages.models_required'));
       return;
     }
-    localInputs.models = isEveryModelSelected ? '' : localInputs.models.join(',');
+    localInputs.models = unrestrictedModels ? '' : localInputs.models.join(',');
     let res;
     if (isDetailMode) {
       const normalizedTokenId = (tokenId || '').toString().trim();
@@ -511,6 +603,7 @@ const EditToken = () => {
         showSuccess(t('token.edit.messages.create_success'));
         setCreatedToken(data || null);
         setInputs(originInputs);
+        setUnrestrictedModels(true);
         setExpireTimeMode('custom');
         setQuotaInputValue(
           chargeAmountToBillingInputValue(
@@ -525,16 +618,27 @@ const EditToken = () => {
     }
   };
 
-  const toggleAllModels = (_, { checked }) => {
+  const handleUnrestrictedModelsChange = (_, { checked }) => {
     const normalizedChecked = !!checked;
-    setAllModelsSelected(normalizedChecked);
+    setUnrestrictedModels(normalizedChecked);
     setInputs((prev) => ({
       ...prev,
-      models: normalizedChecked ? allModelValues : [],
+      models: normalizedChecked
+        ? allModelValues
+        : explicitModelsSelected
+          ? prev.models
+          : allModelValues,
     }));
   };
 
+  const handleModelScopeModeChange = (_, { value }) => {
+    handleUnrestrictedModelsChange(null, { checked: value !== 'manual' });
+  };
+
   const toggleModel = (modelName, checked) => {
+    if (manualSelectionDisabled) {
+      return;
+    }
     const selected = new Set(inputs.models);
     if (checked) {
       selected.add(modelName);
@@ -542,7 +646,25 @@ const EditToken = () => {
       selected.delete(modelName);
     }
     const nextModels = allModelValues.filter((value) => selected.has(value));
-    setAllModelsSelected(nextModels.length === allModelValues.length && allModelValues.length > 0);
+    setInputs((prev) => ({
+      ...prev,
+      models: nextModels,
+    }));
+  };
+
+  const toggleFilteredModels = (checked) => {
+    if (manualSelectionDisabled) {
+      return;
+    }
+    const selected = new Set(inputs.models);
+    filteredModelValues.forEach((modelName) => {
+      if (checked) {
+        selected.add(modelName);
+      } else {
+        selected.delete(modelName);
+      }
+    });
+    const nextModels = allModelValues.filter((value) => selected.has(value));
     setInputs((prev) => ({
       ...prev,
       models: nextModels,
@@ -552,24 +674,102 @@ const EditToken = () => {
   const handleModelKeywordChange = (_, { value }) => {
     setModelKeyword(value || '');
   };
-  const modelTableRowSelection = {
+  const handleModelProviderFilterChange = (_, { value }) => {
+    setModelProviderFilter(value || 'all');
+  };
+  const handleModelSourceFilterChange = (_, { value }) => {
+    setModelSourceFilter(value || 'all');
+  };
+  const renderModelSelectAllCheckbox = (readonly = false) => (
+    <AppCheckbox
+      className='router-token-model-select-all-checkbox'
+      checked={isFilteredModelsSelected}
+      indeterminate={isFilteredModelsIndeterminate}
+      disabled={readonly || manualSelectionDisabled || !hasFilteredModels}
+      aria-label={t('token.edit.models_select_all')}
+      onChange={(_, { checked }) => {
+        toggleFilteredModels(checked);
+      }}
+    />
+  );
+  const renderModelScopeControls = (readonly = false) => (
+    <div className='router-token-model-scope'>
+      <div className='router-token-model-mode-row'>
+        <AppSegmented
+          className='router-token-model-mode'
+          options={[
+            {
+              key: 'unrestricted',
+              value: 'unrestricted',
+              text: t('token.edit.models_mode_unrestricted'),
+            },
+            {
+              key: 'manual',
+              value: 'manual',
+              text: t('token.edit.models_mode_manual'),
+            },
+          ]}
+          value={unrestrictedModels ? 'unrestricted' : 'manual'}
+          onChange={handleModelScopeModeChange}
+          disabled={readonly}
+        />
+        <span className='router-token-model-selection-summary'>
+          {selectedModelSummary}
+        </span>
+        <span className='router-token-model-mode-hint'>
+          {modelsNotice}
+        </span>
+      </div>
+      <div className='router-token-model-toolbar'>
+        <AppInput
+          className='router-section-input router-token-model-search'
+          placeholder={t('token.edit.models_search_placeholder')}
+          value={modelKeyword}
+          onChange={handleModelKeywordChange}
+        />
+        <AppSelect
+          className='router-section-dropdown router-token-model-filter'
+          options={providerFilterOptions}
+          value={modelProviderFilter}
+          onChange={handleModelProviderFilterChange}
+          disabled={readonly}
+        />
+        <AppSelect
+          className='router-section-dropdown router-token-model-filter'
+          options={sourceFilterOptions}
+          value={modelSourceFilter}
+          onChange={handleModelSourceFilterChange}
+          disabled={readonly}
+        />
+      </div>
+      {renderModelTable(readonly || manualSelectionDisabled)}
+    </div>
+  );
+  const buildModelTableRowSelection = (readonly = false) => ({
     selectedRowKeys: selectedModels,
-    columnWidth: 72,
-    columnTitle: t('token.edit.models_select_all'),
+    columnWidth: 56,
+    columnTitle: renderModelSelectAllCheckbox(readonly),
     getTitleCheckboxProps: () => ({
-      checked: isEveryModelSelected,
-      disabled: false,
+      checked: isFilteredModelsSelected,
+      indeterminate: isFilteredModelsIndeterminate,
+      disabled: readonly || manualSelectionDisabled || !hasFilteredModels,
     }),
     getCheckboxProps: () => ({
-      disabled: false,
+      disabled: readonly || manualSelectionDisabled,
     }),
     onSelect: (record, selected) => {
+      if (readonly) {
+        return;
+      }
       toggleModel(record.value, selected);
     },
     onSelectAll: (selected) => {
-      toggleAllModels(null, { checked: selected });
+      if (readonly) {
+        return;
+      }
+      toggleFilteredModels(selected);
     },
-  };
+  });
 
   const renderModelTable = (readonly = false) => (
     <div className='router-token-model-table-wrap'>
@@ -578,20 +778,7 @@ const EditToken = () => {
         pagination={false}
         rowKey='value'
         dataSource={filteredModelOptions}
-        rowSelection={
-          readonly
-            ? {
-                ...modelTableRowSelection,
-                getTitleCheckboxProps: () => ({
-                  checked: isEveryModelSelected,
-                  disabled: true,
-                }),
-                getCheckboxProps: () => ({
-                  disabled: true,
-                }),
-              }
-            : modelTableRowSelection
-        }
+        rowSelection={buildModelTableRowSelection(readonly)}
         locale={{
           emptyText:
             modelOptions.length === 0
@@ -612,13 +799,18 @@ const EditToken = () => {
             dataIndex: 'sources',
             key: 'sources',
             render: (sources) => {
-              const normalizedSources = Array.isArray(sources) ? sources : [];
+              const normalizedSources = (Array.isArray(sources) ? sources : [])
+                .map((source) => ({
+                  source,
+                  label: formatEntitlementSourceLabel(source),
+                }))
+                .filter((item) => item.label !== '');
               if (normalizedSources.length === 0) {
                 return <span className='router-text-muted'>-</span>;
               }
               return (
                 <div className='router-token-model-source-list'>
-                  {normalizedSources.slice(0, 3).map((source, index) => (
+                  {normalizedSources.slice(0, 3).map(({ source, label }, index) => (
                     <AppTag
                       key={[
                         source?.source_type || 'source',
@@ -626,7 +818,7 @@ const EditToken = () => {
                       ].join('-')}
                       className='router-tag'
                     >
-                      {formatEntitlementSourceLabel(source)}
+                      {label}
                     </AppTag>
                   ))}
                   {normalizedSources.length > 3 ? (
@@ -755,16 +947,7 @@ const EditToken = () => {
                 </AppFormRow>
                 <div>
                   <label>{t('token.edit.models')}</label>
-                  <div className='router-section-message'>
-                    {t('token.edit.models_table_notice')}
-                  </div>
-                  <AppInput
-                    className='router-section-input router-token-model-search'
-                    placeholder={t('token.edit.models_search_placeholder')}
-                    value={modelKeyword}
-                    onChange={handleModelKeywordChange}
-                  />
-                  {renderModelTable(false)}
+                  {renderModelScopeControls(false)}
                 </div>
                 <AppFormRow>
                   <AppField label={t('token.edit.ip_limit')}>
@@ -1024,16 +1207,7 @@ const EditToken = () => {
                 }
                 bodyClassName='router-page-stack'
               >
-                  <div className='router-section-message'>
-                    {t('token.edit.models_table_notice')}
-                  </div>
-                  <AppInput
-                    className='router-section-input router-token-model-search'
-                    placeholder={t('token.edit.models_search_placeholder')}
-                    value={modelKeyword}
-                    onChange={handleModelKeywordChange}
-                  />
-                  {renderModelTable(modelsReadonly)}
+                  {renderModelScopeControls(modelsReadonly)}
             </AppDetailSection>
             ) : null}
           </div>

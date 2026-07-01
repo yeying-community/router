@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { showError } from '../../helpers';
-import { buildTopUpReturnURL, useTopUpWorkspace } from './shared.jsx';
+import {
+  SupportedModelsSummary,
+  buildTopUpReturnURL,
+  useTopUpWorkspace,
+} from './shared.jsx';
 import { AppButton, AppSection } from '../../router-ui';
 
 const renderPlanAmount = (amount, currency) =>
@@ -87,6 +91,7 @@ const BalanceTopUpPage = () => {
                           {t('topup.external_topup.validity_label')}：{renderPlanValidity(plan.validity_days, t)}
                         </div>
                       </div>
+                      <SupportedModelsSummary models={plan.supported_models} t={t} />
                     </div>
                     <div className='router-balance-topup-card-footer'>
                       <AppButton

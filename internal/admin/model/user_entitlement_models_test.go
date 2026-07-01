@@ -24,6 +24,8 @@ func newUserEntitlementModelsTestDB(t *testing.T) *gorm.DB {
 		&Redemption{},
 		&UserBalanceLot{},
 		&UserBalanceLotTransaction{},
+		&Provider{},
+		&ProviderModel{},
 	); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
@@ -37,8 +39,20 @@ func seedEntitlementGroup(t *testing.T, db *gorm.DB, id string, name string, mod
 	}
 	for _, modelName := range models {
 		if err := db.Create(&GroupModel{
-			Group:   id,
-			Model:   modelName,
+			Group: id,
+			Model: modelName,
+			Provider: func() string {
+				switch modelName {
+				case "glm-5.2":
+					return "zhipu"
+				case "qwen-plus":
+					return "qwen"
+				case "deepseek-chat":
+					return "deepseek"
+				default:
+					return ""
+				}
+			}(),
 			Enabled: true,
 		}).Error; err != nil {
 			t.Fatalf("create group model %s/%s: %v", id, modelName, err)
@@ -46,18 +60,17 @@ func seedEntitlementGroup(t *testing.T, db *gorm.DB, id string, name string, mod
 	}
 }
 
-func TestBuildUserEntitlementModelsMergesPackageTopupRedemptionAndLegacy(t *testing.T) {
+func TestBuildUserEntitlementModelsMergesPackageTopupAndRedemption(t *testing.T) {
 	db := newUserEntitlementModelsTestDB(t)
 	seedEntitlementGroup(t, db, "group-package", "Package Group", "glm-5.2", "shared-model")
 	seedEntitlementGroup(t, db, "group-topup", "Topup Group", "qwen-plus", "shared-model")
 	seedEntitlementGroup(t, db, "group-redeem", "Redeem Group", "deepseek-chat")
-	seedEntitlementGroup(t, db, "group-legacy", "Legacy Group", "legacy-model")
 	now := int64(1000)
 	if err := db.Create(&User{
 		Id:       "user-1",
 		Username: "user-1",
 		Status:   UserStatusEnabled,
-		Group:    "group-legacy",
+		Group:    "group-package",
 	}).Error; err != nil {
 		t.Fatalf("create user: %v", err)
 	}
@@ -122,7 +135,7 @@ func TestBuildUserEntitlementModelsMergesPackageTopupRedemptionAndLegacy(t *test
 	if err != nil {
 		t.Fatalf("BuildUserEntitlementModelsWithDB: %v", err)
 	}
-	wantModels := []string{"deepseek-chat", "glm-5.2", "legacy-model", "qwen-plus", "shared-model"}
+	wantModels := []string{"deepseek-chat", "glm-5.2", "qwen-plus", "shared-model"}
 	if len(payload.Models) != len(wantModels) {
 		t.Fatalf("models=%#v, want %#v", payload.Models, wantModels)
 	}
@@ -140,6 +153,22 @@ func TestBuildUserEntitlementModelsMergesPackageTopupRedemptionAndLegacy(t *test
 	}
 	if sharedSources[1].SourceType != UserEntitlementSourceTopup || sharedSources[1].GroupID != "group-topup" {
 		t.Fatalf("second shared source=%#v, want topup group", sharedSources[1])
+	}
+	itemsByModel := make(map[string]UserAvailableModel, len(payload.Items))
+	for _, item := range payload.Items {
+		itemsByModel[item.Model] = item
+	}
+	if got := itemsByModel["glm-5.2"].Provider; got != "zhipu" {
+		t.Fatalf("glm-5.2 provider=%q, want zhipu", got)
+	}
+	if got := itemsByModel["glm-5.2"].ProviderLabel; got != "ZhiPu" {
+		t.Fatalf("glm-5.2 provider_label=%q, want ZhiPu", got)
+	}
+	if got := itemsByModel["qwen-plus"].Provider; got != "qwen" {
+		t.Fatalf("qwen-plus provider=%q, want qwen", got)
+	}
+	if got := itemsByModel["qwen-plus"].ProviderLabel; got != "QianWen" {
+		t.Fatalf("qwen-plus provider_label=%q, want QianWen", got)
 	}
 
 	groupID, source, err := ResolveUserEntitlementGroupForModelWithDB(context.Background(), db, "user-1", "qwen-plus")

@@ -17,6 +17,7 @@ func newServicePackageScopeTestDB(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(
 		&User{},
 		&GroupCatalog{},
+		&GroupModel{},
 		&ServicePackage{},
 		&ServicePackageVisibleUser{},
 		&UserPackageSubscription{},
@@ -73,6 +74,42 @@ func TestCreateServicePackageDefaultsLegacyYYCScopeFields(t *testing.T) {
 	}
 	if !row.AllowBalanceFallback {
 		t.Fatalf("allow_balance_fallback=false, want true for legacy YYC package")
+	}
+}
+
+func TestListServicePackagesIncludesSupportedModels(t *testing.T) {
+	db := newServicePackageScopeTestDB(t)
+	if err := db.Create(&[]GroupModel{
+		{Group: "group-1", Model: "gpt-4.1", Enabled: true},
+		{Group: "group-1", Model: "disabled-model", Enabled: false},
+		{Group: "group-1", Model: "gpt-4.1-mini", Enabled: true},
+	}).Error; err != nil {
+		t.Fatalf("seed group models: %v", err)
+	}
+	if _, err := createServicePackageWithDB(db, ServicePackage{
+		Name:            "starter",
+		GroupID:         "group-1",
+		DailyQuotaLimit: 1000,
+		Enabled:         true,
+	}); err != nil {
+		t.Fatalf("createServicePackageWithDB returned error: %v", err)
+	}
+
+	rows, _, err := listServicePackagesPageWithDB(db, 1, 10, "")
+	if err != nil {
+		t.Fatalf("listServicePackagesPageWithDB returned error: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("len(rows)=%d, want 1", len(rows))
+	}
+	want := []string{"gpt-4.1", "gpt-4.1-mini"}
+	if len(rows[0].SupportedModels) != len(want) {
+		t.Fatalf("supported_models=%#v, want %#v", rows[0].SupportedModels, want)
+	}
+	for i := range want {
+		if rows[0].SupportedModels[i] != want[i] {
+			t.Fatalf("supported_models=%#v, want %#v", rows[0].SupportedModels, want)
+		}
 	}
 }
 

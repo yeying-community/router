@@ -2427,7 +2427,7 @@ func parseTopupBalanceLotPageParams(c *gin.Context) (int, int, string, string, b
 	switch rawSourceType {
 	case "":
 		sourceType = ""
-	case model.UserBalanceLotSourceTopup, model.UserBalanceLotSourceRedeem, model.UserBalanceLotSourceLegacy:
+	case model.UserBalanceLotSourceTopup, model.UserBalanceLotSourceRedeem:
 		sourceType = rawSourceType
 	default:
 		return 0, 0, "", "", false, fmt.Errorf("无效的来源类型")
@@ -2474,7 +2474,7 @@ func parseTopupBalanceLotTransactionPageParams(c *gin.Context) (int, int, string
 	switch rawSourceType {
 	case "":
 		sourceType = ""
-	case model.UserBalanceLotSourceTopup, model.UserBalanceLotSourceRedeem, model.UserBalanceLotSourceLegacy:
+	case model.UserBalanceLotSourceTopup, model.UserBalanceLotSourceRedeem:
 		sourceType = rawSourceType
 	default:
 		return 0, 0, "", "", fmt.Errorf("无效的来源类型")

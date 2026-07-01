@@ -3105,6 +3105,64 @@ body,
     gap: 0.5rem;
 }
 
+.router-supported-models-summary {
+    display: grid;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.router-supported-models-summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    color: #6b7280;
+    font-size: 0.78rem;
+}
+
+.router-supported-models-count-button {
+    color: #1677ff;
+    font-weight: 600;
+}
+
+.router-supported-models-dialog {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.router-supported-models-search {
+    width: 100%;
+}
+
+.router-supported-models-dialog-meta {
+    color: #6b7280;
+    font-size: 0.85rem;
+}
+
+.router-supported-models-dialog-list {
+    display: grid;
+    gap: 0.45rem;
+    max-height: 48vh;
+    overflow-y: auto;
+}
+
+.router-supported-models-dialog-item {
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #111827;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+}
+
+.router-supported-models-empty {
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
 .router-token-model-source-list {
     display: flex;
     flex-wrap: wrap;
@@ -4204,9 +4262,52 @@ body,
     min-width: 170px;
 }
 
+.router-token-model-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.router-token-model-mode-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.router-token-model-mode {
+    width: min(360px, 100%);
+    flex: 0 0 auto;
+}
+
+.router-token-model-mode-hint {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+    flex: 1 1 260px;
+    min-width: 220px;
+}
+
+.router-token-model-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
 .router-token-model-search {
-    max-width: 320px;
-    margin-bottom: 10px;
+    width: min(320px, 100%);
+}
+
+.router-token-model-filter {
+    min-width: 180px;
+}
+
+.router-token-model-selection-summary {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 32px;
+    white-space: nowrap;
 }
 
 .router-token-model-table-wrap {
@@ -4218,13 +4319,18 @@ body,
 
 .router-ui-table.router-token-model-table .ant-table-thead > tr > th:first-child,
 .router-ui-table.router-token-model-table .ant-table-tbody > tr > td:first-child {
-    width: 72px !important;
+    width: 56px !important;
 }
 
 .router-ui-table.router-token-model-table .ant-table-thead > tr > th,
 .router-ui-table.router-token-model-table .ant-table-tbody > tr > td {
     padding-top: 10px !important;
     padding-bottom: 10px !important;
+}
+
+.router-token-model-select-all-checkbox {
+    display: inline-flex;
+    align-items: center;
 }
 
 .router-token-basic-info-row {
