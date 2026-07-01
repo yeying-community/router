@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yeying-community/router/common/helper"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -22,6 +23,8 @@ func newServicePackageScopeTestDB(t *testing.T) *gorm.DB {
 		&ServicePackageVisibleUser{},
 		&UserPackageSubscription{},
 		&UserPackageUsageCounter{},
+		&GroupQuotaCounter{},
+		&UserQuotaCounter{},
 		&EntitlementConcurrencyCounter{},
 	); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
@@ -189,6 +192,84 @@ func TestAssignServicePackageSnapshotsGroupQuotaFields(t *testing.T) {
 	}
 	if subscription.MaxConcurrencyPerUser != 3 || subscription.MaxConcurrencyPerPackage != 100 {
 		t.Fatalf("subscription concurrency=%d/%d, want 3/100", subscription.MaxConcurrencyPerUser, subscription.MaxConcurrencyPerPackage)
+	}
+}
+
+func TestAssignServicePackageIgnoresFutureStartAt(t *testing.T) {
+	db := newServicePackageScopeTestDB(t)
+	servicePackage, err := createServicePackageWithDB(db, ServicePackage{
+		Name:         "glm monthly",
+		GroupID:      "group-1",
+		PackageType:  ServicePackageTypeRequestQuota,
+		QuotaMetric:  ServicePackageQuotaMetricRequestCount,
+		PeriodLimit:  25000,
+		SalePrice:    100,
+		SaleCurrency: "CNY",
+		DurationDays: 30,
+		Enabled:      true,
+	})
+	if err != nil {
+		t.Fatalf("createServicePackageWithDB returned error: %v", err)
+	}
+
+	now := helper.GetTimestamp()
+	subscription, err := AssignServicePackageToUserWithDB(db, servicePackage.Id, "user-1", now+86400)
+	if err != nil {
+		t.Fatalf("AssignServicePackageToUserWithDB returned error: %v", err)
+	}
+
+	if subscription.Status != UserPackageSubscriptionStatusActive {
+		t.Fatalf("status=%d, want active", subscription.Status)
+	}
+	if subscription.StartedAt > now+5 {
+		t.Fatalf("started_at=%d, want immediate around %d", subscription.StartedAt, now)
+	}
+}
+
+func TestUpgradeServicePackagePreservesActiveSlotExpiry(t *testing.T) {
+	db := newServicePackageScopeTestDB(t)
+	firstPackage, err := createServicePackageWithDB(db, ServicePackage{
+		Name:         "basic",
+		GroupID:      "group-1",
+		PackageType:  ServicePackageTypeRequestQuota,
+		QuotaMetric:  ServicePackageQuotaMetricRequestCount,
+		PeriodLimit:  100,
+		SalePrice:    100,
+		SaleCurrency: "CNY",
+		DurationDays: 30,
+		Enabled:      true,
+	})
+	if err != nil {
+		t.Fatalf("create first package: %v", err)
+	}
+	secondPackage, err := createServicePackageWithDB(db, ServicePackage{
+		Name:         "pro",
+		GroupID:      "group-1",
+		PackageType:  ServicePackageTypeRequestQuota,
+		QuotaMetric:  ServicePackageQuotaMetricRequestCount,
+		PeriodLimit:  200,
+		SalePrice:    200,
+		SaleCurrency: "CNY",
+		DurationDays: 30,
+		Enabled:      true,
+	})
+	if err != nil {
+		t.Fatalf("create second package: %v", err)
+	}
+	now := helper.GetTimestamp()
+	active, err := AssignServicePackageToUserWithDB(db, firstPackage.Id, "user-1", 0)
+	if err != nil {
+		t.Fatalf("assign first package: %v", err)
+	}
+	upgraded, err := UpgradeServicePackageForUserWithDB(db, secondPackage.Id, "user-1", now+60)
+	if err != nil {
+		t.Fatalf("upgrade package: %v", err)
+	}
+	if upgraded.PackageID != secondPackage.Id {
+		t.Fatalf("package_id=%q, want %q", upgraded.PackageID, secondPackage.Id)
+	}
+	if upgraded.ExpiresAt != active.ExpiresAt {
+		t.Fatalf("expires_at=%d, want preserved %d", upgraded.ExpiresAt, active.ExpiresAt)
 	}
 }
 
@@ -400,7 +481,7 @@ func TestReserveRequestPackageIgnoresDifferentGroup(t *testing.T) {
 	}
 }
 
-func TestAssignServicePackageReplacesPreviousActiveAcrossGroups(t *testing.T) {
+func TestAssignServicePackageAllowsDifferentGroupsToCoexist(t *testing.T) {
 	db := newServicePackageScopeTestDB(t)
 	if err := db.Create(&GroupCatalog{
 		Id:      "group-2",
@@ -442,11 +523,15 @@ func TestAssignServicePackageReplacesPreviousActiveAcrossGroups(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list active subscriptions: %v", err)
 	}
-	if len(rows) != 1 {
-		t.Fatalf("active subscription count=%d, want 1: %+v", len(rows), rows)
+	if len(rows) != 2 {
+		t.Fatalf("active subscription count=%d, want 2: %+v", len(rows), rows)
 	}
-	if rows[0].PackageID != secondPackage.Id || rows[0].GroupID != "group-2" {
-		t.Fatalf("active subscription=%+v, want second package in group-2", rows[0])
+	ids := map[string]bool{}
+	for _, row := range rows {
+		ids[row.PackageID] = true
+	}
+	if !ids[firstPackage.Id] || !ids[secondPackage.Id] {
+		t.Fatalf("active subscriptions=%+v, want both packages active", rows)
 	}
 	replaced := int64(0)
 	if err := db.Model(&UserPackageSubscription{}).
@@ -454,8 +539,99 @@ func TestAssignServicePackageReplacesPreviousActiveAcrossGroups(t *testing.T) {
 		Count(&replaced).Error; err != nil {
 		t.Fatalf("count replaced first package: %v", err)
 	}
-	if replaced != 1 {
-		t.Fatalf("replaced first package count=%d, want 1", replaced)
+	if replaced != 0 {
+		t.Fatalf("replaced first package count=%d, want 0", replaced)
+	}
+}
+
+func TestUserQuotaSummaryAggregatesActiveYYCPackageSlots(t *testing.T) {
+	db := newServicePackageScopeTestDB(t)
+	if err := db.Create(&GroupCatalog{
+		Id:      "group-2",
+		Name:    "qwen",
+		Enabled: true,
+	}).Error; err != nil {
+		t.Fatalf("seed second group: %v", err)
+	}
+	firstPackage, err := createServicePackageWithDB(db, ServicePackage{
+		Name:                       "glm yyc",
+		GroupID:                    "group-1",
+		PackageType:                ServicePackageTypeYYCQuota,
+		QuotaMetric:                ServicePackageQuotaMetricYYC,
+		DailyQuotaLimit:            100,
+		PackageEmergencyQuotaLimit: 10,
+		Enabled:                    true,
+	})
+	if err != nil {
+		t.Fatalf("create first package: %v", err)
+	}
+	secondPackage, err := createServicePackageWithDB(db, ServicePackage{
+		Name:                       "qwen yyc",
+		GroupID:                    "group-2",
+		PackageType:                ServicePackageTypeYYCQuota,
+		QuotaMetric:                ServicePackageQuotaMetricYYC,
+		DailyQuotaLimit:            200,
+		PackageEmergencyQuotaLimit: 20,
+		Enabled:                    true,
+	})
+	if err != nil {
+		t.Fatalf("create second package: %v", err)
+	}
+	now := helper.GetTimestamp()
+	if _, err := AssignServicePackageToUserWithDB(db, firstPackage.Id, "user-1", now); err != nil {
+		t.Fatalf("assign first package: %v", err)
+	}
+	if _, err := AssignServicePackageToUserWithDB(db, secondPackage.Id, "user-1", now); err != nil {
+		t.Fatalf("assign second package: %v", err)
+	}
+	if err := db.Create(&[]GroupQuotaCounter{
+		{
+			GroupID:       "group-1",
+			UserID:        "user-1",
+			CounterType:   GroupQuotaCounterTypeDaily,
+			PeriodKey:     "2026-06-30",
+			ConsumedQuota: 30,
+			ReservedQuota: 5,
+			UpdatedAt:     now,
+		},
+		{
+			GroupID:       "group-2",
+			UserID:        "user-1",
+			CounterType:   GroupQuotaCounterTypeDaily,
+			PeriodKey:     "2026-06-30",
+			ConsumedQuota: 60,
+			ReservedQuota: 10,
+			UpdatedAt:     now + 1,
+		},
+	}).Error; err != nil {
+		t.Fatalf("seed group quota counters: %v", err)
+	}
+	if err := db.Create(&UserQuotaCounter{
+		UserID:        "user-1",
+		CounterType:   UserQuotaCounterTypePackageEmergency,
+		PeriodKey:     "2026-06",
+		ConsumedQuota: 7,
+		ReservedQuota: 3,
+		UpdatedAt:     now,
+	}).Error; err != nil {
+		t.Fatalf("seed package emergency counter: %v", err)
+	}
+
+	summary, err := GetUserQuotaSummaryWithDB(db, "user-1", "2026-06-30", "2026-06")
+	if err != nil {
+		t.Fatalf("GetUserQuotaSummaryWithDB returned error: %v", err)
+	}
+	if summary.Daily.Limit != 300 || summary.Daily.ConsumedQuota != 90 || summary.Daily.ReservedQuota != 15 || summary.Daily.RemainingQuota != 195 {
+		t.Fatalf("daily summary=%+v, want limit=300 consumed=90 reserved=15 remaining=195", summary.Daily)
+	}
+	if summary.Daily.Unlimited {
+		t.Fatalf("daily summary unlimited=true, want false for active package slots")
+	}
+	if summary.PackageEmergency.Limit != 30 || summary.PackageEmergency.ConsumedQuota != 7 || summary.PackageEmergency.ReservedQuota != 3 || summary.PackageEmergency.RemainingQuota != 20 {
+		t.Fatalf("package emergency summary=%+v, want limit=30 consumed=7 reserved=3 remaining=20", summary.PackageEmergency)
+	}
+	if !summary.PackageEmergency.Enabled {
+		t.Fatalf("package emergency enabled=false, want true")
 	}
 }
 

@@ -98,23 +98,23 @@ type TopupOrderCallbackInput struct {
 }
 
 type PackagePurchasePreview struct {
-	OperationType              string  `json:"operation_type"`
-	StartAt                    int64   `json:"start_at"`
-	ExpiresAt                  int64   `json:"expires_at"`
-	CurrentExpiresAt           int64   `json:"current_expires_at"`
-	TargetPackageID            string  `json:"target_package_id"`
-	TargetPackageName          string  `json:"target_package_name"`
-	TargetPackageType          string  `json:"target_package_type"`
-	TargetQuotaMetric          string  `json:"target_quota_metric"`
-	CurrentPackageID           string  `json:"current_package_id"`
-	CurrentPackageName         string  `json:"current_package_name"`
-	CurrentPackageType         string  `json:"current_package_type"`
-	CurrentQuotaMetric         string  `json:"current_quota_metric"`
-	TargetPackageAmount        float64 `json:"target_package_amount"`
-	CurrentPackageCreditAmount float64 `json:"current_package_credit_amount"`
-	PayableAmount              float64 `json:"payable_amount"`
-	PayableCurrency            string  `json:"payable_currency"`
-	PayableChargeAmount        int64   `json:"payable_charge_amount"`
+	OperationType                 string  `json:"operation_type"`
+	StartAt                       int64   `json:"start_at"`
+	ExpiresAt                     int64   `json:"expires_at"`
+	SlotActivePackageExpiresAt    int64   `json:"slot_active_package_expires_at"`
+	TargetPackageID               string  `json:"target_package_id"`
+	TargetPackageName             string  `json:"target_package_name"`
+	TargetPackageType             string  `json:"target_package_type"`
+	TargetQuotaMetric             string  `json:"target_quota_metric"`
+	SlotActivePackageID           string  `json:"slot_active_package_id"`
+	SlotActivePackageName         string  `json:"slot_active_package_name"`
+	SlotActivePackageType         string  `json:"slot_active_package_type"`
+	SlotActiveQuotaMetric         string  `json:"slot_active_quota_metric"`
+	TargetPackageAmount           float64 `json:"target_package_amount"`
+	SlotActivePackageCreditAmount float64 `json:"slot_active_package_credit_amount"`
+	PayableAmount                 float64 `json:"payable_amount"`
+	PayableCurrency               string  `json:"payable_currency"`
+	PayableChargeAmount           int64   `json:"payable_charge_amount"`
 }
 
 func (TopupOrder) TableName() string {
@@ -478,12 +478,13 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 	if !targetPackage.Enabled {
 		return PackagePurchasePreview{}, fmt.Errorf("套餐已禁用")
 	}
+	normalizeServicePackageScopeAndQuota(&targetPackage)
 
 	if err := syncUserPackageSubscriptionsWithDB(db, normalizedUserID, effectiveNow); err != nil {
 		return PackagePurchasePreview{}, err
 	}
 	var active *UserPackageSubscription
-	activeSubscription, activeErr := getActiveUserPackageSubscriptionWithDB(db, normalizedUserID)
+	activeSubscription, activeErr := getActiveUserPackageSubscriptionForPackageGroupWithDB(db, normalizedUserID, targetPackage, effectiveNow)
 	if activeErr == nil {
 		active = &activeSubscription
 	} else if !errors.Is(activeErr, gorm.ErrRecordNotFound) {
@@ -501,38 +502,30 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 		TargetPackageAmount: normalizePackagePreviewAmount(targetPackage.SalePrice),
 	}
 	if active != nil {
-		preview.CurrentPackageID = strings.TrimSpace(active.PackageID)
-		preview.CurrentPackageName = strings.TrimSpace(active.PackageName)
-		preview.CurrentPackageType = strings.TrimSpace(active.PackageType)
-		preview.CurrentQuotaMetric = strings.TrimSpace(active.QuotaMetric)
-		preview.CurrentExpiresAt = active.ExpiresAt
+		preview.SlotActivePackageID = strings.TrimSpace(active.PackageID)
+		preview.SlotActivePackageName = strings.TrimSpace(active.PackageName)
+		preview.SlotActivePackageType = strings.TrimSpace(active.PackageType)
+		preview.SlotActiveQuotaMetric = strings.TrimSpace(active.QuotaMetric)
+		preview.SlotActivePackageExpiresAt = active.ExpiresAt
 	}
 
 	switch operationType {
 	case TopupOrderOperationRenew:
 		if active == nil {
-			return PackagePurchasePreview{}, fmt.Errorf("当前无生效套餐，无法续费")
+			return PackagePurchasePreview{}, fmt.Errorf("目标槽位无生效套餐，无法续费")
 		}
 		if strings.TrimSpace(active.PackageID) != normalizedPackageID {
-			return PackagePurchasePreview{}, fmt.Errorf("当前生效套餐与续费套餐不一致")
+			return PackagePurchasePreview{}, fmt.Errorf("同槽位生效套餐与续费套餐不一致")
 		}
-		tailEnd, hasUnlimitedTail, err := latestUserPackageSubscriptionTailWithDB(db, normalizedUserID)
-		if err != nil {
-			return PackagePurchasePreview{}, err
-		}
-		if hasUnlimitedTail {
-			return PackagePurchasePreview{}, fmt.Errorf("当前套餐无到期时间，无法续费")
-		}
-		startAt := effectiveNow
-		if tailEnd > effectiveNow {
-			startAt = tailEnd
+		if active.ExpiresAt <= 0 {
+			return PackagePurchasePreview{}, fmt.Errorf("同槽位生效套餐无到期时间，无法续费")
 		}
 		durationDays := normalizeServicePackageDurationDays(targetPackage.DurationDays)
-		expiresAt := int64(0)
-		if durationDays > 0 {
-			expiresAt = startAt + int64(durationDays)*86400
+		expiresAt := effectiveNow + int64(durationDays)*86400
+		if active.ExpiresAt > effectiveNow {
+			expiresAt = active.ExpiresAt + int64(durationDays)*86400
 		}
-		preview.StartAt = startAt
+		preview.StartAt = effectiveNow
 		preview.ExpiresAt = expiresAt
 		preview.PayableAmount = normalizePackagePreviewAmount(targetPackage.SalePrice)
 		payableChargeAmount, err := calcPackageChargeAmount(preview.PayableAmount, preview.PayableCurrency)
@@ -545,7 +538,7 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 			operationType = TopupOrderOperationNew
 			preview.OperationType = operationType
 		} else if strings.TrimSpace(active.PackageID) == normalizedPackageID {
-			return PackagePurchasePreview{}, fmt.Errorf("目标套餐与当前套餐一致，请使用续费")
+			return PackagePurchasePreview{}, fmt.Errorf("目标套餐与同槽位生效套餐一致，请使用续费")
 		}
 		if preview.OperationType == TopupOrderOperationUpgrade {
 			payableChargeAmount, err := calcUpgradePayableAmountWithDB(db, *active, targetPackage, effectiveNow)
@@ -561,7 +554,7 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 			}
 			preview.PayableChargeAmount = payableChargeAmount
 			preview.PayableAmount = normalizeTopupOrderAmount(payableAmount)
-			preview.CurrentPackageCreditAmount = normalizePackagePreviewAmount(preview.TargetPackageAmount - preview.PayableAmount)
+			preview.SlotActivePackageCreditAmount = normalizePackagePreviewAmount(preview.TargetPackageAmount - preview.PayableAmount)
 			preview.StartAt = effectiveNow
 			preview.ExpiresAt = active.ExpiresAt
 			break
@@ -573,20 +566,17 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 			preview.OperationType = operationType
 		} else {
 			if strings.TrimSpace(active.PackageID) == normalizedPackageID {
-				return PackagePurchasePreview{}, fmt.Errorf("目标套餐与当前套餐一致，请使用续费")
+				return PackagePurchasePreview{}, fmt.Errorf("目标套餐与同槽位生效套餐一致，请使用续费")
 			}
 			if operationType == TopupOrderOperationConvert && isSamePackageType(*active, targetPackage) {
-				return PackagePurchasePreview{}, fmt.Errorf("目标套餐与当前套餐类型一致，请使用升级或降级")
-			}
-			if active.ExpiresAt <= 0 {
-				return PackagePurchasePreview{}, fmt.Errorf("当前套餐无到期时间，无法安排下期切换")
+				return PackagePurchasePreview{}, fmt.Errorf("目标套餐与同槽位生效套餐类型一致，请使用升级或降级")
 			}
 			durationDays := normalizeServicePackageDurationDays(targetPackage.DurationDays)
 			expiresAt := int64(0)
 			if durationDays > 0 {
-				expiresAt = active.ExpiresAt + int64(durationDays)*86400
+				expiresAt = effectiveNow + int64(durationDays)*86400
 			}
-			preview.StartAt = active.ExpiresAt
+			preview.StartAt = effectiveNow
 			preview.ExpiresAt = expiresAt
 			preview.PayableAmount = normalizePackagePreviewAmount(targetPackage.SalePrice)
 			payableChargeAmount, err := calcPackageChargeAmount(preview.PayableAmount, preview.PayableCurrency)
@@ -625,8 +615,8 @@ func PreviewPackagePurchaseWithDB(db *gorm.DB, userID string, packageID string, 
 		}
 		preview.PayableChargeAmount = payableChargeAmount
 	}
-	if preview.CurrentPackageCreditAmount < 0 {
-		preview.CurrentPackageCreditAmount = 0
+	if preview.SlotActivePackageCreditAmount < 0 {
+		preview.SlotActivePackageCreditAmount = 0
 	}
 	return preview, nil
 }
@@ -1296,20 +1286,7 @@ func FulfillTopupOrderWithDB(db *gorm.DB, orderID string) (TopupOrder, bool, err
 					return err
 				}
 			case TopupOrderOperationDowngrade, TopupOrderOperationConvert:
-				activeSubscription, err := getActiveUserPackageSubscriptionWithDB(tx, order.UserID)
-				if err != nil {
-					if errors.Is(err, gorm.ErrRecordNotFound) {
-						if _, err := AssignServicePackageToUserWithDB(tx, order.PackageID, order.UserID, helper.GetTimestamp()); err != nil {
-							return err
-						}
-						break
-					}
-					return err
-				}
-				if activeSubscription.ExpiresAt <= 0 {
-					return fmt.Errorf("当前套餐无到期时间，无法安排下期切换")
-				}
-				if _, err := AssignServicePackageToUserWithDB(tx, order.PackageID, order.UserID, activeSubscription.ExpiresAt); err != nil {
+				if _, err := AssignServicePackageToUserWithDB(tx, order.PackageID, order.UserID, helper.GetTimestamp()); err != nil {
 					return err
 				}
 			default:

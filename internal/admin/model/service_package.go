@@ -854,7 +854,7 @@ func deleteServicePackageWithDB(db *gorm.DB, id string) error {
 	}
 	activeCount := int64(0)
 	if err := db.Model(&UserPackageSubscription{}).
-		Where("package_id = ? AND status IN ?", normalizedID, []int{UserPackageSubscriptionStatusActive, UserPackageSubscriptionStatusPending}).
+		Where("package_id = ? AND status = ?", normalizedID, UserPackageSubscriptionStatusActive).
 		Count(&activeCount).Error; err != nil {
 		return err
 	}

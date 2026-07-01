@@ -87,13 +87,13 @@ func formatRequestPackageDeniedMessage(result model.RequestPackageReserveResult)
 		packageName = strings.TrimSpace(result.Subscription.PackageID)
 	}
 	if packageName == "" {
-		packageName = "当前套餐"
+		packageName = "生效套餐"
 	}
 	switch strings.TrimSpace(result.Reason) {
 	case "request_concurrency_per_user_exceeded":
 		return fmt.Sprintf("%s 当前用户并发请求数已达上限", packageName)
 	case "request_concurrency_per_package_exceeded":
-		return fmt.Sprintf("%s 当前套餐总并发请求数已达上限", packageName)
+		return fmt.Sprintf("%s 套餐总并发请求数已达上限", packageName)
 	case "request_quota_limit_unconfigured":
 		return fmt.Sprintf("%s 请求次数额度未配置", packageName)
 	default:
@@ -140,7 +140,7 @@ func formatEntitlementConcurrencyDeniedMessage(sourceName string, sourceKind str
 		case model.EntitlementConcurrencySourceTopupPlan:
 			name = "当前充值额度"
 		default:
-			name = "当前套餐"
+			name = "生效套餐"
 		}
 	}
 	switch strings.TrimSpace(reason) {
@@ -150,7 +150,7 @@ func formatEntitlementConcurrencyDeniedMessage(sourceName string, sourceKind str
 		if sourceKind == model.EntitlementConcurrencySourceTopupPlan {
 			return fmt.Sprintf("%s 当前充值方案总并发请求数已达上限", name)
 		}
-		return fmt.Sprintf("%s 当前套餐总并发请求数已达上限", name)
+		return fmt.Sprintf("%s 套餐总并发请求数已达上限", name)
 	default:
 		return fmt.Sprintf("%s 并发请求数已达上限", name)
 	}

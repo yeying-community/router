@@ -323,7 +323,7 @@ func TestApplyTopupOrderCallbackDoesNotDowngradeFulfilledOrder(t *testing.T) {
 	}
 }
 
-func TestPreviewPackagePurchaseUsesCurrentActiveSubscriptionAcrossGroups(t *testing.T) {
+func TestPreviewPackagePurchaseTreatsDifferentGroupAsPurchase(t *testing.T) {
 	db := newServicePackageScopeTestDB(t)
 	now := helper.GetTimestamp()
 	if err := db.Create(&GroupCatalog{
@@ -361,6 +361,59 @@ func TestPreviewPackagePurchaseUsesCurrentActiveSubscriptionAcrossGroups(t *test
 	if err != nil {
 		t.Fatalf("create target package: %v", err)
 	}
+	if _, err := AssignServicePackageToUserWithDB(db, currentPackage.Id, "user-1", now); err != nil {
+		t.Fatalf("assign current package: %v", err)
+	}
+
+	preview, err := PreviewPackagePurchaseWithDB(db, "user-1", targetPackage.Id, "", now+60)
+	if err != nil {
+		t.Fatalf("preview package purchase: %v", err)
+	}
+	if preview.OperationType != TopupOrderOperationNew {
+		t.Fatalf("operation_type=%q, want %q", preview.OperationType, TopupOrderOperationNew)
+	}
+	if preview.SlotActivePackageID != "" || preview.SlotActivePackageName != "" || preview.SlotActivePackageExpiresAt != 0 {
+		t.Fatalf("slot active package should be empty for different slot purchase: %+v", preview)
+	}
+	if preview.TargetPackageAmount != normalizeTopupOrderAmount(targetPackage.SalePrice) {
+		t.Fatalf("target_package_amount=%.2f, want %.2f", preview.TargetPackageAmount, normalizeTopupOrderAmount(targetPackage.SalePrice))
+	}
+	if preview.PayableAmount != preview.TargetPackageAmount {
+		t.Fatalf("payable_amount=%.2f, want target price %.2f", preview.PayableAmount, preview.TargetPackageAmount)
+	}
+}
+
+func TestPreviewPackagePurchaseUpgradesSamePackageSlot(t *testing.T) {
+	db := newServicePackageScopeTestDB(t)
+	now := helper.GetTimestamp()
+	currentPackage, err := createServicePackageWithDB(db, ServicePackage{
+		Name:         "glm monthly",
+		GroupID:      "group-1",
+		PackageType:  ServicePackageTypeRequestQuota,
+		QuotaMetric:  ServicePackageQuotaMetricRequestCount,
+		PeriodLimit:  100,
+		SalePrice:    100,
+		SaleCurrency: "CNY",
+		DurationDays: 30,
+		Enabled:      true,
+	})
+	if err != nil {
+		t.Fatalf("create current package: %v", err)
+	}
+	targetPackage, err := createServicePackageWithDB(db, ServicePackage{
+		Name:         "glm monthly plus",
+		GroupID:      "group-1",
+		PackageType:  ServicePackageTypeRequestQuota,
+		QuotaMetric:  ServicePackageQuotaMetricRequestCount,
+		PeriodLimit:  200,
+		SalePrice:    150,
+		SaleCurrency: "CNY",
+		DurationDays: 30,
+		Enabled:      true,
+	})
+	if err != nil {
+		t.Fatalf("create target package: %v", err)
+	}
 	subscription, err := AssignServicePackageToUserWithDB(db, currentPackage.Id, "user-1", now)
 	if err != nil {
 		t.Fatalf("assign current package: %v", err)
@@ -373,23 +426,20 @@ func TestPreviewPackagePurchaseUsesCurrentActiveSubscriptionAcrossGroups(t *test
 	if preview.OperationType != TopupOrderOperationUpgrade {
 		t.Fatalf("operation_type=%q, want %q", preview.OperationType, TopupOrderOperationUpgrade)
 	}
-	if preview.CurrentPackageID != currentPackage.Id || preview.CurrentPackageName != currentPackage.Name {
-		t.Fatalf("current package=%q/%q, want %q/%q", preview.CurrentPackageID, preview.CurrentPackageName, currentPackage.Id, currentPackage.Name)
+	if preview.SlotActivePackageID != currentPackage.Id || preview.SlotActivePackageName != currentPackage.Name {
+		t.Fatalf("slot active package=%q/%q, want %q/%q", preview.SlotActivePackageID, preview.SlotActivePackageName, currentPackage.Id, currentPackage.Name)
 	}
-	if preview.CurrentExpiresAt != subscription.ExpiresAt {
-		t.Fatalf("current_expires_at=%d, want %d", preview.CurrentExpiresAt, subscription.ExpiresAt)
-	}
-	if preview.TargetPackageAmount != normalizeTopupOrderAmount(targetPackage.SalePrice) {
-		t.Fatalf("target_package_amount=%.2f, want %.2f", preview.TargetPackageAmount, normalizeTopupOrderAmount(targetPackage.SalePrice))
+	if preview.SlotActivePackageExpiresAt != subscription.ExpiresAt {
+		t.Fatalf("slot_active_package_expires_at=%d, want %d", preview.SlotActivePackageExpiresAt, subscription.ExpiresAt)
 	}
 	if preview.PayableAmount <= 0 || preview.PayableAmount >= preview.TargetPackageAmount {
 		t.Fatalf("payable_amount=%.2f, want between 0 and target price %.2f", preview.PayableAmount, preview.TargetPackageAmount)
 	}
-	if preview.CurrentPackageCreditAmount <= 0 {
-		t.Fatalf("current_package_credit_amount=%.2f, want > 0", preview.CurrentPackageCreditAmount)
+	if preview.SlotActivePackageCreditAmount <= 0 {
+		t.Fatalf("slot_active_package_credit_amount=%.2f, want > 0", preview.SlotActivePackageCreditAmount)
 	}
-	if normalizeTopupOrderAmount(preview.PayableAmount+preview.CurrentPackageCreditAmount) != preview.TargetPackageAmount {
-		t.Fatalf("payable + credit = %.2f, want target %.2f", normalizeTopupOrderAmount(preview.PayableAmount+preview.CurrentPackageCreditAmount), preview.TargetPackageAmount)
+	if normalizeTopupOrderAmount(preview.PayableAmount+preview.SlotActivePackageCreditAmount) != preview.TargetPackageAmount {
+		t.Fatalf("payable + credit = %.2f, want target %.2f", normalizeTopupOrderAmount(preview.PayableAmount+preview.SlotActivePackageCreditAmount), preview.TargetPackageAmount)
 	}
 }
 
@@ -471,8 +521,7 @@ func TestPreviewPackagePurchaseDowngradeSchedulesNextPackage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create target package: %v", err)
 	}
-	subscription, err := AssignServicePackageToUserWithDB(db, currentPackage.Id, "user-1", now)
-	if err != nil {
+	if _, err := AssignServicePackageToUserWithDB(db, currentPackage.Id, "user-1", now); err != nil {
 		t.Fatalf("assign current package: %v", err)
 	}
 	preview, err := PreviewPackagePurchaseWithDB(db, "user-1", targetPackage.Id, TopupOrderOperationDowngrade, now+60)
@@ -482,15 +531,15 @@ func TestPreviewPackagePurchaseDowngradeSchedulesNextPackage(t *testing.T) {
 	if preview.OperationType != TopupOrderOperationDowngrade {
 		t.Fatalf("operation_type=%q, want %q", preview.OperationType, TopupOrderOperationDowngrade)
 	}
-	if preview.StartAt != subscription.ExpiresAt {
-		t.Fatalf("start_at=%d, want %d", preview.StartAt, subscription.ExpiresAt)
+	if preview.StartAt != now+60 {
+		t.Fatalf("start_at=%d, want %d", preview.StartAt, now+60)
 	}
 	if preview.PayableAmount != normalizeTopupOrderAmount(targetPackage.SalePrice) {
 		t.Fatalf("payable_amount=%.2f, want %.2f", preview.PayableAmount, normalizeTopupOrderAmount(targetPackage.SalePrice))
 	}
 }
 
-func TestPreviewPackagePurchaseConvertRequiresDifferentType(t *testing.T) {
+func TestPreviewPackagePurchaseConvertDifferentSlotFallsBackToPurchase(t *testing.T) {
 	db := newServicePackageScopeTestDB(t)
 	now := helper.GetTimestamp()
 	currentPackage, err := createServicePackageWithDB(db, ServicePackage{
@@ -528,7 +577,10 @@ func TestPreviewPackagePurchaseConvertRequiresDifferentType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("preview convert: %v", err)
 	}
-	if preview.OperationType != TopupOrderOperationConvert {
-		t.Fatalf("operation_type=%q, want %q", preview.OperationType, TopupOrderOperationConvert)
+	if preview.OperationType != TopupOrderOperationNew {
+		t.Fatalf("operation_type=%q, want %q", preview.OperationType, TopupOrderOperationNew)
+	}
+	if preview.SlotActivePackageID != "" {
+		t.Fatalf("slot_active_package_id=%q, want empty for different slot", preview.SlotActivePackageID)
 	}
 }

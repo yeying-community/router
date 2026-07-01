@@ -1615,8 +1615,30 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return removeDefaultUserGroupAndLegacyBalanceSourcesWithDB(tx)
 			},
 		},
+		{
+			Version:     "202606301130_cancel_pending_package_subscriptions",
+			Description: "cancel historical pending package subscriptions after removing scheduled package activation",
+			Up: func(tx *gorm.DB) error {
+				return cancelHistoricalPendingPackageSubscriptionsWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
+}
+
+func cancelHistoricalPendingPackageSubscriptionsWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if err := db.AutoMigrate(&UserPackageSubscription{}); err != nil {
+		return err
+	}
+	return db.Model(&UserPackageSubscription{}).
+		Where("status = ?", 5).
+		Updates(map[string]any{
+			"status":     UserPackageSubscriptionStatusCanceled,
+			"updated_at": helper.GetTimestamp(),
+		}).Error
 }
 
 func removeDefaultUserGroupAndLegacyBalanceSourcesWithDB(db *gorm.DB) error {

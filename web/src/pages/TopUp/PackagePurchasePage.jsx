@@ -37,9 +37,9 @@ const resolvePackageOperationLabel = (operationType, t, i18n) => {
   return normalized || '-';
 };
 
-const renderPackageActionTag = (operationType, currentPackageID, targetPackageID, t, i18n) => {
+const renderPackageActionTag = (operationType, slotActivePackageID, targetPackageID, t, i18n) => {
   const normalizedOperationType = String(operationType || '').trim();
-  const normalizedCurrentPackageID = String(currentPackageID || '').trim();
+  const normalizedSlotActivePackageID = String(slotActivePackageID || '').trim();
   const normalizedTargetPackageID = String(targetPackageID || '').trim();
   const actionKey = normalizedOperationType
     ? `topup.external_topup.package_operation.${normalizedOperationType}`
@@ -50,8 +50,8 @@ const renderPackageActionTag = (operationType, currentPackageID, targetPackageID
       : normalizedOperationType || '-';
 
   if (
-    normalizedCurrentPackageID !== '' &&
-    normalizedCurrentPackageID === normalizedTargetPackageID
+    normalizedSlotActivePackageID !== '' &&
+    normalizedSlotActivePackageID === normalizedTargetPackageID
   ) {
     return (
       <AppTag color='green' className='router-tag'>
@@ -85,30 +85,47 @@ const normalizePackageSubscription = (raw) => {
   }
   return {
     package_id: (raw.package_id || raw.id || '').toString().trim(),
+    group_id: (raw.group_id || '').toString().trim(),
     package_type: (raw.package_type || '').toString().trim(),
     quota_metric: (raw.quota_metric || '').toString().trim(),
     sale_price: Number(raw.sale_price ?? 0) || 0,
   };
 };
 
-const resolvePackagePurchaseOperation = (currentPackage, targetPackage) => {
+const normalizePackageSubscriptions = (rows) =>
+  (Array.isArray(rows) ? rows : [])
+    .map((item) => normalizePackageSubscription(item))
+    .filter(Boolean);
+
+const findActivePackageForTarget = (activePackages, targetPackage) => {
+  const targetGroupID = String(targetPackage?.group_id || '').trim();
+  const targetType = normalizeServicePackageType(
+    targetPackage?.package_type,
+    targetPackage?.quota_metric,
+  );
+  return (Array.isArray(activePackages) ? activePackages : []).find((item) => {
+    const itemGroupID = String(item?.group_id || '').trim();
+    const itemType = normalizeServicePackageType(
+      item?.package_type,
+      item?.quota_metric,
+    );
+    return itemGroupID === targetGroupID && itemType === targetType;
+  }) || null;
+};
+
+const resolvePackagePurchaseOperation = (slotPackage, targetPackage) => {
   if (!targetPackage || typeof targetPackage !== 'object') {
     return '';
   }
-  if (!currentPackage) {
+  if (!slotPackage) {
     return 'purchase';
   }
-  const currentPackageID = (currentPackage.package_id || '').toString().trim();
+  const currentPackageID = (slotPackage.package_id || '').toString().trim();
   const targetPackageID = (targetPackage.id || '').toString().trim();
   if (currentPackageID !== '' && currentPackageID === targetPackageID) {
     return 'renew';
   }
-  const currentType = normalizeServicePackageType(currentPackage.package_type, currentPackage.quota_metric);
-  const targetType = normalizeServicePackageType(targetPackage.package_type, targetPackage.quota_metric);
-  if (currentType !== targetType) {
-    return 'convert';
-  }
-  const currentPrice = Number(currentPackage.sale_price ?? 0);
+  const currentPrice = Number(slotPackage.sale_price ?? 0);
   const targetPrice = Number(targetPackage.sale_price ?? 0);
   if (targetPrice > currentPrice) {
     return 'upgrade';
@@ -124,7 +141,7 @@ const PackagePurchasePage = () => {
   const { renderDisplayAmount, createTopupOrder, previewPackagePurchase } =
     useTopUpWorkspace();
   const [packages, setPackages] = useState([]);
-  const [activePackage, setActivePackage] = useState(null);
+  const [activePackages, setActivePackages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [previewingPackageId, setPreviewingPackageId] = useState('');
   const [creatingPackageId, setCreatingPackageId] = useState('');
@@ -150,11 +167,7 @@ const PackagePurchasePage = () => {
         const rows = Array.isArray(data) ? data : [];
         setPackages(rows);
         const activeData = activePackageRes?.data?.data || {};
-        setActivePackage(
-          activeData?.has_active_subscription
-            ? normalizePackageSubscription(activeData.current_package || activeData.subscription)
-            : null,
-        );
+        setActivePackages(normalizePackageSubscriptions(activeData?.active_packages));
       } catch (error) {
         showError(error?.message || t('topup.external_topup.request_failed'));
       } finally {
@@ -252,9 +265,10 @@ const PackagePurchasePage = () => {
               <div className='router-package-purchase-list'>
                 {packages.map((item) => {
                   const requestQuotaPackage = isRequestQuotaPackage(item);
-                  const operationType = resolvePackagePurchaseOperation(activePackage, item);
+                  const slotActivePackage = findActivePackageForTarget(activePackages, item);
+                  const operationType = resolvePackagePurchaseOperation(slotActivePackage, item);
                   const itemID = String(item?.id || '').trim();
-                  const activePackageID = String(activePackage?.package_id || '').trim();
+                  const activePackageID = String(slotActivePackage?.package_id || '').trim();
                   const operationKey = operationType
                     ? `topup.external_topup.package_operation.${operationType}`
                     : '';
@@ -396,9 +410,9 @@ const PackagePurchasePage = () => {
             <div>{operationLabel}</div>
 
             <div className='router-text-muted'>
-              {t('topup.external_topup.package_preview_current_package')}
+              {t('topup.external_topup.package_preview_slot_active_package')}
             </div>
-            <div>{previewState?.preview?.current_package_name || '-'}</div>
+            <div>{previewState?.preview?.slot_active_package_name || '-'}</div>
 
             <div className='router-text-muted'>
               {t('topup.external_topup.package_preview_target_package')}
@@ -419,10 +433,13 @@ const PackagePurchasePage = () => {
             </div>
 
             <div className='router-text-muted'>
-              {t('topup.external_topup.package_preview_current_expire_at')}
+              {t('topup.external_topup.package_preview_slot_active_expire_at')}
             </div>
             <div>
-              {formatTimeValue(previewState?.preview?.current_expires_at, t)}
+              {formatTimeValue(
+                previewState?.preview?.slot_active_package_expires_at,
+                t,
+              )}
             </div>
 
             <div className='router-text-muted'>
@@ -445,14 +462,14 @@ const PackagePurchasePage = () => {
               )}
             </div>
 
-            {Number(previewState?.preview?.current_package_credit_amount || 0) > 0 ? (
+            {Number(previewState?.preview?.slot_active_package_credit_amount || 0) > 0 ? (
               <>
                 <div className='router-text-muted'>
-                  {t('topup.external_topup.package_preview_current_package_credit')}
+                  {t('topup.external_topup.package_preview_slot_active_package_credit')}
                 </div>
                 <div>
                   {formatMoney(
-                    previewState?.preview?.current_package_credit_amount,
+                    previewState?.preview?.slot_active_package_credit_amount,
                     previewState?.preview?.payable_currency,
                   )}
                 </div>

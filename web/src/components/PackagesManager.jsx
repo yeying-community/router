@@ -39,6 +39,10 @@ import {
   formatDecimalNumber,
 } from '../helpers/render';
 import {
+  SupportedModelsSummary,
+  normalizeSupportedModels,
+} from '../pages/TopUp/shared.jsx';
+import {
   SERVICE_PACKAGE_PERIOD_DAILY,
   SERVICE_PACKAGE_QUOTA_METRIC_REQUEST_COUNT,
   SERVICE_PACKAGE_QUOTA_METRIC_YYC,
@@ -144,6 +148,13 @@ const appendUserOptionsIfMissing = (options, users) => {
   return nextOptions;
 };
 
+const normalizeGroupModelItems = (items) =>
+  normalizeSupportedModels(
+    (Array.isArray(items) ? items : []).map((item) =>
+      (item?.model || item?.name || item || '').toString().trim()
+    )
+  );
+
 const resolveSelectedUserListFromOptions = (userIDs, options) => {
   const optionMap = new Map(
     (Array.isArray(options) ? options : [])
@@ -238,6 +249,8 @@ const PackagesManager = () => {
 
   const [groupOptions, setGroupOptions] = useState([]);
   const [groupLoading, setGroupLoading] = useState(false);
+  const [groupModelsByID, setGroupModelsByID] = useState({});
+  const [groupModelsLoading, setGroupModelsLoading] = useState(false);
   const [userOptions, setUserOptions] = useState([]);
   const [userLoading, setUserLoading] = useState(false);
   const [displayUnit, setDisplayUnit] = useState('USD');
@@ -292,6 +305,11 @@ const PackagesManager = () => {
     [form.package_type, form.quota_metric]
   );
 
+  const selectedGroupModels = useMemo(
+    () => groupModelsByID[(form.group_id || '').toString().trim()] || [],
+    [form.group_id, groupModelsByID]
+  );
+
   const selectedVisibleUsers = useMemo(
     () => resolveSelectedUserListFromOptions(form.visible_user_ids, userOptions),
     [form.visible_user_ids, userOptions]
@@ -343,6 +361,42 @@ const PackagesManager = () => {
       setGroupLoading(false);
     }
   }, [t]);
+
+  const loadGroupModels = useCallback(
+    async (groupID) => {
+      const normalizedGroupID = (groupID || '').toString().trim();
+      if (normalizedGroupID === '') {
+        return [];
+      }
+      const cached = groupModelsByID[normalizedGroupID];
+      if (cached) {
+        return cached;
+      }
+      setGroupModelsLoading(true);
+      try {
+        const res = await API.get(
+          `/api/v1/admin/group/${encodeURIComponent(normalizedGroupID)}/models`
+        );
+        const { success, message, data } = res?.data || {};
+        if (!success) {
+          showError(message || t('package_manage.messages.group_models_load_failed'));
+          return [];
+        }
+        const models = normalizeGroupModelItems(data?.items);
+        setGroupModelsByID((current) => ({
+          ...current,
+          [normalizedGroupID]: models,
+        }));
+        return models;
+      } catch (error) {
+        showError(error?.message || t('package_manage.messages.group_models_load_failed'));
+        return [];
+      } finally {
+        setGroupModelsLoading(false);
+      }
+    },
+    [groupModelsByID, t]
+  );
 
   const loadPackages = useCallback(
     async (page, keyword) => {
@@ -488,6 +542,13 @@ const PackagesManager = () => {
   useEffect(() => {
     loadPackages(activePage, normalizedKeyword).then();
   }, [activePage, normalizedKeyword, loadPackages]);
+
+  useEffect(() => {
+    const groupID = (form.group_id || '').toString().trim();
+    if (groupID !== '') {
+      loadGroupModels(groupID).then();
+    }
+  }, [form.group_id, loadGroupModels]);
 
   useEffect(() => {
     if (activePage > totalPages) {
@@ -944,6 +1005,14 @@ const PackagesManager = () => {
               render: (_, row) => row.group_name || row.group_id || '-',
             },
             {
+              title: t('package_manage.table.applicable_models'),
+              key: 'supported_models',
+              width: PACKAGE_LIST_COLUMN_WIDTHS.supportedModels,
+              render: (_, row) => (
+                <SupportedModelsSummary models={row?.supported_models} t={t} />
+              ),
+            },
+            {
               title: t('package_manage.table.package_type'),
               dataIndex: 'package_type',
               key: 'package_type',
@@ -1103,10 +1172,23 @@ const PackagesManager = () => {
             options={groupOptions}
             value={form.group_id}
             loading={groupLoading}
-            onChange={(e, { value }) =>
-              setForm((prev) => ({ ...prev, group_id: (value || '').toString() }))
-            }
+            onChange={(e, { value }) => {
+              const nextGroupID = (value || '').toString();
+              setForm((prev) => ({ ...prev, group_id: nextGroupID }));
+              if (nextGroupID.trim() !== '') {
+                loadGroupModels(nextGroupID).then();
+              }
+            }}
           />
+          <div className='router-form-hint router-form-hint-tight router-package-scope-hint'>
+            {t('package_manage.form.scope_hint')}
+          </div>
+          <SupportedModelsSummary models={selectedGroupModels} t={t} />
+          {groupModelsLoading ? (
+            <div className='router-form-hint router-form-hint-tight'>
+              {t('common.loading')}
+            </div>
+          ) : null}
         </AppField>
       </AppFormRow>
 

@@ -28,6 +28,10 @@ import {
   AppTableActionButton,
 } from '../router-ui';
 import { formatPackageConcurrencyLimit } from '../helpers/package';
+import {
+  SupportedModelsSummary,
+  normalizeSupportedModels,
+} from '../pages/TopUp/shared.jsx';
 
 const createEmptyPlan = () => ({
   id: '',
@@ -122,6 +126,13 @@ const resolveGroupOptionLabel = (options, groupID, fallbackName = '') => {
   );
 };
 
+const normalizeGroupModelItems = (items) =>
+  normalizeSupportedModels(
+    (Array.isArray(items) ? items : []).map((item) =>
+      (item?.model || item?.name || item || '').toString().trim()
+    )
+  );
+
 const TopupPlansManager = () => {
   const { t } = useTranslation();
   const [plans, setPlans] = useState([]);
@@ -129,6 +140,8 @@ const TopupPlansManager = () => {
   const [saving, setSaving] = useState(false);
   const [groupOptions, setGroupOptions] = useState([]);
   const [groupLoading, setGroupLoading] = useState(false);
+  const [groupModelsByID, setGroupModelsByID] = useState({});
+  const [groupModelsLoading, setGroupModelsLoading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -164,6 +177,11 @@ const TopupPlansManager = () => {
       label: resolveGroupOptionLabel(groupOptions, groupID, form.group_name),
     };
   }, [form.group_id, form.group_name, groupOptions]);
+
+  const selectedGroupModels = useMemo(
+    () => groupModelsByID[(form.group_id || '').toString().trim()] || [],
+    [form.group_id, groupModelsByID],
+  );
 
   const loadPlans = useCallback(async () => {
     setLoading(true);
@@ -228,9 +246,52 @@ const TopupPlansManager = () => {
     }
   }, [t]);
 
+  const loadGroupModels = useCallback(
+    async (groupID) => {
+      const normalizedGroupID = (groupID || '').toString().trim();
+      if (normalizedGroupID === '') {
+        return [];
+      }
+      const cached = groupModelsByID[normalizedGroupID];
+      if (cached) {
+        return cached;
+      }
+      setGroupModelsLoading(true);
+      try {
+        const res = await API.get(
+          `/api/v1/admin/group/${encodeURIComponent(normalizedGroupID)}/models`,
+        );
+        const { success, message, data } = res?.data || {};
+        if (!success) {
+          showError(message || t('topup.manage.group_models_load_failed'));
+          return [];
+        }
+        const models = normalizeGroupModelItems(data?.items);
+        setGroupModelsByID((current) => ({
+          ...current,
+          [normalizedGroupID]: models,
+        }));
+        return models;
+      } catch (error) {
+        showError(error?.message || t('topup.manage.group_models_load_failed'));
+        return [];
+      } finally {
+        setGroupModelsLoading(false);
+      }
+    },
+    [groupModelsByID, t],
+  );
+
   useEffect(() => {
     loadGroups().then();
   }, [loadGroups]);
+
+  useEffect(() => {
+    const groupID = (form.group_id || '').toString().trim();
+    if (groupID !== '') {
+      loadGroupModels(groupID).then();
+    }
+  }, [form.group_id, loadGroupModels]);
 
   const loadDisplayUnits = useCallback(async () => {
     try {
@@ -494,6 +555,14 @@ const TopupPlansManager = () => {
               render: (_, row) => row.group_name || row.group_id || '-',
             },
             {
+              title: t('topup.manage.columns.applicable_models'),
+              key: 'supported_models',
+              width: TOPUP_PLAN_LIST_COLUMN_WIDTHS.supportedModels,
+              render: (_, row) => (
+                <SupportedModelsSummary models={row?.supported_models} t={t} />
+              ),
+            },
+            {
               title: t('topup.manage.columns.pay_amount'),
               dataIndex: 'amount',
               key: 'amount',
@@ -683,8 +752,20 @@ const TopupPlansManager = () => {
                         .toString()
                         .trim(),
                   }));
+                  if (value.trim() !== '') {
+                    loadGroupModels(value).then();
+                  }
                 }}
               />
+              <div className='router-form-hint router-form-hint-tight'>
+                {t('topup.manage.balance_scope_hint')}
+              </div>
+              <SupportedModelsSummary models={selectedGroupModels} t={t} />
+              {groupModelsLoading ? (
+                <div className='router-form-hint router-form-hint-tight'>
+                  {t('common.loading')}
+                </div>
+              ) : null}
             </AppField>
           </AppFormRow>
           <AppFormRow className='router-topup-plan-form-row'>

@@ -28,6 +28,7 @@ export const PROVIDER_LIST_TABLE_MIN_WIDTH =
 export const TOPUP_PLAN_LIST_COLUMN_WIDTHS = {
   name: 160,
   group: 140,
+  supportedModels: 150,
   payAmount: 120,
   creditedAmount: 120,
   concurrency: 180,
@@ -42,6 +43,7 @@ export const TOPUP_PLAN_LIST_COLUMN_WIDTHS = {
 export const TOPUP_PLAN_LIST_TABLE_MIN_WIDTH =
   TOPUP_PLAN_LIST_COLUMN_WIDTHS.name +
   TOPUP_PLAN_LIST_COLUMN_WIDTHS.group +
+  TOPUP_PLAN_LIST_COLUMN_WIDTHS.supportedModels +
   TOPUP_PLAN_LIST_COLUMN_WIDTHS.payAmount +
   TOPUP_PLAN_LIST_COLUMN_WIDTHS.creditedAmount +
   TOPUP_PLAN_LIST_COLUMN_WIDTHS.concurrency +
@@ -55,6 +57,7 @@ export const TOPUP_PLAN_LIST_TABLE_MIN_WIDTH =
 export const PACKAGE_LIST_COLUMN_WIDTHS = {
   name: 120,
   group: 110,
+  supportedModels: 150,
   type: 96,
   salePrice: 80,
   dailyQuota: 140,
@@ -69,6 +72,7 @@ export const PACKAGE_LIST_COLUMN_WIDTHS = {
 export const PACKAGE_LIST_TABLE_MIN_WIDTH =
   PACKAGE_LIST_COLUMN_WIDTHS.name +
   PACKAGE_LIST_COLUMN_WIDTHS.group +
+  PACKAGE_LIST_COLUMN_WIDTHS.supportedModels +
   PACKAGE_LIST_COLUMN_WIDTHS.type +
   PACKAGE_LIST_COLUMN_WIDTHS.salePrice +
   PACKAGE_LIST_COLUMN_WIDTHS.dailyQuota +

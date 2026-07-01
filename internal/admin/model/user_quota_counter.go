@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -33,6 +34,7 @@ func (UserQuotaCounter) TableName() string {
 type UserDailyQuotaSnapshot struct {
 	UserID         string `json:"user_id"`
 	BizDate        string `json:"biz_date"`
+	PolicySource   string `json:"policy_source,omitempty"`
 	Limit          int64  `json:"limit"`
 	ConsumedQuota  int64  `json:"consumed_quota"`
 	ReservedQuota  int64  `json:"reserved_quota"`
@@ -45,6 +47,7 @@ type UserDailyQuotaSnapshot struct {
 type UserPackageEmergencyQuotaSnapshot struct {
 	UserID         string `json:"user_id"`
 	BizMonth       string `json:"biz_month"`
+	PolicySource   string `json:"policy_source,omitempty"`
 	Limit          int64  `json:"limit"`
 	ConsumedQuota  int64  `json:"consumed_quota"`
 	ReservedQuota  int64  `json:"reserved_quota"`
@@ -103,6 +106,84 @@ func loadUserQuotaCounterForUpdateWithDB(tx *gorm.DB, userID string, counterType
 	return counter, err
 }
 
+type userQuotaSummaryPolicy struct {
+	UserID                string
+	DailyLimit            int64
+	DailyConsumed         int64
+	DailyReserved         int64
+	DailyUpdatedAt        int64
+	PackageEmergencyLimit int64
+	Timezone              string
+	HasYYCPackage         bool
+}
+
+func resolveUserQuotaSummaryPolicyWithDB(db *gorm.DB, userID string, bizDate string) (userQuotaSummaryPolicy, error) {
+	if db == nil {
+		return userQuotaSummaryPolicy{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return userQuotaSummaryPolicy{}, fmt.Errorf("用户 ID 不能为空")
+	}
+	user := User{}
+	if err := db.Select("id", "quota_reset_timezone").First(&user, "id = ?", normalizedUserID).Error; err != nil {
+		return userQuotaSummaryPolicy{}, err
+	}
+	policy := userQuotaSummaryPolicy{
+		UserID:   normalizedUserID,
+		Timezone: normalizeUserQuotaResetTimezone(user.QuotaResetTimezone),
+	}
+	rows, err := listActiveUserPackageSubscriptionsWithDB(db, normalizedUserID)
+	if err != nil {
+		return userQuotaSummaryPolicy{}, err
+	}
+	packageTimezones := make([]string, 0, len(rows))
+	for _, row := range rows {
+		normalizeServicePackageSubscriptionScopeAndQuota(&row)
+		if strings.TrimSpace(row.PackageType) != ServicePackageTypeYYCQuota ||
+			strings.TrimSpace(row.QuotaMetric) != ServicePackageQuotaMetricYYC {
+			continue
+		}
+		policy.HasYYCPackage = true
+		policy.DailyLimit += normalizeServicePackageDailyQuotaLimit(row.DailyQuotaLimit)
+		policy.PackageEmergencyLimit += normalizeServicePackagePackageEmergencyQuotaLimit(row.PackageEmergencyQuotaLimit)
+		if timezone := strings.TrimSpace(normalizeServicePackageTimezone(row.QuotaResetTimezone)); timezone != "" {
+			packageTimezones = append(packageTimezones, timezone)
+		}
+		groupID := strings.TrimSpace(row.GroupID)
+		if groupID == "" {
+			continue
+		}
+		groupTimezone := normalizeServicePackageTimezone(row.QuotaResetTimezone)
+		groupBizDate, err := normalizeGroupQuotaDate(bizDate, groupTimezone)
+		if err != nil {
+			return userQuotaSummaryPolicy{}, err
+		}
+		counter := GroupQuotaCounter{}
+		err = db.Where("group_id = ? AND user_id = ? AND counter_type = ? AND period_key = ?",
+			groupID,
+			normalizedUserID,
+			GroupQuotaCounterTypeDaily,
+			groupBizDate,
+		).First(&counter).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				continue
+			}
+			return userQuotaSummaryPolicy{}, err
+		}
+		policy.DailyConsumed += maxInt64(counter.ConsumedQuota, 0)
+		policy.DailyReserved += maxInt64(counter.ReservedQuota, 0)
+		if counter.UpdatedAt > policy.DailyUpdatedAt {
+			policy.DailyUpdatedAt = counter.UpdatedAt
+		}
+	}
+	if len(packageTimezones) > 0 {
+		policy.Timezone = packageTimezones[0]
+	}
+	return policy, nil
+}
+
 func GetUserDailyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizDate string) (UserDailyQuotaSnapshot, error) {
 	if db == nil {
 		return UserDailyQuotaSnapshot{}, fmt.Errorf("database handle is nil")
@@ -111,7 +192,7 @@ func GetUserDailyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizDate string)
 	if normalizedUserID == "" {
 		return UserDailyQuotaSnapshot{}, fmt.Errorf("用户 ID 不能为空")
 	}
-	policy, err := GetUserQuotaPolicyWithDB(db, normalizedUserID)
+	policy, err := resolveUserQuotaSummaryPolicyWithDB(db, normalizedUserID, bizDate)
 	if err != nil {
 		return UserDailyQuotaSnapshot{}, err
 	}
@@ -119,11 +200,11 @@ func GetUserDailyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizDate string)
 	if err != nil {
 		return UserDailyQuotaSnapshot{}, err
 	}
-	consumed := int64(0)
-	reserved := int64(0)
-	unlimited := policy.DailyLimit <= 0
+	consumed := maxInt64(policy.DailyConsumed, 0)
+	reserved := maxInt64(policy.DailyReserved, 0)
+	unlimited := false
 	remaining := int64(0)
-	if !unlimited {
+	if policy.HasYYCPackage {
 		remaining = policy.DailyLimit - consumed - reserved
 		if remaining < 0 {
 			remaining = 0
@@ -132,13 +213,14 @@ func GetUserDailyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizDate string)
 	return UserDailyQuotaSnapshot{
 		UserID:         normalizedUserID,
 		BizDate:        normalizedBizDate,
+		PolicySource:   "package_summary",
 		Limit:          policy.DailyLimit,
 		ConsumedQuota:  consumed,
 		ReservedQuota:  reserved,
 		RemainingQuota: remaining,
 		Unlimited:      unlimited,
 		Timezone:       policy.Timezone,
-		UpdatedAt:      0,
+		UpdatedAt:      policy.DailyUpdatedAt,
 	}, nil
 }
 
@@ -154,7 +236,7 @@ func GetUserPackageEmergencyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizM
 	if normalizedUserID == "" {
 		return UserPackageEmergencyQuotaSnapshot{}, fmt.Errorf("用户 ID 不能为空")
 	}
-	policy, err := GetUserQuotaPolicyWithDB(db, normalizedUserID)
+	policy, err := resolveUserQuotaSummaryPolicyWithDB(db, normalizedUserID, "")
 	if err != nil {
 		return UserPackageEmergencyQuotaSnapshot{}, err
 	}
@@ -189,6 +271,7 @@ func GetUserPackageEmergencyQuotaSnapshotWithDB(db *gorm.DB, userID string, bizM
 	return UserPackageEmergencyQuotaSnapshot{
 		UserID:         normalizedUserID,
 		BizMonth:       normalizedBizMonth,
+		PolicySource:   "package_summary",
 		Limit:          policy.PackageEmergencyLimit,
 		ConsumedQuota:  consumed,
 		ReservedQuota:  reserved,

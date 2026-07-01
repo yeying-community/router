@@ -88,11 +88,8 @@ type activeUserPackageUsageView struct {
 }
 
 type activeUserPackageSubscriptionPayload struct {
-	HasActiveSubscription bool                                 `json:"has_active_subscription"`
-	CurrentPackage        *activeUserPackageSubscriptionView   `json:"current_package,omitempty"`
-	NextPackage           *activeUserPackageSubscriptionView   `json:"next_package,omitempty"`
-	Subscription          *activeUserPackageSubscriptionView   `json:"subscription,omitempty"`
-	Subscriptions         []*activeUserPackageSubscriptionView `json:"subscriptions,omitempty"`
+	HasActivePackages bool                                 `json:"has_active_packages"`
+	ActivePackages    []*activeUserPackageSubscriptionView `json:"active_packages"`
 }
 
 type userRecentRedemptionsPayload struct {
@@ -135,27 +132,30 @@ func attachActivePackageNames(items []*presenter.User) error {
 		}
 		userIDs = append(userIDs, strings.TrimSpace(item.Id))
 	}
-	subscriptions, err := model.ListActiveUserPackageSubscriptionsByUserIDs(userIDs)
+	packageRows, err := model.ListActiveUserPackageSubscriptionsByUserIDs(userIDs)
 	if err != nil {
 		return err
 	}
-	nameByUserID := make(map[string]string, len(subscriptions))
-	for _, subscription := range subscriptions {
-		userID := strings.TrimSpace(subscription.UserID)
+	namesByUserID := make(map[string][]string, len(packageRows))
+	for _, packageRow := range packageRows {
+		userID := strings.TrimSpace(packageRow.UserID)
 		if userID == "" {
 			continue
 		}
-		packageName := strings.TrimSpace(subscription.PackageName)
+		packageName := strings.TrimSpace(packageRow.PackageName)
 		if packageName == "" {
-			packageName = strings.TrimSpace(subscription.PackageID)
+			packageName = strings.TrimSpace(packageRow.PackageID)
 		}
-		nameByUserID[userID] = packageName
+		if packageName == "" {
+			continue
+		}
+		namesByUserID[userID] = append(namesByUserID[userID], packageName)
 	}
 	for _, item := range items {
 		if item == nil || item.User == nil {
 			continue
 		}
-		item.ActivePackageName = nameByUserID[strings.TrimSpace(item.Id)]
+		item.ActivePackageName = strings.Join(namesByUserID[strings.TrimSpace(item.Id)], " / ")
 	}
 	return nil
 }
@@ -250,58 +250,22 @@ func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscr
 	}, nil
 }
 
-func selectPrimaryActiveUserPackageSubscriptionView(views []*activeUserPackageSubscriptionView) *activeUserPackageSubscriptionView {
-	for _, view := range views {
-		if view == nil {
-			continue
-		}
-		if strings.TrimSpace(view.PackageType) == model.ServicePackageTypeYYCQuota &&
-			strings.TrimSpace(view.QuotaMetric) == model.ServicePackageQuotaMetricYYC {
-			return view
-		}
-	}
-	if len(views) == 0 {
-		return nil
-	}
-	return views[0]
-}
-
 func loadActiveUserPackageSubscriptionPayload(userID string) (activeUserPackageSubscriptionPayload, error) {
-	subscriptions, err := model.ListActiveUserPackageSubscriptions(strings.TrimSpace(userID))
+	activePackageRows, err := model.ListActiveUserPackageSubscriptions(strings.TrimSpace(userID))
 	if err != nil {
 		return activeUserPackageSubscriptionPayload{}, err
 	}
-	var nextPackageView *activeUserPackageSubscriptionView
-	nextSubscription, nextErr := model.GetNextUserPackageSubscription(strings.TrimSpace(userID))
-	if nextErr == nil {
-		nextPackageView, err = buildActiveUserPackageSubscriptionView(nextSubscription)
+	activeViews := make([]*activeUserPackageSubscriptionView, 0, len(activePackageRows))
+	for _, packageRow := range activePackageRows {
+		view, err := buildActiveUserPackageSubscriptionView(packageRow)
 		if err != nil {
 			return activeUserPackageSubscriptionPayload{}, err
 		}
-	} else if !errors.Is(nextErr, gorm.ErrRecordNotFound) {
-		return activeUserPackageSubscriptionPayload{}, nextErr
+		activeViews = append(activeViews, view)
 	}
-	if len(subscriptions) == 0 {
-		return activeUserPackageSubscriptionPayload{
-			HasActiveSubscription: false,
-			NextPackage:           nextPackageView,
-		}, nil
-	}
-	views := make([]*activeUserPackageSubscriptionView, 0, len(subscriptions))
-	for _, subscription := range subscriptions {
-		view, err := buildActiveUserPackageSubscriptionView(subscription)
-		if err != nil {
-			return activeUserPackageSubscriptionPayload{}, err
-		}
-		views = append(views, view)
-	}
-	currentPackage := selectPrimaryActiveUserPackageSubscriptionView(views)
 	return activeUserPackageSubscriptionPayload{
-		HasActiveSubscription: true,
-		CurrentPackage:        currentPackage,
-		NextPackage:           nextPackageView,
-		Subscription:          currentPackage,
-		Subscriptions:         views,
+		HasActivePackages: len(activeViews) > 0,
+		ActivePackages:    activeViews,
 	}, nil
 }
 
@@ -1175,14 +1139,6 @@ func resolveUserDailyQuotaGroupID(user *model.User, requestedGroupRef string) (s
 	}
 	if user == nil {
 		return "", fmt.Errorf("用户不存在")
-	}
-	if subscription, err := model.GetActiveUserPackageSubscription(strings.TrimSpace(user.Id)); err == nil {
-		groupID := strings.TrimSpace(subscription.GroupID)
-		if groupID != "" {
-			return groupID, nil
-		}
-	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", err
 	}
 	groupRefs := parseGroupReferences(user.Group)
 	if len(groupRefs) == 0 {

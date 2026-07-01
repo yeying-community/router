@@ -111,7 +111,8 @@ function UserWorkspaceEntryRedirect() {
         const balanceData = balanceResponse?.data?.success
           ? balanceResponse?.data?.data || null
           : null;
-        const hasActivePackage = String(packageData?.package_id || '').trim() !== '';
+        const hasActivePackage = Array.isArray(packageData?.active_packages) &&
+          packageData.active_packages.length > 0;
         const totalBalance = Number(
           balanceData?.total_balance_amount ?? balanceData?.balance_amount ?? balanceData?.quota ?? 0,
         );

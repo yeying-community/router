@@ -35,6 +35,13 @@ import {
 import {
   formatAmountWithUnit,
 } from '../../helpers/render';
+import {
+  formatRequestCount,
+  formatUserFacingPackageConcurrency,
+  getServicePackagePeriodLabel,
+  getServicePackageTypeLabel,
+  isRequestQuotaPackage,
+} from '../../helpers/package';
 
 const BALANCE_LOT_PAGE_SIZE = 20;
 
@@ -143,12 +150,6 @@ const renderPackageStatusLabel = (status, t) => {
           {t('user.detail.package_status_types.canceled')}
         </AppTag>
       );
-    case 5:
-      return (
-        <AppTag color='teal' className='router-tag'>
-          {t('user.detail.package_status_types.pending')}
-        </AppTag>
-      );
     default:
       return (
         <AppTag color='grey' className='router-tag'>
@@ -199,96 +200,59 @@ const formatBalanceLotSource = (sourceType, t) => {
 };
 
 const createEmptyActivePackage = () => ({
-  has_active_subscription: false,
-  subscription: null,
+  has_active_packages: false,
+  active_packages: [],
 });
 
-const createEmptyDailySnapshot = () => ({
-  biz_date: '',
-  timezone: '',
-  limit: 0,
-  consumed_quota: 0,
-  reserved_quota: 0,
-  remaining_quota: 0,
-  unlimited: false,
-});
-
-const createEmptyQuotaSummary = () => ({
-  package_emergency: {
-    biz_month: '',
-    timezone: '',
-    limit: 0,
-    consumed_quota: 0,
-    reserved_quota: 0,
-    remaining_quota: 0,
-    enabled: false,
-  },
-});
-
-const normalizeDailySnapshot = (raw) => ({
-  biz_date: (raw?.biz_date || '').toString().trim(),
-  timezone: (raw?.timezone || '').toString().trim(),
-  limit: Number(raw?.limit_amount ?? raw?.limit ?? 0) || 0,
-  consumed_quota: Number(raw?.consumed_amount ?? raw?.consumed_quota ?? 0) || 0,
-  reserved_quota: Number(raw?.reserved_amount ?? raw?.reserved_quota ?? 0) || 0,
-  remaining_quota: Number(raw?.remaining_amount ?? raw?.remaining_quota ?? 0) || 0,
-  unlimited: raw?.unlimited === true,
-});
-
-const normalizeQuotaSummary = (raw) => ({
-  package_emergency: {
-    biz_month: (raw?.package_emergency?.biz_month || '').toString().trim(),
-    timezone: (raw?.package_emergency?.timezone || '').toString().trim(),
-    limit: Number(raw?.package_emergency?.limit_amount ?? raw?.package_emergency?.limit ?? 0) || 0,
-    consumed_quota:
-      Number(
-        raw?.package_emergency?.consumed_amount ??
-          raw?.package_emergency?.consumed_quota ??
-          0,
-      ) || 0,
-    reserved_quota:
-      Number(
-        raw?.package_emergency?.reserved_amount ??
-          raw?.package_emergency?.reserved_quota ??
-          0,
-      ) || 0,
-    remaining_quota:
-      Number(
-        raw?.package_emergency?.remaining_amount ??
-          raw?.package_emergency?.remaining_quota ??
-          0,
-      ) || 0,
-    enabled: raw?.package_emergency?.enabled === true,
-  },
-});
+const normalizePackageView = (raw) => {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+  return {
+    id: (raw.id || '').toString().trim(),
+    user_id: (raw.user_id || '').toString().trim(),
+    package_id: (raw.package_id || '').toString().trim(),
+    package_name: (raw.package_name || '').toString().trim(),
+    group_id: (raw.group_id || '').toString().trim(),
+    group_name: (raw.group_name || '').toString().trim(),
+    source: (raw.source || '').toString().trim(),
+    status: Number(raw.status || 0),
+    package_type: (raw.package_type || '').toString().trim(),
+    quota_metric: (raw.quota_metric || '').toString().trim(),
+    period_type: (raw.period_type || '').toString().trim(),
+    period_limit: Number(raw.period_limit || 0),
+    max_concurrency_per_user: Number(raw.max_concurrency_per_user || 0),
+    max_concurrency_per_package: Number(raw.max_concurrency_per_package || 0),
+    allow_balance_fallback: raw.allow_balance_fallback === true,
+    daily_quota_limit: Number(raw.daily_quota_limit || 0),
+    package_emergency_quota_limit: Number(raw.package_emergency_quota_limit || 0),
+    quota_reset_timezone: (raw.quota_reset_timezone || '').toString().trim(),
+    started_at: Number(raw.started_at || 0),
+    expires_at: Number(raw.expires_at || 0),
+    usage: raw.usage || null,
+  };
+};
 
 const normalizeActivePackage = (raw) => {
   if (!raw || typeof raw !== 'object') {
     return createEmptyActivePackage();
   }
-  const subscription =
-    raw.subscription && typeof raw.subscription === 'object'
-      ? {
-          id: (raw.subscription.id || '').toString().trim(),
-          user_id: (raw.subscription.user_id || '').toString().trim(),
-          package_id: (raw.subscription.package_id || '').toString().trim(),
-          package_name: (raw.subscription.package_name || '').toString().trim(),
-          group_id: (raw.subscription.group_id || '').toString().trim(),
-          group_name: (raw.subscription.group_name || '').toString().trim(),
-          daily_amount: Number(raw.subscription.daily_quota_limit || 0),
-          emergency_amount: Number(raw.subscription.package_emergency_quota_limit ?? 0),
-          reset_timezone: (raw.subscription.quota_reset_timezone || '').toString().trim(),
-          started_at: Number(raw.subscription.started_at || 0),
-          expires_at: Number(raw.subscription.expires_at || 0),
-          status: Number(raw.subscription.status || 0),
-          source: (raw.subscription.source || '').toString().trim(),
-        }
-      : null;
-  const hasActive = raw.has_active_subscription === true && subscription !== null;
+  const activePackages = Array.isArray(raw.active_packages)
+    ? raw.active_packages.map(normalizePackageView).filter(Boolean)
+    : [];
   return {
-    has_active_subscription: hasActive,
-    subscription: hasActive ? subscription : null,
+    has_active_packages: activePackages.length > 0,
+    active_packages: activePackages,
   };
+};
+
+const renderPackageEntitlementValue = (item, t, renderAmount) => {
+  if (isRequestQuotaPackage(item)) {
+    return `${formatRequestCount(item?.period_limit || 0)} ${t(
+      'package_manage.request_unit',
+    )} / ${getServicePackagePeriodLabel(item?.period_type, t)}`;
+  }
+  return renderAmount(item?.daily_quota_limit || 0);
 };
 
 const toPackageOptions = (rows) =>
@@ -329,17 +293,6 @@ const toTopupPlanOptions = (rows, t) =>
     })
     .filter((option) => option.value);
 
-const parseDatetimeLocalValue = (value) => {
-  if (typeof value !== 'string' || value.trim() === '') {
-    return 0;
-  }
-  const ts = Date.parse(value.trim());
-  if (!Number.isFinite(ts)) {
-    return NaN;
-  }
-  return Math.floor(ts / 1000);
-};
-
 const UserDetail = () => {
   const { t } = useTranslation();
   const { id: userId } = useParams();
@@ -356,8 +309,6 @@ const UserDetail = () => {
   const [balanceUnit, setBalanceUnit] = useState('USD');
   const [activePackage, setActivePackage] = useState(createEmptyActivePackage());
   const [activePackageLoading, setActivePackageLoading] = useState(false);
-  const [packageDailySnapshot, setPackageDailySnapshot] = useState(createEmptyDailySnapshot());
-  const [packageQuotaSummary, setPackageQuotaSummary] = useState(createEmptyQuotaSummary());
   const [balanceLots, setBalanceLots] = useState([]);
   const [balanceLotsLoading, setBalanceLotsLoading] = useState(false);
   const [balanceLotsPage, setBalanceLotsPage] = useState(1);
@@ -373,7 +324,6 @@ const UserDetail = () => {
   const [assignPackageOpen, setAssignPackageOpen] = useState(false);
   const [assignPackageForm, setAssignPackageForm] = useState({
     package_id: '',
-    start_at: '',
   });
   const [topupPlanOptions, setTopupPlanOptions] = useState([]);
   const [topupPlanOptionsLoading, setTopupPlanOptionsLoading] = useState(false);
@@ -473,34 +423,6 @@ const UserDetail = () => {
       }
       const normalizedPackage = normalizeActivePackage(data);
       setActivePackage(normalizedPackage);
-      if (!normalizedPackage.has_active_subscription) {
-        setPackageDailySnapshot(createEmptyDailySnapshot());
-        setPackageQuotaSummary(createEmptyQuotaSummary());
-        return;
-      }
-      const normalizedGroupId = (
-        normalizedPackage.subscription?.group_id || ''
-      ).toString().trim();
-      const [dailyRes, summaryRes] = await Promise.all([
-        API.get(`/api/v1/admin/group/${encodeURIComponent(normalizedGroupId)}/quota/daily`, {
-          params: {
-            user_id: normalizedUserId,
-          },
-        }),
-        API.get(`/api/v1/admin/user/${encodeURIComponent(normalizedUserId)}/quota/summary`),
-      ]);
-      const dailyPayload = dailyRes?.data || {};
-      if (dailyPayload.success) {
-        setPackageDailySnapshot(normalizeDailySnapshot(dailyPayload.data));
-      } else {
-        setPackageDailySnapshot(createEmptyDailySnapshot());
-      }
-      const summaryPayload = summaryRes?.data || {};
-      if (summaryPayload.success) {
-        setPackageQuotaSummary(normalizeQuotaSummary(summaryPayload.data));
-      } else {
-        setPackageQuotaSummary(createEmptyQuotaSummary());
-      }
     } catch (error) {
       showError(error?.message || error);
     } finally {
@@ -678,9 +600,7 @@ const UserDetail = () => {
 
   const isProtectedUser = inputs.can_manage_users === true;
   const canManageRole = isRoot() && !isProtectedUser;
-  const hasActivePackage = activePackage.has_active_subscription === true && activePackage.subscription;
-  const activePackageSubscription = hasActivePackage ? activePackage.subscription : null;
-  const packageEmergencySnapshot = packageQuotaSummary.package_emergency;
+  const activePackages = activePackage.active_packages || [];
   const balanceLotSourceOptions = useMemo(
     () => [
       {
@@ -1018,7 +938,6 @@ const UserDetail = () => {
   const openAssignPackageModal = useCallback(() => {
     setAssignPackageForm({
       package_id: '',
-      start_at: '',
     });
     setAssignPackageOpen(true);
     loadPackageOptions().then();
@@ -1031,7 +950,6 @@ const UserDetail = () => {
     setAssignPackageOpen(false);
     setAssignPackageForm({
       package_id: '',
-      start_at: '',
     });
   }, [actionLoading]);
 
@@ -1045,18 +963,12 @@ const UserDetail = () => {
     if (normalizedUserID === '') {
       return;
     }
-    const startAt = parseDatetimeLocalValue(assignPackageForm.start_at);
-    if (!Number.isFinite(startAt)) {
-      showInfo(t('package_manage.messages.start_at_invalid'));
-      return;
-    }
     setActionLoading('assign-package');
     try {
       const res = await API.post(
         `/api/v1/admin/package/${encodeURIComponent(normalizedPackageID)}/assign`,
         {
           user_id: normalizedUserID,
-          start_at: startAt > 0 ? startAt : 0,
         }
       );
       const { success, message } = res.data || {};
@@ -1068,7 +980,6 @@ const UserDetail = () => {
       setAssignPackageOpen(false);
       setAssignPackageForm({
         package_id: '',
-        start_at: '',
       });
       await loadActivePackage();
     } catch (error) {
@@ -1078,8 +989,6 @@ const UserDetail = () => {
     }
   }, [
     assignPackageForm.package_id,
-    assignPackageForm.start_at,
-    closeAssignPackageModal,
     loadActivePackage,
     t,
     userId,
@@ -1198,6 +1107,15 @@ const UserDetail = () => {
       </AppField>
     ),
     [],
+  );
+
+  const renderReadonlyAmount = useCallback(
+    (chargeAmount) =>
+      formatAmountWithUnit(
+        chargeAmountToBillingInputValue(chargeAmount, balanceUnit, billingCurrencyIndex),
+        balanceUnit,
+      ),
+    [balanceUnit, billingCurrencyIndex],
   );
 
   const renderReadonlyAmountField = useCallback(
@@ -1434,118 +1352,152 @@ const UserDetail = () => {
                   </>
                 }
               >
-                <AppFormRow>
-                <AppField label={t('user.detail.package_name')} readOnly>
-                  <AppInput
-                    className='router-section-input'
-                    value={
-                      hasActivePackage
-                        ? readOnlyValue(activePackageSubscription?.package_name)
-                        : t('user.detail.package_none')
-                    }
-                    readOnly
-                  />
-                </AppField>
-                <AppField label={t('user.detail.package_group')} readOnly>
-                  <AppInput
-                    className='router-section-input'
-                    value={
-                      hasActivePackage
-                        ? readOnlyValue(
-                            activePackageSubscription?.group_name ||
-                              activePackageSubscription?.group_id,
-                          )
-                        : '-'
-                    }
-                    readOnly
-                  />
-                </AppField>
-                <AppField
-                  className='router-section-input'
-                  label={t('user.detail.package_status')}
-                  readOnly
-                >
-                  <div className='router-inline-status-card'>
-                    {hasActivePackage
-                      ? renderPackageStatusLabel(activePackageSubscription?.status, t)
-                      : '-'}
+                {activePackageLoading ? (
+                  <div className='router-text-muted'>{t('common.loading')}</div>
+                ) : activePackages.length === 0 ? (
+                  <div className='router-text-muted'>{t('user.detail.package_none')}</div>
+                ) : (
+                  <div className='router-package-purchase-list'>
+                    {activePackages.map((item) => {
+                      const requestQuotaPackage = isRequestQuotaPackage(item);
+                      const usage = item?.usage || null;
+                      const groupLabel =
+                        readOnlyValue(item?.group_name || item?.group_id);
+                      return (
+                        <div
+                          key={item.id || item.package_id}
+                          className='router-package-purchase-card'
+                        >
+                          <div className='router-package-purchase-card-header'>
+                            <div>
+                              <div className='router-package-purchase-card-title'>
+                                {readOnlyValue(item?.package_name || item?.package_id)}
+                              </div>
+                              <div className='router-text-muted router-package-purchase-description'>
+                                {groupLabel}
+                              </div>
+                            </div>
+                            {renderPackageStatusLabel(item?.status, t)}
+                          </div>
+                          <div className='router-current-package-info-grid'>
+                            <div className='router-current-package-info-card'>
+                              <div className='router-current-package-info-label'>
+                                {t('user.detail.package_group')}
+                              </div>
+                              <div className='router-current-package-info-value'>
+                                {groupLabel}
+                              </div>
+                            </div>
+                            <div className='router-current-package-info-card'>
+                              <div className='router-current-package-info-label'>
+                                {t('package_manage.table.package_type')}
+                              </div>
+                              <div className='router-current-package-info-value'>
+                                {getServicePackageTypeLabel(item, t)}
+                              </div>
+                            </div>
+                            <div className='router-current-package-info-card'>
+                              <div className='router-current-package-info-label'>
+                                {requestQuotaPackage
+                                  ? t('package_manage.table.period_entitlement')
+                                  : t('user.detail.package_daily_limit')}
+                              </div>
+                              <div className='router-current-package-info-value'>
+                                {renderPackageEntitlementValue(item, t, renderReadonlyAmount)}
+                              </div>
+                            </div>
+                            {!requestQuotaPackage ? (
+                              <div className='router-current-package-info-card'>
+                                <div className='router-current-package-info-label'>
+                                  {t('user.detail.package_emergency_limit')}
+                                </div>
+                                <div className='router-current-package-info-value'>
+                                  {renderReadonlyAmount(item?.package_emergency_quota_limit || 0)}
+                                </div>
+                              </div>
+                            ) : null}
+                            <div className='router-current-package-info-card'>
+                              <div className='router-current-package-info-label'>
+                                {t('package_manage.table.concurrency_limit')}
+                              </div>
+                              <div className='router-current-package-info-value'>
+                                {formatUserFacingPackageConcurrency(
+                                  item,
+                                  t,
+                                  t('common.unlimited'),
+                                )}
+                              </div>
+                            </div>
+                            <div className='router-current-package-info-card'>
+                              <div className='router-current-package-info-label'>
+                                {t('user.detail.package_source')}
+                              </div>
+                              <div className='router-current-package-info-value'>
+                                {readOnlyValue(item?.source)}
+                              </div>
+                            </div>
+                            <div className='router-current-package-info-card'>
+                              <div className='router-current-package-info-label'>
+                                {t('user.detail.package_timezone')}
+                              </div>
+                              <div className='router-current-package-info-value'>
+                                {readOnlyValue(item?.quota_reset_timezone)}
+                              </div>
+                            </div>
+                            <div className='router-current-package-info-card'>
+                              <div className='router-current-package-info-label'>
+                                {t('user.detail.package_started_at')}
+                              </div>
+                              <div className='router-current-package-info-value'>
+                                {formatDateTime(item?.started_at)}
+                              </div>
+                            </div>
+                            <div className='router-current-package-info-card'>
+                              <div className='router-current-package-info-label'>
+                                {t('user.detail.package_expires_at')}
+                              </div>
+                              <div className='router-current-package-info-value'>
+                                {Number(item?.expires_at || 0) > 0
+                                  ? formatDateTime(item.expires_at)
+                                  : t('common.unlimited')}
+                              </div>
+                            </div>
+                            {requestQuotaPackage && usage ? (
+                              <>
+                                <div className='router-current-package-info-card'>
+                                  <div className='router-current-package-info-label'>
+                                    {t('topup.package_status.period')}
+                                  </div>
+                                  <div className='router-current-package-info-value'>
+                                    {usage.period_key || '-'}
+                                  </div>
+                                </div>
+                                <div className='router-current-package-info-card'>
+                                  <div className='router-current-package-info-label'>
+                                    {t('user.detail.used_amount')}
+                                  </div>
+                                  <div className='router-current-package-info-value'>
+                                    {formatRequestCount(usage.consumed_amount || 0)}
+                                  </div>
+                                </div>
+                                <div className='router-current-package-info-card'>
+                                  <div className='router-current-package-info-label'>
+                                    {t('user.detail.remaining_amount')}
+                                  </div>
+                                  <div className='router-current-package-info-value'>
+                                    {usage.unlimited
+                                      ? t('common.unlimited')
+                                      : formatRequestCount(usage.remaining_amount || 0)}
+                                  </div>
+                                </div>
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </AppField>
-              </AppFormRow>
-              <AppFormRow>
-                {renderReadonlyAmountField({
-                  label: t('user.detail.package_daily_limit'),
-                  chargeAmount: activePackageSubscription?.daily_amount || 0,
-                  fallback: hasActivePackage
-                    ? Number(activePackageSubscription?.daily_amount || 0) > 0
-                      ? null
-                      : t('common.unlimited')
-                    : '-'
-                })}
-                {renderReadonlyAmountField({
-                  label: t('user.detail.package_emergency_limit'),
-                  chargeAmount: activePackageSubscription?.emergency_amount || 0,
-                  fallback: hasActivePackage ? null : '-'
-                })}
-              </AppFormRow>
-              <AppFormRow>
-                {renderReadonlyAmountField({
-                  label: t('user.detail.package_daily_used'),
-                  chargeAmount: packageDailySnapshot.consumed_quota || 0,
-                  fallback: hasActivePackage ? null : '-'
-                })}
-                {renderReadonlyAmountField({
-                  label: t('user.detail.package_daily_remaining'),
-                  chargeAmount: packageDailySnapshot.remaining_quota || 0,
-                  fallback: hasActivePackage
-                    ? packageDailySnapshot.unlimited
-                      ? t('common.unlimited')
-                      : null
-                    : '-'
-                })}
-                {renderReadonlyAmountField({
-                  label: t('user.detail.package_emergency_used'),
-                  chargeAmount: packageEmergencySnapshot.consumed_quota || 0,
-                  fallback: hasActivePackage && packageEmergencySnapshot.enabled ? null : '-'
-                })}
-                {renderReadonlyAmountField({
-                  label: t('user.detail.package_emergency_remaining'),
-                  chargeAmount: packageEmergencySnapshot.remaining_quota || 0,
-                  fallback: hasActivePackage && packageEmergencySnapshot.enabled ? null : '-'
-                })}
-              </AppFormRow>
-              <AppFormRow>
-                {renderReadonlyMetaField({
-                  label: t('user.detail.package_source'),
-                  value:
-                    hasActivePackage
-                      ? readOnlyValue(activePackageSubscription?.source)
-                      : '-'
-                })}
-                {renderReadonlyMetaField({
-                  label: t('user.detail.package_timezone'),
-                  value:
-                    hasActivePackage
-                      ? readOnlyValue(activePackageSubscription?.reset_timezone)
-                      : '-'
-                })}
-                {renderReadonlyMetaField({
-                  label: t('user.detail.package_started_at'),
-                  value:
-                    hasActivePackage
-                      ? formatDateTime(activePackageSubscription?.started_at)
-                      : '-'
-                })}
-                {renderReadonlyMetaField({
-                  label: t('user.detail.package_expires_at'),
-                  value:
-                    hasActivePackage
-                      ? Number(activePackageSubscription?.expires_at || 0) > 0
-                        ? formatDateTime(activePackageSubscription?.expires_at)
-                        : t('common.unlimited')
-                      : '-'
-                  })}
-                </AppFormRow>
+                )}
               </AppDetailSection>
               ) : null}
 
@@ -1798,22 +1750,6 @@ const UserDetail = () => {
                     setAssignPackageForm((prev) => ({
                       ...prev,
                       package_id: (value || '').toString(),
-                    }))
-                  }
-                />
-              </AppField>
-            </AppFormRow>
-            <AppFormRow className='router-user-detail-modal-form-row'>
-              <AppField label={t('package_manage.assign.start_at')}>
-                <AppInput
-                  className='router-section-input'
-                  type='datetime-local'
-                  placeholder={t('package_manage.assign.start_at_placeholder')}
-                  value={assignPackageForm.start_at}
-                  onChange={(e, { value }) =>
-                    setAssignPackageForm((prev) => ({
-                      ...prev,
-                      start_at: value || '',
                     }))
                   }
                 />
