@@ -18,6 +18,10 @@ import {
   AppInput,
   AppSelect,
 } from '../router-ui';
+import {
+  rememberAuthRedirectPath,
+  resolvePostLoginPath,
+} from '../helpers/authRedirect';
 import './LoginForm.css';
 
 const WALLET_LOGIN_HISTORY_STORAGE_KEY = 'wallet_login_history';
@@ -128,8 +132,9 @@ const LoginForm = () => {
   const passwordRegisterEnabled =
     status?.register_enabled !== false &&
     status?.password_register_enabled !== false;
-  const [showPasswordLogin, setShowPasswordLogin] =
-    useState(walletLoginDisabled && passwordLoginEnabled);
+  const [showPasswordLogin, setShowPasswordLogin] = useState(
+    walletLoginDisabled && passwordLoginEnabled,
+  );
   const [walletLoginSubmitting, setWalletLoginSubmitting] = useState(false);
   const [walletLoginAwaitingApproval, setWalletLoginAwaitingApproval] =
     useState(false);
@@ -137,6 +142,10 @@ const LoginForm = () => {
   const walletProviderStatus = useWalletProviderStatus();
   const resolveLandingPath = (role) =>
     Number(role) >= 10 ? '/admin/dashboard' : '/workspace/entry';
+
+  useEffect(() => {
+    rememberAuthRedirectPath(searchParams.get('redirect'));
+  }, [searchParams]);
 
   useEffect(() => {
     const mergedAddresses = normalizeWalletAddressList([
@@ -155,7 +164,8 @@ const LoginForm = () => {
       if (
         normalizedCurrent !== '' &&
         mergedAddresses.some(
-          (address) => address.toLowerCase() === normalizedCurrent.toLowerCase(),
+          (address) =>
+            address.toLowerCase() === normalizedCurrent.toLowerCase(),
         )
       ) {
         return normalizedCurrent;
@@ -237,7 +247,10 @@ const LoginForm = () => {
       const userData = { ...data, token: loginResult.token };
       userDispatch({ type: 'login', payload: userData });
       localStorage.setItem('user', JSON.stringify(userData));
-      navigate(resolveLandingPath(userData.role));
+      navigate(
+        resolvePostLoginPath(searchParams, resolveLandingPath(userData.role)),
+        { replace: true },
+      );
     } catch (error) {
       setWalletLoginAwaitingApproval(false);
       if (isWalletUserRejectedError(error)) {
@@ -272,7 +285,12 @@ const LoginForm = () => {
       if (success) {
         userDispatch({ type: 'login', payload: data });
         localStorage.setItem('user', JSON.stringify(data));
-        navigate(resolveLandingPath(data.role));
+        navigate(
+          resolvePostLoginPath(searchParams, resolveLandingPath(data.role)),
+          {
+            replace: true,
+          },
+        );
       } else {
         showError(message);
       }
@@ -333,7 +351,9 @@ const LoginForm = () => {
                     (!walletProviderStatus.detecting &&
                       !walletProviderStatus.available)
                   }
-                  loading={walletLoginSubmitting || walletProviderStatus.detecting}
+                  loading={
+                    walletLoginSubmitting || walletProviderStatus.detecting
+                  }
                 >
                   {t('auth.login.wallet_action', '钱包登陆')}
                 </AppButton>

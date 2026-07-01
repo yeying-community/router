@@ -1,11 +1,10 @@
-import { Navigate } from 'react-router-dom';
-
-import { history } from '../helpers';
-
+import { Navigate, useLocation } from 'react-router-dom';
+import { buildLoginPath } from '../helpers/authRedirect';
 
 function PrivateRoute({ children }) {
+  const location = useLocation();
   if (!localStorage.getItem('user')) {
-    return <Navigate to='/login' state={{ from: history.location }} />;
+    return <Navigate to={buildLoginPath(location)} replace />;
   }
   return children;
 }

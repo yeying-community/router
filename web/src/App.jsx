@@ -14,6 +14,7 @@ import {
 import { UserContext } from './context/User';
 import { StatusContext } from './context/Status';
 import { WEB3_TOKEN_STORAGE_KEY } from './helpers/web3';
+import { buildLoginPath } from './helpers/authRedirect';
 import { logoutWallet } from './services/web3Auth';
 import { useWalletProviderStatus } from './hooks/useWalletProviderStatus';
 import AdminLayout from './layouts/AdminLayout';
@@ -282,10 +283,10 @@ function App() {
       localStorage.removeItem(WEB3_TOKEN_STORAGE_KEY);
       localStorage.removeItem('wallet_token_expires_at');
       if (location.pathname !== '/login') {
-        navigate('/login', { replace: true });
+        navigate(buildLoginPath(location), { replace: true });
       }
     },
-    [location.pathname, navigate, userDispatch],
+    [location, navigate, userDispatch],
   );
 
   const isWalletSessionActive = useCallback(() => {

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { API, showError, showSuccess } from '../helpers';
 import { UserContext } from '../context/User';
 import { AppSpin } from '../router-ui';
+import { resolvePostLoginPath } from '../helpers/authRedirect';
 
 const LarkOAuth = () => {
   const [searchParams] = useSearchParams();
@@ -13,7 +14,9 @@ const LarkOAuth = () => {
   let navigate = useNavigate();
 
   const sendCode = async (code, state, count) => {
-    const res = await API.get(`/api/v1/public/oauth/lark?code=${code}&state=${state}`);
+    const res = await API.get(
+      `/api/v1/public/oauth/lark?code=${code}&state=${state}`,
+    );
     const { success, message, data } = res.data;
     if (success) {
       if (message === 'bind') {
@@ -22,7 +25,13 @@ const LarkOAuth = () => {
       } else {
         userDispatch({ type: 'login', payload: data });
         localStorage.setItem('user', JSON.stringify(data));
-        navigate('/');
+        navigate(
+          resolvePostLoginPath(
+            searchParams,
+            Number(data?.role) >= 10 ? '/admin/dashboard' : '/workspace/entry',
+          ),
+          { replace: true },
+        );
       }
     } else {
       showError(message);

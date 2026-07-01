@@ -2,6 +2,7 @@ import { toast } from 'react-toastify';
 import { toastConstants } from '../constants';
 import React from 'react';
 import { API } from './api';
+import { buildLoginPath } from './authRedirect';
 
 const HTMLToastContent = ({ htmlContent }) => {
   return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />;
@@ -86,7 +87,12 @@ export function showError(error, options = {}) {
       switch (error.response.status) {
         case 401:
           // toast.error('错误：未登录或登录已过期，请重新登录！', showErrorOptions);
-          window.location.href = `/login?expired=${Date.now()}`;
+          {
+            const loginPath = buildLoginPath(window.location);
+            window.location.href = `${loginPath}${
+              loginPath.includes('?') ? '&' : '?'
+            }expired=${Date.now()}`;
+          }
           break;
         case 429:
           toast.error('请求次数过多，请稍后再试！', mergedErrorOptions);
