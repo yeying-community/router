@@ -307,6 +307,14 @@ func UpdateChannelEndpoint(c *gin.Context) {
 		})
 		return
 	}
+	if err := model.RefreshGroupModelChannelsForChannelWithDB(model.DB, channelID); err != nil {
+		logChannelAdminWarn(c, "update_endpoint_routes", stringField("channel_id", channelID), stringField("model", modelName), stringField("endpoint", endpoint), stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
 	logChannelAdminInfo(c, "update_endpoint", stringField("channel_id", channelID), stringField("model", modelName), stringField("endpoint", endpoint), stringField("enabled", map[bool]string{true: "true", false: "false"}[enabled]))
 	if restoredEndpoint {
 		monitor.NotifyChannelModelEndpointCapabilityRestored(channelID, channelRow.DisplayName(), modelName, endpoint, channelAdminOperator(c))

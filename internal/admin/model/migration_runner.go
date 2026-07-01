@@ -1622,8 +1622,34 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return cancelHistoricalPendingPackageSubscriptionsWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607011030_rebuild_group_model_routes_for_published_channel_models",
+			Description: "rebuild group model routes from published channel models only",
+			Up: func(tx *gorm.DB) error {
+				return rebuildGroupModelChannelsForPublishedChannelModelsWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
+}
+
+func rebuildGroupModelChannelsForPublishedChannelModelsWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	channelIDs := make([]string, 0)
+	if err := db.Model(&Channel{}).
+		Select("id").
+		Order("id asc").
+		Pluck("id", &channelIDs).Error; err != nil {
+		return err
+	}
+	for _, channelID := range normalizeTrimmedValuesPreserveOrder(channelIDs) {
+		if err := refreshGroupModelChannelsForChannelWithDB(db, channelID, false); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func cancelHistoricalPendingPackageSubscriptionsWithDB(db *gorm.DB) error {

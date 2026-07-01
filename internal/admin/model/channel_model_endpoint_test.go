@@ -389,6 +389,7 @@ func TestReplaceChannelModelsWithDBSyncsEndpointsFromStoredRows(t *testing.T) {
 		&Channel{},
 		&ChannelModel{},
 		&ChannelModelEndpoint{},
+		&ChannelModelEndpointTestResult{},
 		&ChannelModelPriceComponent{},
 		&ProviderModel{},
 	); err != nil {

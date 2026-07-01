@@ -306,6 +306,11 @@ func TestRestoreRuntimeDisabledCapabilitiesAfterSuccessfulTests(t *testing.T) {
 		&adminmodel.ChannelModel{},
 		&adminmodel.ChannelModelPriceComponent{},
 		&adminmodel.ChannelModelEndpoint{},
+		&adminmodel.ChannelModelEndpointTestResult{},
+		&adminmodel.GroupCatalog{},
+		&adminmodel.GroupChannel{},
+		&adminmodel.GroupModel{},
+		&adminmodel.GroupModelChannel{},
 		&adminmodel.ProviderModel{},
 	); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)

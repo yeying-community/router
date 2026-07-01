@@ -748,7 +748,7 @@ func channelSelectedModels(channel *Channel) []ChannelModel {
 	}
 	selected := make([]ChannelModel, 0, len(rows))
 	for _, row := range rows {
-		if row.Inactive || !row.Selected {
+		if !IsChannelModelPublished(row) {
 			continue
 		}
 		selected = append(selected, row)

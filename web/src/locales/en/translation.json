@@ -663,10 +663,10 @@
       "detail_models_title": "Model Selection",
       "detail_tabs": {
         "overview": "Overview",
-        "models": "Models",
-        "endpoints": "Endpoints",
+        "models": "Selection",
+        "endpoints": "Configuration",
         "tests": "Tests",
-        "billing": "Billing"
+        "billing": "Procurement"
       },
       "billing": {
         "title": "Billing",
@@ -1070,6 +1070,8 @@
           "type": "Type",
           "providers": "Provider",
           "status": "Status",
+          "upstream_status": "Upstream Status",
+          "publish_status": "Publish Status",
           "price_unit": "Price Unit",
           "price": "Input|Output Price",
           "input_price": "Input Price",
@@ -1092,6 +1094,13 @@
         "provider_unassigned": "Pending",
         "inactive": "Disabled",
         "auto_paused": "Auto-paused",
+        "publish_status": {
+          "selectable": "Pending Selection",
+          "pending_config": "Needs Config",
+          "pending_test": "Needs Test",
+          "published": "Published",
+          "disabled": "Disabled"
+        },
         "provider_add": "Add",
         "provider_no_options": "Please create a provider first",
         "provider_load_failed": "Failed to load provider list",

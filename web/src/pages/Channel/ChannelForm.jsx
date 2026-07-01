@@ -2235,6 +2235,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       disabled: isAnyDetailSectionEditing && activeDetailTab !== 'models',
     },
     {
+      key: 'endpoints',
+      label: t('channel.edit.detail_tabs.endpoints'),
+      disabled: isAnyDetailSectionEditing && activeDetailTab !== 'endpoints',
+    },
+    {
       key: 'tests',
       label: t('channel.edit.detail_tabs.tests'),
       disabled: isAnyDetailSectionEditing && activeDetailTab !== 'tests',
@@ -2243,11 +2248,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       key: 'billing',
       label: t('channel.edit.detail_tabs.billing'),
       disabled: isAnyDetailSectionEditing && activeDetailTab !== 'billing',
-    },
-    {
-      key: 'endpoints',
-      label: t('channel.edit.detail_tabs.endpoints'),
-      disabled: isAnyDetailSectionEditing && activeDetailTab !== 'endpoints',
     },
   ];
   const detailBasicEditLocked =

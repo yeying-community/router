@@ -15,7 +15,7 @@ type GroupChannelItem struct {
 	Protocol     string                    `json:"protocol"`
 	Status       int                       `json:"status"`
 	Models       string                    `json:"models"`
-	ModelOptions []GroupChannelModelOption `json:"model_options,omitempty"`
+	ModelOptions []GroupChannelModelOption `json:"model_options"`
 	Bound        bool                      `json:"bound"`
 	Priority     *int64                    `json:"priority,omitempty"`
 	BillingRatio *float64                  `json:"billing_ratio,omitempty"`
@@ -191,6 +191,85 @@ func replaceGroupChannelsWithItemsDB(db *gorm.DB, groupID string, items []GroupC
 		return err
 	}
 	return syncGroupRuntimeCachesWithDB(db)
+}
+
+func RefreshGroupModelChannelsForChannelWithDB(db *gorm.DB, channelID string) error {
+	return refreshGroupModelChannelsForChannelWithDB(db, channelID, true)
+}
+
+func refreshGroupModelChannelsForChannelWithDB(db *gorm.DB, channelID string, refreshCaches bool) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return nil
+	}
+	channelMap, err := loadChannelsByIDWithDB(db, []string{normalizedChannelID})
+	if err != nil {
+		return err
+	}
+	channel := channelMap[normalizedChannelID]
+	if channel != nil {
+		if err := HydrateChannelWithModels(db, channel); err != nil {
+			return err
+		}
+	}
+	groups, err := listBoundGroupIDsByChannelIDWithDB(db, normalizedChannelID)
+	if err != nil {
+		return err
+	}
+	groupCol := `"group"`
+	for _, groupID := range groups {
+		groupID = strings.TrimSpace(groupID)
+		if groupID == "" {
+			continue
+		}
+		groupModels, err := listGroupModelRowsWithDB(db, groupID, true)
+		if err != nil {
+			return err
+		}
+		priorityByChannelID, err := listGroupChannelPriorityByChannelWithDB(db, groupID)
+		if err != nil {
+			return err
+		}
+		rows := BuildGroupModelChannelsForChannel(groupID, channel, groupModels, priorityByChannelID[normalizedChannelID])
+		rows = normalizeGroupModelChannelRowsPreserveOrder(rows)
+		if err := db.Where(groupCol+" = ? AND channel_id = ?", groupID, normalizedChannelID).Delete(&GroupModelChannel{}).Error; err != nil {
+			return err
+		}
+		if len(rows) > 0 {
+			if err := db.Create(&rows).Error; err != nil {
+				return err
+			}
+		}
+	}
+	if err := syncGroupRuntimeCachesWithDB(db); err != nil {
+		return err
+	}
+	if refreshCaches {
+		RefreshGroupModelChannelCachesForGroups(groups...)
+	}
+	return nil
+}
+
+func listBoundGroupIDsByChannelIDWithDB(db *gorm.DB, channelID string) ([]string, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return []string{}, nil
+	}
+	groupCol := `"group"`
+	groups := make([]string, 0)
+	if err := db.Model(&GroupChannel{}).
+		Distinct(groupCol).
+		Where("channel_id = ? AND enabled = ?", normalizedChannelID, true).
+		Pluck(groupCol, &groups).Error; err != nil {
+		return nil, err
+	}
+	return normalizeTrimmedValuesPreserveOrder(groups), nil
 }
 
 func normalizeGroupChannelItems(items []GroupChannelItem) []GroupChannelItem {

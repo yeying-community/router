@@ -12,6 +12,12 @@ import (
 
 const (
 	ChannelModelsTableName = "channel_models"
+
+	ChannelModelPublishStatusSelectable    = "selectable"
+	ChannelModelPublishStatusPendingConfig = "pending_config"
+	ChannelModelPublishStatusPendingTest   = "pending_test"
+	ChannelModelPublishStatusPublished     = "published"
+	ChannelModelPublishStatusDisabled      = "disabled"
 )
 
 type ChannelModel struct {
@@ -22,6 +28,7 @@ type ChannelModel struct {
 	Type            string                              `json:"type" gorm:"type:varchar(32);default:'text'"`
 	Endpoint        string                              `json:"endpoint" gorm:"type:varchar(255);default:''"`
 	Endpoints       []string                            `json:"endpoints,omitempty" gorm:"-"`
+	PublishStatus   string                              `json:"publish_status,omitempty" gorm:"-"`
 	Inactive        bool                                `json:"inactive,omitempty" gorm:"not null;default:false;index"`
 	Selected        bool                                `json:"selected" gorm:"default:false;index"`
 	InputPrice      *float64                            `json:"input_price,omitempty" gorm:"type:double precision"`
@@ -716,6 +723,10 @@ func loadChannelModelRowsByChannelIDs(db *gorm.DB, channelIDs []string) (map[str
 	if err != nil {
 		return nil, err
 	}
+	testSupportByChannelID, err := loadChannelModelEndpointTestSupportByChannelIDsWithDB(db, normalizedIDs)
+	if err != nil {
+		return nil, err
+	}
 	rows := make([]ChannelModel, 0)
 	if err := db.
 		Where("channel_id IN ?", normalizedIDs).
@@ -728,7 +739,9 @@ func loadChannelModelRowsByChannelIDs(db *gorm.DB, channelIDs []string) (map[str
 		if row.ChannelId == "" || row.Model == "" {
 			continue
 		}
-		applyChannelModelEndpointState(&row, endpointStateByChannelID[row.ChannelId][row.Model])
+		state := endpointStateByChannelID[row.ChannelId][row.Model]
+		applyChannelModelEndpointState(&row, state)
+		applyChannelModelPublishStatus(&row, state, testSupportByChannelID[row.ChannelId][row.Model])
 		rowsByChannelID[row.ChannelId] = append(rowsByChannelID[row.ChannelId], row)
 	}
 	return rowsByChannelID, nil
@@ -831,9 +844,15 @@ func listChannelModelRowsByChannelIDWithDB(db *gorm.DB, channelID string) ([]Cha
 	if err != nil {
 		return nil, err
 	}
+	testSupportByChannelID, err := loadChannelModelEndpointTestSupportByChannelIDsWithDB(db, []string{normalizedChannelID})
+	if err != nil {
+		return nil, err
+	}
 	for i := range rows {
 		normalizeChannelModelRow(&rows[i])
-		applyChannelModelEndpointState(&rows[i], endpointStateByChannelID[normalizedChannelID][rows[i].Model])
+		state := endpointStateByChannelID[normalizedChannelID][rows[i].Model]
+		applyChannelModelEndpointState(&rows[i], state)
+		applyChannelModelPublishStatus(&rows[i], state, testSupportByChannelID[normalizedChannelID][rows[i].Model])
 	}
 	return rows, nil
 }
@@ -876,9 +895,15 @@ func ListChannelModelRowsPageWithDB(db *gorm.DB, channelID string, page int, pag
 	if err != nil {
 		return nil, 0, err
 	}
+	testSupportByChannelID, err := loadChannelModelEndpointTestSupportByChannelIDsWithDB(db, []string{normalizedChannelID})
+	if err != nil {
+		return nil, 0, err
+	}
 	for i := range rows {
 		normalizeChannelModelRow(&rows[i])
-		applyChannelModelEndpointState(&rows[i], endpointStateByChannelID[normalizedChannelID][rows[i].Model])
+		state := endpointStateByChannelID[normalizedChannelID][rows[i].Model]
+		applyChannelModelEndpointState(&rows[i], state)
+		applyChannelModelPublishStatus(&rows[i], state, testSupportByChannelID[normalizedChannelID][rows[i].Model])
 	}
 	return rows, total, nil
 }
@@ -1397,6 +1422,75 @@ func applyChannelModelEndpointState(row *ChannelModel, state channelModelEndpoin
 		}
 	}
 	row.Endpoint = row.Endpoints[0]
+}
+
+func loadChannelModelEndpointTestSupportByChannelIDsWithDB(db *gorm.DB, channelIDs []string) (map[string]map[string]map[string]bool, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelIDs := normalizeTrimmedValuesPreserveOrder(channelIDs)
+	if len(normalizedChannelIDs) == 0 {
+		return map[string]map[string]map[string]bool{}, nil
+	}
+	rows := make([]ChannelModelEndpointTestResult, 0)
+	if err := db.
+		Where("channel_id IN ?", normalizedChannelIDs).
+		Order("channel_id asc, model asc, endpoint asc").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	result := make(map[string]map[string]map[string]bool)
+	for _, row := range rows {
+		channelID := strings.TrimSpace(row.ChannelId)
+		modelName := strings.TrimSpace(row.Model)
+		endpoint := NormalizeRequestedChannelModelEndpoint(row.Endpoint)
+		if channelID == "" || modelName == "" || endpoint == "" {
+			continue
+		}
+		if _, ok := result[channelID]; !ok {
+			result[channelID] = make(map[string]map[string]bool)
+		}
+		if _, ok := result[channelID][modelName]; !ok {
+			result[channelID][modelName] = make(map[string]bool)
+		}
+		result[channelID][modelName][endpoint] = row.LastSupported && strings.TrimSpace(row.LastTestStatus) == ChannelModelEndpointTestStatusSuccess
+	}
+	return result, nil
+}
+
+func applyChannelModelPublishStatus(row *ChannelModel, state channelModelEndpointState, endpointSupport map[string]bool) {
+	if row == nil {
+		return
+	}
+	row.PublishStatus = ResolveChannelModelPublishStatus(*row, state, endpointSupport)
+}
+
+func ResolveChannelModelPublishStatus(row ChannelModel, state channelModelEndpointState, endpointSupport map[string]bool) string {
+	if row.Inactive {
+		return ChannelModelPublishStatusDisabled
+	}
+	if !row.Selected {
+		return ChannelModelPublishStatusSelectable
+	}
+	hasEnabledEndpoint := false
+	for endpoint, enabled := range state.Enabled {
+		normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(endpoint)
+		if normalizedEndpoint == "" || !enabled {
+			continue
+		}
+		hasEnabledEndpoint = true
+		if endpointSupport[normalizedEndpoint] {
+			return ChannelModelPublishStatusPublished
+		}
+	}
+	if !hasEnabledEndpoint {
+		return ChannelModelPublishStatusPendingConfig
+	}
+	return ChannelModelPublishStatusPendingTest
+}
+
+func IsChannelModelPublished(row ChannelModel) bool {
+	return strings.TrimSpace(row.PublishStatus) == ChannelModelPublishStatusPublished
 }
 
 func normalizeExplicitChannelModelType(raw string) string {

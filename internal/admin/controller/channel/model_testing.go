@@ -148,6 +148,9 @@ func persistChannelModelTests(channelID string, taskID string, results []model.C
 	if len(restoredModels) > 0 || len(restoredEndpoints) > 0 {
 		notifyAutoRestoredCapabilities(normalizedChannelID, restoredModels, restoredEndpoints)
 	}
+	if err := model.RefreshGroupModelChannelsForChannelWithDB(model.DB, normalizedChannelID); err != nil {
+		return err
+	}
 	if shouldRestoreChannel {
 		return monitor.EnableChannel(normalizedChannelID, normalizedChannelID)
 	}

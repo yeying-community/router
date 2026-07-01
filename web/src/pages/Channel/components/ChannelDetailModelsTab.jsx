@@ -84,6 +84,37 @@ const ChannelDetailModelsTab = ({
     return t('channel.edit.model_selector.inactive');
   };
 
+  const normalizePublishStatus = (row) => {
+    const explicitStatus = (row?.publish_status || '').toString().trim();
+    if (explicitStatus) {
+      return explicitStatus;
+    }
+    if (row?.inactive) {
+      return 'disabled';
+    }
+    if (!row?.selected) {
+      return 'selectable';
+    }
+    return 'pending_config';
+  };
+
+  const publishStatusColor = (status) => {
+    switch (status) {
+      case 'published':
+        return 'green';
+      case 'pending_test':
+        return 'orange';
+      case 'pending_config':
+        return 'yellow';
+      case 'selectable':
+        return 'blue';
+      case 'disabled':
+        return 'grey';
+      default:
+        return 'grey';
+    }
+  };
+
   const renderMergedPrice = (row) => {
     const complexPricingDetails = getComplexPricingDetailsForModel(row);
     const hasComplexPricing = complexPricingDetails.some((detail) =>
@@ -339,7 +370,7 @@ const ChannelDetailModelsTab = ({
               render: (_, row) => renderMergedPrice(row),
             },
             {
-              title: t('channel.edit.model_selector.table.status'),
+              title: t('channel.edit.model_selector.table.upstream_status'),
               key: 'status',
               className: 'router-table-col-status-compact',
               width: columnWidths.status,
@@ -354,6 +385,20 @@ const ChannelDetailModelsTab = ({
                 return (
                   <AppTag color={color} className='router-tag'>
                     {t(`channel.edit.model_selector.upstream_return_status.${statusKey}`)}
+                  </AppTag>
+                );
+              },
+            },
+            {
+              title: t('channel.edit.model_selector.table.publish_status'),
+              key: 'publish_status',
+              className: 'router-table-col-status-compact',
+              width: columnWidths.publishStatus,
+              render: (_, row) => {
+                const status = normalizePublishStatus(row);
+                return (
+                  <AppTag color={publishStatusColor(status)} className='router-tag'>
+                    {t(`channel.edit.model_selector.publish_status.${status}`)}
                   </AppTag>
                 );
               },

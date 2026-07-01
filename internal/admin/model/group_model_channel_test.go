@@ -67,17 +67,25 @@ func TestChannelSelectedModelConfigsSkipsInactiveRows(t *testing.T) {
 	channel := &Channel{}
 	channel.SetChannelModels([]ChannelModel{
 		{
-			Model:    "active-model",
-			Selected: true,
+			Model:         "active-model",
+			Selected:      true,
+			PublishStatus: ChannelModelPublishStatusPublished,
 		},
 		{
-			Model:    "inactive-model",
-			Selected: true,
-			Inactive: true,
+			Model:         "inactive-model",
+			Selected:      true,
+			Inactive:      true,
+			PublishStatus: ChannelModelPublishStatusDisabled,
 		},
 		{
-			Model:    "unselected-model",
-			Selected: false,
+			Model:         "unselected-model",
+			Selected:      false,
+			PublishStatus: ChannelModelPublishStatusSelectable,
+		},
+		{
+			Model:         "pending-model",
+			Selected:      true,
+			PublishStatus: ChannelModelPublishStatusPendingTest,
 		},
 	})
 

@@ -13,7 +13,7 @@ func openGroupModelBindingTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&GroupCatalog{}, &GroupChannel{}, &GroupModel{}, &GroupModelChannel{}, &Channel{}, &ChannelModel{}, &ChannelModelEndpoint{}, &ChannelModelPriceComponent{}); err != nil {
+	if err := db.AutoMigrate(&GroupCatalog{}, &GroupChannel{}, &GroupModel{}, &GroupModelChannel{}, &Channel{}, &ChannelModel{}, &ChannelModelEndpoint{}, &ChannelModelEndpointTestResult{}, &ChannelModelPriceComponent{}); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	return db
@@ -92,6 +92,23 @@ func TestReplaceSingleGroupModelWithDB_PreservesDisabledState(t *testing.T) {
 		Selected:      true,
 	}).Error; err != nil {
 		t.Fatalf("create channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModelEndpoint{
+		ChannelId: channel.Id,
+		Model:     "gpt-5.1",
+		Endpoint:  ChannelModelEndpointResponses,
+		Enabled:   true,
+	}).Error; err != nil {
+		t.Fatalf("create channel model endpoint: %v", err)
+	}
+	if err := db.Create(&ChannelModelEndpointTestResult{
+		ChannelId:      channel.Id,
+		Model:          "gpt-5.1",
+		Endpoint:       ChannelModelEndpointResponses,
+		LastTestStatus: ChannelModelEndpointTestStatusSuccess,
+		LastSupported:  true,
+	}).Error; err != nil {
+		t.Fatalf("create channel model endpoint test result: %v", err)
 	}
 
 	enabled := true
@@ -175,5 +192,100 @@ func TestReplaceGroupModelRowsWithDB_PreservesDisabledState(t *testing.T) {
 	}
 	if rows[0].Enabled {
 		t.Fatalf("rows[0].Enabled = true, want false")
+	}
+}
+
+func TestBuildGroupChannelModelOptionsOnlyIncludesPublishedModels(t *testing.T) {
+	db := openGroupModelBindingTestDB(t)
+	channel := Channel{
+		Id:       "channel-1",
+		Name:     "channel-1",
+		Protocol: "openai",
+		Status:   ChannelStatusEnabled,
+	}
+	if err := db.Create(&channel).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&[]ChannelModel{
+		{
+			ChannelId:     channel.Id,
+			Model:         "published-model",
+			UpstreamModel: "published-model",
+			Provider:      "openai",
+			Type:          ProviderModelTypeText,
+			Selected:      true,
+		},
+		{
+			ChannelId:     channel.Id,
+			Model:         "pending-config-model",
+			UpstreamModel: "pending-config-model",
+			Provider:      "openai",
+			Type:          ProviderModelTypeText,
+			Selected:      true,
+		},
+		{
+			ChannelId:     channel.Id,
+			Model:         "pending-test-model",
+			UpstreamModel: "pending-test-model",
+			Provider:      "openai",
+			Type:          ProviderModelTypeText,
+			Selected:      true,
+		},
+	}).Error; err != nil {
+		t.Fatalf("create channel models: %v", err)
+	}
+	if err := db.Create(&[]ChannelModelEndpoint{
+		{
+			ChannelId: channel.Id,
+			Model:     "published-model",
+			Endpoint:  ChannelModelEndpointResponses,
+			Enabled:   true,
+		},
+		{
+			ChannelId: channel.Id,
+			Model:     "pending-test-model",
+			Endpoint:  ChannelModelEndpointResponses,
+			Enabled:   true,
+		},
+	}).Error; err != nil {
+		t.Fatalf("create channel endpoints: %v", err)
+	}
+	if err := db.Create(&ChannelModelEndpointTestResult{
+		ChannelId:      channel.Id,
+		Model:          "published-model",
+		Endpoint:       ChannelModelEndpointResponses,
+		LastTestStatus: ChannelModelEndpointTestStatusSuccess,
+		LastSupported:  true,
+	}).Error; err != nil {
+		t.Fatalf("create endpoint test result: %v", err)
+	}
+
+	loaded := Channel{}
+	if err := db.First(&loaded, "id = ?", channel.Id).Error; err != nil {
+		t.Fatalf("load channel: %v", err)
+	}
+	if err := HydrateChannelWithModels(db, &loaded); err != nil {
+		t.Fatalf("hydrate channel: %v", err)
+	}
+	options := buildGroupChannelModelOptions(&loaded)
+	if len(options) != 1 {
+		t.Fatalf("len(options) = %d, want 1: %#v", len(options), options)
+	}
+	if options[0].Model != "published-model" {
+		t.Fatalf("option model = %q, want published-model", options[0].Model)
+	}
+
+	statusByModel := make(map[string]string)
+	for _, row := range loaded.GetChannelModels() {
+		statusByModel[row.Model] = row.PublishStatus
+	}
+	if statusByModel["published-model"] != ChannelModelPublishStatusPublished {
+		t.Fatalf("published status = %q, want published", statusByModel["published-model"])
+	}
+	if statusByModel["pending-config-model"] != ChannelModelPublishStatusPendingConfig {
+		t.Fatalf("pending config status = %q, want pending_config", statusByModel["pending-config-model"])
+	}
+	if statusByModel["pending-test-model"] != ChannelModelPublishStatusPendingTest {
+		t.Fatalf("pending test status = %q, want pending_test", statusByModel["pending-test-model"])
 	}
 }

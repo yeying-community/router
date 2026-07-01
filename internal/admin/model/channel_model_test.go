@@ -290,6 +290,7 @@ func TestReplaceChannelModelsWithDBClearsRuntimeDisableMetadataWhenModelRestored
 		&Channel{},
 		&ChannelModel{},
 		&ChannelModelEndpoint{},
+		&ChannelModelEndpointTestResult{},
 		&ChannelModelPriceComponent{},
 		&ProviderModel{},
 	); err != nil {

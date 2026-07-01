@@ -663,10 +663,10 @@
       "detail_models_title": "模型选择",
       "detail_tabs": {
         "overview": "概览",
-        "models": "模型",
-        "endpoints": "端点",
+        "models": "选择",
+        "endpoints": "配置",
         "tests": "测试",
-        "billing": "账务"
+        "billing": "采购"
       },
       "billing": {
         "title": "账务",
@@ -1070,6 +1070,8 @@
           "type": "类型",
           "providers": "供应商",
           "status": "状态",
+          "upstream_status": "上游状态",
+          "publish_status": "发布状态",
           "price_unit": "计价单位",
           "price": "输入｜输出价",
           "input_price": "输入价",
@@ -1092,6 +1094,13 @@
         "provider_unassigned": "待配置",
         "inactive": "已关闭",
         "auto_paused": "自动暂停",
+        "publish_status": {
+          "selectable": "待选择",
+          "pending_config": "待配置",
+          "pending_test": "待测试",
+          "published": "已发布",
+          "disabled": "已停用"
+        },
         "provider_add": "添加",
         "provider_no_options": "请先新增供应商",
         "provider_load_failed": "加载供应商列表失败",
