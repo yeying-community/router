@@ -111,8 +111,7 @@ const LoginForm = () => {
   const [statusState] = useContext(StatusContext);
   const navigate = useNavigate();
   const logo = getLogo();
-  const loginBannerText =
-    '帮助您更好的管理、分发、路由和使用各大模型厂商接口服务';
+  const loginBannerText = t('auth.login.banner_text');
   const storedStatus = (() => {
     const raw = localStorage.getItem('status');
     if (!raw) {
@@ -212,7 +211,7 @@ const LoginForm = () => {
         walletProviderStatus.provider || (await walletProviderStatus.refresh());
       const pending = await focusWalletPendingApproval(provider || undefined);
       if (!pending?.focused) {
-        showError('请在钱包中完成签名，或重新发起登录');
+        showError(t('auth.login.wallet_pending_retry'));
       }
       return;
     }
@@ -241,7 +240,7 @@ const LoginForm = () => {
       const selfResp = await API.get('/api/v1/public/user/self');
       const { success, data, message } = selfResp?.data || {};
       if (!success || !data) {
-        showError(message || '未获取到用户信息');
+        showError(message || t('auth.login.user_fetch_failed'));
         return;
       }
       const userData = { ...data, token: loginResult.token };
@@ -254,9 +253,9 @@ const LoginForm = () => {
     } catch (error) {
       setWalletLoginAwaitingApproval(false);
       if (isWalletUserRejectedError(error)) {
-        showError('用户拒绝了请求');
+        showError(t('auth.login.wallet_rejected'));
       } else {
-        showError(error.message || '钱包登录失败');
+        showError(error.message || t('auth.login.wallet_failed'));
       }
     } finally {
       walletLoginPromiseRef.current = null;

@@ -91,6 +91,8 @@ const normalizePackageView = (raw) => {
       raw.package_emergency_quota_limit || 0,
     ),
     usage: raw.usage || null,
+    daily_usage: raw.daily_usage || null,
+    emergency_usage: raw.emergency_usage || null,
     quota_reset_timezone: (raw.quota_reset_timezone || '').toString().trim(),
     started_at: Number(raw.started_at || 0),
     expires_at: Number(raw.expires_at || 0),
@@ -160,6 +162,8 @@ const PackageSummaryCard = ({
 }) => {
   const requestQuotaPackage = isRequestQuotaPackage(item);
   const requestUsage = item?.usage || null;
+  const dailyUsage = item?.daily_usage || null;
+  const emergencyUsage = item?.emergency_usage || null;
   const packageID = String(item?.package_id || '').trim();
   const entitlementValue = requestQuotaPackage
     ? `${formatRequestCount(item?.period_limit || 0)} ${t(
@@ -231,11 +235,6 @@ const PackageSummaryCard = ({
         value: formatRequestCount(requestUsage.consumed_amount || 0),
       },
       {
-        key: 'reserved',
-        label: t('topup.package_status.reserved'),
-        value: formatRequestCount(requestUsage.reserved_amount || 0),
-      },
-      {
         key: 'remaining',
         label: t('user.detail.remaining_amount'),
         value: requestUsage.unlimited
@@ -243,7 +242,40 @@ const PackageSummaryCard = ({
           : formatRequestCount(requestUsage.remaining_amount || 0),
       },
     ]
-    : [];
+    : [
+      dailyUsage
+        ? {
+          key: 'daily_used',
+          label: t('user.detail.package_daily_used'),
+          value: renderIntegerAmount(dailyUsage.consumed_amount || 0),
+        }
+        : null,
+      dailyUsage
+        ? {
+          key: 'daily_remaining',
+          label: t('user.detail.package_daily_remaining'),
+          value: dailyUsage.unlimited
+            ? t('common.unlimited')
+            : renderIntegerAmount(dailyUsage.remaining_amount || 0),
+        }
+        : null,
+      emergencyUsage
+        ? {
+          key: 'emergency_used',
+          label: t('user.detail.package_emergency_used'),
+          value: renderIntegerAmount(emergencyUsage.consumed_amount || 0),
+        }
+        : null,
+      emergencyUsage
+        ? {
+          key: 'emergency_remaining',
+          label: t('user.detail.package_emergency_remaining'),
+          value: emergencyUsage.unlimited
+            ? t('common.unlimited')
+            : renderIntegerAmount(emergencyUsage.remaining_amount || 0),
+        }
+        : null,
+    ].filter(Boolean);
 
   return (
     <div className='router-package-purchase-card'>
