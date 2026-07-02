@@ -7,6 +7,7 @@ export const SERVICE_PACKAGE_QUOTA_METRIC_YYC = 'yyc';
 export const SERVICE_PACKAGE_QUOTA_METRIC_REQUEST_COUNT = 'request_count';
 
 export const SERVICE_PACKAGE_PERIOD_DAILY = 'daily';
+export const SERVICE_PACKAGE_PERIOD_WEEKLY = 'weekly';
 export const SERVICE_PACKAGE_PERIOD_MONTHLY = 'monthly';
 export const SERVICE_PACKAGE_PERIOD_PACKAGE_TOTAL = 'package_total';
 
@@ -32,6 +33,7 @@ export const normalizeServicePackagePeriodType = (value) => {
   const normalized = (value || '').toString().trim().toLowerCase();
   switch (normalized) {
     case SERVICE_PACKAGE_PERIOD_DAILY:
+    case SERVICE_PACKAGE_PERIOD_WEEKLY:
     case SERVICE_PACKAGE_PERIOD_MONTHLY:
     case SERVICE_PACKAGE_PERIOD_PACKAGE_TOTAL:
       return normalized;
@@ -57,6 +59,8 @@ export const getServicePackagePeriodLabel = (periodType, t) => {
   switch (normalizeServicePackagePeriodType(periodType)) {
     case SERVICE_PACKAGE_PERIOD_DAILY:
       return t('package_manage.period_type.daily');
+    case SERVICE_PACKAGE_PERIOD_WEEKLY:
+      return t('package_manage.period_type.weekly');
     case SERVICE_PACKAGE_PERIOD_PACKAGE_TOTAL:
       return t('package_manage.period_type.package_total');
     case SERVICE_PACKAGE_PERIOD_MONTHLY:
@@ -75,6 +79,11 @@ export const getServicePackagePeriodOptions = (t) => [
     key: SERVICE_PACKAGE_PERIOD_DAILY,
     value: SERVICE_PACKAGE_PERIOD_DAILY,
     text: t('package_manage.period_type.daily'),
+  },
+  {
+    key: SERVICE_PACKAGE_PERIOD_WEEKLY,
+    value: SERVICE_PACKAGE_PERIOD_WEEKLY,
+    text: t('package_manage.period_type.weekly'),
   },
   {
     key: SERVICE_PACKAGE_PERIOD_PACKAGE_TOTAL,

@@ -73,6 +73,8 @@ type activeUserPackageSubscriptionView struct {
 	Source                     string                      `json:"source,omitempty"`
 	SupportedModels            []string                    `json:"supported_models,omitempty"`
 	Usage                      *activeUserPackageUsageView `json:"usage,omitempty"`
+	DailyUsage                 *activeUserPackageUsageView `json:"daily_usage,omitempty"`
+	EmergencyUsage             *activeUserPackageUsageView `json:"emergency_usage,omitempty"`
 }
 
 type activeUserPackageUsageView struct {
@@ -192,6 +194,34 @@ func buildActiveUserPackageUsageView(snapshot model.RequestPackageUsageSnapshot)
 	}
 }
 
+func buildActiveUserPackageDailyUsageView(snapshot model.GroupDailyQuotaSnapshot) *activeUserPackageUsageView {
+	return &activeUserPackageUsageView{
+		Metric:          model.ServicePackageQuotaMetricYYC,
+		PeriodType:      model.ServicePackagePeriodDaily,
+		PeriodKey:       strings.TrimSpace(snapshot.BizDate),
+		LimitAmount:     snapshot.Limit,
+		ConsumedAmount:  snapshot.ConsumedQuota,
+		ReservedAmount:  snapshot.ReservedQuota,
+		RemainingAmount: snapshot.RemainingQuota,
+		Unlimited:       snapshot.Unlimited,
+		UpdatedAt:       snapshot.UpdatedAt,
+	}
+}
+
+func buildActiveUserPackageEmergencyUsageView(snapshot model.UserPackageEmergencyQuotaSnapshot) *activeUserPackageUsageView {
+	return &activeUserPackageUsageView{
+		Metric:          model.ServicePackageQuotaMetricYYC,
+		PeriodType:      model.ServicePackagePeriodMonthly,
+		PeriodKey:       strings.TrimSpace(snapshot.BizMonth),
+		LimitAmount:     snapshot.Limit,
+		ConsumedAmount:  snapshot.ConsumedQuota,
+		ReservedAmount:  snapshot.ReservedQuota,
+		RemainingAmount: snapshot.RemainingQuota,
+		Unlimited:       !snapshot.Enabled,
+		UpdatedAt:       snapshot.UpdatedAt,
+	}
+}
+
 func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscription) (*activeUserPackageSubscriptionView, error) {
 	groupID := strings.TrimSpace(subscription.GroupID)
 	groupName := ""
@@ -213,12 +243,29 @@ func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscr
 		}
 	}
 	var usage *activeUserPackageUsageView
+	var dailyUsage *activeUserPackageUsageView
+	var emergencyUsage *activeUserPackageUsageView
 	if strings.TrimSpace(subscription.QuotaMetric) == model.ServicePackageQuotaMetricRequestCount {
 		snapshot, err := model.GetRequestPackageUsageSnapshot(subscription)
 		if err != nil {
 			return nil, err
 		}
 		usage = buildActiveUserPackageUsageView(snapshot)
+	} else if strings.TrimSpace(subscription.QuotaMetric) == model.ServicePackageQuotaMetricYYC {
+		if groupID != "" {
+			snapshot, err := model.GetGroupDailyQuotaSnapshot(groupID, strings.TrimSpace(subscription.UserID), "")
+			if err != nil {
+				return nil, err
+			}
+			dailyUsage = buildActiveUserPackageDailyUsageView(snapshot)
+		}
+		if subscription.PackageEmergencyQuotaLimit > 0 {
+			snapshot, err := model.GetUserPackageEmergencyQuotaSnapshot(strings.TrimSpace(subscription.UserID), "")
+			if err != nil {
+				return nil, err
+			}
+			emergencyUsage = buildActiveUserPackageEmergencyUsageView(snapshot)
+		}
 	}
 	return &activeUserPackageSubscriptionView{
 		Id:                         strings.TrimSpace(subscription.Id),
@@ -247,6 +294,8 @@ func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscr
 		Source:                     source,
 		SupportedModels:            supportedModels,
 		Usage:                      usage,
+		DailyUsage:                 dailyUsage,
+		EmergencyUsage:             emergencyUsage,
 	}, nil
 }
 

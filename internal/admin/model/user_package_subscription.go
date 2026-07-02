@@ -288,6 +288,7 @@ func assignServicePackageToUserWithExpiresAtDB(db *gorm.DB, packageID string, us
 	if err != nil {
 		return UserPackageSubscription{}, err
 	}
+	RefreshUserGroupCaches(normalizedUserID)
 	return subscription, nil
 }
 
@@ -358,6 +359,7 @@ func RenewServicePackageForUserWithDB(db *gorm.DB, packageID string, userID stri
 	if err != nil {
 		return UserPackageSubscription{}, err
 	}
+	RefreshUserGroupCaches(normalizedUserID)
 	return active, nil
 }
 

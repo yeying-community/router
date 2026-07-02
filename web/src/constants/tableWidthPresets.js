@@ -137,7 +137,7 @@ export const TOKEN_LIST_COLUMN_WIDTHS = {
   createdTime: 148,
   updatedTime: 148,
   expiredTime: 148,
-  actions: 56,
+  actions: 92,
 };
 
 export const TOKEN_LIST_TABLE_MIN_WIDTH =

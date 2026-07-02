@@ -370,7 +370,12 @@ export const normalizeSupportedModels = (models) => {
   return result;
 };
 
-export const SupportedModelsSummary = ({ models, t }) => {
+export const SupportedModelsSummary = ({
+  models,
+  t,
+  label,
+  emptyText,
+}) => {
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   const normalizedModels = useMemo(() => normalizeSupportedModels(models), [models]);
@@ -390,7 +395,7 @@ export const SupportedModelsSummary = ({ models, t }) => {
   return (
     <div className='router-supported-models-summary'>
       <div className='router-supported-models-summary-header'>
-        <span>{t('topup.pricing.supported_models')}</span>
+        <span>{label || t('topup.pricing.supported_models')}</span>
         {normalizedModels.length > 0 ? (
           <button
             className='router-link-button router-supported-models-count-button'
@@ -405,7 +410,7 @@ export const SupportedModelsSummary = ({ models, t }) => {
       </div>
       {normalizedModels.length === 0 ? (
         <div className='router-text-muted router-supported-models-empty'>
-          {t('topup.pricing.supported_models_empty')}
+          {emptyText || t('topup.pricing.supported_models_empty')}
         </div>
       ) : null}
       <AppModal

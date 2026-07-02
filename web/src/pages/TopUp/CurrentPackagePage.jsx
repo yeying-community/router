@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { API, showError, showInfo, timestamp2string } from '../../helpers';
@@ -11,6 +11,7 @@ import {
 import {
   buildTopUpReturnURL,
   renderTopupIntegerAmountWithExactPopup,
+  SupportedModelsSummary,
   useTopUpWorkspace,
 } from './shared.jsx';
 import {
@@ -48,6 +49,19 @@ const createEmptyActivePackage = () => ({
   active_packages: [],
 });
 
+const PACKAGE_ORDER_PENDING_STATUSES = new Set(['created', 'pending', 'paid']);
+const PACKAGE_ORDER_FINAL_STATUSES = new Set(['fulfilled', 'failed', 'canceled']);
+const PACKAGE_ORDER_POLL_INTERVAL_MS = 3000;
+const PACKAGE_ORDER_POLL_ATTEMPTS = 10;
+
+const sleep = (durationMs) =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, durationMs);
+  });
+
+const normalizeTopupOrderStatus = (value) =>
+  String(value || '').trim().toLowerCase();
+
 const normalizePackageView = (raw) => {
   if (!raw) {
     return null;
@@ -77,6 +91,8 @@ const normalizePackageView = (raw) => {
       raw.package_emergency_quota_limit || 0,
     ),
     usage: raw.usage || null,
+    daily_usage: raw.daily_usage || null,
+    emergency_usage: raw.emergency_usage || null,
     quota_reset_timezone: (raw.quota_reset_timezone || '').toString().trim(),
     started_at: Number(raw.started_at || 0),
     expires_at: Number(raw.expires_at || 0),
@@ -146,22 +162,15 @@ const PackageSummaryCard = ({
 }) => {
   const requestQuotaPackage = isRequestQuotaPackage(item);
   const requestUsage = item?.usage || null;
+  const dailyUsage = item?.daily_usage || null;
+  const emergencyUsage = item?.emergency_usage || null;
   const packageID = String(item?.package_id || '').trim();
-  const groupLabel =
-    String(item?.group_name || '').trim() ||
-    String(item?.group_id || '').trim() ||
-    '-';
   const entitlementValue = requestQuotaPackage
     ? `${formatRequestCount(item?.period_limit || 0)} ${t(
       'package_manage.request_unit',
     )} / ${getServicePackagePeriodLabel(item?.period_type, t)}`
     : renderIntegerAmount(item?.daily_quota_limit || 0);
   const infoItems = [
-    {
-      key: 'group',
-      label: t('user.detail.package_group'),
-      value: groupLabel,
-    },
     {
       key: 'type',
       label: t('package_manage.table.package_type'),
@@ -194,6 +203,17 @@ const PackageSummaryCard = ({
       label: t('user.detail.package_expires_at'),
       value: formatPackageDateValue(item?.expires_at, t),
     },
+    {
+      key: 'supported_models',
+      value: (
+        <SupportedModelsSummary
+          models={item?.supported_models}
+          t={t}
+          label={t('user.detail.package_supported_models')}
+        />
+      ),
+      fullWidth: true,
+    },
   ];
   if (!requestQuotaPackage) {
     infoItems.splice(3, 0, {
@@ -215,11 +235,6 @@ const PackageSummaryCard = ({
         value: formatRequestCount(requestUsage.consumed_amount || 0),
       },
       {
-        key: 'reserved',
-        label: t('topup.package_status.reserved'),
-        value: formatRequestCount(requestUsage.reserved_amount || 0),
-      },
-      {
         key: 'remaining',
         label: t('user.detail.remaining_amount'),
         value: requestUsage.unlimited
@@ -227,7 +242,40 @@ const PackageSummaryCard = ({
           : formatRequestCount(requestUsage.remaining_amount || 0),
       },
     ]
-    : [];
+    : [
+      dailyUsage
+        ? {
+          key: 'daily_used',
+          label: t('user.detail.package_daily_used'),
+          value: renderIntegerAmount(dailyUsage.consumed_amount || 0),
+        }
+        : null,
+      dailyUsage
+        ? {
+          key: 'daily_remaining',
+          label: t('user.detail.package_daily_remaining'),
+          value: dailyUsage.unlimited
+            ? t('common.unlimited')
+            : renderIntegerAmount(dailyUsage.remaining_amount || 0),
+        }
+        : null,
+      emergencyUsage
+        ? {
+          key: 'emergency_used',
+          label: t('user.detail.package_emergency_used'),
+          value: renderIntegerAmount(emergencyUsage.consumed_amount || 0),
+        }
+        : null,
+      emergencyUsage
+        ? {
+          key: 'emergency_remaining',
+          label: t('user.detail.package_emergency_remaining'),
+          value: emergencyUsage.unlimited
+            ? t('common.unlimited')
+            : renderIntegerAmount(emergencyUsage.remaining_amount || 0),
+        }
+        : null,
+    ].filter(Boolean);
 
   return (
     <div className='router-package-purchase-card'>
@@ -235,9 +283,6 @@ const PackageSummaryCard = ({
         <div>
           <div className='router-package-purchase-card-title'>
             {item?.package_name || packageID || '-'}
-          </div>
-          <div className='router-text-muted router-package-purchase-description'>
-            {groupLabel}
           </div>
         </div>
         <div className='router-inline-actions'>
@@ -255,10 +300,20 @@ const PackageSummaryCard = ({
       </div>
       <div className='router-current-package-info-grid'>
         {infoItems.map((infoItem) => (
-          <div key={infoItem.key} className='router-current-package-info-card'>
-            <div className='router-current-package-info-label'>
-              {infoItem.label}
-            </div>
+          <div
+            key={infoItem.key}
+            className={[
+              'router-current-package-info-card',
+              infoItem.fullWidth ? 'router-current-package-info-card-wide' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            {infoItem.label ? (
+              <div className='router-current-package-info-label'>
+                {infoItem.label}
+              </div>
+            ) : null}
             <div className='router-current-package-info-value'>
               {infoItem.value}
             </div>
@@ -279,19 +334,6 @@ const PackageSummaryCard = ({
           ))}
         </div>
       ) : null}
-      <div className='router-current-package-model-list'>
-        {(Array.isArray(item?.supported_models) ? item.supported_models : []).length === 0 ? (
-          <span className='router-text-muted'>
-            {t('user.detail.package_supported_models_empty')}
-          </span>
-        ) : (
-          item.supported_models.map((modelName) => (
-            <AppTag key={modelName} className='router-tag'>
-              {modelName}
-            </AppTag>
-          ))
-        )}
-      </div>
     </div>
   );
 };
@@ -314,6 +356,14 @@ const CurrentPackagePage = () => {
     packageId: '',
     preview: null,
   });
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const renderIntegerAmount = useCallback(
     (chargeAmount) =>
@@ -325,25 +375,123 @@ const CurrentPackagePage = () => {
     [displayCurrency, displayCurrencyIndex],
   );
 
-  const loadPackageStatus = useCallback(async () => {
-    setLoading(true);
+  const refreshPackageOrderStatus = useCallback(async (orderID) => {
+    const normalizedOrderID = String(orderID || '').trim();
+    if (normalizedOrderID === '') {
+      return null;
+    }
     try {
+      const res = await API.post(
+        `/api/v1/public/user/topup/orders/${encodeURIComponent(normalizedOrderID)}/refresh`,
+      );
+      const { success, data } = res?.data || {};
+      if (!success) {
+        return null;
+      }
+      return data || null;
+    } catch (error) {
+      return null;
+    }
+  }, []);
+
+  const pollPackageOrderUntilFinal = useCallback(
+    async (orderID, { attempts = PACKAGE_ORDER_POLL_ATTEMPTS } = {}) => {
+      const normalizedOrderID = String(orderID || '').trim();
+      if (normalizedOrderID === '') {
+        return null;
+      }
+      let latestOrder = null;
+      for (let index = 0; index < attempts; index += 1) {
+        if (!mountedRef.current) {
+          return latestOrder;
+        }
+        if (index > 0) {
+          await sleep(PACKAGE_ORDER_POLL_INTERVAL_MS);
+        }
+        latestOrder = await refreshPackageOrderStatus(normalizedOrderID);
+        const status = normalizeTopupOrderStatus(latestOrder?.status);
+        if (PACKAGE_ORDER_FINAL_STATUSES.has(status)) {
+          return latestOrder;
+        }
+      }
+      return latestOrder;
+    },
+    [refreshPackageOrderStatus],
+  );
+
+  const reconcilePendingPackageOrders = useCallback(async () => {
+    try {
+      const res = await API.get('/api/v1/public/user/topup/orders', {
+        params: {
+          page: 1,
+          page_size: 20,
+          business_type: 'package_purchase',
+        },
+      });
+      const { success, data } = res?.data || {};
+      if (!success) {
+        return false;
+      }
+      const orders = Array.isArray(data?.items) ? data.items : [];
+      const pendingOrders = orders.filter((order) =>
+        PACKAGE_ORDER_PENDING_STATUSES.has(
+          normalizeTopupOrderStatus(order?.status),
+        ),
+      );
+      if (pendingOrders.length === 0) {
+        return false;
+      }
+      const refreshedOrders = await Promise.all(
+        pendingOrders.map((order) => refreshPackageOrderStatus(order?.id)),
+      );
+      const unresolvedOrders = refreshedOrders
+        .map((order, index) => order || pendingOrders[index])
+        .filter((order) =>
+          PACKAGE_ORDER_PENDING_STATUSES.has(
+            normalizeTopupOrderStatus(order?.status),
+          ),
+        );
+      await Promise.all(
+        unresolvedOrders.map((order) =>
+          pollPackageOrderUntilFinal(order?.id, { attempts: 3 }),
+        ),
+      );
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }, [pollPackageOrderUntilFinal, refreshPackageOrderStatus]);
+
+  const loadPackageStatus = useCallback(async ({ reconcileOrders = false } = {}) => {
+    if (mountedRef.current) {
+      setLoading(true);
+    }
+    try {
+      if (reconcileOrders) {
+        await reconcilePendingPackageOrders();
+      }
       const res = await API.get('/api/v1/public/user/package/subscription');
       const { success, message, data } = res?.data || {};
       if (!success) {
         throw new Error(message || t('user.messages.active_package_load_failed'));
       }
       const normalizedPackage = normalizeActivePackage(data);
-      setActivePackage(normalizedPackage);
+      if (mountedRef.current) {
+        setActivePackage(normalizedPackage);
+      }
     } catch (error) {
-      showError(error?.message || t('user.messages.active_package_load_failed'));
+      if (mountedRef.current) {
+        showError(error?.message || t('user.messages.active_package_load_failed'));
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
-  }, [t]);
+  }, [reconcilePendingPackageOrders, t]);
 
   useEffect(() => {
-    loadPackageStatus().then();
+    loadPackageStatus({ reconcileOrders: true }).then();
   }, [loadPackageStatus]);
 
   const activePackages = activePackage.active_packages || [];
@@ -409,11 +557,30 @@ const CurrentPackagePage = () => {
       });
       if (created) {
         closePackagePreviewModal();
+        const orderID = String(created?.id || '').trim();
+        const orderStatus = normalizeTopupOrderStatus(created?.status);
+        if (orderID !== '' && PACKAGE_ORDER_PENDING_STATUSES.has(orderStatus)) {
+          pollPackageOrderUntilFinal(orderID).then(() => {
+            if (mountedRef.current) {
+              loadPackageStatus().then();
+            }
+          });
+        } else {
+          await loadPackageStatus();
+        }
       }
     } finally {
       setSubmittingPackagePurchase(false);
     }
-  }, [closePackagePreviewModal, createTopupOrder, packagePreviewState.packageId, packagePreviewState?.preview?.operation_type, t]);
+  }, [
+    closePackagePreviewModal,
+    createTopupOrder,
+    loadPackageStatus,
+    packagePreviewState.packageId,
+    packagePreviewState?.preview?.operation_type,
+    pollPackageOrderUntilFinal,
+    t,
+  ]);
 
   const handleRenew = useCallback(async (item) => {
     const packageID = (item?.package_id || '').toString().trim();

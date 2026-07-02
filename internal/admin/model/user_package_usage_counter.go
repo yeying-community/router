@@ -116,6 +116,8 @@ func requestPackagePeriodKey(periodType string, now time.Time, timezone string) 
 	switch normalizeServicePackagePeriodType(periodType, ServicePackageQuotaMetricRequestCount) {
 	case ServicePackagePeriodDaily:
 		return businessDateByTimezone(now, timezone)
+	case ServicePackagePeriodWeekly:
+		return businessWeekByTimezone(now, timezone)
 	case ServicePackagePeriodMonthly:
 		return businessMonthByTimezone(now, timezone)
 	case ServicePackagePeriodPackageTotal:

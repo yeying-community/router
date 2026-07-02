@@ -1318,6 +1318,7 @@ func FulfillTopupOrderWithDB(db *gorm.DB, orderID string) (TopupOrder, bool, err
 		return TopupOrder{}, false, err
 	}
 	if fulfilledNow {
+		RefreshUserGroupCaches(result.UserID)
 		logTopupOrderLifecycle("fulfilled", result, previousStatus, result.StatusMessage)
 	}
 	return result, fulfilledNow, nil

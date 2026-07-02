@@ -246,7 +246,7 @@ const TopUpWorkspaceProvider = ({ children }) => {
             loadBalanceLots({ silent: true }),
           ]);
           showSuccess(t('topup.records.order_paid'));
-          return true;
+          return data || true;
         }
         const redirectURL = data?.redirect_url;
         if (!redirectURL) {
@@ -258,7 +258,7 @@ const TopUpWorkspaceProvider = ({ children }) => {
         }
         popup.location.href = redirectURL;
         popup.focus();
-        return true;
+        return data || true;
       } catch (error) {
         if (!popup.closed) {
           popup.close();

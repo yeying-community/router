@@ -193,7 +193,6 @@ const EditToken = () => {
     hasFilteredModels &&
     selectedFilteredModelCount > 0 &&
     selectedFilteredModelCount < filteredModelValues.length;
-  const explicitModelsSelected = inputs.models.length > 0;
   const selectedModelCount = unrestrictedModels ? allModelValues.length : inputs.models.length;
   const selectedModelSummary = t('token.edit.models_selected_summary', {
     selected: selectedModelCount,
@@ -623,11 +622,7 @@ const EditToken = () => {
     setUnrestrictedModels(normalizedChecked);
     setInputs((prev) => ({
       ...prev,
-      models: normalizedChecked
-        ? allModelValues
-        : explicitModelsSelected
-          ? prev.models
-          : allModelValues,
+      models: normalizedChecked ? allModelValues : [],
     }));
   };
 

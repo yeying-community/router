@@ -14,8 +14,8 @@ import (
 
 	"github.com/yeying-community/router/common/client"
 	"github.com/yeying-community/router/common/config"
-	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/admin/model"
+	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	relaymeta "github.com/yeying-community/router/internal/relay/meta"
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
 	"github.com/yeying-community/router/internal/relay/relaymode"
@@ -131,7 +131,7 @@ func TestApplyEndpointRequestPolicyConvertsOpenAIImageURLToDataURL(t *testing.T)
 	meta := &relaymeta.Meta{
 		ActualModelName:     "gpt-4.1",
 		ChannelId:           "channel-1",
-			UpstreamRequestPath: model.ChannelModelEndpointChat,
+		UpstreamRequestPath: model.ChannelModelEndpointChat,
 		EndpointPolicy: &model.ChannelModelEndpointPolicy{
 			ID:            "policy-openai",
 			Enabled:       true,

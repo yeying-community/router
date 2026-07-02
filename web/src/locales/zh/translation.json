@@ -1494,6 +1494,7 @@
     },
     "period_type": {
       "daily": "每日",
+      "weekly": "每周",
       "monthly": "每月",
       "package_total": "套餐总量"
     },
@@ -1650,6 +1651,7 @@
     "messages": {
       "copy_success": "已复制到剪贴板！",
       "copy_failed": "无法复制到剪贴板，请手动复制。",
+      "chat_open_failed": "无法打开 Chat，请检查聊天页面链接或令牌是否完整。",
       "operation_success": "操作成功完成！"
     }
   },
@@ -3391,6 +3393,7 @@
   "auth": {
     "login": {
       "title": "用户登录",
+      "banner_text": "帮助您更好地管理、分发、路由和使用各大模型厂商接口服务",
       "username": "用户名 / 邮箱地址",
       "password": "密码",
       "login": "登录",
@@ -3404,7 +3407,11 @@
       "wallet_button": "使用钱包登录",
       "wallet_action": "钱包登陆",
       "wallet_pending": "请在钱包中确认签名",
+      "wallet_pending_retry": "请在钱包中完成签名，或重新发起登录",
       "wallet_address_placeholder": "选择钱包地址",
+      "wallet_rejected": "用户拒绝了请求",
+      "wallet_failed": "钱包登录失败",
+      "user_fetch_failed": "未获取到用户信息",
       "password_button": "使用账密登录",
       "password_action": "密码登陆",
       "password_disabled": "用户名密码登录未开启",

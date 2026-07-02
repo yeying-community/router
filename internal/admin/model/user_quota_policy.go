@@ -39,6 +39,16 @@ func businessMonthByTimezone(now time.Time, timezone string) string {
 	return now.In(location).Format("2006-01")
 }
 
+func businessWeekByTimezone(now time.Time, timezone string) string {
+	locationName := normalizeUserQuotaResetTimezone(timezone)
+	location, err := time.LoadLocation(locationName)
+	if err != nil {
+		location = time.FixedZone(DefaultGroupQuotaResetTimezone, 8*3600)
+	}
+	year, week := now.In(location).ISOWeek()
+	return fmt.Sprintf("%04d-W%02d", year, week)
+}
+
 func normalizeUserQuotaMonth(rawMonth string, timezone string) (string, error) {
 	normalized := strings.TrimSpace(rawMonth)
 	if normalized == "" {

@@ -28,6 +28,14 @@ type ProviderModelParameterSpecification struct {
 type ProviderModelConstraintSpecification struct {
 	MinPixels           *int     `json:"min_pixels,omitempty"`
 	MaxPixels           *int     `json:"max_pixels,omitempty"`
+	MaxImages           *int     `json:"max_images,omitempty"`
+	MaxPayloadSizeMB    *int     `json:"max_payload_size_mb,omitempty"`
+	MaxImageSizeMB      *int     `json:"max_image_size_mb,omitempty"`
+	MaxWidth            *int     `json:"max_width,omitempty"`
+	MaxHeight           *int     `json:"max_height,omitempty"`
+	MaxLongEdge         *int     `json:"max_long_edge,omitempty"`
+	MaxVideoSeconds     *int     `json:"max_video_seconds,omitempty"`
+	MaxVideoSizeMB      *int     `json:"max_video_size_mb,omitempty"`
 	MinEdge             *int     `json:"min_edge,omitempty"`
 	MaxEdge             *int     `json:"max_edge,omitempty"`
 	EdgeMultiple        *int     `json:"edge_multiple,omitempty"`
@@ -92,6 +100,38 @@ func NormalizeProviderModelSpecification(spec *ProviderModelSpecification) *Prov
 					value := *endpointSpec.Constraints.MaxPixels
 					constraints.MaxPixels = &value
 				}
+				if endpointSpec.Constraints.MaxImages != nil {
+					value := *endpointSpec.Constraints.MaxImages
+					constraints.MaxImages = &value
+				}
+				if endpointSpec.Constraints.MaxPayloadSizeMB != nil {
+					value := *endpointSpec.Constraints.MaxPayloadSizeMB
+					constraints.MaxPayloadSizeMB = &value
+				}
+				if endpointSpec.Constraints.MaxImageSizeMB != nil {
+					value := *endpointSpec.Constraints.MaxImageSizeMB
+					constraints.MaxImageSizeMB = &value
+				}
+				if endpointSpec.Constraints.MaxWidth != nil {
+					value := *endpointSpec.Constraints.MaxWidth
+					constraints.MaxWidth = &value
+				}
+				if endpointSpec.Constraints.MaxHeight != nil {
+					value := *endpointSpec.Constraints.MaxHeight
+					constraints.MaxHeight = &value
+				}
+				if endpointSpec.Constraints.MaxLongEdge != nil {
+					value := *endpointSpec.Constraints.MaxLongEdge
+					constraints.MaxLongEdge = &value
+				}
+				if endpointSpec.Constraints.MaxVideoSeconds != nil {
+					value := *endpointSpec.Constraints.MaxVideoSeconds
+					constraints.MaxVideoSeconds = &value
+				}
+				if endpointSpec.Constraints.MaxVideoSizeMB != nil {
+					value := *endpointSpec.Constraints.MaxVideoSizeMB
+					constraints.MaxVideoSizeMB = &value
+				}
 				if endpointSpec.Constraints.MinEdge != nil {
 					value := *endpointSpec.Constraints.MinEdge
 					constraints.MinEdge = &value
@@ -106,6 +146,14 @@ func NormalizeProviderModelSpecification(spec *ProviderModelSpecification) *Prov
 				}
 				if constraints.MinPixels != nil ||
 					constraints.MaxPixels != nil ||
+					constraints.MaxImages != nil ||
+					constraints.MaxPayloadSizeMB != nil ||
+					constraints.MaxImageSizeMB != nil ||
+					constraints.MaxWidth != nil ||
+					constraints.MaxHeight != nil ||
+					constraints.MaxLongEdge != nil ||
+					constraints.MaxVideoSeconds != nil ||
+					constraints.MaxVideoSizeMB != nil ||
 					constraints.MinEdge != nil ||
 					constraints.MaxEdge != nil ||
 					constraints.EdgeMultiple != nil ||

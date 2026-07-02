@@ -25,6 +25,14 @@ import {
 } from '../router-ui';
 import '../index.css';
 
+const formatHeaderWalletAddress = (value) => {
+  const normalized = String(value || '').trim();
+  if (normalized.length <= 15) {
+    return normalized;
+  }
+  return `${normalized.slice(0, 6)}...${normalized.slice(-6)}`;
+};
+
 const Header = ({ workspace = 'user', hideNavButtons = false }) => {
   const { t, i18n } = useTranslation();
   const [userState, userDispatch] = useContext(UserContext);
@@ -114,6 +122,9 @@ const Header = ({ workspace = 'user', hideNavButtons = false }) => {
   const passwordRegisterEnabled =
     status?.register_enabled !== false &&
     status?.password_register_enabled !== false;
+  const userWalletAddress = String(userState?.user?.wallet_address || '').trim();
+  const userDisplayName =
+    formatHeaderWalletAddress(userWalletAddress) || userState?.user?.username || '';
 
   const desktopNavItems = useMemo(() => {
     if (currentWorkspace === 'admin') {
@@ -429,8 +440,11 @@ const Header = ({ workspace = 'user', hideNavButtons = false }) => {
                   },
                 ]}
               >
-                <span className='router-header-toolbar-chip'>
-                  {userState.user.username}
+                <span
+                  className='router-header-toolbar-chip'
+                  title={userWalletAddress || userState.user.username}
+                >
+                  {userDisplayName}
                 </span>
               </AppMenuDropdown>
             </div>

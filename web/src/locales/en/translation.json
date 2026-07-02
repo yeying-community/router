@@ -1494,6 +1494,7 @@
     },
     "period_type": {
       "daily": "Daily",
+      "weekly": "Weekly",
       "monthly": "Monthly",
       "package_total": "Package Total"
     },
@@ -1650,6 +1651,7 @@
     "messages": {
       "copy_success": "Copied to clipboard!",
       "copy_failed": "Unable to copy to clipboard, please copy manually.",
+      "chat_open_failed": "Unable to open Chat. Check the Chat page link or token value.",
       "operation_success": "Operation completed successfully!"
     }
   },
@@ -3396,6 +3398,7 @@
   "auth": {
     "login": {
       "title": "User Login",
+      "banner_text": "Manage, distribute, route, and use model provider APIs more effectively",
       "username": "Username / Email",
       "password": "Password",
       "login": "Login",
@@ -3409,7 +3412,11 @@
       "wallet_button": "Sign in with wallet",
       "wallet_action": "Wallet Login",
       "wallet_pending": "Confirm the signature in your wallet",
+      "wallet_pending_retry": "Complete the wallet signature, or start login again",
       "wallet_address_placeholder": "Select wallet address",
+      "wallet_rejected": "User rejected the request",
+      "wallet_failed": "Wallet login failed",
+      "user_fetch_failed": "Failed to fetch user information",
       "password_button": "Sign in with password",
       "password_action": "Password Login",
       "password_disabled": "Password login is disabled",

@@ -524,8 +524,11 @@ func RefreshUserGroupCaches(userIDs ...string) {
 		if userID == "" {
 			continue
 		}
+		if err := common.RedisDel(fmt.Sprintf("user_effective_group:%s", userID)); err != nil {
+			logger.SysError("Redis delete user effective group error: " + err.Error())
+		}
 		if err := common.RedisDel(fmt.Sprintf("user_group:%s", userID)); err != nil {
-			logger.SysError("Redis delete user group error: " + err.Error())
+			logger.SysError("Redis delete legacy user group error: " + err.Error())
 		}
 	}
 }

@@ -154,7 +154,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-4.1-mini",
@@ -170,7 +224,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-4.1-nano",
@@ -186,7 +294,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-4o",
@@ -202,7 +364,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-4o-mini",
@@ -218,7 +434,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-4o-mini-tts",
@@ -245,7 +515,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5-codex",
@@ -277,7 +601,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5-nano",
@@ -288,12 +666,66 @@
           "/v1/chat/completions",
           "/v1/responses"
         ],
-        "input_price": 0.00005,
+        "input_price": 5e-05,
         "output_price": 0.0004,
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5-pro",
@@ -309,7 +741,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5.1",
@@ -325,7 +811,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5.1-codex",
@@ -373,7 +913,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5.2",
@@ -389,7 +983,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5.2-codex",
@@ -405,7 +1053,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5.3-codex",
@@ -421,7 +1123,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5.4",
@@ -437,7 +1193,63 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5.4-mini",
@@ -453,7 +1265,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5.4-nano",
@@ -469,7 +1335,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5.4-pro",
@@ -485,7 +1405,63 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5.5",
@@ -501,7 +1477,63 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-5.5-pro",
@@ -517,7 +1549,63 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "gpt-audio",
@@ -1196,7 +2284,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "o4-mini",
@@ -1212,7 +2354,61 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
       },
       {
         "model": "sora-2",
@@ -1352,7 +2548,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-haiku-4-5",
@@ -1367,7 +2587,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-haiku-4-5-20251001",
@@ -1382,7 +2626,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-opus-4-1",
@@ -1397,7 +2665,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-opus-4-1-20250805",
@@ -1412,7 +2704,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-opus-4-5",
@@ -1427,7 +2743,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-opus-4-5-20251101",
@@ -1442,7 +2782,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-opus-4-6",
@@ -1457,7 +2821,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-opus-4-6-thinking",
@@ -1472,7 +2860,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-opus-4-7",
@@ -1487,7 +2899,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-opus-4-8",
@@ -1502,7 +2938,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-sonnet-4-5",
@@ -1517,7 +2977,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-sonnet-4-5-20250929",
@@ -1532,7 +3016,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       },
       {
         "model": "claude-sonnet-4-6",
@@ -1547,7 +3055,31 @@
         "price_unit": "per_1k_tokens",
         "currency": "USD",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/messages": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_images": 600,
+                "max_width": 8000,
+                "max_height": 8000,
+                "max_image_size_mb": 10,
+                "max_payload_size_mb": 32
+              }
+            }
+          }
+        }
       }
     ]
   },
@@ -1679,7 +3211,7 @@
           {
             "component": "context_cache",
             "condition": "mode=standard;input_type=text_image_video",
-            "input_price": 0.00003,
+            "input_price": 3e-05,
             "price_unit": "per_1k_tokens",
             "currency": "USD",
             "source": "migration",
@@ -1730,7 +3262,7 @@
           {
             "component": "context_cache",
             "condition": "mode=batch;input_type=text_image_video",
-            "input_price": 0.00003,
+            "input_price": 3e-05,
             "price_unit": "per_1k_tokens",
             "currency": "USD",
             "source": "migration",
@@ -1861,7 +3393,7 @@
           {
             "component": "context_cache",
             "condition": "mode=standard;input_type=text_image_video",
-            "input_price": 0.00001,
+            "input_price": 1e-05,
             "price_unit": "per_1k_tokens",
             "currency": "USD",
             "source": "migration",
@@ -1871,7 +3403,7 @@
           {
             "component": "context_cache",
             "condition": "mode=standard;input_type=audio",
-            "input_price": 0.00003,
+            "input_price": 3e-05,
             "price_unit": "per_1k_tokens",
             "currency": "USD",
             "source": "migration",
@@ -1891,7 +3423,7 @@
           {
             "component": "text",
             "condition": "mode=batch;input_type=text_image_video",
-            "input_price": 0.00005,
+            "input_price": 5e-05,
             "output_price": 0.0002,
             "price_unit": "per_1k_tokens",
             "currency": "USD",
@@ -1912,7 +3444,7 @@
           {
             "component": "context_cache",
             "condition": "mode=batch;input_type=text_image_video",
-            "input_price": 0.00001,
+            "input_price": 1e-05,
             "price_unit": "per_1k_tokens",
             "currency": "USD",
             "source": "migration",
@@ -1922,7 +3454,7 @@
           {
             "component": "context_cache",
             "condition": "mode=batch;input_type=audio",
-            "input_price": 0.00003,
+            "input_price": 3e-05,
             "price_unit": "per_1k_tokens",
             "currency": "USD",
             "source": "migration",
@@ -2376,15 +3908,38 @@
             "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
             "sort_order": 30
           }
-        ]
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        }
       },
       {
         "model": "doubao-seed-1-8-251228",
         "type": "text",
         "tags": [
+          "tool_calling",
           "reasoning",
-          "vision",
-          "tool_calling"
+          "vision"
         ],
         "status": "active",
         "description": "Doubao Seed 1.8 是火山方舟的通用模型，适合文本生成、多模态理解和工具调用。",
@@ -2443,7 +3998,30 @@
             "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
             "sort_order": 40
           }
-        ]
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        }
       },
       {
         "model": "doubao-seed-1.6",
@@ -2675,9 +4253,9 @@
         "model": "doubao-seed-2-0-lite-260428",
         "type": "text",
         "tags": [
+          "tool_calling",
           "reasoning",
-          "vision",
-          "tool_calling"
+          "vision"
         ],
         "status": "active",
         "description": "Doubao Seed 2.0 Lite 是火山方舟的新一代轻量通用模型，支持深度思考、文本生成、多模态理解和工具调用。",
@@ -2725,15 +4303,38 @@
             "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
             "sort_order": 30
           }
-        ]
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        }
       },
       {
         "model": "doubao-seed-2-0-mini-260428",
         "type": "text",
         "tags": [
+          "tool_calling",
           "reasoning",
-          "vision",
-          "tool_calling"
+          "vision"
         ],
         "status": "active",
         "description": "Doubao Seed 2.0 Mini 是火山方舟的新一代低成本通用模型，支持深度思考、文本生成、多模态理解和工具调用。",
@@ -2781,15 +4382,38 @@
             "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
             "sort_order": 30
           }
-        ]
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        }
       },
       {
         "model": "doubao-seed-2-0-pro-260215",
         "type": "text",
         "tags": [
+          "tool_calling",
           "reasoning",
-          "vision",
-          "tool_calling"
+          "vision"
         ],
         "status": "active",
         "description": "Doubao Seed 2.0 Pro 是火山方舟的新一代高能力通用模型，支持深度思考、文本生成、多模态理解和工具调用。",
@@ -2837,7 +4461,30 @@
             "source_url": "https://eps-common-private-online.tos-cn-beijing.volces.com/cloud-doc/eps-doc-center-pdf/%E7%81%AB%E5%B1%B1%E6%96%B9%E8%88%9F_%E6%A8%A1%E5%9E%8B%E4%BB%B7%E6%A0%BC_1781059242.pdf",
             "sort_order": 30
           }
-        ]
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        }
       },
       {
         "model": "doubao-seed-character-251128",
@@ -3827,10 +5474,11 @@
         "type": "text",
         "tags": [
           "vision",
-          "reasoning"
+          "reasoning",
+          "tool_calling"
         ],
         "status": "active",
-        "description": "Qwen3.7-Plus 是 Qwen 多模态通用模型，支持文本生成、视觉理解、非思考和思考模式。",
+        "description": "Qwen3.7-Plus 是 Qwen 多模态通用模型，支持文本生成、视觉理解、视频理解、Function Calling、内置工具、非思考和思考模式。",
         "supported_endpoints": [
           "/v1/chat/completions",
           "/v1/responses"
@@ -3886,13 +5534,48 @@
             "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
             "sort_order": 40
           }
-        ]
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_pixels": 16000000,
+                "max_video_seconds": 7200,
+                "max_video_size_mb": 2048
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_pixels": 16000000,
+                "max_video_seconds": 7200,
+                "max_video_size_mb": 2048
+              }
+            }
+          }
+        }
       },
       {
         "model": "qwen3.6-plus",
         "type": "text",
         "status": "active",
-        "description": "Qwen3.6-Plus 是均衡型通用模型，适合多数生产场景。",
+        "description": "Qwen3.6-Plus 是均衡型通用模型，适合多数生产场景，支持图像分析、视频理解和 Function Calling。",
         "supported_endpoints": [
           "/v1/chat/completions",
           "/v1/responses"
@@ -3902,13 +5585,52 @@
         "price_unit": "per_1k_tokens",
         "currency": "CNY",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision",
+          "tool_calling"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_pixels": 16000000,
+                "max_video_seconds": 7200,
+                "max_video_size_mb": 2048
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_pixels": 16000000,
+                "max_video_seconds": 7200,
+                "max_video_size_mb": 2048
+              }
+            }
+          }
+        }
       },
       {
         "model": "qwen3.6-flash",
         "type": "text",
         "status": "active",
-        "description": "Qwen3.6-Flash 是低延迟低成本通用模型。",
+        "description": "Qwen3.6-Flash 是低延迟低成本通用模型，支持图像分析、视频理解和 Function Calling。",
         "supported_endpoints": [
           "/v1/chat/completions",
           "/v1/responses"
@@ -3918,13 +5640,52 @@
         "price_unit": "per_1k_tokens",
         "currency": "CNY",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision",
+          "tool_calling"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_pixels": 16000000,
+                "max_video_seconds": 7200,
+                "max_video_size_mb": 2048
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_pixels": 16000000,
+                "max_video_seconds": 7200,
+                "max_video_size_mb": 2048
+              }
+            }
+          }
+        }
       },
       {
         "model": "qwen3.5-plus",
         "type": "text",
         "status": "active",
-        "description": "Qwen3.5-Plus 是上一代均衡型通用模型。",
+        "description": "Qwen3.5-Plus 是上一代均衡型通用模型，支持图像分析、视频理解和 Function Calling。",
         "supported_endpoints": [
           "/v1/chat/completions",
           "/v1/responses"
@@ -3934,13 +5695,52 @@
         "price_unit": "per_1k_tokens",
         "currency": "CNY",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision",
+          "tool_calling"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_pixels": 16000000,
+                "max_video_seconds": 7200,
+                "max_video_size_mb": 2048
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_pixels": 16000000,
+                "max_video_seconds": 7200,
+                "max_video_size_mb": 2048
+              }
+            }
+          }
+        }
       },
       {
         "model": "qwen3.5-flash",
         "type": "text",
         "status": "active",
-        "description": "Qwen3.5-Flash 是上一代低成本通用模型。",
+        "description": "Qwen3.5-Flash 是上一代低成本通用模型，支持图像分析、视频理解和 Function Calling。",
         "supported_endpoints": [
           "/v1/chat/completions",
           "/v1/responses"
@@ -3950,7 +5750,46 @@
         "price_unit": "per_1k_tokens",
         "currency": "CNY",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "tags": [
+          "vision",
+          "tool_calling"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_pixels": 16000000,
+                "max_video_seconds": 7200,
+                "max_video_size_mb": 2048
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "constraints": {
+                "max_pixels": 16000000,
+                "max_video_seconds": 7200,
+                "max_video_size_mb": 2048
+              }
+            }
+          }
+        }
       },
       {
         "model": "qwen3-max",
@@ -4495,7 +6334,7 @@
         "supported_endpoints": [
           "/v1/chat/completions"
         ],
-        "input_price": 0.0000375,
+        "input_price": 3.75e-05,
         "output_price": 0.00015,
         "price_unit": "per_1k_tokens",
         "currency": "USD",
@@ -4713,7 +6552,7 @@
       {
         "model": "glm-4.5v",
         "tags": [
-          "image",
+          "text",
           "vision"
         ],
         "status": "active",
@@ -4750,14 +6589,30 @@
             "sort_order": 2,
             "updated_at": 1700000000
           }
-        ]
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "file",
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        }
       },
       {
         "model": "glm-4.6v",
         "tags": [
-          "image",
-          "reasoning",
+          "text",
           "tool_calling",
+          "reasoning",
           "vision"
         ],
         "status": "active",
@@ -4794,12 +6649,30 @@
             "sort_order": 2,
             "updated_at": 1700000000
           }
-        ]
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "file",
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        }
       },
       {
         "model": "glm-4.6v-flash",
         "tags": [
-          "image",
+          "text",
+          "tool_calling",
+          "reasoning",
           "vision"
         ],
         "status": "active",
@@ -4810,13 +6683,30 @@
         "price_unit": "per_1k_tokens",
         "currency": "CNY",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "file",
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        }
       },
       {
         "model": "glm-4.6v-flashx",
         "tags": [
-          "image",
+          "text",
           "tool_calling",
+          "reasoning",
           "vision"
         ],
         "status": "active",
@@ -4853,7 +6743,23 @@
             "sort_order": 2,
             "updated_at": 1700000000
           }
-        ]
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "file",
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        }
       },
       {
         "model": "glm-4.7",
@@ -4945,7 +6851,7 @@
       {
         "model": "glm-4v-plus-0111",
         "tags": [
-          "image",
+          "text",
           "vision"
         ],
         "status": "active",
@@ -4957,7 +6863,21 @@
         "price_unit": "per_1k_tokens",
         "currency": "CNY",
         "source": "migration",
-        "updated_at": 1700000000
+        "updated_at": 1700000000,
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        }
       },
       {
         "model": "glm-5",
@@ -5136,9 +7056,9 @@
       {
         "model": "glm-5v-turbo",
         "tags": [
-          "image",
-          "reasoning",
+          "text",
           "tool_calling",
+          "reasoning",
           "vision"
         ],
         "status": "active",
@@ -5175,7 +7095,23 @@
             "sort_order": 2,
             "updated_at": 1700000000
           }
-        ]
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "file",
+                "image",
+                "text",
+                "video"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            }
+          }
+        }
       },
       {
         "model": "glm-image",

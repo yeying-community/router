@@ -2857,6 +2857,10 @@ body,
     margin-bottom: 0;
 }
 
+.router-package-scope-hint {
+    margin-top: 8px;
+}
+
 .router-form-hint-section {
     margin-top: -6px;
     margin-bottom: 12px;
@@ -3088,6 +3092,10 @@ body,
     border-radius: 12px;
     padding: 0.85rem 1rem;
     background: #ffffff;
+}
+
+.router-current-package-info-card-wide {
+    grid-column: 1 / -1;
 }
 
 .router-current-package-info-label {

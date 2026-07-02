@@ -301,7 +301,6 @@ func TestBuildProviderMigrationSeeds_TokenBasedImageModelsUseResponsesEndpoint(t
 		"gpt-image-2":              "openai",
 		"ernie-4.5-vl-32k-preview": "baidu",
 		"step-1o-turbo-vision":     "stepfun",
-		"glm-4v-plus-0111":         "zhipu",
 		"pixtral-large-latest":     "mistral",
 	}
 
@@ -327,10 +326,6 @@ func TestBuildProviderMigrationSeeds_TokenBasedImageModelsUseResponsesEndpoint(t
 						t.Fatalf("%s supported_endpoints=%#v, missing %s", detail.Model, detail.SupportedEndpoints, endpoint)
 					}
 				}
-			} else if seed.Provider == "zhipu" {
-				if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointChat {
-					t.Fatalf("%s supported_endpoints=%#v, want [%s]", detail.Model, detail.SupportedEndpoints, ChannelModelEndpointChat)
-				}
 			} else if len(detail.SupportedEndpoints) != 1 || detail.SupportedEndpoints[0] != ChannelModelEndpointResponses {
 				t.Fatalf("%s supported_endpoints=%#v, want [%s]", detail.Model, detail.SupportedEndpoints, ChannelModelEndpointResponses)
 			}
@@ -353,7 +348,7 @@ func TestBuildProviderMigrationSeeds_QwenUsesExplicitEndpointTruthTable(t *testi
 		found := map[string]bool{}
 		for _, detail := range seed.ModelDetails {
 			switch detail.Model {
-			case "qwen3.7-max", "qwen3.6-plus", "qwen3.6-flash", "qwen3.5-plus", "qwen3.5-flash", "qwen3-max", "qwen3-max-2026-01-23", "qwen3-coder-next", "qwen3-coder-plus":
+			case "qwen3.7-max", "qwen3.7-plus", "qwen3.6-plus", "qwen3.6-flash", "qwen3.5-plus", "qwen3.5-flash", "qwen3-max", "qwen3-max-2026-01-23", "qwen3-coder-next", "qwen3-coder-plus":
 				if len(detail.SupportedEndpoints) != 2 || detail.SupportedEndpoints[0] != ChannelModelEndpointChat || detail.SupportedEndpoints[1] != ChannelModelEndpointResponses {
 					t.Fatalf("%s supported_endpoints=%#v, want [chat responses]", detail.Model, detail.SupportedEndpoints)
 				}
@@ -367,6 +362,7 @@ func TestBuildProviderMigrationSeeds_QwenUsesExplicitEndpointTruthTable(t *testi
 		}
 		for _, modelName := range []string{
 			"qwen3.7-max",
+			"qwen3.7-plus",
 			"qwen3.6-plus",
 			"qwen3.6-flash",
 			"qwen3.5-plus",
@@ -385,6 +381,259 @@ func TestBuildProviderMigrationSeeds_QwenUsesExplicitEndpointTruthTable(t *testi
 		return
 	}
 	t.Fatalf("expected qwen provider to exist")
+}
+
+func TestBuildProviderMigrationSeeds_QwenVisionModelsExposeOfficialVisionSpecification(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	expectedModels := map[string][]string{
+		"qwen3.7-plus":  {ProviderModelTagVision, ProviderModelTagReasoning, ProviderModelTagToolCalling},
+		"qwen3.6-plus":  {ProviderModelTagVision, ProviderModelTagToolCalling},
+		"qwen3.6-flash": {ProviderModelTagVision, ProviderModelTagToolCalling},
+		"qwen3.5-plus":  {ProviderModelTagVision, ProviderModelTagToolCalling},
+		"qwen3.5-flash": {ProviderModelTagVision, ProviderModelTagToolCalling},
+	}
+
+	for _, seed := range seeds {
+		if seed.Provider != "qwen" {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			wantTags, ok := expectedModels[detail.Model]
+			if !ok {
+				continue
+			}
+			for _, tag := range wantTags {
+				if !providerModelTagsContain(detail.Tags, tag) {
+					t.Fatalf("%s tags=%#v, missing %s", detail.Model, detail.Tags, tag)
+				}
+			}
+			if detail.Specification == nil {
+				t.Fatalf("%s specification should not be nil", detail.Model)
+			}
+			for _, endpoint := range []string{ChannelModelEndpointChat, ChannelModelEndpointResponses} {
+				spec, ok := detail.Specification.Endpoints[endpoint]
+				if !ok {
+					t.Fatalf("%s specification endpoints=%#v, missing %s", detail.Model, detail.Specification.Endpoints, endpoint)
+				}
+				for _, modality := range []string{"image", "text", "video"} {
+					if !slices.Contains(spec.InputModalities, modality) {
+						t.Fatalf("%s %s input_modalities=%#v, missing %s", detail.Model, endpoint, spec.InputModalities, modality)
+					}
+				}
+				if !slices.Contains(spec.OutputModalities, "text") {
+					t.Fatalf("%s %s output_modalities=%#v, missing text", detail.Model, endpoint, spec.OutputModalities)
+				}
+				if spec.Constraints == nil {
+					t.Fatalf("%s %s constraints should not be nil", detail.Model, endpoint)
+				}
+				if spec.Constraints.MaxPixels == nil || *spec.Constraints.MaxPixels != 16000000 {
+					t.Fatalf("%s %s max_pixels=%v, want 16000000", detail.Model, endpoint, spec.Constraints)
+				}
+				if spec.Constraints.MaxVideoSeconds == nil || *spec.Constraints.MaxVideoSeconds != 7200 {
+					t.Fatalf("%s %s max_video_seconds=%v, want 7200", detail.Model, endpoint, spec.Constraints)
+				}
+				if spec.Constraints.MaxVideoSizeMB == nil || *spec.Constraints.MaxVideoSizeMB != 2048 {
+					t.Fatalf("%s %s max_video_size_mb=%v, want 2048", detail.Model, endpoint, spec.Constraints)
+				}
+			}
+			delete(expectedModels, detail.Model)
+		}
+		for modelName := range expectedModels {
+			t.Fatalf("expected qwen seed to include %s", modelName)
+		}
+		return
+	}
+	t.Fatalf("expected qwen provider to exist")
+}
+
+func TestBuildProviderMigrationSeeds_OfficialVisionSpecifications(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	seen := map[string]bool{}
+	expected := map[string]struct {
+		provider      string
+		endpoints     []string
+		input         []string
+		maxImages     int
+		maxPayloadMB  int
+		maxImageMB    int
+		maxWidth      int
+		maxHeight     int
+		requireDetail bool
+	}{
+		"openai/gpt-5.5": {
+			provider:      "openai",
+			endpoints:     []string{ChannelModelEndpointChat, ChannelModelEndpointResponses},
+			input:         []string{"image", "text"},
+			maxImages:     1500,
+			maxPayloadMB:  512,
+			requireDetail: true,
+		},
+		"openai/gpt-4.1": {
+			provider:      "openai",
+			endpoints:     []string{ChannelModelEndpointChat, ChannelModelEndpointResponses},
+			input:         []string{"image", "text"},
+			maxImages:     1500,
+			maxPayloadMB:  512,
+			requireDetail: true,
+		},
+		"anthropic/claude-opus-4-8": {
+			provider:     "anthropic",
+			endpoints:    []string{ChannelModelEndpointMessages},
+			input:        []string{"image", "text"},
+			maxImages:    600,
+			maxPayloadMB: 32,
+			maxImageMB:   10,
+			maxWidth:     8000,
+			maxHeight:    8000,
+		},
+		"zhipu/glm-5v-turbo": {
+			provider:  "zhipu",
+			endpoints: []string{ChannelModelEndpointChat},
+			input:     []string{"file", "image", "text", "video"},
+		},
+		"zhipu/glm-4.6v": {
+			provider:  "zhipu",
+			endpoints: []string{ChannelModelEndpointChat},
+			input:     []string{"file", "image", "text", "video"},
+		},
+		"volcengine/doubao-seed-2-0-pro-260215": {
+			provider:  "volcengine",
+			endpoints: []string{ChannelModelEndpointChat, ChannelModelEndpointResponses},
+			input:     []string{"image", "text"},
+		},
+	}
+
+	for _, seed := range seeds {
+		for _, detail := range seed.ModelDetails {
+			key := seed.Provider + "/" + detail.Model
+			want, ok := expected[key]
+			if !ok {
+				continue
+			}
+			if detail.Type != ProviderModelTypeText {
+				t.Fatalf("%s type=%q, want text", key, detail.Type)
+			}
+			if !providerModelTagsContain(detail.Tags, ProviderModelTagVision) {
+				t.Fatalf("%s tags=%#v, missing vision", key, detail.Tags)
+			}
+			if detail.Specification == nil {
+				t.Fatalf("%s specification should not be nil", key)
+			}
+			for _, endpoint := range want.endpoints {
+				spec, ok := detail.Specification.Endpoints[endpoint]
+				if !ok {
+					t.Fatalf("%s specification endpoints=%#v, missing %s", key, detail.Specification.Endpoints, endpoint)
+				}
+				for _, modality := range want.input {
+					if !slices.Contains(spec.InputModalities, modality) {
+						t.Fatalf("%s %s input_modalities=%#v, missing %s", key, endpoint, spec.InputModalities, modality)
+					}
+				}
+				if !slices.Contains(spec.OutputModalities, "text") {
+					t.Fatalf("%s %s output_modalities=%#v, missing text", key, endpoint, spec.OutputModalities)
+				}
+				if want.requireDetail {
+					parameter, ok := spec.Parameters["detail"]
+					if !ok || len(parameter.AllowedValues) < 3 {
+						t.Fatalf("%s %s detail parameter=%#v, want official detail enum", key, endpoint, parameter)
+					}
+				}
+				if want.maxImages > 0 {
+					if spec.Constraints == nil || spec.Constraints.MaxImages == nil || *spec.Constraints.MaxImages != want.maxImages {
+						t.Fatalf("%s %s max_images=%v, want %d", key, endpoint, spec.Constraints, want.maxImages)
+					}
+				}
+				if want.maxPayloadMB > 0 {
+					if spec.Constraints == nil || spec.Constraints.MaxPayloadSizeMB == nil || *spec.Constraints.MaxPayloadSizeMB != want.maxPayloadMB {
+						t.Fatalf("%s %s max_payload_size_mb=%v, want %d", key, endpoint, spec.Constraints, want.maxPayloadMB)
+					}
+				}
+				if want.maxImageMB > 0 {
+					if spec.Constraints == nil || spec.Constraints.MaxImageSizeMB == nil || *spec.Constraints.MaxImageSizeMB != want.maxImageMB {
+						t.Fatalf("%s %s max_image_size_mb=%v, want %d", key, endpoint, spec.Constraints, want.maxImageMB)
+					}
+				}
+				if want.maxWidth > 0 {
+					if spec.Constraints == nil || spec.Constraints.MaxWidth == nil || *spec.Constraints.MaxWidth != want.maxWidth {
+						t.Fatalf("%s %s max_width=%v, want %d", key, endpoint, spec.Constraints, want.maxWidth)
+					}
+				}
+				if want.maxHeight > 0 {
+					if spec.Constraints == nil || spec.Constraints.MaxHeight == nil || *spec.Constraints.MaxHeight != want.maxHeight {
+						t.Fatalf("%s %s max_height=%v, want %d", key, endpoint, spec.Constraints, want.maxHeight)
+					}
+				}
+			}
+			seen[key] = true
+			if want.provider != seed.Provider {
+				t.Fatalf("%s provider=%q, want %q", key, seed.Provider, want.provider)
+			}
+		}
+	}
+	for key := range expected {
+		if !seen[key] {
+			t.Fatalf("expected provider migration seed to include vision specification for %s", key)
+		}
+	}
+}
+
+func TestBuildProviderMigrationSeeds_ZhipuVisionChatModelsAreTextModels(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	expected := map[string]bool{
+		"glm-4.5v":         false,
+		"glm-4.6v":         false,
+		"glm-4.6v-flash":   false,
+		"glm-4.6v-flashx":  false,
+		"glm-4v-plus-0111": false,
+		"glm-5v-turbo":     false,
+	}
+	for _, seed := range seeds {
+		if seed.Provider != "zhipu" {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			if _, ok := expected[detail.Model]; !ok {
+				continue
+			}
+			if detail.Type != ProviderModelTypeText {
+				t.Fatalf("%s type=%q, want text", detail.Model, detail.Type)
+			}
+			if providerModelTagsContain(detail.Tags, ProviderModelTagImage) {
+				t.Fatalf("%s tags=%#v should not include image", detail.Model, detail.Tags)
+			}
+			if !providerModelTagsContain(detail.Tags, ProviderModelTagVision) {
+				t.Fatalf("%s tags=%#v, missing vision", detail.Model, detail.Tags)
+			}
+			expected[detail.Model] = true
+		}
+		for modelName, found := range expected {
+			if !found {
+				t.Fatalf("expected zhipu seed to include %s", modelName)
+			}
+		}
+		return
+	}
+	t.Fatalf("expected zhipu provider to exist")
+}
+
+func TestBuildProviderMigrationSeeds_DeepSeekAndMiniMaxTextModelsDoNotInventVision(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	for _, seed := range seeds {
+		if seed.Provider != "deepseek" && seed.Provider != "minimax" {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			if detail.Type != ProviderModelTypeText {
+				continue
+			}
+			if providerModelTagsContain(detail.Tags, ProviderModelTagVision) {
+				t.Fatalf("%s/%s tags=%#v should not include vision without official support", seed.Provider, detail.Model, detail.Tags)
+			}
+			if detail.Specification != nil {
+				t.Fatalf("%s/%s specification=%#v should remain nil without official vision support", seed.Provider, detail.Model, detail.Specification)
+			}
+		}
+	}
 }
 
 func TestBuildProviderMigrationSeeds_QwenUsesConcreteModelVersions(t *testing.T) {
@@ -851,14 +1100,14 @@ func TestBuildProviderMigrationSeeds_OfficialPricingBackfillForPreviouslyUnprice
 			"glm-5.1":          {modelType: ProviderModelTypeText, input: 0.006, output: 0.024, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"glm-5-turbo":      {modelType: ProviderModelTypeText, input: 0.005, output: 0.022, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"glm-5":            {modelType: ProviderModelTypeText, input: 0.004, output: 0.018, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"glm-5v-turbo":     {modelType: ProviderModelTypeImage, input: 0.005, output: 0.022, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"glm-5v-turbo":     {modelType: ProviderModelTypeText, input: 0.005, output: 0.022, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"glm-4.7":          {modelType: ProviderModelTypeText, input: 0.002, output: 0.008, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"glm-4.7-flashx":   {modelType: ProviderModelTypeText, input: 0.0005, output: 0.003, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"glm-4.6v":         {modelType: ProviderModelTypeImage, input: 0.001, output: 0.003, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"glm-4.6v-flashx":  {modelType: ProviderModelTypeImage, input: 0.00015, output: 0.0015, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"glm-4.5v":         {modelType: ProviderModelTypeImage, input: 0.002, output: 0.006, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"glm-4.6v":         {modelType: ProviderModelTypeText, input: 0.001, output: 0.003, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"glm-4.6v-flashx":  {modelType: ProviderModelTypeText, input: 0.00015, output: 0.0015, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"glm-4.5v":         {modelType: ProviderModelTypeText, input: 0.002, output: 0.006, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"glm-4.5-air":      {modelType: ProviderModelTypeText, input: 0.0008, output: 0.002, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
-			"glm-4v-plus-0111": {modelType: ProviderModelTypeImage, input: 0.004, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
+			"glm-4v-plus-0111": {modelType: ProviderModelTypeText, input: 0.004, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"glm-4-voice":      {modelType: ProviderModelTypeAudio, input: 0.08, priceUnit: ProviderPriceUnitPer1KTokens, currency: "CNY"},
 			"cogview-4-250304": {modelType: ProviderModelTypeImage, input: 0.06, priceUnit: ProviderPriceUnitPerImage, currency: "CNY"},
 			"glm-image":        {modelType: ProviderModelTypeImage, input: 0.1, priceUnit: ProviderPriceUnitPerImage, currency: "CNY"},

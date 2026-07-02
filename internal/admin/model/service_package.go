@@ -30,6 +30,7 @@ const (
 
 	ServicePackagePeriodNone         = "none"
 	ServicePackagePeriodDaily        = "daily"
+	ServicePackagePeriodWeekly       = "weekly"
 	ServicePackagePeriodMonthly      = "monthly"
 	ServicePackagePeriodPackageTotal = "package_total"
 )
@@ -153,7 +154,7 @@ func normalizeServicePackageScopeFields(scopeType string, provider string, model
 func normalizeServicePackagePeriodType(value string, quotaMetric string) string {
 	normalized := strings.TrimSpace(strings.ToLower(value))
 	switch normalized {
-	case ServicePackagePeriodNone, ServicePackagePeriodDaily, ServicePackagePeriodMonthly, ServicePackagePeriodPackageTotal:
+	case ServicePackagePeriodNone, ServicePackagePeriodDaily, ServicePackagePeriodWeekly, ServicePackagePeriodMonthly, ServicePackagePeriodPackageTotal:
 		return normalized
 	}
 	if quotaMetric == ServicePackageQuotaMetricRequestCount {

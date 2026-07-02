@@ -245,6 +245,7 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 	if err != nil {
 		return model.RedemptionResult{}, errors.New("兑换失败，" + err.Error())
 	}
+	model.RefreshUserGroupCaches(userId)
 	logContent := fmt.Sprintf("通过兑换码充值 %s", common.LogQuota(redemption.Quota))
 	if redemptionName := strings.TrimSpace(redemption.Name); redemptionName != "" {
 		logContent = fmt.Sprintf("通过兑换码充值（%s）%s", redemptionName, common.LogQuota(redemption.Quota))

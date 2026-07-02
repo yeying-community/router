@@ -574,6 +574,9 @@ func normalizeModelType(raw string, modelName string) string {
 	if isDoubaoVisionChatModel(lower) {
 		return ProviderModelTypeText
 	}
+	if isZhipuVisionChatModel(lower) {
+		return ProviderModelTypeText
+	}
 	switch {
 	case strings.HasPrefix(lower, "veo"),
 		strings.HasPrefix(lower, "sora"),
@@ -626,11 +629,6 @@ func isKnownImageModel(modelName string) bool {
 		"ali-stable-diffusion-v1.5",
 		"wanx-v1",
 		"cogview-3",
-		"glm-4.5v",
-		"glm-4.6v",
-		"glm-4.6v-flash",
-		"glm-4.6v-flashx",
-		"glm-5v-turbo",
 		"step-1x-medium":
 		return true
 	default:

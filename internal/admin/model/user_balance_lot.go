@@ -313,6 +313,9 @@ func ExpireUserBalanceLotsWithDB(db *gorm.DB, userID string, now int64) (int64, 
 	}); err != nil {
 		return 0, err
 	}
+	if expiredTotal > 0 {
+		RefreshUserGroupCaches(userID)
+	}
 	return expiredTotal, nil
 }
 
@@ -409,6 +412,9 @@ func ConsumeUserBalanceLotsForGroupWithDB(db *gorm.DB, userID string, groupID st
 	})
 	if err != nil {
 		return 0, err
+	}
+	if consumed > 0 {
+		RefreshUserGroupCaches(normalizedUserID)
 	}
 	return consumed, nil
 }

@@ -103,6 +103,28 @@ function normalizeTokenCopyValue(key) {
   return raw.toLowerCase().startsWith('sk-') ? raw : `sk-${raw}`;
 }
 
+function buildChatTokenUrl(chatLink, tokenKey) {
+  const rawChatLink = typeof chatLink === 'string' ? chatLink.trim() : '';
+  const rawTokenKey = typeof tokenKey === 'string' ? tokenKey.trim() : '';
+  if (rawChatLink === '' || rawTokenKey === '') {
+    return '';
+  }
+  const params = new URLSearchParams({
+    redirect: '/new-chat',
+    action: 'token',
+    token: rawTokenKey,
+  });
+
+  try {
+    const url = new URL(rawChatLink, window.location.origin);
+    url.hash = `/router?${params.toString()}`;
+    return url.toString();
+  } catch {
+    const base = rawChatLink.replace(/#.*$/, '').replace(/\/+$/, '');
+    return `${base}/#/router?${params.toString()}`;
+  }
+}
+
 const TokensTable = () => {
   const { t } = useTranslation();
   const location = useLocation();
@@ -127,6 +149,7 @@ const TokensTable = () => {
     resolvePreferredDisplayCurrency(buildPublicDisplayCurrencyIndex([]), 'USD'),
   );
   const [statusMutatingTokenId, setStatusMutatingTokenId] = useState('');
+  const chatLink = String(localStorage.getItem('chat_link') || '').trim();
 
   const loadTokens = useCallback(
     async (page) => {
@@ -308,6 +331,16 @@ const TokensTable = () => {
 
   const stopRowClick = (event) => {
     event.stopPropagation();
+  };
+
+  const openTokenInChat = (token) => {
+    const tokenKey = normalizeTokenCopyValue(token?.key);
+    const chatUrl = buildChatTokenUrl(chatLink, tokenKey);
+    if (chatUrl === '') {
+      showError(t('token.messages.chat_open_failed'));
+      return;
+    }
+    window.open(chatUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleTableChange = (_, __, sorter) => {
@@ -577,15 +610,23 @@ const TokensTable = () => {
             title: t('token.table.actions'),
             key: 'actions',
             className: 'router-table-col-actions-icon',
-            width: 56,
+            width: TOKEN_LIST_COLUMN_WIDTHS.actions,
             render: (_, token) => {
               const realIdx = tokens.findIndex((item) => item?.id === token?.id);
+              const tokenKey = normalizeTokenCopyValue(token?.key);
 
               return (
                 <div
                   className='router-action-group router-table-actions-icon-compact'
                   onClick={(event) => stopRowClick(event)}
                 >
+                  <AppTableActionButton
+                    icon='comments'
+                    title={t('token.buttons.chat')}
+                    color='blue'
+                    disabled={tokenKey === '' || chatLink === ''}
+                    onClick={() => openTokenInChat(token)}
+                  />
                   <AppPopconfirm
                     title={`${t('token.buttons.confirm_delete')} ${token.name || ''}`}
                     onConfirm={() => {

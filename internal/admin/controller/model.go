@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sort"
@@ -9,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common/ctxkey"
 	"github.com/yeying-community/router/common/helper"
+	"github.com/yeying-community/router/common/logger"
 	commonutils "github.com/yeying-community/router/common/utils"
 	"github.com/yeying-community/router/internal/admin/model"
 	relay "github.com/yeying-community/router/internal/relay"
@@ -152,6 +154,13 @@ var loadProviderModelTagsFn = model.LoadProviderModelTagMapByModelsWithDB
 var loadProviderModelSpecificationsFn = model.LoadProviderModelSpecificationMapByModelsWithDB
 var loadProviderProtocolModelsFn = loadDashboardProtocolModels
 var loadSatisfiedChannelsFn = model.CacheListSatisfiedChannels
+
+func ginRequestContext(c *gin.Context) context.Context {
+	if c == nil || c.Request == nil {
+		return context.Background()
+	}
+	return c.Request.Context()
+}
 
 const (
 	userModelHealthLevelHealthy  = "healthy"
@@ -770,6 +779,13 @@ func DashboardListModels(c *gin.Context) {
 func ListModels(c *gin.Context) {
 	availableOpenAIModels, _, err := buildOpenAIModelsForRequest(c)
 	if err != nil {
+		logger.Errorf(ginRequestContext(c), "[ListModels] failed user=%s token_id=%s request_model=%s available_models=%q err=%v",
+			c.GetString(ctxkey.Id),
+			c.GetString(ctxkey.TokenId),
+			c.GetString(ctxkey.RequestModel),
+			c.GetString(ctxkey.AvailableModels),
+			err,
+		)
 		errorBody := relaymodel.Error{
 			Message: err.Error(),
 			Type:    "invalid_request_error",
@@ -791,6 +807,13 @@ func RetrieveModel(c *gin.Context) {
 	modelId := c.Param("model")
 	_, modelMap, err := buildOpenAIModelsForRequest(c)
 	if err != nil {
+		logger.Errorf(ginRequestContext(c), "[RetrieveModel] failed user=%s token_id=%s model=%s available_models=%q err=%v",
+			c.GetString(ctxkey.Id),
+			c.GetString(ctxkey.TokenId),
+			modelId,
+			c.GetString(ctxkey.AvailableModels),
+			err,
+		)
 		errorBody := relaymodel.Error{
 			Message: err.Error(),
 			Type:    "invalid_request_error",
