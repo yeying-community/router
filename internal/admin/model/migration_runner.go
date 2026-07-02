@@ -1629,6 +1629,20 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return rebuildGroupModelChannelsForPublishedChannelModelsWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607011130_refresh_qwen_vision_model_specifications",
+			Description: "refresh qwen official vision model tags and input specifications",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderMigrationProvidersWithDB(tx, "qwen")
+			},
+		},
+		{
+			Version:     "202607021030_refresh_provider_vision_model_specifications",
+			Description: "refresh official vision model tags and input specifications for supported providers",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderMigrationProvidersWithDB(tx, "openai", "anthropic", "zhipu", "volcengine")
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
