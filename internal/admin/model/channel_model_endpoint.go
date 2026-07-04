@@ -415,16 +415,19 @@ func resolveProviderEndpointCandidatesForChannelModel(row ChannelModel, provider
 	normalized := row
 	normalizeChannelModelRow(&normalized)
 	provider := NormalizeGroupModelProviderValue(normalized.Provider)
-	if provider == "" || len(providerEndpoints) == 0 {
-		return []string{}
-	}
-	for _, modelName := range NormalizeProviderLookupCandidates(normalized.Model, normalized.UpstreamModel) {
-		key := buildProviderModelEndpointKey(provider, modelName)
-		if endpoints := NormalizeProviderModelSupportedEndpointsForModel(normalized.Type, modelName, providerEndpoints[key]); len(endpoints) > 0 {
-			return endpoints
+	if provider != "" && len(providerEndpoints) > 0 {
+		for _, modelName := range NormalizeProviderLookupCandidates(normalized.Model, normalized.UpstreamModel) {
+			key := buildProviderModelEndpointKey(provider, modelName)
+			if endpoints := NormalizeProviderModelSupportedEndpointsForModel(normalized.Type, modelName, providerEndpoints[key]); len(endpoints) > 0 {
+				return endpoints
+			}
 		}
 	}
-	return []string{}
+	return NormalizeChannelModelDirectEndpoints(
+		normalized.Type,
+		normalized.Endpoints,
+		normalized.Endpoint,
+	)
 }
 
 func loadProviderEndpointCandidatesForChannelModelsWithDB(db *gorm.DB, rows []ChannelModel) (map[string][]string, error) {

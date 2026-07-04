@@ -297,7 +297,7 @@ func TestMergeChannelModelEndpointListRowsDropsExplicitOnlyRows(t *testing.T) {
 	}
 }
 
-func TestBuildChannelModelEndpointRowsDoesNotFallbackToChannelModelEndpoint(t *testing.T) {
+func TestBuildChannelModelEndpointRowsFallsBackToChannelModelEndpoint(t *testing.T) {
 	rows := []ChannelModel{
 		{
 			ChannelId:     "channel-1",
@@ -312,8 +312,53 @@ func TestBuildChannelModelEndpointRowsDoesNotFallbackToChannelModelEndpoint(t *t
 	}
 
 	got := BuildChannelModelEndpointRowsWithProviderEndpoints(nil, rows, nil)
-	if len(got) != 0 {
-		t.Fatalf("len(got)=%d, want 0 without provider model endpoint candidates", len(got))
+	if len(got) != 1 {
+		t.Fatalf("len(got)=%d, want 1 fallback endpoint without provider model endpoint candidates", len(got))
+	}
+	if got[0].Endpoint != ChannelModelEndpointResponses {
+		t.Fatalf("fallback endpoint=%q, want %q", got[0].Endpoint, ChannelModelEndpointResponses)
+	}
+}
+
+func TestReplaceChannelModelsWithDBSyncsEndpointsWithoutProviderCatalog(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:channel_model_endpoint_fallback?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	if err := db.AutoMigrate(&Channel{}, &ChannelModel{}, &ChannelModelEndpoint{}, &ChannelModelEndpointTestResult{}, &ChannelModelPriceComponent{}, &ProviderModel{}); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{
+		Id:       "channel-1",
+		Protocol: "openai",
+		Name:     "channel-1",
+	}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+
+	err = ReplaceChannelModelsWithDB(db, "channel-1", []ChannelModel{
+		{
+			Model:         "custom-model",
+			UpstreamModel: "custom-model",
+			Provider:      "custom-provider",
+			Type:          ProviderModelTypeText,
+			Endpoint:      ChannelModelEndpointResponses,
+			Selected:      true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ReplaceChannelModelsWithDB: %v", err)
+	}
+
+	endpointRows, err := ListChannelModelEndpointCandidatesByChannelIDWithDB(db, "channel-1", "", "")
+	if err != nil {
+		t.Fatalf("ListChannelModelEndpointCandidatesByChannelIDWithDB: %v", err)
+	}
+	if len(endpointRows) != 1 {
+		t.Fatalf("len(endpointRows)=%d, want 1 fallback endpoint", len(endpointRows))
+	}
+	if endpointRows[0].Model != "custom-model" || endpointRows[0].Endpoint != ChannelModelEndpointResponses {
+		t.Fatalf("endpoint row = (%q, %q), want custom-model/%s", endpointRows[0].Model, endpointRows[0].Endpoint, ChannelModelEndpointResponses)
 	}
 }
 

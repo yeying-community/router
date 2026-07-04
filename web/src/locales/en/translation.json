@@ -938,7 +938,7 @@
         "summary": "{{total}} total, {{capability_enabled}} enabled",
         "hint": "This table shows channel endpoints by model + endpoint. The list comes from provider-supported default candidate endpoints, while the enabled state follows the channel's saved configuration. You can enable endpoints and configure their policies here.",
         "loading": "Loading endpoint capabilities...",
-        "empty": "No endpoint capability data yet. Sync models or run model tests first.",
+        "empty": "No endpoint configuration data yet. Sync and select models on the Selection tab first.",
         "filtered_empty": "No endpoint rows match the current filter.",
         "load_failed": "Failed to load endpoint capabilities",
         "update_success": "Endpoint capability updated",

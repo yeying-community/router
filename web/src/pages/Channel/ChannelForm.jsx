@@ -3137,6 +3137,20 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           models: nextInputs.models,
           test_model: nextInputs.test_model,
         }));
+        try {
+          setChannelEndpointsLoading(true);
+          const nextEndpoints = await fetchChannelEndpoints(targetChannelID);
+          setChannelEndpoints(normalizeChannelEndpointRows(nextEndpoints));
+          setChannelEndpointsError('');
+        } catch (error) {
+          setChannelEndpoints([]);
+          setChannelEndpointsError(
+            error?.message ||
+              t('channel.edit.endpoint_capabilities.load_failed')
+          );
+        } finally {
+          setChannelEndpointsLoading(false);
+        }
         return true;
       } catch (error) {
         showError(
@@ -5346,6 +5360,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       setChannelEndpointsLoading(false);
       return undefined;
     }
+    if (!showDetailEndpointsTab) {
+      return undefined;
+    }
     let disposed = false;
     setChannelEndpointsLoading(true);
     loadChannelEndpointsFromServer(channelId)
@@ -5374,7 +5391,13 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     return () => {
       disposed = true;
     };
-  }, [channelId, isDetailMode, loadChannelEndpointsFromServer, t]);
+  }, [
+    channelId,
+    isDetailMode,
+    loadChannelEndpointsFromServer,
+    showDetailEndpointsTab,
+    t,
+  ]);
 
   useEffect(() => {
     if (!isDetailMode || !channelId) {
