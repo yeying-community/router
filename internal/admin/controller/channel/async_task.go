@@ -273,18 +273,35 @@ func enqueueInsufficientBalanceRecoveryTest(channelRow *model.Channel, traceID s
 	if channelRow == nil || strings.TrimSpace(channelRow.Id) == "" {
 		return false, nil
 	}
-	targetRows := resolveChannelTestTargetModels(channelRow, channelModelTestModeSingle, "", nil)
+	channelID := strings.TrimSpace(channelRow.Id)
+	logInsufficientBalanceRecoveryProbe("load_channel", channelID, "", "", "")
+	fullChannelRow, err := channelsvc.GetByID(channelID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logInsufficientBalanceRecoveryProbe("skip_missing_channel", channelID, "", "channel not found", "")
+			return false, nil
+		}
+		return false, err
+	}
+	if fullChannelRow.Status != model.ChannelStatusAutoDisabled {
+		logInsufficientBalanceRecoveryProbe("skip_channel_status", channelID, "", "channel is no longer auto disabled", fmt.Sprintf("status=%d", fullChannelRow.Status))
+		return false, nil
+	}
+	targetRows := resolveChannelTestTargetModels(fullChannelRow, channelModelTestModeSingle, "", nil)
 	if len(targetRows) == 0 {
+		logInsufficientBalanceRecoveryProbe("skip_no_test_target", channelID, "", "no selected testable channel model", fmt.Sprintf("channel_models=%d selected_models=%d test_model=%s", len(fullChannelRow.ChannelModels), len(fullChannelRow.SelectedModelIDs()), strings.TrimSpace(fullChannelRow.TestModel)))
 		return false, nil
 	}
 	target := targetRows[0]
 	modelID := strings.TrimSpace(target.Model)
 	endpoint, err := resolveChannelModelTestEndpointForRow(target)
 	if err != nil {
+		logInsufficientBalanceRecoveryProbe("skip_invalid_endpoint", channelID, modelID, err.Error(), "")
 		return false, err
 	}
-	_, createdCount, _, err := CreateChannelModelTestTasks(
-		channelRow.Id,
+	logInsufficientBalanceRecoveryProbe("create_test_task", channelID, modelID, "", fmt.Sprintf("endpoint=%s", endpoint))
+	_, createdCount, reusedCount, err := CreateChannelModelTestTasks(
+		channelID,
 		"channel_recovery",
 		modelID,
 		[]string{modelID},
@@ -300,8 +317,10 @@ func enqueueInsufficientBalanceRecoveryTest(channelRow *model.Channel, traceID s
 		"",
 	)
 	if err != nil {
+		logInsufficientBalanceRecoveryProbe("create_test_task_failed", channelID, modelID, err.Error(), fmt.Sprintf("endpoint=%s", endpoint))
 		return false, err
 	}
+	logInsufficientBalanceRecoveryProbe("test_task_result", channelID, modelID, "", fmt.Sprintf("endpoint=%s created=%d reused=%d", endpoint, createdCount, reusedCount))
 	return createdCount > 0, nil
 }
 

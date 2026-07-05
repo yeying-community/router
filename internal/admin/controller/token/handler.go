@@ -1,9 +1,11 @@
 package token
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common/config"
@@ -162,6 +164,47 @@ func validateToken(c *gin.Context, token model.Token) error {
 	return nil
 }
 
+var buildUserEntitlementModelsFn = model.BuildUserEntitlementModels
+
+func validateTokenModelEntitlement(ctx context.Context, userID string, token model.Token) error {
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return fmt.Errorf("用户 ID 为空")
+	}
+	payload, err := buildUserEntitlementModelsFn(ctx, normalizedUserID)
+	if err != nil {
+		return err
+	}
+	availableModels := make(map[string]struct{}, len(payload.Models))
+	for _, modelName := range payload.Models {
+		normalizedModel := strings.TrimSpace(modelName)
+		if normalizedModel == "" {
+			continue
+		}
+		availableModels[normalizedModel] = struct{}{}
+	}
+	if len(availableModels) == 0 {
+		return fmt.Errorf("当前账号暂无可用模型，请先购买套餐或充值后再创建令牌")
+	}
+	if token.Models == nil || strings.TrimSpace(*token.Models) == "" {
+		return nil
+	}
+	requestedModels := model.NormalizeChannelModelIDsPreserveOrder(strings.Split(*token.Models, ","))
+	if len(requestedModels) == 0 {
+		return fmt.Errorf("当前账号暂无可用模型，请先购买套餐或充值后再创建令牌")
+	}
+	missingModels := make([]string, 0)
+	for _, modelName := range requestedModels {
+		if _, ok := availableModels[modelName]; !ok {
+			missingModels = append(missingModels, modelName)
+		}
+	}
+	if len(missingModels) > 0 {
+		return fmt.Errorf("模型范围包含当前账号不可用模型：%s", strings.Join(missingModels, ", "))
+	}
+	return nil
+}
+
 func AddToken(c *gin.Context) {
 	token := model.Token{}
 	err := c.ShouldBindJSON(&token)
@@ -180,10 +223,19 @@ func AddToken(c *gin.Context) {
 		})
 		return
 	}
+	userID := c.GetString(ctxkey.Id)
+	err = validateTokenModelEntitlement(c.Request.Context(), userID, token)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
 
 	now := helper.GetTimestamp()
 	cleanToken := model.Token{
-		UserId:         c.GetString(ctxkey.Id),
+		UserId:         userID,
 		Name:           token.Name,
 		Key:            random.GenerateKey(),
 		CreatedTime:    now,
@@ -269,6 +321,22 @@ func UpdateToken(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "令牌可用额度已用尽，无法启用，请先修改令牌剩余额度，或者设置为无限额度",
+			})
+			return
+		}
+	}
+	if statusOnly == "" || token.Status == model.TokenStatusEnabled {
+		nextToken := *cleanToken
+		if statusOnly != "" {
+			nextToken.Status = token.Status
+		} else {
+			nextToken.Models = token.Models
+		}
+		err = validateTokenModelEntitlement(c.Request.Context(), userId, nextToken)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
 			})
 			return
 		}

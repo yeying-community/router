@@ -2,12 +2,14 @@ package message
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/yeying-community/router/common/config"
 )
 
 // EmailTemplate 生成美观的 HTML 邮件内容
 func EmailTemplate(title, content string) string {
+	sentAt := time.Now().Format("2006-01-02 15:04:05")
 	return fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
@@ -24,11 +26,12 @@ func EmailTemplate(title, content string) string {
             %s
         </div>
         <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; color: #888; font-size: 14px; text-align: center;">
+            <p style="margin: 5px 0;">发送时间：%s</p>
             <p style="margin: 5px 0;">此邮件由系统自动发送，请勿直接回复</p>
             <p style="margin: 5px 0;">%s</p>
         </div>
     </div>
 </body>
 </html>
-`, title, content, config.SystemName)
+`, title, content, sentAt, config.SystemName)
 }

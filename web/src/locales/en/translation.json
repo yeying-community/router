@@ -1647,6 +1647,7 @@
       "models_mode_manual": "Manually restrict models",
       "models_unrestricted_notice": "New account-available models will automatically become available to this token.",
       "models_manual_notice": "This token can only use selected models. The header checkbox only affects the current filtered results.",
+      "models_no_available_notice": "This account has no available models yet. Buy a package or top up before creating a token.",
       "models_selected_summary": "{{selected}} / {{total}} selected",
       "models_select_all": "Select All",
       "models_table_name": "Model",
@@ -1688,6 +1689,7 @@
         "id_required": "Token id is empty. Please refresh the page and try again.",
         "expire_time_invalid": "Invalid expiry time format!",
         "quota_invalid": "Invalid remaining amount.",
+        "models_unavailable": "This account has no available models yet. Buy a package or top up before creating a token.",
         "models_required": "Please select at least one model."
       }
     },

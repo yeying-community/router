@@ -111,6 +111,7 @@ const toUserOption = (item) => {
     text:
       [primaryName, secondaryName, walletAddress].filter(Boolean).join(' / ') ||
       id,
+    display_name: primaryName || id,
     wallet_address: walletAddress,
   };
 };
@@ -166,6 +167,7 @@ const resolveSelectedUserListFromOptions = (userIDs, options) => {
         (item?.value || '').toString().trim(),
         {
           label: (item?.text || '').toString().trim(),
+          displayName: (item?.display_name || '').toString().trim(),
           walletAddress: (item?.wallet_address || '').toString().trim(),
         },
       ])
@@ -180,7 +182,7 @@ const resolveSelectedUserListFromOptions = (userIDs, options) => {
       const matched = optionMap.get(id);
       return {
         key: id,
-        label: matched?.label || id,
+        label: matched?.displayName || matched?.label || id,
         walletAddress: matched?.walletAddress || '',
       };
     })

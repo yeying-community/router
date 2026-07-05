@@ -119,6 +119,34 @@ func TestRecordChannelCircuitBreakerCanceledCreatesState(t *testing.T) {
 	}
 }
 
+func TestRecordInsufficientBalanceChannelCircuitBreakerRecoveredUpdatesCanceledState(t *testing.T) {
+	db := newChannelCircuitBreakerTestDB(t)
+
+	if err := updateChannelCircuitBreakerStateWithDB(db, "channel-1", ChannelCircuitBreakerStateCanceled, ChannelCircuitBreakerReasonInsufficientBalance); err != nil {
+		t.Fatalf("record canceled: %v", err)
+	}
+	if err := recordInsufficientBalanceChannelCircuitBreakerRecoveredWithDB(db, "channel-1"); err != nil {
+		t.Fatalf("record insufficient-balance recovered: %v", err)
+	}
+	row, err := getChannelCircuitBreakerStateWithDB(db, "channel-1")
+	if err != nil {
+		t.Fatalf("get state: %v", err)
+	}
+	if row.State != ChannelCircuitBreakerStateRecovered || row.RecoveredAt == 0 {
+		t.Fatalf("state = %+v, want recovered with recovered_at", row)
+	}
+	events, err := ListChannelCircuitBreakerEventsWithDB(db, "channel-1", 10)
+	if err != nil {
+		t.Fatalf("list events: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("event count = %d, want 2: %+v", len(events), events)
+	}
+	if events[0].Event != ChannelCircuitBreakerStateRecovered || events[0].Reason != ChannelCircuitBreakerReasonInsufficientBalance {
+		t.Fatalf("latest event = %+v, want insufficient-balance recovered", events[0])
+	}
+}
+
 func TestRecordChannelCircuitBreakerRecoveredUpdatesHalfOpenState(t *testing.T) {
 	db := newChannelCircuitBreakerTestDB(t)
 

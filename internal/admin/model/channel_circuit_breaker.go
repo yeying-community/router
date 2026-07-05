@@ -55,6 +55,10 @@ func RecordChannelCircuitBreakerRecovered(channelID string) error {
 	return updateChannelCircuitBreakerStateWithDB(DB, channelID, ChannelCircuitBreakerStateRecovered, "")
 }
 
+func RecordInsufficientBalanceChannelCircuitBreakerRecovered(channelID string) error {
+	return recordInsufficientBalanceChannelCircuitBreakerRecoveredWithDB(DB, channelID)
+}
+
 func RecordChannelCircuitBreakerHalfOpen(channelID string) error {
 	return updateChannelCircuitBreakerStateWithDB(DB, channelID, ChannelCircuitBreakerStateHalfOpen, "")
 }
@@ -237,6 +241,40 @@ func updateChannelCircuitBreakerStateWithDB(db *gorm.DB, channelID string, state
 			Event:     normalizedState,
 			State:     normalizedState,
 			Reason:    strings.TrimSpace(reason),
+			CreatedAt: now,
+		})
+	})
+}
+
+func recordInsufficientBalanceChannelCircuitBreakerRecoveredWithDB(db *gorm.DB, channelID string) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if normalizedChannelID == "" {
+		return nil
+	}
+	now := helper.GetTimestamp()
+	updates := map[string]any{
+		"state":        ChannelCircuitBreakerStateRecovered,
+		"recovered_at": now,
+		"updated_at":   now,
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		updateResult := tx.Model(&ChannelCircuitBreakerState{}).
+			Where("channel_id = ? AND state = ? AND LOWER(TRIM(reason)) = ?", normalizedChannelID, ChannelCircuitBreakerStateCanceled, ChannelCircuitBreakerReasonInsufficientBalance).
+			Updates(updates)
+		if updateResult.Error != nil {
+			return updateResult.Error
+		}
+		if updateResult.RowsAffected == 0 {
+			return nil
+		}
+		return createChannelCircuitBreakerEventWithDB(tx, ChannelCircuitBreakerEvent{
+			ChannelId: normalizedChannelID,
+			Event:     ChannelCircuitBreakerStateRecovered,
+			State:     ChannelCircuitBreakerStateRecovered,
+			Reason:    ChannelCircuitBreakerReasonInsufficientBalance,
 			CreatedAt: now,
 		})
 	})

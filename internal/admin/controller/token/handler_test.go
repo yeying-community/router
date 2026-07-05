@@ -2,6 +2,7 @@ package token
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -124,6 +125,15 @@ func TestGetTokenReturnsRawKey(t *testing.T) {
 func TestAddTokenReturnsRawKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	_ = newTokenControllerTestDB(t)
+	originalBuildEntitlements := buildUserEntitlementModelsFn
+	buildUserEntitlementModelsFn = func(ctx context.Context, userID string) (model.UserEntitlementModelsPayload, error) {
+		return model.UserEntitlementModelsPayload{
+			Models: []string{"gpt-4o-mini"},
+		}, nil
+	}
+	t.Cleanup(func() {
+		buildUserEntitlementModelsFn = originalBuildEntitlements
+	})
 
 	body := map[string]any{
 		"name":            "created-token",
@@ -157,6 +167,88 @@ func TestAddTokenReturnsRawKey(t *testing.T) {
 	}
 	if strings.Contains(key, "****") {
 		t.Fatalf("create response key=%q, should remain raw", key)
+	}
+}
+
+func TestAddTokenRejectsUserWithoutAvailableModels(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	_ = newTokenControllerTestDB(t)
+	originalBuildEntitlements := buildUserEntitlementModelsFn
+	buildUserEntitlementModelsFn = func(ctx context.Context, userID string) (model.UserEntitlementModelsPayload, error) {
+		return model.UserEntitlementModelsPayload{}, nil
+	}
+	t.Cleanup(func() {
+		buildUserEntitlementModelsFn = originalBuildEntitlements
+	})
+
+	body := map[string]any{
+		"name":            "created-token",
+		"remain_quota":    1000,
+		"unlimited_quota": false,
+	}
+	payloadBytes, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Set(ctxkey.Id, "user-1")
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/public/token/", bytes.NewReader(payloadBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	AddToken(c)
+
+	payload := decodeTokenResponseBody(t, recorder.Body.Bytes())
+	if success, _ := payload["success"].(bool); success {
+		t.Fatalf("expected failure response, got %v", payload)
+	}
+	message, _ := payload["message"].(string)
+	if !strings.Contains(message, "暂无可用模型") {
+		t.Fatalf("message=%q, want available model error", message)
+	}
+}
+
+func TestAddTokenRejectsUnavailableManualModels(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	_ = newTokenControllerTestDB(t)
+	originalBuildEntitlements := buildUserEntitlementModelsFn
+	buildUserEntitlementModelsFn = func(ctx context.Context, userID string) (model.UserEntitlementModelsPayload, error) {
+		return model.UserEntitlementModelsPayload{
+			Models: []string{"gpt-4o-mini"},
+		}, nil
+	}
+	t.Cleanup(func() {
+		buildUserEntitlementModelsFn = originalBuildEntitlements
+	})
+
+	modelScope := "gpt-4o-mini,not-entitled"
+	body := map[string]any{
+		"name":            "created-token",
+		"remain_quota":    1000,
+		"unlimited_quota": false,
+		"models":          modelScope,
+	}
+	payloadBytes, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Set(ctxkey.Id, "user-1")
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/public/token/", bytes.NewReader(payloadBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	AddToken(c)
+
+	payload := decodeTokenResponseBody(t, recorder.Body.Bytes())
+	if success, _ := payload["success"].(bool); success {
+		t.Fatalf("expected failure response, got %v", payload)
+	}
+	message, _ := payload["message"].(string)
+	if !strings.Contains(message, "not-entitled") {
+		t.Fatalf("message=%q, want missing model detail", message)
 	}
 }
 

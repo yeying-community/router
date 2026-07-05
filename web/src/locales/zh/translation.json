@@ -1647,6 +1647,7 @@
       "models_mode_manual": "手动限制模型范围",
       "models_unrestricted_notice": "账号后续新增可用模型时，该令牌会自动可用。",
       "models_manual_notice": "该令牌只能使用已选模型。表头复选框只影响当前筛选结果。",
+      "models_no_available_notice": "当前账号暂无可用模型，请先购买套餐或充值后再创建令牌。",
       "models_selected_summary": "已选 {{selected}} / {{total}}",
       "models_select_all": "全选",
       "models_table_name": "模型名称",
@@ -1688,6 +1689,7 @@
         "id_required": "令牌标识为空，请刷新页面后重试。",
         "expire_time_invalid": "过期时间格式错误！",
         "quota_invalid": "剩余额度格式错误。",
+        "models_unavailable": "当前账号暂无可用模型，请先购买套餐或充值后再创建令牌。",
         "models_required": "请至少选择一个模型。"
       }
     },

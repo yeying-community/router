@@ -225,20 +225,6 @@ func Create(ctx context.Context, user *model.User, inviterId string) error {
 			model.RecordLog(ctx, inviterId, model.LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", common.LogQuota(inviterRewardQuota)))
 		}
 	}
-	cleanToken := model.Token{
-		UserId:         user.Id,
-		Name:           "default",
-		Key:            random.GenerateKey(),
-		CreatedTime:    helper.GetTimestamp(),
-		AccessedTime:   helper.GetTimestamp(),
-		ExpiredTime:    -1,
-		RemainQuota:    -1,
-		UnlimitedQuota: true,
-	}
-	result.Error = cleanToken.Insert()
-	if result.Error != nil {
-		logger.SysError(fmt.Sprintf("create default token for user %s failed: %s", user.Id, result.Error.Error()))
-	}
 	return nil
 }
 

@@ -95,6 +95,7 @@ const EditToken = () => {
   } = inputs;
   const navigate = useNavigate();
   const allModelValues = modelOptions.map((option) => option.value);
+  const hasAvailableModels = allModelValues.length > 0;
   const formatEntitlementSourceLabel = useCallback(
     (source) => {
       const sourceName = (source?.source_name || '').toString().trim();
@@ -198,10 +199,13 @@ const EditToken = () => {
     selected: selectedModelCount,
     total: allModelValues.length,
   });
-  const manualSelectionDisabled = unrestrictedModels;
-  const modelsNotice = unrestrictedModels
-    ? t('token.edit.models_unrestricted_notice')
-    : t('token.edit.models_manual_notice');
+  const manualSelectionDisabled = unrestrictedModels || !hasAvailableModels;
+  const modelsNotice = !hasAvailableModels
+    ? t('token.edit.models_no_available_notice')
+    : unrestrictedModels
+      ? t('token.edit.models_unrestricted_notice')
+      : t('token.edit.models_manual_notice');
+  const createTokenDisabled = isCreateMode && !hasAvailableModels;
   const quotaUnitOptions = useMemo(
     () => buildBillingUnitOptions(billingCurrencyIndex),
     [billingCurrencyIndex]
@@ -498,7 +502,7 @@ const EditToken = () => {
         });
         setModelOptions(options);
         if (isCreateMode) {
-          setUnrestrictedModels(true);
+          setUnrestrictedModels(options.length > 0);
           setInputs((prev) => ({
             ...prev,
             models: options.map((option) => option.value),
@@ -545,6 +549,10 @@ const EditToken = () => {
   const submit = async () => {
     if (isCreateMode && inputs.name.trim() === '') {
       showError(t('token.edit.messages.name_required'));
+      return;
+    }
+    if (isCreateMode && !hasAvailableModels) {
+      showError(t('token.edit.messages.models_unavailable'));
       return;
     }
     const localInputs = { ...inputs };
@@ -602,7 +610,7 @@ const EditToken = () => {
         showSuccess(t('token.edit.messages.create_success'));
         setCreatedToken(data || null);
         setInputs(originInputs);
-        setUnrestrictedModels(true);
+        setUnrestrictedModels(modelOptions.length > 0);
         setExpireTimeMode('custom');
         setQuotaInputValue(
           chargeAmountToBillingInputValue(
@@ -706,7 +714,7 @@ const EditToken = () => {
           ]}
           value={unrestrictedModels ? 'unrestricted' : 'manual'}
           onChange={handleModelScopeModeChange}
-          disabled={readonly}
+          disabled={readonly || !hasAvailableModels}
         />
         <span className='router-token-model-selection-summary'>
           {selectedModelSummary}
@@ -715,26 +723,32 @@ const EditToken = () => {
           {modelsNotice}
         </span>
       </div>
+      {!hasAvailableModels ? (
+        <div className='router-section-message router-token-model-empty-notice'>
+          {t('token.edit.models_no_available_notice')}
+        </div>
+      ) : null}
       <div className='router-token-model-toolbar'>
         <AppInput
           className='router-section-input router-token-model-search'
           placeholder={t('token.edit.models_search_placeholder')}
           value={modelKeyword}
           onChange={handleModelKeywordChange}
+          disabled={readonly || !hasAvailableModels}
         />
         <AppSelect
           className='router-section-dropdown router-token-model-filter'
           options={providerFilterOptions}
           value={modelProviderFilter}
           onChange={handleModelProviderFilterChange}
-          disabled={readonly}
+          disabled={readonly || !hasAvailableModels}
         />
         <AppSelect
           className='router-section-dropdown router-token-model-filter'
           options={sourceFilterOptions}
           value={modelSourceFilter}
           onChange={handleModelSourceFilterChange}
-          disabled={readonly}
+          disabled={readonly || !hasAvailableModels}
         />
       </div>
       {renderModelTable(readonly || manualSelectionDisabled)}
@@ -878,7 +892,12 @@ const EditToken = () => {
           }
           end={
             createdToken ? null :
-            <AppButton className='router-page-button' color='blue' onClick={submit}>
+            <AppButton
+              className='router-page-button'
+              color='blue'
+              disabled={createTokenDisabled}
+              onClick={submit}
+            >
               {t('token.edit.buttons.submit')}
             </AppButton>
           }

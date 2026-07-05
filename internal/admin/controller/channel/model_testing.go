@@ -153,7 +153,14 @@ func persistChannelModelTests(channelID string, taskID string, results []model.C
 		return err
 	}
 	if shouldRestoreChannel {
-		return monitor.EnableChannel(normalizedChannelID, normalizedChannelID)
+		channelRow, err := channelsvc.GetByID(normalizedChannelID)
+		if err != nil {
+			return err
+		}
+		if err := model.RecordInsufficientBalanceChannelCircuitBreakerRecovered(normalizedChannelID); err != nil {
+			return err
+		}
+		return monitor.EnableChannel(normalizedChannelID, channelRow.DisplayName())
 	}
 	return nil
 }
