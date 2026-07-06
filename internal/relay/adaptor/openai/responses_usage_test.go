@@ -111,6 +111,36 @@ func TestRelayResponsesResponseCapturesImageGenerationCalls(t *testing.T) {
 	}
 }
 
+func TestRelayResponsesResponseCapturesPromptTokenDetails(t *testing.T) {
+	ctx, _ := newOpenAITestContext()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{},
+		Body: io.NopCloser(strings.NewReader(`{
+			"id":"resp_cache",
+			"object":"response",
+			"model":"gpt-5.4",
+			"usage":{
+				"input_tokens":100,
+				"output_tokens":20,
+				"total_tokens":120,
+				"input_tokens_details":{"cached_tokens":40}
+			}
+		}`)),
+	}
+
+	usage, relayErr := relayResponsesResponse(ctx, resp)
+	if relayErr != nil {
+		t.Fatalf("relayResponsesResponse returned error: %+v", relayErr)
+	}
+	if usage == nil || usage.PromptTokensDetails == nil {
+		t.Fatalf("usage prompt details missing: %#v", usage)
+	}
+	if usage.PromptTokensDetails.CachedTokens != 40 {
+		t.Fatalf("CachedTokens = %d, want 40", usage.PromptTokensDetails.CachedTokens)
+	}
+}
+
 func TestRelayMessagesResponseSkipsUpstreamCORSHeaders(t *testing.T) {
 	ctx, recorder := newOpenAITestContext()
 	recorder.Header().Set("Access-Control-Allow-Origin", "http://localhost:3020")
@@ -144,5 +174,39 @@ func TestRelayMessagesResponseSkipsUpstreamCORSHeaders(t *testing.T) {
 	}
 	if recorder.Header().Get("X-Upstream") != "ok" {
 		t.Fatalf("expected non-CORS upstream headers to remain copied, got %q", recorder.Header().Get("X-Upstream"))
+	}
+}
+
+func TestRelayMessagesResponseCapturesCacheReadAndCreationTokens(t *testing.T) {
+	ctx, _ := newOpenAITestContext()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{},
+		Body: io.NopCloser(strings.NewReader(`{
+			"id":"msg_cache",
+			"type":"message",
+			"role":"assistant",
+			"content":[{"type":"text","text":"hello"}],
+			"usage":{
+				"input_tokens":100,
+				"output_tokens":20,
+				"cache_read_input_tokens":30,
+				"cache_creation_input_tokens":10
+			}
+		}`)),
+	}
+
+	usage, relayErr := relayMessagesResponse(ctx, resp, 100, "claude-sonnet-4-6")
+	if relayErr != nil {
+		t.Fatalf("relayMessagesResponse returned error: %+v", relayErr)
+	}
+	if usage == nil || usage.PromptTokensDetails == nil {
+		t.Fatalf("usage prompt details missing: %#v", usage)
+	}
+	if usage.PromptTokensDetails.CacheReadTokens != 30 {
+		t.Fatalf("CacheReadTokens = %d, want 30", usage.PromptTokensDetails.CacheReadTokens)
+	}
+	if usage.PromptTokensDetails.CacheCreationTokens != 10 {
+		t.Fatalf("CacheCreationTokens = %d, want 10", usage.PromptTokensDetails.CacheCreationTokens)
 	}
 }

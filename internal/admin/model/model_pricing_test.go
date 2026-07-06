@@ -439,6 +439,45 @@ func TestResolveImageRequestPricingFallsBackWhenNoComponentMatches(t *testing.T)
 	}
 }
 
+func TestSelectProviderPriceComponentMatchesNumericConditions(t *testing.T) {
+	components := []ProviderModelPriceComponentDetail{
+		{
+			Component:  ProviderModelPriceComponentTextCacheRead,
+			Condition:  "mode=standard;prompt_tokens_lte=200000",
+			InputPrice: 0.000125,
+			PriceUnit:  ProviderPriceUnitPer1KTokens,
+		},
+		{
+			Component:  ProviderModelPriceComponentTextCacheRead,
+			Condition:  "mode=standard;prompt_tokens_gt=200000",
+			InputPrice: 0.00025,
+			PriceUnit:  ProviderPriceUnitPer1KTokens,
+		},
+	}
+
+	component, ok := SelectProviderPriceComponent(components, ProviderModelPriceComponentTextCacheRead, map[string]string{
+		"mode":          "standard",
+		"prompt_tokens": "200001",
+	})
+	if !ok {
+		t.Fatal("expected matching component")
+	}
+	if component.InputPrice != 0.00025 {
+		t.Fatalf("input price=%v, want 0.00025", component.InputPrice)
+	}
+
+	component, ok = SelectProviderPriceComponent(components, ProviderModelPriceComponentTextCacheRead, map[string]string{
+		"mode":          "standard",
+		"prompt_tokens": "200000",
+	})
+	if !ok {
+		t.Fatal("expected matching component at threshold")
+	}
+	if component.InputPrice != 0.000125 {
+		t.Fatalf("input price=%v, want 0.000125", component.InputPrice)
+	}
+}
+
 func TestResolveTextRequestPricingMatchesEndpointComponent(t *testing.T) {
 	pricing := ResolveTextRequestPricing(ResolvedModelPricing{
 		Model:       "gpt-5",

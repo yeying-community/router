@@ -115,3 +115,26 @@ func TestBillingSnapshotApplyToLogIncludesImageToolFields(t *testing.T) {
 		t.Fatalf("BillingImageToolChargeAmount = %d, want 74880", logRow.BillingImageToolChargeAmount)
 	}
 }
+
+func TestBillingSnapshotApplyToLogIncludesTextCacheFields(t *testing.T) {
+	snapshot := billing.BillingSnapshot{
+		CacheReadQuantity:  300,
+		CacheWriteQuantity: 100,
+		CacheReadAmount:    0.0006,
+		CacheWriteAmount:   0.0012,
+	}
+	logRow := &adminmodel.Log{}
+	snapshot.ApplyToLog(logRow)
+	if logRow.BillingCacheReadQuantity != 300 {
+		t.Fatalf("BillingCacheReadQuantity = %v, want 300", logRow.BillingCacheReadQuantity)
+	}
+	if logRow.BillingCacheWriteQuantity != 100 {
+		t.Fatalf("BillingCacheWriteQuantity = %v, want 100", logRow.BillingCacheWriteQuantity)
+	}
+	if logRow.BillingCacheReadAmount != 0.0006 {
+		t.Fatalf("BillingCacheReadAmount = %v, want 0.0006", logRow.BillingCacheReadAmount)
+	}
+	if logRow.BillingCacheWriteAmount != 0.0012 {
+		t.Fatalf("BillingCacheWriteAmount = %v, want 0.0012", logRow.BillingCacheWriteAmount)
+	}
+}

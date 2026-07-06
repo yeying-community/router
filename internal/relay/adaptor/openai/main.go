@@ -161,15 +161,17 @@ func StreamResponsesHandler(c *gin.Context, resp *http.Response, modelName strin
 		if err := json.Unmarshal([]byte(data), &envelope); err == nil {
 			if envelope.Usage != nil {
 				usage = &model.Usage{
-					PromptTokens:     envelope.Usage.InputTokens,
-					CompletionTokens: envelope.Usage.OutputTokens,
-					TotalTokens:      envelope.Usage.TotalTokens,
+					PromptTokens:        envelope.Usage.InputTokens,
+					CompletionTokens:    envelope.Usage.OutputTokens,
+					TotalTokens:         envelope.Usage.TotalTokens,
+					PromptTokensDetails: promptTokensDetailToUsage(envelope.Usage.InputTokensDetails),
 				}
 			} else if envelope.Response.Usage != nil {
 				usage = &model.Usage{
-					PromptTokens:     envelope.Response.Usage.InputTokens,
-					CompletionTokens: envelope.Response.Usage.OutputTokens,
-					TotalTokens:      envelope.Response.Usage.TotalTokens,
+					PromptTokens:        envelope.Response.Usage.InputTokens,
+					CompletionTokens:    envelope.Response.Usage.OutputTokens,
+					TotalTokens:         envelope.Response.Usage.TotalTokens,
+					PromptTokensDetails: promptTokensDetailToUsage(envelope.Response.Usage.InputTokensDetails),
 				}
 			}
 		}

@@ -192,7 +192,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	promptTokens := usage.PromptTokens
 	completionTokens := usage.CompletionTokens
 	quota := preConsumedQuota
-	billingSnapshot, snapshotErr := billing.ComputeTextBillingSnapshot(promptTokens, completionTokens, pricing, groupRatio)
+	billingSnapshot, snapshotErr := billing.ComputeTextBillingSnapshotWithUsage(*usage, pricing, groupRatio)
 	if snapshotErr != nil {
 		logger.Error(ctx, "calculate text billing snapshot failed: "+snapshotErr.Error())
 	}

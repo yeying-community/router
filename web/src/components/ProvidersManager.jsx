@@ -251,6 +251,8 @@ const defaultPriceUnitByComponent = (component) => {
     case 'audio_input':
     case 'realtime_audio':
       return 'per_minute';
+    case 'text_cache_read':
+    case 'text_cache_write':
     case 'realtime_text':
     case 'text':
     default:
@@ -656,6 +658,16 @@ const PRICE_UNIT_OPTIONS = [
 
 const PRICE_COMPONENT_OPTIONS = [
   { key: 'text', value: 'text', text: 'text' },
+  {
+    key: 'text_cache_read',
+    value: 'text_cache_read',
+    text: 'text_cache_read',
+  },
+  {
+    key: 'text_cache_write',
+    value: 'text_cache_write',
+    text: 'text_cache_write',
+  },
   {
     key: 'image_generation',
     value: 'image_generation',
@@ -1184,6 +1196,8 @@ const ProvidersManager = () => {
       componentType === 'audio_input' ||
       componentType === 'audio_output' ||
       componentType === 'video_generation' ||
+      componentType === 'text_cache_read' ||
+      componentType === 'text_cache_write' ||
       componentType === 'realtime_text' ||
       componentType === 'realtime_audio'
     ) {

@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -406,15 +407,39 @@ func ResolveVideoRequestPricing(pricing ResolvedModelPricing, attrs map[string]s
 }
 
 func selectProviderPriceComponent(components []ProviderModelPriceComponentDetail, componentType string, attrs map[string]string) (ProviderModelPriceComponentDetail, bool) {
+	var matched ProviderModelPriceComponentDetail
+	matchedPriority := -1
 	for _, component := range NormalizeProviderModelPriceComponents(components) {
 		if component.Component != strings.TrimSpace(strings.ToLower(componentType)) {
 			continue
 		}
 		if providerPriceComponentMatches(component.Condition, attrs) {
-			return component, true
+			priority := providerPriceComponentSourcePriority(component.Source)
+			if priority > matchedPriority {
+				matched = component
+				matchedPriority = priority
+			}
 		}
 	}
+	if matchedPriority >= 0 {
+		return matched, true
+	}
 	return ProviderModelPriceComponentDetail{}, false
+}
+
+func SelectProviderPriceComponent(components []ProviderModelPriceComponentDetail, componentType string, attrs map[string]string) (ProviderModelPriceComponentDetail, bool) {
+	return selectProviderPriceComponent(components, componentType, attrs)
+}
+
+func providerPriceComponentSourcePriority(source string) int {
+	switch strings.TrimSpace(strings.ToLower(source)) {
+	case "channel_override":
+		return 30
+	case "manual":
+		return 20
+	default:
+		return 10
+	}
 }
 
 func mergeChannelModelPriceComponentOverrides(providerComponents []ProviderModelPriceComponentDetail, channelComponents []ProviderModelPriceComponentDetail) []ProviderModelPriceComponentDetail {
@@ -461,11 +486,56 @@ func providerPriceComponentMatches(condition string, attrs map[string]string) bo
 		if key == "" {
 			return false
 		}
+		if providerPriceComponentNumericConditionMatches(key, value, attrs) {
+			continue
+		}
 		if strings.TrimSpace(strings.ToLower(attrs[key])) != value {
 			return false
 		}
 	}
 	return true
+}
+
+func providerPriceComponentNumericConditionMatches(key string, value string, attrs map[string]string) bool {
+	baseKey, operator, ok := splitProviderPriceComponentNumericConditionKey(key)
+	if !ok {
+		return false
+	}
+	rawActual, exists := attrs[baseKey]
+	if !exists {
+		return false
+	}
+	actual, err := strconv.ParseFloat(strings.TrimSpace(rawActual), 64)
+	if err != nil {
+		return false
+	}
+	expected, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	if err != nil {
+		return false
+	}
+	switch operator {
+	case "lt":
+		return actual < expected
+	case "lte":
+		return actual <= expected
+	case "gt":
+		return actual > expected
+	case "gte":
+		return actual >= expected
+	default:
+		return false
+	}
+}
+
+func splitProviderPriceComponentNumericConditionKey(key string) (string, string, bool) {
+	for _, operator := range []string{"lte", "gte", "lt", "gt"} {
+		suffix := "_" + operator
+		if strings.HasSuffix(key, suffix) {
+			baseKey := strings.TrimSpace(strings.TrimSuffix(key, suffix))
+			return baseKey, operator, baseKey != ""
+		}
+	}
+	return "", "", false
 }
 
 func findSelectedChannelModelPricingOverride(rows []ChannelModel, modelName string) (ChannelModel, bool) {

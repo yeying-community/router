@@ -1671,6 +1671,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return removeAutomaticChannelToggleOptionsWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607061100_provider_text_cache_pricing_components",
+			Description: "upsert official text cache read and write pricing components for supported providers",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderTextCachePricingComponentsWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -2704,6 +2711,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 		{
 			Version:     "202606241910_log_route_observability",
 			Description: "add route and fallback observability fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202607061030_log_text_cache_billing_observability",
+			Description: "add text cache billing fields to consume logs",
 			Up: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
 			},

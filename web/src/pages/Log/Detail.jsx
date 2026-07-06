@@ -757,6 +757,22 @@ const LogDetail = () => {
                     </div>
                     <div className='router-detail-item'>
                       <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_cache_read_quantity')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {formatNumber(log?.billing_cache_read_quantity, 6)}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_cache_write_quantity')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {formatNumber(log?.billing_cache_write_quantity, 6)}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
                         {t('log.detail.fields.billing_input_amount')}
                       </div>
                       <pre className='router-detail-value'>
@@ -773,6 +789,28 @@ const LogDetail = () => {
                       <pre className='router-detail-value'>
                         {renderAmount(
                           log?.billing_output_amount,
+                          log?.billing_currency,
+                        )}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_cache_read_amount')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {renderAmount(
+                          log?.billing_cache_read_amount,
+                          log?.billing_currency,
+                        )}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_cache_write_amount')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {renderAmount(
+                          log?.billing_cache_write_amount,
                           log?.billing_currency,
                         )}
                       </pre>
