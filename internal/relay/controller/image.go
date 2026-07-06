@@ -851,7 +851,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return openai.ErrorWrapper(snapshotErr, "calculate_image_quota_failed", http.StatusInternalServerError)
 		}
 		billingSnapshot.PricingSource = strings.TrimSpace(pricing.Source)
-		billingSnapshot.UsageSource = ""
+		billingSnapshot.UsageSource = billingUsageSourceRequestPayload
 		billingSnapshot.EstimateSource = imageEstimateSourceImageCountRatio
 		billingSnapshot.SettlementMode = imageSettlementModeEstimateOnly
 	}

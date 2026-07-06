@@ -198,6 +198,52 @@ func TestBillingSnapshotApplyToLogIncludesImageToolFields(t *testing.T) {
 	}
 }
 
+func TestResponsesImageToolBillingAnnotatesMixedSources(t *testing.T) {
+	price := 0.04
+	snapshot := billing.BillingSnapshot{
+		PriceUnit:      adminmodel.ProviderPriceUnitPer1KTokens,
+		Currency:       adminmodel.ProviderPriceCurrencyUSD,
+		UsageSource:    billingUsageSourceUpstreamUsage,
+		EstimateSource: "tokenestimate:openai_exact",
+		SettlementMode: billingSettlementModeUsageFinal,
+	}
+	usage := &relaymodel.Usage{ImageGenerationCalls: 2}
+	detail, note, err := maybeApplyResponsesImageToolBilling(
+		&snapshot,
+		usage,
+		0,
+		[]adminmodel.ChannelModel{
+			{
+				Model:      "gpt-image-1",
+				Selected:   true,
+				InputPrice: &price,
+				PriceUnit:  adminmodel.ProviderPriceUnitPerImage,
+				Currency:   adminmodel.ProviderPriceCurrencyUSD,
+			},
+		},
+		1,
+		[]responsesImageToolSpec{{Model: "gpt-image-1", Size: "1024x1024", Quality: "high"}},
+	)
+	if err != nil {
+		t.Fatalf("maybeApplyResponsesImageToolBilling() error = %v", err)
+	}
+	if !detail.Applied || detail.Calls != 2 || note == "" {
+		t.Fatalf("unexpected image tool detail=%#v note=%q", detail, note)
+	}
+	if snapshot.UsageSource != billingUsageSourceUsagePlusImageTool {
+		t.Fatalf("UsageSource = %q, want %q", snapshot.UsageSource, billingUsageSourceUsagePlusImageTool)
+	}
+	if snapshot.EstimateSource != billingEstimateSourceImageToolRequest {
+		t.Fatalf("EstimateSource = %q, want %q", snapshot.EstimateSource, billingEstimateSourceImageToolRequest)
+	}
+	if snapshot.SettlementMode != billingSettlementModeUsagePlusImageFee {
+		t.Fatalf("SettlementMode = %q, want %q", snapshot.SettlementMode, billingSettlementModeUsagePlusImageFee)
+	}
+	if snapshot.ImageToolCalls != 2 || snapshot.ImageToolChargeAmount <= 0 {
+		t.Fatalf("image tool fields not applied: calls=%d charge=%d", snapshot.ImageToolCalls, snapshot.ImageToolChargeAmount)
+	}
+}
+
 func TestBillingSnapshotApplyToLogIncludesTextCacheFields(t *testing.T) {
 	snapshot := billing.BillingSnapshot{
 		CacheReadQuantity:  300,

@@ -14,6 +14,8 @@ import (
 const (
 	defaultResponsesImageToolModel         = "gpt-image-1"
 	billingSettlementModeUsagePlusImageFee = "usage_plus_image_fee"
+	billingUsageSourceUsagePlusImageTool   = "upstream_usage_plus_image_tool"
+	billingEstimateSourceImageToolRequest  = "responses_image_tool_request"
 	mixedBillingPriceUnit                  = "mixed"
 )
 
@@ -131,6 +133,8 @@ func maybeApplyResponsesImageToolBilling(snapshot *billing.BillingSnapshot, usag
 	if !strings.EqualFold(strings.TrimSpace(snapshot.PriceUnit), strings.TrimSpace(extraSnapshot.PriceUnit)) {
 		snapshot.PriceUnit = mixedBillingPriceUnit
 	}
+	snapshot.UsageSource = billingUsageSourceUsagePlusImageTool
+	snapshot.EstimateSource = billingEstimateSourceImageToolRequest
 	snapshot.SettlementMode = billingSettlementModeUsagePlusImageFee
 	detail := responsesImageToolBillingDetail{
 		Model:        spec.Model,
