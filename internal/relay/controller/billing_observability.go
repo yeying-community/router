@@ -70,6 +70,18 @@ func annotateTextEstimateLogFields(logRow *adminmodel.Log, result tokenestimate.
 	logRow.BillingEstimatePrecision = strings.TrimSpace(string(result.Precision))
 }
 
+func annotateTextPreConsumeLogFields(logRow *adminmodel.Log, estimatedPromptTokens int, estimatedOutputTokens int, estimatedChargeAmount int64) {
+	if logRow == nil {
+		return
+	}
+	logRow.EstimatedPromptTokens = estimatedPromptTokens
+	logRow.EstimatedOutputTokens = estimatedOutputTokens
+	logRow.EstimatedChargeAmount = estimatedChargeAmount
+	logRow.BillingPromptTokenDelta = logRow.PromptTokens - estimatedPromptTokens
+	logRow.BillingOutputTokenDelta = logRow.CompletionTokens - estimatedOutputTokens
+	logRow.BillingChargeDeltaAmount = logRow.BillingChargeAmount - estimatedChargeAmount
+}
+
 func buildTextBillingLogContent(pricing adminmodel.ResolvedModelPricing, groupRatio float64, suffix string) string {
 	content := billing.FormatPricingLog(pricing, groupRatio)
 	if strings.TrimSpace(suffix) == "" {

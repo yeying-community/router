@@ -2722,6 +2722,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
 			},
 		},
+		{
+			Version:     "202607061430_log_text_estimate_delta_observability",
+			Description: "add text preconsume estimate delta fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeLog, migrations)
 }

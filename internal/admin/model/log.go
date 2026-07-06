@@ -56,6 +56,11 @@ type Log struct {
 	BillingPricingRuleVersion        string  `json:"billing_pricing_rule_version" gorm:"type:varchar(64);default:''"`
 	BillingCostRuleVersion           string  `json:"billing_cost_rule_version" gorm:"type:varchar(64);default:''"`
 	EstimatedPromptTokens            int     `json:"estimated_prompt_tokens" gorm:"default:0"`
+	EstimatedOutputTokens            int     `json:"estimated_output_tokens" gorm:"default:0"`
+	EstimatedChargeAmount            int64   `json:"estimated_charge_amount" gorm:"bigint;default:0"`
+	BillingPromptTokenDelta          int     `json:"billing_prompt_token_delta" gorm:"default:0"`
+	BillingOutputTokenDelta          int     `json:"billing_output_token_delta" gorm:"default:0"`
+	BillingChargeDeltaAmount         int64   `json:"billing_charge_delta_amount" gorm:"bigint;default:0"`
 	PromptTokens                     int     `json:"prompt_tokens" gorm:"default:0"`
 	CompletionTokens                 int     `json:"completion_tokens" gorm:"default:0"`
 	ChannelId                        string  `json:"channel" gorm:"type:varchar(64);index"`

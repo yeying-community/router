@@ -198,7 +198,7 @@ func logTokenPreConsumeFailure(ctx context.Context, meta *meta.Meta, quota int64
 	)
 }
 
-func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, groupRatio float64, estimateResult tokenestimate.EstimateResult, responsesImageTools []responsesImageToolSpec, systemPromptReset bool, billingPlan relayBillingPlan) {
+func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, estimatedOutputTokens int, estimatedChargeAmount int64, groupRatio float64, estimateResult tokenestimate.EstimateResult, responsesImageTools []responsesImageToolSpec, systemPromptReset bool, billingPlan relayBillingPlan) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		releaseRelayBillingPlan(ctx, billingPlan)
@@ -294,6 +294,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	applyRouteObservabilityToLog(entry, meta, textRequest.Model)
 	billingSnapshot.ApplyToLog(entry)
 	annotateTextEstimateLogFields(entry, estimateResult)
+	annotateTextPreConsumeLogFields(entry, estimateResult.PromptTokens, estimatedOutputTokens, estimatedChargeAmount)
 	billing.ApplyProcurementCostObservation(entry)
 	model.RecordConsumeLog(ctx, entry)
 	billing.RecordProcurementConsumptionObservation(ctx, entry)

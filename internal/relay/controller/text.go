@@ -280,7 +280,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return respErr
 	}
 	// post-consume quota
-	go postConsumeQuota(ctx, usage, meta, upstreamRequest, pricing, preConsumedQuota, groupRatio, estimateResult, responsesImageTools, false, billingPlan)
+	go postConsumeQuota(ctx, usage, meta, upstreamRequest, pricing, preConsumedQuota, int(preConsumedSnapshot.OutputQuantity), groupReservedQuota, groupRatio, estimateResult, responsesImageTools, false, billingPlan)
 	preConsumedQuotaSettled = true
 	groupQuotaSettled = true
 	return nil
