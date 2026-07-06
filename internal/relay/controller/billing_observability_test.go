@@ -155,6 +155,33 @@ func TestAnnotateTextPreConsumeLogFields(t *testing.T) {
 	}
 }
 
+func TestAnnotateAudioPreConsumeLogFields(t *testing.T) {
+	logRow := &adminmodel.Log{
+		PromptTokens:          28,
+		BillingChargeAmount:   9,
+		EstimatedPromptTokens: 1,
+	}
+	annotateAudioPreConsumeLogFields(logRow, 40, 13)
+	if logRow.EstimatedPromptTokens != 40 {
+		t.Fatalf("EstimatedPromptTokens = %d, want 40", logRow.EstimatedPromptTokens)
+	}
+	if logRow.EstimatedOutputTokens != 0 {
+		t.Fatalf("EstimatedOutputTokens = %d, want 0", logRow.EstimatedOutputTokens)
+	}
+	if logRow.EstimatedChargeAmount != 13 {
+		t.Fatalf("EstimatedChargeAmount = %d, want 13", logRow.EstimatedChargeAmount)
+	}
+	if logRow.BillingPromptTokenDelta != -12 {
+		t.Fatalf("BillingPromptTokenDelta = %d, want -12", logRow.BillingPromptTokenDelta)
+	}
+	if logRow.BillingOutputTokenDelta != 0 {
+		t.Fatalf("BillingOutputTokenDelta = %d, want 0", logRow.BillingOutputTokenDelta)
+	}
+	if logRow.BillingChargeDeltaAmount != -4 {
+		t.Fatalf("BillingChargeDeltaAmount = %d, want -4", logRow.BillingChargeDeltaAmount)
+	}
+}
+
 func TestParseResponsesImageToolSpecs(t *testing.T) {
 	raw := []byte(`{
 		"model":"gpt-5",

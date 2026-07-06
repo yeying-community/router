@@ -73,6 +73,8 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	pricing = adminmodel.ResolveAudioRequestPricing(pricing, relayMode == relaymode.AudioSpeech)
 	var quota int64
 	var preConsumedQuota int64
+	var estimatedQuantity int
+	var estimatedChargeAmount int64
 	billingSnapshot := billing.BillingSnapshot{}
 	switch relayMode {
 	case relaymode.AudioSpeech:
@@ -86,6 +88,8 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 		preConsumedQuota = billingSnapshot.ChargeAmount
 		quota = preConsumedQuota
+		estimatedQuantity = int(billingSnapshot.InputQuantity + billingSnapshot.OutputQuantity)
+		estimatedChargeAmount = preConsumedQuota
 	default:
 		billingSnapshot, err = billing.ComputeAudioTextBillingSnapshot(int(config.PreConsumedQuota), pricing, groupRatio)
 		if err != nil {
@@ -96,6 +100,8 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
 		preConsumedQuota = billingSnapshot.ChargeAmount
+		estimatedQuantity = int(billingSnapshot.InputQuantity + billingSnapshot.OutputQuantity)
+		estimatedChargeAmount = preConsumedQuota
 	}
 	billingPlan, quotaErr := reserveRelayQuota(ctx, meta, preConsumedQuota)
 	if quotaErr != nil {
@@ -289,6 +295,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			billingSnapshot,
 			func(entry *model.Log) {
 				applyRouteObservabilityToLog(entry, meta, audioModel)
+				annotateAudioPreConsumeLogFields(entry, estimatedQuantity, estimatedChargeAmount)
 			},
 		)
 		if billingPlan.UsesRequestPackage() {

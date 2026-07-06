@@ -123,6 +123,16 @@ func annotateTextPreConsumeLogFields(logRow *adminmodel.Log, estimatedPromptToke
 	logRow.BillingChargeDeltaAmount = logRow.BillingChargeAmount - estimatedChargeAmount
 }
 
+func annotateAudioPreConsumeLogFields(logRow *adminmodel.Log, estimatedQuantity int, estimatedChargeAmount int64) {
+	if logRow == nil {
+		return
+	}
+	logRow.EstimatedPromptTokens = estimatedQuantity
+	logRow.EstimatedChargeAmount = estimatedChargeAmount
+	logRow.BillingPromptTokenDelta = logRow.PromptTokens - estimatedQuantity
+	logRow.BillingChargeDeltaAmount = logRow.BillingChargeAmount - estimatedChargeAmount
+}
+
 func buildTextBillingLogContent(pricing adminmodel.ResolvedModelPricing, groupRatio float64, suffix string) string {
 	content := billing.FormatPricingLog(pricing, groupRatio)
 	if strings.TrimSpace(suffix) == "" {
