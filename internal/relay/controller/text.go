@@ -174,20 +174,28 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	}
 	pricing = adminmodel.ResolveTextRequestPricing(pricing, upstreamPath)
 	// pre-consume quota
-	rawRequestBody := validatedRawBody
-	if len(rawRequestBody) == 0 {
-		var rawBodyErr error
-		rawRequestBody, rawBodyErr = common.GetRequestBody(c)
-		if rawBodyErr != nil {
-			logger.Errorf(ctx, "get request body for token estimate failed: %s", rawBodyErr.Error())
-			return openai.ErrorWrapper(rawBodyErr, "read_request_body_failed", http.StatusBadRequest)
+	rawRequestBody, err := prepareTextBillingRequestBody(c, meta, validatedRawBody)
+	if err != nil {
+		var policyErr *endpointPolicyError
+		if errors.As(err, &policyErr) {
+			return openai.ErrorWrapper(policyErr, policyErr.ErrorCode(), policyErr.StatusCode())
+		}
+		logger.Errorf(ctx, "prepare request body for token estimate failed: %s", err.Error())
+		return openai.ErrorWrapper(err, "read_request_body_failed", http.StatusBadRequest)
+	}
+	estimateRequest := textRequest
+	if meta.Mode != relaymode.Messages {
+		estimateRequest, err = parseTextRequestForBillingEstimate(rawRequestBody, textRequest)
+		if err != nil {
+			logger.Errorf(ctx, "parse endpoint-adjusted request for token estimate failed: %s", err.Error())
+			return openai.ErrorWrapper(err, "estimate_prompt_tokens_failed", http.StatusBadRequest)
 		}
 	}
 	estimateResult, estimateErr := tokenestimate.Estimate(tokenestimate.EstimateRequest{
 		RelayMode: meta.Mode,
 		Model:     meta.OriginModelName,
 		RawBody:   rawRequestBody,
-		Request:   textRequest,
+		Request:   estimateRequest,
 	})
 	if estimateErr != nil {
 		logger.Errorf(ctx, "estimate prompt tokens failed: %s", estimateErr.Error())
@@ -284,6 +292,54 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	preConsumedQuotaSettled = true
 	groupQuotaSettled = true
 	return nil
+}
+
+func prepareTextBillingRequestBody(c *gin.Context, meta *meta.Meta, rawRequestBody []byte) ([]byte, error) {
+	rawBody := rawRequestBody
+	if len(rawBody) == 0 {
+		var err error
+		rawBody, err = common.GetRequestBody(c)
+		if err != nil {
+			return nil, err
+		}
+	}
+	upstreamMode := meta.Mode
+	if meta.UpstreamMode != 0 {
+		upstreamMode = meta.UpstreamMode
+	}
+	switch {
+	case meta.Mode == relaymode.Messages && upstreamMode == relaymode.Messages:
+		normalizedBody, err := normalizeMessagesRequestBody(rawBody, meta.ActualModelName)
+		if err != nil {
+			return nil, err
+		}
+		return applyEndpointRequestPolicy(c, meta, normalizedBody)
+	case meta.Mode == relaymode.Responses && upstreamMode == relaymode.Responses:
+		return applyEndpointRequestPolicy(c, meta, rawBody)
+	case !config.EnforceIncludeUsage &&
+		meta.APIType == apitype.OpenAI &&
+		meta.OriginModelName == meta.ActualModelName &&
+		meta.ChannelProtocol != relaychannel.Baichuan &&
+		meta.Mode == upstreamMode &&
+		meta.Mode != relaymode.Messages:
+		return applyEndpointRequestPolicy(c, meta, rawBody)
+	default:
+		return rawBody, nil
+	}
+}
+
+func parseTextRequestForBillingEstimate(rawRequestBody []byte, fallback *model.GeneralOpenAIRequest) (*model.GeneralOpenAIRequest, error) {
+	if len(rawRequestBody) == 0 || fallback == nil {
+		return fallback, nil
+	}
+	parsed := &model.GeneralOpenAIRequest{}
+	if err := json.Unmarshal(rawRequestBody, parsed); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(fallback.Model) != "" {
+		parsed.Model = fallback.Model
+	}
+	return parsed, nil
 }
 
 func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralOpenAIRequest, adaptor adaptor.Adaptor, rawRequestBody []byte) (io.Reader, error) {
