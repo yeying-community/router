@@ -39,6 +39,18 @@ func TestApplyProcurementCostObservationMapsSettlementTruthMode(t *testing.T) {
 			wantConfidence: ProcurementCostConfidenceUnitBased,
 		},
 		{
+			name:           "audio request final",
+			settlementMode: "audio_request_final",
+			wantMode:       SettlementTruthModeUnitBasedFinal,
+			wantConfidence: ProcurementCostConfidenceUnitBased,
+		},
+		{
+			name:           "audio response text final",
+			settlementMode: "audio_response_text_final",
+			wantMode:       SettlementTruthModeLocalEstimateFinal,
+			wantConfidence: ProcurementCostConfidenceLocalEstimate,
+		},
+		{
 			name:           "realtime unmetered proxy",
 			settlementMode: "realtime_unmetered_proxy",
 			wantMode:       SettlementTruthModeUnmeteredProxy,

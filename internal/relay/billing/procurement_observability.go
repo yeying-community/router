@@ -109,7 +109,9 @@ func inferSettlementTruthMode(logRow *model.Log) string {
 		return SettlementTruthModeReturnedUsageFinal
 	case "local_estimate_final":
 		return SettlementTruthModeLocalEstimateFinal
-	case "estimate_only", "video_task_created":
+	case "audio_response_text_final":
+		return SettlementTruthModeLocalEstimateFinal
+	case "estimate_only", "audio_request_final", "video_task_created":
 		return SettlementTruthModeUnitBasedFinal
 	case "realtime_unmetered_proxy":
 		return SettlementTruthModeUnmeteredProxy
