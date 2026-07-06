@@ -2,7 +2,6 @@ package billing
 
 import (
 	"context"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -10,7 +9,6 @@ import (
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
-	"github.com/yeying-community/router/internal/admin/model"
 )
 
 const (
@@ -64,20 +62,15 @@ func normalizedFXAutoSyncIntervalSeconds() int {
 
 func runFXAutoSyncOnce() {
 	runAt := helper.GetTimestamp()
-	_ = model.UpdateOption("FXAutoSyncLastRunAt", strconv.FormatInt(runAt, 10))
+	RecordFXSyncRun(runAt)
 
 	result, err := SyncFXMarketRates(context.Background())
 	if err != nil {
-		message := strings.TrimSpace(err.Error())
-		if len(message) > 1024 {
-			message = message[:1024]
-		}
-		_ = model.UpdateOption("FXAutoSyncLastError", message)
+		message := RecordFXSyncFailure(err)
 		logger.SysWarnf("[billing.fx] auto sync failed: %s", message)
 		return
 	}
-	_ = model.UpdateOption("FXAutoSyncLastSuccessAt", strconv.FormatInt(runAt, 10))
-	_ = model.UpdateOption("FXAutoSyncLastError", "")
+	RecordFXSyncSuccess(runAt)
 	logger.SysLogf("[billing.fx] auto sync success provider=%s updated=%d skipped=%d date=%s",
 		result.Provider, result.UpdatedCount, result.SkippedCount, result.Date)
 }

@@ -443,11 +443,16 @@ func appendPricingPolicyHealthIssues(response *billingHealthResponse) {
 		})
 	}
 	if config.FXAutoSyncEnabled && strings.TrimSpace(config.FXAutoSyncLastError) != "" {
+		message := "汇率同步最近一次失败"
+		if config.FXAutoSyncConsecutiveFailures > 0 {
+			message += "，已连续失败 " + strconv.Itoa(config.FXAutoSyncConsecutiveFailures) + " 次"
+		}
+		message += ": " + strings.TrimSpace(config.FXAutoSyncLastError)
 		appendBillingHealthIssue(response, billingHealthIssue{
 			Key:     "fx_sync_last_error",
 			Level:   "warning",
 			Title:   "汇率同步最近一次失败",
-			Message: "汇率同步最近一次失败: " + strings.TrimSpace(config.FXAutoSyncLastError),
+			Message: message,
 			Link:    "/admin/setting?tab=exchange&section=rates",
 		})
 	}
@@ -677,19 +682,18 @@ func DeleteBillingCurrency(c *gin.Context) {
 
 func SyncBillingCurrenciesFromFX(c *gin.Context) {
 	runAt := helper.GetTimestamp()
-	_ = model.UpdateOption("FXAutoSyncLastRunAt", strconv.FormatInt(runAt, 10))
+	billingsvc.RecordFXSyncRun(runAt)
 
 	result, err := billingsvc.SyncFXMarketRates(c.Request.Context())
 	if err != nil {
-		_ = model.UpdateOption("FXAutoSyncLastError", strings.TrimSpace(err.Error()))
+		message := billingsvc.RecordFXSyncFailure(err)
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "同步汇率失败: " + err.Error(),
+			"message": "同步汇率失败: " + message,
 		})
 		return
 	}
-	_ = model.UpdateOption("FXAutoSyncLastSuccessAt", strconv.FormatInt(runAt, 10))
-	_ = model.UpdateOption("FXAutoSyncLastError", "")
+	billingsvc.RecordFXSyncSuccess(runAt)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -702,14 +706,15 @@ func GetFXSyncStatus(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"enabled":            config.FXAutoSyncEnabled,
-			"interval_seconds":   config.FXAutoSyncIntervalSeconds,
-			"provider":           config.FXAutoSyncProvider,
-			"last_run_at":        config.FXAutoSyncLastRunAt,
-			"last_success_at":    config.FXAutoSyncLastSuccessAt,
-			"last_error":         config.FXAutoSyncLastError,
-			"min_interval":       60,
-			"loop_check_seconds": 30,
+			"enabled":              config.FXAutoSyncEnabled,
+			"interval_seconds":     config.FXAutoSyncIntervalSeconds,
+			"provider":             config.FXAutoSyncProvider,
+			"last_run_at":          config.FXAutoSyncLastRunAt,
+			"last_success_at":      config.FXAutoSyncLastSuccessAt,
+			"last_error":           config.FXAutoSyncLastError,
+			"consecutive_failures": config.FXAutoSyncConsecutiveFailures,
+			"min_interval":         60,
+			"loop_check_seconds":   30,
 		},
 	})
 }

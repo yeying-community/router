@@ -28,6 +28,7 @@ var FXAutoSyncProvider = "frankfurter"
 var FXAutoSyncLastRunAt int64 = 0
 var FXAutoSyncLastSuccessAt int64 = 0
 var FXAutoSyncLastError = ""
+var FXAutoSyncConsecutiveFailures = 0
 var ChannelBillingAutoRefreshEnabled = true
 var ChannelBillingAutoRefreshIntervalSeconds = 30 * 60
 var ChannelBillingAutoRefreshLastRunAt int64 = 0
