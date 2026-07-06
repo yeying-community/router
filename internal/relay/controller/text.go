@@ -210,7 +210,9 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		logger.Errorf(ctx, "parse responses image tools failed: %s", responsesImageToolsErr.Error())
 		return openai.ErrorWrapper(responsesImageToolsErr, "parse_responses_image_tools_failed", http.StatusBadRequest)
 	}
-	preConsumedSnapshot, err := billing.ComputeTextPreConsumedBillingSnapshot(promptTokens, resolveTextMaxOutputTokens(textRequest), pricing, groupRatio)
+	maxOutputTokens := resolveTextMaxOutputTokens(textRequest)
+	preConsumedPricing := adminmodel.ResolveTextUsagePricing(pricing, upstreamPath, promptTokens, maxOutputTokens)
+	preConsumedSnapshot, err := billing.ComputeTextPreConsumedBillingSnapshot(promptTokens, maxOutputTokens, preConsumedPricing, groupRatio)
 	if err != nil {
 		logger.Errorf(ctx, "ComputeTextPreConsumedQuota failed: %s", err.Error())
 		return openai.ErrorWrapper(err, "calculate_text_quota_failed", http.StatusInternalServerError)

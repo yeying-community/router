@@ -1,12 +1,16 @@
 package controller
 
 import (
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yeying-community/router/common/config"
+	adminmodel "github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/relay/billing"
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
 	"github.com/yeying-community/router/internal/relay/relaymode"
 )
@@ -65,5 +69,51 @@ func TestResolveTextMaxOutputTokensUsesLargestLimit(t *testing.T) {
 	})
 	if got != 384 {
 		t.Fatalf("resolveTextMaxOutputTokens() = %d, want 384", got)
+	}
+}
+
+func TestPreConsumeCanUseEstimatedTokenTierPricing(t *testing.T) {
+	maxOutputTokens := 128
+	basePricing := adminmodel.ResolvedModelPricing{
+		Model:       "doubao-seed-1.6",
+		Provider:    "volcengine",
+		Type:        adminmodel.ProviderModelTypeText,
+		InputPrice:  0.0008,
+		OutputPrice: 0.008,
+		PriceUnit:   adminmodel.ProviderPriceUnitPer1KTokens,
+		Currency:    "CNY",
+		Source:      "provider_migration",
+		PriceComponents: []adminmodel.ProviderModelPriceComponentDetail{
+			{
+				Component:   adminmodel.ProviderModelPriceComponentText,
+				Condition:   "prompt_tokens_lte=32000;completion_tokens_lte=200",
+				InputPrice:  0.0008,
+				OutputPrice: 0.002,
+				PriceUnit:   adminmodel.ProviderPriceUnitPer1KTokens,
+				Currency:    "CNY",
+				Source:      "migration",
+			},
+			{
+				Component:   adminmodel.ProviderModelPriceComponentText,
+				Condition:   "prompt_tokens_lte=32000;completion_tokens_gt=200",
+				InputPrice:  0.0008,
+				OutputPrice: 0.008,
+				PriceUnit:   adminmodel.ProviderPriceUnitPer1KTokens,
+				Currency:    "CNY",
+				Source:      "migration",
+			},
+		},
+	}
+	preConsumedPricing := adminmodel.ResolveTextUsagePricing(basePricing, "/v1/chat/completions", 2048, maxOutputTokens)
+	snapshot, err := billing.ComputeTextPreConsumedBillingSnapshot(2048, maxOutputTokens, preConsumedPricing, 0)
+	if err != nil {
+		t.Fatalf("ComputeTextPreConsumedBillingSnapshot() error = %v", err)
+	}
+	if preConsumedPricing.OutputPrice != 0.002 {
+		t.Fatalf("pre-consume output price=%v, want 0.002", preConsumedPricing.OutputPrice)
+	}
+	wantOutputAmount := float64(config.PreConsumedQuota+int64(maxOutputTokens)) * 0.002 / 1000
+	if math.Abs(snapshot.OutputAmount-wantOutputAmount) > 1e-12 {
+		t.Fatalf("OutputAmount = %v, want %v", snapshot.OutputAmount, wantOutputAmount)
 	}
 }
