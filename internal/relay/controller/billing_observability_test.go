@@ -6,6 +6,7 @@ import (
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/relay/billing"
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
+	"github.com/yeying-community/router/internal/relay/relaymode"
 	"github.com/yeying-community/router/internal/tokenestimate"
 )
 
@@ -53,6 +54,42 @@ func TestAnnotateTextBillingSnapshotResponsesImagePending(t *testing.T) {
 	if snapshot.SettlementMode != billingSettlementModeResponsesImagePending {
 		t.Fatalf("SettlementMode = %q, want %q", snapshot.SettlementMode, billingSettlementModeResponsesImagePending)
 	}
+}
+
+func TestAnnotateAudioBillingSnapshot(t *testing.T) {
+	t.Run("speech request payload final", func(t *testing.T) {
+		snapshot := billing.BillingSnapshot{}
+		annotateAudioBillingSnapshot(&snapshot, "provider_component", relaymode.AudioSpeech)
+		if snapshot.PricingSource != "provider_component" {
+			t.Fatalf("PricingSource = %q, want provider_component", snapshot.PricingSource)
+		}
+		if snapshot.UsageSource != billingUsageSourceRequestPayload {
+			t.Fatalf("UsageSource = %q, want %q", snapshot.UsageSource, billingUsageSourceRequestPayload)
+		}
+		if snapshot.EstimateSource != billingEstimateSourceAudioTTSInputChars {
+			t.Fatalf("EstimateSource = %q, want %q", snapshot.EstimateSource, billingEstimateSourceAudioTTSInputChars)
+		}
+		if snapshot.SettlementMode != billingSettlementModeAudioRequestFinal {
+			t.Fatalf("SettlementMode = %q, want %q", snapshot.SettlementMode, billingSettlementModeAudioRequestFinal)
+		}
+	})
+
+	t.Run("transcription response text final", func(t *testing.T) {
+		snapshot := billing.BillingSnapshot{}
+		annotateAudioBillingSnapshot(&snapshot, "provider_migration", relaymode.AudioTranscription)
+		if snapshot.PricingSource != "provider_migration" {
+			t.Fatalf("PricingSource = %q, want provider_migration", snapshot.PricingSource)
+		}
+		if snapshot.UsageSource != billingUsageSourceResponseText {
+			t.Fatalf("UsageSource = %q, want %q", snapshot.UsageSource, billingUsageSourceResponseText)
+		}
+		if snapshot.EstimateSource != billingEstimateSourceAudioPreconsumeQuota {
+			t.Fatalf("EstimateSource = %q, want %q", snapshot.EstimateSource, billingEstimateSourceAudioPreconsumeQuota)
+		}
+		if snapshot.SettlementMode != billingSettlementModeAudioResponseTextFinal {
+			t.Fatalf("SettlementMode = %q, want %q", snapshot.SettlementMode, billingSettlementModeAudioResponseTextFinal)
+		}
+	})
 }
 
 func TestAnnotateTextEstimateLogFields(t *testing.T) {

@@ -80,6 +80,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
+		annotateAudioBillingSnapshot(&billingSnapshot, pricing.Source, relayMode)
 		if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, channelId, audioModel); err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
@@ -90,6 +91,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
+		annotateAudioBillingSnapshot(&billingSnapshot, pricing.Source, relayMode)
 		if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, channelId, audioModel); err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
@@ -255,6 +257,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
+		annotateAudioBillingSnapshot(&billingSnapshot, pricing.Source, relayMode)
 		if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, channelId, audioModel); err != nil {
 			logger.Errorf(ctx, "audio billing procurement cost estimate failed user_id=%s group=%s channel_id=%s model=%s err=%q", strings.TrimSpace(userId), strings.TrimSpace(group), strings.TrimSpace(channelId), strings.TrimSpace(audioModel), err.Error())
 		}

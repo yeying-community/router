@@ -7,14 +7,21 @@ import (
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/relay/billing"
 	"github.com/yeying-community/router/internal/relay/model"
+	"github.com/yeying-community/router/internal/relay/relaymode"
 	"github.com/yeying-community/router/internal/tokenestimate"
 )
 
 const (
-	billingUsageSourceUpstreamUsage            = "upstream_usage"
-	billingEstimateSourceUnknown               = "unknown"
-	billingSettlementModeUsageFinal            = "usage_final"
-	billingSettlementModeResponsesImagePending = "responses_image_tool_pending"
+	billingUsageSourceUpstreamUsage             = "upstream_usage"
+	billingUsageSourceRequestPayload            = "request_payload"
+	billingUsageSourceResponseText              = "response_text"
+	billingEstimateSourceUnknown                = "unknown"
+	billingEstimateSourceAudioTTSInputChars     = "audio_tts_input_chars"
+	billingEstimateSourceAudioPreconsumeQuota   = "audio_preconsume_quota"
+	billingSettlementModeUsageFinal             = "usage_final"
+	billingSettlementModeAudioRequestFinal      = "audio_request_final"
+	billingSettlementModeAudioResponseTextFinal = "audio_response_text_final"
+	billingSettlementModeResponsesImagePending  = "responses_image_tool_pending"
 )
 
 func resolveTextEstimateSourceLabel(result tokenestimate.EstimateResult) string {
@@ -59,6 +66,25 @@ func annotateTextBillingSnapshot(snapshot *billing.BillingSnapshot, pricingSourc
 	snapshot.UsageSource = billingUsageSourceUpstreamUsage
 	snapshot.EstimateSource = strings.TrimSpace(estimateSource)
 	snapshot.SettlementMode = resolveTextSettlementMode(endpoint, req)
+}
+
+func annotateAudioBillingSnapshot(snapshot *billing.BillingSnapshot, pricingSource string, mode int) {
+	if snapshot == nil {
+		return
+	}
+	snapshot.PricingSource = strings.TrimSpace(pricingSource)
+	switch mode {
+	case relaymode.AudioSpeech:
+		snapshot.UsageSource = billingUsageSourceRequestPayload
+		snapshot.EstimateSource = billingEstimateSourceAudioTTSInputChars
+		snapshot.SettlementMode = billingSettlementModeAudioRequestFinal
+	case relaymode.AudioTranscription, relaymode.AudioTranslation:
+		snapshot.UsageSource = billingUsageSourceResponseText
+		snapshot.EstimateSource = billingEstimateSourceAudioPreconsumeQuota
+		snapshot.SettlementMode = billingSettlementModeAudioResponseTextFinal
+	default:
+		snapshot.EstimateSource = billingEstimateSourceUnknown
+	}
 }
 
 func annotateTextEstimateLogFields(logRow *adminmodel.Log, result tokenestimate.EstimateResult) {
