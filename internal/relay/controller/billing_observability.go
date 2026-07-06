@@ -18,9 +18,11 @@ const (
 	billingEstimateSourceUnknown                = "unknown"
 	billingEstimateSourceAudioTTSInputChars     = "audio_tts_input_chars"
 	billingEstimateSourceAudioPreconsumeQuota   = "audio_preconsume_quota"
+	billingEstimateSourceVideoRequestRule       = "video_request_rule"
 	billingSettlementModeUsageFinal             = "usage_final"
 	billingSettlementModeAudioRequestFinal      = "audio_request_final"
 	billingSettlementModeAudioResponseTextFinal = "audio_response_text_final"
+	billingSettlementModeVideoTaskCreated       = "video_task_created"
 	billingSettlementModeResponsesImagePending  = "responses_image_tool_pending"
 )
 
@@ -85,6 +87,16 @@ func annotateAudioBillingSnapshot(snapshot *billing.BillingSnapshot, pricingSour
 	default:
 		snapshot.EstimateSource = billingEstimateSourceUnknown
 	}
+}
+
+func annotateVideoBillingSnapshot(snapshot *billing.BillingSnapshot, pricingSource string) {
+	if snapshot == nil {
+		return
+	}
+	snapshot.PricingSource = strings.TrimSpace(pricingSource)
+	snapshot.UsageSource = billingUsageSourceRequestPayload
+	snapshot.EstimateSource = billingEstimateSourceVideoRequestRule
+	snapshot.SettlementMode = billingSettlementModeVideoTaskCreated
 }
 
 func annotateTextEstimateLogFields(logRow *adminmodel.Log, result tokenestimate.EstimateResult) {

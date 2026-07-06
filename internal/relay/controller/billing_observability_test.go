@@ -92,6 +92,23 @@ func TestAnnotateAudioBillingSnapshot(t *testing.T) {
 	})
 }
 
+func TestAnnotateVideoBillingSnapshot(t *testing.T) {
+	snapshot := billing.BillingSnapshot{}
+	annotateVideoBillingSnapshot(&snapshot, "provider_component")
+	if snapshot.PricingSource != "provider_component" {
+		t.Fatalf("PricingSource = %q, want provider_component", snapshot.PricingSource)
+	}
+	if snapshot.UsageSource != billingUsageSourceRequestPayload {
+		t.Fatalf("UsageSource = %q, want %q", snapshot.UsageSource, billingUsageSourceRequestPayload)
+	}
+	if snapshot.EstimateSource != billingEstimateSourceVideoRequestRule {
+		t.Fatalf("EstimateSource = %q, want %q", snapshot.EstimateSource, billingEstimateSourceVideoRequestRule)
+	}
+	if snapshot.SettlementMode != billingSettlementModeVideoTaskCreated {
+		t.Fatalf("SettlementMode = %q, want %q", snapshot.SettlementMode, billingSettlementModeVideoTaskCreated)
+	}
+}
+
 func TestAnnotateTextEstimateLogFields(t *testing.T) {
 	logRow := &adminmodel.Log{}
 	annotateTextEstimateLogFields(logRow, tokenestimate.EstimateResult{

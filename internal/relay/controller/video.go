@@ -416,6 +416,7 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		logger.Errorf(ctx, "video billing snapshot failed user_id=%s group=%s channel_id=%s model=%s quantity=%.4f err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), quantity, snapshotErr.Error())
 		return openai.ErrorWrapper(snapshotErr, "calculate_video_quota_failed", http.StatusInternalServerError)
 	}
+	annotateVideoBillingSnapshot(&billingSnapshot, pricing.Source)
 	if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, meta.ChannelId, videoRequest.Model); err != nil {
 		logger.Errorf(ctx, "video billing procurement cost estimate failed user_id=%s group=%s channel_id=%s model=%s quantity=%.4f err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), quantity, err.Error())
 		return openai.ErrorWrapper(err, "calculate_video_quota_failed", http.StatusInternalServerError)
