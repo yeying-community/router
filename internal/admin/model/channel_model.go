@@ -612,6 +612,10 @@ func SetChannelModelPublishEnabledWithDB(db *gorm.DB, channelID string, modelNam
 			if status := ResolveChannelModelPublishStatus(row, state, support); status != ChannelModelPublishStatusPendingPublish && status != ChannelModelPublishStatusPublished {
 				return fmt.Errorf("%s", channelModelPublishBlockedMessage(status))
 			}
+			row = loadChannelModelPriceComponentsForPublishCheck(tx, row)
+			if err := validateChannelModelPublishBilling(row); err != nil {
+				return err
+			}
 		}
 		now := helper.GetTimestamp()
 		updates := map[string]any{
@@ -629,6 +633,104 @@ func SetChannelModelPublishEnabledWithDB(db *gorm.DB, channelID string, modelNam
 			Where("channel_id = ? AND model = ?", normalizedChannelID, normalizedModelName).
 			Updates(updates).Error
 	})
+}
+
+func loadChannelModelPriceComponentsForPublishCheck(db *gorm.DB, row ChannelModel) ChannelModel {
+	rowsByChannelID := map[string][]ChannelModel{
+		strings.TrimSpace(row.ChannelId): {row},
+	}
+	if err := attachChannelModelPriceComponentsWithDB(db, rowsByChannelID); err != nil {
+		return row
+	}
+	rows := rowsByChannelID[strings.TrimSpace(row.ChannelId)]
+	if len(rows) == 0 {
+		return row
+	}
+	return rows[0]
+}
+
+func validateChannelModelPublishBilling(row ChannelModel) error {
+	if normalizeModelType(row.Type, row.Model) != ProviderModelTypeImage {
+		return nil
+	}
+	pricing := resolvedPricingFromChannelModelRow(row)
+	switch strings.TrimSpace(strings.ToLower(pricing.PriceUnit)) {
+	case ProviderPriceUnitPerImage, ProviderPriceUnitPerRequest, ProviderPriceUnitPerTask:
+		return nil
+	case ProviderPriceUnitPer1KTokens, ProviderPriceUnitPer1KChars, "":
+		if !supportsPublishableTraditionalImageTokenBilling(pricing) {
+			return fmt.Errorf("图片模型 %s 使用 token 计费但当前传统图片端点不支持可靠本地估算，不能发布；请改为按张/按次计价或补齐明确支持的图片 token 计费规则", strings.TrimSpace(row.Model))
+		}
+		if err := validatePublishableTraditionalImageTokenPricing(pricing); err != nil {
+			return err
+		}
+		return nil
+	default:
+		return fmt.Errorf("图片模型 %s 的计价单位 %s 暂不支持发布", strings.TrimSpace(row.Model), strings.TrimSpace(row.PriceUnit))
+	}
+}
+
+func resolvedPricingFromChannelModelRow(row ChannelModel) ResolvedModelPricing {
+	inputPrice := 0.0
+	outputPrice := 0.0
+	hasInputOverride := false
+	hasOutputOverride := false
+	if row.InputPrice != nil && *row.InputPrice > 0 {
+		inputPrice = *row.InputPrice
+		hasInputOverride = true
+	}
+	if row.OutputPrice != nil && *row.OutputPrice > 0 {
+		outputPrice = *row.OutputPrice
+		hasOutputOverride = true
+	}
+	return ResolvedModelPricing{
+		Model:                         strings.TrimSpace(row.Model),
+		Provider:                      strings.TrimSpace(row.Provider),
+		Type:                          normalizeModelType(row.Type, row.Model),
+		InputPrice:                    inputPrice,
+		OutputPrice:                   outputPrice,
+		PriceUnit:                     normalizeChannelModelPriceUnit(row.PriceUnit, row.Type, 0, row.UpstreamModel, row.Model),
+		Currency:                      normalizeChannelModelCurrency(row.Currency),
+		Source:                        "channel_publish_check",
+		PriceComponents:               NormalizeProviderModelPriceComponents(row.PriceComponents),
+		HasChannelOverride:            hasInputOverride || hasOutputOverride || strings.TrimSpace(row.PriceUnit) != "" || strings.TrimSpace(row.Currency) != "" || len(row.PriceComponents) > 0,
+		HasChannelInputPriceOverride:  hasInputOverride,
+		HasChannelOutputPriceOverride: hasOutputOverride,
+		HasChannelComponentOverride:   len(row.PriceComponents) > 0,
+	}
+}
+
+func supportsPublishableTraditionalImageTokenBilling(pricing ResolvedModelPricing) bool {
+	modelName := strings.TrimSpace(strings.ToLower(pricing.Model))
+	if modelName == "gpt-image-2" {
+		return true
+	}
+	return strings.HasPrefix(modelName, "gpt-image-") && modelName != "gpt-image-2"
+}
+
+func validatePublishableTraditionalImageTokenPricing(pricing ResolvedModelPricing) error {
+	if publishableTraditionalImagePromptInputPrice(pricing) <= 0 {
+		return fmt.Errorf("图片模型 %s 使用 token 计费但文本输入价格未配置，不能发布", strings.TrimSpace(pricing.Model))
+	}
+	if pricing.OutputPrice <= 0 {
+		return fmt.Errorf("图片模型 %s 使用 token 计费但输出价格未配置，不能发布", strings.TrimSpace(pricing.Model))
+	}
+	return nil
+}
+
+func publishableTraditionalImagePromptInputPrice(pricing ResolvedModelPricing) float64 {
+	if pricing.HasChannelInputPriceOverride && pricing.InputPrice > 0 {
+		return pricing.InputPrice
+	}
+	for _, component := range pricing.PriceComponents {
+		if strings.TrimSpace(strings.ToLower(component.Component)) != ProviderModelPriceComponentText {
+			continue
+		}
+		if component.InputPrice > 0 {
+			return component.InputPrice
+		}
+	}
+	return 0
 }
 
 func channelModelPublishBlockedMessage(status string) string {

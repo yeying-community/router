@@ -445,6 +445,126 @@ func TestReplaceChannelModelsWithDBClearsPublishStateWhenRoutingConfigChanges(t 
 	}
 }
 
+func TestSetChannelModelPublishEnabledWithDBBlocksUnsupportedImageTokenBilling(t *testing.T) {
+	db := openChannelModelTestDB(t)
+	if err := db.AutoMigrate(
+		&Channel{},
+		&ChannelModel{},
+		&ChannelModelEndpoint{},
+		&ChannelModelEndpointTestResult{},
+		&ChannelModelPriceComponent{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{Id: "channel-1", Name: "channel-1", Protocol: "openai"}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:     "channel-1",
+		Model:         "unsupported-image",
+		UpstreamModel: "unsupported-image",
+		Provider:      "openai",
+		Type:          ProviderModelTypeImage,
+		Selected:      true,
+		PriceUnit:     ProviderPriceUnitPer1KTokens,
+		InputPrice:    float64Ptr(0.01),
+		OutputPrice:   float64Ptr(0.04),
+	}).Error; err != nil {
+		t.Fatalf("create channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModelEndpoint{
+		ChannelId: "channel-1",
+		Model:     "unsupported-image",
+		Endpoint:  ChannelModelEndpointImages,
+		Enabled:   true,
+	}).Error; err != nil {
+		t.Fatalf("create endpoint: %v", err)
+	}
+	if err := db.Create(&ChannelModelEndpointTestResult{
+		ChannelId:      "channel-1",
+		Model:          "unsupported-image",
+		Endpoint:       ChannelModelEndpointImages,
+		LastSupported:  true,
+		LastTestStatus: ChannelModelEndpointTestStatusSuccess,
+	}).Error; err != nil {
+		t.Fatalf("create endpoint test result: %v", err)
+	}
+
+	err := SetChannelModelPublishEnabledWithDB(db, "channel-1", "unsupported-image", true, "tester")
+	if err == nil {
+		t.Fatal("SetChannelModelPublishEnabledWithDB error = nil, want unsupported token image billing block")
+	}
+	if !strings.Contains(err.Error(), "不支持可靠本地估算") {
+		t.Fatalf("error = %q, want unsupported image token billing block", err.Error())
+	}
+}
+
+func TestSetChannelModelPublishEnabledWithDBAllowsGPTImage2TokenBilling(t *testing.T) {
+	db := openChannelModelTestDB(t)
+	if err := db.AutoMigrate(
+		&Channel{},
+		&ChannelModel{},
+		&ChannelModelEndpoint{},
+		&ChannelModelEndpointTestResult{},
+		&ChannelModelPriceComponent{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{Id: "channel-1", Name: "channel-1", Protocol: "openai"}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:     "channel-1",
+		Model:         "gpt-image-2",
+		UpstreamModel: "gpt-image-2",
+		Provider:      "openai",
+		Type:          ProviderModelTypeImage,
+		Selected:      true,
+		PriceUnit:     ProviderPriceUnitPer1KTokens,
+		OutputPrice:   float64Ptr(0.03),
+	}).Error; err != nil {
+		t.Fatalf("create channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModelPriceComponent{
+		ChannelId:  "channel-1",
+		Model:      "gpt-image-2",
+		Component:  ProviderModelPriceComponentText,
+		InputPrice: 0.008,
+		PriceUnit:  ProviderPriceUnitPer1KTokens,
+		Currency:   ProviderPriceCurrencyUSD,
+	}).Error; err != nil {
+		t.Fatalf("create channel model price component: %v", err)
+	}
+	if err := db.Create(&ChannelModelEndpoint{
+		ChannelId: "channel-1",
+		Model:     "gpt-image-2",
+		Endpoint:  ChannelModelEndpointImages,
+		Enabled:   true,
+	}).Error; err != nil {
+		t.Fatalf("create endpoint: %v", err)
+	}
+	if err := db.Create(&ChannelModelEndpointTestResult{
+		ChannelId:      "channel-1",
+		Model:          "gpt-image-2",
+		Endpoint:       ChannelModelEndpointImages,
+		LastSupported:  true,
+		LastTestStatus: ChannelModelEndpointTestStatusSuccess,
+	}).Error; err != nil {
+		t.Fatalf("create endpoint test result: %v", err)
+	}
+
+	if err := SetChannelModelPublishEnabledWithDB(db, "channel-1", "gpt-image-2", true, "tester"); err != nil {
+		t.Fatalf("SetChannelModelPublishEnabledWithDB error = %v", err)
+	}
+	stored := ChannelModel{}
+	if err := db.Where("channel_id = ? AND model = ?", "channel-1", "gpt-image-2").Take(&stored).Error; err != nil {
+		t.Fatalf("load channel model: %v", err)
+	}
+	if !stored.PublishEnabled {
+		t.Fatalf("PublishEnabled = false, want true")
+	}
+}
+
 func TestValidateChannelModelDisableTransitionsWithDBBlocksWhenEnabledEndpointsExist(t *testing.T) {
 	db := openChannelModelTestDB(t)
 	if err := db.AutoMigrate(&ChannelModelEndpoint{}); err != nil {
