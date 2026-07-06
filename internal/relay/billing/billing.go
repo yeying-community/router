@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"math"
 	"strings"
 
 	"github.com/yeying-community/router/common/logger"
@@ -90,20 +91,7 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 	// totalQuota is total quota consumed
 	if totalQuota != 0 {
 		snapshot.ChargeAmount = totalQuota
-		entry := &model.Log{
-			UserId:             userId,
-			GroupId:            groupID,
-			ChannelId:          channelId,
-			PromptTokens:       int(totalQuota),
-			CompletionTokens:   0,
-			ModelName:          modelName,
-			TokenName:          tokenName,
-			Quota:              int(totalQuota),
-			BillingSource:      model.ResolveConsumeLogBillingSource(chargeUserBalance),
-			UserDailyQuota:     userDailyQuota,
-			UserEmergencyQuota: userEmergencyQuota,
-			Content:            FormatPricingLog(pricing, groupRatio),
-		}
+		entry := buildPostConsumeLogEntry(userId, groupID, channelId, modelName, tokenName, totalQuota, chargeUserBalance, userDailyQuota, userEmergencyQuota, pricing, groupRatio, snapshot)
 		for _, observer := range routeObservers {
 			if observer != nil {
 				observer(entry)
@@ -116,4 +104,29 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 		model.UpdateUserUsedQuotaAndRequestCount(userId, totalQuota)
 		model.UpdateChannelUsedQuota(channelId, totalQuota)
 	}
+}
+
+func buildPostConsumeLogEntry(userId string, groupID string, channelId string, modelName string, tokenName string, totalQuota int64, chargeUserBalance bool, userDailyQuota int, userEmergencyQuota int, pricing model.ResolvedModelPricing, groupRatio float64, snapshot BillingSnapshot) *model.Log {
+	return &model.Log{
+		UserId:             userId,
+		GroupId:            groupID,
+		ChannelId:          channelId,
+		PromptTokens:       billingSnapshotUsageQuantity(snapshot),
+		CompletionTokens:   0,
+		ModelName:          modelName,
+		TokenName:          tokenName,
+		Quota:              int(totalQuota),
+		BillingSource:      model.ResolveConsumeLogBillingSource(chargeUserBalance),
+		UserDailyQuota:     userDailyQuota,
+		UserEmergencyQuota: userEmergencyQuota,
+		Content:            FormatPricingLog(pricing, groupRatio),
+	}
+}
+
+func billingSnapshotUsageQuantity(snapshot BillingSnapshot) int {
+	quantity := snapshot.InputQuantity + snapshot.OutputQuantity
+	if quantity <= 0 {
+		return 0
+	}
+	return int(math.Round(quantity))
 }
