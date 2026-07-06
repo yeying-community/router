@@ -17,6 +17,7 @@ import (
 	"github.com/yeying-community/router/internal/relay"
 	"github.com/yeying-community/router/internal/relay/adaptor/openai"
 	volcenginerealtime "github.com/yeying-community/router/internal/relay/adaptor/volcengine/realtime"
+	"github.com/yeying-community/router/internal/relay/billing"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 	"github.com/yeying-community/router/internal/relay/meta"
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
@@ -122,6 +123,7 @@ func recordRealtimeUnmeteredProxyLog(c *gin.Context, relayMeta *meta.Meta, upstr
 	if entry == nil {
 		return
 	}
+	billing.ApplyProcurementCostObservation(entry)
 	adminmodel.RecordConsumeLog(c.Request.Context(), entry)
 	adminmodel.UpdateUserUsedQuotaAndRequestCount(relayMeta.UserId, 0)
 	adminmodel.UpdateChannelUsedQuota(relayMeta.ChannelId, 0)

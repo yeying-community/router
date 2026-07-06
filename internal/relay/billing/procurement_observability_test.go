@@ -33,6 +33,12 @@ func TestApplyProcurementCostObservationMapsSettlementTruthMode(t *testing.T) {
 			wantConfidence: ProcurementCostConfidenceUnitBased,
 		},
 		{
+			name:           "realtime unmetered proxy",
+			settlementMode: "realtime_unmetered_proxy",
+			wantMode:       SettlementTruthModeUnmeteredProxy,
+			wantConfidence: ProcurementCostConfidenceUnmetered,
+		},
+		{
 			name:           "usage final",
 			settlementMode: "usage_final",
 			wantMode:       SettlementTruthModeHybridUsageFinal,

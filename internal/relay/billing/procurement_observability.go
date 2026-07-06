@@ -13,11 +13,13 @@ const (
 	SettlementTruthModeHybridUsageFinal   = "hybrid_usage_final"
 	SettlementTruthModeLocalEstimateFinal = "local_estimate_final"
 	SettlementTruthModeUnitBasedFinal     = "unit_based_final"
+	SettlementTruthModeUnmeteredProxy     = "unmetered_proxy"
 
 	ProcurementCostConfidenceReturnedUsage = "returned_usage"
 	ProcurementCostConfidenceHybridUsage   = "hybrid_usage"
 	ProcurementCostConfidenceLocalEstimate = "local_estimate"
 	ProcurementCostConfidenceUnitBased     = "unit_based"
+	ProcurementCostConfidenceUnmetered     = "unmetered"
 
 	PricingRuleVersionOfficialAnchorV1 = "official_anchor_v1"
 	PricingRuleVersionCostFloorV1      = "cost_floor_v1"
@@ -109,6 +111,8 @@ func inferSettlementTruthMode(logRow *model.Log) string {
 		return SettlementTruthModeLocalEstimateFinal
 	case "estimate_only":
 		return SettlementTruthModeUnitBasedFinal
+	case "realtime_unmetered_proxy":
+		return SettlementTruthModeUnmeteredProxy
 	case "usage_final", "responses_image_tool_pending", "usage_plus_image_fee":
 		return SettlementTruthModeHybridUsageFinal
 	}
@@ -134,6 +138,8 @@ func confidenceFromSettlementTruthMode(mode string) string {
 		return ProcurementCostConfidenceLocalEstimate
 	case SettlementTruthModeUnitBasedFinal:
 		return ProcurementCostConfidenceUnitBased
+	case SettlementTruthModeUnmeteredProxy:
+		return ProcurementCostConfidenceUnmetered
 	default:
 		return ProcurementCostConfidenceHybridUsage
 	}

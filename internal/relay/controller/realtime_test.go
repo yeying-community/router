@@ -8,6 +8,7 @@ import (
 	"time"
 
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/relay/billing"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 	"github.com/yeying-community/router/internal/relay/meta"
 )
@@ -116,6 +117,13 @@ func TestBuildRealtimeUnmeteredProxyLog(t *testing.T) {
 	}
 	if entry.BillingSettlementMode != billingSettlementModeRealtimeUnmeteredProxy {
 		t.Fatalf("BillingSettlementMode = %q, want %q", entry.BillingSettlementMode, billingSettlementModeRealtimeUnmeteredProxy)
+	}
+	billing.ApplyProcurementCostObservation(entry)
+	if entry.BillingSettlementTruthMode != billing.SettlementTruthModeUnmeteredProxy {
+		t.Fatalf("BillingSettlementTruthMode = %q, want %q", entry.BillingSettlementTruthMode, billing.SettlementTruthModeUnmeteredProxy)
+	}
+	if entry.BillingProcurementCostConfidence != billing.ProcurementCostConfidenceUnmetered {
+		t.Fatalf("BillingProcurementCostConfidence = %q, want %q", entry.BillingProcurementCostConfidence, billing.ProcurementCostConfidenceUnmetered)
 	}
 	if entry.ModelName != "gpt-realtime-upstream" || entry.RequestModelName != "gpt-realtime-2" || entry.ActualModelName != "gpt-realtime-upstream" {
 		t.Fatalf("model fields = model:%q request:%q actual:%q", entry.ModelName, entry.RequestModelName, entry.ActualModelName)
