@@ -192,11 +192,12 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	promptTokens := usage.PromptTokens
 	completionTokens := usage.CompletionTokens
 	quota := preConsumedQuota
-	billingSnapshot, snapshotErr := billing.ComputeTextBillingSnapshotWithUsage(*usage, pricing, groupRatio)
+	settlementPricing := model.ResolveTextUsagePricing(pricing, meta.UpstreamRequestPath, promptTokens, completionTokens)
+	billingSnapshot, snapshotErr := billing.ComputeTextBillingSnapshotWithUsage(*usage, settlementPricing, groupRatio)
 	if snapshotErr != nil {
 		logger.Error(ctx, "calculate text billing snapshot failed: "+snapshotErr.Error())
 	}
-	annotateTextBillingSnapshot(&billingSnapshot, pricing.Source, resolveTextEstimateSourceLabel(estimateResult), meta.UpstreamRequestPath, textRequest)
+	annotateTextBillingSnapshot(&billingSnapshot, settlementPricing.Source, resolveTextEstimateSourceLabel(estimateResult), meta.UpstreamRequestPath, textRequest)
 	imageFeeNote := ""
 	_, imageFeeNote, imageFeeErr := maybeApplyResponsesImageToolBilling(&billingSnapshot, usage, meta.ChannelProtocol, meta.ChannelModelConfigs, groupRatio, responsesImageTools)
 	if imageFeeErr != nil {
@@ -269,7 +270,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		BillingSource:      model.ResolveConsumeLogBillingSource(chargeUserBalance),
 		UserDailyQuota:     userDailyQuota,
 		UserEmergencyQuota: userEmergencyQuota,
-		Content:            buildTextBillingLogContent(pricing, groupRatio, imageFeeNote),
+		Content:            buildTextBillingLogContent(settlementPricing, groupRatio, imageFeeNote),
 		IsStream:           meta.IsStream,
 		ElapsedTime:        helper.CalcElapsedTime(meta.StartTime),
 	}
