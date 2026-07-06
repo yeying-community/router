@@ -557,7 +557,7 @@ func procurementConsumptionCandidatesFromSnapshot(snapshot *BillingSnapshot) []p
 		})
 	}
 	appendCandidate(procurementCurrencyEquivalentCapacityUnitFromSnapshot(snapshot), snapshot.Amount)
-	appendCandidate(procurementCapacityUnitFromSnapshot(snapshot), snapshot.InputQuantity+snapshot.OutputQuantity)
+	appendCandidate(procurementCapacityUnitFromSnapshot(snapshot), procurementConsumptionQuantityFromSnapshot(snapshot))
 	return candidates
 }
 
@@ -593,6 +593,18 @@ func procurementCapacityUnitFromSnapshot(snapshot *BillingSnapshot) string {
 		return "token"
 	default:
 		return "token"
+	}
+}
+
+func procurementConsumptionQuantityFromSnapshot(snapshot *BillingSnapshot) float64 {
+	if snapshot == nil {
+		return 0
+	}
+	switch procurementCapacityUnitFromSnapshot(snapshot) {
+	case "token":
+		return snapshot.InputQuantity + snapshot.OutputQuantity + snapshot.CacheReadQuantity + snapshot.CacheWriteQuantity
+	default:
+		return snapshot.InputQuantity + snapshot.OutputQuantity
 	}
 }
 

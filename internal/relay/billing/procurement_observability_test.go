@@ -142,6 +142,25 @@ func TestProcurementConsumptionCandidatesPreferCurrencyEquivalent(t *testing.T) 
 	}
 }
 
+func TestProcurementConsumptionCandidatesIncludeCacheTokenQuantities(t *testing.T) {
+	logRow := &adminmodel.Log{
+		BillingPriceUnit:          adminmodel.ProviderPriceUnitPer1KTokens,
+		BillingInputQuantity:      1000,
+		BillingOutputQuantity:     2000,
+		BillingCacheReadQuantity:  300,
+		BillingCacheWriteQuantity: 400,
+	}
+
+	got := procurementConsumptionCandidates(logRow)
+
+	if len(got) != 1 {
+		t.Fatalf("candidates len=%d, want 1", len(got))
+	}
+	if got[0].CapacityUnit != "token" || got[0].Quantity != 3700 {
+		t.Fatalf("candidate=%+v, want token/3700", got[0])
+	}
+}
+
 func TestProcurementConsumptionCandidatesFallbackToUsageUnit(t *testing.T) {
 	logRow := &adminmodel.Log{
 		BillingPriceUnit:      adminmodel.ProviderPriceUnitPerImage,

@@ -219,7 +219,7 @@ func procurementConsumptionQuantity(logRow *model.Log) float64 {
 	case "image", "request", "char", "second", "minute", "video":
 		return logRow.BillingInputQuantity + logRow.BillingOutputQuantity
 	case "token":
-		return logRow.BillingInputQuantity + logRow.BillingOutputQuantity
+		return logRow.BillingInputQuantity + logRow.BillingOutputQuantity + logRow.BillingCacheReadQuantity + logRow.BillingCacheWriteQuantity
 	default:
 		return logRow.BillingInputQuantity + logRow.BillingOutputQuantity
 	}

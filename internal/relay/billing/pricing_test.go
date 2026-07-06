@@ -411,3 +411,22 @@ func TestProcurementConsumptionCandidatesFromSnapshotPreferCurrencyEquivalent(t 
 		t.Fatalf("second candidate=%+v, want token/3000", got[1])
 	}
 }
+
+func TestProcurementConsumptionCandidatesFromSnapshotIncludeCacheTokenQuantities(t *testing.T) {
+	snapshot := &BillingSnapshot{
+		PriceUnit:          adminmodel.ProviderPriceUnitPer1KTokens,
+		InputQuantity:      1000,
+		OutputQuantity:     2000,
+		CacheReadQuantity:  300,
+		CacheWriteQuantity: 400,
+	}
+
+	got := procurementConsumptionCandidatesFromSnapshot(snapshot)
+
+	if len(got) != 1 {
+		t.Fatalf("candidates len=%d, want 1", len(got))
+	}
+	if got[0].CapacityUnit != "token" || got[0].Quantity != 3700 {
+		t.Fatalf("candidate=%+v, want token/3700", got[0])
+	}
+}
