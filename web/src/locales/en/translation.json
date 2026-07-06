@@ -1483,6 +1483,8 @@
       "name": "Name",
       "group": "Group",
       "applicable_models": "Models",
+      "model_count": "Model Count",
+      "visibility_scope": "Visibility",
       "package_type": "Type",
       "sale_price": "Sale Price",
       "daily_quota_limit": "Daily Amount",
@@ -1501,6 +1503,10 @@
     "status": {
       "enabled": "Enabled",
       "disabled": "Disabled"
+    },
+    "visibility": {
+      "all": "All",
+      "partial": "Partial"
     },
     "buttons": {
       "add": "Add Package",

@@ -1483,6 +1483,8 @@
       "name": "名称",
       "group": "分组",
       "applicable_models": "适用模型",
+      "model_count": "模型数量",
+      "visibility_scope": "可见范围",
       "package_type": "类型",
       "sale_price": "售价",
       "daily_quota_limit": "每日额度",
@@ -1501,6 +1503,10 @@
     "status": {
       "enabled": "已启用",
       "disabled": "已禁用"
+    },
+    "visibility": {
+      "all": "全部",
+      "partial": "部分"
     },
     "buttons": {
       "add": "新增套餐",
