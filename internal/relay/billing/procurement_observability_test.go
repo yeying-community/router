@@ -33,6 +33,12 @@ func TestApplyProcurementCostObservationMapsSettlementTruthMode(t *testing.T) {
 			wantConfidence: ProcurementCostConfidenceUnitBased,
 		},
 		{
+			name:           "video task created",
+			settlementMode: "video_task_created",
+			wantMode:       SettlementTruthModeUnitBasedFinal,
+			wantConfidence: ProcurementCostConfidenceUnitBased,
+		},
+		{
 			name:           "realtime unmetered proxy",
 			settlementMode: "realtime_unmetered_proxy",
 			wantMode:       SettlementTruthModeUnmeteredProxy,
