@@ -12,6 +12,12 @@ func ValidateTextRequest(textRequest *model.GeneralOpenAIRequest, relayMode int)
 	if textRequest.MaxTokens < 0 || textRequest.MaxTokens > math.MaxInt32/2 {
 		return errors.New("max_tokens is invalid")
 	}
+	if textRequest.MaxCompletionTokens != nil && (*textRequest.MaxCompletionTokens < 0 || *textRequest.MaxCompletionTokens > math.MaxInt32/2) {
+		return errors.New("max_completion_tokens is invalid")
+	}
+	if textRequest.MaxOutputTokens != nil && (*textRequest.MaxOutputTokens < 0 || *textRequest.MaxOutputTokens > math.MaxInt32/2) {
+		return errors.New("max_output_tokens is invalid")
+	}
 	if textRequest.Model == "" {
 		return errors.New("model is required")
 	}

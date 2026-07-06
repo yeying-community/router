@@ -65,10 +65,27 @@ func getAndValidateTextRequest(c *gin.Context, relayMode int) (*relaymodel.Gener
 
 func getPreConsumedQuota(textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, ratio float64) int64 {
 	preConsumedTokens := config.PreConsumedQuota + int64(promptTokens)
-	if textRequest.MaxTokens != 0 {
-		preConsumedTokens += int64(textRequest.MaxTokens)
+	if maxOutputTokens := resolveTextMaxOutputTokens(textRequest); maxOutputTokens != 0 {
+		preConsumedTokens += int64(maxOutputTokens)
 	}
 	return int64(float64(preConsumedTokens) * ratio)
+}
+
+func resolveTextMaxOutputTokens(textRequest *relaymodel.GeneralOpenAIRequest) int {
+	if textRequest == nil {
+		return 0
+	}
+	maxTokens := textRequest.MaxTokens
+	if textRequest.MaxCompletionTokens != nil && *textRequest.MaxCompletionTokens > maxTokens {
+		maxTokens = *textRequest.MaxCompletionTokens
+	}
+	if textRequest.MaxOutputTokens != nil && *textRequest.MaxOutputTokens > maxTokens {
+		maxTokens = *textRequest.MaxOutputTokens
+	}
+	if maxTokens < 0 {
+		return 0
+	}
+	return maxTokens
 }
 
 func preConsumeQuota(ctx context.Context, preConsumedQuota int64, meta *meta.Meta, billingPlan relayBillingPlan) (int64, *relaymodel.ErrorWithStatusCode) {

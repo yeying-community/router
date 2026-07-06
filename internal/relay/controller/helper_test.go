@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	relaymodel "github.com/yeying-community/router/internal/relay/model"
 	"github.com/yeying-community/router/internal/relay/relaymode"
 )
 
@@ -51,5 +52,18 @@ func TestGetAndValidateTextRequestMessagesPreservesMessages(t *testing.T) {
 	}
 	if request.Messages[2].Role != "assistant" || request.Messages[2].StringContent() != "world" {
 		t.Fatalf("unexpected assistant message: %#v", request.Messages[2])
+	}
+}
+
+func TestResolveTextMaxOutputTokensUsesLargestLimit(t *testing.T) {
+	maxCompletionTokens := 256
+	maxOutputTokens := 384
+	got := resolveTextMaxOutputTokens(&relaymodel.GeneralOpenAIRequest{
+		MaxTokens:           128,
+		MaxCompletionTokens: &maxCompletionTokens,
+		MaxOutputTokens:     &maxOutputTokens,
+	})
+	if got != 384 {
+		t.Fatalf("resolveTextMaxOutputTokens() = %d, want 384", got)
 	}
 }
