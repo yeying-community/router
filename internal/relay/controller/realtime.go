@@ -11,7 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/yeying-community/router/common/ctxkey"
+	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
+	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/relay"
 	"github.com/yeying-community/router/internal/relay/adaptor/openai"
 	volcenginerealtime "github.com/yeying-community/router/internal/relay/adaptor/volcengine/realtime"
@@ -79,8 +81,50 @@ func RelayRealtimeHelper(c *gin.Context) *relaymodel.ErrorWithStatusCode {
 		return openai.ErrorWrapper(err, "upgrade_client_websocket_failed", http.StatusBadRequest)
 	}
 
+	recordRealtimeUnmeteredProxyLog(c, meta, upstreamURL)
 	pumpRealtimeConnection(c, clientConn, upstreamConn)
 	return nil
+}
+
+func buildRealtimeUnmeteredProxyLog(relayMeta *meta.Meta, upstreamURL string) *adminmodel.Log {
+	if relayMeta == nil {
+		return nil
+	}
+	modelName := strings.TrimSpace(relayMeta.ActualModelName)
+	if modelName == "" {
+		modelName = strings.TrimSpace(relayMeta.OriginModelName)
+	}
+	entry := &adminmodel.Log{
+		UserId:                strings.TrimSpace(relayMeta.UserId),
+		GroupId:               strings.TrimSpace(relayMeta.Group),
+		ChannelId:             strings.TrimSpace(relayMeta.ChannelId),
+		ModelName:             modelName,
+		TokenName:             strings.TrimSpace(relayMeta.TokenName),
+		Quota:                 0,
+		BillingSource:         adminmodel.ResolveConsumeLogBillingSource(true),
+		BillingUsageSource:    billingUsageSourceWebsocketProxy,
+		BillingEstimateSource: billingEstimateSourceRealtimeUnmeteredProxy,
+		BillingSettlementMode: billingSettlementModeRealtimeUnmeteredProxy,
+		BillingChargeAmount:   0,
+		Content:               "realtime websocket proxy connected; usage metering is not implemented yet; upstream_url=" + strings.TrimSpace(upstreamURL),
+		IsStream:              true,
+		ElapsedTime:           helper.CalcElapsedTime(relayMeta.StartTime),
+	}
+	applyRouteObservabilityToLog(entry, relayMeta, modelName)
+	return entry
+}
+
+func recordRealtimeUnmeteredProxyLog(c *gin.Context, relayMeta *meta.Meta, upstreamURL string) {
+	if c == nil || relayMeta == nil {
+		return
+	}
+	entry := buildRealtimeUnmeteredProxyLog(relayMeta, upstreamURL)
+	if entry == nil {
+		return
+	}
+	adminmodel.RecordConsumeLog(c.Request.Context(), entry)
+	adminmodel.UpdateUserUsedQuotaAndRequestCount(relayMeta.UserId, 0)
+	adminmodel.UpdateChannelUsedQuota(relayMeta.ChannelId, 0)
 }
 
 func normalizeRealtimeWebSocketURL(raw string) (string, error) {

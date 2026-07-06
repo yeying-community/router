@@ -15,14 +15,17 @@ const (
 	billingUsageSourceUpstreamUsage             = "upstream_usage"
 	billingUsageSourceRequestPayload            = "request_payload"
 	billingUsageSourceResponseText              = "response_text"
+	billingUsageSourceWebsocketProxy            = "websocket_proxy"
 	billingEstimateSourceUnknown                = "unknown"
 	billingEstimateSourceAudioTTSInputChars     = "audio_tts_input_chars"
 	billingEstimateSourceAudioPreconsumeQuota   = "audio_preconsume_quota"
 	billingEstimateSourceVideoRequestRule       = "video_request_rule"
+	billingEstimateSourceRealtimeUnmeteredProxy = "realtime_unmetered_proxy"
 	billingSettlementModeUsageFinal             = "usage_final"
 	billingSettlementModeAudioRequestFinal      = "audio_request_final"
 	billingSettlementModeAudioResponseTextFinal = "audio_response_text_final"
 	billingSettlementModeVideoTaskCreated       = "video_task_created"
+	billingSettlementModeRealtimeUnmeteredProxy = "realtime_unmetered_proxy"
 	billingSettlementModeResponsesImagePending  = "responses_image_tool_pending"
 )
 
