@@ -77,6 +77,9 @@ const EditToken = () => {
     remain_quota: isDetailMode ? 0 : 500000,
     expired_time: '',
     unlimited_quota: false,
+    remain_request_count: 0,
+    unlimited_request_count: true,
+    used_request_count: 0,
     models: [],
     subnet: '',
     status: 1,
@@ -92,6 +95,7 @@ const EditToken = () => {
     name,
     expired_time,
     unlimited_quota: hasUnlimitedLimitAmount,
+    unlimited_request_count: hasUnlimitedRequestCount,
   } = inputs;
   const navigate = useNavigate();
   const allModelValues = modelOptions.map((option) => option.value);
@@ -302,6 +306,14 @@ const EditToken = () => {
     normalizedData.used_quota = Number(
       data?.used_amount ?? normalizedData.used_quota ?? 0
     ) || 0;
+    normalizedData.remain_request_count = Number(
+      data?.remaining_request_count ?? normalizedData.remain_request_count ?? 0
+    ) || 0;
+    normalizedData.used_request_count = Number(
+      data?.used_request_count ?? normalizedData.used_request_count ?? 0
+    ) || 0;
+    normalizedData.unlimited_request_count =
+      normalizedData.unlimited_request_count !== false;
     if (normalizedData.expired_time !== -1) {
       normalizedData.expired_time = timestamp2string(normalizedData.expired_time);
     } else {
@@ -442,8 +454,22 @@ const EditToken = () => {
     }));
   };
 
+  const toggleUnlimitedRequestCount = () => {
+    setInputs((prev) => ({
+      ...prev,
+      unlimited_request_count: !prev.unlimited_request_count,
+    }));
+  };
+
   const handleQuotaInputChange = (_, { value }) => {
     setQuotaInputValue(value ?? '0');
+  };
+
+  const handleRequestCountInputChange = (_, { value }) => {
+    setInputs((prev) => ({
+      ...prev,
+      remain_request_count: value ?? 0,
+    }));
   };
 
   const handleQuotaUnitChange = (_, { value }) => {
@@ -566,6 +592,16 @@ const EditToken = () => {
       return;
     }
     localInputs.remain_quota = quotaChargeAmount;
+    const requestCount = Number(localInputs.remain_request_count || 0);
+    if (!localInputs.unlimited_request_count) {
+      if (!Number.isFinite(requestCount) || requestCount <= 0) {
+        showError(t('token.edit.messages.request_count_invalid'));
+        return;
+      }
+      localInputs.remain_request_count = Math.floor(requestCount);
+    } else {
+      localInputs.remain_request_count = 0;
+    }
     if (localInputs.expired_time) {
       let time = Date.parse(localInputs.expired_time);
       if (isNaN(time)) {
@@ -1036,6 +1072,34 @@ const EditToken = () => {
                     />
                   </AppField>
                 </AppFormRow>
+                <AppFormRow className='router-token-quota-row'>
+                  <AppField
+                    className='router-token-quota-field'
+                    label={t('token.edit.request_count')}
+                    hint={t('token.edit.request_count_notice')}
+                  >
+                    <AppInputNumber
+                      className='router-section-input'
+                      name='remain_request_count'
+                      placeholder={t('token.edit.request_count_placeholder')}
+                      onChange={handleRequestCountInputChange}
+                      value={inputs.remain_request_count}
+                      min={1}
+                      step={1}
+                      precision={0}
+                      fluid
+                      disabled={hasUnlimitedRequestCount}
+                    />
+                  </AppField>
+                  <AppField className='router-token-unlimited-field' label={t('token.edit.buttons.unlimited_request_count')}>
+                    <AppSwitch
+                      checked={hasUnlimitedRequestCount}
+                      onChange={() => {
+                        toggleUnlimitedRequestCount();
+                      }}
+                    />
+                  </AppField>
+                </AppFormRow>
               </div>
       ) : (
         <div className='router-tab-detail-page router-entity-detail-page'>
@@ -1189,6 +1253,35 @@ const EditToken = () => {
                         disabled={basicReadonly}
                         onChange={() => {
                           toggleUnlimitedLimitAmount();
+                        }}
+                      />
+                    </AppField>
+                  </AppFormRow>
+                  <AppFormRow className='router-token-quota-row'>
+                    <AppField
+                      className='router-token-quota-field'
+                      label={t('token.edit.request_count')}
+                      hint={t('token.edit.request_count_notice')}
+                    >
+                      <AppInputNumber
+                        className='router-section-input'
+                        name='remain_request_count'
+                        placeholder={t('token.edit.request_count_placeholder')}
+                        onChange={handleRequestCountInputChange}
+                        value={inputs.remain_request_count}
+                        min={1}
+                        step={1}
+                        precision={0}
+                        fluid
+                        disabled={hasUnlimitedRequestCount || basicReadonly}
+                      />
+                    </AppField>
+                    <AppField className='router-token-unlimited-field' label={t('token.edit.buttons.unlimited_request_count')}>
+                      <AppSwitch
+                        checked={hasUnlimitedRequestCount}
+                        disabled={basicReadonly}
+                        onChange={() => {
+                          toggleUnlimitedRequestCount();
                         }}
                       />
                     </AppField>

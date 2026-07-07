@@ -1606,6 +1606,8 @@
       "token": "令牌",
       "used_amount": "已用",
       "remain_amount": "剩余",
+      "used_request_count": "已用次数",
+      "remain_request_count": "剩余次数",
       "used_quota": "已用 YYC",
       "remain_quota": "剩余 YYC",
       "created_time": "创建时间",
@@ -1677,6 +1679,9 @@
       "quota_notice": "注意，令牌的剩余额度仅限制该令牌自身的可用余额，实际调用仍受到账户剩余额度约束。",
       "quota": "剩余额度",
       "quota_placeholder": "请输入剩余额度",
+      "request_count": "剩余请求次数",
+      "request_count_notice": "仅限制该令牌自身可调用次数；不限次数时仍受账户套餐、余额和模型范围约束。",
+      "request_count_placeholder": "请输入剩余请求次数",
       "buttons": {
         "never_expire": "永不过期",
         "expire_1_month": "一个月后过期",
@@ -1684,6 +1689,7 @@
         "expire_1_hour": "一小时后过期",
         "expire_1_minute": "一分钟后过期",
         "unlimited_quota": "设为不限额",
+        "unlimited_request_count": "不限次数",
         "cancel_unlimited": "取消不限额",
         "submit": "确认",
         "cancel": "取消"
@@ -1695,6 +1701,7 @@
         "id_required": "令牌标识为空，请刷新页面后重试。",
         "expire_time_invalid": "过期时间格式错误！",
         "quota_invalid": "剩余额度格式错误。",
+        "request_count_invalid": "剩余请求次数必须大于 0。",
         "models_unavailable": "当前账号暂无可用模型，请先购买套餐或充值后再创建令牌。",
         "models_required": "请至少选择一个模型。"
       }
@@ -1865,6 +1872,7 @@
       "username_placeholder": "可选值",
       "prompt_tokens": "提示词消耗",
       "completion_tokens": "补全消耗",
+      "cache_tokens": "缓存读/写",
       "quota": "金额",
       "detail": "详情"
     },

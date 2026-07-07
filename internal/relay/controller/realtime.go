@@ -127,6 +127,7 @@ func recordRealtimeUnmeteredProxyLog(c *gin.Context, relayMeta *meta.Meta, upstr
 	adminmodel.RecordConsumeLog(c.Request.Context(), entry)
 	adminmodel.UpdateUserUsedQuotaAndRequestCount(relayMeta.UserId, 0)
 	adminmodel.UpdateChannelUsedQuota(relayMeta.ChannelId, 0)
+	consumeTokenRequestCount(c.Request.Context(), relayMeta.TokenId, 1)
 }
 
 func normalizeRealtimeWebSocketURL(raw string) (string, error) {

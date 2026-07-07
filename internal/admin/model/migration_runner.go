@@ -1678,6 +1678,21 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderTextCachePricingComponentsWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607071030_api_token_request_count_limits",
+			Description: "add request count limit fields to API tokens",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&Token{}); err != nil {
+					return err
+				}
+				return tx.Exec(`
+					UPDATE api_tokens
+					SET unlimited_request_count = TRUE
+					WHERE COALESCE(remain_request_count, 0) = 0
+					  AND COALESCE(used_request_count, 0) = 0
+				`).Error
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

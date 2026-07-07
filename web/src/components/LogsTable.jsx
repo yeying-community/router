@@ -48,6 +48,19 @@ const compareTextValue = (left, right) =>
 const compareNumberValue = (left, right) =>
   Number(left || 0) - Number(right || 0);
 
+function formatCompactNumber(value) {
+  const numericValue = Number(value || 0);
+  if (!Number.isFinite(numericValue) || numericValue === 0) {
+    return '';
+  }
+  if (Number.isInteger(numericValue)) {
+    return numericValue.toLocaleString();
+  }
+  return numericValue.toLocaleString(undefined, {
+    maximumFractionDigits: 6,
+  });
+}
+
 function renderTimestamp(timestamp, trace_id) {
   return (
     <code
@@ -149,12 +162,17 @@ function getLogChannelLabel(log) {
 }
 
 function normalizeLogEntry(log) {
+  const cacheReadQuantity = Number(log?.billing_cache_read_quantity ?? 0);
+  const cacheWriteQuantity = Number(log?.billing_cache_write_quantity ?? 0);
   return {
     ...(log || {}),
     // Prefer charge-amount settlement fields, fall back to legacy quota-based logs.
     chargeAmount: Number(log?.charge_amount ?? log?.quota ?? 0),
     userDailyChargeAmount: Number(log?.user_daily_charge_amount ?? log?.user_daily_quota ?? 0),
     userEmergencyChargeAmount: Number(log?.user_emergency_charge_amount ?? log?.user_emergency_quota ?? 0),
+    cacheReadQuantity,
+    cacheWriteQuantity,
+    cacheQuantity: cacheReadQuantity + cacheWriteQuantity,
   };
 }
 
@@ -732,6 +750,8 @@ const LogsTable = () => {
             left.completion_tokens,
             right.completion_tokens,
           );
+        case 'cacheQuantity':
+          return compareNumberValue(left.cacheQuantity, right.cacheQuantity);
         case 'chargeAmount':
           return compareNumberValue(left.chargeAmount, right.chargeAmount);
         default:
@@ -1155,6 +1175,26 @@ const LogsTable = () => {
                       ? tableSorter.order
                       : null,
                   render: (value) => value || '',
+                },
+                {
+                  title: t('log.table.cache_tokens'),
+                  key: 'cacheQuantity',
+                  className: 'router-table-col-status-narrow',
+                  width: LOG_LIST_COLUMN_WIDTHS.cacheTokens,
+                  sorter: true,
+                  sortDirections: ['ascend', 'descend'],
+                  sortOrder:
+                    tableSorter.columnKey === 'cacheQuantity'
+                      ? tableSorter.order
+                      : null,
+                  render: (_, log) => {
+                    const read = formatCompactNumber(log.cacheReadQuantity);
+                    const write = formatCompactNumber(log.cacheWriteQuantity);
+                    if (!read && !write) {
+                      return '';
+                    }
+                    return `${read || '0'} / ${write || '0'}`;
+                  },
                 },
                 {
                   title: isAdminScope ? (

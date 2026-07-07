@@ -198,6 +198,15 @@ func logTokenPreConsumeFailure(ctx context.Context, meta *meta.Meta, quota int64
 	)
 }
 
+func consumeTokenRequestCount(ctx context.Context, tokenID string, requestCount int64) {
+	if strings.TrimSpace(tokenID) == "" || requestCount <= 0 {
+		return
+	}
+	if err := model.ConsumeTokenRequestCount(tokenID, requestCount); err != nil {
+		logger.Errorf(ctx, "token request count consume failed code=consume_token_request_count_failed token_id=%s request_count=%d err=%q", strings.TrimSpace(tokenID), requestCount, err.Error())
+	}
+}
+
 func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, estimatedOutputTokens int, estimatedChargeAmount int64, groupRatio float64, estimateResult tokenestimate.EstimateResult, responsesImageTools []responsesImageToolSpec, systemPromptReset bool, billingPlan relayBillingPlan) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
@@ -300,34 +309,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	billing.RecordProcurementConsumptionObservation(ctx, entry)
 	model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 	model.UpdateChannelUsedQuota(meta.ChannelId, quota)
-}
-
-func settleRequestPackageOnlyConsumption(ctx context.Context, meta *meta.Meta, modelName string, tokenName string, promptTokens int, completionTokens int, elapsedTime int64, isStream bool, billingPlan relayBillingPlan) {
-	if !billingPlan.UsesRequestPackage() {
-		return
-	}
-	settleRelayBillingPlan(ctx, billingPlan, 0)
-	entry := &model.Log{
-		UserId:                meta.UserId,
-		GroupId:               meta.Group,
-		ChannelId:             meta.ChannelId,
-		PromptTokens:          promptTokens,
-		CompletionTokens:      completionTokens,
-		ModelName:             strings.TrimSpace(modelName),
-		TokenName:             strings.TrimSpace(tokenName),
-		Quota:                 0,
-		BillingSource:         model.LogBillingSourcePackage,
-		Content:               "request_count package",
-		IsStream:              isStream,
-		ElapsedTime:           elapsedTime,
-		BillingUsageSource:    billingUsageSourceUpstreamUsage,
-		BillingSettlementMode: "request_count_final",
-		BillingChargeAmount:   0,
-	}
-	applyRouteObservabilityToLog(entry, meta, modelName)
-	model.RecordConsumeLog(ctx, entry)
-	model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, 0)
-	model.UpdateChannelUsedQuota(meta.ChannelId, 0)
+	consumeTokenRequestCount(ctx, meta.TokenId, 1)
 }
 
 func getMappedModelName(modelName string, mapping map[string]string) (string, bool) {

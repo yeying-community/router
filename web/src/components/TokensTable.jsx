@@ -51,6 +51,9 @@ const normalizeTokenRow = (raw) => {
     usedAmount: Number(raw?.used_amount ?? raw?.used_quota ?? 0) || 0,
     remainingAmount: Number(raw?.remaining_amount ?? raw?.remain_quota ?? 0) || 0,
     hasUnlimitedLimitAmount: raw?.unlimited_quota === true,
+    usedRequestCount: Number(raw?.used_request_count ?? 0) || 0,
+    remainingRequestCount: Number(raw?.remaining_request_count ?? raw?.remain_request_count ?? 0) || 0,
+    hasUnlimitedRequestCount: raw?.unlimited_request_count !== false,
     createdTime: Number(raw?.created_time ?? 0) || 0,
     updatedTime: Number(raw?.updated_time ?? 0) || 0,
     expiredTime: Number(raw?.expired_time ?? 0) || 0,
@@ -568,6 +571,30 @@ const TokensTable = () => {
               token.hasUnlimitedLimitAmount
                 ? t('token.table.unlimited')
                 : formatDisplayAmountFromChargeAmount(value, displayUnit, currencyIndex),
+          },
+          {
+            title: t('token.table.used_request_count'),
+            dataIndex: 'usedRequestCount',
+            key: 'usedRequestCount',
+            width: TOKEN_LIST_COLUMN_WIDTHS.usedRequestCount,
+            sorter: (a, b) => compareNumberValue(a.usedRequestCount, b.usedRequestCount),
+            sortDirections: ['ascend', 'descend'],
+            sortOrder:
+              tableSorter.columnKey === 'usedRequestCount' ? tableSorter.order : null,
+          },
+          {
+            title: t('token.table.remain_request_count'),
+            dataIndex: 'remainingRequestCount',
+            key: 'remainingRequestCount',
+            width: TOKEN_LIST_COLUMN_WIDTHS.remainingRequestCount,
+            sorter: (a, b) => compareNumberValue(a.remainingRequestCount, b.remainingRequestCount),
+            sortDirections: ['ascend', 'descend'],
+            sortOrder:
+              tableSorter.columnKey === 'remainingRequestCount'
+                ? tableSorter.order
+                : null,
+            render: (value, token) =>
+              token.hasUnlimitedRequestCount ? t('token.table.unlimited') : value,
           },
           {
             title: t('token.table.created_time'),

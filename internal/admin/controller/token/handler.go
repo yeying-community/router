@@ -129,31 +129,55 @@ func GetTokenStatus(c *gin.Context) {
 		totalGranted = 0
 		totalAvailable = 0
 	}
+	totalRequestGranted := token.RemainRequestCount + token.UsedRequestCount
+	totalRequestAvailable := token.RemainRequestCount
+	if token.UnlimitedRequestCount {
+		totalRequestGranted = 0
+		totalRequestAvailable = 0
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"object":           "token_credit_summary",
-			"token_id":         token.Id,
-			"token_name":       token.Name,
-			"status":           token.Status,
-			"unlimited_quota":  token.UnlimitedQuota,
-			"total_granted":    totalGranted,
-			"total_used":       token.UsedQuota,
-			"total_available":  totalAvailable,
-			"remaining_amount": token.RemainQuota,
-			"used_amount":      token.UsedQuota,
-			"created_at":       token.CreatedTime * 1000,
-			"updated_at":       token.UpdatedTime * 1000,
-			"accessed_at":      token.AccessedTime * 1000,
-			"expires_at":       expiredAt * 1000,
+			"object":                        "token_credit_summary",
+			"token_id":                      token.Id,
+			"token_name":                    token.Name,
+			"status":                        token.Status,
+			"unlimited_quota":               token.UnlimitedQuota,
+			"total_granted":                 totalGranted,
+			"total_used":                    token.UsedQuota,
+			"total_available":               totalAvailable,
+			"remaining_amount":              token.RemainQuota,
+			"used_amount":                   token.UsedQuota,
+			"unlimited_request_count":       token.UnlimitedRequestCount,
+			"total_request_count_granted":   totalRequestGranted,
+			"total_request_count_used":      token.UsedRequestCount,
+			"total_request_count_available": totalRequestAvailable,
+			"remaining_request_count":       token.RemainRequestCount,
+			"used_request_count":            token.UsedRequestCount,
+			"created_at":                    token.CreatedTime * 1000,
+			"updated_at":                    token.UpdatedTime * 1000,
+			"accessed_at":                   token.AccessedTime * 1000,
+			"expires_at":                    expiredAt * 1000,
 		},
 	})
+}
+
+func normalizeTokenRequestCountLimit(token *model.Token) {
+	if token == nil {
+		return
+	}
+	if token.RemainRequestCount == 0 && !token.UnlimitedRequestCount {
+		token.UnlimitedRequestCount = true
+	}
 }
 
 func validateToken(c *gin.Context, token model.Token) error {
 	if len(token.Name) > 30 {
 		return fmt.Errorf("令牌名称过长")
+	}
+	if token.RemainRequestCount < 0 {
+		return fmt.Errorf("请求次数不能为负数")
 	}
 	if token.Subnet != nil && *token.Subnet != "" {
 		err := network.IsValidSubnets(*token.Subnet)
@@ -215,6 +239,7 @@ func AddToken(c *gin.Context) {
 		})
 		return
 	}
+	normalizeTokenRequestCountLimit(&token)
 	err = validateToken(c, token)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
@@ -235,17 +260,19 @@ func AddToken(c *gin.Context) {
 
 	now := helper.GetTimestamp()
 	cleanToken := model.Token{
-		UserId:         userID,
-		Name:           token.Name,
-		Key:            random.GenerateKey(),
-		CreatedTime:    now,
-		UpdatedTime:    now,
-		AccessedTime:   now,
-		ExpiredTime:    token.ExpiredTime,
-		RemainQuota:    token.RemainQuota,
-		UnlimitedQuota: token.UnlimitedQuota,
-		Models:         token.Models,
-		Subnet:         token.Subnet,
+		UserId:                userID,
+		Name:                  token.Name,
+		Key:                   random.GenerateKey(),
+		CreatedTime:           now,
+		UpdatedTime:           now,
+		AccessedTime:          now,
+		ExpiredTime:           token.ExpiredTime,
+		RemainQuota:           token.RemainQuota,
+		UnlimitedQuota:        token.UnlimitedQuota,
+		RemainRequestCount:    token.RemainRequestCount,
+		UnlimitedRequestCount: token.UnlimitedRequestCount,
+		Models:                token.Models,
+		Subnet:                token.Subnet,
 	}
 	err = tokensvc.Create(&cleanToken)
 	if err != nil {
@@ -293,6 +320,7 @@ func UpdateToken(c *gin.Context) {
 		})
 		return
 	}
+	normalizeTokenRequestCountLimit(&token)
 	err = validateToken(c, token)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
@@ -324,6 +352,13 @@ func UpdateToken(c *gin.Context) {
 			})
 			return
 		}
+		if cleanToken.Status == model.TokenStatusExhausted && cleanToken.RemainRequestCount <= 0 && !cleanToken.UnlimitedRequestCount {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "令牌请求次数已用尽，无法启用，请先修改令牌剩余请求次数，或者设置为不限次数",
+			})
+			return
+		}
 	}
 	if statusOnly == "" || token.Status == model.TokenStatusEnabled {
 		nextToken := *cleanToken
@@ -349,6 +384,8 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.ExpiredTime = token.ExpiredTime
 		cleanToken.RemainQuota = token.RemainQuota
 		cleanToken.UnlimitedQuota = token.UnlimitedQuota
+		cleanToken.RemainRequestCount = token.RemainRequestCount
+		cleanToken.UnlimitedRequestCount = token.UnlimitedRequestCount
 		cleanToken.Models = token.Models
 		cleanToken.Subnet = token.Subnet
 		cleanToken.UpdatedTime = helper.GetTimestamp()

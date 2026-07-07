@@ -21,7 +21,6 @@ import (
 
 	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/ctxkey"
-	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/admin/model"
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
@@ -699,34 +698,6 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 
 	requestPackageAmount := resolveImageRequestPackageAmount(imageRequest)
-	if requestPackagePlan, matched, quotaErr := tryBuildRequestPackageBillingPlanWithAmount(ctx, meta, requestPackageAmount); quotaErr != nil || (matched && requestPackagePlan.UsesRequestPackage()) {
-		if quotaErr != nil {
-			return quotaErr
-		}
-		groupQuotaSettled := false
-		defer func() {
-			if !groupQuotaSettled {
-				releaseRelayBillingPlan(ctx, requestPackagePlan)
-			}
-		}()
-		resp, err := adaptor.DoRequest(c, meta, requestBody)
-		if err != nil {
-			return openai.ErrorWrapper(err, classifyImageRequestErrorCode(err), http.StatusInternalServerError)
-		}
-		if resp != nil &&
-			resp.StatusCode != http.StatusCreated &&
-			resp.StatusCode != http.StatusOK {
-			return RelayErrorHandler(meta, resp)
-		}
-		if _, respErr := adaptor.DoResponse(c, resp, meta); respErr != nil {
-			logger.Errorf(ctx, "image request package response failed user_id=%s group=%s channel_id=%s model=%s endpoint=%s err=%+v", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), c.Request.URL.Path, respErr)
-			return respErr
-		}
-		go settleRequestPackageOnlyConsumption(ctx, meta, imageRequest.Model, c.GetString(ctxkey.TokenName), 0, 0, helper.CalcElapsedTime(meta.StartTime), false, requestPackagePlan)
-		groupQuotaSettled = true
-		return nil
-	}
-
 	imageCount := imageRequest.N
 	if meta.ChannelProtocol == relaychannel.Replicate {
 		imageCount = 1
@@ -860,7 +831,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return openai.ErrorWrapper(err, "calculate_image_quota_failed", http.StatusInternalServerError)
 	}
 	quota := billingSnapshot.ChargeAmount
-	billingPlan, quotaErr := reserveRelayQuota(ctx, meta, quota)
+	billingPlan, quotaErr := reserveRelayQuotaWithRequestAmount(ctx, meta, quota, requestPackageAmount)
 	if quotaErr != nil {
 		return quotaErr
 	}
@@ -964,6 +935,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 		channelId := c.GetString(ctxkey.ChannelId)
 		model.UpdateChannelUsedQuota(channelId, quota)
+		consumeTokenRequestCount(ctx, meta.TokenId, 1)
 	}(c.Request.Context())
 	groupQuotaSettled = true
 

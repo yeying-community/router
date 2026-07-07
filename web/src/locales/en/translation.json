@@ -1606,6 +1606,8 @@
       "token": "Token",
       "used_amount": "Used",
       "remain_amount": "Remaining",
+      "used_request_count": "Used Requests",
+      "remain_request_count": "Remaining Requests",
       "used_quota": "Used YYC",
       "remain_quota": "Remaining YYC",
       "created_time": "Created Time",
@@ -1677,6 +1679,9 @@
       "quota_notice": "Note: the token's remaining amount only limits this token's own balance. Actual requests are still constrained by the account's remaining amount.",
       "quota": "Remaining Amount",
       "quota_placeholder": "Please enter remaining amount",
+      "request_count": "Remaining Requests",
+      "request_count_notice": "Only limits this token's own request count. Account packages, balance, and model scope still apply when request count is unlimited.",
+      "request_count_placeholder": "Please enter remaining requests",
       "buttons": {
         "never_expire": "Never Expire",
         "expire_1_month": "Expire in 1 Month",
@@ -1684,6 +1689,7 @@
         "expire_1_hour": "Expire in 1 Hour",
         "expire_1_minute": "Expire in 1 Minute",
         "unlimited_quota": "Set No Limit",
+        "unlimited_request_count": "Unlimited Requests",
         "cancel_unlimited": "Cancel No Limit",
         "submit": "Confirm",
         "cancel": "Cancel"
@@ -1695,6 +1701,7 @@
         "id_required": "Token id is empty. Please refresh the page and try again.",
         "expire_time_invalid": "Invalid expiry time format!",
         "quota_invalid": "Invalid remaining amount.",
+        "request_count_invalid": "Remaining requests must be greater than 0.",
         "models_unavailable": "This account has no available models yet. Buy a package or top up before creating a token.",
         "models_required": "Please select at least one model."
       }
@@ -1865,6 +1872,7 @@
       "username_placeholder": "Optional",
       "prompt_tokens": "Prompt Tokens",
       "completion_tokens": "Completion Tokens",
+      "cache_tokens": "Cache R/W",
       "quota": "Amount",
       "detail": "Detail"
     },

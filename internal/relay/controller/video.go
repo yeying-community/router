@@ -16,7 +16,6 @@ import (
 
 	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/ctxkey"
-	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/admin/model"
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
@@ -345,54 +344,6 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return relayVideoRawResponse(c, resp, responseBody)
 	}
 
-	if requestPackagePlan, matched, quotaErr := tryBuildRequestPackageBillingPlan(ctx, meta); quotaErr != nil || (matched && requestPackagePlan.UsesRequestPackage()) {
-		if quotaErr != nil {
-			return quotaErr
-		}
-		groupQuotaSettled := false
-		defer func() {
-			if !groupQuotaSettled {
-				releaseRelayBillingPlan(ctx, requestPackagePlan)
-			}
-		}()
-		if err := resetMultipartRequestBody(c); err != nil {
-			return openai.ErrorWrapper(err, "reset_video_request_body_failed", http.StatusInternalServerError)
-		}
-		requestBody, err := common.GetRequestBody(c)
-		if err != nil {
-			return openai.ErrorWrapper(err, "get_video_request_body_failed", http.StatusInternalServerError)
-		}
-		resp, err := adaptor.DoRequest(c, meta, bytes.NewReader(requestBody))
-		if err != nil {
-			return openai.ErrorWrapper(err, "do_request_failed", http.StatusInternalServerError)
-		}
-		defer resp.Body.Close()
-		responseBody, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return openai.ErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
-		}
-		if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-			resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
-			return RelayErrorHandler(meta, resp)
-		}
-		responseSummary := extractVideoResponseSummary(responseBody, resp.Header)
-		logger.Infof(
-			ctx,
-			"video request package relay success model=%s channel=%s task_id=%s status=%s result_url=%s request_id=%s",
-			strings.TrimSpace(videoRequest.Model),
-			strings.TrimSpace(meta.ChannelId),
-			responseSummary.TaskID,
-			responseSummary.Status,
-			responseSummary.ResultURL,
-			responseSummary.RequestID,
-		)
-		persistVideoTaskMeta(meta, c.GetString(ctxkey.ChannelName), "", videoRequest.Model, responseSummary, "relay_video_create")
-		go settleRequestPackageOnlyConsumption(ctx, meta, videoRequest.Model, c.GetString(ctxkey.TokenName), 0, 0, helper.CalcElapsedTime(meta.StartTime), false, requestPackagePlan)
-		groupQuotaSettled = true
-		c.Set(ctxkey.UpstreamStatus, resp.StatusCode)
-		return relayVideoRawResponse(c, resp, responseBody)
-	}
-
 	groupRatio := adminmodel.GetGroupChannelBillingRatio(meta.Group, meta.ChannelId)
 	pricing, pricingErr := adminmodel.ResolveChannelModelPricing(meta.ChannelProtocol, meta.ChannelModelConfigs, videoRequest.Model)
 	if pricingErr != nil {
@@ -543,6 +494,7 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		billing.RecordProcurementConsumptionObservation(ctx, entry)
 		model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 		model.UpdateChannelUsedQuota(meta.ChannelId, quota)
+		consumeTokenRequestCount(ctx, meta.TokenId, 1)
 	}(c.Request.Context())
 	groupQuotaSettled = true
 

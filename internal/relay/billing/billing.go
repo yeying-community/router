@@ -104,6 +104,11 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 		model.UpdateUserUsedQuotaAndRequestCount(userId, totalQuota)
 		model.UpdateChannelUsedQuota(channelId, totalQuota)
 	}
+	if strings.TrimSpace(tokenId) != "" {
+		if err := model.ConsumeTokenRequestCount(tokenId, 1); err != nil {
+			logger.Errorf(ctx, "token request count consume failed code=consume_token_request_count_failed user_id=%s token_id=%s request_count=1 err=%q", strings.TrimSpace(userId), strings.TrimSpace(tokenId), err.Error())
+		}
+	}
 }
 
 func buildPostConsumeLogEntry(userId string, groupID string, channelId string, modelName string, tokenName string, totalQuota int64, chargeUserBalance bool, userDailyQuota int, userEmergencyQuota int, pricing model.ResolvedModelPricing, groupRatio float64, snapshot BillingSnapshot) *model.Log {
