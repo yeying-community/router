@@ -154,6 +154,14 @@ var loadProviderModelTagsFn = model.LoadProviderModelTagMapByModelsWithDB
 var loadProviderModelSpecificationsFn = model.LoadProviderModelSpecificationMapByModelsWithDB
 var loadProviderProtocolModelsFn = loadDashboardProtocolModels
 var loadSatisfiedChannelsFn = model.CacheListSatisfiedChannels
+var buildRequestUserEntitlementModelsFn = model.BuildUserEntitlementModels
+
+type requestAvailableModels struct {
+	ModelNames          []string
+	PrimaryGroup        string
+	ProviderByModel     map[string]string
+	SourceGroupsByModel map[string][]string
+}
 
 func ginRequestContext(c *gin.Context) context.Context {
 	if c == nil || c.Request == nil {
@@ -319,44 +327,161 @@ func buildDashboardChannelModelMap() map[int][]string {
 	return result
 }
 
-func resolveRequestAvailableModels(c *gin.Context) ([]string, string, error) {
+func resolveProviderFromEntitlementItem(item model.UserAvailableModel) string {
+	if provider := model.NormalizeGroupModelProviderValue(item.Provider); provider != "" {
+		return provider
+	}
+	for _, source := range item.Sources {
+		if provider := model.NormalizeGroupModelProviderValue(source.Provider); provider != "" {
+			return provider
+		}
+	}
+	return ""
+}
+
+func groupIDsFromEntitlementSources(sources []model.UserEntitlementModelSource) []string {
+	groupIDs := make([]string, 0, len(sources))
+	seen := make(map[string]struct{}, len(sources))
+	for _, source := range sources {
+		groupID := strings.TrimSpace(source.GroupID)
+		if groupID == "" {
+			continue
+		}
+		if _, ok := seen[groupID]; ok {
+			continue
+		}
+		seen[groupID] = struct{}{}
+		groupIDs = append(groupIDs, groupID)
+	}
+	return groupIDs
+}
+
+func buildEntitlementAvailableModels(payload model.UserEntitlementModelsPayload, requestedModels []string) requestAvailableModels {
+	itemByModel := make(map[string]model.UserAvailableModel, len(payload.Items))
+	for _, item := range payload.Items {
+		modelName := strings.TrimSpace(item.Model)
+		if modelName == "" {
+			continue
+		}
+		itemByModel[modelName] = item
+	}
+	modelOrder := model.NormalizeChannelModelIDsPreserveOrder(payload.Models)
+	if len(requestedModels) > 0 {
+		modelOrder = model.NormalizeChannelModelIDsPreserveOrder(requestedModels)
+	}
+	resolved := requestAvailableModels{
+		ModelNames:          []string{},
+		ProviderByModel:     make(map[string]string),
+		SourceGroupsByModel: make(map[string][]string),
+	}
+	for _, modelName := range modelOrder {
+		item, ok := itemByModel[modelName]
+		if !ok {
+			continue
+		}
+		groupIDs := groupIDsFromEntitlementSources(item.Sources)
+		if len(groupIDs) == 0 {
+			continue
+		}
+		if resolved.PrimaryGroup == "" {
+			resolved.PrimaryGroup = groupIDs[0]
+		}
+		resolved.ModelNames = append(resolved.ModelNames, modelName)
+		resolved.SourceGroupsByModel[modelName] = groupIDs
+		if provider := resolveProviderFromEntitlementItem(item); provider != "" {
+			resolved.ProviderByModel[modelName] = provider
+		}
+	}
+	return resolved
+}
+
+func resolveRequestAvailableModels(c *gin.Context) (requestAvailableModels, error) {
+	resolved := requestAvailableModels{
+		ModelNames:          []string{},
+		ProviderByModel:     make(map[string]string),
+		SourceGroupsByModel: make(map[string][]string),
+	}
 	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
 	availableModelsRaw := strings.TrimSpace(c.GetString(ctxkey.AvailableModels))
+	requestedModels := []string{}
 	if availableModelsRaw != "" {
-		modelNames := model.NormalizeChannelModelIDsPreserveOrder(strings.Split(availableModelsRaw, ","))
-		if userID == "" {
-			return modelNames, "", nil
-		}
-		userGroup, err := model.CacheGetUserGroup(userID)
-		if err != nil {
-			return modelNames, "", nil
-		}
-		return modelNames, userGroup, nil
+		requestedModels = model.NormalizeChannelModelIDsPreserveOrder(strings.Split(availableModelsRaw, ","))
 	}
 	if userID == "" {
-		return []string{}, "", nil
+		resolved.ModelNames = requestedModels
+		return resolved, nil
 	}
-	userGroup, err := model.CacheGetUserGroup(userID)
+	payload, err := buildRequestUserEntitlementModelsFn(ginRequestContext(c), userID)
 	if err != nil {
-		return nil, "", err
+		return requestAvailableModels{}, err
 	}
-	availableModels, err := model.CacheGetGroupModels(c.Request.Context(), userGroup)
-	if err != nil {
-		return nil, "", err
+	return buildEntitlementAvailableModels(payload, requestedModels), nil
+}
+
+func loadRequestProviderMap(resolved requestAvailableModels) (map[string]string, error) {
+	if len(resolved.ProviderByModel) == 0 {
+		return loadGroupModelProvidersFn(resolved.PrimaryGroup, resolved.ModelNames)
 	}
-	return model.NormalizeChannelModelIDsPreserveOrder(availableModels), userGroup, nil
+	providerByModel := make(map[string]string, len(resolved.ProviderByModel))
+	for modelName, provider := range resolved.ProviderByModel {
+		providerByModel[modelName] = provider
+	}
+	return providerByModel, nil
+}
+
+func sourceGroupsForModel(resolved requestAvailableModels, modelName string) []string {
+	groupIDs := model.NormalizeChannelModelIDsPreserveOrder(resolved.SourceGroupsByModel[modelName])
+	if len(groupIDs) == 0 {
+		groupIDs = []string{strings.TrimSpace(resolved.PrimaryGroup)}
+	}
+	return groupIDs
+}
+
+func loadRequestSupportedEndpoints(resolved requestAvailableModels) (map[string][]string, error) {
+	hasSourceGroups := false
+	for _, groupIDs := range resolved.SourceGroupsByModel {
+		if len(groupIDs) > 0 {
+			hasSourceGroups = true
+			break
+		}
+	}
+	if !hasSourceGroups {
+		return loadGroupModelSupportedEndpointsFn(resolved.PrimaryGroup, resolved.ModelNames)
+	}
+	endpointsByModel := make(map[string][]string, len(resolved.ModelNames))
+	for _, modelName := range resolved.ModelNames {
+		endpointSet := make(map[string]struct{})
+		for _, groupID := range sourceGroupsForModel(resolved, modelName) {
+			next, err := loadGroupModelSupportedEndpointsFn(groupID, []string{modelName})
+			if err != nil {
+				return nil, err
+			}
+			for _, endpoint := range next[modelName] {
+				if normalized := model.NormalizeRequestedChannelModelEndpoint(endpoint); normalized != "" {
+					endpointSet[normalized] = struct{}{}
+				}
+			}
+		}
+		endpoints := make([]string, 0, len(endpointSet))
+		for endpoint := range endpointSet {
+			endpoints = append(endpoints, endpoint)
+		}
+		endpointsByModel[modelName] = sortModelEndpoints(endpoints)
+	}
+	return endpointsByModel, nil
 }
 
 func buildOpenAIModelsForRequest(c *gin.Context) ([]OpenAIModels, map[string]OpenAIModels, error) {
-	modelNames, userGroup, err := resolveRequestAvailableModels(c)
+	resolved, err := resolveRequestAvailableModels(c)
 	if err != nil {
 		return nil, nil, err
 	}
-	providerByModel, err := loadGroupModelProvidersFn(userGroup, modelNames)
+	modelNames := resolved.ModelNames
+	providerByModel, err := loadRequestProviderMap(resolved)
 	if err != nil {
 		return nil, nil, err
 	}
-	endpointsByModel, err := loadGroupModelSupportedEndpointsFn(userGroup, modelNames)
+	endpointsByModel, err := loadRequestSupportedEndpoints(resolved)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -393,7 +518,7 @@ func buildOpenAIModelsForRequest(c *gin.Context) ([]OpenAIModels, map[string]Ope
 		itemMap[modelName] = item
 	}
 	if len(missingProviderModels) > 0 {
-		return nil, nil, fmt.Errorf("provider mapping missing for group=%s models=%s", strings.TrimSpace(userGroup), strings.Join(missingProviderModels, ","))
+		return nil, nil, fmt.Errorf("provider mapping missing for group=%s models=%s", strings.TrimSpace(resolved.PrimaryGroup), strings.Join(missingProviderModels, ","))
 	}
 	return items, itemMap, nil
 }
@@ -536,15 +661,16 @@ func loadUserModelStatusTestRows(channelIDs []string, modelNames []string) (map[
 }
 
 func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error) {
-	modelNames, userGroup, err := resolveRequestAvailableModels(c)
+	resolved, err := resolveRequestAvailableModels(c)
 	if err != nil {
 		return UserModelStatusPayload{}, err
 	}
-	providerByModel, err := loadGroupModelProvidersFn(userGroup, modelNames)
+	modelNames := resolved.ModelNames
+	providerByModel, err := loadRequestProviderMap(resolved)
 	if err != nil {
 		return UserModelStatusPayload{}, err
 	}
-	endpointsByModel, err := loadGroupModelSupportedEndpointsFn(userGroup, modelNames)
+	endpointsByModel, err := loadRequestSupportedEndpoints(resolved)
 	if err != nil {
 		return UserModelStatusPayload{}, err
 	}
@@ -561,28 +687,30 @@ func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error)
 	for _, modelName := range modelNames {
 		testModelCandidatesByModel[modelName] = append(testModelCandidatesByModel[modelName], modelName)
 		channelIDSetByModel[modelName] = make(map[string]struct{})
-		channels, listErr := loadSatisfiedChannelsFn(userGroup, modelName)
-		if listErr != nil {
-			continue
-		}
-		for _, channel := range channels {
-			if channel == nil {
+		for _, userGroup := range sourceGroupsForModel(resolved, modelName) {
+			channels, listErr := loadSatisfiedChannelsFn(userGroup, modelName)
+			if listErr != nil {
 				continue
 			}
-			channelID := strings.TrimSpace(channel.Id)
-			if channelID == "" {
-				continue
-			}
-			channelIDsByModel[modelName] = append(channelIDsByModel[modelName], channelID)
-			channelIDSetByModel[modelName][channelID] = struct{}{}
-			if mapping := model.CacheGetGroupModelMapping(userGroup, modelName, channelID); len(mapping) > 0 {
-				if upstream := strings.TrimSpace(mapping[modelName]); upstream != "" {
-					testModelCandidatesByModel[modelName] = append(testModelCandidatesByModel[modelName], upstream)
+			for _, channel := range channels {
+				if channel == nil {
+					continue
 				}
-			}
-			if _, ok := seenChannelIDs[channelID]; !ok {
-				seenChannelIDs[channelID] = struct{}{}
-				channelIDs = append(channelIDs, channelID)
+				channelID := strings.TrimSpace(channel.Id)
+				if channelID == "" {
+					continue
+				}
+				channelIDsByModel[modelName] = append(channelIDsByModel[modelName], channelID)
+				channelIDSetByModel[modelName][channelID] = struct{}{}
+				if mapping := model.CacheGetGroupModelMapping(userGroup, modelName, channelID); len(mapping) > 0 {
+					if upstream := strings.TrimSpace(mapping[modelName]); upstream != "" {
+						testModelCandidatesByModel[modelName] = append(testModelCandidatesByModel[modelName], upstream)
+					}
+				}
+				if _, ok := seenChannelIDs[channelID]; !ok {
+					seenChannelIDs[channelID] = struct{}{}
+					channelIDs = append(channelIDs, channelID)
+				}
 			}
 		}
 	}
@@ -713,7 +841,7 @@ func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error)
 	}
 
 	return UserModelStatusPayload{
-		Group:       userGroup,
+		Group:       resolved.PrimaryGroup,
 		Summary:     summary,
 		Models:      items,
 		GeneratedAt: helper.GetTimestamp(),
