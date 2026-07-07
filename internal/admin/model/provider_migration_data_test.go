@@ -210,6 +210,153 @@ func TestNormalizeProviderPricingLegacySourcesWithDB(t *testing.T) {
 	}
 }
 
+func TestUpsertProviderTextCachePricingComponentsWithDB(t *testing.T) {
+	db := newProviderMigrationTestDB(t)
+	if err := db.AutoMigrate(&ProviderModel{}, &ProviderModelPriceComponent{}); err != nil {
+		t.Fatalf("auto migrate provider model tables: %v", err)
+	}
+	if err := db.Create(&ProviderModel{
+		Provider:    "openai",
+		Model:       "gpt-5.4",
+		Tags:        ProviderModelTypeText,
+		InputPrice:  0.0025,
+		OutputPrice: 0.015,
+		PriceUnit:   ProviderPriceUnitPer1KTokens,
+		Currency:    ProviderPriceCurrencyUSD,
+		Source:      "migration",
+	}).Error; err != nil {
+		t.Fatalf("create openai provider model: %v", err)
+	}
+	if err := db.Create(&ProviderModel{
+		Provider:    "anthropic",
+		Model:       "claude-sonnet-4-5",
+		Tags:        ProviderModelTypeText,
+		InputPrice:  0.003,
+		OutputPrice: 0.015,
+		PriceUnit:   ProviderPriceUnitPer1KTokens,
+		Currency:    ProviderPriceCurrencyUSD,
+		Source:      "migration",
+	}).Error; err != nil {
+		t.Fatalf("create anthropic provider model: %v", err)
+	}
+	if err := db.Create(&ProviderModel{
+		Provider:    "google",
+		Model:       "gemini-2.5-pro",
+		Tags:        ProviderModelTypeText,
+		InputPrice:  0.00125,
+		OutputPrice: 0.01,
+		PriceUnit:   ProviderPriceUnitPer1KTokens,
+		Currency:    ProviderPriceCurrencyUSD,
+		Source:      "migration",
+	}).Error; err != nil {
+		t.Fatalf("create google provider model: %v", err)
+	}
+	if err := db.Create(&ProviderModel{
+		Provider:    "qwen",
+		Model:       "qwen3.7-plus",
+		Tags:        ProviderModelTypeText,
+		InputPrice:  0.002,
+		OutputPrice: 0.008,
+		PriceUnit:   ProviderPriceUnitPer1KTokens,
+		Currency:    "CNY",
+		Source:      "migration",
+	}).Error; err != nil {
+		t.Fatalf("create qwen provider model: %v", err)
+	}
+	if err := db.Create(&ProviderModelPriceComponent{
+		Provider:   "openai",
+		Model:      "gpt-5.4",
+		Component:  ProviderModelPriceComponentTextCacheRead,
+		InputPrice: 0.123,
+		PriceUnit:  ProviderPriceUnitPer1KTokens,
+		Currency:   ProviderPriceCurrencyUSD,
+		Source:     "manual",
+	}).Error; err != nil {
+		t.Fatalf("create manual cache read component: %v", err)
+	}
+
+	if err := upsertProviderTextCachePricingComponentsWithDB(db); err != nil {
+		t.Fatalf("upsert provider text cache pricing components: %v", err)
+	}
+
+	openAIRead := ProviderModelPriceComponent{}
+	if err := db.First(
+		&openAIRead,
+		"provider = ? AND model = ? AND component = ? AND condition = ?",
+		"openai",
+		"gpt-5.4",
+		ProviderModelPriceComponentTextCacheRead,
+		"",
+	).Error; err != nil {
+		t.Fatalf("query openai cache read component: %v", err)
+	}
+	if openAIRead.InputPrice != 0.123 || openAIRead.Source != "manual" {
+		t.Fatalf("manual openai cache read component overwritten: price=%v source=%q", openAIRead.InputPrice, openAIRead.Source)
+	}
+
+	anthropicRead := ProviderModelPriceComponent{}
+	if err := db.First(
+		&anthropicRead,
+		"provider = ? AND model = ? AND component = ? AND condition = ?",
+		"anthropic",
+		"claude-sonnet-4-5",
+		ProviderModelPriceComponentTextCacheRead,
+		"",
+	).Error; err != nil {
+		t.Fatalf("query anthropic cache read component: %v", err)
+	}
+	if anthropicRead.InputPrice != 0.0003 {
+		t.Fatalf("anthropic cache read input_price=%v, want 0.0003", anthropicRead.InputPrice)
+	}
+	anthropicWrite := ProviderModelPriceComponent{}
+	if err := db.First(
+		&anthropicWrite,
+		"provider = ? AND model = ? AND component = ? AND condition = ?",
+		"anthropic",
+		"claude-sonnet-4-5",
+		ProviderModelPriceComponentTextCacheWrite,
+		"",
+	).Error; err != nil {
+		t.Fatalf("query anthropic cache write component: %v", err)
+	}
+	if anthropicWrite.InputPrice != 0.00375 {
+		t.Fatalf("anthropic cache write input_price=%v, want 0.00375", anthropicWrite.InputPrice)
+	}
+	if anthropicRead.SourceURL != providerTextCachePricingAnthropicURL || anthropicWrite.SourceURL != providerTextCachePricingAnthropicURL {
+		t.Fatalf("unexpected anthropic source urls: read=%q write=%q", anthropicRead.SourceURL, anthropicWrite.SourceURL)
+	}
+
+	googleRead := ProviderModelPriceComponent{}
+	if err := db.First(
+		&googleRead,
+		"provider = ? AND model = ? AND component = ? AND condition = ?",
+		"google",
+		"gemini-2.5-pro",
+		ProviderModelPriceComponentTextCacheRead,
+		"mode=standard;prompt_tokens_gt=200000",
+	).Error; err != nil {
+		t.Fatalf("query google tiered cache read component: %v", err)
+	}
+	if googleRead.InputPrice != 0.00025 || googleRead.SourceURL != providerTextCachePricingGoogleURL {
+		t.Fatalf("google tiered cache read price=%v source_url=%q", googleRead.InputPrice, googleRead.SourceURL)
+	}
+
+	qwenWrite := ProviderModelPriceComponent{}
+	if err := db.First(
+		&qwenWrite,
+		"provider = ? AND model = ? AND component = ? AND condition = ?",
+		"qwen",
+		"qwen3.7-plus",
+		ProviderModelPriceComponentTextCacheWrite,
+		"mode=standard;prompt_tokens_gt=256000;prompt_tokens_lte=1000000",
+	).Error; err != nil {
+		t.Fatalf("query qwen tiered cache write component: %v", err)
+	}
+	if qwenWrite.InputPrice != 0.0075 || qwenWrite.Currency != "CNY" {
+		t.Fatalf("qwen tiered cache write price=%v currency=%q", qwenWrite.InputPrice, qwenWrite.Currency)
+	}
+}
+
 func TestLoadProviderMigrationSeedsFromSnapshot(t *testing.T) {
 	seeds := mustLoadProviderMigrationSeeds(t)
 	if len(seeds) == 0 {

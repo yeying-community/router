@@ -21,6 +21,7 @@ const TopUpWorkspaceProvider = ({ children }) => {
   const [userBalanceAmount, setUserBalanceAmount] = useState(0);
   const [topupBalanceAmount, setTopupBalanceAmount] = useState(0);
   const [redeemBalanceAmount, setRedeemBalanceAmount] = useState(0);
+  const [giftBalanceAmount, setGiftBalanceAmount] = useState(0);
   const [balanceLots, setBalanceLots] = useState([]);
   const [loadingBalanceLots, setLoadingBalanceLots] = useState(false);
   const [topupPlans, setTopupPlans] = useState([]);
@@ -74,20 +75,6 @@ const TopUpWorkspaceProvider = ({ children }) => {
     }
   }, []);
 
-  const loadUserBalance = useCallback(async () => {
-    try {
-      const res = await API.get('/api/v1/public/user/self');
-      const { success, message, data } = res?.data || {};
-      if (success) {
-        setUserBalanceAmount(Number(data?.balance_amount ?? data?.quota ?? 0) || 0);
-        return;
-      }
-      showError(message || t('topup.external_topup.request_failed'));
-    } catch (error) {
-      showError(error?.message || t('topup.external_topup.request_failed'));
-    }
-  }, [t]);
-
   const loadBalanceSummary = useCallback(
     async ({ silent = false } = {}) => {
       try {
@@ -99,14 +86,14 @@ const TopUpWorkspaceProvider = ({ children }) => {
           }
           return false;
         }
-        const totalBalance = Number(
-          data?.total_balance_amount ?? data?.balance_amount ?? data?.quota ?? 0,
-        );
+        const totalBalance = Number(data?.total_balance_amount ?? 0);
         const topupBalance = Number(data?.topup_balance_amount ?? 0);
         const redeemBalance = Number(data?.redeem_balance_amount ?? 0);
+        const giftBalance = Number(data?.gift_balance_amount ?? 0);
         setUserBalanceAmount(Number.isFinite(totalBalance) ? totalBalance : 0);
         setTopupBalanceAmount(Number.isFinite(topupBalance) ? topupBalance : 0);
         setRedeemBalanceAmount(Number.isFinite(redeemBalance) ? redeemBalance : 0);
+        setGiftBalanceAmount(Number.isFinite(giftBalance) ? giftBalance : 0);
         return true;
       } catch (error) {
         if (!silent) {
@@ -171,15 +158,11 @@ const TopUpWorkspaceProvider = ({ children }) => {
   );
 
   useEffect(() => {
-    loadBalanceSummary().then((success) => {
-      if (!success) {
-        loadUserBalance().then();
-      }
-    });
+    loadBalanceSummary().then();
     loadTopupPlans().then();
     loadDisplayCurrencies().then();
     loadBalanceLots({ silent: true }).then();
-  }, [loadBalanceLots, loadBalanceSummary, loadDisplayCurrencies, loadTopupPlans, loadUserBalance]);
+  }, [loadBalanceLots, loadBalanceSummary, loadDisplayCurrencies, loadTopupPlans]);
 
   const createTopupOrder = useCallback(
     async (payload) => {
@@ -241,7 +224,6 @@ const TopUpWorkspaceProvider = ({ children }) => {
             popup.close();
           }
           await Promise.all([
-            loadUserBalance(),
             loadBalanceSummary({ silent: true }),
             loadBalanceLots({ silent: true }),
           ]);
@@ -267,7 +249,7 @@ const TopUpWorkspaceProvider = ({ children }) => {
         return false;
       }
     },
-    [loadBalanceLots, loadBalanceSummary, loadUserBalance, t],
+    [loadBalanceLots, loadBalanceSummary, t],
   );
 
   const previewPackagePurchase = useCallback(
@@ -318,15 +300,14 @@ const TopUpWorkspaceProvider = ({ children }) => {
           redeemed_at: 0,
           credit_expires_at: 0,
         };
-      setUserBalanceAmount(normalizedResult.after_balance_amount);
-      setRedeemBalanceAmount((previous) =>
-        Math.max(0, previous + normalizedResult.redeemed_amount),
-      );
-      loadBalanceLots({ silent: true }).then();
+      await Promise.all([
+        loadBalanceSummary({ silent: true }),
+        loadBalanceLots({ silent: true }),
+      ]);
       showSuccess(t('topup.redeem.success'));
       return normalizedResult;
     },
-    [loadBalanceLots, t, userBalanceAmount],
+    [loadBalanceLots, loadBalanceSummary, t, userBalanceAmount],
   );
 
   const contextValue = useMemo(
@@ -334,6 +315,7 @@ const TopUpWorkspaceProvider = ({ children }) => {
       userBalanceAmount,
       topupBalanceAmount,
       redeemBalanceAmount,
+      giftBalanceAmount,
       balanceLots,
       loadingBalanceLots,
       topupPlans,
@@ -341,7 +323,6 @@ const TopUpWorkspaceProvider = ({ children }) => {
       displayCurrencyIndex,
       loadingDisplayCurrencies,
       renderDisplayAmount,
-      loadUserBalance,
       loadBalanceSummary,
       loadBalanceLots,
       createTopupOrder,
@@ -355,11 +336,11 @@ const TopUpWorkspaceProvider = ({ children }) => {
       displayCurrencyIndex,
       loadBalanceLots,
       loadBalanceSummary,
-      loadUserBalance,
       loadingBalanceLots,
       loadingDisplayCurrencies,
       previewPackagePurchase,
       redeemBalanceAmount,
+      giftBalanceAmount,
       renderDisplayAmount,
       submitRedemption,
       topupBalanceAmount,

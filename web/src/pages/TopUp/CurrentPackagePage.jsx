@@ -619,15 +619,7 @@ const CurrentPackagePage = () => {
           </>
         }
       >
-        {loading ? (
-          <div className='router-text-muted'>{t('common.loading')}</div>
-        ) : activePackages.length === 0 ? (
-          <div className='router-current-package-empty'>
-            <div className='router-text-muted'>
-              {t('topup.package_status.empty_description')}
-            </div>
-          </div>
-        ) : (
+        {activePackages.length > 0 ? (
           <div className='router-package-purchase-list'>
             {activePackages.map((item) => (
               <PackageSummaryCard
@@ -639,6 +631,12 @@ const CurrentPackagePage = () => {
                 t={t}
               />
             ))}
+          </div>
+        ) : loading ? null : (
+          <div className='router-current-package-empty'>
+            <div className='router-text-muted'>
+              {t('topup.package_status.empty_description')}
+            </div>
           </div>
         )}
       </AppSection>

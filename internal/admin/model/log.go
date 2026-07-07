@@ -31,8 +31,12 @@ type Log struct {
 	BillingChargeRate                float64 `json:"billing_charge_rate" gorm:"type:double precision;default:0"`
 	BillingInputQuantity             float64 `json:"billing_input_quantity" gorm:"type:double precision;default:0"`
 	BillingOutputQuantity            float64 `json:"billing_output_quantity" gorm:"type:double precision;default:0"`
+	BillingCacheReadQuantity         float64 `json:"billing_cache_read_quantity" gorm:"type:double precision;default:0"`
+	BillingCacheWriteQuantity        float64 `json:"billing_cache_write_quantity" gorm:"type:double precision;default:0"`
 	BillingInputAmount               float64 `json:"billing_input_amount" gorm:"type:double precision;default:0"`
 	BillingOutputAmount              float64 `json:"billing_output_amount" gorm:"type:double precision;default:0"`
+	BillingCacheReadAmount           float64 `json:"billing_cache_read_amount" gorm:"type:double precision;default:0"`
+	BillingCacheWriteAmount          float64 `json:"billing_cache_write_amount" gorm:"type:double precision;default:0"`
 	BillingAmount                    float64 `json:"billing_amount" gorm:"type:double precision;default:0"`
 	BillingChargeAmount              int64   `json:"billing_charge_amount" gorm:"bigint;default:0"`
 	BillingImageToolCalls            int     `json:"billing_image_tool_calls" gorm:"default:0"`
@@ -52,6 +56,11 @@ type Log struct {
 	BillingPricingRuleVersion        string  `json:"billing_pricing_rule_version" gorm:"type:varchar(64);default:''"`
 	BillingCostRuleVersion           string  `json:"billing_cost_rule_version" gorm:"type:varchar(64);default:''"`
 	EstimatedPromptTokens            int     `json:"estimated_prompt_tokens" gorm:"default:0"`
+	EstimatedOutputTokens            int     `json:"estimated_output_tokens" gorm:"default:0"`
+	EstimatedChargeAmount            int64   `json:"estimated_charge_amount" gorm:"bigint;default:0"`
+	BillingPromptTokenDelta          int     `json:"billing_prompt_token_delta" gorm:"default:0"`
+	BillingOutputTokenDelta          int     `json:"billing_output_token_delta" gorm:"default:0"`
+	BillingChargeDeltaAmount         int64   `json:"billing_charge_delta_amount" gorm:"bigint;default:0"`
 	PromptTokens                     int     `json:"prompt_tokens" gorm:"default:0"`
 	CompletionTokens                 int     `json:"completion_tokens" gorm:"default:0"`
 	ChannelId                        string  `json:"channel" gorm:"type:varchar(64);index"`

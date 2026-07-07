@@ -52,10 +52,6 @@ func init() {
 		GetUserUsedQuota:                         GetUsedQuota,
 		GetUserEmail:                             GetEmail,
 		GetUserGroup:                             GetGroup,
-		IncreaseUserQuota:                        IncreaseQuota,
-		DecreaseUserQuota:                        DecreaseQuota,
-		IncreaseUserQuotaDirect:                  IncreaseQuotaDirect,
-		DecreaseUserQuotaDirect:                  DecreaseQuotaDirect,
 		GetRootUserEmail:                         GetRootEmail,
 		UpdateUserUsedQuotaAndRequestCount:       UpdateUsedQuotaAndRequestCount,
 		UpdateUserUsedQuotaAndRequestCountDirect: UpdateUsedQuotaAndRequestCountDirect,
@@ -76,7 +72,7 @@ func GetAll(startIdx int, num int, order string) ([]*model.User, error) {
 
 	switch order {
 	case "quota":
-		query = query.Order("quota desc")
+		query = query.Order("id desc")
 	case "used_quota":
 		query = query.Order("used_quota desc")
 	case "request_count":
@@ -144,17 +140,20 @@ func GetIDByAffCode(code string) (string, error) {
 	return user.Id, err
 }
 
-func resolveRewardQuotaFromTopupPlan(ctx context.Context, planID string, rewardKey string) int64 {
+func resolveRewardTopupPlan(ctx context.Context, planID string, rewardKey string) (model.ResolvedTopupPlan, bool) {
 	normalizedPlanID := strings.TrimSpace(planID)
 	if normalizedPlanID == "" {
-		return 0
+		return model.ResolvedTopupPlan{}, false
 	}
 	resolvedPlan, err := model.ResolveTopupPlan(normalizedPlanID)
 	if err != nil {
 		logger.Warnf(ctx, "resolve reward topup plan failed reward=%s plan_id=%s err=%v", rewardKey, normalizedPlanID, err)
-		return 0
+		return model.ResolvedTopupPlan{}, false
 	}
-	return resolvedPlan.ChargeAmount
+	if resolvedPlan.ChargeAmount <= 0 {
+		return model.ResolvedTopupPlan{}, false
+	}
+	return resolvedPlan, true
 }
 
 func DeleteByID(id string) error {
@@ -199,30 +198,48 @@ func Create(ctx context.Context, user *model.User, inviterId string) error {
 		return err
 	}
 	user.Group = resolvedGroup
-	newUserRewardQuota := resolveRewardQuotaFromTopupPlan(
+	newUserRewardPlan, hasNewUserRewardPlan := resolveRewardTopupPlan(
 		ctx,
 		config.NewUserRewardTopupPlanID,
 		"new_user",
 	)
-	user.Quota = newUserRewardQuota
 	user.AccessToken = random.GetUUID()
 	user.AffCode = random.GetRandomString(4)
 	result := model.DB.Create(user)
 	if result.Error != nil {
 		return result.Error
 	}
-	if newUserRewardQuota > 0 {
-		model.RecordLog(ctx, user.Id, model.LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", common.LogQuota(newUserRewardQuota)))
+	if hasNewUserRewardPlan {
+		if _, err := model.GrantTopupPlanToUserWithDB(
+			model.DB,
+			strings.TrimSpace(user.Id),
+			strings.TrimSpace(user.Username),
+			strings.TrimSpace(newUserRewardPlan.Id),
+			"system:new_user_reward",
+		); err != nil {
+			return err
+		}
+		model.RecordLog(ctx, user.Id, model.LogTypeSystem, fmt.Sprintf("新用户注册赠送 %s", common.LogQuota(newUserRewardPlan.ChargeAmount)))
 	}
 	if strings.TrimSpace(inviterId) != "" {
-		inviterRewardQuota := resolveRewardQuotaFromTopupPlan(
+		inviterRewardPlan, hasInviterRewardPlan := resolveRewardTopupPlan(
 			ctx,
 			config.InviterRewardTopupPlanID,
 			"inviter",
 		)
-		if inviterRewardQuota > 0 {
-			_ = IncreaseQuota(inviterId, inviterRewardQuota)
-			model.RecordLog(ctx, inviterId, model.LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", common.LogQuota(inviterRewardQuota)))
+		if hasInviterRewardPlan {
+			inviterUsername := GetUsernameById(inviterId)
+			if _, err := model.GrantTopupPlanToUserWithDB(
+				model.DB,
+				strings.TrimSpace(inviterId),
+				strings.TrimSpace(inviterUsername),
+				strings.TrimSpace(inviterRewardPlan.Id),
+				"system:inviter_reward",
+			); err != nil {
+				logger.Warnf(ctx, "grant inviter reward topup plan failed inviter_id=%s plan_id=%s err=%v", inviterId, inviterRewardPlan.Id, err)
+			} else {
+				model.RecordLog(ctx, inviterId, model.LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", common.LogQuota(inviterRewardPlan.ChargeAmount)))
+			}
 		}
 	}
 	return nil
@@ -268,7 +285,6 @@ func Update(user *model.User, updatePassword bool) error {
 		"role":                 user.Role,
 		"status":               user.Status,
 		"email":                user.Email,
-		"quota":                user.Quota,
 		"group":                user.Group,
 		"quota_reset_timezone": user.QuotaResetTimezone,
 		"updated_at":           helper.GetTimestamp(),
@@ -472,9 +488,7 @@ func ValidateAccessToken(token string) *model.User {
 }
 
 func GetQuota(id string) (int64, error) {
-	var quota int64
-	err := model.DB.Model(&model.User{}).Where("id = ?", id).Select("quota").Find(&quota).Error
-	return quota, err
+	return model.GetEffectiveUserBalanceAmount(id)
 }
 
 func GetUsedQuota(id string) (int64, error) {
@@ -494,36 +508,6 @@ func GetGroup(id string) (string, error) {
 	var group string
 	err := model.DB.Model(&model.User{}).Where("id = ?", id).Select(groupCol).Find(&group).Error
 	return group, err
-}
-
-func IncreaseQuota(id string, quota int64) error {
-	if quota < 0 {
-		return errors.New("quota 不能为负数！")
-	}
-	if config.BatchUpdateEnabled {
-		model.AddBatchUpdateRecord(model.BatchUpdateTypeUserQuota, id, quota)
-		return nil
-	}
-	return IncreaseQuotaDirect(id, quota)
-}
-
-func IncreaseQuotaDirect(id string, quota int64) error {
-	return model.DB.Model(&model.User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota + ?", quota)).Error
-}
-
-func DecreaseQuota(id string, quota int64) error {
-	if quota < 0 {
-		return errors.New("quota 不能为负数！")
-	}
-	if config.BatchUpdateEnabled {
-		model.AddBatchUpdateRecord(model.BatchUpdateTypeUserQuota, id, -quota)
-		return nil
-	}
-	return DecreaseQuotaDirect(id, quota)
-}
-
-func DecreaseQuotaDirect(id string, quota int64) error {
-	return model.DB.Model(&model.User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota - ?", quota)).Error
 }
 
 func GetRootEmail() string {

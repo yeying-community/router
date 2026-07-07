@@ -6,6 +6,7 @@ import (
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/relay/billing"
 	relaymodel "github.com/yeying-community/router/internal/relay/model"
+	"github.com/yeying-community/router/internal/relay/relaymode"
 	"github.com/yeying-community/router/internal/tokenestimate"
 )
 
@@ -55,6 +56,59 @@ func TestAnnotateTextBillingSnapshotResponsesImagePending(t *testing.T) {
 	}
 }
 
+func TestAnnotateAudioBillingSnapshot(t *testing.T) {
+	t.Run("speech request payload final", func(t *testing.T) {
+		snapshot := billing.BillingSnapshot{}
+		annotateAudioBillingSnapshot(&snapshot, "provider_component", relaymode.AudioSpeech)
+		if snapshot.PricingSource != "provider_component" {
+			t.Fatalf("PricingSource = %q, want provider_component", snapshot.PricingSource)
+		}
+		if snapshot.UsageSource != billingUsageSourceRequestPayload {
+			t.Fatalf("UsageSource = %q, want %q", snapshot.UsageSource, billingUsageSourceRequestPayload)
+		}
+		if snapshot.EstimateSource != billingEstimateSourceAudioTTSInputChars {
+			t.Fatalf("EstimateSource = %q, want %q", snapshot.EstimateSource, billingEstimateSourceAudioTTSInputChars)
+		}
+		if snapshot.SettlementMode != billingSettlementModeAudioRequestFinal {
+			t.Fatalf("SettlementMode = %q, want %q", snapshot.SettlementMode, billingSettlementModeAudioRequestFinal)
+		}
+	})
+
+	t.Run("transcription response text final", func(t *testing.T) {
+		snapshot := billing.BillingSnapshot{}
+		annotateAudioBillingSnapshot(&snapshot, "provider_migration", relaymode.AudioTranscription)
+		if snapshot.PricingSource != "provider_migration" {
+			t.Fatalf("PricingSource = %q, want provider_migration", snapshot.PricingSource)
+		}
+		if snapshot.UsageSource != billingUsageSourceResponseText {
+			t.Fatalf("UsageSource = %q, want %q", snapshot.UsageSource, billingUsageSourceResponseText)
+		}
+		if snapshot.EstimateSource != billingEstimateSourceAudioPreconsumeQuota {
+			t.Fatalf("EstimateSource = %q, want %q", snapshot.EstimateSource, billingEstimateSourceAudioPreconsumeQuota)
+		}
+		if snapshot.SettlementMode != billingSettlementModeAudioResponseTextFinal {
+			t.Fatalf("SettlementMode = %q, want %q", snapshot.SettlementMode, billingSettlementModeAudioResponseTextFinal)
+		}
+	})
+}
+
+func TestAnnotateVideoBillingSnapshot(t *testing.T) {
+	snapshot := billing.BillingSnapshot{}
+	annotateVideoBillingSnapshot(&snapshot, "provider_component")
+	if snapshot.PricingSource != "provider_component" {
+		t.Fatalf("PricingSource = %q, want provider_component", snapshot.PricingSource)
+	}
+	if snapshot.UsageSource != billingUsageSourceRequestPayload {
+		t.Fatalf("UsageSource = %q, want %q", snapshot.UsageSource, billingUsageSourceRequestPayload)
+	}
+	if snapshot.EstimateSource != billingEstimateSourceVideoRequestRule {
+		t.Fatalf("EstimateSource = %q, want %q", snapshot.EstimateSource, billingEstimateSourceVideoRequestRule)
+	}
+	if snapshot.SettlementMode != billingSettlementModeVideoTaskCreated {
+		t.Fatalf("SettlementMode = %q, want %q", snapshot.SettlementMode, billingSettlementModeVideoTaskCreated)
+	}
+}
+
 func TestAnnotateTextEstimateLogFields(t *testing.T) {
 	logRow := &adminmodel.Log{}
 	annotateTextEstimateLogFields(logRow, tokenestimate.EstimateResult{
@@ -70,6 +124,61 @@ func TestAnnotateTextEstimateLogFields(t *testing.T) {
 	}
 	if logRow.BillingEstimatePrecision != string(tokenestimate.PrecisionExact) {
 		t.Fatalf("BillingEstimatePrecision = %q, want %q", logRow.BillingEstimatePrecision, tokenestimate.PrecisionExact)
+	}
+}
+
+func TestAnnotateTextPreConsumeLogFields(t *testing.T) {
+	logRow := &adminmodel.Log{
+		PromptTokens:          90,
+		CompletionTokens:      40,
+		BillingChargeAmount:   13,
+		EstimatedPromptTokens: 1,
+	}
+	annotateTextPreConsumeLogFields(logRow, 100, 64, 21)
+	if logRow.EstimatedPromptTokens != 100 {
+		t.Fatalf("EstimatedPromptTokens = %d, want 100", logRow.EstimatedPromptTokens)
+	}
+	if logRow.EstimatedOutputTokens != 64 {
+		t.Fatalf("EstimatedOutputTokens = %d, want 64", logRow.EstimatedOutputTokens)
+	}
+	if logRow.EstimatedChargeAmount != 21 {
+		t.Fatalf("EstimatedChargeAmount = %d, want 21", logRow.EstimatedChargeAmount)
+	}
+	if logRow.BillingPromptTokenDelta != -10 {
+		t.Fatalf("BillingPromptTokenDelta = %d, want -10", logRow.BillingPromptTokenDelta)
+	}
+	if logRow.BillingOutputTokenDelta != -24 {
+		t.Fatalf("BillingOutputTokenDelta = %d, want -24", logRow.BillingOutputTokenDelta)
+	}
+	if logRow.BillingChargeDeltaAmount != -8 {
+		t.Fatalf("BillingChargeDeltaAmount = %d, want -8", logRow.BillingChargeDeltaAmount)
+	}
+}
+
+func TestAnnotateAudioPreConsumeLogFields(t *testing.T) {
+	logRow := &adminmodel.Log{
+		PromptTokens:          28,
+		BillingChargeAmount:   9,
+		EstimatedPromptTokens: 1,
+	}
+	annotateAudioPreConsumeLogFields(logRow, 40, 13)
+	if logRow.EstimatedPromptTokens != 40 {
+		t.Fatalf("EstimatedPromptTokens = %d, want 40", logRow.EstimatedPromptTokens)
+	}
+	if logRow.EstimatedOutputTokens != 0 {
+		t.Fatalf("EstimatedOutputTokens = %d, want 0", logRow.EstimatedOutputTokens)
+	}
+	if logRow.EstimatedChargeAmount != 13 {
+		t.Fatalf("EstimatedChargeAmount = %d, want 13", logRow.EstimatedChargeAmount)
+	}
+	if logRow.BillingPromptTokenDelta != -12 {
+		t.Fatalf("BillingPromptTokenDelta = %d, want -12", logRow.BillingPromptTokenDelta)
+	}
+	if logRow.BillingOutputTokenDelta != 0 {
+		t.Fatalf("BillingOutputTokenDelta = %d, want 0", logRow.BillingOutputTokenDelta)
+	}
+	if logRow.BillingChargeDeltaAmount != -4 {
+		t.Fatalf("BillingChargeDeltaAmount = %d, want -4", logRow.BillingChargeDeltaAmount)
 	}
 }
 
@@ -113,5 +222,74 @@ func TestBillingSnapshotApplyToLogIncludesImageToolFields(t *testing.T) {
 	}
 	if logRow.BillingImageToolChargeAmount != 74880 {
 		t.Fatalf("BillingImageToolChargeAmount = %d, want 74880", logRow.BillingImageToolChargeAmount)
+	}
+}
+
+func TestResponsesImageToolBillingAnnotatesMixedSources(t *testing.T) {
+	price := 0.04
+	snapshot := billing.BillingSnapshot{
+		PriceUnit:      adminmodel.ProviderPriceUnitPer1KTokens,
+		Currency:       adminmodel.ProviderPriceCurrencyUSD,
+		UsageSource:    billingUsageSourceUpstreamUsage,
+		EstimateSource: "tokenestimate:openai_exact",
+		SettlementMode: billingSettlementModeUsageFinal,
+	}
+	usage := &relaymodel.Usage{ImageGenerationCalls: 2}
+	detail, note, err := maybeApplyResponsesImageToolBilling(
+		&snapshot,
+		usage,
+		0,
+		[]adminmodel.ChannelModel{
+			{
+				Model:      "gpt-image-1",
+				Selected:   true,
+				InputPrice: &price,
+				PriceUnit:  adminmodel.ProviderPriceUnitPerImage,
+				Currency:   adminmodel.ProviderPriceCurrencyUSD,
+			},
+		},
+		1,
+		[]responsesImageToolSpec{{Model: "gpt-image-1", Size: "1024x1024", Quality: "high"}},
+	)
+	if err != nil {
+		t.Fatalf("maybeApplyResponsesImageToolBilling() error = %v", err)
+	}
+	if !detail.Applied || detail.Calls != 2 || note == "" {
+		t.Fatalf("unexpected image tool detail=%#v note=%q", detail, note)
+	}
+	if snapshot.UsageSource != billingUsageSourceUsagePlusImageTool {
+		t.Fatalf("UsageSource = %q, want %q", snapshot.UsageSource, billingUsageSourceUsagePlusImageTool)
+	}
+	if snapshot.EstimateSource != billingEstimateSourceImageToolRequest {
+		t.Fatalf("EstimateSource = %q, want %q", snapshot.EstimateSource, billingEstimateSourceImageToolRequest)
+	}
+	if snapshot.SettlementMode != billingSettlementModeUsagePlusImageFee {
+		t.Fatalf("SettlementMode = %q, want %q", snapshot.SettlementMode, billingSettlementModeUsagePlusImageFee)
+	}
+	if snapshot.ImageToolCalls != 2 || snapshot.ImageToolChargeAmount <= 0 {
+		t.Fatalf("image tool fields not applied: calls=%d charge=%d", snapshot.ImageToolCalls, snapshot.ImageToolChargeAmount)
+	}
+}
+
+func TestBillingSnapshotApplyToLogIncludesTextCacheFields(t *testing.T) {
+	snapshot := billing.BillingSnapshot{
+		CacheReadQuantity:  300,
+		CacheWriteQuantity: 100,
+		CacheReadAmount:    0.0006,
+		CacheWriteAmount:   0.0012,
+	}
+	logRow := &adminmodel.Log{}
+	snapshot.ApplyToLog(logRow)
+	if logRow.BillingCacheReadQuantity != 300 {
+		t.Fatalf("BillingCacheReadQuantity = %v, want 300", logRow.BillingCacheReadQuantity)
+	}
+	if logRow.BillingCacheWriteQuantity != 100 {
+		t.Fatalf("BillingCacheWriteQuantity = %v, want 100", logRow.BillingCacheWriteQuantity)
+	}
+	if logRow.BillingCacheReadAmount != 0.0006 {
+		t.Fatalf("BillingCacheReadAmount = %v, want 0.0006", logRow.BillingCacheReadAmount)
+	}
+	if logRow.BillingCacheWriteAmount != 0.0012 {
+		t.Fatalf("BillingCacheWriteAmount = %v, want 0.0012", logRow.BillingCacheWriteAmount)
 	}
 }

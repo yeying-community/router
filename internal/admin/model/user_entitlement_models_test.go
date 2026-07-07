@@ -244,3 +244,101 @@ func TestConsumeUserBalanceLotsForGroupOnlyConsumesMatchingGroup(t *testing.T) {
 		t.Fatalf("lotB remaining=%d, want 40", lotB.RemainingAmount)
 	}
 }
+
+func TestGetEffectiveUserBalanceAmountIgnoresLegacyUserQuotaWithoutLots(t *testing.T) {
+	db := newUserEntitlementModelsTestDB(t)
+	now := int64(1000)
+	if err := db.Create(&User{
+		Id:       "user-legacy-quota",
+		Username: "legacy-quota",
+		Status:   UserStatusEnabled,
+	}).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	if err := db.Exec("ALTER TABLE users ADD COLUMN quota bigint DEFAULT 0").Error; err != nil {
+		t.Fatalf("add legacy quota column: %v", err)
+	}
+	if err := db.Exec("UPDATE users SET quota = ? WHERE id = ?", 1000, "user-legacy-quota").Error; err != nil {
+		t.Fatalf("set legacy quota: %v", err)
+	}
+
+	balanceAmount, err := GetEffectiveUserBalanceAmountWithDB(db, "user-legacy-quota", now)
+	if err != nil {
+		t.Fatalf("GetEffectiveUserBalanceAmountWithDB: %v", err)
+	}
+	if balanceAmount != 0 {
+		t.Fatalf("effective balance=%d, want 0 without active lots", balanceAmount)
+	}
+}
+
+func TestGetEffectiveUserBalanceAmountForGroupOnlyIncludesMatchingActiveLots(t *testing.T) {
+	db := newUserEntitlementModelsTestDB(t)
+	seedEntitlementGroup(t, db, "group-a", "Group A")
+	seedEntitlementGroup(t, db, "group-b", "Group B")
+	now := int64(1000)
+	if err := db.Create(&User{Id: "user-1", Username: "user-1", Status: UserStatusEnabled}).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	orders := []TopupOrder{
+		{
+			Id:            "order-a",
+			UserID:        "user-1",
+			Status:        TopupOrderStatusFulfilled,
+			BusinessType:  TopupOrderBusinessBalance,
+			Title:         "A",
+			TransactionID: "txn-order-a",
+			GroupID:       "group-a",
+			CreatedAt:     now,
+		},
+		{
+			Id:            "order-b",
+			UserID:        "user-1",
+			Status:        TopupOrderStatusFulfilled,
+			BusinessType:  TopupOrderBusinessBalance,
+			Title:         "B",
+			TransactionID: "txn-order-b",
+			GroupID:       "group-b",
+			CreatedAt:     now,
+		},
+	}
+	if err := db.Create(&orders).Error; err != nil {
+		t.Fatalf("create orders: %v", err)
+	}
+	for _, order := range orders {
+		if _, _, err := CreditUserBalanceLotWithDB(db, UserBalanceLotCreditInput{
+			UserID:      "user-1",
+			SourceType:  UserBalanceLotSourceTopup,
+			SourceID:    order.Id,
+			TotalAmount: 100,
+			GrantedAt:   now,
+			ExpiresAt:   0,
+		}); err != nil {
+			t.Fatalf("credit lot %s: %v", order.Id, err)
+		}
+	}
+	if _, _, err := CreditUserBalanceLotWithDB(db, UserBalanceLotCreditInput{
+		UserID:      "user-1",
+		SourceType:  UserBalanceLotSourceRedeem,
+		SourceID:    "redemption-expired",
+		TotalAmount: 80,
+		GrantedAt:   now - 20,
+		ExpiresAt:   now - 1,
+	}); err != nil {
+		t.Fatalf("credit expired redemption lot: %v", err)
+	}
+
+	totalBalance, err := GetEffectiveUserBalanceAmountWithDB(db, "user-1", now)
+	if err != nil {
+		t.Fatalf("GetEffectiveUserBalanceAmountWithDB: %v", err)
+	}
+	if totalBalance != 200 {
+		t.Fatalf("total effective balance=%d, want 200", totalBalance)
+	}
+	groupBalance, err := GetEffectiveUserBalanceAmountForGroupWithDB(db, "user-1", "group-b", now)
+	if err != nil {
+		t.Fatalf("GetEffectiveUserBalanceAmountForGroupWithDB: %v", err)
+	}
+	if groupBalance != 100 {
+		t.Fatalf("group effective balance=%d, want 100", groupBalance)
+	}
+}

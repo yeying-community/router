@@ -65,10 +65,45 @@ func getAndValidateTextRequest(c *gin.Context, relayMode int) (*relaymodel.Gener
 
 func getPreConsumedQuota(textRequest *relaymodel.GeneralOpenAIRequest, promptTokens int, ratio float64) int64 {
 	preConsumedTokens := config.PreConsumedQuota + int64(promptTokens)
-	if textRequest.MaxTokens != 0 {
-		preConsumedTokens += int64(textRequest.MaxTokens)
+	if maxOutputTokens := resolveTextMaxOutputTokens(textRequest); maxOutputTokens != 0 {
+		preConsumedTokens += int64(maxOutputTokens)
 	}
 	return int64(float64(preConsumedTokens) * ratio)
+}
+
+func resolveTextMaxOutputTokens(textRequest *relaymodel.GeneralOpenAIRequest) int {
+	if textRequest == nil {
+		return 0
+	}
+	maxTokens := textRequest.MaxTokens
+	if textRequest.MaxCompletionTokens != nil && *textRequest.MaxCompletionTokens > maxTokens {
+		maxTokens = *textRequest.MaxCompletionTokens
+	}
+	if textRequest.MaxOutputTokens != nil && *textRequest.MaxOutputTokens > maxTokens {
+		maxTokens = *textRequest.MaxOutputTokens
+	}
+	if maxTokens < 0 {
+		return 0
+	}
+	return maxTokens
+}
+
+func getAvailableUserBalanceForBilling(ctx context.Context, userID string, groupID string) (int64, error) {
+	userBalanceAmount, err := model.CacheGetUserQuota(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	if strings.TrimSpace(groupID) == "" {
+		return userBalanceAmount, nil
+	}
+	groupBalanceAmount, err := model.CacheGetUserQuotaForGroup(ctx, userID, groupID)
+	if err != nil {
+		return 0, err
+	}
+	if groupBalanceAmount < userBalanceAmount {
+		return groupBalanceAmount, nil
+	}
+	return userBalanceAmount, nil
 }
 
 func preConsumeQuota(ctx context.Context, preConsumedQuota int64, meta *meta.Meta, billingPlan relayBillingPlan) (int64, *relaymodel.ErrorWithStatusCode) {
@@ -89,26 +124,26 @@ func preConsumeQuota(ctx context.Context, preConsumedQuota int64, meta *meta.Met
 		}
 		return preConsumedQuota, nil
 	}
-	if _, expireErr := model.ExpireUserBalanceLots(meta.UserId); expireErr != nil {
-		logger.Error(ctx, "expire user balance lots failed: "+expireErr.Error())
-	}
-
-	userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
+	userBalanceAmount, err := getAvailableUserBalanceForBilling(ctx, meta.UserId, meta.Group)
 	if err != nil {
-		return preConsumedQuota, openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
+		return preConsumedQuota, openai.ErrorWrapper(err, "get_user_balance_failed", http.StatusInternalServerError)
 	}
-	if userQuota-preConsumedQuota < 0 {
-		return preConsumedQuota, openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+	if userBalanceAmount-preConsumedQuota < 0 {
+		return preConsumedQuota, openai.ErrorWrapper(errors.New("user balance is not enough"), "insufficient_user_balance", http.StatusForbidden)
+	}
+	if userBalanceAmount > 100*preConsumedQuota {
+		// in this case, we do not pre-consume quota
+		// because the user has enough quota
+		logger.Debugf(ctx, "user %s has enough balance %d, trusted and no need to pre-consume", meta.UserId, userBalanceAmount)
+		return 0, nil
 	}
 	err = model.CacheDecreaseUserQuota(meta.UserId, preConsumedQuota)
 	if err != nil {
 		return preConsumedQuota, openai.ErrorWrapper(err, "decrease_user_quota_failed", http.StatusInternalServerError)
 	}
-	if userQuota > 100*preConsumedQuota {
-		// in this case, we do not pre-consume quota
-		// because the user has enough quota
-		preConsumedQuota = 0
-		logger.Debugf(ctx, "user %s has enough quota %d, trusted and no need to pre-consume", meta.UserId, userQuota)
+	err = model.CacheDecreaseUserQuotaForGroup(meta.UserId, meta.Group, preConsumedQuota)
+	if err != nil {
+		return preConsumedQuota, openai.ErrorWrapper(err, "decrease_user_group_quota_failed", http.StatusInternalServerError)
 	}
 	if preConsumedQuota > 0 {
 		if strings.TrimSpace(meta.TokenId) != "" {
@@ -116,11 +151,6 @@ func preConsumeQuota(ctx context.Context, preConsumedQuota int64, meta *meta.Met
 			if err != nil {
 				logTokenPreConsumeFailure(ctx, meta, preConsumedQuota, chargeUserBalance, err)
 				return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
-			}
-		} else {
-			err := model.DecreaseUserQuota(meta.UserId, preConsumedQuota)
-			if err != nil {
-				return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_user_quota_failed", http.StatusForbidden)
 			}
 		}
 	}
@@ -181,7 +211,16 @@ func logTokenPreConsumeFailure(ctx context.Context, meta *meta.Meta, quota int64
 	)
 }
 
-func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, groupRatio float64, estimateResult tokenestimate.EstimateResult, responsesImageTools []responsesImageToolSpec, systemPromptReset bool, billingPlan relayBillingPlan) {
+func consumeTokenRequestCount(ctx context.Context, tokenID string, requestCount int64) {
+	if strings.TrimSpace(tokenID) == "" || requestCount <= 0 {
+		return
+	}
+	if err := model.ConsumeTokenRequestCount(tokenID, requestCount); err != nil {
+		logger.Errorf(ctx, "token request count consume failed code=consume_token_request_count_failed token_id=%s request_count=%d err=%q", strings.TrimSpace(tokenID), requestCount, err.Error())
+	}
+}
+
+func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, estimatedOutputTokens int, estimatedChargeAmount int64, groupRatio float64, estimateResult tokenestimate.EstimateResult, responsesImageTools []responsesImageToolSpec, systemPromptReset bool, billingPlan relayBillingPlan) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		releaseRelayBillingPlan(ctx, billingPlan)
@@ -192,11 +231,12 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	promptTokens := usage.PromptTokens
 	completionTokens := usage.CompletionTokens
 	quota := preConsumedQuota
-	billingSnapshot, snapshotErr := billing.ComputeTextBillingSnapshot(promptTokens, completionTokens, pricing, groupRatio)
+	settlementPricing := model.ResolveTextUsagePricing(pricing, meta.UpstreamRequestPath, promptTokens, completionTokens)
+	billingSnapshot, snapshotErr := billing.ComputeTextBillingSnapshotWithUsage(*usage, settlementPricing, groupRatio)
 	if snapshotErr != nil {
 		logger.Error(ctx, "calculate text billing snapshot failed: "+snapshotErr.Error())
 	}
-	annotateTextBillingSnapshot(&billingSnapshot, pricing.Source, resolveTextEstimateSourceLabel(estimateResult), meta.UpstreamRequestPath, textRequest)
+	annotateTextBillingSnapshot(&billingSnapshot, settlementPricing.Source, resolveTextEstimateSourceLabel(estimateResult), meta.UpstreamRequestPath, textRequest)
 	imageFeeNote := ""
 	_, imageFeeNote, imageFeeErr := maybeApplyResponsesImageToolBilling(&billingSnapshot, usage, meta.ChannelProtocol, meta.ChannelModelConfigs, groupRatio, responsesImageTools)
 	if imageFeeErr != nil {
@@ -225,21 +265,8 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		if err != nil {
 			logger.Error(ctx, "error consuming token remain quota: "+err.Error())
 		}
-	} else if chargeUserBalance {
-		if quotaDelta > 0 {
-			err = model.DecreaseUserQuota(meta.UserId, quotaDelta)
-		} else if quotaDelta < 0 {
-			err = model.IncreaseUserQuota(meta.UserId, -quotaDelta)
-		}
-		if err != nil {
-			logger.Error(ctx, "error consuming user quota: "+err.Error())
-		}
 	}
 	if chargeUserBalance {
-		err = model.CacheUpdateUserQuota(ctx, meta.UserId)
-		if err != nil {
-			logger.Error(ctx, "error update user quota cache: "+err.Error())
-		}
 		if quota > 0 {
 			consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(meta.UserId, meta.Group, quota)
 			if consumeErr != nil {
@@ -247,6 +274,14 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 			} else if consumedFromLots < quota {
 				logger.Warnf(ctx, "user balance lot coverage partial user=%s consumed=%d requested=%d", strings.TrimSpace(meta.UserId), consumedFromLots, quota)
 			}
+		}
+		err = model.CacheUpdateUserQuota(ctx, meta.UserId)
+		if err != nil {
+			logger.Error(ctx, "error update user quota cache: "+err.Error())
+		}
+		err = model.CacheUpdateUserQuotaForGroup(ctx, meta.UserId, meta.Group)
+		if err != nil {
+			logger.Error(ctx, "error update user group quota cache: "+err.Error())
 		}
 	}
 	userDailyQuota := 0
@@ -269,46 +304,20 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		BillingSource:      model.ResolveConsumeLogBillingSource(chargeUserBalance),
 		UserDailyQuota:     userDailyQuota,
 		UserEmergencyQuota: userEmergencyQuota,
-		Content:            buildTextBillingLogContent(pricing, groupRatio, imageFeeNote),
+		Content:            buildTextBillingLogContent(settlementPricing, groupRatio, imageFeeNote),
 		IsStream:           meta.IsStream,
 		ElapsedTime:        helper.CalcElapsedTime(meta.StartTime),
 	}
 	applyRouteObservabilityToLog(entry, meta, textRequest.Model)
 	billingSnapshot.ApplyToLog(entry)
 	annotateTextEstimateLogFields(entry, estimateResult)
+	annotateTextPreConsumeLogFields(entry, estimateResult.PromptTokens, estimatedOutputTokens, estimatedChargeAmount)
 	billing.ApplyProcurementCostObservation(entry)
 	model.RecordConsumeLog(ctx, entry)
 	billing.RecordProcurementConsumptionObservation(ctx, entry)
 	model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 	model.UpdateChannelUsedQuota(meta.ChannelId, quota)
-}
-
-func settleRequestPackageOnlyConsumption(ctx context.Context, meta *meta.Meta, modelName string, tokenName string, promptTokens int, completionTokens int, elapsedTime int64, isStream bool, billingPlan relayBillingPlan) {
-	if !billingPlan.UsesRequestPackage() {
-		return
-	}
-	settleRelayBillingPlan(ctx, billingPlan, 0)
-	entry := &model.Log{
-		UserId:                meta.UserId,
-		GroupId:               meta.Group,
-		ChannelId:             meta.ChannelId,
-		PromptTokens:          promptTokens,
-		CompletionTokens:      completionTokens,
-		ModelName:             strings.TrimSpace(modelName),
-		TokenName:             strings.TrimSpace(tokenName),
-		Quota:                 0,
-		BillingSource:         model.LogBillingSourcePackage,
-		Content:               "request_count package",
-		IsStream:              isStream,
-		ElapsedTime:           elapsedTime,
-		BillingUsageSource:    billingUsageSourceUpstreamUsage,
-		BillingSettlementMode: "request_count_final",
-		BillingChargeAmount:   0,
-	}
-	applyRouteObservabilityToLog(entry, meta, modelName)
-	model.RecordConsumeLog(ctx, entry)
-	model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, 0)
-	model.UpdateChannelUsedQuota(meta.ChannelId, 0)
+	consumeTokenRequestCount(ctx, meta.TokenId, 1)
 }
 
 func getMappedModelName(modelName string, mapping map[string]string) (string, bool) {

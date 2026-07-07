@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	BatchUpdateTypeUserQuota = iota
-	BatchUpdateTypeTokenQuota
+	BatchUpdateTypeTokenQuota = iota
 	BatchUpdateTypeUsedQuota
 	BatchUpdateTypeChannelUsedQuota
 	BatchUpdateTypeRequestCount
@@ -56,11 +55,6 @@ func batchUpdate() {
 		// TODO: maybe we can combine updates with same key?
 		for key, value := range store {
 			switch i {
-			case BatchUpdateTypeUserQuota:
-				err := increaseUserQuota(key, value)
-				if err != nil {
-					logger.SysError("failed to batch update user quota: " + err.Error())
-				}
 			case BatchUpdateTypeTokenQuota:
 				err := increaseTokenQuota(key, value)
 				if err != nil {

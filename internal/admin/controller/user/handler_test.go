@@ -50,6 +50,32 @@ func TestParseTopupBalanceLotPageParamsAcceptsExplicitFilters(t *testing.T) {
 	}
 }
 
+func TestBuildTopUpBalanceSummaryUsesEffectiveLotBucketsOnly(t *testing.T) {
+	summary := buildTopUpBalanceSummary(100, 30, 20)
+	if summary.TopupBalanceAmount != 100 {
+		t.Fatalf("topup_balance_amount=%d, want 100", summary.TopupBalanceAmount)
+	}
+	if summary.RedeemBalanceAmount != 30 {
+		t.Fatalf("redeem_balance_amount=%d, want 30", summary.RedeemBalanceAmount)
+	}
+	if summary.GiftBalanceAmount != 20 {
+		t.Fatalf("gift_balance_amount=%d, want 20", summary.GiftBalanceAmount)
+	}
+	if summary.TotalBalanceAmount != 150 {
+		t.Fatalf("total_balance_amount=%d, want 150", summary.TotalBalanceAmount)
+	}
+}
+
+func TestBuildTopUpBalanceSummaryDoesNotAttributeUnknownResidual(t *testing.T) {
+	summary := buildTopUpBalanceSummary(10, 5, 0)
+	if summary.TotalBalanceAmount != 15 {
+		t.Fatalf("total_balance_amount=%d, want effective lot sum 15", summary.TotalBalanceAmount)
+	}
+	if summary.TopupBalanceAmount != 10 {
+		t.Fatalf("topup_balance_amount=%d, want 10", summary.TopupBalanceAmount)
+	}
+}
+
 func TestBuildAdminTopUpBalanceLotListItemsWithSources(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
 	if err != nil {

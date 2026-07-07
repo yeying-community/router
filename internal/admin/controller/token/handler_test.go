@@ -124,7 +124,7 @@ func TestGetTokenReturnsRawKey(t *testing.T) {
 
 func TestAddTokenReturnsRawKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	_ = newTokenControllerTestDB(t)
+	db := newTokenControllerTestDB(t)
 	originalBuildEntitlements := buildUserEntitlementModelsFn
 	buildUserEntitlementModelsFn = func(ctx context.Context, userID string) (model.UserEntitlementModelsPayload, error) {
 		return model.UserEntitlementModelsPayload{
@@ -167,6 +167,17 @@ func TestAddTokenReturnsRawKey(t *testing.T) {
 	}
 	if strings.Contains(key, "****") {
 		t.Fatalf("create response key=%q, should remain raw", key)
+	}
+
+	var stored model.Token
+	if err := db.Where("user_id = ? AND name = ?", "user-1", "created-token").First(&stored).Error; err != nil {
+		t.Fatalf("load created token: %v", err)
+	}
+	if !stored.UnlimitedRequestCount {
+		t.Fatalf("UnlimitedRequestCount=false, want true for legacy create payload without request count fields")
+	}
+	if stored.RemainRequestCount != 0 {
+		t.Fatalf("RemainRequestCount=%d, want 0 when unlimited", stored.RemainRequestCount)
 	}
 }
 
@@ -256,18 +267,21 @@ func TestGetTokenStatusReturnsUsageSummary(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := newTokenControllerTestDB(t)
 	seedUserTokenForTest(t, db, model.Token{
-		Id:             "token-1",
-		UserId:         "user-1",
-		Key:            "sk-secretTokenValue1234",
-		Status:         model.TokenStatusEnabled,
-		Name:           "alpha",
-		CreatedTime:    100,
-		UpdatedTime:    120,
-		AccessedTime:   130,
-		ExpiredTime:    150,
-		RemainQuota:    900,
-		UsedQuota:      100,
-		UnlimitedQuota: false,
+		Id:                    "token-1",
+		UserId:                "user-1",
+		Key:                   "sk-secretTokenValue1234",
+		Status:                model.TokenStatusEnabled,
+		Name:                  "alpha",
+		CreatedTime:           100,
+		UpdatedTime:           120,
+		AccessedTime:          130,
+		ExpiredTime:           150,
+		RemainQuota:           900,
+		UsedQuota:             100,
+		UnlimitedQuota:        false,
+		RemainRequestCount:    7,
+		UsedRequestCount:      3,
+		UnlimitedRequestCount: false,
 	})
 
 	recorder := httptest.NewRecorder()
@@ -309,6 +323,24 @@ func TestGetTokenStatusReturnsUsageSummary(t *testing.T) {
 	}
 	if got, _ := data["used_amount"].(float64); got != 100 {
 		t.Fatalf("used_amount=%v, want 100", got)
+	}
+	if got, _ := data["unlimited_request_count"].(bool); got {
+		t.Fatalf("unlimited_request_count=%v, want false", got)
+	}
+	if got, _ := data["total_request_count_granted"].(float64); got != 10 {
+		t.Fatalf("total_request_count_granted=%v, want 10", got)
+	}
+	if got, _ := data["total_request_count_used"].(float64); got != 3 {
+		t.Fatalf("total_request_count_used=%v, want 3", got)
+	}
+	if got, _ := data["total_request_count_available"].(float64); got != 7 {
+		t.Fatalf("total_request_count_available=%v, want 7", got)
+	}
+	if got, _ := data["remaining_request_count"].(float64); got != 7 {
+		t.Fatalf("remaining_request_count=%v, want 7", got)
+	}
+	if got, _ := data["used_request_count"].(float64); got != 3 {
+		t.Fatalf("used_request_count=%v, want 3", got)
 	}
 	if got, _ := data["expires_at"].(float64); got != 150000 {
 		t.Fatalf("expires_at=%v, want 150000", got)

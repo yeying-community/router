@@ -197,15 +197,26 @@ func relayRawResponse(c *gin.Context, resp *http.Response) *model.ErrorWithStatu
 }
 
 type responsesUsage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
-	TotalTokens  int `json:"total_tokens"`
+	InputTokens        int                 `json:"input_tokens"`
+	OutputTokens       int                 `json:"output_tokens"`
+	TotalTokens        int                 `json:"total_tokens"`
+	InputTokensDetails *promptTokensDetail `json:"input_tokens_details,omitempty"`
 }
 
 type messagesUsage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
-	TotalTokens  int `json:"total_tokens"`
+	InputTokens         int                 `json:"input_tokens"`
+	OutputTokens        int                 `json:"output_tokens"`
+	TotalTokens         int                 `json:"total_tokens"`
+	InputTokensDetails  *promptTokensDetail `json:"input_tokens_details,omitempty"`
+	CachedTokens        int                 `json:"cached_tokens,omitempty"`
+	CacheReadTokens     int                 `json:"cache_read_input_tokens,omitempty"`
+	CacheCreationTokens int                 `json:"cache_creation_input_tokens,omitempty"`
+}
+
+type promptTokensDetail struct {
+	CachedTokens        int `json:"cached_tokens,omitempty"`
+	CacheReadTokens     int `json:"cache_read_input_tokens,omitempty"`
+	CacheCreationTokens int `json:"cache_creation_input_tokens,omitempty"`
 }
 
 type messagesEnvelope struct {
@@ -353,6 +364,12 @@ func applyMessagesUsage(target *model.Usage, usage *messagesUsage) {
 	if usage.TotalTokens > 0 {
 		target.TotalTokens = usage.TotalTokens
 	}
+	applyPromptTokensDetail(target, usage.InputTokensDetails)
+	applyPromptTokensDetail(target, &promptTokensDetail{
+		CachedTokens:        usage.CachedTokens,
+		CacheReadTokens:     usage.CacheReadTokens,
+		CacheCreationTokens: usage.CacheCreationTokens,
+	})
 }
 
 func applyMessagesUsageMap(target *model.Usage, payload map[string]any) {
@@ -368,6 +385,47 @@ func applyMessagesUsageMap(target *model.Usage, payload map[string]any) {
 	if totalTokens, ok := parseIntFromAny(payload["total_tokens"]); ok && totalTokens > 0 {
 		target.TotalTokens = totalTokens
 	}
+	if detailPayload, ok := payload["input_tokens_details"].(map[string]any); ok {
+		applyPromptTokensDetailMap(target, detailPayload)
+	}
+	if detailPayload, ok := payload["prompt_tokens_details"].(map[string]any); ok {
+		applyPromptTokensDetailMap(target, detailPayload)
+	}
+}
+
+func applyPromptTokensDetail(target *model.Usage, detail *promptTokensDetail) {
+	if target == nil || detail == nil {
+		return
+	}
+	if target.PromptTokensDetails == nil {
+		target.PromptTokensDetails = &model.PromptTokensDetails{}
+	}
+	if detail.CachedTokens > 0 {
+		target.PromptTokensDetails.CachedTokens = detail.CachedTokens
+	}
+	if detail.CacheReadTokens > 0 {
+		target.PromptTokensDetails.CacheReadTokens = detail.CacheReadTokens
+	}
+	if detail.CacheCreationTokens > 0 {
+		target.PromptTokensDetails.CacheCreationTokens = detail.CacheCreationTokens
+	}
+}
+
+func applyPromptTokensDetailMap(target *model.Usage, payload map[string]any) {
+	if target == nil || payload == nil {
+		return
+	}
+	detail := &promptTokensDetail{}
+	if cachedTokens, ok := parseIntFromAny(payload["cached_tokens"]); ok && cachedTokens > 0 {
+		detail.CachedTokens = cachedTokens
+	}
+	if cacheReadTokens, ok := parseIntFromAny(payload["cache_read_input_tokens"]); ok && cacheReadTokens > 0 {
+		detail.CacheReadTokens = cacheReadTokens
+	}
+	if cacheCreationTokens, ok := parseIntFromAny(payload["cache_creation_input_tokens"]); ok && cacheCreationTokens > 0 {
+		detail.CacheCreationTokens = cacheCreationTokens
+	}
+	applyPromptTokensDetail(target, detail)
 }
 
 func parseIntFromAny(value any) (int, bool) {
@@ -414,8 +472,20 @@ func relayResponsesResponse(c *gin.Context, resp *http.Response) (*model.Usage, 
 		PromptTokens:         envelope.Usage.InputTokens,
 		CompletionTokens:     envelope.Usage.OutputTokens,
 		TotalTokens:          envelope.Usage.TotalTokens,
+		PromptTokensDetails:  promptTokensDetailToUsage(envelope.Usage.InputTokensDetails),
 		ImageGenerationCalls: countResponsesImageGenerationCalls(bridgeEnvelope),
 	}, nil
+}
+
+func promptTokensDetailToUsage(detail *promptTokensDetail) *model.PromptTokensDetails {
+	if detail == nil {
+		return nil
+	}
+	return &model.PromptTokensDetails{
+		CachedTokens:        detail.CachedTokens,
+		CacheReadTokens:     detail.CacheReadTokens,
+		CacheCreationTokens: detail.CacheCreationTokens,
+	}
 }
 
 func (a *Adaptor) GetModelList() []string {

@@ -196,6 +196,10 @@ function normalizeLogDetail(data) {
       data?.user_emergency_charge_amount ?? data?.user_emergency_quota ?? 0,
     ),
     billingChargeAmount: Number(data?.billing_charge_amount ?? 0),
+    estimatedChargeAmount: Number(data?.estimated_charge_amount ?? 0),
+    billingChargeDeltaAmount: Number(data?.billing_charge_delta_amount ?? 0),
+    billingPromptTokenDelta: Number(data?.billing_prompt_token_delta ?? 0),
+    billingOutputTokenDelta: Number(data?.billing_output_token_delta ?? 0),
     billingImageToolCalls: Number(data?.billing_image_tool_calls ?? 0),
     billingImageToolOutputTokens: Number(
       data?.billing_image_tool_output_tokens ?? 0,
@@ -714,6 +718,14 @@ const LogDetail = () => {
                     </div>
                     <div className='router-detail-item'>
                       <div className='router-detail-label'>
+                        {t('log.detail.fields.estimated_output_tokens')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {log?.estimated_output_tokens ?? '-'}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
                         {t('log.detail.fields.billing_settlement_mode')}
                       </div>
                       <pre className='router-detail-value'>
@@ -757,6 +769,22 @@ const LogDetail = () => {
                     </div>
                     <div className='router-detail-item'>
                       <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_cache_read_quantity')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {formatNumber(log?.billing_cache_read_quantity, 6)}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_cache_write_quantity')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {formatNumber(log?.billing_cache_write_quantity, 6)}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
                         {t('log.detail.fields.billing_input_amount')}
                       </div>
                       <pre className='router-detail-value'>
@@ -773,6 +801,28 @@ const LogDetail = () => {
                       <pre className='router-detail-value'>
                         {renderAmount(
                           log?.billing_output_amount,
+                          log?.billing_currency,
+                        )}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_cache_read_amount')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {renderAmount(
+                          log?.billing_cache_read_amount,
+                          log?.billing_currency,
+                        )}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_cache_write_amount')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {renderAmount(
+                          log?.billing_cache_write_amount,
                           log?.billing_currency,
                         )}
                       </pre>
@@ -797,6 +847,50 @@ const LogDetail = () => {
                           ? renderDisplayAmount(log.billingChargeAmount, t, 6)
                           : '-'}
                       </div>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.estimated_charge_amount')}
+                      </div>
+                      <div className='router-detail-value'>
+                        {typeof log?.estimatedChargeAmount === 'number'
+                          ? renderDisplayAmount(log.estimatedChargeAmount, t, 6)
+                          : '-'}
+                      </div>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_charge_delta_amount')}
+                      </div>
+                      <div className='router-detail-value'>
+                        {typeof log?.billingChargeDeltaAmount === 'number'
+                          ? renderDisplayAmount(
+                              log.billingChargeDeltaAmount,
+                              t,
+                              6,
+                            )
+                          : '-'}
+                      </div>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_prompt_token_delta')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {Number.isFinite(log?.billingPromptTokenDelta)
+                          ? formatNumber(log.billingPromptTokenDelta, 0)
+                          : '-'}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_output_token_delta')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {Number.isFinite(log?.billingOutputTokenDelta)
+                          ? formatNumber(log.billingOutputTokenDelta, 0)
+                          : '-'}
+                      </pre>
                     </div>
                     <div className='router-detail-item'>
                       <div className='router-detail-label'>

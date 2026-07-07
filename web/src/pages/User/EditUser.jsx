@@ -379,7 +379,7 @@ const UserDetail = () => {
       const nextInputs = {
         username: data?.username || '',
         email: data?.email || '',
-        balance_amount: Number(data?.balance_amount ?? data?.quota ?? 0),
+        balance_amount: Number(data?.balance_amount ?? 0),
         group: data?.group || '',
         reset_timezone: data?.quota_reset_timezone || 'Asia/Shanghai',
         role: Number(data?.role || 1),
@@ -862,13 +862,9 @@ const UserDetail = () => {
     setEditSection('');
   }, [resetBasicEditInputs]);
 
-  const updateUser = useCallback(async ({ username, email, group, balanceAmount, actionKey }) => {
+  const updateUser = useCallback(async ({ username, email, group, actionKey }) => {
     if (username === '') {
       showError(t('user.edit.username_placeholder'));
-      return false;
-    }
-    if (!Number.isFinite(balanceAmount) || balanceAmount < 0) {
-      showError(t('user.messages.operation_failed'));
       return false;
     }
     setActionLoading(actionKey);
@@ -878,7 +874,6 @@ const UserDetail = () => {
         username,
         email,
         group,
-        quota: Math.trunc(balanceAmount),
         quota_reset_timezone: inputs.reset_timezone || 'Asia/Shanghai',
         role: Number(inputs.role || 1),
         status: Number(inputs.status || 1),
@@ -918,10 +913,9 @@ const UserDetail = () => {
       username,
       email,
       group: (inputs.group || '').toString().trim(),
-      balanceAmount: Number(inputs.balance_amount || 0),
       actionKey: 'save-basic',
     });
-  }, [basicEditInputs.email, basicEditInputs.username, inputs.group, inputs.balance_amount, updateUser]);
+  }, [basicEditInputs.email, basicEditInputs.username, inputs.group, updateUser]);
 
   const backToList = useCallback(() => {
     if (returnPath !== '') {

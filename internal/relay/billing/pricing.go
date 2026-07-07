@@ -7,6 +7,7 @@ import (
 
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/internal/admin/model"
+	relaymodel "github.com/yeying-community/router/internal/relay/model"
 )
 
 type BillingSnapshot struct {
@@ -20,8 +21,12 @@ type BillingSnapshot struct {
 	ChargeRate            float64          `json:"charge_rate,omitempty"`
 	InputQuantity         float64          `json:"input_quantity,omitempty"`
 	OutputQuantity        float64          `json:"output_quantity,omitempty"`
+	CacheReadQuantity     float64          `json:"cache_read_quantity,omitempty"`
+	CacheWriteQuantity    float64          `json:"cache_write_quantity,omitempty"`
 	InputAmount           float64          `json:"input_amount,omitempty"`
 	OutputAmount          float64          `json:"output_amount,omitempty"`
+	CacheReadAmount       float64          `json:"cache_read_amount,omitempty"`
+	CacheWriteAmount      float64          `json:"cache_write_amount,omitempty"`
 	Amount                float64          `json:"amount,omitempty"`
 	ChargeAmount          int64            `json:"charge_amount,omitempty"`
 	PricingDecision       *PricingDecision `json:"pricing_decision,omitempty"`
@@ -54,8 +59,12 @@ func (snapshot BillingSnapshot) ApplyToLog(log *model.Log) {
 	log.BillingChargeRate = snapshot.ChargeRate
 	log.BillingInputQuantity = snapshot.InputQuantity
 	log.BillingOutputQuantity = snapshot.OutputQuantity
+	log.BillingCacheReadQuantity = snapshot.CacheReadQuantity
+	log.BillingCacheWriteQuantity = snapshot.CacheWriteQuantity
 	log.BillingInputAmount = snapshot.InputAmount
 	log.BillingOutputAmount = snapshot.OutputAmount
+	log.BillingCacheReadAmount = snapshot.CacheReadAmount
+	log.BillingCacheWriteAmount = snapshot.CacheWriteAmount
 	log.BillingAmount = snapshot.Amount
 	log.BillingChargeAmount = snapshot.ChargeAmount
 	if snapshot.PricingDecision != nil {
@@ -120,6 +129,78 @@ func ComputeTextBillingSnapshot(promptTokens int, completionTokens int, pricing 
 		groupRatio,
 		promptTokens > 0 || completionTokens > 0,
 	)
+}
+
+func ComputeTextBillingSnapshotWithUsage(usage relaymodel.Usage, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
+	promptTokens := usage.PromptTokens
+	completionTokens := usage.CompletionTokens
+	cacheReadTokens := 0
+	cacheWriteTokens := 0
+	if usage.PromptTokensDetails != nil {
+		cacheReadTokens = usage.PromptTokensDetails.CacheReadTokens
+		if cacheReadTokens <= 0 {
+			cacheReadTokens = usage.PromptTokensDetails.CachedTokens
+		}
+		cacheWriteTokens = usage.PromptTokensDetails.CacheCreationTokens
+	}
+	if cacheReadTokens < 0 {
+		cacheReadTokens = 0
+	}
+	if cacheWriteTokens < 0 {
+		cacheWriteTokens = 0
+	}
+	if cacheReadTokens > promptTokens {
+		cacheReadTokens = promptTokens
+	}
+	if cacheWriteTokens > promptTokens-cacheReadTokens {
+		cacheWriteTokens = promptTokens - cacheReadTokens
+	}
+	regularInputTokens := promptTokens - cacheReadTokens - cacheWriteTokens
+	if regularInputTokens < 0 {
+		regularInputTokens = 0
+	}
+	inputAmount := billingAmountFromPrice(pricing.InputPrice, pricing.PriceUnit, float64(regularInputTokens))
+	cacheReadAmount := billingAmountFromPrice(resolveTextCacheComponentPrice(pricing, model.ProviderModelPriceComponentTextCacheRead, pricing.InputPrice, promptTokens), pricing.PriceUnit, float64(cacheReadTokens))
+	cacheWriteAmount := billingAmountFromPrice(resolveTextCacheComponentPrice(pricing, model.ProviderModelPriceComponentTextCacheWrite, pricing.InputPrice, promptTokens), pricing.PriceUnit, float64(cacheWriteTokens))
+	outputAmount := billingAmountFromPrice(pricing.OutputPrice, pricing.PriceUnit, float64(completionTokens))
+	snapshot, err := ComputeExplicitAmountBillingSnapshot(
+		float64(promptTokens),
+		float64(completionTokens),
+		inputAmount+cacheReadAmount+cacheWriteAmount,
+		outputAmount,
+		pricing,
+		groupRatio,
+		promptTokens > 0 || completionTokens > 0,
+	)
+	if err != nil {
+		return BillingSnapshot{}, err
+	}
+	snapshot.CacheReadQuantity = float64(cacheReadTokens)
+	snapshot.CacheWriteQuantity = float64(cacheWriteTokens)
+	snapshot.CacheReadAmount = cacheReadAmount
+	snapshot.CacheWriteAmount = cacheWriteAmount
+	return snapshot, nil
+}
+
+func resolveTextCacheComponentPrice(pricing model.ResolvedModelPricing, componentType string, fallbackPrice float64, promptTokens int) float64 {
+	component, ok := model.SelectProviderPriceComponent(
+		pricing.PriceComponents,
+		strings.TrimSpace(strings.ToLower(componentType)),
+		map[string]string{
+			"mode":          "standard",
+			"input_type":    "text_image_video",
+			"prompt_tokens": fmt.Sprintf("%d", promptTokens),
+		},
+	)
+	if ok {
+		if component.InputPrice > 0 {
+			return component.InputPrice
+		}
+		if component.OutputPrice > 0 {
+			return component.OutputPrice
+		}
+	}
+	return fallbackPrice
 }
 
 func ComputeImageQuota(imageCount int, multiplier float64, pricing model.ResolvedModelPricing, groupRatio float64) (int64, error) {
@@ -476,7 +557,7 @@ func procurementConsumptionCandidatesFromSnapshot(snapshot *BillingSnapshot) []p
 		})
 	}
 	appendCandidate(procurementCurrencyEquivalentCapacityUnitFromSnapshot(snapshot), snapshot.Amount)
-	appendCandidate(procurementCapacityUnitFromSnapshot(snapshot), snapshot.InputQuantity+snapshot.OutputQuantity)
+	appendCandidate(procurementCapacityUnitFromSnapshot(snapshot), procurementConsumptionQuantityFromSnapshot(snapshot))
 	return candidates
 }
 
@@ -512,6 +593,18 @@ func procurementCapacityUnitFromSnapshot(snapshot *BillingSnapshot) string {
 		return "token"
 	default:
 		return "token"
+	}
+}
+
+func procurementConsumptionQuantityFromSnapshot(snapshot *BillingSnapshot) float64 {
+	if snapshot == nil {
+		return 0
+	}
+	switch procurementCapacityUnitFromSnapshot(snapshot) {
+	case "token":
+		return snapshot.InputQuantity + snapshot.OutputQuantity + snapshot.CacheReadQuantity + snapshot.CacheWriteQuantity
+	default:
+		return snapshot.InputQuantity + snapshot.OutputQuantity
 	}
 }
 

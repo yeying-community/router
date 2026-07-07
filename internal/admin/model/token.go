@@ -22,20 +22,23 @@ const (
 )
 
 type Token struct {
-	Id             string  `json:"id" gorm:"type:char(36);primaryKey"`
-	UserId         string  `json:"user_id" gorm:"type:char(36);index"`
-	Key            string  `json:"key" gorm:"type:char(48);uniqueIndex"`
-	Status         int     `json:"status" gorm:"default:1"`
-	Name           string  `json:"name" gorm:"index" `
-	CreatedTime    int64   `json:"created_time" gorm:"bigint"`
-	UpdatedTime    int64   `json:"updated_time" gorm:"bigint"`
-	AccessedTime   int64   `json:"accessed_time" gorm:"bigint"`
-	ExpiredTime    int64   `json:"expired_time" gorm:"bigint;default:-1"`
-	RemainQuota    int64   `json:"remain_quota" gorm:"bigint;default:0"`
-	UnlimitedQuota bool    `json:"unlimited_quota" gorm:"default:false"`
-	UsedQuota      int64   `json:"used_quota" gorm:"bigint;default:0"`
-	Models         *string `json:"models" gorm:"type:text"`
-	Subnet         *string `json:"subnet" gorm:"default:''"`
+	Id                    string  `json:"id" gorm:"type:char(36);primaryKey"`
+	UserId                string  `json:"user_id" gorm:"type:char(36);index"`
+	Key                   string  `json:"key" gorm:"type:char(48);uniqueIndex"`
+	Status                int     `json:"status" gorm:"default:1"`
+	Name                  string  `json:"name" gorm:"index" `
+	CreatedTime           int64   `json:"created_time" gorm:"bigint"`
+	UpdatedTime           int64   `json:"updated_time" gorm:"bigint"`
+	AccessedTime          int64   `json:"accessed_time" gorm:"bigint"`
+	ExpiredTime           int64   `json:"expired_time" gorm:"bigint;default:-1"`
+	RemainQuota           int64   `json:"remain_quota" gorm:"bigint;default:0"`
+	UnlimitedQuota        bool    `json:"unlimited_quota" gorm:"default:false"`
+	UsedQuota             int64   `json:"used_quota" gorm:"bigint;default:0"`
+	RemainRequestCount    int64   `json:"remain_request_count" gorm:"bigint;default:0"`
+	UnlimitedRequestCount bool    `json:"unlimited_request_count"`
+	UsedRequestCount      int64   `json:"used_request_count" gorm:"bigint;default:0"`
+	Models                *string `json:"models" gorm:"type:text"`
+	Subnet                *string `json:"subnet" gorm:"default:''"`
 }
 
 func (Token) TableName() string {
@@ -123,6 +126,36 @@ func adjustTokenUsedQuotaOnly(id string, delta int64) error {
 	).Error
 }
 
+func ConsumeTokenRequestCount(tokenId string, requestCount int64) error {
+	if strings.TrimSpace(tokenId) == "" || requestCount == 0 {
+		return nil
+	}
+	if requestCount < 0 {
+		return errors.New("请求次数不能为负数")
+	}
+	token, err := GetTokenById(tokenId)
+	if err != nil {
+		return err
+	}
+	updates := map[string]interface{}{
+		"used_request_count": gorm.Expr("used_request_count + ?", requestCount),
+		"accessed_time":      helper.GetTimestamp(),
+	}
+	query := DB.Model(&Token{}).Where("id = ?", tokenId)
+	if !token.UnlimitedRequestCount {
+		query = query.Where("remain_request_count >= ?", requestCount)
+		updates["remain_request_count"] = gorm.Expr("remain_request_count - ?", requestCount)
+	}
+	result := query.Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 && !token.UnlimitedRequestCount {
+		return errors.New("令牌请求次数不足")
+	}
+	return InvalidateTokenCache(token.Key)
+}
+
 func decreaseTokenQuota(id string, quota int64) error {
 	return mustTokenRepo().DecreaseTokenQuotaDirect(id, quota)
 }
@@ -138,7 +171,7 @@ func PreConsumeTokenQuota(tokenId string, quota int64) (err error) {
 	if !token.UnlimitedQuota && token.RemainQuota < quota {
 		return errors.New("令牌额度不足")
 	}
-	userQuota, err := GetUserQuota(token.UserId)
+	userQuota, err := GetEffectiveUserBalanceAmount(token.UserId)
 	if err != nil {
 		return err
 	}
@@ -193,8 +226,7 @@ func PreConsumeTokenQuota(tokenId string, quota int64) (err error) {
 			return err
 		}
 	}
-	err = DecreaseUserQuota(token.UserId, quota)
-	return err
+	return nil
 }
 
 func PreConsumeTokenRemainQuota(tokenId string, quota int64) error {
@@ -221,11 +253,6 @@ func PostConsumeTokenQuota(tokenId string, quota int64) (err error) {
 	token, err := GetTokenById(tokenId)
 	if err != nil {
 		return err
-	}
-	if quota > 0 {
-		err = DecreaseUserQuota(token.UserId, quota)
-	} else {
-		err = IncreaseUserQuota(token.UserId, -quota)
 	}
 	if !token.UnlimitedQuota {
 		if quota > 0 {

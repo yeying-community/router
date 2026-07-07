@@ -33,6 +33,30 @@ func TestApplyProcurementCostObservationMapsSettlementTruthMode(t *testing.T) {
 			wantConfidence: ProcurementCostConfidenceUnitBased,
 		},
 		{
+			name:           "video task created",
+			settlementMode: "video_task_created",
+			wantMode:       SettlementTruthModeUnitBasedFinal,
+			wantConfidence: ProcurementCostConfidenceUnitBased,
+		},
+		{
+			name:           "audio request final",
+			settlementMode: "audio_request_final",
+			wantMode:       SettlementTruthModeUnitBasedFinal,
+			wantConfidence: ProcurementCostConfidenceUnitBased,
+		},
+		{
+			name:           "audio response text final",
+			settlementMode: "audio_response_text_final",
+			wantMode:       SettlementTruthModeLocalEstimateFinal,
+			wantConfidence: ProcurementCostConfidenceLocalEstimate,
+		},
+		{
+			name:           "realtime unmetered proxy",
+			settlementMode: "realtime_unmetered_proxy",
+			wantMode:       SettlementTruthModeUnmeteredProxy,
+			wantConfidence: ProcurementCostConfidenceUnmetered,
+		},
+		{
 			name:           "usage final",
 			settlementMode: "usage_final",
 			wantMode:       SettlementTruthModeHybridUsageFinal,
@@ -127,6 +151,25 @@ func TestProcurementConsumptionCandidatesPreferCurrencyEquivalent(t *testing.T) 
 	}
 	if got[1].CapacityUnit != "token" || got[1].Quantity != 3000 {
 		t.Fatalf("second candidate=%+v, want token/3000", got[1])
+	}
+}
+
+func TestProcurementConsumptionCandidatesIncludeCacheTokenQuantities(t *testing.T) {
+	logRow := &adminmodel.Log{
+		BillingPriceUnit:          adminmodel.ProviderPriceUnitPer1KTokens,
+		BillingInputQuantity:      1000,
+		BillingOutputQuantity:     2000,
+		BillingCacheReadQuantity:  300,
+		BillingCacheWriteQuantity: 400,
+	}
+
+	got := procurementConsumptionCandidates(logRow)
+
+	if len(got) != 1 {
+		t.Fatalf("candidates len=%d, want 1", len(got))
+	}
+	if got[0].CapacityUnit != "token" || got[0].Quantity != 3700 {
+		t.Fatalf("candidate=%+v, want token/3700", got[0])
 	}
 }
 

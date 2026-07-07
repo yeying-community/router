@@ -264,12 +264,99 @@ func TestRemoveDefaultUserGroupAndLegacyBalanceSourcesWithDB(t *testing.T) {
 	if order.GroupID != "group-1" {
 		t.Fatalf("order group_id=%q, want group-1", order.GroupID)
 	}
+	if order.CreditOrigin != TopupOrderCreditOriginReconcile {
+		t.Fatalf("order credit_origin=%q, want %q", order.CreditOrigin, TopupOrderCreditOriginReconcile)
+	}
 	migratedTx := UserBalanceLotTransaction{}
 	if err := db.First(&migratedTx, "id = ?", "tx-1").Error; err != nil {
 		t.Fatalf("load migrated transaction: %v", err)
 	}
 	if migratedTx.SourceType != UserBalanceLotSourceTopup || migratedTx.SourceID != migratedLot.SourceID {
 		t.Fatalf("tx source=%q/%q, want topup/%q", migratedTx.SourceType, migratedTx.SourceID, migratedLot.SourceID)
+	}
+}
+
+func TestMigrateBalanceCreditOriginsReconcilesLegacyUserQuotaAsGiftLots(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(
+		&User{},
+		&TopupOrder{},
+		&UserBalanceLot{},
+		&UserBalanceLotTransaction{},
+	); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	if err := db.Exec("ALTER TABLE users ADD COLUMN quota bigint DEFAULT 0").Error; err != nil {
+		t.Fatalf("add legacy quota column: %v", err)
+	}
+	if err := db.Create(&User{Id: "user-legacy", Username: "legacy"}).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	if err := db.Exec("UPDATE users SET quota = ? WHERE id = ?", 100, "user-legacy").Error; err != nil {
+		t.Fatalf("set legacy quota: %v", err)
+	}
+	existingOrder := TopupOrder{
+		Id:            "order-existing",
+		UserID:        "user-legacy",
+		Username:      "legacy",
+		Status:        TopupOrderStatusFulfilled,
+		Source:        TopupOrderSourceTopUpAPI,
+		ProviderName:  "admin",
+		TransactionID: "existing-admin-order",
+		BusinessType:  TopupOrderBusinessBalance,
+		OperationType: TopupOrderOperationTopup,
+		CreditOrigin:  TopupOrderCreditOriginAdmin,
+		Title:         "existing admin balance",
+		Quota:         40,
+		CreatedAt:     100,
+		UpdatedAt:     100,
+	}
+	if err := db.Create(&existingOrder).Error; err != nil {
+		t.Fatalf("create existing order: %v", err)
+	}
+	if _, _, err := CreditUserBalanceLotWithDB(db, UserBalanceLotCreditInput{
+		UserID:      "user-legacy",
+		SourceType:  UserBalanceLotSourceTopup,
+		SourceID:    existingOrder.Id,
+		TotalAmount: 40,
+		GrantedAt:   100,
+		ExpiresAt:   0,
+	}); err != nil {
+		t.Fatalf("credit existing lot: %v", err)
+	}
+
+	if err := migrateBalanceCreditOriginsWithDB(db); err != nil {
+		t.Fatalf("migrate balance origins: %v", err)
+	}
+	if err := migrateBalanceCreditOriginsWithDB(db); err != nil {
+		t.Fatalf("migrate balance origins second run: %v", err)
+	}
+
+	var reconcileOrders []TopupOrder
+	if err := db.Where("transaction_id = ?", "balance-reconciliation-user-legacy").Find(&reconcileOrders).Error; err != nil {
+		t.Fatalf("find reconcile orders: %v", err)
+	}
+	if len(reconcileOrders) != 1 {
+		t.Fatalf("reconcile order count=%d, want 1", len(reconcileOrders))
+	}
+	if reconcileOrders[0].CreditOrigin != TopupOrderCreditOriginReconcile {
+		t.Fatalf("reconcile credit_origin=%q, want %q", reconcileOrders[0].CreditOrigin, TopupOrderCreditOriginReconcile)
+	}
+	if reconcileOrders[0].Quota != 60 {
+		t.Fatalf("reconcile quota=%d, want 60", reconcileOrders[0].Quota)
+	}
+	var lots []UserBalanceLot
+	if err := db.Where("source_type = ? AND source_id = ?", UserBalanceLotSourceTopup, reconcileOrders[0].Id).Find(&lots).Error; err != nil {
+		t.Fatalf("find reconcile lots: %v", err)
+	}
+	if len(lots) != 1 {
+		t.Fatalf("reconcile lot count=%d, want 1", len(lots))
+	}
+	if lots[0].RemainingAmount != 60 || lots[0].Status != UserBalanceLotStatusActive {
+		t.Fatalf("reconcile lot remaining/status=%d/%q, want 60/%q", lots[0].RemainingAmount, lots[0].Status, UserBalanceLotStatusActive)
 	}
 }
 

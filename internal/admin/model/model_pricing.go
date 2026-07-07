@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -329,19 +330,55 @@ func ResolveTextRequestPricing(pricing ResolvedModelPricing, endpoint string) Re
 	if !ok {
 		return pricing
 	}
-	if component.InputPrice > 0 {
+	return applyTextPriceComponent(pricing, component)
+}
+
+func ResolveTextUsagePricing(pricing ResolvedModelPricing, endpoint string, promptTokens int, completionTokens int) ResolvedModelPricing {
+	if promptTokens < 0 {
+		promptTokens = 0
+	}
+	if completionTokens < 0 {
+		completionTokens = 0
+	}
+	attrs := map[string]string{
+		"mode":              "standard",
+		"input_type":        "text_image_video",
+		"prompt_tokens":     fmt.Sprintf("%d", promptTokens),
+		"completion_tokens": fmt.Sprintf("%d", completionTokens),
+	}
+	normalizedEndpoint := strings.TrimSpace(strings.ToLower(endpoint))
+	if normalizedEndpoint != "" {
+		attrs["endpoint"] = normalizedEndpoint
+	}
+	component, ok := selectProviderPriceComponent(
+		pricing.PriceComponents,
+		ProviderModelPriceComponentText,
+		attrs,
+	)
+	if !ok {
+		return pricing
+	}
+	return applyTextPriceComponent(pricing, component)
+}
+
+func applyTextPriceComponent(pricing ResolvedModelPricing, component ProviderModelPriceComponentDetail) ResolvedModelPricing {
+	if component.InputPrice > 0 && !pricing.HasChannelInputPriceOverride {
 		pricing.InputPrice = component.InputPrice
 	}
-	if component.OutputPrice > 0 {
+	if component.OutputPrice > 0 && !pricing.HasChannelOutputPriceOverride {
 		pricing.OutputPrice = component.OutputPrice
 	}
-	if component.PriceUnit != "" {
+	if component.PriceUnit != "" && !pricing.HasChannelOverride {
 		pricing.PriceUnit = component.PriceUnit
 	}
-	if component.Currency != "" {
+	if component.Currency != "" && !pricing.HasChannelOverride {
 		pricing.Currency = component.Currency
 	}
-	pricing.Source = "provider_component"
+	if pricing.HasChannelOverride || strings.TrimSpace(strings.ToLower(component.Source)) == "channel_override" {
+		pricing.Source = "channel_override"
+	} else {
+		pricing.Source = "provider_component"
+	}
 	pricing.MatchedComponent = component.Component
 	pricing.MatchedCondition = component.Condition
 	return pricing
@@ -406,15 +443,56 @@ func ResolveVideoRequestPricing(pricing ResolvedModelPricing, attrs map[string]s
 }
 
 func selectProviderPriceComponent(components []ProviderModelPriceComponentDetail, componentType string, attrs map[string]string) (ProviderModelPriceComponentDetail, bool) {
+	var matched ProviderModelPriceComponentDetail
+	matchedPriority := -1
+	matchedSpecificity := -1
 	for _, component := range NormalizeProviderModelPriceComponents(components) {
 		if component.Component != strings.TrimSpace(strings.ToLower(componentType)) {
 			continue
 		}
 		if providerPriceComponentMatches(component.Condition, attrs) {
-			return component, true
+			priority := providerPriceComponentSourcePriority(component.Source)
+			specificity := providerPriceComponentConditionSpecificity(component.Condition)
+			if priority > matchedPriority || (priority == matchedPriority && specificity > matchedSpecificity) {
+				matched = component
+				matchedPriority = priority
+				matchedSpecificity = specificity
+			}
 		}
 	}
+	if matchedPriority >= 0 {
+		return matched, true
+	}
 	return ProviderModelPriceComponentDetail{}, false
+}
+
+func SelectProviderPriceComponent(components []ProviderModelPriceComponentDetail, componentType string, attrs map[string]string) (ProviderModelPriceComponentDetail, bool) {
+	return selectProviderPriceComponent(components, componentType, attrs)
+}
+
+func providerPriceComponentSourcePriority(source string) int {
+	switch strings.TrimSpace(strings.ToLower(source)) {
+	case "channel_override":
+		return 30
+	case "manual":
+		return 20
+	default:
+		return 10
+	}
+}
+
+func providerPriceComponentConditionSpecificity(condition string) int {
+	normalizedCondition := strings.TrimSpace(condition)
+	if normalizedCondition == "" {
+		return 0
+	}
+	specificity := 0
+	for _, part := range strings.Split(normalizedCondition, ";") {
+		if strings.TrimSpace(part) != "" {
+			specificity++
+		}
+	}
+	return specificity
 }
 
 func mergeChannelModelPriceComponentOverrides(providerComponents []ProviderModelPriceComponentDetail, channelComponents []ProviderModelPriceComponentDetail) []ProviderModelPriceComponentDetail {
@@ -461,11 +539,56 @@ func providerPriceComponentMatches(condition string, attrs map[string]string) bo
 		if key == "" {
 			return false
 		}
+		if providerPriceComponentNumericConditionMatches(key, value, attrs) {
+			continue
+		}
 		if strings.TrimSpace(strings.ToLower(attrs[key])) != value {
 			return false
 		}
 	}
 	return true
+}
+
+func providerPriceComponentNumericConditionMatches(key string, value string, attrs map[string]string) bool {
+	baseKey, operator, ok := splitProviderPriceComponentNumericConditionKey(key)
+	if !ok {
+		return false
+	}
+	rawActual, exists := attrs[baseKey]
+	if !exists {
+		return false
+	}
+	actual, err := strconv.ParseFloat(strings.TrimSpace(rawActual), 64)
+	if err != nil {
+		return false
+	}
+	expected, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	if err != nil {
+		return false
+	}
+	switch operator {
+	case "lt":
+		return actual < expected
+	case "lte":
+		return actual <= expected
+	case "gt":
+		return actual > expected
+	case "gte":
+		return actual >= expected
+	default:
+		return false
+	}
+}
+
+func splitProviderPriceComponentNumericConditionKey(key string) (string, string, bool) {
+	for _, operator := range []string{"lte", "gte", "lt", "gt"} {
+		suffix := "_" + operator
+		if strings.HasSuffix(key, suffix) {
+			baseKey := strings.TrimSpace(strings.TrimSuffix(key, suffix))
+			return baseKey, operator, baseKey != ""
+		}
+	}
+	return "", "", false
 }
 
 func findSelectedChannelModelPricingOverride(rows []ChannelModel, modelName string) (ChannelModel, bool) {

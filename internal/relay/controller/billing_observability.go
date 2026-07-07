@@ -7,14 +7,26 @@ import (
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/relay/billing"
 	"github.com/yeying-community/router/internal/relay/model"
+	"github.com/yeying-community/router/internal/relay/relaymode"
 	"github.com/yeying-community/router/internal/tokenestimate"
 )
 
 const (
-	billingUsageSourceUpstreamUsage            = "upstream_usage"
-	billingEstimateSourceUnknown               = "unknown"
-	billingSettlementModeUsageFinal            = "usage_final"
-	billingSettlementModeResponsesImagePending = "responses_image_tool_pending"
+	billingUsageSourceUpstreamUsage             = "upstream_usage"
+	billingUsageSourceRequestPayload            = "request_payload"
+	billingUsageSourceResponseText              = "response_text"
+	billingUsageSourceWebsocketProxy            = "websocket_proxy"
+	billingEstimateSourceUnknown                = "unknown"
+	billingEstimateSourceAudioTTSInputChars     = "audio_tts_input_chars"
+	billingEstimateSourceAudioPreconsumeQuota   = "audio_preconsume_quota"
+	billingEstimateSourceVideoRequestRule       = "video_request_rule"
+	billingEstimateSourceRealtimeUnmeteredProxy = "realtime_unmetered_proxy"
+	billingSettlementModeUsageFinal             = "usage_final"
+	billingSettlementModeAudioRequestFinal      = "audio_request_final"
+	billingSettlementModeAudioResponseTextFinal = "audio_response_text_final"
+	billingSettlementModeVideoTaskCreated       = "video_task_created"
+	billingSettlementModeRealtimeUnmeteredProxy = "realtime_unmetered_proxy"
+	billingSettlementModeResponsesImagePending  = "responses_image_tool_pending"
 )
 
 func resolveTextEstimateSourceLabel(result tokenestimate.EstimateResult) string {
@@ -61,6 +73,35 @@ func annotateTextBillingSnapshot(snapshot *billing.BillingSnapshot, pricingSourc
 	snapshot.SettlementMode = resolveTextSettlementMode(endpoint, req)
 }
 
+func annotateAudioBillingSnapshot(snapshot *billing.BillingSnapshot, pricingSource string, mode int) {
+	if snapshot == nil {
+		return
+	}
+	snapshot.PricingSource = strings.TrimSpace(pricingSource)
+	switch mode {
+	case relaymode.AudioSpeech:
+		snapshot.UsageSource = billingUsageSourceRequestPayload
+		snapshot.EstimateSource = billingEstimateSourceAudioTTSInputChars
+		snapshot.SettlementMode = billingSettlementModeAudioRequestFinal
+	case relaymode.AudioTranscription, relaymode.AudioTranslation:
+		snapshot.UsageSource = billingUsageSourceResponseText
+		snapshot.EstimateSource = billingEstimateSourceAudioPreconsumeQuota
+		snapshot.SettlementMode = billingSettlementModeAudioResponseTextFinal
+	default:
+		snapshot.EstimateSource = billingEstimateSourceUnknown
+	}
+}
+
+func annotateVideoBillingSnapshot(snapshot *billing.BillingSnapshot, pricingSource string) {
+	if snapshot == nil {
+		return
+	}
+	snapshot.PricingSource = strings.TrimSpace(pricingSource)
+	snapshot.UsageSource = billingUsageSourceRequestPayload
+	snapshot.EstimateSource = billingEstimateSourceVideoRequestRule
+	snapshot.SettlementMode = billingSettlementModeVideoTaskCreated
+}
+
 func annotateTextEstimateLogFields(logRow *adminmodel.Log, result tokenestimate.EstimateResult) {
 	if logRow == nil {
 		return
@@ -68,6 +109,28 @@ func annotateTextEstimateLogFields(logRow *adminmodel.Log, result tokenestimate.
 	logRow.EstimatedPromptTokens = result.PromptTokens
 	logRow.BillingEstimateEstimator = strings.TrimSpace(result.Estimator)
 	logRow.BillingEstimatePrecision = strings.TrimSpace(string(result.Precision))
+}
+
+func annotateTextPreConsumeLogFields(logRow *adminmodel.Log, estimatedPromptTokens int, estimatedOutputTokens int, estimatedChargeAmount int64) {
+	if logRow == nil {
+		return
+	}
+	logRow.EstimatedPromptTokens = estimatedPromptTokens
+	logRow.EstimatedOutputTokens = estimatedOutputTokens
+	logRow.EstimatedChargeAmount = estimatedChargeAmount
+	logRow.BillingPromptTokenDelta = logRow.PromptTokens - estimatedPromptTokens
+	logRow.BillingOutputTokenDelta = logRow.CompletionTokens - estimatedOutputTokens
+	logRow.BillingChargeDeltaAmount = logRow.BillingChargeAmount - estimatedChargeAmount
+}
+
+func annotateAudioPreConsumeLogFields(logRow *adminmodel.Log, estimatedQuantity int, estimatedChargeAmount int64) {
+	if logRow == nil {
+		return
+	}
+	logRow.EstimatedPromptTokens = estimatedQuantity
+	logRow.EstimatedChargeAmount = estimatedChargeAmount
+	logRow.BillingPromptTokenDelta = logRow.PromptTokens - estimatedQuantity
+	logRow.BillingChargeDeltaAmount = logRow.BillingChargeAmount - estimatedChargeAmount
 }
 
 func buildTextBillingLogContent(pricing adminmodel.ResolvedModelPricing, groupRatio float64, suffix string) string {

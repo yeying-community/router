@@ -19,25 +19,58 @@ import (
 )
 
 const (
-	TopupOrdersTableName         = "topup_orders"
-	TopupOrderStatusCreated      = "created"
-	TopupOrderStatusPending      = "pending"
-	TopupOrderStatusPaid         = "paid"
-	TopupOrderStatusFulfilled    = "fulfilled"
-	TopupOrderStatusFailed       = "failed"
-	TopupOrderStatusCanceled     = "canceled"
-	TopupOrderSourceTopUp        = "top_up_link"
-	TopupOrderSourceTopUpAPI     = "top_up_api"
-	TopupOrderBusinessBalance    = "balance_topup"
-	TopupOrderBusinessPackage    = "package_purchase"
-	TopupOrderCurrencyCNY        = "CNY"
-	TopupOrderOperationTopup     = "topup"
-	TopupOrderOperationNew       = "purchase"
-	TopupOrderOperationRenew     = "renew"
-	TopupOrderOperationUpgrade   = "upgrade"
-	TopupOrderOperationDowngrade = "downgrade"
-	TopupOrderOperationConvert   = "convert"
+	TopupOrdersTableName            = "topup_orders"
+	TopupOrderStatusCreated         = "created"
+	TopupOrderStatusPending         = "pending"
+	TopupOrderStatusPaid            = "paid"
+	TopupOrderStatusFulfilled       = "fulfilled"
+	TopupOrderStatusFailed          = "failed"
+	TopupOrderStatusCanceled        = "canceled"
+	TopupOrderSourceTopUp           = "top_up_link"
+	TopupOrderSourceTopUpAPI        = "top_up_api"
+	TopupOrderCreditOriginPaid      = "paid_topup"
+	TopupOrderCreditOriginAdmin     = "admin_grant"
+	TopupOrderCreditOriginNewUser   = "new_user_reward"
+	TopupOrderCreditOriginInviter   = "inviter_reward"
+	TopupOrderCreditOriginReconcile = "balance_reconciliation"
+	TopupOrderBusinessBalance       = "balance_topup"
+	TopupOrderBusinessPackage       = "package_purchase"
+	TopupOrderCurrencyCNY           = "CNY"
+	TopupOrderOperationTopup        = "topup"
+	TopupOrderOperationNew          = "purchase"
+	TopupOrderOperationRenew        = "renew"
+	TopupOrderOperationUpgrade      = "upgrade"
+	TopupOrderOperationDowngrade    = "downgrade"
+	TopupOrderOperationConvert      = "convert"
 )
+
+func normalizeTopupOrderCreditOrigin(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case TopupOrderCreditOriginPaid:
+		return TopupOrderCreditOriginPaid
+	case TopupOrderCreditOriginAdmin:
+		return TopupOrderCreditOriginAdmin
+	case TopupOrderCreditOriginNewUser:
+		return TopupOrderCreditOriginNewUser
+	case TopupOrderCreditOriginInviter:
+		return TopupOrderCreditOriginInviter
+	case TopupOrderCreditOriginReconcile:
+		return TopupOrderCreditOriginReconcile
+	default:
+		return ""
+	}
+}
+
+func resolveGrantTopupOrderCreditOrigin(grantedBy string) string {
+	switch strings.TrimSpace(strings.ToLower(grantedBy)) {
+	case "system:new_user_reward":
+		return TopupOrderCreditOriginNewUser
+	case "system:inviter_reward":
+		return TopupOrderCreditOriginInviter
+	default:
+		return TopupOrderCreditOriginAdmin
+	}
+}
 
 type TopupOrder struct {
 	Id                       string  `json:"id" gorm:"type:char(36);primaryKey"`
@@ -54,6 +87,7 @@ type TopupOrder struct {
 	Amount                   float64 `json:"amount" gorm:"type:decimal(10,2);default:0"`
 	Currency                 string  `json:"currency" gorm:"type:varchar(16);default:'CNY'"`
 	Quota                    int64   `json:"quota" gorm:"type:bigint;default:0"`
+	CreditOrigin             string  `json:"credit_origin" gorm:"type:varchar(64);not null;default:'paid_topup';index"`
 	TopupPlanID              string  `json:"topup_plan_id" gorm:"type:char(36);default:'';index"`
 	GroupID                  string  `json:"group_id" gorm:"type:char(36);default:'';index"`
 	ValidityDays             int     `json:"validity_days" gorm:"type:int;not null;default:0"`
@@ -145,6 +179,10 @@ func normalizeTopupOrderRow(row *TopupOrder) {
 	row.Amount = normalizeTopupOrderAmount(row.Amount)
 	row.Currency = normalizeTopupOrderCurrency(row.Currency)
 	row.Quota = normalizeTopupOrderQuota(row.Quota)
+	row.CreditOrigin = normalizeTopupOrderCreditOrigin(row.CreditOrigin)
+	if row.CreditOrigin == "" && row.BusinessType == TopupOrderBusinessBalance {
+		row.CreditOrigin = TopupOrderCreditOriginPaid
+	}
 	row.TopupPlanID = strings.TrimSpace(row.TopupPlanID)
 	row.GroupID = strings.TrimSpace(row.GroupID)
 	row.ValidityDays = normalizeTopupPlanValidityDays(row.ValidityDays)
@@ -1262,13 +1300,7 @@ func FulfillTopupOrderWithDB(db *gorm.DB, orderID string) (TopupOrder, bool, err
 			if err != nil {
 				return err
 			}
-			if creditedNow {
-				if err := tx.Model(&User{}).
-					Where("id = ?", order.UserID).
-					Update("quota", gorm.Expr("quota + ?", order.Quota)).Error; err != nil {
-					return err
-				}
-			}
+			_ = creditedNow
 			if lot.ExpiresAt > 0 {
 				order.CreditExpiresAt = lot.ExpiresAt
 			}
@@ -1361,6 +1393,7 @@ func GrantTopupPlanToUserWithDB(db *gorm.DB, userID string, username string, pla
 			TransactionID:            random.GetUUID(),
 			BusinessType:             TopupOrderBusinessBalance,
 			OperationType:            TopupOrderOperationTopup,
+			CreditOrigin:             resolveGrantTopupOrderCreditOrigin(grantedBy),
 			Title:                    buildTopupOrderPlanTitle(resolvedPlan),
 			Amount:                   normalizeTopupOrderAmount(resolvedPlan.Amount),
 			Currency:                 normalizeTopupOrderCurrency(resolvedPlan.AmountCurrency),
@@ -1405,13 +1438,7 @@ func GrantTopupPlanToUserWithDB(db *gorm.DB, userID string, username string, pla
 		if err != nil {
 			return err
 		}
-		if creditedNow {
-			if err := tx.Model(&User{}).
-				Where("id = ?", normalizedUserID).
-				Update("quota", gorm.Expr("quota + ?", order.Quota)).Error; err != nil {
-				return err
-			}
-		}
+		_ = creditedNow
 		if lot.ExpiresAt > 0 && lot.ExpiresAt != order.CreditExpiresAt {
 			order.CreditExpiresAt = lot.ExpiresAt
 			if err := tx.Model(&TopupOrder{}).
@@ -1427,6 +1454,84 @@ func GrantTopupPlanToUserWithDB(db *gorm.DB, userID string, username string, pla
 		return TopupOrder{}, err
 	}
 	logTopupOrderLifecycle("granted", result, "", result.StatusMessage)
+	return result, nil
+}
+
+func GrantBalanceAmountToUserWithDB(db *gorm.DB, userID string, username string, quota int64, title string, grantedBy string) (TopupOrder, error) {
+	if db == nil {
+		return TopupOrder{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return TopupOrder{}, fmt.Errorf("用户 ID 不能为空")
+	}
+	normalizedQuota := normalizeTopupOrderQuota(quota)
+	if normalizedQuota <= 0 {
+		return TopupOrder{}, fmt.Errorf("充值额度不能为空")
+	}
+	normalizedUsername := strings.TrimSpace(username)
+	normalizedTitle := strings.TrimSpace(title)
+	if normalizedTitle == "" {
+		normalizedTitle = "管理员充值额度"
+	}
+	now := helper.GetTimestamp()
+	result := TopupOrder{}
+	err := db.Transaction(func(tx *gorm.DB) error {
+		user := User{}
+		if err := tx.Select("id").First(&user, "id = ?", normalizedUserID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("用户不存在")
+			}
+			return err
+		}
+		order := TopupOrder{
+			Id:            random.GetUUID(),
+			UserID:        normalizedUserID,
+			Username:      normalizedUsername,
+			Status:        TopupOrderStatusFulfilled,
+			Source:        TopupOrderSourceTopUpAPI,
+			ProviderName:  "admin",
+			TransactionID: random.GetUUID(),
+			BusinessType:  TopupOrderBusinessBalance,
+			OperationType: TopupOrderOperationTopup,
+			CreditOrigin:  TopupOrderCreditOriginAdmin,
+			Title:         normalizedTitle,
+			Amount:        0,
+			Currency:      BillingCurrencyCodeCNY,
+			Quota:         normalizedQuota,
+			PaidAt:        now,
+			RedeemedAt:    now,
+			CreatedAt:     now,
+			UpdatedAt:     now,
+		}
+		normalizedGrantedBy := strings.TrimSpace(grantedBy)
+		if normalizedGrantedBy != "" {
+			order.StatusMessage = "管理员充值，操作者：" + normalizedGrantedBy
+		} else {
+			order.StatusMessage = "管理员充值"
+		}
+		normalizeTopupOrderRow(&order)
+		if err := tx.Create(&order).Error; err != nil {
+			return err
+		}
+		_, _, err := CreditUserBalanceLotWithDB(tx, UserBalanceLotCreditInput{
+			UserID:      normalizedUserID,
+			SourceType:  UserBalanceLotSourceTopup,
+			SourceID:    order.Id,
+			TotalAmount: order.Quota,
+			GrantedAt:   now,
+			ExpiresAt:   0,
+		})
+		if err != nil {
+			return err
+		}
+		result = order
+		return nil
+	})
+	if err != nil {
+		return TopupOrder{}, err
+	}
+	logTopupOrderLifecycle("granted_balance", result, "", result.StatusMessage)
 	return result, nil
 }
 

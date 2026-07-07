@@ -281,20 +281,6 @@ func expireUserBalanceLotsInTx(tx *gorm.DB, userID string, now int64) (int64, er
 	if expiredTotal <= 0 {
 		return 0, nil
 	}
-	user := User{}
-	if err := tx.Set("gorm:query_option", "FOR UPDATE").Select("id", "quota").Where("id = ?", normalizedUserID).First(&user).Error; err != nil {
-		return 0, err
-	}
-	newQuota := user.Quota - expiredTotal
-	if newQuota < 0 {
-		newQuota = 0
-	}
-	if err := tx.Model(&User{}).Where("id = ?", normalizedUserID).Updates(map[string]any{
-		"quota":      newQuota,
-		"updated_at": effectiveNow,
-	}).Error; err != nil {
-		return 0, err
-	}
 	return expiredTotal, nil
 }
 
@@ -321,6 +307,67 @@ func ExpireUserBalanceLotsWithDB(db *gorm.DB, userID string, now int64) (int64, 
 
 func ExpireUserBalanceLots(userID string) (int64, error) {
 	return ExpireUserBalanceLotsWithDB(DB, userID, helper.GetTimestamp())
+}
+
+func GetEffectiveUserBalanceAmountForGroupWithDB(db *gorm.DB, userID string, groupID string, now int64) (int64, error) {
+	if db == nil {
+		return 0, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return 0, nil
+	}
+	normalizedGroupID := strings.TrimSpace(groupID)
+	balanceAmount := int64(0)
+	err := db.Transaction(func(tx *gorm.DB) error {
+		effectiveNow := now
+		if effectiveNow <= 0 {
+			effectiveNow = helper.GetTimestamp()
+		}
+		if _, err := expireUserBalanceLotsInTx(tx, normalizedUserID, effectiveNow); err != nil {
+			return err
+		}
+		query := tx.Model(&UserBalanceLot{}).
+			Select("COALESCE(SUM(remaining_amount), 0)").
+			Where("user_id = ? AND status = ? AND remaining_amount > 0 AND (expires_at = 0 OR expires_at > ?)", normalizedUserID, UserBalanceLotStatusActive, effectiveNow)
+		if normalizedGroupID != "" {
+			query = query.Where(`
+				(
+					source_type = ? AND EXISTS (
+						SELECT 1 FROM topup_orders o
+						WHERE o.id = user_balance_lots.source_id
+						  AND o.business_type = ?
+						  AND COALESCE(o.group_id, '') = ?
+					)
+				)
+				OR
+				(
+					source_type = ? AND EXISTS (
+						SELECT 1 FROM redemptions r
+						WHERE r.id = user_balance_lots.source_id
+						  AND COALESCE(r.group_id, '') = ?
+					)
+				)
+			`, UserBalanceLotSourceTopup, TopupOrderBusinessBalance, normalizedGroupID, UserBalanceLotSourceRedeem, normalizedGroupID)
+		}
+		return query.Scan(&balanceAmount).Error
+	})
+	if err != nil {
+		return 0, err
+	}
+	return balanceAmount, nil
+}
+
+func GetEffectiveUserBalanceAmountWithDB(db *gorm.DB, userID string, now int64) (int64, error) {
+	return GetEffectiveUserBalanceAmountForGroupWithDB(db, userID, "", now)
+}
+
+func GetEffectiveUserBalanceAmountForGroup(userID string, groupID string) (int64, error) {
+	return GetEffectiveUserBalanceAmountForGroupWithDB(DB, userID, groupID, helper.GetTimestamp())
+}
+
+func GetEffectiveUserBalanceAmount(userID string) (int64, error) {
+	return GetEffectiveUserBalanceAmountWithDB(DB, userID, helper.GetTimestamp())
 }
 
 func ConsumeUserBalanceLotsForGroupWithDB(db *gorm.DB, userID string, groupID string, quota int64, now int64) (int64, error) {

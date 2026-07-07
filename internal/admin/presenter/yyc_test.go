@@ -9,15 +9,14 @@ import (
 func TestNewUserAddsAmountFields(t *testing.T) {
 	row := &model.User{
 		Id:        "u1",
-		Quota:     1200,
 		UsedQuota: 3400,
 	}
 	view := NewUser(row)
 	if view == nil {
 		t.Fatal("NewUser returned nil")
 	}
-	if view.BalanceAmount != row.Quota {
-		t.Fatalf("balance_amount=%d, want %d", view.BalanceAmount, row.Quota)
+	if view.BalanceAmount != 0 {
+		t.Fatalf("balance_amount=%d, want 0", view.BalanceAmount)
 	}
 	if view.UsedAmount != row.UsedQuota {
 		t.Fatalf("used_amount=%d, want %d", view.UsedAmount, row.UsedQuota)

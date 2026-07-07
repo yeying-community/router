@@ -49,6 +49,7 @@ func InitOptionMap() {
 	config.OptionMap["FXAutoSyncLastRunAt"] = strconv.FormatInt(config.FXAutoSyncLastRunAt, 10)
 	config.OptionMap["FXAutoSyncLastSuccessAt"] = strconv.FormatInt(config.FXAutoSyncLastSuccessAt, 10)
 	config.OptionMap["FXAutoSyncLastError"] = config.FXAutoSyncLastError
+	config.OptionMap["FXAutoSyncConsecutiveFailures"] = strconv.Itoa(config.FXAutoSyncConsecutiveFailures)
 	config.OptionMap["ChannelBillingAutoRefreshEnabled"] = strconv.FormatBool(config.ChannelBillingAutoRefreshEnabled)
 	config.OptionMap["ChannelBillingAutoRefreshIntervalSeconds"] = strconv.Itoa(config.ChannelBillingAutoRefreshIntervalSeconds)
 	config.OptionMap["ChannelBillingAutoRefreshLastRunAt"] = strconv.FormatInt(config.ChannelBillingAutoRefreshLastRunAt, 10)
@@ -234,6 +235,13 @@ func UpdateOptionMap(key string, value string) (err error) {
 		config.FXAutoSyncLastSuccessAt, _ = strconv.ParseInt(value, 10, 64)
 	case "FXAutoSyncLastError":
 		config.FXAutoSyncLastError = strings.TrimSpace(value)
+	case "FXAutoSyncConsecutiveFailures":
+		failures, _ := strconv.Atoi(value)
+		if failures < 0 {
+			failures = 0
+			config.OptionMap[key] = strconv.Itoa(failures)
+		}
+		config.FXAutoSyncConsecutiveFailures = failures
 	case "ChannelBillingAutoRefreshIntervalSeconds":
 		interval, _ := strconv.Atoi(value)
 		if interval < 60 {

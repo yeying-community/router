@@ -190,7 +190,14 @@ func reserveBalanceConcurrency(ctx context.Context, meta *meta.Meta, packageActi
 }
 
 func reserveRelayQuota(ctx context.Context, meta *meta.Meta, quota int64) (relayBillingPlan, *relaymodel.ErrorWithStatusCode) {
-	if plan, matched, err := tryReserveRequestPackage(ctx, meta, 1); matched || err != nil {
+	return reserveRelayQuotaWithRequestAmount(ctx, meta, quota, 1)
+}
+
+func reserveRelayQuotaWithRequestAmount(ctx context.Context, meta *meta.Meta, quota int64, requestAmount int64) (relayBillingPlan, *relaymodel.ErrorWithStatusCode) {
+	if requestAmount <= 0 {
+		requestAmount = 1
+	}
+	if plan, matched, err := tryReserveRequestPackage(ctx, meta, requestAmount); matched || err != nil {
 		if err == nil && matched && plan.Source != relayBillingSourcePackage {
 			concurrencyReservation, concurrencyErr := reserveBalanceConcurrency(ctx, meta, true)
 			if concurrencyErr != nil {

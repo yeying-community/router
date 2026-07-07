@@ -439,6 +439,159 @@ func TestResolveImageRequestPricingFallsBackWhenNoComponentMatches(t *testing.T)
 	}
 }
 
+func TestSelectProviderPriceComponentMatchesNumericConditions(t *testing.T) {
+	components := []ProviderModelPriceComponentDetail{
+		{
+			Component:  ProviderModelPriceComponentTextCacheRead,
+			Condition:  "mode=standard;prompt_tokens_lte=200000",
+			InputPrice: 0.000125,
+			PriceUnit:  ProviderPriceUnitPer1KTokens,
+		},
+		{
+			Component:  ProviderModelPriceComponentTextCacheRead,
+			Condition:  "mode=standard;prompt_tokens_gt=200000",
+			InputPrice: 0.00025,
+			PriceUnit:  ProviderPriceUnitPer1KTokens,
+		},
+	}
+
+	component, ok := SelectProviderPriceComponent(components, ProviderModelPriceComponentTextCacheRead, map[string]string{
+		"mode":          "standard",
+		"prompt_tokens": "200001",
+	})
+	if !ok {
+		t.Fatal("expected matching component")
+	}
+	if component.InputPrice != 0.00025 {
+		t.Fatalf("input price=%v, want 0.00025", component.InputPrice)
+	}
+
+	component, ok = SelectProviderPriceComponent(components, ProviderModelPriceComponentTextCacheRead, map[string]string{
+		"mode":          "standard",
+		"prompt_tokens": "200000",
+	})
+	if !ok {
+		t.Fatal("expected matching component at threshold")
+	}
+	if component.InputPrice != 0.000125 {
+		t.Fatalf("input price=%v, want 0.000125", component.InputPrice)
+	}
+}
+
+func TestSelectProviderPriceComponentPrefersSpecificCondition(t *testing.T) {
+	components := []ProviderModelPriceComponentDetail{
+		{
+			Component:   ProviderModelPriceComponentText,
+			InputPrice:  0.001,
+			OutputPrice: 0.002,
+			PriceUnit:   ProviderPriceUnitPer1KTokens,
+			Source:      "migration",
+		},
+		{
+			Component:   ProviderModelPriceComponentText,
+			Condition:   "prompt_tokens_lte=32000;completion_tokens_lte=200",
+			InputPrice:  0.001,
+			OutputPrice: 0.0005,
+			PriceUnit:   ProviderPriceUnitPer1KTokens,
+			Source:      "migration",
+		},
+	}
+
+	component, ok := SelectProviderPriceComponent(components, ProviderModelPriceComponentText, map[string]string{
+		"prompt_tokens":     "1024",
+		"completion_tokens": "128",
+	})
+	if !ok {
+		t.Fatal("expected matching component")
+	}
+	if component.Condition != "prompt_tokens_lte=32000;completion_tokens_lte=200" {
+		t.Fatalf("condition=%q, want tiered condition", component.Condition)
+	}
+	if component.OutputPrice != 0.0005 {
+		t.Fatalf("output price=%v, want 0.0005", component.OutputPrice)
+	}
+}
+
+func TestResolveTextUsagePricingMatchesTokenTier(t *testing.T) {
+	pricing := ResolveTextUsagePricing(ResolvedModelPricing{
+		Model:       "doubao-seed-1.6",
+		Provider:    "volcengine",
+		Type:        ProviderModelTypeText,
+		InputPrice:  0.0008,
+		OutputPrice: 0.008,
+		PriceUnit:   ProviderPriceUnitPer1KTokens,
+		Currency:    "CNY",
+		Source:      "provider_migration",
+		PriceComponents: []ProviderModelPriceComponentDetail{
+			{
+				Component:   ProviderModelPriceComponentText,
+				Condition:   "prompt_tokens_lte=32000;completion_tokens_lte=200",
+				InputPrice:  0.0008,
+				OutputPrice: 0.002,
+				PriceUnit:   ProviderPriceUnitPer1KTokens,
+				Currency:    "CNY",
+				Source:      "migration",
+			},
+			{
+				Component:   ProviderModelPriceComponentText,
+				Condition:   "prompt_tokens_lte=32000;completion_tokens_gt=200",
+				InputPrice:  0.0008,
+				OutputPrice: 0.008,
+				PriceUnit:   ProviderPriceUnitPer1KTokens,
+				Currency:    "CNY",
+				Source:      "migration",
+			},
+		},
+	}, "/v1/chat/completions", 2048, 128)
+
+	if pricing.Source != "provider_component" {
+		t.Fatalf("source=%q, want provider_component", pricing.Source)
+	}
+	if pricing.MatchedCondition != "prompt_tokens_lte=32000;completion_tokens_lte=200" {
+		t.Fatalf("matched condition=%q", pricing.MatchedCondition)
+	}
+	if pricing.OutputPrice != 0.002 {
+		t.Fatalf("output price=%v, want 0.002", pricing.OutputPrice)
+	}
+}
+
+func TestResolveTextUsagePricingKeepsChannelPriceOverride(t *testing.T) {
+	pricing := ResolveTextUsagePricing(ResolvedModelPricing{
+		Model:                         "doubao-seed-1.6",
+		Provider:                      "volcengine",
+		Type:                          ProviderModelTypeText,
+		InputPrice:                    0.01,
+		OutputPrice:                   0.02,
+		PriceUnit:                     ProviderPriceUnitPer1KTokens,
+		Currency:                      "CNY",
+		Source:                        "channel_override",
+		HasChannelOverride:            true,
+		HasChannelInputPriceOverride:  true,
+		HasChannelOutputPriceOverride: true,
+		PriceComponents: []ProviderModelPriceComponentDetail{
+			{
+				Component:   ProviderModelPriceComponentText,
+				Condition:   "prompt_tokens_lte=32000;completion_tokens_lte=200",
+				InputPrice:  0.0008,
+				OutputPrice: 0.002,
+				PriceUnit:   ProviderPriceUnitPer1KTokens,
+				Currency:    "CNY",
+				Source:      "migration",
+			},
+		},
+	}, "/v1/chat/completions", 2048, 128)
+
+	if pricing.Source != "channel_override" {
+		t.Fatalf("source=%q, want channel_override", pricing.Source)
+	}
+	if pricing.InputPrice != 0.01 || pricing.OutputPrice != 0.02 {
+		t.Fatalf("channel prices were overwritten: input=%v output=%v", pricing.InputPrice, pricing.OutputPrice)
+	}
+	if pricing.MatchedCondition != "prompt_tokens_lte=32000;completion_tokens_lte=200" {
+		t.Fatalf("matched condition=%q", pricing.MatchedCondition)
+	}
+}
+
 func TestResolveTextRequestPricingMatchesEndpointComponent(t *testing.T) {
 	pricing := ResolveTextRequestPricing(ResolvedModelPricing{
 		Model:       "gpt-5",

@@ -63,6 +63,7 @@ func GetFirstAvailable(userId string) (*model.Token, error) {
 	err := model.DB.Where("user_id = ? AND status = ?", userId, model.TokenStatusEnabled).
 		Where("(expired_time = -1 OR expired_time > ?)", now).
 		Where("(unlimited_quota OR remain_quota > 0)").
+		Where("(unlimited_request_count OR remain_request_count > 0)").
 		Order("created_time asc").
 		First(&token).Error
 	if err != nil {
@@ -117,6 +118,16 @@ func ValidateUserToken(key string) (*model.Token, error) {
 		}
 		return token, errors.New("该令牌额度已用尽")
 	}
+	if !token.UnlimitedRequestCount && token.RemainRequestCount <= 0 {
+		if !common.RedisEnabled {
+			token.Status = model.TokenStatusExhausted
+			err := SelectUpdate(token)
+			if err != nil {
+				logger.SysError("failed to update token status" + err.Error())
+			}
+		}
+		return token, errors.New("该令牌请求次数已用尽")
+	}
 	return token, nil
 }
 
@@ -152,7 +163,7 @@ func Create(token *model.Token) error {
 }
 
 func Update(token *model.Token) error {
-	if err := model.DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota", "models", "subnet", "updated_time").Updates(token).Error; err != nil {
+	if err := model.DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota", "remain_request_count", "unlimited_request_count", "models", "subnet", "updated_time").Updates(token).Error; err != nil {
 		return err
 	}
 	return invalidateTokenCacheFn(token.Key)

@@ -123,7 +123,7 @@ func settlePackageQuotaReservation(ctx context.Context, reservation model.Packag
 
 func settleRelayBillingPlan(ctx context.Context, plan relayBillingPlan, consumedQuota int64) (int64, int64) {
 	if plan.RequestPackageReservation.Active() {
-		_, err := model.SettleRequestPackageReservation(plan.RequestPackageReservation, 1)
+		_, err := model.SettleRequestPackageReservation(plan.RequestPackageReservation, 0)
 		if err != nil {
 			logger.Errorf(ctx, "request package settle failed code=settle_request_package_reservation_failed user_id=%s subscription_id=%s counter_id=%s err=%q", strings.TrimSpace(plan.RequestPackageReservation.UserID), strings.TrimSpace(plan.RequestPackageReservation.SubscriptionID), strings.TrimSpace(plan.RequestPackageReservation.CounterID), err.Error())
 		}

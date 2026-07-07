@@ -3,6 +3,7 @@ package token
 import (
 	"testing"
 
+	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/internal/admin/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -18,9 +19,12 @@ func newTokenRepositoryTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
 	previousDB := model.DB
+	previousRedisEnabled := common.RedisEnabled
 	model.DB = db
+	common.RedisEnabled = false
 	t.Cleanup(func() {
 		model.DB = previousDB
+		common.RedisEnabled = previousRedisEnabled
 	})
 	return db
 }
@@ -113,6 +117,103 @@ func TestDeleteInvalidatesTokenCache(t *testing.T) {
 
 	if _, err := GetByID("token-1"); err == nil {
 		t.Fatalf("expected deleted token lookup to fail")
+	}
+}
+
+func TestValidateUserTokenRejectsExhaustedRequestCount(t *testing.T) {
+	db := newTokenRepositoryTestDB(t)
+	token := &model.Token{
+		Id:                    "token-1",
+		UserId:                "user-1",
+		Key:                   "secret-key-1",
+		Name:                  "alpha",
+		Status:                model.TokenStatusEnabled,
+		ExpiredTime:           -1,
+		RemainQuota:           1000,
+		UnlimitedQuota:        false,
+		RemainRequestCount:    0,
+		UnlimitedRequestCount: false,
+		CreatedTime:           100,
+		UpdatedTime:           100,
+	}
+	if err := db.Create(token).Error; err != nil {
+		t.Fatalf("create token: %v", err)
+	}
+
+	_, err := ValidateUserToken("secret-key-1")
+	if err == nil {
+		t.Fatal("expected request-count exhausted token to be rejected")
+	}
+	if err.Error() != "该令牌请求次数已用尽" {
+		t.Fatalf("ValidateUserToken error=%q, want request count exhausted", err.Error())
+	}
+}
+
+func TestConsumeTokenRequestCountDecrementsFiniteLimit(t *testing.T) {
+	db := newTokenRepositoryTestDB(t)
+	token := &model.Token{
+		Id:                    "token-1",
+		UserId:                "user-1",
+		Key:                   "secret-key-1",
+		Name:                  "alpha",
+		Status:                model.TokenStatusEnabled,
+		RemainRequestCount:    3,
+		UnlimitedRequestCount: false,
+		UsedRequestCount:      2,
+		CreatedTime:           100,
+		UpdatedTime:           100,
+	}
+	if err := db.Create(token).Error; err != nil {
+		t.Fatalf("create token: %v", err)
+	}
+
+	if err := model.ConsumeTokenRequestCount("token-1", 2); err != nil {
+		t.Fatalf("ConsumeTokenRequestCount: %v", err)
+	}
+
+	var stored model.Token
+	if err := db.First(&stored, "id = ?", "token-1").Error; err != nil {
+		t.Fatalf("load token: %v", err)
+	}
+	if stored.RemainRequestCount != 1 {
+		t.Fatalf("RemainRequestCount=%d, want 1", stored.RemainRequestCount)
+	}
+	if stored.UsedRequestCount != 4 {
+		t.Fatalf("UsedRequestCount=%d, want 4", stored.UsedRequestCount)
+	}
+}
+
+func TestConsumeTokenRequestCountRejectsInsufficientFiniteLimit(t *testing.T) {
+	db := newTokenRepositoryTestDB(t)
+	token := &model.Token{
+		Id:                    "token-1",
+		UserId:                "user-1",
+		Key:                   "secret-key-1",
+		Name:                  "alpha",
+		Status:                model.TokenStatusEnabled,
+		RemainRequestCount:    1,
+		UnlimitedRequestCount: false,
+		UsedRequestCount:      2,
+		CreatedTime:           100,
+		UpdatedTime:           100,
+	}
+	if err := db.Create(token).Error; err != nil {
+		t.Fatalf("create token: %v", err)
+	}
+
+	if err := model.ConsumeTokenRequestCount("token-1", 2); err == nil {
+		t.Fatal("expected insufficient finite request count to fail")
+	}
+
+	var stored model.Token
+	if err := db.First(&stored, "id = ?", "token-1").Error; err != nil {
+		t.Fatalf("load token: %v", err)
+	}
+	if stored.RemainRequestCount != 1 {
+		t.Fatalf("RemainRequestCount=%d, want unchanged 1", stored.RemainRequestCount)
+	}
+	if stored.UsedRequestCount != 2 {
+		t.Fatalf("UsedRequestCount=%d, want unchanged 2", stored.UsedRequestCount)
 	}
 }
 

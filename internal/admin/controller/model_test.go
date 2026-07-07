@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
@@ -215,6 +216,155 @@ func TestListModelsOwnedByUsesProviderStats(t *testing.T) {
 		if item.Id == "claude-sonnet-4-6" && item.Specification == nil {
 			t.Fatal("expected claude-sonnet-4-6 specification in list payload")
 		}
+	}
+}
+
+func TestListModelsUsesAllUserEntitlementSourcesForUnscopedToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Set(ctxkey.Id, "user-1")
+
+	originalEntitlements := buildRequestUserEntitlementModelsFn
+	originalEndpoints := loadGroupModelSupportedEndpointsFn
+	originalTags := loadProviderModelTagsFn
+	originalSpecifications := loadProviderModelSpecificationsFn
+	buildRequestUserEntitlementModelsFn = func(ctx context.Context, userID string) (model.UserEntitlementModelsPayload, error) {
+		return model.UserEntitlementModelsPayload{
+			Models: []string{"qwen3-coder-next", "gpt-5.4"},
+			Items: []model.UserAvailableModel{
+				{
+					Model:    "qwen3-coder-next",
+					Provider: "qwen",
+					Sources: []model.UserEntitlementModelSource{
+						{SourceType: model.UserEntitlementSourcePackage, SourceID: "sub-qwen", GroupID: "group-qwen", Provider: "qwen", Priority: 10},
+					},
+				},
+				{
+					Model:    "gpt-5.4",
+					Provider: "openai",
+					Sources: []model.UserEntitlementModelSource{
+						{SourceType: model.UserEntitlementSourcePackage, SourceID: "sub-openai", GroupID: "group-openai", Provider: "openai", Priority: 10},
+					},
+				},
+			},
+		}, nil
+	}
+	loadGroupModelSupportedEndpointsFn = func(groupID string, modelNames []string) (map[string][]string, error) {
+		switch groupID {
+		case "group-qwen":
+			return map[string][]string{"qwen3-coder-next": {model.ChannelModelEndpointResponses}}, nil
+		case "group-openai":
+			return map[string][]string{"gpt-5.4": {model.ChannelModelEndpointChat, model.ChannelModelEndpointResponses}}, nil
+		default:
+			return map[string][]string{}, nil
+		}
+	}
+	loadProviderModelTagsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string][]string, error) {
+		return map[string][]string{
+			"qwen3-coder-next": {"text"},
+			"gpt-5.4":          {"text", "tool_calling"},
+		}, nil
+	}
+	loadProviderModelSpecificationsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string]*model.ProviderModelSpecification, error) {
+		return map[string]*model.ProviderModelSpecification{}, nil
+	}
+	t.Cleanup(func() {
+		buildRequestUserEntitlementModelsFn = originalEntitlements
+		loadGroupModelSupportedEndpointsFn = originalEndpoints
+		loadProviderModelTagsFn = originalTags
+		loadProviderModelSpecificationsFn = originalSpecifications
+	})
+
+	ListModels(c)
+	if recorder.Code != 200 {
+		t.Fatalf("status code = %d, want 200: %s", recorder.Code, recorder.Body.String())
+	}
+	payload := struct {
+		Object string         `json:"object"`
+		Data   []OpenAIModels `json:"data"`
+	}{}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(payload.Data) != 2 {
+		t.Fatalf("data length = %d, want 2", len(payload.Data))
+	}
+	ownedBy := map[string]string{}
+	for _, item := range payload.Data {
+		ownedBy[item.Id] = item.OwnedBy
+	}
+	if got := ownedBy["qwen3-coder-next"]; got != "qwen" {
+		t.Fatalf("qwen3-coder-next owned_by = %q, want qwen", got)
+	}
+	if got := ownedBy["gpt-5.4"]; got != "openai" {
+		t.Fatalf("gpt-5.4 owned_by = %q, want openai", got)
+	}
+}
+
+func TestListModelsIntersectsTokenScopeWithUserEntitlements(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Set(ctxkey.Id, "user-1")
+	c.Set(ctxkey.AvailableModels, "qwen3-coder-next")
+
+	originalEntitlements := buildRequestUserEntitlementModelsFn
+	originalEndpoints := loadGroupModelSupportedEndpointsFn
+	originalTags := loadProviderModelTagsFn
+	originalSpecifications := loadProviderModelSpecificationsFn
+	buildRequestUserEntitlementModelsFn = func(ctx context.Context, userID string) (model.UserEntitlementModelsPayload, error) {
+		return model.UserEntitlementModelsPayload{
+			Models: []string{"qwen3-coder-next", "gpt-5.4"},
+			Items: []model.UserAvailableModel{
+				{
+					Model:    "qwen3-coder-next",
+					Provider: "qwen",
+					Sources: []model.UserEntitlementModelSource{
+						{SourceType: model.UserEntitlementSourcePackage, SourceID: "sub-qwen", GroupID: "group-qwen", Provider: "qwen", Priority: 10},
+					},
+				},
+				{
+					Model:    "gpt-5.4",
+					Provider: "openai",
+					Sources: []model.UserEntitlementModelSource{
+						{SourceType: model.UserEntitlementSourcePackage, SourceID: "sub-openai", GroupID: "group-openai", Provider: "openai", Priority: 10},
+					},
+				},
+			},
+		}, nil
+	}
+	loadGroupModelSupportedEndpointsFn = func(groupID string, modelNames []string) (map[string][]string, error) {
+		return map[string][]string{"qwen3-coder-next": {model.ChannelModelEndpointResponses}}, nil
+	}
+	loadProviderModelTagsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string][]string, error) {
+		return map[string][]string{}, nil
+	}
+	loadProviderModelSpecificationsFn = func(_ *gorm.DB, providerByModel map[string]string, modelNames []string) (map[string]*model.ProviderModelSpecification, error) {
+		return map[string]*model.ProviderModelSpecification{}, nil
+	}
+	t.Cleanup(func() {
+		buildRequestUserEntitlementModelsFn = originalEntitlements
+		loadGroupModelSupportedEndpointsFn = originalEndpoints
+		loadProviderModelTagsFn = originalTags
+		loadProviderModelSpecificationsFn = originalSpecifications
+	})
+
+	ListModels(c)
+	if recorder.Code != 200 {
+		t.Fatalf("status code = %d, want 200: %s", recorder.Code, recorder.Body.String())
+	}
+	payload := struct {
+		Data []OpenAIModels `json:"data"`
+	}{}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if len(payload.Data) != 1 {
+		t.Fatalf("data length = %d, want 1", len(payload.Data))
+	}
+	if got := payload.Data[0].Id; got != "qwen3-coder-next" {
+		t.Fatalf("model id = %q, want qwen3-coder-next", got)
 	}
 }
 

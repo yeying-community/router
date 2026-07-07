@@ -38,6 +38,8 @@ const (
 	ProviderPriceCurrencyUSD = "USD"
 
 	ProviderModelPriceComponentText            = "text"
+	ProviderModelPriceComponentTextCacheRead   = "text_cache_read"
+	ProviderModelPriceComponentTextCacheWrite  = "text_cache_write"
 	ProviderModelPriceComponentImageGeneration = "image_generation"
 	ProviderModelPriceComponentAudioInput      = "audio_input"
 	ProviderModelPriceComponentAudioOutput     = "audio_output"
@@ -487,6 +489,8 @@ func defaultPriceUnitByComponent(component string) string {
 		return ProviderPriceUnitPerImage
 	case ProviderModelPriceComponentVideoGeneration:
 		return ProviderPriceUnitPerSecond
+	case ProviderModelPriceComponentTextCacheRead, ProviderModelPriceComponentTextCacheWrite:
+		return ProviderPriceUnitPer1KTokens
 	case ProviderModelPriceComponentAudioInput, ProviderModelPriceComponentAudioOutput,
 		ProviderModelPriceComponentRealtimeAudio, ProviderModelPriceComponentRealtimeText:
 		return ProviderPriceUnitPer1KTokens

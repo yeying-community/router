@@ -2,13 +2,14 @@ package billing
 
 import (
 	"context"
+	"math"
 	"strings"
 
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/admin/model"
 )
 
-func ReturnPreConsumedQuota(ctx context.Context, preConsumedQuota int64, tokenId string, userId string, chargeUserBalance bool) {
+func ReturnPreConsumedQuota(ctx context.Context, preConsumedQuota int64, tokenId string, userId string, groupID string, chargeUserBalance bool) {
 	if preConsumedQuota == 0 {
 		return
 	}
@@ -23,18 +24,17 @@ func ReturnPreConsumedQuota(ctx context.Context, preConsumedQuota int64, tokenId
 			if err != nil {
 				logger.Errorf(ctx, "billing rollback failed code=return_pre_consumed_quota_failed user_id=%s token_id=%s charge_user_balance=%t rollback_quota=%d err=%q", strings.TrimSpace(userId), strings.TrimSpace(tokenId), chargeUserBalance, preConsumedQuota, err.Error())
 			}
+			if chargeUserBalance {
+				_ = model.CacheUpdateUserQuota(ctx, userId)
+				_ = model.CacheUpdateUserQuotaForGroup(ctx, userId, groupID)
+			}
 			return
 		}
 		if !chargeUserBalance {
 			return
 		}
-		// JWT 场景：只需要归还用户额度
-		err := model.IncreaseUserQuota(userId, preConsumedQuota)
-		if err != nil {
-			logger.Errorf(ctx, "billing rollback failed code=return_pre_consumed_user_quota_failed user_id=%s charge_user_balance=%t rollback_quota=%d err=%q", strings.TrimSpace(userId), chargeUserBalance, preConsumedQuota, err.Error())
-			return
-		}
 		_ = model.CacheUpdateUserQuota(ctx, userId)
+		_ = model.CacheUpdateUserQuotaForGroup(ctx, userId, groupID)
 	}(ctx)
 }
 
@@ -52,21 +52,8 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 		if err != nil {
 			logger.Errorf(ctx, "billing post_consume failed code=post_consume_token_quota_failed user_id=%s group=%s channel_id=%s model=%s token_id=%s quota_delta=%d total_quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), strings.TrimSpace(tokenId), quotaDelta, totalQuota, chargeUserBalance, err.Error())
 		}
-	} else if chargeUserBalance {
-		if quotaDelta > 0 {
-			err = model.DecreaseUserQuota(userId, quotaDelta)
-		} else if quotaDelta < 0 {
-			err = model.IncreaseUserQuota(userId, -quotaDelta)
-		}
-		if err != nil {
-			logger.Errorf(ctx, "billing post_consume failed code=post_consume_user_quota_failed user_id=%s group=%s channel_id=%s model=%s quota_delta=%d total_quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), quotaDelta, totalQuota, chargeUserBalance, err.Error())
-		}
 	}
 	if chargeUserBalance {
-		err = model.CacheUpdateUserQuota(ctx, userId)
-		if err != nil {
-			logger.Errorf(ctx, "billing cache update failed code=update_user_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s quota_delta=%d total_quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), quotaDelta, totalQuota, chargeUserBalance, err.Error())
-		}
 		if totalQuota > 0 {
 			consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(userId, groupID, totalQuota)
 			if consumeErr != nil {
@@ -74,6 +61,14 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 			} else if consumedFromLots < totalQuota {
 				logger.Warnf(ctx, "billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), consumedFromLots, totalQuota)
 			}
+		}
+		err = model.CacheUpdateUserQuota(ctx, userId)
+		if err != nil {
+			logger.Errorf(ctx, "billing cache update failed code=update_user_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s quota_delta=%d total_quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), quotaDelta, totalQuota, chargeUserBalance, err.Error())
+		}
+		err = model.CacheUpdateUserQuotaForGroup(ctx, userId, groupID)
+		if err != nil {
+			logger.Errorf(ctx, "billing group cache update failed code=update_user_group_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s quota_delta=%d total_quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), quotaDelta, totalQuota, chargeUserBalance, err.Error())
 		}
 	}
 	userDailyQuota := 0
@@ -90,20 +85,7 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 	// totalQuota is total quota consumed
 	if totalQuota != 0 {
 		snapshot.ChargeAmount = totalQuota
-		entry := &model.Log{
-			UserId:             userId,
-			GroupId:            groupID,
-			ChannelId:          channelId,
-			PromptTokens:       int(totalQuota),
-			CompletionTokens:   0,
-			ModelName:          modelName,
-			TokenName:          tokenName,
-			Quota:              int(totalQuota),
-			BillingSource:      model.ResolveConsumeLogBillingSource(chargeUserBalance),
-			UserDailyQuota:     userDailyQuota,
-			UserEmergencyQuota: userEmergencyQuota,
-			Content:            FormatPricingLog(pricing, groupRatio),
-		}
+		entry := buildPostConsumeLogEntry(userId, groupID, channelId, modelName, tokenName, totalQuota, chargeUserBalance, userDailyQuota, userEmergencyQuota, pricing, groupRatio, snapshot)
 		for _, observer := range routeObservers {
 			if observer != nil {
 				observer(entry)
@@ -116,4 +98,34 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 		model.UpdateUserUsedQuotaAndRequestCount(userId, totalQuota)
 		model.UpdateChannelUsedQuota(channelId, totalQuota)
 	}
+	if strings.TrimSpace(tokenId) != "" {
+		if err := model.ConsumeTokenRequestCount(tokenId, 1); err != nil {
+			logger.Errorf(ctx, "token request count consume failed code=consume_token_request_count_failed user_id=%s token_id=%s request_count=1 err=%q", strings.TrimSpace(userId), strings.TrimSpace(tokenId), err.Error())
+		}
+	}
+}
+
+func buildPostConsumeLogEntry(userId string, groupID string, channelId string, modelName string, tokenName string, totalQuota int64, chargeUserBalance bool, userDailyQuota int, userEmergencyQuota int, pricing model.ResolvedModelPricing, groupRatio float64, snapshot BillingSnapshot) *model.Log {
+	return &model.Log{
+		UserId:             userId,
+		GroupId:            groupID,
+		ChannelId:          channelId,
+		PromptTokens:       billingSnapshotUsageQuantity(snapshot),
+		CompletionTokens:   0,
+		ModelName:          modelName,
+		TokenName:          tokenName,
+		Quota:              int(totalQuota),
+		BillingSource:      model.ResolveConsumeLogBillingSource(chargeUserBalance),
+		UserDailyQuota:     userDailyQuota,
+		UserEmergencyQuota: userEmergencyQuota,
+		Content:            FormatPricingLog(pricing, groupRatio),
+	}
+}
+
+func billingSnapshotUsageQuantity(snapshot BillingSnapshot) int {
+	quantity := snapshot.InputQuantity + snapshot.OutputQuantity
+	if quantity <= 0 {
+		return 0
+	}
+	return int(math.Round(quantity))
 }

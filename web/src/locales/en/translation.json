@@ -118,9 +118,10 @@
     "external_topup": {
       "title": "Quota Top-up",
       "current_balance": "Current Balance",
-      "total_balance": "Total Balance",
+      "total_balance": "Gift Balance",
       "topup_balance": "Top-up Balance",
       "redeem_balance": "Redeem Balance",
+      "gift_balance": "Gift Balance",
       "button": "Top Up Now",
       "package_button": "Buy Package",
       "creating": "Creating order...",
@@ -1483,6 +1484,8 @@
       "name": "Name",
       "group": "Group",
       "applicable_models": "Models",
+      "model_count": "Model Count",
+      "visibility_scope": "Visibility",
       "package_type": "Type",
       "sale_price": "Sale Price",
       "daily_quota_limit": "Daily Amount",
@@ -1501,6 +1504,10 @@
     "status": {
       "enabled": "Enabled",
       "disabled": "Disabled"
+    },
+    "visibility": {
+      "all": "All",
+      "partial": "Partial"
     },
     "buttons": {
       "add": "Add Package",
@@ -1600,6 +1607,8 @@
       "token": "Token",
       "used_amount": "Used",
       "remain_amount": "Remaining",
+      "used_request_count": "Used Requests",
+      "remain_request_count": "Remaining Requests",
       "used_quota": "Used YYC",
       "remain_quota": "Remaining YYC",
       "created_time": "Created Time",
@@ -1671,6 +1680,9 @@
       "quota_notice": "Note: the token's remaining amount only limits this token's own balance. Actual requests are still constrained by the account's remaining amount.",
       "quota": "Remaining Amount",
       "quota_placeholder": "Please enter remaining amount",
+      "request_count": "Remaining Requests",
+      "request_count_notice": "Only limits this token's own request count. Account packages, balance, and model scope still apply when request count is unlimited.",
+      "request_count_placeholder": "Please enter remaining requests",
       "buttons": {
         "never_expire": "Never Expire",
         "expire_1_month": "Expire in 1 Month",
@@ -1678,6 +1690,7 @@
         "expire_1_hour": "Expire in 1 Hour",
         "expire_1_minute": "Expire in 1 Minute",
         "unlimited_quota": "Set No Limit",
+        "unlimited_request_count": "Unlimited Requests",
         "cancel_unlimited": "Cancel No Limit",
         "submit": "Confirm",
         "cancel": "Cancel"
@@ -1685,10 +1698,13 @@
       "messages": {
         "update_success": "Token updated successfully!",
         "create_success": "Token created successfully, please copy and save the full token now!",
+        "load_failed": "Failed to load token.",
+        "not_found": "Token does not exist or you do not have access.",
         "name_required": "Please enter a token name.",
         "id_required": "Token id is empty. Please refresh the page and try again.",
         "expire_time_invalid": "Invalid expiry time format!",
         "quota_invalid": "Invalid remaining amount.",
+        "request_count_invalid": "Remaining requests must be greater than 0.",
         "models_unavailable": "This account has no available models yet. Buy a package or top up before creating a token.",
         "models_required": "Please select at least one model."
       }
@@ -1859,6 +1875,7 @@
       "username_placeholder": "Optional",
       "prompt_tokens": "Prompt Tokens",
       "completion_tokens": "Completion Tokens",
+      "cache_tokens": "Cache R/W",
       "quota": "Amount",
       "detail": "Detail"
     },
@@ -1947,15 +1964,24 @@
         "billing_estimate_estimator": "Estimate Estimator",
         "billing_estimate_precision": "Estimate Precision",
         "estimated_prompt_tokens": "Estimated Prompt Tokens",
+        "estimated_output_tokens": "Estimated Output Quantity",
         "billing_settlement_mode": "Settlement Mode",
         "billing_group_ratio": "Applied Business Ratio",
         "billing_charge_rate": "Conversion Rate",
         "billing_input_quantity": "Input Quantity",
         "billing_output_quantity": "Output Quantity",
+        "billing_cache_read_quantity": "Cache Read Quantity",
+        "billing_cache_write_quantity": "Cache Write Quantity",
         "billing_input_amount": "Input Amount",
         "billing_output_amount": "Output Amount",
+        "billing_cache_read_amount": "Cache Read Amount",
+        "billing_cache_write_amount": "Cache Write Amount",
         "billing_amount": "Billing Amount",
         "billing_charge_amount": "Converted Amount",
+        "estimated_charge_amount": "Estimated Converted Amount",
+        "billing_charge_delta_amount": "Actual - Estimated Amount",
+        "billing_prompt_token_delta": "Prompt Token Delta",
+        "billing_output_token_delta": "Output Token Delta",
         "billing_image_tool_calls": "Image Tool Calls",
         "billing_image_tool_output_tokens": "Image Tool Output Tokens",
         "billing_image_tool_amount": "Image Tool Amount",

@@ -3,9 +3,12 @@ package controller
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
+	"time"
 
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
+	"github.com/yeying-community/router/internal/relay/billing"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 	"github.com/yeying-community/router/internal/relay/meta"
 )
@@ -83,6 +86,56 @@ func TestMergeRealtimeUpstreamQuerySkipsCanonicalVolcengineRealtime(t *testing.T
 	want := "wss://openspeech.bytedance.com/api/v3/realtime/dialogue"
 	if got != want {
 		t.Fatalf("mergeRealtimeUpstreamQuery()=%q, want %q", got, want)
+	}
+}
+
+func TestBuildRealtimeUnmeteredProxyLog(t *testing.T) {
+	start := time.Now().Add(-100 * time.Millisecond)
+	entry := buildRealtimeUnmeteredProxyLog(&meta.Meta{
+		UserId:              "user-1",
+		Group:               "group-1",
+		ChannelId:           "channel-1",
+		TokenName:           "prod-token",
+		OriginModelName:     "gpt-realtime-2",
+		ActualModelName:     "gpt-realtime-upstream",
+		ChannelProtocol:     relaychannel.OpenAI,
+		RequestURLPath:      adminmodel.ChannelModelEndpointRealtime,
+		UpstreamRequestPath: adminmodel.ChannelModelEndpointRealtime,
+		StartTime:           start,
+	}, "wss://api.openai.com/v1/realtime?model=gpt-realtime-upstream")
+	if entry == nil {
+		t.Fatal("buildRealtimeUnmeteredProxyLog() returned nil")
+	}
+	if entry.Quota != 0 || entry.BillingChargeAmount != 0 {
+		t.Fatalf("quota fields = quota:%d charge:%d, want zero", entry.Quota, entry.BillingChargeAmount)
+	}
+	if entry.BillingUsageSource != billingUsageSourceWebsocketProxy {
+		t.Fatalf("BillingUsageSource = %q, want %q", entry.BillingUsageSource, billingUsageSourceWebsocketProxy)
+	}
+	if entry.BillingEstimateSource != billingEstimateSourceRealtimeUnmeteredProxy {
+		t.Fatalf("BillingEstimateSource = %q, want %q", entry.BillingEstimateSource, billingEstimateSourceRealtimeUnmeteredProxy)
+	}
+	if entry.BillingSettlementMode != billingSettlementModeRealtimeUnmeteredProxy {
+		t.Fatalf("BillingSettlementMode = %q, want %q", entry.BillingSettlementMode, billingSettlementModeRealtimeUnmeteredProxy)
+	}
+	billing.ApplyProcurementCostObservation(entry)
+	if entry.BillingSettlementTruthMode != billing.SettlementTruthModeUnmeteredProxy {
+		t.Fatalf("BillingSettlementTruthMode = %q, want %q", entry.BillingSettlementTruthMode, billing.SettlementTruthModeUnmeteredProxy)
+	}
+	if entry.BillingProcurementCostConfidence != billing.ProcurementCostConfidenceUnmetered {
+		t.Fatalf("BillingProcurementCostConfidence = %q, want %q", entry.BillingProcurementCostConfidence, billing.ProcurementCostConfidenceUnmetered)
+	}
+	if entry.ModelName != "gpt-realtime-upstream" || entry.RequestModelName != "gpt-realtime-2" || entry.ActualModelName != "gpt-realtime-upstream" {
+		t.Fatalf("model fields = model:%q request:%q actual:%q", entry.ModelName, entry.RequestModelName, entry.ActualModelName)
+	}
+	if entry.UpstreamEndpoint != adminmodel.ChannelModelEndpointRealtime {
+		t.Fatalf("UpstreamEndpoint = %q, want %q", entry.UpstreamEndpoint, adminmodel.ChannelModelEndpointRealtime)
+	}
+	if !entry.IsStream {
+		t.Fatal("IsStream = false, want true")
+	}
+	if !strings.Contains(entry.Content, "usage metering is not implemented yet") {
+		t.Fatalf("Content = %q, want unmetered note", entry.Content)
 	}
 }
 

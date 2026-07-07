@@ -83,6 +83,100 @@ const createEmptyForm = (defaultBillingUnit = 'USD') => ({
   source: 'manual',
 });
 
+const formatVisibilityScopeLabel = (scope, t) =>
+  (scope || 'all').toString().trim() === 'partial_users'
+    ? t('package_manage.visibility.partial')
+    : t('package_manage.visibility.all');
+
+const SupportedModelsCountButton = ({ models, t }) => {
+  const [open, setOpen] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const normalizedModels = useMemo(() => normalizeSupportedModels(models), [models]);
+  const stopEventPropagation = (event) => {
+    event?.stopPropagation?.();
+  };
+
+  const filteredModels = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    if (!normalizedKeyword) {
+      return normalizedModels;
+    }
+    return normalizedModels.filter((modelName) =>
+      modelName.toLowerCase().includes(normalizedKeyword),
+    );
+  }, [keyword, normalizedModels]);
+
+  const closeDialog = (event) => {
+    stopEventPropagation(event);
+    setOpen(false);
+    setKeyword('');
+  };
+
+  if (normalizedModels.length === 0) {
+    return 0;
+  }
+
+  return (
+    <>
+      <button
+        className='router-link-button router-supported-models-count-button'
+        type='button'
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+      >
+        {normalizedModels.length}
+      </button>
+      <AppModal
+        size='small'
+        open={open}
+        onClose={closeDialog}
+        title={t('topup.pricing.supported_models_dialog_title')}
+        modalRender={(modal) => (
+          <div onClick={stopEventPropagation}>
+            {modal}
+          </div>
+        )}
+        footer={[
+          <AppButton key='close' onClick={closeDialog}>
+            {t('common.close')}
+          </AppButton>,
+        ]}
+      >
+        <div className='router-supported-models-dialog'>
+          <AppInput
+            className='router-supported-models-search'
+            type='search'
+            value={keyword}
+            placeholder={t('topup.pricing.supported_models_search_placeholder')}
+            onChange={(_, { value }) => setKeyword(value)}
+          />
+          <div className='router-supported-models-dialog-meta'>
+            {t('topup.pricing.supported_models_dialog_count', {
+              count: filteredModels.length,
+              total: normalizedModels.length,
+            })}
+          </div>
+          {filteredModels.length === 0 ? (
+            <div className='router-text-muted router-supported-models-empty'>
+              {t('topup.pricing.supported_models_search_empty')}
+            </div>
+          ) : (
+            <div className='router-supported-models-dialog-list'>
+              {filteredModels.map((modelName) => (
+                <div key={modelName} className='router-supported-models-dialog-item'>
+                  {modelName}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </AppModal>
+    </>
+  );
+};
+
 const toGroupOptions = (rows) =>
   (Array.isArray(rows) ? rows : []).map((item) => ({
     key: item.id,
@@ -1011,12 +1105,20 @@ const PackagesManager = () => {
               render: (_, row) => row.group_name || row.group_id || '-',
             },
             {
-              title: t('package_manage.table.applicable_models'),
+              title: t('package_manage.table.model_count'),
               key: 'supported_models',
               width: PACKAGE_LIST_COLUMN_WIDTHS.supportedModels,
               render: (_, row) => (
-                <SupportedModelsSummary models={row?.supported_models} t={t} />
+                <SupportedModelsCountButton models={row?.supported_models} t={t} />
               ),
+            },
+            {
+              title: t('package_manage.table.visibility_scope'),
+              dataIndex: 'visibility_scope',
+              key: 'visibility_scope',
+              width: PACKAGE_LIST_COLUMN_WIDTHS.visibilityScope,
+              ellipsis: true,
+              render: (value) => formatVisibilityScopeLabel(value, t),
             },
             {
               title: t('package_manage.table.package_type'),

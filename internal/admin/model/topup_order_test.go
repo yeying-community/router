@@ -323,6 +323,68 @@ func TestApplyTopupOrderCallbackDoesNotDowngradeFulfilledOrder(t *testing.T) {
 	}
 }
 
+func TestGrantBalanceAmountToUserCreatesOrderLotAndQuota(t *testing.T) {
+	db := newTopupOrderTestDB(t)
+	if err := db.AutoMigrate(&User{}, &UserBalanceLot{}, &UserBalanceLotTransaction{}); err != nil {
+		t.Fatalf("AutoMigrate grant balance dependencies: %v", err)
+	}
+	user := User{
+		Id:       "user-1",
+		Username: "alice",
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	order, err := GrantBalanceAmountToUserWithDB(db, user.Id, user.Username, 250, "管理员补偿充值", "admin-1")
+	if err != nil {
+		t.Fatalf("GrantBalanceAmountToUserWithDB: %v", err)
+	}
+	if order.Status != TopupOrderStatusFulfilled {
+		t.Fatalf("order status=%q, want %q", order.Status, TopupOrderStatusFulfilled)
+	}
+	if order.Source != TopupOrderSourceTopUpAPI {
+		t.Fatalf("order source=%q, want %q", order.Source, TopupOrderSourceTopUpAPI)
+	}
+	if order.BusinessType != TopupOrderBusinessBalance || order.OperationType != TopupOrderOperationTopup {
+		t.Fatalf("unexpected order type: business=%q operation=%q", order.BusinessType, order.OperationType)
+	}
+	if order.Quota != 250 {
+		t.Fatalf("order quota=%d, want 250", order.Quota)
+	}
+	if order.CreditOrigin != TopupOrderCreditOriginAdmin {
+		t.Fatalf("order credit_origin=%q, want %q", order.CreditOrigin, TopupOrderCreditOriginAdmin)
+	}
+
+	gotUser := User{}
+	if err := db.First(&gotUser, "id = ?", user.Id).Error; err != nil {
+		t.Fatalf("load user: %v", err)
+	}
+	effectiveBalance, err := GetEffectiveUserBalanceAmountWithDB(db, user.Id, helper.GetTimestamp())
+	if err != nil {
+		t.Fatalf("load effective balance: %v", err)
+	}
+	if effectiveBalance != 250 {
+		t.Fatalf("effective balance=%d, want 250", effectiveBalance)
+	}
+
+	lot := UserBalanceLot{}
+	if err := db.First(&lot, "source_type = ? AND source_id = ?", UserBalanceLotSourceTopup, order.Id).Error; err != nil {
+		t.Fatalf("load balance lot: %v", err)
+	}
+	if lot.UserID != user.Id || lot.TotalAmount != 250 || lot.RemainingAmount != 250 || lot.Status != UserBalanceLotStatusActive {
+		t.Fatalf("unexpected lot: user=%q total=%d remaining=%d status=%q", lot.UserID, lot.TotalAmount, lot.RemainingAmount, lot.Status)
+	}
+
+	tx := UserBalanceLotTransaction{}
+	if err := db.First(&tx, "lot_id = ? AND tx_type = ?", lot.Id, UserBalanceLotTxTypeCredit).Error; err != nil {
+		t.Fatalf("load balance lot transaction: %v", err)
+	}
+	if tx.SourceType != UserBalanceLotSourceTopup || tx.SourceID != order.Id || tx.DeltaAmount != 250 {
+		t.Fatalf("unexpected lot tx: source=%q/%q delta=%d", tx.SourceType, tx.SourceID, tx.DeltaAmount)
+	}
+}
+
 func TestPreviewPackagePurchaseTreatsDifferentGroupAsPurchase(t *testing.T) {
 	db := newServicePackageScopeTestDB(t)
 	now := helper.GetTimestamp()

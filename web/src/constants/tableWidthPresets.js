@@ -55,7 +55,8 @@ export const TOPUP_PLAN_LIST_TABLE_MIN_WIDTH =
 export const PACKAGE_LIST_COLUMN_WIDTHS = {
   name: 120,
   group: 110,
-  supportedModels: 150,
+  supportedModels: 96,
+  visibilityScope: 96,
   type: 96,
   salePrice: 80,
   dailyQuota: 140,
@@ -71,6 +72,7 @@ export const PACKAGE_LIST_TABLE_MIN_WIDTH =
   PACKAGE_LIST_COLUMN_WIDTHS.name +
   PACKAGE_LIST_COLUMN_WIDTHS.group +
   PACKAGE_LIST_COLUMN_WIDTHS.supportedModels +
+  PACKAGE_LIST_COLUMN_WIDTHS.visibilityScope +
   PACKAGE_LIST_COLUMN_WIDTHS.type +
   PACKAGE_LIST_COLUMN_WIDTHS.salePrice +
   PACKAGE_LIST_COLUMN_WIDTHS.dailyQuota +
@@ -131,6 +133,8 @@ export const TOKEN_LIST_COLUMN_WIDTHS = {
   status: 92,
   usedAmount: 120,
   remainingAmount: 120,
+  usedRequestCount: 100,
+  remainingRequestCount: 100,
   createdTime: 148,
   updatedTime: 148,
   expiredTime: 148,
@@ -143,6 +147,8 @@ export const TOKEN_LIST_TABLE_MIN_WIDTH =
   TOKEN_LIST_COLUMN_WIDTHS.status +
   TOKEN_LIST_COLUMN_WIDTHS.usedAmount +
   TOKEN_LIST_COLUMN_WIDTHS.remainingAmount +
+  TOKEN_LIST_COLUMN_WIDTHS.usedRequestCount +
+  TOKEN_LIST_COLUMN_WIDTHS.remainingRequestCount +
   TOKEN_LIST_COLUMN_WIDTHS.createdTime +
   TOKEN_LIST_COLUMN_WIDTHS.updatedTime +
   TOKEN_LIST_COLUMN_WIDTHS.expiredTime +
@@ -204,6 +210,7 @@ export const LOG_LIST_COLUMN_WIDTHS = {
   tokenName: 160,
   promptTokens: 96,
   completionTokens: 96,
+  cacheTokens: 112,
   quota: 140,
 };
 
@@ -217,6 +224,7 @@ export const LOG_LIST_TABLE_MIN_WIDTH =
   LOG_LIST_COLUMN_WIDTHS.tokenName +
   LOG_LIST_COLUMN_WIDTHS.promptTokens +
   LOG_LIST_COLUMN_WIDTHS.completionTokens +
+  LOG_LIST_COLUMN_WIDTHS.cacheTokens +
   LOG_LIST_COLUMN_WIDTHS.quota;
 
 export const BUSINESS_FLOW_COLUMN_WIDTHS = {

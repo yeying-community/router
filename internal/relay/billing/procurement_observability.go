@@ -13,11 +13,13 @@ const (
 	SettlementTruthModeHybridUsageFinal   = "hybrid_usage_final"
 	SettlementTruthModeLocalEstimateFinal = "local_estimate_final"
 	SettlementTruthModeUnitBasedFinal     = "unit_based_final"
+	SettlementTruthModeUnmeteredProxy     = "unmetered_proxy"
 
 	ProcurementCostConfidenceReturnedUsage = "returned_usage"
 	ProcurementCostConfidenceHybridUsage   = "hybrid_usage"
 	ProcurementCostConfidenceLocalEstimate = "local_estimate"
 	ProcurementCostConfidenceUnitBased     = "unit_based"
+	ProcurementCostConfidenceUnmetered     = "unmetered"
 
 	PricingRuleVersionOfficialAnchorV1 = "official_anchor_v1"
 	PricingRuleVersionCostFloorV1      = "cost_floor_v1"
@@ -107,8 +109,12 @@ func inferSettlementTruthMode(logRow *model.Log) string {
 		return SettlementTruthModeReturnedUsageFinal
 	case "local_estimate_final":
 		return SettlementTruthModeLocalEstimateFinal
-	case "estimate_only":
+	case "audio_response_text_final":
+		return SettlementTruthModeLocalEstimateFinal
+	case "estimate_only", "audio_request_final", "video_task_created":
 		return SettlementTruthModeUnitBasedFinal
+	case "realtime_unmetered_proxy":
+		return SettlementTruthModeUnmeteredProxy
 	case "usage_final", "responses_image_tool_pending", "usage_plus_image_fee":
 		return SettlementTruthModeHybridUsageFinal
 	}
@@ -134,6 +140,8 @@ func confidenceFromSettlementTruthMode(mode string) string {
 		return ProcurementCostConfidenceLocalEstimate
 	case SettlementTruthModeUnitBasedFinal:
 		return ProcurementCostConfidenceUnitBased
+	case SettlementTruthModeUnmeteredProxy:
+		return ProcurementCostConfidenceUnmetered
 	default:
 		return ProcurementCostConfidenceHybridUsage
 	}
@@ -213,7 +221,7 @@ func procurementConsumptionQuantity(logRow *model.Log) float64 {
 	case "image", "request", "char", "second", "minute", "video":
 		return logRow.BillingInputQuantity + logRow.BillingOutputQuantity
 	case "token":
-		return logRow.BillingInputQuantity + logRow.BillingOutputQuantity
+		return logRow.BillingInputQuantity + logRow.BillingOutputQuantity + logRow.BillingCacheReadQuantity + logRow.BillingCacheWriteQuantity
 	default:
 		return logRow.BillingInputQuantity + logRow.BillingOutputQuantity
 	}

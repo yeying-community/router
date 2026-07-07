@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
+	relaymodel "github.com/yeying-community/router/internal/relay/model"
 )
 
 func TestResolveImageBillingMode(t *testing.T) {
@@ -162,6 +163,140 @@ func TestComputeTokenBasedBillingSnapshot(t *testing.T) {
 	}
 }
 
+func TestComputeTextBillingSnapshotWithUsageSplitsCachePricing(t *testing.T) {
+	pricing := adminmodel.ResolvedModelPricing{
+		Model:       "gpt-5.4",
+		PriceUnit:   adminmodel.ProviderPriceUnitPer1KTokens,
+		InputPrice:  0.01,
+		OutputPrice: 0.03,
+		Currency:    adminmodel.ProviderPriceCurrencyUSD,
+		PriceComponents: []adminmodel.ProviderModelPriceComponentDetail{
+			{
+				Component:  adminmodel.ProviderModelPriceComponentTextCacheRead,
+				InputPrice: 0.002,
+				PriceUnit:  adminmodel.ProviderPriceUnitPer1KTokens,
+				Currency:   adminmodel.ProviderPriceCurrencyUSD,
+			},
+			{
+				Component:  adminmodel.ProviderModelPriceComponentTextCacheWrite,
+				InputPrice: 0.012,
+				PriceUnit:  adminmodel.ProviderPriceUnitPer1KTokens,
+				Currency:   adminmodel.ProviderPriceCurrencyUSD,
+			},
+		},
+	}
+	usage := relaymodel.Usage{
+		PromptTokens:     1000,
+		CompletionTokens: 2000,
+		PromptTokensDetails: &relaymodel.PromptTokensDetails{
+			CacheReadTokens:     300,
+			CacheCreationTokens: 100,
+		},
+	}
+
+	snapshot, err := ComputeTextBillingSnapshotWithUsage(usage, pricing, 1)
+	if err != nil {
+		t.Fatalf("ComputeTextBillingSnapshotWithUsage() error = %v", err)
+	}
+	if snapshot.InputQuantity != 1000 {
+		t.Fatalf("InputQuantity = %v, want 1000", snapshot.InputQuantity)
+	}
+	if snapshot.OutputQuantity != 2000 {
+		t.Fatalf("OutputQuantity = %v, want 2000", snapshot.OutputQuantity)
+	}
+	if snapshot.CacheReadQuantity != 300 {
+		t.Fatalf("CacheReadQuantity = %v, want 300", snapshot.CacheReadQuantity)
+	}
+	if snapshot.CacheWriteQuantity != 100 {
+		t.Fatalf("CacheWriteQuantity = %v, want 100", snapshot.CacheWriteQuantity)
+	}
+	wantInputAmount := 600*0.01/1000 + 300*0.002/1000 + 100*0.012/1000
+	wantCacheReadAmount := 300 * 0.002 / 1000
+	wantCacheWriteAmount := 100 * 0.012 / 1000
+	if math.Abs(snapshot.InputAmount-wantInputAmount) > 1e-12 {
+		t.Fatalf("InputAmount = %v, want %v", snapshot.InputAmount, wantInputAmount)
+	}
+	if math.Abs(snapshot.CacheReadAmount-wantCacheReadAmount) > 1e-12 {
+		t.Fatalf("CacheReadAmount = %v, want %v", snapshot.CacheReadAmount, wantCacheReadAmount)
+	}
+	if math.Abs(snapshot.CacheWriteAmount-wantCacheWriteAmount) > 1e-12 {
+		t.Fatalf("CacheWriteAmount = %v, want %v", snapshot.CacheWriteAmount, wantCacheWriteAmount)
+	}
+	if math.Abs(snapshot.OutputAmount-0.06) > 1e-12 {
+		t.Fatalf("OutputAmount = %v, want 0.06", snapshot.OutputAmount)
+	}
+	if math.Abs(snapshot.Amount-(wantInputAmount+0.06)) > 1e-12 {
+		t.Fatalf("Amount = %v, want %v", snapshot.Amount, wantInputAmount+0.06)
+	}
+}
+
+func TestComputeTextBillingSnapshotWithUsageFallsBackToInputPriceForCache(t *testing.T) {
+	pricing := adminmodel.ResolvedModelPricing{
+		Model:       "gpt-5.4",
+		PriceUnit:   adminmodel.ProviderPriceUnitPer1KTokens,
+		InputPrice:  0.01,
+		OutputPrice: 0.03,
+		Currency:    adminmodel.ProviderPriceCurrencyUSD,
+	}
+	usage := relaymodel.Usage{
+		PromptTokens:     1000,
+		CompletionTokens: 0,
+		PromptTokensDetails: &relaymodel.PromptTokensDetails{
+			CachedTokens: 400,
+		},
+	}
+
+	snapshot, err := ComputeTextBillingSnapshotWithUsage(usage, pricing, 1)
+	if err != nil {
+		t.Fatalf("ComputeTextBillingSnapshotWithUsage() error = %v", err)
+	}
+	if math.Abs(snapshot.InputAmount-0.01) > 1e-12 {
+		t.Fatalf("InputAmount = %v, want 0.01", snapshot.InputAmount)
+	}
+}
+
+func TestComputeTextBillingSnapshotWithUsageSelectsTieredCachePricing(t *testing.T) {
+	pricing := adminmodel.ResolvedModelPricing{
+		Model:       "gemini-2.5-pro",
+		PriceUnit:   adminmodel.ProviderPriceUnitPer1KTokens,
+		InputPrice:  0.00125,
+		OutputPrice: 0.01,
+		Currency:    adminmodel.ProviderPriceCurrencyUSD,
+		PriceComponents: []adminmodel.ProviderModelPriceComponentDetail{
+			{
+				Component:  adminmodel.ProviderModelPriceComponentTextCacheRead,
+				Condition:  "mode=standard;prompt_tokens_lte=200000",
+				InputPrice: 0.000125,
+				PriceUnit:  adminmodel.ProviderPriceUnitPer1KTokens,
+				Currency:   adminmodel.ProviderPriceCurrencyUSD,
+			},
+			{
+				Component:  adminmodel.ProviderModelPriceComponentTextCacheRead,
+				Condition:  "mode=standard;prompt_tokens_gt=200000",
+				InputPrice: 0.00025,
+				PriceUnit:  adminmodel.ProviderPriceUnitPer1KTokens,
+				Currency:   adminmodel.ProviderPriceCurrencyUSD,
+			},
+		},
+	}
+	usage := relaymodel.Usage{
+		PromptTokens:     200001,
+		CompletionTokens: 0,
+		PromptTokensDetails: &relaymodel.PromptTokensDetails{
+			CachedTokens: 1000,
+		},
+	}
+
+	snapshot, err := ComputeTextBillingSnapshotWithUsage(usage, pricing, 1)
+	if err != nil {
+		t.Fatalf("ComputeTextBillingSnapshotWithUsage() error = %v", err)
+	}
+	wantCacheReadAmount := 1000 * 0.00025 / 1000
+	if math.Abs(snapshot.CacheReadAmount-wantCacheReadAmount) > 1e-12 {
+		t.Fatalf("CacheReadAmount = %v, want %v", snapshot.CacheReadAmount, wantCacheReadAmount)
+	}
+}
+
 func TestComputeResponseImageToolTokenBasedBillingSnapshot(t *testing.T) {
 	pricing := adminmodel.ResolvedModelPricing{
 		Model:       "gpt-image-2",
@@ -274,5 +409,24 @@ func TestProcurementConsumptionCandidatesFromSnapshotPreferCurrencyEquivalent(t 
 	}
 	if got[1].CapacityUnit != "token" || got[1].Quantity != 3000 {
 		t.Fatalf("second candidate=%+v, want token/3000", got[1])
+	}
+}
+
+func TestProcurementConsumptionCandidatesFromSnapshotIncludeCacheTokenQuantities(t *testing.T) {
+	snapshot := &BillingSnapshot{
+		PriceUnit:          adminmodel.ProviderPriceUnitPer1KTokens,
+		InputQuantity:      1000,
+		OutputQuantity:     2000,
+		CacheReadQuantity:  300,
+		CacheWriteQuantity: 400,
+	}
+
+	got := procurementConsumptionCandidatesFromSnapshot(snapshot)
+
+	if len(got) != 1 {
+		t.Fatalf("candidates len=%d, want 1", len(got))
+	}
+	if got[0].CapacityUnit != "token" || got[0].Quantity != 3700 {
+		t.Fatalf("candidate=%+v, want token/3700", got[0])
 	}
 }

@@ -21,7 +21,6 @@ import (
 
 	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/ctxkey"
-	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
 	"github.com/yeying-community/router/internal/admin/model"
 	adminmodel "github.com/yeying-community/router/internal/admin/model"
@@ -699,34 +698,6 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 
 	requestPackageAmount := resolveImageRequestPackageAmount(imageRequest)
-	if requestPackagePlan, matched, quotaErr := tryBuildRequestPackageBillingPlanWithAmount(ctx, meta, requestPackageAmount); quotaErr != nil || (matched && requestPackagePlan.UsesRequestPackage()) {
-		if quotaErr != nil {
-			return quotaErr
-		}
-		groupQuotaSettled := false
-		defer func() {
-			if !groupQuotaSettled {
-				releaseRelayBillingPlan(ctx, requestPackagePlan)
-			}
-		}()
-		resp, err := adaptor.DoRequest(c, meta, requestBody)
-		if err != nil {
-			return openai.ErrorWrapper(err, classifyImageRequestErrorCode(err), http.StatusInternalServerError)
-		}
-		if resp != nil &&
-			resp.StatusCode != http.StatusCreated &&
-			resp.StatusCode != http.StatusOK {
-			return RelayErrorHandler(meta, resp)
-		}
-		if _, respErr := adaptor.DoResponse(c, resp, meta); respErr != nil {
-			logger.Errorf(ctx, "image request package response failed user_id=%s group=%s channel_id=%s model=%s endpoint=%s err=%+v", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), c.Request.URL.Path, respErr)
-			return respErr
-		}
-		go settleRequestPackageOnlyConsumption(ctx, meta, imageRequest.Model, c.GetString(ctxkey.TokenName), 0, 0, helper.CalcElapsedTime(meta.StartTime), false, requestPackagePlan)
-		groupQuotaSettled = true
-		return nil
-	}
-
 	imageCount := imageRequest.N
 	if meta.ChannelProtocol == relaychannel.Replicate {
 		imageCount = 1
@@ -851,7 +822,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return openai.ErrorWrapper(snapshotErr, "calculate_image_quota_failed", http.StatusInternalServerError)
 		}
 		billingSnapshot.PricingSource = strings.TrimSpace(pricing.Source)
-		billingSnapshot.UsageSource = ""
+		billingSnapshot.UsageSource = billingUsageSourceRequestPayload
 		billingSnapshot.EstimateSource = imageEstimateSourceImageCountRatio
 		billingSnapshot.SettlementMode = imageSettlementModeEstimateOnly
 	}
@@ -860,7 +831,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return openai.ErrorWrapper(err, "calculate_image_quota_failed", http.StatusInternalServerError)
 	}
 	quota := billingSnapshot.ChargeAmount
-	billingPlan, quotaErr := reserveRelayQuota(ctx, meta, quota)
+	billingPlan, quotaErr := reserveRelayQuotaWithRequestAmount(ctx, meta, quota, requestPackageAmount)
 	if quotaErr != nil {
 		return quotaErr
 	}
@@ -872,15 +843,12 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}()
 
 	if billingPlan.ChargeUserBalance() {
-		if _, expireErr := model.ExpireUserBalanceLots(meta.UserId); expireErr != nil {
-			logger.Errorf(ctx, "image billing expire lots failed user_id=%s group=%s channel_id=%s model=%s err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), expireErr.Error())
-		}
-		userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
+		userBalanceAmount, err := getAvailableUserBalanceForBilling(ctx, meta.UserId, meta.Group)
 		if err != nil {
-			return openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
+			return openai.ErrorWrapper(err, "get_user_balance_failed", http.StatusInternalServerError)
 		}
-		if userQuota-quota < 0 {
-			return openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+		if userBalanceAmount-quota < 0 {
+			return openai.ErrorWrapper(errors.New("user balance is not enough"), "insufficient_user_balance", http.StatusForbidden)
 		}
 	}
 
@@ -922,15 +890,8 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 					logger.Errorf(ctx, "image billing failed code=post_consume_token_remain_quota_failed user_id=%s group=%s channel_id=%s model=%s token_id=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), strings.TrimSpace(meta.TokenId), quota, billingPlan.ChargeUserBalance(), err.Error())
 				}
 			}
-		} else if billingPlan.ChargeUserBalance() && quota != 0 {
-			if err := model.DecreaseUserQuota(meta.UserId, quota); err != nil {
-				logger.Errorf(ctx, "image billing failed code=post_consume_user_quota_failed user_id=%s group=%s channel_id=%s model=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), quota, billingPlan.ChargeUserBalance(), err.Error())
-			}
 		}
 		if billingPlan.ChargeUserBalance() {
-			if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
-				logger.Errorf(ctx, "image billing failed code=update_user_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), quota, billingPlan.ChargeUserBalance(), err.Error())
-			}
 			if quota > 0 {
 				consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(meta.UserId, meta.Group, quota)
 				if consumeErr != nil {
@@ -938,6 +899,12 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 				} else if consumedFromLots < quota {
 					logger.Warnf(ctx, "image billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), consumedFromLots, quota)
 				}
+			}
+			if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
+				logger.Errorf(ctx, "image billing failed code=update_user_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), quota, billingPlan.ChargeUserBalance(), err.Error())
+			}
+			if err := model.CacheUpdateUserQuotaForGroup(ctx, meta.UserId, meta.Group); err != nil {
+				logger.Errorf(ctx, "image billing failed code=update_user_group_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), quota, billingPlan.ChargeUserBalance(), err.Error())
 			}
 		}
 		tokenName := c.GetString(ctxkey.TokenName)
@@ -964,6 +931,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		model.UpdateUserUsedQuotaAndRequestCount(meta.UserId, quota)
 		channelId := c.GetString(ctxkey.ChannelId)
 		model.UpdateChannelUsedQuota(channelId, quota)
+		consumeTokenRequestCount(ctx, meta.TokenId, 1)
 	}(c.Request.Context())
 	groupQuotaSettled = true
 

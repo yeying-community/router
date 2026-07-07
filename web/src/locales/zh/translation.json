@@ -118,9 +118,10 @@
     "external_topup": {
       "title": "额度充值",
       "current_balance": "当前余额",
-      "total_balance": "总余额",
+      "total_balance": "赠送余额",
       "topup_balance": "充值余额",
       "redeem_balance": "兑换余额",
+      "gift_balance": "赠送余额",
       "button": "立即充值",
       "package_button": "购买套餐",
       "creating": "创建订单中...",
@@ -1483,6 +1484,8 @@
       "name": "名称",
       "group": "分组",
       "applicable_models": "适用模型",
+      "model_count": "模型数量",
+      "visibility_scope": "可见范围",
       "package_type": "类型",
       "sale_price": "售价",
       "daily_quota_limit": "每日额度",
@@ -1501,6 +1504,10 @@
     "status": {
       "enabled": "已启用",
       "disabled": "已禁用"
+    },
+    "visibility": {
+      "all": "全部",
+      "partial": "部分"
     },
     "buttons": {
       "add": "新增套餐",
@@ -1600,6 +1607,8 @@
       "token": "令牌",
       "used_amount": "已用",
       "remain_amount": "剩余",
+      "used_request_count": "已用次数",
+      "remain_request_count": "剩余次数",
       "used_quota": "已用 YYC",
       "remain_quota": "剩余 YYC",
       "created_time": "创建时间",
@@ -1671,6 +1680,9 @@
       "quota_notice": "注意，令牌的剩余额度仅限制该令牌自身的可用余额，实际调用仍受到账户剩余额度约束。",
       "quota": "剩余额度",
       "quota_placeholder": "请输入剩余额度",
+      "request_count": "剩余请求次数",
+      "request_count_notice": "仅限制该令牌自身可调用次数；不限次数时仍受账户套餐、余额和模型范围约束。",
+      "request_count_placeholder": "请输入剩余请求次数",
       "buttons": {
         "never_expire": "永不过期",
         "expire_1_month": "一个月后过期",
@@ -1678,6 +1690,7 @@
         "expire_1_hour": "一小时后过期",
         "expire_1_minute": "一分钟后过期",
         "unlimited_quota": "设为不限额",
+        "unlimited_request_count": "不限次数",
         "cancel_unlimited": "取消不限额",
         "submit": "确认",
         "cancel": "取消"
@@ -1685,10 +1698,13 @@
       "messages": {
         "update_success": "令牌更新成功！",
         "create_success": "令牌创建成功，请立即复制并妥善保存完整令牌！",
+        "load_failed": "令牌加载失败。",
+        "not_found": "令牌不存在或无权访问",
         "name_required": "请输入令牌名称。",
         "id_required": "令牌标识为空，请刷新页面后重试。",
         "expire_time_invalid": "过期时间格式错误！",
         "quota_invalid": "剩余额度格式错误。",
+        "request_count_invalid": "剩余请求次数必须大于 0。",
         "models_unavailable": "当前账号暂无可用模型，请先购买套餐或充值后再创建令牌。",
         "models_required": "请至少选择一个模型。"
       }
@@ -1859,6 +1875,7 @@
       "username_placeholder": "可选值",
       "prompt_tokens": "提示词消耗",
       "completion_tokens": "补全消耗",
+      "cache_tokens": "缓存读/写",
       "quota": "金额",
       "detail": "详情"
     },
@@ -1947,15 +1964,24 @@
         "billing_estimate_estimator": "估算器",
         "billing_estimate_precision": "估算精度",
         "estimated_prompt_tokens": "预估提示词消耗",
+        "estimated_output_tokens": "预估输出计费数量",
         "billing_settlement_mode": "结算模式",
         "billing_group_ratio": "命中业务倍率",
         "billing_charge_rate": "折算比率",
         "billing_input_quantity": "输入计费数量",
         "billing_output_quantity": "输出计费数量",
+        "billing_cache_read_quantity": "缓存读取数量",
+        "billing_cache_write_quantity": "缓存写入数量",
         "billing_input_amount": "输入金额",
         "billing_output_amount": "输出金额",
+        "billing_cache_read_amount": "缓存读取金额",
+        "billing_cache_write_amount": "缓存写入金额",
         "billing_amount": "计费金额",
         "billing_charge_amount": "折算金额",
+        "estimated_charge_amount": "预估折算金额",
+        "billing_charge_delta_amount": "实结-预估金额",
+        "billing_prompt_token_delta": "提示词偏差",
+        "billing_output_token_delta": "输出偏差",
         "billing_image_tool_calls": "图片工具调用次数",
         "billing_image_tool_output_tokens": "图片工具输出词元",
         "billing_image_tool_amount": "图片工具金额",
