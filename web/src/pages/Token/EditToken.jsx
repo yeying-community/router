@@ -488,17 +488,21 @@ const EditToken = () => {
   const loadToken = useCallback(async () => {
     try {
       let res = await API.get(`/api/v1/public/token/${tokenId}`);
-      const { success, message, data } = res.data || {};
+      const { success, message, data, code } = res.data || {};
       if (success && data) {
         syncTokenState(data);
       } else {
-        showError(message || 'Failed to load token');
+        const errorMessage = message || t('token.edit.messages.load_failed');
+        showError(errorMessage);
+        if (code === 'token_not_found') {
+          navigate('/workspace/token', { replace: true });
+        }
       }
     } catch (error) {
-      showError(error.message || 'Network error');
+      showError(error.message || t('token.edit.messages.load_failed'));
     }
     setLoading(false);
-  }, [syncTokenState, tokenId]);
+  }, [navigate, syncTokenState, t, tokenId]);
 
   const loadAvailableModels = useCallback(async () => {
     try {

@@ -1697,6 +1697,8 @@
       "messages": {
         "update_success": "Token updated successfully!",
         "create_success": "Token created successfully, please copy and save the full token now!",
+        "load_failed": "Failed to load token.",
+        "not_found": "Token does not exist or you do not have access.",
         "name_required": "Please enter a token name.",
         "id_required": "Token id is empty. Please refresh the page and try again.",
         "expire_time_invalid": "Invalid expiry time format!",

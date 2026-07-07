@@ -2,6 +2,7 @@ package token
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -16,7 +17,11 @@ import (
 	"github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/admin/presenter"
 	tokensvc "github.com/yeying-community/router/internal/admin/service/token"
+	"gorm.io/gorm"
 )
+
+const tokenNotFoundMessage = "令牌不存在或无权访问"
+const tokenNotFoundCode = "token_not_found"
 
 func GetAllTokens(c *gin.Context) {
 	userId := c.GetString(ctxkey.Id)
@@ -87,9 +92,16 @@ func GetToken(c *gin.Context) {
 	}
 	token, err := tokensvc.GetByIDs(id, userId)
 	if err != nil {
+		message := err.Error()
+		code := ""
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			message = tokenNotFoundMessage
+			code = tokenNotFoundCode
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": message,
+			"code":    code,
 		})
 		return
 	}

@@ -1697,6 +1697,8 @@
       "messages": {
         "update_success": "令牌更新成功！",
         "create_success": "令牌创建成功，请立即复制并妥善保存完整令牌！",
+        "load_failed": "令牌加载失败。",
+        "not_found": "令牌不存在或无权访问",
         "name_required": "请输入令牌名称。",
         "id_required": "令牌标识为空，请刷新页面后重试。",
         "expire_time_invalid": "过期时间格式错误！",
