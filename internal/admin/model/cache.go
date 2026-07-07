@@ -78,7 +78,7 @@ func CacheGetUserGroup(id string) (group string, err error) {
 }
 
 func fetchAndUpdateUserQuota(ctx context.Context, id string) (quota int64, err error) {
-	quota, err = GetUserQuota(id)
+	quota, err = GetEffectiveUserBalanceAmount(id)
 	if err != nil {
 		return 0, err
 	}
@@ -89,11 +89,35 @@ func fetchAndUpdateUserQuota(ctx context.Context, id string) (quota int64, err e
 	return
 }
 
+func userQuotaCacheKey(id string) string {
+	return fmt.Sprintf("user_quota:%s", strings.TrimSpace(id))
+}
+
+func userGroupQuotaCacheKey(id string, groupID string) string {
+	return fmt.Sprintf("user_quota:%s:group:%s", strings.TrimSpace(id), strings.TrimSpace(groupID))
+}
+
+func fetchAndUpdateUserQuotaForGroup(ctx context.Context, id string, groupID string) (quota int64, err error) {
+	normalizedGroupID := strings.TrimSpace(groupID)
+	if normalizedGroupID == "" {
+		return fetchAndUpdateUserQuota(ctx, id)
+	}
+	quota, err = GetEffectiveUserBalanceAmountForGroup(id, normalizedGroupID)
+	if err != nil {
+		return 0, err
+	}
+	err = common.RedisSet(userGroupQuotaCacheKey(id, normalizedGroupID), fmt.Sprintf("%d", quota), time.Duration(UserId2QuotaCacheSeconds)*time.Second)
+	if err != nil {
+		logger.Error(ctx, "Redis set user group quota error: "+err.Error())
+	}
+	return quota, nil
+}
+
 func CacheGetUserQuota(ctx context.Context, id string) (quota int64, err error) {
 	if !common.RedisEnabled {
-		return GetUserQuota(id)
+		return GetEffectiveUserBalanceAmount(id)
 	}
-	quotaString, err := common.RedisGet(fmt.Sprintf("user_quota:%s", id))
+	quotaString, err := common.RedisGet(userQuotaCacheKey(id))
 	if err != nil {
 		return fetchAndUpdateUserQuota(ctx, id)
 	}
@@ -108,15 +132,45 @@ func CacheGetUserQuota(ctx context.Context, id string) (quota int64, err error) 
 	return quota, nil
 }
 
+func CacheGetUserQuotaForGroup(ctx context.Context, id string, groupID string) (quota int64, err error) {
+	normalizedGroupID := strings.TrimSpace(groupID)
+	if normalizedGroupID == "" {
+		return CacheGetUserQuota(ctx, id)
+	}
+	if !common.RedisEnabled {
+		return GetEffectiveUserBalanceAmountForGroup(id, normalizedGroupID)
+	}
+	quotaString, err := common.RedisGet(userGroupQuotaCacheKey(id, normalizedGroupID))
+	if err != nil {
+		return fetchAndUpdateUserQuotaForGroup(ctx, id, normalizedGroupID)
+	}
+	quota, err = strconv.ParseInt(quotaString, 10, 64)
+	if err != nil {
+		return 0, nil
+	}
+	if quota <= config.PreConsumedQuota {
+		logger.Infof(ctx, "user %s group %s cached quota is too low: %d, refreshing from db", id, normalizedGroupID, quota)
+		return fetchAndUpdateUserQuotaForGroup(ctx, id, normalizedGroupID)
+	}
+	return quota, nil
+}
+
 func CacheUpdateUserQuota(ctx context.Context, id string) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	quota, err := CacheGetUserQuota(ctx, id)
-	if err != nil {
-		return err
+	_, err := fetchAndUpdateUserQuota(ctx, id)
+	return err
+}
+
+func CacheUpdateUserQuotaForGroup(ctx context.Context, id string, groupID string) error {
+	if strings.TrimSpace(groupID) == "" {
+		return nil
 	}
-	err = common.RedisSet(fmt.Sprintf("user_quota:%s", id), fmt.Sprintf("%d", quota), time.Duration(UserId2QuotaCacheSeconds)*time.Second)
+	if !common.RedisEnabled {
+		return nil
+	}
+	_, err := fetchAndUpdateUserQuotaForGroup(ctx, id, groupID)
 	return err
 }
 
@@ -124,8 +178,19 @@ func CacheDecreaseUserQuota(id string, quota int64) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	err := common.RedisDecrease(fmt.Sprintf("user_quota:%s", id), int64(quota))
+	err := common.RedisDecrease(userQuotaCacheKey(id), int64(quota))
 	return err
+}
+
+func CacheDecreaseUserQuotaForGroup(id string, groupID string, quota int64) error {
+	normalizedGroupID := strings.TrimSpace(groupID)
+	if normalizedGroupID == "" {
+		return nil
+	}
+	if !common.RedisEnabled {
+		return nil
+	}
+	return common.RedisDecrease(userGroupQuotaCacheKey(id, normalizedGroupID), int64(quota))
 }
 
 func CacheIsUserEnabled(userId string) (bool, error) {
@@ -560,6 +625,12 @@ func RefreshUserGroupCaches(userIDs ...string) {
 		}
 		if err := common.RedisDel(fmt.Sprintf("user_group:%s", userID)); err != nil {
 			logger.SysError("Redis delete legacy user group error: " + err.Error())
+		}
+		if err := common.RedisDel(userQuotaCacheKey(userID)); err != nil {
+			logger.SysError("Redis delete user quota error: " + err.Error())
+		}
+		if err := common.RedisDelByPattern(userGroupQuotaCacheKey(userID, "*")); err != nil {
+			logger.SysError("Redis delete user group quota error: " + err.Error())
 		}
 	}
 }

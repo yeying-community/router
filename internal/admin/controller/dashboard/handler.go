@@ -1238,8 +1238,24 @@ func buildUsageRankingWithKeyword(startAt int64, endAt int64, totalConsumeQuota 
 		CreatedAt     int64  `gorm:"column:created_at"`
 	}
 	userRows := make([]dashboardUserRow, 0)
+	now := helper.GetTimestamp()
 	userQuery := model.DB.Table("users AS u").
-		Select("u.id AS user_id, COALESCE(NULLIF(TRIM(u.display_name), ''), NULLIF(TRIM(u.username), ''), u.id) AS username, COALESCE(u.quota, 0) AS balance_amount, COALESCE(u.created_at, 0) AS created_at").
+		Select(`
+			u.id AS user_id,
+			COALESCE(NULLIF(TRIM(u.display_name), ''), NULLIF(TRIM(u.username), ''), u.id) AS username,
+			COALESCE(balance_lots.balance_amount, 0) AS balance_amount,
+			COALESCE(u.created_at, 0) AS created_at
+		`).
+		Joins(`
+			LEFT JOIN (
+				SELECT user_id, COALESCE(SUM(remaining_amount), 0) AS balance_amount
+				FROM user_balance_lots
+				WHERE status = ?
+				  AND remaining_amount > 0
+				  AND (expires_at = 0 OR expires_at > ?)
+				GROUP BY user_id
+			) AS balance_lots ON balance_lots.user_id = u.id
+		`, model.UserBalanceLotStatusActive, now).
 		Where("u.status != ?", model.UserStatusDeleted)
 	if keyword != "" {
 		like := "%" + keyword + "%"

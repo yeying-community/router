@@ -382,6 +382,7 @@ func isLocalQuotaRelayError(err *model.ErrorWithStatusCode) bool {
 	case "group_daily_quota_exceeded",
 		"user_quota_limit_exceeded",
 		"insufficient_user_quota",
+		"insufficient_user_balance",
 		"pre_consume_token_quota_failed":
 		return true
 	default:

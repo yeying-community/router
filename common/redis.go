@@ -99,6 +99,29 @@ func RedisDel(key string) error {
 	return RDB.Del(ctx, key).Err()
 }
 
+func RedisDelByPattern(pattern string) error {
+	if err := ensureRedisClient(); err != nil {
+		return err
+	}
+	ctx := context.Background()
+	var cursor uint64
+	for {
+		keys, nextCursor, err := RDB.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return err
+		}
+		if len(keys) > 0 {
+			if err := RDB.Del(ctx, keys...).Err(); err != nil {
+				return err
+			}
+		}
+		cursor = nextCursor
+		if cursor == 0 {
+			return nil
+		}
+	}
+}
+
 func RedisDecrease(key string, value int64) error {
 	if err := ensureRedisClient(); err != nil {
 		return err

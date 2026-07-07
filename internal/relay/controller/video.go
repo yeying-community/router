@@ -384,15 +384,12 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 	}()
 	if billingPlan.ChargeUserBalance() {
-		if _, expireErr := model.ExpireUserBalanceLots(meta.UserId); expireErr != nil {
-			logger.Errorf(ctx, "video billing expire lots failed user_id=%s group=%s channel_id=%s model=%s err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), expireErr.Error())
-		}
-		userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
+		userBalanceAmount, err := getAvailableUserBalanceForBilling(ctx, meta.UserId, meta.Group)
 		if err != nil {
-			return openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
+			return openai.ErrorWrapper(err, "get_user_balance_failed", http.StatusInternalServerError)
 		}
-		if userQuota-quota < 0 {
-			return openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+		if userBalanceAmount-quota < 0 {
+			return openai.ErrorWrapper(errors.New("user balance is not enough"), "insufficient_user_balance", http.StatusForbidden)
 		}
 	}
 
@@ -453,15 +450,8 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			if err != nil {
 				logger.Errorf(ctx, "video billing failed code=post_consume_token_quota_failed user_id=%s group=%s channel_id=%s model=%s token_id=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), strings.TrimSpace(meta.TokenId), quota, billingPlan.ChargeUserBalance(), err.Error())
 			}
-		} else if billingPlan.ChargeUserBalance() {
-			if err := model.DecreaseUserQuota(meta.UserId, quota); err != nil {
-				logger.Errorf(ctx, "video billing failed code=post_consume_user_quota_failed user_id=%s group=%s channel_id=%s model=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), quota, billingPlan.ChargeUserBalance(), err.Error())
-			}
 		}
 		if billingPlan.ChargeUserBalance() {
-			if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
-				logger.Errorf(ctx, "video billing failed code=update_user_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), quota, billingPlan.ChargeUserBalance(), err.Error())
-			}
 			if quota > 0 {
 				consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(meta.UserId, meta.Group, quota)
 				if consumeErr != nil {
@@ -469,6 +459,12 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 				} else if consumedFromLots < quota {
 					logger.Warnf(ctx, "video billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), consumedFromLots, quota)
 				}
+			}
+			if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
+				logger.Errorf(ctx, "video billing failed code=update_user_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), quota, billingPlan.ChargeUserBalance(), err.Error())
+			}
+			if err := model.CacheUpdateUserQuotaForGroup(ctx, meta.UserId, meta.Group); err != nil {
+				logger.Errorf(ctx, "video billing failed code=update_user_group_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), quota, billingPlan.ChargeUserBalance(), err.Error())
 			}
 		}
 		tokenName := c.GetString(ctxkey.TokenName)

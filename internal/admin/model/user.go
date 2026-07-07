@@ -37,7 +37,6 @@ type User struct {
 	WalletAddress    *string `json:"wallet_address" gorm:"column:wallet_address;uniqueIndex" validate:"omitempty"`
 	VerificationCode string  `json:"verification_code" gorm:"-:all"`
 	AccessToken      string  `json:"access_token" gorm:"type:char(32);column:access_token;uniqueIndex"`
-	Quota            int64   `json:"quota" gorm:"bigint;default:0"`
 	UsedQuota        int64   `json:"used_quota" gorm:"bigint;default:0;column:used_quota"`
 	RequestCount     int     `json:"request_count" gorm:"type:int;default:0;"`
 	Group            string  `json:"group" gorm:"type:varchar(32);default:''"`
@@ -248,22 +247,6 @@ func GetUserEmail(id string) (string, error) {
 
 func GetUserGroup(id string) (string, error) {
 	return mustUserRepo().GetUserGroup(id)
-}
-
-func IncreaseUserQuota(id string, quota int64) error {
-	return mustUserRepo().IncreaseUserQuota(id, quota)
-}
-
-func increaseUserQuota(id string, quota int64) error {
-	return mustUserRepo().IncreaseUserQuotaDirect(id, quota)
-}
-
-func DecreaseUserQuota(id string, quota int64) error {
-	return mustUserRepo().DecreaseUserQuota(id, quota)
-}
-
-func decreaseUserQuota(id string, quota int64) error {
-	return mustUserRepo().DecreaseUserQuotaDirect(id, quota)
 }
 
 func GetRootUserEmail() string {

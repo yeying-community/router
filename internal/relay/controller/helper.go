@@ -88,6 +88,24 @@ func resolveTextMaxOutputTokens(textRequest *relaymodel.GeneralOpenAIRequest) in
 	return maxTokens
 }
 
+func getAvailableUserBalanceForBilling(ctx context.Context, userID string, groupID string) (int64, error) {
+	userBalanceAmount, err := model.CacheGetUserQuota(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	if strings.TrimSpace(groupID) == "" {
+		return userBalanceAmount, nil
+	}
+	groupBalanceAmount, err := model.CacheGetUserQuotaForGroup(ctx, userID, groupID)
+	if err != nil {
+		return 0, err
+	}
+	if groupBalanceAmount < userBalanceAmount {
+		return groupBalanceAmount, nil
+	}
+	return userBalanceAmount, nil
+}
+
 func preConsumeQuota(ctx context.Context, preConsumedQuota int64, meta *meta.Meta, billingPlan relayBillingPlan) (int64, *relaymodel.ErrorWithStatusCode) {
 	var err error
 	chargeUserBalance := billingPlan.ChargeUserBalance()
@@ -106,26 +124,26 @@ func preConsumeQuota(ctx context.Context, preConsumedQuota int64, meta *meta.Met
 		}
 		return preConsumedQuota, nil
 	}
-	if _, expireErr := model.ExpireUserBalanceLots(meta.UserId); expireErr != nil {
-		logger.Error(ctx, "expire user balance lots failed: "+expireErr.Error())
-	}
-
-	userQuota, err := model.CacheGetUserQuota(ctx, meta.UserId)
+	userBalanceAmount, err := getAvailableUserBalanceForBilling(ctx, meta.UserId, meta.Group)
 	if err != nil {
-		return preConsumedQuota, openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
+		return preConsumedQuota, openai.ErrorWrapper(err, "get_user_balance_failed", http.StatusInternalServerError)
 	}
-	if userQuota-preConsumedQuota < 0 {
-		return preConsumedQuota, openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+	if userBalanceAmount-preConsumedQuota < 0 {
+		return preConsumedQuota, openai.ErrorWrapper(errors.New("user balance is not enough"), "insufficient_user_balance", http.StatusForbidden)
+	}
+	if userBalanceAmount > 100*preConsumedQuota {
+		// in this case, we do not pre-consume quota
+		// because the user has enough quota
+		logger.Debugf(ctx, "user %s has enough balance %d, trusted and no need to pre-consume", meta.UserId, userBalanceAmount)
+		return 0, nil
 	}
 	err = model.CacheDecreaseUserQuota(meta.UserId, preConsumedQuota)
 	if err != nil {
 		return preConsumedQuota, openai.ErrorWrapper(err, "decrease_user_quota_failed", http.StatusInternalServerError)
 	}
-	if userQuota > 100*preConsumedQuota {
-		// in this case, we do not pre-consume quota
-		// because the user has enough quota
-		preConsumedQuota = 0
-		logger.Debugf(ctx, "user %s has enough quota %d, trusted and no need to pre-consume", meta.UserId, userQuota)
+	err = model.CacheDecreaseUserQuotaForGroup(meta.UserId, meta.Group, preConsumedQuota)
+	if err != nil {
+		return preConsumedQuota, openai.ErrorWrapper(err, "decrease_user_group_quota_failed", http.StatusInternalServerError)
 	}
 	if preConsumedQuota > 0 {
 		if strings.TrimSpace(meta.TokenId) != "" {
@@ -133,11 +151,6 @@ func preConsumeQuota(ctx context.Context, preConsumedQuota int64, meta *meta.Met
 			if err != nil {
 				logTokenPreConsumeFailure(ctx, meta, preConsumedQuota, chargeUserBalance, err)
 				return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
-			}
-		} else {
-			err := model.DecreaseUserQuota(meta.UserId, preConsumedQuota)
-			if err != nil {
-				return preConsumedQuota, openai.ErrorWrapper(err, "pre_consume_user_quota_failed", http.StatusForbidden)
 			}
 		}
 	}
@@ -252,21 +265,8 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		if err != nil {
 			logger.Error(ctx, "error consuming token remain quota: "+err.Error())
 		}
-	} else if chargeUserBalance {
-		if quotaDelta > 0 {
-			err = model.DecreaseUserQuota(meta.UserId, quotaDelta)
-		} else if quotaDelta < 0 {
-			err = model.IncreaseUserQuota(meta.UserId, -quotaDelta)
-		}
-		if err != nil {
-			logger.Error(ctx, "error consuming user quota: "+err.Error())
-		}
 	}
 	if chargeUserBalance {
-		err = model.CacheUpdateUserQuota(ctx, meta.UserId)
-		if err != nil {
-			logger.Error(ctx, "error update user quota cache: "+err.Error())
-		}
 		if quota > 0 {
 			consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(meta.UserId, meta.Group, quota)
 			if consumeErr != nil {
@@ -274,6 +274,14 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 			} else if consumedFromLots < quota {
 				logger.Warnf(ctx, "user balance lot coverage partial user=%s consumed=%d requested=%d", strings.TrimSpace(meta.UserId), consumedFromLots, quota)
 			}
+		}
+		err = model.CacheUpdateUserQuota(ctx, meta.UserId)
+		if err != nil {
+			logger.Error(ctx, "error update user quota cache: "+err.Error())
+		}
+		err = model.CacheUpdateUserQuotaForGroup(ctx, meta.UserId, meta.Group)
+		if err != nil {
+			logger.Error(ctx, "error update user group quota cache: "+err.Error())
 		}
 	}
 	userDailyQuota := 0

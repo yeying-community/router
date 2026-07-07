@@ -190,7 +190,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 	preConsumedQuotaSettled := false
 	defer func() {
 		if !preConsumedQuotaSettled && preConsumedQuota > 0 {
-			billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId, meta.UserId, billingPlan.ChargeUserBalance() && billingPlan.ChargeTokenQuota())
+			billing.ReturnPreConsumedQuota(ctx, preConsumedQuota, meta.TokenId, meta.UserId, meta.Group, billingPlan.ChargeUserBalance() && billingPlan.ChargeTokenQuota())
 		}
 	}()
 

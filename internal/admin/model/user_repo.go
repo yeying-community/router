@@ -36,10 +36,6 @@ type UserRepository struct {
 	GetUserUsedQuota                         func(id string) (int64, error)
 	GetUserEmail                             func(id string) (string, error)
 	GetUserGroup                             func(id string) (string, error)
-	IncreaseUserQuota                        func(id string, quota int64) error
-	DecreaseUserQuota                        func(id string, quota int64) error
-	IncreaseUserQuotaDirect                  func(id string, quota int64) error
-	DecreaseUserQuotaDirect                  func(id string, quota int64) error
 	GetRootUserEmail                         func() string
 	UpdateUserUsedQuotaAndRequestCount       func(id string, quota int64)
 	UpdateUserUsedQuotaAndRequestCountDirect func(id string, quota int64, count int)

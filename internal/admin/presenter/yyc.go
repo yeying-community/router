@@ -19,7 +19,7 @@ func NewUser(user *model.User) *User {
 	}
 	return &User{
 		User:          user,
-		BalanceAmount: user.Quota,
+		BalanceAmount: 0,
 		UsedAmount:    user.UsedQuota,
 	}
 }

@@ -60,9 +60,9 @@ const BalanceStatusPage = () => {
   const navigate = useNavigate();
   const [redeemModalOpen, setRedeemModalOpen] = useState(false);
   const {
-    userBalanceAmount,
     topupBalanceAmount,
     redeemBalanceAmount,
+    giftBalanceAmount,
     balanceLots,
     loadingBalanceLots,
     loadBalanceLots,
@@ -139,20 +139,6 @@ const BalanceStatusPage = () => {
             <div className='router-center-panel router-center-panel-tight'>
               <AppStatistic
                 className='router-accent-statistic router-topup-statistic'
-                title={t('topup.external_topup.total_balance')}
-                value={0}
-                formatter={() =>
-                  renderTopupIntegerAmountWithExactPopup({
-                    chargeAmount: userBalanceAmount,
-                    displayCurrency,
-                    displayCurrencyIndex,
-                  })
-                }
-              />
-            </div>
-            <div className='router-center-panel router-center-panel-tight'>
-              <AppStatistic
-                className='router-topup-statistic'
                 title={t('topup.external_topup.topup_balance')}
                 value={0}
                 formatter={() =>
@@ -172,6 +158,20 @@ const BalanceStatusPage = () => {
                 formatter={() =>
                   renderTopupIntegerAmountWithExactPopup({
                     chargeAmount: redeemBalanceAmount,
+                    displayCurrency,
+                    displayCurrencyIndex,
+                  })
+                }
+              />
+            </div>
+            <div className='router-center-panel router-center-panel-tight'>
+              <AppStatistic
+                className='router-topup-statistic'
+                title={t('topup.external_topup.gift_balance')}
+                value={0}
+                formatter={() =>
+                  renderTopupIntegerAmountWithExactPopup({
+                    chargeAmount: giftBalanceAmount,
                     displayCurrency,
                     displayCurrencyIndex,
                   })

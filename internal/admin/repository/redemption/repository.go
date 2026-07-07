@@ -191,7 +191,10 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			redemption.GroupID = strings.TrimSpace(groupRow.Id)
 			redemption.GroupName = strings.TrimSpace(groupRow.Name)
 		}
-		beforeBalanceAmount := user.Quota
+		beforeBalanceAmount, err := model.GetEffectiveUserBalanceAmountWithDB(tx, userId, now)
+		if err != nil {
+			return err
+		}
 		redeemedAt := now
 		creditExpiresAt := model.ResolveBalanceCreditExpiresAt(redeemedAt, redemption.CreditValidityDays)
 		_, creditedNow, err := model.CreditUserBalanceLotWithDB(tx, model.UserBalanceLotCreditInput{
@@ -210,15 +213,15 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			quotaIncrement = redemption.Quota
 		}
 		afterBalanceAmount := beforeBalanceAmount + quotaIncrement
-		userUpdates := map[string]any{
-			"quota": afterBalanceAmount,
-		}
+		userUpdates := map[string]any{}
 		if resolvedGroupID != "" {
 			userUpdates["group"] = resolvedGroupID
 		}
-		err = tx.Model(&model.User{}).Where("id = ?", userId).Updates(userUpdates).Error
-		if err != nil {
-			return err
+		if len(userUpdates) > 0 {
+			err = tx.Model(&model.User{}).Where("id = ?", userId).Updates(userUpdates).Error
+			if err != nil {
+				return err
+			}
 		}
 		redemption.RedeemedTime = redeemedAt
 		redemption.CreditExpiresAt = creditExpiresAt

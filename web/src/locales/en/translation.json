@@ -118,9 +118,10 @@
     "external_topup": {
       "title": "Quota Top-up",
       "current_balance": "Current Balance",
-      "total_balance": "Total Balance",
+      "total_balance": "Gift Balance",
       "topup_balance": "Top-up Balance",
       "redeem_balance": "Redeem Balance",
+      "gift_balance": "Gift Balance",
       "button": "Top Up Now",
       "package_button": "Buy Package",
       "creating": "Creating order...",

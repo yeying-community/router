@@ -114,9 +114,7 @@ function UserWorkspaceEntryRedirect() {
           : null;
         const hasActivePackage = Array.isArray(packageData?.active_packages) &&
           packageData.active_packages.length > 0;
-        const totalBalance = Number(
-          balanceData?.total_balance_amount ?? balanceData?.balance_amount ?? balanceData?.quota ?? 0,
-        );
+        const totalBalance = Number(balanceData?.total_balance_amount ?? 0);
         const hasBalance = Number.isFinite(totalBalance) && totalBalance > 0;
         if (!active) {
           return;

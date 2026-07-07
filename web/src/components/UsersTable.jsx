@@ -594,7 +594,7 @@ const UsersTable = () => {
           user?.display_name,
           user?.wallet_address,
           user?.active_package_name,
-          user?.balance_amount ?? user?.quota,
+          user?.balance_amount ?? 0,
           user?.request_count,
           user?.role,
           user?.status,
@@ -830,7 +830,7 @@ const UsersTable = () => {
             render: (_, user) =>
               formatUserBalanceValue(
                 chargeAmountToBillingInputValue(
-                  user.balance_amount ?? user.quota,
+                  user.balance_amount ?? 0,
                   balanceUnit,
                   currencyIndex,
                 ),

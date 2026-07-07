@@ -123,6 +123,50 @@ func exposedUsers(users []*model.User) []*presenter.User {
 	return items
 }
 
+func attachEffectiveBalanceAmounts(items []*presenter.User) error {
+	if len(items) == 0 {
+		return nil
+	}
+	userIDs := make([]string, 0, len(items))
+	for _, item := range items {
+		if item == nil || item.User == nil {
+			continue
+		}
+		userID := strings.TrimSpace(item.Id)
+		if userID == "" {
+			continue
+		}
+		userIDs = append(userIDs, userID)
+	}
+	if len(userIDs) == 0 {
+		return nil
+	}
+	now := helper.GetTimestamp()
+	type balanceRow struct {
+		UserID        string `gorm:"column:user_id"`
+		BalanceAmount int64  `gorm:"column:balance_amount"`
+	}
+	rows := make([]balanceRow, 0)
+	if err := model.DB.Table("user_balance_lots").
+		Select("user_id, COALESCE(SUM(remaining_amount), 0) AS balance_amount").
+		Where("user_id IN ? AND status = ? AND remaining_amount > 0 AND (expires_at = 0 OR expires_at > ?)", userIDs, model.UserBalanceLotStatusActive, now).
+		Group("user_id").
+		Scan(&rows).Error; err != nil {
+		return err
+	}
+	balanceByUserID := make(map[string]int64, len(rows))
+	for _, row := range rows {
+		balanceByUserID[strings.TrimSpace(row.UserID)] = row.BalanceAmount
+	}
+	for _, item := range items {
+		if item == nil || item.User == nil {
+			continue
+		}
+		item.BalanceAmount = balanceByUserID[strings.TrimSpace(item.Id)]
+	}
+	return nil
+}
+
 func attachActivePackageNames(items []*presenter.User) error {
 	if len(items) == 0 {
 		return nil
@@ -507,6 +551,13 @@ func GetAllUsers(c *gin.Context) {
 	}
 
 	items := exposedUsers(users)
+	if err := attachEffectiveBalanceAmounts(items); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
 	if err := attachActivePackageNames(items); err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -538,6 +589,13 @@ func SearchUsers(c *gin.Context) {
 		return
 	}
 	items := exposedUsers(users)
+	if err := attachEffectiveBalanceAmounts(items); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
 	if err := attachActivePackageNames(items); err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -579,10 +637,18 @@ func GetUser(c *gin.Context) {
 		})
 		return
 	}
+	item := exposedUser(user)
+	if err := attachEffectiveBalanceAmounts([]*presenter.User{item}); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    exposedUser(user),
+		"data":    item,
 	})
 	return
 }
@@ -1146,10 +1212,18 @@ func GetSelf(c *gin.Context) {
 		})
 		return
 	}
+	item := exposedUser(user)
+	if err := attachEffectiveBalanceAmounts([]*presenter.User{item}); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    exposedUser(user),
+		"data":    item,
 	})
 	return
 }
@@ -1571,8 +1645,8 @@ func UpdateUser(c *gin.Context) {
 		updatedUser.Password = "$I_LOVE_U" // make Validator happy :)
 	}
 	if err := common.Validate.Struct(&updatedUser); err != nil {
-		logger.Loginf(c.Request.Context(), "update user invalid input err=%v id=%s username=%s display=%s role=%d status=%d quota=%d used=%d email=%s",
-			err, updatedUser.Id, updatedUser.Username, updatedUser.DisplayName, updatedUser.Role, updatedUser.Status, updatedUser.Quota, updatedUser.UsedQuota, updatedUser.Email)
+		logger.Loginf(c.Request.Context(), "update user invalid input err=%v id=%s username=%s display=%s role=%d status=%d used=%d email=%s",
+			err, updatedUser.Id, updatedUser.Username, updatedUser.DisplayName, updatedUser.Role, updatedUser.Status, updatedUser.UsedQuota, updatedUser.Email)
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": i18n.Translate(c, "invalid_input"),
@@ -1669,9 +1743,6 @@ func UpdateUser(c *gin.Context) {
 			"message": err.Error(),
 		})
 		return
-	}
-	if originUser.Quota != updatedUser.Quota {
-		usersvc.RecordLog(ctx, originUser.Id, model.LogTypeManage, fmt.Sprintf("管理员将用户额度从 %s修改为 %s", common.LogQuota(originUser.Quota), common.LogQuota(updatedUser.Quota)))
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -2134,9 +2205,10 @@ type topUpOrderListData struct {
 }
 
 type topUpBalanceSummaryData struct {
-	TotalBalanceAmount  int64 `json:"total_balance_amount"`
 	TopupBalanceAmount  int64 `json:"topup_balance_amount"`
 	RedeemBalanceAmount int64 `json:"redeem_balance_amount"`
+	GiftBalanceAmount   int64 `json:"gift_balance_amount"`
+	TotalBalanceAmount  int64 `json:"total_balance_amount"`
 }
 
 type topUpBalanceLotListData struct {
@@ -2497,13 +2569,6 @@ func parseTopupBalanceLotTransactionPageParams(c *gin.Context) (int, int, string
 	return page, pageSize, sourceType, txType, nil
 }
 
-func minInt64(a int64, b int64) int64 {
-	if a <= b {
-		return a
-	}
-	return b
-}
-
 func normalizeNonNegativeQuota(value int64) int64 {
 	if value < 0 {
 		return 0
@@ -2511,32 +2576,16 @@ func normalizeNonNegativeQuota(value int64) int64 {
 	return value
 }
 
-func buildTopUpBalanceSummary(totalBalance int64, topupRemain int64, redeemRemain int64) topUpBalanceSummaryData {
-	normalizedTotal := normalizeNonNegativeQuota(totalBalance)
+func buildTopUpBalanceSummary(topupRemain int64, redeemRemain int64, giftRemain int64) topUpBalanceSummaryData {
 	normalizedTopup := normalizeNonNegativeQuota(topupRemain)
 	normalizedRedeem := normalizeNonNegativeQuota(redeemRemain)
-
-	sumRemain := normalizedTopup + normalizedRedeem
-	if sumRemain < normalizedTotal {
-		// For historical/manual balance adjustments without source information,
-		// attribute the residual to top-up balance so the split always matches total.
-		normalizedTopup += normalizedTotal - sumRemain
-		sumRemain = normalizedTotal
-	}
-	if sumRemain > normalizedTotal {
-		overflow := sumRemain - normalizedTotal
-		reduceTopup := minInt64(overflow, normalizedTopup)
-		normalizedTopup -= reduceTopup
-		overflow -= reduceTopup
-		if overflow > 0 {
-			normalizedRedeem -= minInt64(overflow, normalizedRedeem)
-		}
-	}
+	normalizedGift := normalizeNonNegativeQuota(giftRemain)
 
 	return topUpBalanceSummaryData{
-		TotalBalanceAmount:  normalizedTotal,
 		TopupBalanceAmount:  normalizedTopup,
 		RedeemBalanceAmount: normalizedRedeem,
+		GiftBalanceAmount:   normalizedGift,
+		TotalBalanceAmount:  normalizedTopup + normalizedRedeem + normalizedGift,
 	}
 }
 
@@ -2553,19 +2602,15 @@ func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
 		logger.Error(c.Request.Context(), "expire user balance lots failed: "+expireErr.Error())
 	}
 
-	user, err := usersvc.GetByID(userID, false)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
-		return
-	}
-
 	var topupRemain int64
-	if err := model.DB.Model(&model.UserBalanceLot{}).
-		Select("COALESCE(SUM(remaining_amount), 0)").
-		Where("user_id = ? AND source_type = ? AND remaining_amount > 0", userID, model.UserBalanceLotSourceTopup).
+	now := helper.GetTimestamp()
+	validLotQuery := "l.user_id = ? AND l.status = ? AND l.remaining_amount > 0 AND (l.expires_at = 0 OR l.expires_at > ?)"
+	if err := model.DB.Table(model.UserBalanceLotsTableName+" AS l").
+		Joins("JOIN "+model.TopupOrdersTableName+" AS o ON o.id = l.source_id").
+		Select("COALESCE(SUM(l.remaining_amount), 0)").
+		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
+		Where("l.source_type = ?", model.UserBalanceLotSourceTopup).
+		Where("COALESCE(o.credit_origin, '') = ?", model.TopupOrderCreditOriginPaid).
 		Scan(&topupRemain).Error; err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -2575,10 +2620,26 @@ func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
 	}
 
 	var redeemRemain int64
-	if err := model.DB.Model(&model.UserBalanceLot{}).
-		Select("COALESCE(SUM(remaining_amount), 0)").
-		Where("user_id = ? AND source_type = ? AND remaining_amount > 0", userID, model.UserBalanceLotSourceRedeem).
+	if err := model.DB.Table(model.UserBalanceLotsTableName+" AS l").
+		Select("COALESCE(SUM(l.remaining_amount), 0)").
+		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
+		Where("l.source_type = ?", model.UserBalanceLotSourceRedeem).
 		Scan(&redeemRemain).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	var giftRemain int64
+	if err := model.DB.Table(model.UserBalanceLotsTableName+" AS l").
+		Joins("JOIN "+model.TopupOrdersTableName+" AS o ON o.id = l.source_id").
+		Select("COALESCE(SUM(l.remaining_amount), 0)").
+		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
+		Where("l.source_type = ?", model.UserBalanceLotSourceTopup).
+		Where("COALESCE(o.credit_origin, '') <> ?", model.TopupOrderCreditOriginPaid).
+		Scan(&giftRemain).Error; err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": err.Error(),
@@ -2589,7 +2650,7 @@ func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    buildTopUpBalanceSummary(user.Quota, topupRemain, redeemRemain),
+		"data":    buildTopUpBalanceSummary(topupRemain, redeemRemain, giftRemain),
 	})
 }
 
@@ -2917,7 +2978,7 @@ func AdminTopUp(c *gin.Context) {
 		})
 		return
 	}
-	err = usersvc.IncreaseQuota(req.UserId, int64(req.Quota))
+	targetUser, err := usersvc.GetByID(req.UserId, false)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -2925,13 +2986,30 @@ func AdminTopUp(c *gin.Context) {
 		})
 		return
 	}
-	if req.Remark == "" {
-		req.Remark = fmt.Sprintf("通过 API 充值 %s", common.LogQuota(int64(req.Quota)))
+	remark := strings.TrimSpace(req.Remark)
+	if remark == "" {
+		remark = fmt.Sprintf("通过 API 充值 %s", common.LogQuota(int64(req.Quota)))
 	}
-	usersvc.RecordTopupLog(ctx, req.UserId, req.Remark, req.Quota)
+	order, err := model.GrantBalanceAmountToUserWithDB(
+		model.DB,
+		strings.TrimSpace(targetUser.Id),
+		strings.TrimSpace(targetUser.Username),
+		int64(req.Quota),
+		remark,
+		strings.TrimSpace(c.GetString(ctxkey.Id)),
+	)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	usersvc.RecordTopupLog(ctx, req.UserId, remark, req.Quota)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
+		"data":    order,
 	})
 	return
 }

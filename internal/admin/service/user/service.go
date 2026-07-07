@@ -67,10 +67,6 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 	return userrepo.Redeem(ctx, code, userId)
 }
 
-func IncreaseQuota(userId string, quota int64) error {
-	return userrepo.IncreaseQuota(userId, quota)
-}
-
 func RecordLog(ctx context.Context, userId string, logType int, content string) {
 	userrepo.RecordLog(ctx, userId, logType, content)
 }

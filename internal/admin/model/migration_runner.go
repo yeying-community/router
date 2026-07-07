@@ -1690,7 +1690,21 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 					SET unlimited_request_count = TRUE
 					WHERE COALESCE(remain_request_count, 0) = 0
 					  AND COALESCE(used_request_count, 0) = 0
-				`).Error
+					`).Error
+			},
+		},
+		{
+			Version:     "202607071130_balance_credit_origins",
+			Description: "classify balance credit origins and reconcile legacy user quota into gift balance lots",
+			Up: func(tx *gorm.DB) error {
+				return migrateBalanceCreditOriginsWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607071145_drop_users_quota",
+			Description: "drop legacy users quota balance mirror after reconciling into balance lots",
+			Up: func(tx *gorm.DB) error {
+				return dropLegacyUsersQuotaWithDB(tx)
 			},
 		},
 	}
@@ -1916,6 +1930,7 @@ func removeDefaultUserGroupAndLegacyBalanceSourcesWithDB(db *gorm.DB) error {
 			TransactionID: transactionID,
 			BusinessType:  TopupOrderBusinessBalance,
 			OperationType: TopupOrderOperationTopup,
+			CreditOrigin:  TopupOrderCreditOriginReconcile,
 			Title:         "历史账户余额",
 			Quota:         lot.TotalAmount,
 			GroupID:       groupID,
@@ -1960,6 +1975,167 @@ func removeDefaultUserGroupAndLegacyBalanceSourcesWithDB(db *gorm.DB) error {
 				"source_id":   order.Id,
 				"updated_at":  now,
 			}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func migrateBalanceCreditOriginsWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if err := db.AutoMigrate(&TopupOrder{}, &UserBalanceLot{}, &UserBalanceLotTransaction{}); err != nil {
+		return err
+	}
+	if err := db.Exec(`
+		UPDATE topup_orders
+		SET credit_origin = ?
+		WHERE business_type = ?
+		  AND COALESCE(TRIM(credit_origin), '') = ''
+	`, TopupOrderCreditOriginPaid, TopupOrderBusinessBalance).Error; err != nil {
+		return err
+	}
+	if err := db.Exec(`
+		UPDATE topup_orders
+		SET credit_origin = ?
+		WHERE business_type = ?
+		  AND COALESCE(TRIM(credit_origin), '') NOT IN (?, ?, ?, ?, ?)
+	`, TopupOrderCreditOriginPaid, TopupOrderBusinessBalance,
+		TopupOrderCreditOriginPaid,
+		TopupOrderCreditOriginAdmin,
+		TopupOrderCreditOriginNewUser,
+		TopupOrderCreditOriginInviter,
+		TopupOrderCreditOriginReconcile,
+	).Error; err != nil {
+		return err
+	}
+	if err := db.Exec(`
+		UPDATE topup_orders
+		SET credit_origin = ?
+		WHERE business_type = ?
+		  AND source = ?
+		  AND COALESCE(TRIM(provider_name), '') = 'admin'
+		  AND COALESCE(TRIM(credit_origin), '') = ?
+	`, TopupOrderCreditOriginAdmin, TopupOrderBusinessBalance, TopupOrderSourceTopUpAPI, TopupOrderCreditOriginPaid).Error; err != nil {
+		return err
+	}
+	if err := db.Exec(`
+		UPDATE topup_orders
+		SET credit_origin = ?
+		WHERE business_type = ?
+		  AND source = ?
+		  AND COALESCE(TRIM(provider_name), '') = 'migration'
+		  AND COALESCE(TRIM(credit_origin), '') = ?
+	`, TopupOrderCreditOriginReconcile, TopupOrderBusinessBalance, TopupOrderSourceTopUpAPI, TopupOrderCreditOriginPaid).Error; err != nil {
+		return err
+	}
+	return reconcileLegacyUserQuotaToGiftLotsWithDB(db)
+}
+
+func dropLegacyUsersQuotaWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if !db.Migrator().HasColumn("users", "quota") {
+		return nil
+	}
+	return db.Migrator().DropColumn("users", "quota")
+}
+
+type legacyQuotaReconcileCandidate struct {
+	UserID             string `gorm:"column:user_id"`
+	Username           string `gorm:"column:username"`
+	Quota              int64  `gorm:"column:quota"`
+	ActiveLotRemaining int64  `gorm:"column:active_lot_remaining"`
+	Delta              int64  `gorm:"column:delta"`
+}
+
+func reconcileLegacyUserQuotaToGiftLotsWithDB(db *gorm.DB) error {
+	if !db.Migrator().HasColumn("users", "quota") {
+		return nil
+	}
+	now := helper.GetTimestamp()
+	candidates := make([]legacyQuotaReconcileCandidate, 0)
+	if err := db.Raw(`
+		SELECT
+			u.id AS user_id,
+			COALESCE(u.username, '') AS username,
+			COALESCE(u.quota, 0) AS quota,
+			COALESCE(SUM(CASE
+				WHEN l.status = ?
+				 AND l.remaining_amount > 0
+				 AND (l.expires_at = 0 OR l.expires_at > ?)
+				THEN l.remaining_amount
+				ELSE 0
+			END), 0) AS active_lot_remaining,
+			COALESCE(u.quota, 0) - COALESCE(SUM(CASE
+				WHEN l.status = ?
+				 AND l.remaining_amount > 0
+				 AND (l.expires_at = 0 OR l.expires_at > ?)
+				THEN l.remaining_amount
+				ELSE 0
+			END), 0) AS delta
+		FROM users u
+		LEFT JOIN user_balance_lots l ON l.user_id = u.id
+		WHERE COALESCE(u.quota, 0) > 0
+		GROUP BY u.id, u.username, u.quota
+		HAVING COALESCE(u.quota, 0) - COALESCE(SUM(CASE
+				WHEN l.status = ?
+				 AND l.remaining_amount > 0
+				 AND (l.expires_at = 0 OR l.expires_at > ?)
+				THEN l.remaining_amount
+				ELSE 0
+			END), 0) > 0
+	`, UserBalanceLotStatusActive, now, UserBalanceLotStatusActive, now, UserBalanceLotStatusActive, now).Scan(&candidates).Error; err != nil {
+		return err
+	}
+	for _, candidate := range candidates {
+		userID := strings.TrimSpace(candidate.UserID)
+		if userID == "" || candidate.Delta <= 0 {
+			continue
+		}
+		transactionID := "balance-reconciliation-" + userID
+		order := TopupOrder{}
+		if err := db.Where("transaction_id = ?", transactionID).Take(&order).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+			order = TopupOrder{
+				Id:            random.GetUUID(),
+				UserID:        userID,
+				Username:      strings.TrimSpace(candidate.Username),
+				Status:        TopupOrderStatusFulfilled,
+				Source:        TopupOrderSourceTopUpAPI,
+				ProviderName:  "migration",
+				TransactionID: transactionID,
+				BusinessType:  TopupOrderBusinessBalance,
+				OperationType: TopupOrderOperationTopup,
+				CreditOrigin:  TopupOrderCreditOriginReconcile,
+				Title:         "系统补录赠送余额",
+				Amount:        0,
+				Currency:      TopupOrderCurrencyCNY,
+				Quota:         candidate.Delta,
+				PaidAt:        now,
+				RedeemedAt:    now,
+				CreatedAt:     now,
+				UpdatedAt:     now,
+			}
+			normalizeTopupOrderRow(&order)
+			if err := db.Create(&order).Error; err != nil {
+				return err
+			}
+		} else {
+			normalizeTopupOrderRow(&order)
+		}
+		if _, _, err := CreditUserBalanceLotWithDB(db, UserBalanceLotCreditInput{
+			UserID:      userID,
+			SourceType:  UserBalanceLotSourceTopup,
+			SourceID:    order.Id,
+			TotalAmount: candidate.Delta,
+			GrantedAt:   now,
+			ExpiresAt:   0,
+		}); err != nil {
 			return err
 		}
 	}

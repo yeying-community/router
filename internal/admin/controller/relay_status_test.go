@@ -288,6 +288,26 @@ func TestNormalizeFinalRelayErrorKeepsInsufficientUserQuota(t *testing.T) {
 	}
 }
 
+func TestNormalizeFinalRelayErrorKeepsInsufficientUserBalance(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusForbidden,
+		Error: relaymodel.Error{
+			Message: "user balance is not enough",
+			Type:    "one_api_error",
+			Code:    "insufficient_user_balance",
+		},
+	}
+
+	normalizeFinalRelayError(err)
+
+	if err.StatusCode != http.StatusForbidden {
+		t.Fatalf("unexpected status code: got %d want %d", err.StatusCode, http.StatusForbidden)
+	}
+	if err.Message != "user balance is not enough" {
+		t.Fatalf("unexpected message: got %q", err.Message)
+	}
+}
+
 func TestNormalizeFinalRelayErrorKeepsTokenQuotaExceeded(t *testing.T) {
 	err := &relaymodel.ErrorWithStatusCode{
 		StatusCode: http.StatusForbidden,

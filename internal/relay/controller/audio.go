@@ -114,37 +114,32 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 	}()
 	if billingPlan.ChargeUserBalance() {
-		if _, expireErr := model.ExpireUserBalanceLots(userId); expireErr != nil {
-			logger.Error(ctx, "expire user balance lots failed: "+expireErr.Error())
-		}
-		userQuota, err := model.CacheGetUserQuota(ctx, userId)
+		userBalanceAmount, err := getAvailableUserBalanceForBilling(ctx, userId, group)
 		if err != nil {
-			return openai.ErrorWrapper(err, "get_user_quota_failed", http.StatusInternalServerError)
+			return openai.ErrorWrapper(err, "get_user_balance_failed", http.StatusInternalServerError)
 		}
 
-		// Check if user quota is enough
-		if userQuota-preConsumedQuota < 0 {
-			return openai.ErrorWrapper(errors.New("user quota is not enough"), "insufficient_user_quota", http.StatusForbidden)
+		if userBalanceAmount-preConsumedQuota < 0 {
+			return openai.ErrorWrapper(errors.New("user balance is not enough"), "insufficient_user_balance", http.StatusForbidden)
+		}
+		if userBalanceAmount > 100*preConsumedQuota {
+			// in this case, we do not pre-consume quota
+			// because the user has enough quota
+			preConsumedQuota = 0
 		}
 		err = model.CacheDecreaseUserQuota(userId, preConsumedQuota)
 		if err != nil {
 			return openai.ErrorWrapper(err, "decrease_user_quota_failed", http.StatusInternalServerError)
 		}
-		if userQuota > 100*preConsumedQuota {
-			// in this case, we do not pre-consume quota
-			// because the user has enough quota
-			preConsumedQuota = 0
+		err = model.CacheDecreaseUserQuotaForGroup(userId, group, preConsumedQuota)
+		if err != nil {
+			return openai.ErrorWrapper(err, "decrease_user_group_quota_failed", http.StatusInternalServerError)
 		}
 		if preConsumedQuota > 0 {
 			if strings.TrimSpace(tokenId) != "" {
 				err := model.PreConsumeTokenQuota(tokenId, preConsumedQuota)
 				if err != nil {
 					return openai.ErrorWrapper(err, "pre_consume_token_quota_failed", http.StatusForbidden)
-				}
-			} else {
-				err := model.DecreaseUserQuota(userId, preConsumedQuota)
-				if err != nil {
-					return openai.ErrorWrapper(err, "pre_consume_user_quota_failed", http.StatusForbidden)
 				}
 			}
 		}
@@ -159,7 +154,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			return
 		}
 		if preConsumedQuota > 0 {
-			billing.ReturnPreConsumedQuota(c.Request.Context(), preConsumedQuota, tokenId, userId, billingPlan.ChargeUserBalance() && billingPlan.ChargeTokenQuota())
+			billing.ReturnPreConsumedQuota(c.Request.Context(), preConsumedQuota, tokenId, userId, group, billingPlan.ChargeUserBalance() && billingPlan.ChargeTokenQuota())
 		}
 	}()
 
