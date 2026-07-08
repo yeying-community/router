@@ -249,7 +249,7 @@ func listGroupModelSupportedEndpoints(groupID string, modelNames []string) (map[
 			modelCandidates := model.NormalizeProviderLookupCandidates(modelName)
 			if mapping := model.CacheGetGroupModelMapping(normalizedGroupID, modelName, channelID); len(mapping) > 0 {
 				if upstream := strings.TrimSpace(mapping[modelName]); upstream != "" {
-					modelCandidates = model.NormalizeProviderLookupCandidates(append(modelCandidates, upstream)...)
+					modelCandidates = model.NormalizeProviderLookupCandidates(upstream)
 				}
 			}
 			enabledMap := model.CacheGetChannelModelEndpointSupport(channel.Id, modelCandidates...)
