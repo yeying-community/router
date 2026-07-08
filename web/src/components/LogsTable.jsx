@@ -1,10 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   API,
-  copy,
   showError,
-  showSuccess,
-  showWarning,
   timestamp2string,
 } from '../helpers';
 import { useTranslation } from 'react-i18next';
@@ -61,22 +58,8 @@ function formatCompactNumber(value) {
   });
 }
 
-function renderTimestamp(timestamp, trace_id) {
-  return (
-    <code
-      onClick={async (e) => {
-        e.stopPropagation();
-        if (await copy(trace_id)) {
-          showSuccess(`已复制 Trace ID：${trace_id}`);
-        } else {
-          showWarning(`Trace ID 复制失败：${trace_id}`);
-        }
-      }}
-      className='router-row-clickable'
-    >
-      {timestamp2string(timestamp)}
-    </code>
-  );
+function renderTimestamp(timestamp) {
+  return <code>{timestamp2string(timestamp)}</code>;
 }
 
 function renderType(type) {
@@ -1044,7 +1027,7 @@ const LogsTable = () => {
             sortDirections: ['ascend', 'descend'],
             sortOrder:
               tableSorter.columnKey === 'created_at' ? tableSorter.order : null,
-            render: (value, log) => renderTimestamp(value, log.trace_id),
+            render: (value) => renderTimestamp(value),
           },
           ...(isAdminScope
             ? [
