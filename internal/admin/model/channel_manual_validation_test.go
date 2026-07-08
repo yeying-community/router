@@ -152,6 +152,79 @@ func TestValidateManualChannelEndpointEnableDoesNotRequireTestResult(t *testing.
 	}
 }
 
+func TestValidateManualChannelEndpointEnableUsesCanonicalProviderModelForSnapshotUpstream(t *testing.T) {
+	db := newChannelManualValidationTestDB(t)
+	if err := db.Create(&Channel{
+		Id:       "channel-1",
+		Name:     "channel-1",
+		Protocol: "openai",
+	}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&ProviderModel{
+		Provider:           "qwen",
+		Model:              "qwen3.7-max",
+		Tags:               ProviderModelTypeText,
+		Status:             ProviderModelStatusActive,
+		SupportedEndpoints: "/v1/chat/completions",
+	}).Error; err != nil {
+		t.Fatalf("create provider model: %v", err)
+	}
+
+	err := ValidateManualChannelEndpointEnableWithDB(db, "channel-1", ChannelModel{
+		Model:         "qwen3.7-max",
+		UpstreamModel: "qwen3.7-max-2026-05-20",
+		Provider:      "qwen",
+		Type:          ProviderModelTypeText,
+		Selected:      true,
+	}, "/v1/chat/completions")
+	if err != nil {
+		t.Fatalf("ValidateManualChannelEndpointEnableWithDB error=%v, want nil for canonical provider model fallback", err)
+	}
+}
+
+func TestValidateManualChannelEndpointEnablePrefersSnapshotProviderModelWhenConfigured(t *testing.T) {
+	db := newChannelManualValidationTestDB(t)
+	if err := db.Create(&Channel{
+		Id:       "channel-1",
+		Name:     "channel-1",
+		Protocol: "openai",
+	}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	for _, row := range []ProviderModel{
+		{
+			Provider:           "qwen",
+			Model:              "qwen3.7-max",
+			Tags:               ProviderModelTypeText,
+			Status:             ProviderModelStatusActive,
+			SupportedEndpoints: "/v1/chat/completions",
+		},
+		{
+			Provider:           "qwen",
+			Model:              "qwen3.7-max-2026-05-20",
+			Tags:               ProviderModelTypeText,
+			Status:             ProviderModelStatusActive,
+			SupportedEndpoints: "/v1/responses",
+		},
+	} {
+		if err := db.Create(&row).Error; err != nil {
+			t.Fatalf("create provider model: %v", err)
+		}
+	}
+
+	err := ValidateManualChannelEndpointEnableWithDB(db, "channel-1", ChannelModel{
+		Model:         "qwen3.7-max",
+		UpstreamModel: "qwen3.7-max-2026-05-20",
+		Provider:      "qwen",
+		Type:          ProviderModelTypeText,
+		Selected:      true,
+	}, "/v1/chat/completions")
+	if err == nil || !strings.Contains(err.Error(), "供应商官方端点范围不包含") {
+		t.Fatalf("ValidateManualChannelEndpointEnableWithDB error=%v, want snapshot provider endpoint restriction", err)
+	}
+}
+
 func TestValidateManualChannelEndpointEnableBlocksUnsupportedRouterRoute(t *testing.T) {
 	db := newChannelManualValidationTestDB(t)
 	if err := db.Create(&Channel{

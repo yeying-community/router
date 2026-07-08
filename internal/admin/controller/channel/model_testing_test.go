@@ -291,6 +291,93 @@ func TestValidateChannelModelTestEndpointAgainstProviderAllowsProviderEndpoint(t
 	}
 }
 
+func TestValidateChannelModelTestEndpointAgainstProviderUsesCanonicalProviderModelForSnapshotUpstream(t *testing.T) {
+	previousDB := adminmodel.DB
+	t.Cleanup(func() {
+		adminmodel.DB = previousDB
+	})
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	adminmodel.DB = db
+	if err := db.AutoMigrate(&adminmodel.ProviderModel{}); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	if err := db.Create(&adminmodel.ProviderModel{
+		Provider:           "qwen",
+		Model:              "qwen3.7-max",
+		Tags:               adminmodel.ProviderModelTypeText,
+		Status:             adminmodel.ProviderModelStatusActive,
+		SupportedEndpoints: adminmodel.ChannelModelEndpointChat,
+	}).Error; err != nil {
+		t.Fatalf("create provider model: %v", err)
+	}
+
+	if err := validateChannelModelTestEndpointAgainstProvider(adminmodel.ChannelModel{
+		Model:         "qwen3.7-max",
+		UpstreamModel: "qwen3.7-max-2026-05-20",
+		Provider:      "qwen",
+		Type:          adminmodel.ProviderModelTypeText,
+		Endpoint:      adminmodel.ChannelModelEndpointChat,
+		Endpoints: []string{
+			adminmodel.ChannelModelEndpointChat,
+		},
+	}, adminmodel.ChannelModelEndpointChat); err != nil {
+		t.Fatalf("validateChannelModelTestEndpointAgainstProvider returned error: %v", err)
+	}
+}
+
+func TestValidateChannelModelTestEndpointAgainstProviderPrefersSnapshotProviderModelWhenConfigured(t *testing.T) {
+	previousDB := adminmodel.DB
+	t.Cleanup(func() {
+		adminmodel.DB = previousDB
+	})
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	adminmodel.DB = db
+	if err := db.AutoMigrate(&adminmodel.ProviderModel{}); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	for _, row := range []adminmodel.ProviderModel{
+		{
+			Provider:           "qwen",
+			Model:              "qwen3.7-max",
+			Tags:               adminmodel.ProviderModelTypeText,
+			Status:             adminmodel.ProviderModelStatusActive,
+			SupportedEndpoints: adminmodel.ChannelModelEndpointChat,
+		},
+		{
+			Provider:           "qwen",
+			Model:              "qwen3.7-max-2026-05-20",
+			Tags:               adminmodel.ProviderModelTypeText,
+			Status:             adminmodel.ProviderModelStatusActive,
+			SupportedEndpoints: adminmodel.ChannelModelEndpointResponses,
+		},
+	} {
+		if err := db.Create(&row).Error; err != nil {
+			t.Fatalf("create provider model: %v", err)
+		}
+	}
+
+	err = validateChannelModelTestEndpointAgainstProvider(adminmodel.ChannelModel{
+		Model:         "qwen3.7-max",
+		UpstreamModel: "qwen3.7-max-2026-05-20",
+		Provider:      "qwen",
+		Type:          adminmodel.ProviderModelTypeText,
+		Endpoint:      adminmodel.ChannelModelEndpointChat,
+		Endpoints: []string{
+			adminmodel.ChannelModelEndpointChat,
+			adminmodel.ChannelModelEndpointResponses,
+		},
+	}, adminmodel.ChannelModelEndpointChat)
+	if err == nil || !strings.Contains(err.Error(), "供应商官方端点范围不包含") {
+		t.Fatalf("validateChannelModelTestEndpointAgainstProvider error=%v, want snapshot provider endpoint restriction", err)
+	}
+}
+
 func TestCreateChannelModelTestTasks_TargetConfigsAllowSameModelMultipleEndpoints(t *testing.T) {
 	previousDB := adminmodel.DB
 	t.Cleanup(func() {

@@ -118,12 +118,22 @@ func ResolveChannelModelPricing(channelProtocol int, channelModels []ChannelMode
 		return ResolvedModelPricing{}, fmt.Errorf("model name is empty")
 	}
 
-	pricing, ok := lookupProviderDefaultModelPricing(normalizedModel, channelProtocol)
+	override, hasOverride := findSelectedChannelModelPricingOverride(channelModels, normalizedModel)
+	pricingLookupModel := normalizedModel
+	if hasOverride {
+		if upstreamModel := normalizePricingLookupModelName(override.UpstreamModel); upstreamModel != "" {
+			pricingLookupModel = upstreamModel
+		} else if aliasModel := normalizePricingLookupModelName(override.Model); aliasModel != "" {
+			pricingLookupModel = aliasModel
+		}
+	}
+
+	pricing, ok := lookupProviderDefaultModelPricing(pricingLookupModel, channelProtocol)
 	if !ok {
 		pricing = ResolvedModelPricing{}
 	}
 
-	if override, ok := findSelectedChannelModelPricingOverride(channelModels, normalizedModel); ok {
+	if hasOverride {
 		hasOverride := false
 		if override.InputPrice != nil && *override.InputPrice > 0 {
 			pricing.InputPrice = *override.InputPrice
@@ -202,15 +212,11 @@ func lookupProviderDefaultModelPricing(modelName string, channelProtocol int) (R
 		}
 	}
 
-	candidates := []string{modelName}
-	if strings.Contains(modelName, "/") {
-		parts := strings.SplitN(modelName, "/", 2)
-		if len(parts) == 2 {
-			candidates = append(candidates, normalizePricingLookupModelName(parts[1]))
-		}
-	}
+	candidates := NormalizeProviderLookupCandidates(modelName)
 	if preferredProvider != "" {
-		candidates = append(candidates, canonicalizeModelNameForProvider(preferredProvider, modelName))
+		for _, candidate := range NormalizeProviderLookupCandidates(canonicalizeModelNameForProvider(preferredProvider, modelName)) {
+			candidates = append(candidates, candidate)
+		}
 	}
 
 	seen := make(map[string]struct{}, len(candidates))
@@ -607,7 +613,14 @@ func findSelectedChannelModelPricingOverride(rows []ChannelModel, modelName stri
 }
 
 func channelModelMatchesPricing(row ChannelModel, modelName string) bool {
-	upstream := normalizePricingLookupModelName(row.UpstreamModel)
-	alias := normalizePricingLookupModelName(row.Model)
-	return upstream == modelName || alias == modelName
+	normalizedModelName := normalizePricingLookupModelName(modelName)
+	if normalizedModelName == "" {
+		return false
+	}
+	for _, candidate := range NormalizeProviderLookupCandidates(row.UpstreamModel, row.Model) {
+		if normalizePricingLookupModelName(candidate) == normalizedModelName {
+			return true
+		}
+	}
+	return false
 }

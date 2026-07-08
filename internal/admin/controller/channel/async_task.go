@@ -395,17 +395,22 @@ func validateChannelModelTestEndpointAgainstProvider(row model.ChannelModel, end
 	if provider == "" {
 		return fmt.Errorf("模型 %s 缺少供应商官方信息，不能测试端点 %s", displayModel, normalizedEndpoint)
 	}
-	endpointMap, err := model.LoadProviderModelEndpointMapByModelsWithDB(model.DB, provider, []string{row.Model, row.UpstreamModel})
+	endpointMap, err := model.LoadProviderModelEndpointMapByModelsWithDB(model.DB, provider, []string{row.UpstreamModel, row.Model})
 	if err != nil {
 		return err
 	}
-	candidates := model.NormalizeProviderLookupCandidates(row.Model, row.UpstreamModel)
+	candidates := model.NormalizeProviderLookupCandidates(row.UpstreamModel, row.Model)
 	for _, candidate := range candidates {
-		for _, allowedEndpoint := range endpointMap[candidate] {
+		allowedEndpoints, ok := endpointMap[candidate]
+		if !ok {
+			continue
+		}
+		for _, allowedEndpoint := range allowedEndpoints {
 			if model.NormalizeRequestedChannelModelEndpoint(allowedEndpoint) == normalizedEndpoint {
 				return nil
 			}
 		}
+		return fmt.Errorf("模型 %s 的供应商官方端点范围不包含 %s", displayModel, normalizedEndpoint)
 	}
 	return fmt.Errorf("模型 %s 的供应商官方端点范围不包含 %s", displayModel, normalizedEndpoint)
 }

@@ -129,7 +129,7 @@ func ExplainManualChannelEndpointEnableBlockWithDB(db *gorm.DB, channelID string
 	if normalizedChannelID == "" || normalizedEndpoint == "" {
 		return "", nil
 	}
-	official, err := loadProviderModelValidationRowWithDB(db, row.Provider, row.Model, row.UpstreamModel)
+	official, err := loadProviderModelValidationRowWithDB(db, row.Provider, row.UpstreamModel, row.Model)
 	if err != nil {
 		return "", err
 	}
@@ -168,7 +168,7 @@ func ExplainManualChannelEndpointEnableBlockWithDB(db *gorm.DB, channelID string
 }
 
 func ExplainManualChannelModelEnableBlockWithDB(db *gorm.DB, channelID string, row ChannelModel) (string, error) {
-	official, err := loadProviderModelValidationRowWithDB(db, row.Provider, row.Model, row.UpstreamModel)
+	official, err := loadProviderModelValidationRowWithDB(db, row.Provider, row.UpstreamModel, row.Model)
 	if err != nil {
 		return "", err
 	}

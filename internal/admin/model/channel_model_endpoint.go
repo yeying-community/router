@@ -416,11 +416,13 @@ func resolveProviderEndpointCandidatesForChannelModel(row ChannelModel, provider
 	normalizeChannelModelRow(&normalized)
 	provider := NormalizeGroupModelProviderValue(normalized.Provider)
 	if provider != "" && len(providerEndpoints) > 0 {
-		for _, modelName := range NormalizeProviderLookupCandidates(normalized.Model, normalized.UpstreamModel) {
+		for _, modelName := range NormalizeProviderLookupCandidates(normalized.UpstreamModel, normalized.Model) {
 			key := buildProviderModelEndpointKey(provider, modelName)
-			if endpoints := NormalizeProviderModelSupportedEndpointsForModel(normalized.Type, modelName, providerEndpoints[key]); len(endpoints) > 0 {
-				return endpoints
+			endpoints, ok := providerEndpoints[key]
+			if !ok {
+				continue
 			}
+			return NormalizeProviderModelSupportedEndpointsForModel(normalized.Type, modelName, endpoints)
 		}
 	}
 	return NormalizeChannelModelDirectEndpoints(

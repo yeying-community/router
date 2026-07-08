@@ -1113,6 +1113,34 @@ const buildProviderIndex = (items) => {
   return { providerOptions, modelOwners, providerModelDetails };
 };
 
+const canonicalProviderModelSnapshotPattern =
+  /^(.+?)(?:(?:-(?:preview|latest))|(?:-\d{6})|(?:-\d{4}-\d{2}-\d{2}))+$/i;
+
+const canonicalProviderModelLookupKey = (value) => {
+  const normalized = (value || '').toString().trim();
+  if (normalized === '') {
+    return '';
+  }
+  const match = normalized.match(canonicalProviderModelSnapshotPattern);
+  const canonical = (match?.[1] || '').toString().trim();
+  if (canonical === '' || canonical === normalized) {
+    return '';
+  }
+  return canonical;
+};
+
+const addProviderLookupKey = (keys, value) => {
+  const normalized = (value || '').toString().trim();
+  if (normalized === '') {
+    return;
+  }
+  keys.add(normalized);
+  const canonical = canonicalProviderModelLookupKey(normalized);
+  if (canonical !== '') {
+    keys.add(canonical);
+  }
+};
+
 const buildProviderLookupKeys = (row) => {
   const keys = new Set();
   [row?.upstream_model, row?.model].forEach((value) => {
@@ -1120,14 +1148,12 @@ const buildProviderLookupKeys = (row) => {
     if (normalized === '') {
       return;
     }
-    keys.add(normalized);
+    addProviderLookupKey(keys, normalized);
     if (normalized.includes('/')) {
       const parts = normalized.split('/');
       if (parts.length > 1) {
         const suffix = parts.slice(1).join('/').trim();
-        if (suffix !== '') {
-          keys.add(suffix);
-        }
+        addProviderLookupKey(keys, suffix);
       }
     }
   });
@@ -2602,32 +2628,30 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const seen = new Set();
       owners.forEach((providerId) => {
         const providerDetails = providerModelDetailsIndex[providerId] || {};
-        keys.forEach((key) => {
-          const detail = providerDetails[key];
-          if (!detail || (detail.price_components || []).length === 0) {
-            return;
-          }
-          const uniqueKey = `${providerId}\u0000${detail.model}`;
-          if (seen.has(uniqueKey)) {
-            return;
-          }
-          seen.add(uniqueKey);
-          const priceComponents = mergePriceComponentOverrides(
-            detail.price_components,
-            row?.price_components
-          );
-          if (priceComponents.length === 0) {
-            return;
-          }
-          details.push({
-            provider: providerId,
-            ...detail,
-            price_components: priceComponents,
-            source:
-              (row?.price_components || []).length > 0
-                ? 'channel_override'
-                : detail.source,
-          });
+        const detail = keys.map((key) => providerDetails[key]).find(Boolean);
+        if (!detail || (detail.price_components || []).length === 0) {
+          return;
+        }
+        const uniqueKey = `${providerId}\u0000${detail.model}`;
+        if (seen.has(uniqueKey)) {
+          return;
+        }
+        seen.add(uniqueKey);
+        const priceComponents = mergePriceComponentOverrides(
+          detail.price_components,
+          row?.price_components
+        );
+        if (priceComponents.length === 0) {
+          return;
+        }
+        details.push({
+          provider: providerId,
+          ...detail,
+          price_components: priceComponents,
+          source:
+            (row?.price_components || []).length > 0
+              ? 'channel_override'
+              : detail.source,
         });
       });
       return details.sort((a, b) => {
@@ -2646,19 +2670,17 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const providerDetails = providerModelDetailsIndex[providerId] || {};
       const providerCandidates = [];
       let matchedProviderDetail = false;
-      buildProviderLookupKeys(row).forEach((key) => {
-        const detail = providerDetails[key];
-        if (!detail) {
-          return;
-        }
+      const detail = buildProviderLookupKeys(row)
+        .map((key) => providerDetails[key])
+        .find(Boolean);
+      if (detail) {
         matchedProviderDetail = true;
-        if (!Array.isArray(detail.supported_endpoints)) {
-          return;
+        if (Array.isArray(detail.supported_endpoints)) {
+          detail.supported_endpoints.forEach((endpoint) => {
+            providerCandidates.push(endpoint);
+          });
         }
-        detail.supported_endpoints.forEach((endpoint) => {
-          providerCandidates.push(endpoint);
-        });
-      });
+      }
       const candidates = matchedProviderDetail
         ? providerCandidates
         : normalizeExplicitChannelModelEndpoints(

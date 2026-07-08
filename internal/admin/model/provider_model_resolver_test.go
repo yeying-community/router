@@ -9,8 +9,18 @@ func TestNormalizeProviderLookupCandidates(t *testing.T) {
 		"openai/gpt-5.4",
 		"openai/gpt-5.4",
 		"claude-opus-4-6",
+		"qwen3.7-max-2026-05-20",
+		"qwen/qwen3.7-max-preview",
 	)
-	want := []string{"gpt-5.4", "openai/gpt-5.4", "claude-opus-4-6"}
+	want := []string{
+		"gpt-5.4",
+		"openai/gpt-5.4",
+		"claude-opus-4-6",
+		"qwen3.7-max-2026-05-20",
+		"qwen3.7-max",
+		"qwen/qwen3.7-max-preview",
+		"qwen3.7-max-preview",
+	}
 	if len(values) != len(want) {
 		t.Fatalf("len(candidates)=%d, want=%d candidates=%v", len(values), len(want), values)
 	}
@@ -26,9 +36,13 @@ func TestResolveProviderFromModelMap(t *testing.T) {
 		"gpt-5.4":      "openai",
 		"claude-4.1":   "anthropic",
 		"legacy-model": "custom",
+		"qwen3.7-max":  "qwen",
 	}
 	if got := ResolveProviderFromModelMap(providerByModel, "openai/gpt-5.4"); got != "openai" {
 		t.Fatalf("ResolveProviderFromModelMap(openai/gpt-5.4)=%q, want openai", got)
+	}
+	if got := ResolveProviderFromModelMap(providerByModel, "qwen3.7-max-2026-05-20"); got != "qwen" {
+		t.Fatalf("ResolveProviderFromModelMap(qwen snapshot)=%q, want qwen", got)
 	}
 	if got := ResolveProviderFromModelMap(providerByModel, "claude-4.1"); got != "anthropic" {
 		t.Fatalf("ResolveProviderFromModelMap(claude-4.1)=%q, want anthropic", got)
