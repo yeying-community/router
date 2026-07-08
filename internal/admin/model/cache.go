@@ -824,12 +824,11 @@ func endpointLookupCandidatesForChannel(group string, modelName string, channelI
 		if upstream == "" || upstream == normalizedModelName {
 			return candidates
 		}
-		candidates = append(candidates, NormalizeProviderLookupCandidates(upstream)...)
-		return normalizeTrimmedValuesPreserveOrder(candidates)
+		return NormalizeProviderLookupCandidates(upstream)
 	}
 	if mapping := CacheGetGroupModelMapping(normalizedGroup, normalizedModelName, normalizedChannelID); len(mapping) > 0 {
 		if upstream := strings.TrimSpace(mapping[normalizedModelName]); upstream != "" && upstream != normalizedModelName {
-			candidates = append(candidates, NormalizeProviderLookupCandidates(upstream)...)
+			return NormalizeProviderLookupCandidates(upstream)
 		}
 	}
 	return normalizeTrimmedValuesPreserveOrder(candidates)

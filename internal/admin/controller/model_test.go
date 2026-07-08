@@ -404,6 +404,18 @@ func TestListGroupModelSupportedEndpointsUsesUpstreamModelMapping(t *testing.T) 
 	if err := db.Create(&[]model.ChannelModelEndpoint{
 		{
 			ChannelId: "channel-1",
+			Model:     "qwen3.7-plus",
+			Endpoint:  model.ChannelModelEndpointChat,
+			Enabled:   false,
+		},
+		{
+			ChannelId: "channel-1",
+			Model:     "qwen3.7-plus",
+			Endpoint:  model.ChannelModelEndpointResponses,
+			Enabled:   false,
+		},
+		{
+			ChannelId: "channel-1",
 			Model:     "qwen3.7-plus-2026-05-26",
 			Endpoint:  model.ChannelModelEndpointChat,
 			Enabled:   true,
