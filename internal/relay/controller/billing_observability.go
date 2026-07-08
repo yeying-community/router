@@ -20,11 +20,13 @@ const (
 	billingEstimateSourceAudioTTSInputChars     = "audio_tts_input_chars"
 	billingEstimateSourceAudioPreconsumeQuota   = "audio_preconsume_quota"
 	billingEstimateSourceVideoRequestRule       = "video_request_rule"
+	billingEstimateSourceRealtimeUpstreamUsage  = "realtime_upstream_usage"
 	billingEstimateSourceRealtimeUnmeteredProxy = "realtime_unmetered_proxy"
 	billingSettlementModeUsageFinal             = "usage_final"
 	billingSettlementModeAudioRequestFinal      = "audio_request_final"
 	billingSettlementModeAudioResponseTextFinal = "audio_response_text_final"
 	billingSettlementModeVideoTaskCreated       = "video_task_created"
+	billingSettlementModeRealtimeUsageFinal     = "realtime_usage_final"
 	billingSettlementModeRealtimeUnmeteredProxy = "realtime_unmetered_proxy"
 	billingSettlementModeResponsesImagePending  = "responses_image_tool_pending"
 )

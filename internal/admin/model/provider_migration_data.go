@@ -14,7 +14,7 @@ func normalizeProviderMigrationSeedModelDetails(provider string, details []Provi
 		if strings.TrimSpace(next.Type) == "" {
 			next.Type = normalizeModelType("", next.Model)
 		}
-		next.Tags = NormalizeProviderModelTags(append([]string{next.Type}, next.Tags...))
+		next.Tags = normalizeProviderMigrationSeedModelTags(normalizedProvider, next)
 		if next.UpdatedAt <= 0 {
 			next.UpdatedAt = now
 		}
@@ -41,7 +41,50 @@ func normalizeProviderMigrationSeedModelDetails(provider string, details []Provi
 		}
 		cloned = append(cloned, next)
 	}
-	return NormalizeProviderModelDetails(cloned)
+	normalized := NormalizeProviderModelDetails(cloned)
+	for i := range normalized {
+		if providerModelAllowsReasoningOnlyTags(normalizedProvider, normalized[i].Model) {
+			normalized[i].Tags = reasoningOnlyProviderModelTags()
+		}
+	}
+	return normalized
+}
+
+func normalizeProviderMigrationSeedModelTags(provider string, detail ProviderModelDetail) []string {
+	if providerModelAllowsReasoningOnlyTags(provider, detail.Model) {
+		return reasoningOnlyProviderModelTags()
+	}
+	tags := NormalizeProviderModelTags(detail.Tags)
+	return NormalizeProviderModelTags(append([]string{detail.Type}, tags...))
+}
+
+func reasoningOnlyProviderModelTags() []string {
+	return []string{ProviderModelTagReasoning}
+}
+
+func providerModelAllowsReasoningOnlyTags(provider string, modelName string) bool {
+	normalizedProvider := strings.TrimSpace(strings.ToLower(provider))
+	normalizedModelName := strings.TrimSpace(strings.ToLower(modelName))
+	switch normalizedProvider {
+	case "openai":
+		switch normalizedModelName {
+		case "o3", "o4-mini":
+			return true
+		default:
+			return false
+		}
+	case "deepseek":
+		return normalizedModelName == "deepseek-reasoner"
+	case "xai":
+		switch normalizedModelName {
+		case "grok-4-fast-reasoning", "grok-4-1-fast-reasoning":
+			return true
+		default:
+			return false
+		}
+	default:
+		return false
+	}
 }
 
 func explicitProviderModelSupportedEndpoints(provider string, modelType string, modelName string, current []string) ([]string, bool) {

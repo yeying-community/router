@@ -1726,6 +1726,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return rebuildGroupModelChannelsForPublishedChannelModelsWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607091030_reasoning_only_provider_model_tags",
+			Description: "refresh provider model tags for reasoning-only text protocol models",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderMigrationProvidersWithDB(tx, "openai", "deepseek", "xai")
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

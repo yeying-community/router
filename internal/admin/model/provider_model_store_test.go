@@ -252,6 +252,27 @@ func TestNormalizeProviderModelDetails_UsesTagsAsCapabilityShape(t *testing.T) {
 	}
 }
 
+func TestBuildProviderModelStoreRows_ReasoningOnlyProviderModelsKeepReasoningTagOnly(t *testing.T) {
+	store := BuildProviderModelStoreRows("openai", []ProviderModelDetail{
+		{
+			Model:              "o3",
+			Type:               ProviderModelTypeText,
+			Tags:               []string{ProviderModelTagText, ProviderModelTagReasoning, ProviderModelTagVision},
+			SupportedEndpoints: []string{ChannelModelEndpointChat, ChannelModelEndpointResponses},
+		},
+	}, 300)
+
+	if len(store.Models) != 1 {
+		t.Fatalf("expected 1 model row, got %d", len(store.Models))
+	}
+	if store.Models[0].Tags != ProviderModelTagReasoning {
+		t.Fatalf("stored tags = %q, want reasoning", store.Models[0].Tags)
+	}
+	if store.Models[0].SupportedEndpoints != "/v1/chat/completions,/v1/responses" {
+		t.Fatalf("supported_endpoints = %q, want chat and responses", store.Models[0].SupportedEndpoints)
+	}
+}
+
 func TestNormalizeProviderModelTags_DoesNotInventModelShape(t *testing.T) {
 	tags := NormalizeProviderModelTags([]string{ProviderModelTagReasoning})
 	if len(tags) != 1 || tags[0] != ProviderModelTagReasoning {
