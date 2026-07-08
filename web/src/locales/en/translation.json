@@ -1904,6 +1904,8 @@
         "summary_title": "Route Summary",
         "summary": "This request finally hit channel {{channel}}, final model {{model}}, after {{fallbackCount}} fallback(s), using estimate source {{source}} and settlement mode {{settlement}}.",
         "failure_summary": "This request ultimately failed. The last attempted channel was {{channel}}, requested model {{model}}, after {{fallbackCount}} fallback(s).",
+        "user_summary": "This request used published model {{model}}, after {{fallbackCount}} fallback(s), using estimate source {{source}} and settlement mode {{settlement}}.",
+        "user_failure_summary": "This request ultimately failed. Requested model {{model}}, after {{fallbackCount}} fallback(s).",
         "attempt_title": "Attempt {{attempt}}",
         "outcome": {
           "succeeded": "Succeeded",
@@ -1921,6 +1923,8 @@
         },
         "fields": {
           "channel_target": "Matched Channel",
+          "published_model": "Published Model",
+          "channel_model": "Channel Model",
           "request_model": "Requested Model",
           "actual_model": "Final Model",
           "upstream_endpoint": "Upstream Endpoint",
@@ -1949,6 +1953,7 @@
         "channel": "Channel",
         "group": "Group",
         "model": "Model",
+        "channel_model": "Channel Model",
         "username": "Username",
         "token_name": "Token Name",
         "trace_id": "Trace ID",

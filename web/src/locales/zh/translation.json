@@ -1904,6 +1904,8 @@
         "summary_title": "本次路由摘要",
         "summary": "本次请求最终命中渠道 {{channel}}，最终模型为 {{model}}，经历 {{fallbackCount}} 次 fallback，估算来源为 {{source}}，结算模式为 {{settlement}}。",
         "failure_summary": "本次请求最终失败，最后尝试渠道为 {{channel}}，请求模型为 {{model}}，经历 {{fallbackCount}} 次 fallback。",
+        "user_summary": "本次请求使用发布模型 {{model}}，经历 {{fallbackCount}} 次 fallback，估算来源为 {{source}}，结算模式为 {{settlement}}。",
+        "user_failure_summary": "本次请求最终失败，请求模型为 {{model}}，经历 {{fallbackCount}} 次 fallback。",
         "attempt_title": "第 {{attempt}} 次尝试",
         "outcome": {
           "succeeded": "成功",
@@ -1921,6 +1923,8 @@
         },
         "fields": {
           "channel_target": "命中渠道",
+          "published_model": "发布模型",
+          "channel_model": "渠道实际模型",
           "request_model": "请求模型",
           "actual_model": "最终模型",
           "upstream_endpoint": "上游端点",
@@ -1949,6 +1953,7 @@
         "channel": "渠道",
         "group": "分组",
         "model": "模型",
+        "channel_model": "渠道实际模型",
         "username": "用户名",
         "token_name": "令牌名称",
         "trace_id": "Trace ID",

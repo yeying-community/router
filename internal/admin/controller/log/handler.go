@@ -31,11 +31,25 @@ type logFilterOptions struct {
 	Groups     []logGroupOption   `json:"groups,omitempty"`
 }
 
+const userVisibleModelNameExpr = "NULLIF(TRIM(request_model_name), '')"
+
 func normalizeStatLogType(raw int) int {
 	if raw == model.LogTypeAll {
 		return model.LogTypeConsume
 	}
 	return raw
+}
+
+func normalizeDistinctLogValues(rows []string) []string {
+	result := make([]string, 0, len(rows))
+	for _, row := range rows {
+		value := strings.TrimSpace(row)
+		if value == "" {
+			continue
+		}
+		result = append(result, value)
+	}
+	return result
 }
 
 func distinctLogValues(queryColumn string, userID string) ([]string, error) {
@@ -49,15 +63,30 @@ func distinctLogValues(queryColumn string, userID string) ([]string, error) {
 	if err := query.Order(queryColumn+" asc").Limit(200).Pluck(queryColumn, &rows).Error; err != nil {
 		return nil, err
 	}
-	result := make([]string, 0, len(rows))
-	for _, row := range rows {
-		value := strings.TrimSpace(row)
-		if value == "" {
-			continue
-		}
-		result = append(result, value)
+	return normalizeDistinctLogValues(rows), nil
+}
+
+func distinctUserVisibleModelValues(userID string) ([]string, error) {
+	type modelNameRow struct {
+		ModelName string `gorm:"column:model_name"`
 	}
-	return result, nil
+	rows := make([]modelNameRow, 0)
+	query := `
+		SELECT DISTINCT ` + userVisibleModelNameExpr + ` AS model_name
+		FROM ` + model.EventLogsTableName + `
+		WHERE user_id = ?
+		AND COALESCE(` + userVisibleModelNameExpr + `, '') <> ''
+		ORDER BY model_name ASC
+		LIMIT 200
+	`
+	if err := model.LOG_DB.Raw(query, strings.TrimSpace(userID)).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	values := make([]string, 0, len(rows))
+	for _, row := range rows {
+		values = append(values, row.ModelName)
+	}
+	return normalizeDistinctLogValues(values), nil
 }
 
 func loadChannelOptions(channelIDs []string) ([]logChannelOption, error) {
@@ -150,7 +179,12 @@ func buildLogFilterOptions(userID string, includeAdmin bool) (logFilterOptions, 
 	if err != nil {
 		return logFilterOptions{}, err
 	}
-	modelNames, err := distinctLogValues("model_name", userID)
+	var modelNames []string
+	if includeAdmin {
+		modelNames, err = distinctLogValues("model_name", userID)
+	} else {
+		modelNames, err = distinctUserVisibleModelValues(userID)
+	}
 	if err != nil {
 		return logFilterOptions{}, err
 	}
@@ -256,7 +290,7 @@ func countUserLogs(userId string, logType int, startTimestamp int64, endTimestam
 		query = query.Where("type = ?", logType)
 	}
 	if modelName != "" {
-		query = query.Where("model_name = ?", modelName)
+		query = query.Where(userVisibleModelNameExpr+" = ?", modelName)
 	}
 	if tokenName != "" {
 		query = query.Where("token_name = ?", tokenName)
@@ -451,14 +485,20 @@ func GetLogsStat(c *gin.Context) {
 }
 
 func GetLogsSelfStat(c *gin.Context) {
-	username := c.GetString(ctxkey.Username)
+	userId := c.GetString(ctxkey.Id)
 	logType, _ := strconv.Atoi(c.Query("type"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
 	tokenName := c.Query("token_name")
 	modelName := c.Query("model_name")
-	channel := c.Query("channel")
-	quotaNum := logsvc.SumUsedQuota(normalizeStatLogType(logType), startTimestamp, endTimestamp, modelName, username, tokenName, channel)
+	quotaNum, err := logsvc.SumUsedQuotaByUserIdWithModelAndToken(normalizeStatLogType(logType), userId, startTimestamp, endTimestamp, modelName, tokenName)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
 	//tokenNum := model.SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, tokenName)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

@@ -60,6 +60,58 @@ func TestEnsureProcurementCostTablesWithDBRepairsMissingCostPerUnitColumn(t *tes
 	}
 }
 
+func TestBackfillLogRouteModelNamesWithDB(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(&Log{}); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	rows := []Log{
+		{Id: "legacy-empty", ModelName: "qwen3.7-plus"},
+		{Id: "keep-request", ModelName: "qwen3.7-plus-2026-05-26", RequestModelName: "qwen3.7-plus"},
+		{Id: "keep-actual", ModelName: "gpt-5", ActualModelName: "gpt-5-upstream"},
+		{Id: "blank-model"},
+	}
+	if err := db.Create(&rows).Error; err != nil {
+		t.Fatalf("create logs: %v", err)
+	}
+
+	if err := backfillLogRouteModelNamesWithDB(db); err != nil {
+		t.Fatalf("backfill route model names: %v", err)
+	}
+
+	var legacy Log
+	if err := db.First(&legacy, "id = ?", "legacy-empty").Error; err != nil {
+		t.Fatalf("load legacy-empty: %v", err)
+	}
+	if legacy.RequestModelName != "qwen3.7-plus" || legacy.ActualModelName != "qwen3.7-plus" {
+		t.Fatalf("legacy names request=%q actual=%q", legacy.RequestModelName, legacy.ActualModelName)
+	}
+	var keepRequest Log
+	if err := db.First(&keepRequest, "id = ?", "keep-request").Error; err != nil {
+		t.Fatalf("load keep-request: %v", err)
+	}
+	if keepRequest.RequestModelName != "qwen3.7-plus" || keepRequest.ActualModelName != "qwen3.7-plus-2026-05-26" {
+		t.Fatalf("keep-request names request=%q actual=%q", keepRequest.RequestModelName, keepRequest.ActualModelName)
+	}
+	var keepActual Log
+	if err := db.First(&keepActual, "id = ?", "keep-actual").Error; err != nil {
+		t.Fatalf("load keep-actual: %v", err)
+	}
+	if keepActual.RequestModelName != "gpt-5" || keepActual.ActualModelName != "gpt-5-upstream" {
+		t.Fatalf("keep-actual names request=%q actual=%q", keepActual.RequestModelName, keepActual.ActualModelName)
+	}
+	var blank Log
+	if err := db.First(&blank, "id = ?", "blank-model").Error; err != nil {
+		t.Fatalf("load blank-model: %v", err)
+	}
+	if blank.RequestModelName != "" || blank.ActualModelName != "" {
+		t.Fatalf("blank-model names request=%q actual=%q", blank.RequestModelName, blank.ActualModelName)
+	}
+}
+
 func TestEnsureUserWalletAddressCaseInsensitiveUniqueCleansDuplicates(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
