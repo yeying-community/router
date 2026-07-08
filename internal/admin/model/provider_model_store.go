@@ -180,10 +180,14 @@ func BuildProviderModelStoreRows(provider string, details []ProviderModelDetail,
 		if updatedAt == 0 {
 			updatedAt = now
 		}
+		tags := detail.Tags
+		if providerModelAllowsReasoningOnlyTags(normalizedProvider, detail.Model) {
+			tags = reasoningOnlyProviderModelTags()
+		}
 		rows = append(rows, ProviderModel{
 			Provider:           normalizedProvider,
 			Model:              detail.Model,
-			Tags:               joinProviderModelTags(detail.Model, detail.Tags),
+			Tags:               joinProviderModelTags(detail.Model, tags),
 			Status:             normalizeProviderModelStatus(detail.Status),
 			Description:        strings.TrimSpace(detail.Description),
 			Specification:      MarshalProviderModelSpecification(detail.Specification),

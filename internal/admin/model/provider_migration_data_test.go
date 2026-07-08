@@ -1477,6 +1477,53 @@ func TestBuildProviderMigrationSeeds_DeepSeekTextModelsSupportChatAndMessages(t 
 	}
 }
 
+func TestBuildProviderMigrationSeeds_ReasoningOnlyModelsDoNotExposeTextTag(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	expected := map[string]map[string]bool{
+		"openai": {
+			"o3":      false,
+			"o4-mini": false,
+		},
+		"deepseek": {
+			"deepseek-reasoner": false,
+		},
+		"xai": {
+			"grok-4-fast-reasoning":   false,
+			"grok-4-1-fast-reasoning": false,
+		},
+	}
+
+	for _, seed := range seeds {
+		providerChecks, ok := expected[seed.Provider]
+		if !ok {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			if _, ok := providerChecks[detail.Model]; !ok {
+				continue
+			}
+			if detail.Type != ProviderModelTypeText {
+				t.Fatalf("%s/%s type=%q, want %q", seed.Provider, detail.Model, detail.Type, ProviderModelTypeText)
+			}
+			if len(detail.Tags) != 1 || detail.Tags[0] != ProviderModelTagReasoning {
+				t.Fatalf("%s/%s tags=%#v, want [reasoning]", seed.Provider, detail.Model, detail.Tags)
+			}
+			if len(detail.SupportedEndpoints) == 0 {
+				t.Fatalf("%s/%s should keep text protocol endpoints", seed.Provider, detail.Model)
+			}
+			providerChecks[detail.Model] = true
+		}
+	}
+
+	for provider, providerChecks := range expected {
+		for modelName, found := range providerChecks {
+			if !found {
+				t.Fatalf("expected %s seed to include reasoning-only model %s", provider, modelName)
+			}
+		}
+	}
+}
+
 func TestBuildProviderMigrationSeeds_ZhipuClaudeCompatibleModelsExposeMessagesEndpoint(t *testing.T) {
 	seeds := mustLoadProviderMigrationSeeds(t)
 	expectedModels := map[string]bool{

@@ -105,7 +105,7 @@ func RecordProcurementConsumptionObservation(ctx context.Context, logRow *model.
 
 func inferSettlementTruthMode(logRow *model.Log) string {
 	switch strings.TrimSpace(logRow.BillingSettlementMode) {
-	case "provider_usage_final":
+	case "provider_usage_final", "realtime_usage_final":
 		return SettlementTruthModeReturnedUsageFinal
 	case "local_estimate_final":
 		return SettlementTruthModeLocalEstimateFinal

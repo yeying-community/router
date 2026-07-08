@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -82,12 +84,13 @@ func RelayRealtimeHelper(c *gin.Context) *relaymodel.ErrorWithStatusCode {
 		return openai.ErrorWrapper(err, "upgrade_client_websocket_failed", http.StatusBadRequest)
 	}
 
-	recordRealtimeUnmeteredProxyLog(c, meta, upstreamURL)
-	pumpRealtimeConnection(c, clientConn, upstreamConn)
+	usage := newRealtimeUsageObserver()
+	pumpRealtimeConnection(c, clientConn, upstreamConn, usage)
+	recordRealtimeProxyLog(c, meta, upstreamURL, usage.Usage())
 	return nil
 }
 
-func buildRealtimeUnmeteredProxyLog(relayMeta *meta.Meta, upstreamURL string) *adminmodel.Log {
+func buildRealtimeProxyLog(relayMeta *meta.Meta, upstreamURL string, usage *relaymodel.Usage) *adminmodel.Log {
 	if relayMeta == nil {
 		return nil
 	}
@@ -112,21 +115,79 @@ func buildRealtimeUnmeteredProxyLog(relayMeta *meta.Meta, upstreamURL string) *a
 		ElapsedTime:           helper.CalcElapsedTime(relayMeta.StartTime),
 	}
 	applyRouteObservabilityToLog(entry, relayMeta, modelName)
+	if usage == nil || usage.PromptTokens+usage.CompletionTokens <= 0 {
+		return entry
+	}
+	groupRatio := adminmodel.GetGroupChannelBillingRatio(relayMeta.Group, relayMeta.ChannelId)
+	pricing, err := adminmodel.ResolveChannelModelPricing(relayMeta.ChannelProtocol, relayMeta.ChannelModelConfigs, modelName)
+	if err != nil {
+		if groupRatio == 0 {
+			pricing = adminmodel.ResolvedModelPricing{
+				Model:     modelName,
+				Type:      adminmodel.InferModelType(modelName),
+				PriceUnit: adminmodel.ProviderPriceUnitPer1KTokens,
+				Currency:  adminmodel.ProviderPriceCurrencyUSD,
+				Source:    "group_free",
+			}
+		} else {
+			entry.Content = "realtime websocket proxy connected; usage returned but pricing is not configured; upstream_url=" + strings.TrimSpace(upstreamURL)
+			return entry
+		}
+	}
+	pricing = adminmodel.ResolveTextRequestPricing(pricing, relayMeta.UpstreamRequestPath)
+	pricing = adminmodel.ResolveTextUsagePricing(pricing, relayMeta.UpstreamRequestPath, usage.PromptTokens, usage.CompletionTokens)
+	snapshot, err := billing.ComputeTextBillingSnapshotWithUsage(*usage, pricing, groupRatio)
+	if err != nil {
+		entry.Content = "realtime websocket proxy connected; usage returned but billing snapshot failed; upstream_url=" + strings.TrimSpace(upstreamURL)
+		return entry
+	}
+	snapshot.PricingSource = strings.TrimSpace(pricing.Source)
+	snapshot.UsageSource = billingUsageSourceUpstreamUsage
+	snapshot.EstimateSource = billingEstimateSourceRealtimeUpstreamUsage
+	snapshot.SettlementMode = billingSettlementModeRealtimeUsageFinal
+	contentSuffix := "realtime websocket usage metered; upstream_url=" + strings.TrimSpace(upstreamURL)
+	if err := billing.ApplyEstimatedProcurementCostFloor(&snapshot, relayMeta.ChannelId, modelName); err != nil {
+		contentSuffix = "realtime websocket usage metered; procurement floor unavailable; upstream_url=" + strings.TrimSpace(upstreamURL)
+	}
+	entry.PromptTokens = usage.PromptTokens
+	entry.CompletionTokens = usage.CompletionTokens
+	entry.Quota = int(snapshot.ChargeAmount)
+	entry.BillingSource = adminmodel.ResolveConsumeLogBillingSource(true)
+	entry.Content = buildTextBillingLogContent(pricing, groupRatio, contentSuffix)
+	snapshot.ApplyToLog(entry)
 	return entry
 }
 
-func recordRealtimeUnmeteredProxyLog(c *gin.Context, relayMeta *meta.Meta, upstreamURL string) {
+func buildRealtimeUnmeteredProxyLog(relayMeta *meta.Meta, upstreamURL string) *adminmodel.Log {
+	return buildRealtimeProxyLog(relayMeta, upstreamURL, nil)
+}
+
+func recordRealtimeProxyLog(c *gin.Context, relayMeta *meta.Meta, upstreamURL string, usage *relaymodel.Usage) {
 	if c == nil || relayMeta == nil {
 		return
 	}
-	entry := buildRealtimeUnmeteredProxyLog(relayMeta, upstreamURL)
+	entry := buildRealtimeProxyLog(relayMeta, upstreamURL, usage)
 	if entry == nil {
 		return
 	}
 	billing.ApplyProcurementCostObservation(entry)
 	adminmodel.RecordConsumeLog(c.Request.Context(), entry)
-	adminmodel.UpdateUserUsedQuotaAndRequestCount(relayMeta.UserId, 0)
-	adminmodel.UpdateChannelUsedQuota(relayMeta.ChannelId, 0)
+	if entry.Quota > 0 {
+		if consumedFromLots, err := adminmodel.ConsumeUserBalanceLotsForGroup(relayMeta.UserId, relayMeta.Group, int64(entry.Quota)); err != nil {
+			logger.Errorf(c.Request.Context(), "realtime billing lots consume failed code=consume_user_balance_lots_failed user_id=%s group=%s channel_id=%s model=%s total_quota=%d err=%q", strings.TrimSpace(relayMeta.UserId), strings.TrimSpace(relayMeta.Group), strings.TrimSpace(relayMeta.ChannelId), strings.TrimSpace(entry.ModelName), entry.Quota, err.Error())
+		} else if consumedFromLots < int64(entry.Quota) {
+			logger.Warnf(c.Request.Context(), "realtime billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(relayMeta.UserId), strings.TrimSpace(relayMeta.Group), strings.TrimSpace(relayMeta.ChannelId), strings.TrimSpace(entry.ModelName), consumedFromLots, entry.Quota)
+		}
+		if err := adminmodel.CacheUpdateUserQuota(c.Request.Context(), relayMeta.UserId); err != nil {
+			logger.Errorf(c.Request.Context(), "realtime billing cache update failed code=update_user_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s total_quota=%d err=%q", strings.TrimSpace(relayMeta.UserId), strings.TrimSpace(relayMeta.Group), strings.TrimSpace(relayMeta.ChannelId), strings.TrimSpace(entry.ModelName), entry.Quota, err.Error())
+		}
+		if err := adminmodel.CacheUpdateUserQuotaForGroup(c.Request.Context(), relayMeta.UserId, relayMeta.Group); err != nil {
+			logger.Errorf(c.Request.Context(), "realtime billing group cache update failed code=update_user_group_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s total_quota=%d err=%q", strings.TrimSpace(relayMeta.UserId), strings.TrimSpace(relayMeta.Group), strings.TrimSpace(relayMeta.ChannelId), strings.TrimSpace(entry.ModelName), entry.Quota, err.Error())
+		}
+	}
+	billing.RecordProcurementConsumptionObservation(c.Request.Context(), entry)
+	adminmodel.UpdateUserUsedQuotaAndRequestCount(relayMeta.UserId, int64(entry.Quota))
+	adminmodel.UpdateChannelUsedQuota(relayMeta.ChannelId, int64(entry.Quota))
 	consumeTokenRequestCount(c.Request.Context(), relayMeta.TokenId, 1)
 }
 
@@ -303,7 +364,7 @@ func realtimeUpgradeHeaders(upstreamConn *websocket.Conn, requestHeader http.Hea
 	return header
 }
 
-func pumpRealtimeConnection(c *gin.Context, clientConn *websocket.Conn, upstreamConn *websocket.Conn) {
+func pumpRealtimeConnection(c *gin.Context, clientConn *websocket.Conn, upstreamConn *websocket.Conn, usage *realtimeUsageObserver) {
 	var once sync.Once
 	closeBoth := func() {
 		once.Do(func() {
@@ -314,8 +375,8 @@ func pumpRealtimeConnection(c *gin.Context, clientConn *websocket.Conn, upstream
 	defer closeBoth()
 
 	errCh := make(chan error, 2)
-	go proxyRealtimeFrames(errCh, upstreamConn, clientConn, "upstream_to_client")
-	go proxyRealtimeFrames(errCh, clientConn, upstreamConn, "client_to_upstream")
+	go proxyRealtimeFrames(errCh, upstreamConn, clientConn, "upstream_to_client", usage)
+	go proxyRealtimeFrames(errCh, clientConn, upstreamConn, "client_to_upstream", nil)
 
 	err := <-errCh
 	if err != nil && c != nil {
@@ -323,7 +384,7 @@ func pumpRealtimeConnection(c *gin.Context, clientConn *websocket.Conn, upstream
 	}
 }
 
-func proxyRealtimeFrames(errCh chan<- error, dst *websocket.Conn, src *websocket.Conn, direction string) {
+func proxyRealtimeFrames(errCh chan<- error, dst *websocket.Conn, src *websocket.Conn, direction string, usage *realtimeUsageObserver) {
 	for {
 		messageType, reader, err := src.NextReader()
 		if err != nil {
@@ -335,7 +396,20 @@ func proxyRealtimeFrames(errCh chan<- error, dst *websocket.Conn, src *websocket
 			errCh <- fmt.Errorf("%s next writer failed: %w", direction, err)
 			return
 		}
-		if _, err := io.Copy(writer, reader); err != nil {
+		if usage != nil && messageType == websocket.TextMessage {
+			payload, readErr := io.ReadAll(reader)
+			if readErr != nil {
+				_ = writer.Close()
+				errCh <- fmt.Errorf("%s read message failed: %w", direction, readErr)
+				return
+			}
+			usage.Observe(payload)
+			if _, err := io.Copy(writer, bytes.NewReader(payload)); err != nil {
+				_ = writer.Close()
+				errCh <- fmt.Errorf("%s copy failed: %w", direction, err)
+				return
+			}
+		} else if _, err := io.Copy(writer, reader); err != nil {
 			_ = writer.Close()
 			errCh <- fmt.Errorf("%s copy failed: %w", direction, err)
 			return
@@ -356,4 +430,119 @@ func wrapRealtimeDialError(err error, resp *http.Response) *relaymodel.ErrorWith
 		statusCode = http.StatusBadGateway
 	}
 	return openai.ErrorWrapper(err, "dial_realtime_upstream_failed", statusCode)
+}
+
+type realtimeUsageObserver struct {
+	mu    sync.Mutex
+	usage relaymodel.Usage
+}
+
+func newRealtimeUsageObserver() *realtimeUsageObserver {
+	return &realtimeUsageObserver{}
+}
+
+func (observer *realtimeUsageObserver) Observe(payload []byte) {
+	if observer == nil || len(payload) == 0 {
+		return
+	}
+	usage, ok := extractRealtimeUsage(payload)
+	if !ok {
+		return
+	}
+	observer.mu.Lock()
+	defer observer.mu.Unlock()
+	observer.usage.PromptTokens += usage.PromptTokens
+	observer.usage.CompletionTokens += usage.CompletionTokens
+	observer.usage.TotalTokens += usage.TotalTokens
+	observer.usage.ImageGenerationCalls += usage.ImageGenerationCalls
+	if usage.PromptTokensDetails != nil {
+		if observer.usage.PromptTokensDetails == nil {
+			observer.usage.PromptTokensDetails = &relaymodel.PromptTokensDetails{}
+		}
+		observer.usage.PromptTokensDetails.CachedTokens += usage.PromptTokensDetails.CachedTokens
+		observer.usage.PromptTokensDetails.CacheReadTokens += usage.PromptTokensDetails.CacheReadTokens
+		observer.usage.PromptTokensDetails.CacheCreationTokens += usage.PromptTokensDetails.CacheCreationTokens
+	}
+}
+
+func (observer *realtimeUsageObserver) Usage() *relaymodel.Usage {
+	if observer == nil {
+		return nil
+	}
+	observer.mu.Lock()
+	defer observer.mu.Unlock()
+	if observer.usage.PromptTokens+observer.usage.CompletionTokens <= 0 {
+		return nil
+	}
+	usage := observer.usage
+	if observer.usage.PromptTokensDetails != nil {
+		details := *observer.usage.PromptTokensDetails
+		usage.PromptTokensDetails = &details
+	}
+	return &usage
+}
+
+type realtimeUsageEnvelope struct {
+	Usage    *realtimeUsagePayload `json:"usage"`
+	Response *struct {
+		Usage *realtimeUsagePayload `json:"usage"`
+	} `json:"response"`
+}
+
+type realtimeUsagePayload struct {
+	PromptTokens            int                                 `json:"prompt_tokens"`
+	InputTokens             int                                 `json:"input_tokens"`
+	CompletionTokens        int                                 `json:"completion_tokens"`
+	OutputTokens            int                                 `json:"output_tokens"`
+	TotalTokens             int                                 `json:"total_tokens"`
+	PromptTokensDetails     *relaymodel.PromptTokensDetails     `json:"prompt_tokens_details"`
+	InputTokenDetails       *relaymodel.PromptTokensDetails     `json:"input_token_details"`
+	CompletionTokensDetails *relaymodel.CompletionTokensDetails `json:"completion_tokens_details"`
+	OutputTokenDetails      *relaymodel.CompletionTokensDetails `json:"output_token_details"`
+}
+
+func extractRealtimeUsage(payload []byte) (relaymodel.Usage, bool) {
+	envelope := realtimeUsageEnvelope{}
+	if err := json.Unmarshal(payload, &envelope); err != nil {
+		return relaymodel.Usage{}, false
+	}
+	usagePayload := envelope.Usage
+	if usagePayload == nil && envelope.Response != nil {
+		usagePayload = envelope.Response.Usage
+	}
+	if usagePayload == nil {
+		return relaymodel.Usage{}, false
+	}
+	usage := relaymodel.Usage{
+		PromptTokens:     firstPositiveInt(usagePayload.PromptTokens, usagePayload.InputTokens),
+		CompletionTokens: firstPositiveInt(usagePayload.CompletionTokens, usagePayload.OutputTokens),
+		TotalTokens:      usagePayload.TotalTokens,
+	}
+	if usage.TotalTokens <= 0 {
+		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	}
+	if usagePayload.PromptTokensDetails != nil {
+		details := *usagePayload.PromptTokensDetails
+		usage.PromptTokensDetails = &details
+	} else if usagePayload.InputTokenDetails != nil {
+		details := *usagePayload.InputTokenDetails
+		usage.PromptTokensDetails = &details
+	}
+	if usagePayload.CompletionTokensDetails != nil {
+		details := *usagePayload.CompletionTokensDetails
+		usage.CompletionTokensDetails = &details
+	} else if usagePayload.OutputTokenDetails != nil {
+		details := *usagePayload.OutputTokenDetails
+		usage.CompletionTokensDetails = &details
+	}
+	return usage, usage.PromptTokens+usage.CompletionTokens > 0
+}
+
+func firstPositiveInt(values ...int) int {
+	for _, value := range values {
+		if value > 0 {
+			return value
+		}
+	}
+	return 0
 }

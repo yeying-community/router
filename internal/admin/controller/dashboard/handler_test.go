@@ -80,7 +80,7 @@ func TestBuildUserGrowthDashboardWithDBCountsWeeklyGrowth(t *testing.T) {
 	previousStart, _ := previousUserGrowthPeriod(currentStart, now, userGrowthGranularityWeek)
 	oldStart := currentStart.AddDate(0, 0, -30)
 	users := []model.User{
-		{Id: "user-current", Username: "current", Password: "password123", AccessToken: "token-current", AffCode: "aff-current", Status: model.UserStatusEnabled, Quota: 456, CreatedAt: currentStart.Add(time.Hour).Unix()},
+		{Id: "user-current", Username: "current", Password: "password123", AccessToken: "token-current", AffCode: "aff-current", Status: model.UserStatusEnabled, CreatedAt: currentStart.Add(time.Hour).Unix()},
 		{Id: "user-existing", Username: "existing", Password: "password123", AccessToken: "token-existing", AffCode: "aff-existing", Status: model.UserStatusEnabled, CreatedAt: oldStart.Unix()},
 		{Id: "user-previous", Username: "previous", Password: "password123", AccessToken: "token-previous", AffCode: "aff-previous", Status: model.UserStatusEnabled, CreatedAt: previousStart.Add(time.Hour).Unix()},
 		{Id: "user-deleted", Username: "deleted", Password: "password123", AccessToken: "token-deleted", AffCode: "aff-deleted", Status: model.UserStatusDeleted, CreatedAt: currentStart.Add(2 * time.Hour).Unix()},
@@ -147,7 +147,7 @@ func TestBuildUsageRankingIncludesUserBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(&model.User{}, &model.Log{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Log{}, &model.UserBalanceLot{}); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
 	model.DB = db
@@ -156,11 +156,18 @@ func TestBuildUsageRankingIncludesUserBalance(t *testing.T) {
 	startAt := int64(100)
 	endAt := int64(200)
 	users := []model.User{
-		{Id: "user-1", Username: "alice", Password: "password123", AccessToken: "token-1", AffCode: "aff-1", Status: model.UserStatusEnabled, Quota: 120, CreatedAt: 10},
-		{Id: "user-2", Username: "bob", Password: "password123", AccessToken: "token-2", AffCode: "aff-2", Status: model.UserStatusEnabled, Quota: 50, CreatedAt: 11},
+		{Id: "user-1", Username: "alice", Password: "password123", AccessToken: "token-1", AffCode: "aff-1", Status: model.UserStatusEnabled, CreatedAt: 10},
+		{Id: "user-2", Username: "bob", Password: "password123", AccessToken: "token-2", AffCode: "aff-2", Status: model.UserStatusEnabled, CreatedAt: 11},
 	}
 	if err := db.Create(&users).Error; err != nil {
 		t.Fatalf("create users: %v", err)
+	}
+	lots := []model.UserBalanceLot{
+		{Id: "lot-1", UserID: "user-1", SourceType: model.UserBalanceLotSourceTopup, SourceID: "topup-1", TotalAmount: 120, RemainingAmount: 120, Status: model.UserBalanceLotStatusActive, GrantedAt: 10, CreatedAt: 10, UpdatedAt: 10},
+		{Id: "lot-2", UserID: "user-2", SourceType: model.UserBalanceLotSourceTopup, SourceID: "topup-2", TotalAmount: 50, RemainingAmount: 50, Status: model.UserBalanceLotStatusActive, GrantedAt: 11, CreatedAt: 11, UpdatedAt: 11},
+	}
+	if err := db.Create(&lots).Error; err != nil {
+		t.Fatalf("create balance lots: %v", err)
 	}
 	logs := []model.Log{
 		{Id: "log-1", UserId: "user-1", Type: model.LogTypeConsume, Quota: 30, CreatedAt: 120},

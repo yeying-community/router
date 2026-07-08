@@ -11,6 +11,7 @@ import (
 	"github.com/yeying-community/router/internal/relay/billing"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 	"github.com/yeying-community/router/internal/relay/meta"
+	relaymodel "github.com/yeying-community/router/internal/relay/model"
 )
 
 func TestNormalizeRealtimeWebSocketURL(t *testing.T) {
@@ -136,6 +137,115 @@ func TestBuildRealtimeUnmeteredProxyLog(t *testing.T) {
 	}
 	if !strings.Contains(entry.Content, "usage metering is not implemented yet") {
 		t.Fatalf("Content = %q, want unmetered note", entry.Content)
+	}
+}
+
+func TestExtractRealtimeUsageSupportsResponseEnvelope(t *testing.T) {
+	usage, ok := extractRealtimeUsage([]byte(`{
+		"type": "response.done",
+		"response": {
+			"usage": {
+				"input_tokens": 12,
+				"output_tokens": 5,
+				"total_tokens": 17,
+				"input_token_details": {
+					"cached_tokens": 3,
+					"cache_read_tokens": 2,
+					"cache_creation_tokens": 1
+				}
+			}
+		}
+	}`))
+	if !ok {
+		t.Fatal("extractRealtimeUsage returned ok=false")
+	}
+	if usage.PromptTokens != 12 || usage.CompletionTokens != 5 || usage.TotalTokens != 17 {
+		t.Fatalf("usage=%+v, want prompt=12 completion=5 total=17", usage)
+	}
+	if usage.PromptTokensDetails == nil {
+		t.Fatal("PromptTokensDetails = nil, want details")
+	}
+	if usage.PromptTokensDetails.CachedTokens != 3 || usage.PromptTokensDetails.CacheReadTokens != 2 || usage.PromptTokensDetails.CacheCreationTokens != 1 {
+		t.Fatalf("PromptTokensDetails=%+v, want cached=3 read=2 write=1", *usage.PromptTokensDetails)
+	}
+}
+
+func TestRealtimeUsageObserverAggregatesUsageEvents(t *testing.T) {
+	observer := newRealtimeUsageObserver()
+	observer.Observe([]byte(`{"type":"session.created"}`))
+	observer.Observe([]byte(`{"type":"response.done","response":{"usage":{"input_tokens":10,"output_tokens":4,"input_token_details":{"cached_tokens":2}}}}`))
+	observer.Observe([]byte(`{"type":"response.done","usage":{"prompt_tokens":6,"completion_tokens":3,"prompt_tokens_details":{"cache_read_tokens":1,"cache_creation_tokens":2}}}`))
+
+	usage := observer.Usage()
+	if usage == nil {
+		t.Fatal("Usage() returned nil")
+	}
+	if usage.PromptTokens != 16 || usage.CompletionTokens != 7 || usage.TotalTokens != 23 {
+		t.Fatalf("usage=%+v, want prompt=16 completion=7 total=23", *usage)
+	}
+	if usage.PromptTokensDetails == nil {
+		t.Fatal("PromptTokensDetails = nil, want details")
+	}
+	if usage.PromptTokensDetails.CachedTokens != 2 || usage.PromptTokensDetails.CacheReadTokens != 1 || usage.PromptTokensDetails.CacheCreationTokens != 2 {
+		t.Fatalf("PromptTokensDetails=%+v, want cached=2 read=1 write=2", *usage.PromptTokensDetails)
+	}
+}
+
+func TestBuildRealtimeProxyLogWithReturnedUsageMetersBilling(t *testing.T) {
+	inputPrice := 0.01
+	outputPrice := 0.02
+	entry := buildRealtimeProxyLog(&meta.Meta{
+		UserId:              "user-1",
+		Group:               "group-1",
+		ChannelId:           "channel-1",
+		TokenName:           "prod-token",
+		OriginModelName:     "gpt-realtime-2",
+		ActualModelName:     "gpt-realtime-upstream",
+		ChannelProtocol:     relaychannel.OpenAI,
+		RequestURLPath:      adminmodel.ChannelModelEndpointRealtime,
+		UpstreamRequestPath: adminmodel.ChannelModelEndpointRealtime,
+		StartTime:           time.Now().Add(-100 * time.Millisecond),
+		ChannelModelConfigs: []adminmodel.ChannelModel{
+			{
+				ChannelId:   "channel-1",
+				Model:       "gpt-realtime-upstream",
+				Type:        adminmodel.ProviderModelTypeText,
+				Selected:    true,
+				InputPrice:  &inputPrice,
+				OutputPrice: &outputPrice,
+				PriceUnit:   adminmodel.ProviderPriceUnitPer1KTokens,
+				Currency:    adminmodel.ProviderPriceCurrencyUSD,
+			},
+		},
+	}, "wss://api.openai.com/v1/realtime?model=gpt-realtime-upstream", &relaymodel.Usage{
+		PromptTokens:     1000,
+		CompletionTokens: 1000,
+		TotalTokens:      2000,
+	})
+	if entry == nil {
+		t.Fatal("buildRealtimeProxyLog() returned nil")
+	}
+	if entry.PromptTokens != 1000 || entry.CompletionTokens != 1000 {
+		t.Fatalf("token fields prompt/completion=%d/%d, want 1000/1000", entry.PromptTokens, entry.CompletionTokens)
+	}
+	if entry.Quota <= 0 || entry.BillingChargeAmount <= 0 {
+		t.Fatalf("quota fields quota=%d charge=%d, want positive metered charge", entry.Quota, entry.BillingChargeAmount)
+	}
+	if entry.BillingUsageSource != billingUsageSourceUpstreamUsage {
+		t.Fatalf("BillingUsageSource=%q, want %q", entry.BillingUsageSource, billingUsageSourceUpstreamUsage)
+	}
+	if entry.BillingEstimateSource != billingEstimateSourceRealtimeUpstreamUsage {
+		t.Fatalf("BillingEstimateSource=%q, want %q", entry.BillingEstimateSource, billingEstimateSourceRealtimeUpstreamUsage)
+	}
+	if entry.BillingSettlementMode != billingSettlementModeRealtimeUsageFinal {
+		t.Fatalf("BillingSettlementMode=%q, want %q", entry.BillingSettlementMode, billingSettlementModeRealtimeUsageFinal)
+	}
+	billing.ApplyProcurementCostObservation(entry)
+	if entry.BillingSettlementTruthMode != billing.SettlementTruthModeReturnedUsageFinal {
+		t.Fatalf("BillingSettlementTruthMode=%q, want %q", entry.BillingSettlementTruthMode, billing.SettlementTruthModeReturnedUsageFinal)
+	}
+	if !strings.Contains(entry.Content, "realtime websocket usage metered") {
+		t.Fatalf("Content=%q, want metered note", entry.Content)
 	}
 }
 
