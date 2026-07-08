@@ -152,21 +152,6 @@ const ChannelModelEditorModal = ({
                 />
               </AppField>
             </AppFormRow>
-            <AppFormRow>
-              <AppField label={t('channel.edit.model_selector.table.alias')}>
-                <AppInput
-                  className='router-modal-input'
-                  value={detailEditingModelRow.model || ''}
-                  onChange={(e, { value }) =>
-                    updateModelConfigField(
-                      detailEditingModelRow.upstream_model,
-                      'model',
-                      value || detailEditingModelRow.upstream_model,
-                    )
-                  }
-                />
-              </AppField>
-            </AppFormRow>
             <AppField label={t('channel.edit.model_selector.table.providers')}>
               <div className='router-channel-model-editor-provider-row'>
                 <AppSelect

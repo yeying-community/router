@@ -4,6 +4,7 @@ import {
   AppButton,
   AppDetailSection,
   AppEmpty,
+  AppInput,
   AppPopconfirm,
   AppTable,
   AppTag,
@@ -61,6 +62,7 @@ const ChannelDetailPublishTab = ({
   getComplexPricingDetailsForModel,
   openComplexPricingModal,
   normalizeChannelModelType,
+  onUpdatePublishedModelName,
   onUpdatePublish,
   publishMutatingModel,
   publishReadonly,
@@ -121,25 +123,45 @@ const ChannelDetailPublishTab = ({
     const modelName = (row?.model || row?.upstream_model || '').toString().trim();
     const isMutating = publishMutatingModel === modelName;
     if (status === 'published') {
+      const currentPublishedName = (row?.published_model || row?.model || row?.upstream_model || '')
+        .toString()
+        .trim();
+      const originalPublishedName = (row?.published_model_original || row?.published_model || row?.model || row?.upstream_model || '')
+        .toString()
+        .trim();
+      const hasNameChange = currentPublishedName !== originalPublishedName;
       return (
-        <AppPopconfirm
-          title={t('channel.edit.publish.unpublish_confirm')}
-          okText={t('common.confirm')}
-          cancelText={t('common.cancel')}
-          disabled={publishReadonly || isMutating}
-          onConfirm={() => onUpdatePublish?.(row, false)}
-        >
-          <span>
+        <div className='router-inline-actions'>
+          {hasNameChange && (
             <AppButton
               type='button'
               className='router-inline-button'
               loading={isMutating}
               disabled={publishReadonly || isMutating}
+              onClick={() => onUpdatePublish?.(row, true)}
             >
-              {t('channel.edit.publish.action_unpublish')}
+              {t('channel.edit.publish.action_save_name')}
             </AppButton>
-          </span>
-        </AppPopconfirm>
+          )}
+          <AppPopconfirm
+            title={t('channel.edit.publish.unpublish_confirm')}
+            okText={t('common.confirm')}
+            cancelText={t('common.cancel')}
+            disabled={publishReadonly || isMutating}
+            onConfirm={() => onUpdatePublish?.(row, false)}
+          >
+            <span>
+              <AppButton
+                type='button'
+                className='router-inline-button'
+                loading={isMutating}
+                disabled={publishReadonly || isMutating}
+              >
+                {t('channel.edit.publish.action_unpublish')}
+              </AppButton>
+            </span>
+          </AppPopconfirm>
+        </div>
       );
     }
     const publishDisabled = publishReadonly || isMutating || status !== 'pending_publish';
@@ -200,6 +222,31 @@ const ChannelDetailPublishTab = ({
                   {value || '-'}
                 </span>
               ),
+            },
+            {
+              title: t('channel.edit.publish.table.published_model'),
+              key: 'published_model',
+              width: 190,
+              render: (_, row) => {
+                const modelName = (row?.model || row?.upstream_model || '').toString().trim();
+                return (
+                  <AppInput
+                    className='router-table-input router-monospace-value'
+                    value={
+                      Object.prototype.hasOwnProperty.call(row || {}, 'published_model')
+                        ? row.published_model
+                        : modelName
+                    }
+                    disabled={publishReadonly}
+                    onChange={(event, data) =>
+                      onUpdatePublishedModelName?.(
+                        row,
+                        data?.value ?? event?.target?.value ?? '',
+                      )
+                    }
+                  />
+                );
+              },
             },
             {
               title: t('channel.edit.model_selector.table.type'),

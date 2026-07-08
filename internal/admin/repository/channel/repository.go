@@ -352,12 +352,12 @@ func UpdateModels(channelID string, rows []model.ChannelModel) error {
 	return channel.UpdateGroupModelChannels()
 }
 
-func UpdateModelPublish(channelID string, modelName string, publishEnabled bool, operator string) error {
+func UpdateModelPublish(channelID string, modelName string, publishEnabled bool, publishedModel string, operator string) error {
 	normalizedChannelID := strings.TrimSpace(channelID)
 	if normalizedChannelID == "" {
 		return errors.New("渠道 ID 不能为空")
 	}
-	if err := model.SetChannelModelPublishEnabledWithDB(model.DB, normalizedChannelID, modelName, publishEnabled, operator); err != nil {
+	if err := model.SetChannelModelPublishEnabledWithDB(model.DB, normalizedChannelID, modelName, publishEnabled, publishedModel, operator); err != nil {
 		return err
 	}
 	channel := &model.Channel{}

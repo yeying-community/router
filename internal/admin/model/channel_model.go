@@ -31,6 +31,7 @@ type ChannelModel struct {
 	Endpoints       []string                            `json:"endpoints,omitempty" gorm:"-"`
 	PublishStatus   string                              `json:"publish_status,omitempty" gorm:"-"`
 	PublishEnabled  bool                                `json:"publish_enabled" gorm:"not null;default:false;index"`
+	PublishedModel  string                              `json:"published_model,omitempty" gorm:"type:varchar(255);default:'';index"`
 	PublishedAt     int64                               `json:"published_at,omitempty" gorm:"bigint;index"`
 	PublishedBy     string                              `json:"published_by,omitempty" gorm:"type:varchar(128);default:''"`
 	Inactive        bool                                `json:"inactive,omitempty" gorm:"not null;default:false;index"`
@@ -575,12 +576,13 @@ func ReplaceChannelModelsWithDB(db *gorm.DB, channelID string, rows []ChannelMod
 	return SyncChannelModelEndpointsWithDB(db, normalizedChannelID, storedRows)
 }
 
-func SetChannelModelPublishEnabledWithDB(db *gorm.DB, channelID string, modelName string, publishEnabled bool, operator string) error {
+func SetChannelModelPublishEnabledWithDB(db *gorm.DB, channelID string, modelName string, publishEnabled bool, publishedModel string, operator string) error {
 	if db == nil {
 		return fmt.Errorf("database handle is nil")
 	}
 	normalizedChannelID := strings.TrimSpace(channelID)
 	normalizedModelName := strings.TrimSpace(modelName)
+	normalizedPublishedModel := strings.TrimSpace(publishedModel)
 	if normalizedChannelID == "" {
 		return fmt.Errorf("渠道 ID 不能为空")
 	}
@@ -599,6 +601,12 @@ func SetChannelModelPublishEnabledWithDB(db *gorm.DB, channelID string, modelNam
 		}
 		normalizeChannelModelRow(&row)
 		if publishEnabled {
+			if normalizedPublishedModel == "" {
+				normalizedPublishedModel = ChannelModelPublishedName(row)
+			}
+			if normalizedPublishedModel == "" {
+				return fmt.Errorf("发布名称不能为空")
+			}
 			stateByChannelID, err := loadChannelModelEndpointStateByChannelIDsWithDB(tx, []string{normalizedChannelID})
 			if err != nil {
 				return err
@@ -616,6 +624,15 @@ func SetChannelModelPublishEnabledWithDB(db *gorm.DB, channelID string, modelNam
 			if err := validateChannelModelPublishBilling(row); err != nil {
 				return err
 			}
+			duplicateCount := int64(0)
+			if err := tx.Model(&ChannelModel{}).
+				Where("channel_id = ? AND publish_enabled = ? AND model <> ? AND COALESCE(NULLIF(TRIM(published_model), ''), model) = ?", normalizedChannelID, true, normalizedModelName, normalizedPublishedModel).
+				Count(&duplicateCount).Error; err != nil {
+				return err
+			}
+			if duplicateCount > 0 {
+				return fmt.Errorf("发布名称 %s 已被该渠道其他模型使用，请先取消原模型发布", normalizedPublishedModel)
+			}
 		}
 		now := helper.GetTimestamp()
 		updates := map[string]any{
@@ -623,7 +640,12 @@ func SetChannelModelPublishEnabledWithDB(db *gorm.DB, channelID string, modelNam
 			"updated_at":      now,
 		}
 		if publishEnabled {
-			updates["published_at"] = now
+			updates["published_model"] = normalizedPublishedModel
+			if row.PublishEnabled && row.PublishedAt > 0 {
+				updates["published_at"] = row.PublishedAt
+			} else {
+				updates["published_at"] = now
+			}
 			updates["published_by"] = strings.TrimSpace(operator)
 		} else {
 			updates["published_at"] = int64(0)
@@ -1113,6 +1135,7 @@ func normalizeChannelModelRow(row *ChannelModel) {
 	row.Model = strings.TrimSpace(row.Model)
 	row.UpstreamModel = strings.TrimSpace(row.UpstreamModel)
 	row.Provider = strings.TrimSpace(strings.ToLower(row.Provider))
+	row.PublishedModel = strings.TrimSpace(row.PublishedModel)
 	row.PublishedBy = strings.TrimSpace(row.PublishedBy)
 	row.DisabledReason = strings.TrimSpace(row.DisabledReason)
 	row.DisabledBy = strings.TrimSpace(row.DisabledBy)
@@ -1252,10 +1275,14 @@ func replaceChannelModelRowsWithDB(db *gorm.DB, channelID string, rows []Channel
 			row.DisabledBy = ""
 			if existingRow, ok := existingByModel[row.Model]; ok && !shouldValidateManualChannelModelChange(existingRow, row) {
 				row.PublishEnabled = existingRow.PublishEnabled
+				row.PublishedModel = strings.TrimSpace(existingRow.PublishedModel)
 				row.PublishedAt = existingRow.PublishedAt
 				row.PublishedBy = strings.TrimSpace(existingRow.PublishedBy)
 			} else {
 				row.PublishEnabled = false
+				if strings.TrimSpace(row.PublishedModel) == "" {
+					row.PublishedModel = strings.TrimSpace(existingByModel[row.Model].PublishedModel)
+				}
 				row.PublishedAt = 0
 				row.PublishedBy = ""
 			}
@@ -1704,6 +1731,16 @@ func ResolveChannelModelPublishStatus(row ChannelModel, state channelModelEndpoi
 
 func IsChannelModelPublished(row ChannelModel) bool {
 	return row.PublishEnabled && strings.TrimSpace(row.PublishStatus) == ChannelModelPublishStatusPublished
+}
+
+func ChannelModelPublishedName(row ChannelModel) string {
+	if publishedModel := strings.TrimSpace(row.PublishedModel); publishedModel != "" {
+		return publishedModel
+	}
+	if modelName := strings.TrimSpace(row.Model); modelName != "" {
+		return modelName
+	}
+	return strings.TrimSpace(row.UpstreamModel)
 }
 
 func normalizeExplicitChannelModelType(raw string) string {

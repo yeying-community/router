@@ -210,12 +210,13 @@ func TestBuildGroupChannelModelOptionsOnlyIncludesPublishedModels(t *testing.T) 
 	if err := db.Create(&[]ChannelModel{
 		{
 			ChannelId:      channel.Id,
-			Model:          "published-model",
-			UpstreamModel:  "published-model",
+			Model:          "published-model-2026-05-26",
+			UpstreamModel:  "published-model-2026-05-26",
 			Provider:       "openai",
 			Type:           ProviderModelTypeText,
 			Selected:       true,
 			PublishEnabled: true,
+			PublishedModel: "published-model",
 		},
 		{
 			ChannelId:     channel.Id,
@@ -247,7 +248,7 @@ func TestBuildGroupChannelModelOptionsOnlyIncludesPublishedModels(t *testing.T) 
 	if err := db.Create(&[]ChannelModelEndpoint{
 		{
 			ChannelId: channel.Id,
-			Model:     "published-model",
+			Model:     "published-model-2026-05-26",
 			Endpoint:  ChannelModelEndpointResponses,
 			Enabled:   true,
 		},
@@ -269,7 +270,7 @@ func TestBuildGroupChannelModelOptionsOnlyIncludesPublishedModels(t *testing.T) 
 	if err := db.Create(&[]ChannelModelEndpointTestResult{
 		{
 			ChannelId:      channel.Id,
-			Model:          "published-model",
+			Model:          "published-model-2026-05-26",
 			Endpoint:       ChannelModelEndpointResponses,
 			LastTestStatus: ChannelModelEndpointTestStatusSuccess,
 			LastSupported:  true,
@@ -299,13 +300,16 @@ func TestBuildGroupChannelModelOptionsOnlyIncludesPublishedModels(t *testing.T) 
 	if options[0].Model != "published-model" {
 		t.Fatalf("option model = %q, want published-model", options[0].Model)
 	}
+	if options[0].UpstreamModel != "published-model-2026-05-26" {
+		t.Fatalf("option upstream = %q, want published-model-2026-05-26", options[0].UpstreamModel)
+	}
 
 	statusByModel := make(map[string]string)
 	for _, row := range loaded.GetChannelModels() {
 		statusByModel[row.Model] = row.PublishStatus
 	}
-	if statusByModel["published-model"] != ChannelModelPublishStatusPublished {
-		t.Fatalf("published status = %q, want published", statusByModel["published-model"])
+	if statusByModel["published-model-2026-05-26"] != ChannelModelPublishStatusPublished {
+		t.Fatalf("published status = %q, want published", statusByModel["published-model-2026-05-26"])
 	}
 	if statusByModel["pending-publish-model"] != ChannelModelPublishStatusPendingPublish {
 		t.Fatalf("pending publish status = %q, want pending_publish", statusByModel["pending-publish-model"])

@@ -1707,6 +1707,25 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return dropLegacyUsersQuotaWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607081030_channel_model_published_names",
+			Description: "split channel model identity from public published model names",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&ChannelModel{}); err != nil {
+					return err
+				}
+				now := helper.GetTimestamp()
+				if err := tx.Model(&ChannelModel{}).
+					Where("publish_enabled = ? AND COALESCE(NULLIF(TRIM(published_model), ''), '') = ''", true).
+					Updates(map[string]any{
+						"published_model": gorm.Expr("model"),
+						"updated_at":      now,
+					}).Error; err != nil {
+					return err
+				}
+				return rebuildGroupModelChannelsForPublishedChannelModelsWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

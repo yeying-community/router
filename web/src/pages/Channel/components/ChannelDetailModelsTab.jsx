@@ -273,21 +273,6 @@ const ChannelDetailModelsTab = ({
                 t(`channel.model_types.${normalizeChannelModelType(row.type)}`),
             },
             {
-              title: t('channel.edit.model_selector.table.alias'),
-              dataIndex: 'model',
-              key: 'model',
-              width: columnWidths.alias,
-              ellipsis: true,
-              render: (value) => (
-                <span
-                  className='router-cell-truncate router-monospace-value'
-                  title={value}
-                >
-                  {value}
-                </span>
-              ),
-            },
-            {
               title: t('channel.edit.model_selector.table.upstream_status'),
               key: 'status',
               className: 'router-table-col-status-compact',

@@ -41,6 +41,7 @@ type updateChannelModelsRequest struct {
 type updateChannelModelPublishRequest struct {
 	Model          string `json:"model"`
 	PublishEnabled bool   `json:"publish_enabled"`
+	PublishedModel string `json:"published_model"`
 }
 
 const (
@@ -291,18 +292,20 @@ func UpdateChannelModelPublish(c *gin.Context) {
 		return
 	}
 	operator := channelAdminOperator(c)
-	if err := channelsvc.UpdateModelPublish(channelID, modelName, req.PublishEnabled, operator); err != nil {
-		logChannelAdminWarn(c, "update_model_publish", stringField("channel_id", channelID), stringField("model", modelName), stringField("publish_enabled", strconv.FormatBool(req.PublishEnabled)), stringField("reason", err.Error()))
+	publishedModel := strings.TrimSpace(req.PublishedModel)
+	if err := channelsvc.UpdateModelPublish(channelID, modelName, req.PublishEnabled, publishedModel, operator); err != nil {
+		logChannelAdminWarn(c, "update_model_publish", stringField("channel_id", channelID), stringField("model", modelName), stringField("published_model", publishedModel), stringField("publish_enabled", strconv.FormatBool(req.PublishEnabled)), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	logChannelAdminInfo(c, "update_model_publish", stringField("channel_id", channelID), stringField("model", modelName), stringField("publish_enabled", strconv.FormatBool(req.PublishEnabled)))
+	logChannelAdminInfo(c, "update_model_publish", stringField("channel_id", channelID), stringField("model", modelName), stringField("published_model", publishedModel), stringField("publish_enabled", strconv.FormatBool(req.PublishEnabled)))
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
 		"data": gin.H{
 			"channel_id":      channelID,
 			"model":           modelName,
+			"published_model": publishedModel,
 			"publish_enabled": req.PublishEnabled,
 		},
 	})
