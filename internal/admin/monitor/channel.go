@@ -144,27 +144,28 @@ func DisableChannel(channelId string, channelName string, reason string) {
 	_ = notifyRootUser(subject, content)
 }
 
+// DisableChannelForInsufficientBalance keeps the legacy function name for callers,
+// but intentionally no longer changes channel status.
+//
+// Upstream billing APIs and provider quota errors are often advisory or scoped to
+// a single upstream account/model. Disabling the whole channel here causes route
+// flapping when recovery probes succeed on a different model or after transient
+// billing API inconsistencies.
 func DisableChannelForInsufficientBalance(channelId string, channelName string, balance float64) error {
-	if err := model.RecordChannelCircuitBreakerCanceled(channelId, model.ChannelCircuitBreakerReasonInsufficientBalance); err != nil {
-		return err
-	}
-	if err := model.UpdateChannelStatusById(channelId, model.ChannelStatusAutoDisabled); err != nil {
-		return err
-	}
-	logger.SysLog(fmt.Sprintf("channel #%s has been disabled due to insufficient balance: %.4f", channelId, balance))
+	logger.SysLog(fmt.Sprintf("channel #%s reported insufficient balance, status unchanged: %.4f", channelId, balance))
 	subject := fmt.Sprintf("渠道余额不足提醒")
 	content := message.EmailTemplate(
 		subject,
 		fmt.Sprintf(`
-			<p>您好！</p>
-			<p>发生时间：%s</p>
-			<p>渠道：<strong>%s</strong></p>
-			<p>标识：%s</p>
-			<p>提示：定时刷新账务后发现余额不足，已被系统自动禁用。</p>
-			<p>当前余额：</p>
-			<p style="background-color: #f8f8f8; padding: 10px; border-radius: 4px;"><strong>%.4f</strong></p>
-			<p>请及时检查上游账户余额或补充采购记录。</p>
-		`, notificationOccurredAt(), notificationValue(channelName), notificationValue(channelId), balance),
+				<p>您好！</p>
+				<p>发生时间：%s</p>
+				<p>渠道：<strong>%s</strong></p>
+				<p>标识：%s</p>
+				<p>提示：检测到账务余额不足或上游返回余额不足，系统仅记录提醒，不会自动禁用渠道。</p>
+				<p>当前参考余额：</p>
+				<p style="background-color: #f8f8f8; padding: 10px; border-radius: 4px;"><strong>%.4f</strong></p>
+				<p>请检查上游账户余额、模型额度或采购记录；如确认可用，渠道会继续参与路由。</p>
+			`, notificationOccurredAt(), notificationValue(channelName), notificationValue(channelId), balance),
 	)
 	_ = notifyRootUser(subject, content)
 	return nil

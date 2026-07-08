@@ -487,6 +487,21 @@ func processChannelRelayError(ctx context.Context, userId string, groupID string
 	} else {
 		logger.RelayWarnf(ctx, msg)
 	}
+	if isLocalQuotaRelayError(&err) {
+		logger.RelayWarnf(ctx, relaylogging.NewFields("LOCAL_QUOTA_ERR").
+			String("channel_id", channelId).
+			String("channel_name", channelName).
+			String("group", groupID).
+			String("model", requestModel).
+			String("endpoint", requestPath).
+			String("user_id", userId).
+			Int("status", err.StatusCode).
+			String("error_type", err.Type).
+			String("error_code", errorCodeString(err.Code)).
+			String("error", err.Message).
+			Build())
+		return
+	}
 	if shouldDisableChannelModelRequestEndpointCapability(&err) {
 		disabled, disableErr := dbmodel.DisableChannelModelRequestEndpointCapabilityWithReason(channelId, requestModel, requestPath, err.Message, "runtime")
 		logChannelModelRequestEndpointDisableResult(ctx, channelId, channelName, requestModel, requestPath, err, disabled, disableErr)
