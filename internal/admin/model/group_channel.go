@@ -472,7 +472,7 @@ func BuildGroupModelChannelsForChannel(groupID string, channel *Channel, groupMo
 		})
 	}
 	for _, row := range channelSelectedModels(channel) {
-		modelName := strings.TrimSpace(row.Model)
+		modelName := ChannelModelPublishedName(row)
 		if modelName == "" {
 			continue
 		}

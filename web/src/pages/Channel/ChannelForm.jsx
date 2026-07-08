@@ -1113,6 +1113,34 @@ const buildProviderIndex = (items) => {
   return { providerOptions, modelOwners, providerModelDetails };
 };
 
+const canonicalProviderModelSnapshotPattern =
+  /^(.+?)(?:(?:-(?:preview|latest))|(?:-\d{6})|(?:-\d{4}-\d{2}-\d{2}))+$/i;
+
+const canonicalProviderModelLookupKey = (value) => {
+  const normalized = (value || '').toString().trim();
+  if (normalized === '') {
+    return '';
+  }
+  const match = normalized.match(canonicalProviderModelSnapshotPattern);
+  const canonical = (match?.[1] || '').toString().trim();
+  if (canonical === '' || canonical === normalized) {
+    return '';
+  }
+  return canonical;
+};
+
+const addProviderLookupKey = (keys, value) => {
+  const normalized = (value || '').toString().trim();
+  if (normalized === '') {
+    return;
+  }
+  keys.add(normalized);
+  const canonical = canonicalProviderModelLookupKey(normalized);
+  if (canonical !== '') {
+    keys.add(canonical);
+  }
+};
+
 const buildProviderLookupKeys = (row) => {
   const keys = new Set();
   [row?.upstream_model, row?.model].forEach((value) => {
@@ -1120,14 +1148,12 @@ const buildProviderLookupKeys = (row) => {
     if (normalized === '') {
       return;
     }
-    keys.add(normalized);
+    addProviderLookupKey(keys, normalized);
     if (normalized.includes('/')) {
       const parts = normalized.split('/');
       if (parts.length > 1) {
         const suffix = parts.slice(1).join('/').trim();
-        if (suffix !== '') {
-          keys.add(suffix);
-        }
+        addProviderLookupKey(keys, suffix);
       }
     }
   });
@@ -1307,10 +1333,10 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
   )
     .toString()
     .trim();
-  const alias = (row.model || row.alias || row.display_model || upstreamModel)
+  const modelName = (row.model || row.alias || row.display_model || upstreamModel)
     .toString()
     .trim();
-  const model = alias || upstreamModel;
+  const model = modelName || upstreamModel;
   if (!model) {
     return null;
   }
@@ -1347,6 +1373,18 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
     price_components: normalizeComplexPriceComponents(row.price_components),
     publish_status: (row.publish_status || '').toString().trim(),
     publish_enabled: row.publish_enabled === true,
+    published_model: (
+      Object.prototype.hasOwnProperty.call(row, 'published_model')
+        ? row.published_model
+        : row.model || upstreamModel || ''
+    ).toString().trim(),
+    published_model_original: (
+      row.published_model_original ||
+      row.published_model ||
+      row.model ||
+      upstreamModel ||
+      ''
+    ).toString().trim(),
     published_at: Number(row.published_at || 0),
     published_by: (row.published_by || '').toString().trim(),
     sync_status: (row.sync_status || 'unknown').toString().trim(),
@@ -1765,15 +1803,15 @@ const fetchTaskById = async (taskId) => {
 const validateChannelModels = (channelModels, t) => {
   const seen = new Set();
   for (const row of Array.isArray(channelModels) ? channelModels : []) {
-    const alias = (row?.model || '').toString().trim();
+    const modelName = (row?.model || '').toString().trim();
     const upstreamModel = (row?.upstream_model || '').toString().trim();
-    if (alias === '' || upstreamModel === '') {
+    if (modelName === '' || upstreamModel === '') {
       return t('channel.edit.messages.model_config_invalid');
     }
-    if (seen.has(alias)) {
+    if (seen.has(modelName)) {
       return t('channel.edit.messages.model_config_invalid');
     }
-    seen.add(alias);
+    seen.add(modelName);
     if (
       row?.input_price !== null &&
       normalizePriceOverrideValue(row?.input_price) === null
@@ -2602,32 +2640,30 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const seen = new Set();
       owners.forEach((providerId) => {
         const providerDetails = providerModelDetailsIndex[providerId] || {};
-        keys.forEach((key) => {
-          const detail = providerDetails[key];
-          if (!detail || (detail.price_components || []).length === 0) {
-            return;
-          }
-          const uniqueKey = `${providerId}\u0000${detail.model}`;
-          if (seen.has(uniqueKey)) {
-            return;
-          }
-          seen.add(uniqueKey);
-          const priceComponents = mergePriceComponentOverrides(
-            detail.price_components,
-            row?.price_components
-          );
-          if (priceComponents.length === 0) {
-            return;
-          }
-          details.push({
-            provider: providerId,
-            ...detail,
-            price_components: priceComponents,
-            source:
-              (row?.price_components || []).length > 0
-                ? 'channel_override'
-                : detail.source,
-          });
+        const detail = keys.map((key) => providerDetails[key]).find(Boolean);
+        if (!detail || (detail.price_components || []).length === 0) {
+          return;
+        }
+        const uniqueKey = `${providerId}\u0000${detail.model}`;
+        if (seen.has(uniqueKey)) {
+          return;
+        }
+        seen.add(uniqueKey);
+        const priceComponents = mergePriceComponentOverrides(
+          detail.price_components,
+          row?.price_components
+        );
+        if (priceComponents.length === 0) {
+          return;
+        }
+        details.push({
+          provider: providerId,
+          ...detail,
+          price_components: priceComponents,
+          source:
+            (row?.price_components || []).length > 0
+              ? 'channel_override'
+              : detail.source,
         });
       });
       return details.sort((a, b) => {
@@ -2646,19 +2682,17 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const providerDetails = providerModelDetailsIndex[providerId] || {};
       const providerCandidates = [];
       let matchedProviderDetail = false;
-      buildProviderLookupKeys(row).forEach((key) => {
-        const detail = providerDetails[key];
-        if (!detail) {
-          return;
-        }
+      const detail = buildProviderLookupKeys(row)
+        .map((key) => providerDetails[key])
+        .find(Boolean);
+      if (detail) {
         matchedProviderDetail = true;
-        if (!Array.isArray(detail.supported_endpoints)) {
-          return;
+        if (Array.isArray(detail.supported_endpoints)) {
+          detail.supported_endpoints.forEach((endpoint) => {
+            providerCandidates.push(endpoint);
+          });
         }
-        detail.supported_endpoints.forEach((endpoint) => {
-          providerCandidates.push(endpoint);
-        });
-      });
+      }
       const candidates = matchedProviderDetail
         ? providerCandidates
         : normalizeExplicitChannelModelEndpoints(
@@ -2723,7 +2757,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const details = getComplexPricingDetailsForModel(row);
       setComplexPricingModalData({
         model: row?.upstream_model || row?.model || '',
-        alias: row?.model || '',
         details,
       });
       setComplexPricingModalOpen(true);
@@ -3495,7 +3528,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const modelName = (row?.model || row?.upstream_model || '')
         .toString()
         .trim();
+      const publishedModel = (row?.published_model || modelName).toString().trim();
       if (targetChannelId === '' || modelName === '') {
+        return false;
+      }
+      if (publishEnabled && publishedModel === '') {
+        showError(t('channel.edit.publish.published_model_required'));
         return false;
       }
       setPublishMutatingModel(modelName);
@@ -3505,6 +3543,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           {
             model: modelName,
             publish_enabled: !!publishEnabled,
+            published_model: publishedModel,
           }
         );
         const { success, message } = res.data || {};
@@ -3535,6 +3574,40 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       refreshChannelRuntimeState,
       t,
     ]
+  );
+
+  const updateChannelModelPublishedName = useCallback(
+    (row, value) => {
+      const targetModel = (row?.model || row?.upstream_model || '')
+        .toString()
+        .trim();
+      if (targetModel === '' || detailPublishReadonly) {
+        return;
+      }
+      const normalizedValue = (value || '').toString().trim();
+      setInputs((prev) =>
+        buildNextInputsWithChannelModels(
+          prev,
+          visibleChannelModels.map((item) => {
+            const itemModel = (item?.model || item?.upstream_model || '')
+              .toString()
+              .trim();
+            if (itemModel !== targetModel) {
+              return item;
+            }
+            const fallbackName = (item.model || item.upstream_model || '')
+              .toString()
+              .trim();
+            return {
+              ...item,
+              published_model: normalizedValue,
+            };
+          }),
+          prev.protocol
+        )
+      );
+    },
+    [detailPublishReadonly, visibleChannelModels]
   );
 
   const openChannelBillingActivatePage = useCallback(
@@ -5021,22 +5094,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             if (row.upstream_model !== targetModel) {
               return row;
             }
-            if (field === 'model') {
-              const alias = (value || '').toString().trim();
-              const targetAlias = alias || row.upstream_model;
-              const duplicated = visibleChannelModels.some(
-                (item) =>
-                  item.upstream_model !== targetModel &&
-                  item.model === targetAlias
-              );
-              if (duplicated) {
-                return row;
-              }
-              return {
-                ...row,
-                model: targetAlias,
-              };
-            }
             if (field === 'input_price' || field === 'output_price') {
               return {
                 ...row,
@@ -6124,6 +6181,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 }
                 openComplexPricingModal={openComplexPricingModal}
                 normalizeChannelModelType={normalizeChannelModelType}
+                onUpdatePublishedModelName={updateChannelModelPublishedName}
                 onUpdatePublish={updateChannelModelPublish}
                 publishMutatingModel={publishMutatingModel}
                 publishReadonly={detailPublishReadonly}

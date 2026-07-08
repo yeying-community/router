@@ -187,6 +187,65 @@ func TestBuildChannelModelEndpointRowsUsesProviderModelCandidates(t *testing.T) 
 	}
 }
 
+func TestBuildChannelModelEndpointRowsPrefersSnapshotProviderModelWhenConfigured(t *testing.T) {
+	rows := []ChannelModel{
+		{
+			ChannelId:     "channel-1",
+			Model:         "qwen3.7-max",
+			UpstreamModel: "qwen3.7-max-2026-05-20",
+			Provider:      "qwen",
+			Type:          ProviderModelTypeText,
+			Selected:      true,
+		},
+	}
+	providerEndpoints := map[string][]string{
+		buildProviderModelEndpointKey("qwen", "qwen3.7-max"): {
+			ChannelModelEndpointChat,
+		},
+		buildProviderModelEndpointKey("qwen", "qwen3.7-max-2026-05-20"): {
+			ChannelModelEndpointResponses,
+		},
+	}
+
+	got := BuildChannelModelEndpointRowsWithProviderEndpoints(nil, rows, providerEndpoints)
+	if len(got) != 1 {
+		t.Fatalf("len(got)=%d, want 1", len(got))
+	}
+	if got[0].Endpoint != ChannelModelEndpointResponses {
+		t.Fatalf("got[0].Endpoint=%q, want %q", got[0].Endpoint, ChannelModelEndpointResponses)
+	}
+}
+
+func TestFilterChannelsByRequestEndpointUsesPublishedModelUpstreamMapping(t *testing.T) {
+	channels := []*Channel{{Id: "channel-1"}}
+	supportByChannelID := map[string]map[string]map[string]bool{
+		"channel-1": {
+			"qwen3.7-plus-2026-05-26": {
+				ChannelModelEndpointResponses: true,
+			},
+		},
+	}
+	upstreamByGroup := map[string]map[string]map[string]string{
+		"group-1": {
+			"qwen3.7-plus": {
+				"channel-1": "qwen3.7-plus-2026-05-26",
+			},
+		},
+	}
+
+	got := filterChannelsByRequestEndpointWithMappings(
+		"group-1",
+		channels,
+		"qwen3.7-plus",
+		ChannelModelEndpointResponses,
+		supportByChannelID,
+		upstreamByGroup,
+	)
+	if len(got) != 1 || got[0].Id != "channel-1" {
+		t.Fatalf("filtered channels = %#v, want channel-1", got)
+	}
+}
+
 func TestBuildChannelModelEndpointRowsPreservesExistingDisabledEndpointState(t *testing.T) {
 	existing := []ChannelModelEndpoint{
 		{ChannelId: "channel-1", Model: "gpt-5.4", Endpoint: ChannelModelEndpointResponses, Enabled: false},

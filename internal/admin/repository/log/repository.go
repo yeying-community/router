@@ -12,6 +12,8 @@ import (
 	"github.com/yeying-community/router/internal/admin/model"
 )
 
+const userVisibleModelNameExpr = "NULLIF(TRIM(request_model_name), '')"
+
 func hydrateLogsWithChannelNames(logs []*model.Log) error {
 	if len(logs) == 0 {
 		return nil
@@ -93,23 +95,24 @@ func hydrateLogsWithChannelNames(logs []*model.Log) error {
 
 func init() {
 	model.BindLogRepository(model.LogRepository{
-		RecordLog:                      RecordLog,
-		RecordTopupLog:                 RecordTopupLog,
-		RecordConsumeLog:               RecordConsumeLog,
-		RecordRelayFailureLog:          RecordRelayFailureLog,
-		RecordTestLog:                  RecordTestLog,
-		GetAllLogs:                     GetAll,
-		GetUserLogs:                    GetUser,
-		GetLogByID:                     GetByID,
-		GetUserLogByID:                 GetUserByID,
-		SearchAllLogs:                  SearchAll,
-		SearchUserLogs:                 SearchUser,
-		SumUsedQuota:                   SumUsedQuota,
-		SumUsedQuotaByUserIdWithModels: SumUsedQuotaByUserIdWithModels,
-		SumUsedToken:                   SumUsedToken,
-		DeleteOldLog:                   DeleteOld,
-		SearchLogsByPeriodAndModel:     SearchLogsByPeriodAndModel,
-		SearchLogModelsByPeriod:        SearchLogModelsByPeriod,
+		RecordLog:                             RecordLog,
+		RecordTopupLog:                        RecordTopupLog,
+		RecordConsumeLog:                      RecordConsumeLog,
+		RecordRelayFailureLog:                 RecordRelayFailureLog,
+		RecordTestLog:                         RecordTestLog,
+		GetAllLogs:                            GetAll,
+		GetUserLogs:                           GetUser,
+		GetLogByID:                            GetByID,
+		GetUserLogByID:                        GetUserByID,
+		SearchAllLogs:                         SearchAll,
+		SearchUserLogs:                        SearchUser,
+		SumUsedQuota:                          SumUsedQuota,
+		SumUsedQuotaByUserIdWithModels:        SumUsedQuotaByUserIdWithModels,
+		SumUsedQuotaByUserIdWithModelAndToken: SumUsedQuotaByUserIdWithModelAndToken,
+		SumUsedToken:                          SumUsedToken,
+		DeleteOldLog:                          DeleteOld,
+		SearchLogsByPeriodAndModel:            SearchLogsByPeriodAndModel,
+		SearchLogModelsByPeriod:               SearchLogModelsByPeriod,
 	})
 }
 
@@ -117,6 +120,7 @@ func recordLogHelper(ctx context.Context, log *model.Log) {
 	if strings.TrimSpace(log.Id) == "" {
 		log.Id = random.GetUUID()
 	}
+	normalizeLogRouteModelNames(log)
 	traceID := helper.GetTraceID(ctx)
 	log.TraceID = traceID
 	err := model.LOG_DB.Create(log).Error
@@ -125,6 +129,22 @@ func recordLogHelper(ctx context.Context, log *model.Log) {
 		return
 	}
 	logger.Infof(ctx, "record log: %+v", log)
+}
+
+func normalizeLogRouteModelNames(log *model.Log) {
+	if log == nil {
+		return
+	}
+	modelName := strings.TrimSpace(log.ModelName)
+	if modelName == "" {
+		return
+	}
+	if strings.TrimSpace(log.RequestModelName) == "" {
+		log.RequestModelName = modelName
+	}
+	if strings.TrimSpace(log.ActualModelName) == "" {
+		log.ActualModelName = modelName
+	}
 }
 
 func RecordLog(ctx context.Context, userId string, logType int, content string) {
@@ -224,7 +244,7 @@ func GetUser(userId string, logType int, startTimestamp int64, endTimestamp int6
 		tx = tx.Where("user_id = ? and type = ?", userId, logType)
 	}
 	if modelName != "" {
-		tx = tx.Where("model_name = ?", modelName)
+		tx = tx.Where(userVisibleModelNameExpr+" = ?", modelName)
 	}
 	if tokenName != "" {
 		tx = tx.Where("token_name = ?", tokenName)
@@ -372,7 +392,27 @@ func SumUsedQuotaByUserIdWithModels(logType int, userId string, startTimestamp i
 		tx = tx.Where("created_at <= ?", endTimestamp)
 	}
 	if len(models) > 0 {
-		tx = tx.Where("model_name IN ?", models)
+		tx = tx.Where(userVisibleModelNameExpr+" IN ?", models)
+	}
+	var quota int64
+	err := tx.Where("type = ?", logType).Scan(&quota).Error
+	return quota, err
+}
+
+func SumUsedQuotaByUserIdWithModelAndToken(logType int, userId string, startTimestamp int64, endTimestamp int64, modelName string, tokenName string) (int64, error) {
+	tx := model.LOG_DB.Table(model.EventLogsTableName).Select("COALESCE(sum(quota),0)").
+		Where("user_id = ?", userId)
+	if startTimestamp != 0 {
+		tx = tx.Where("created_at >= ?", startTimestamp)
+	}
+	if endTimestamp != 0 {
+		tx = tx.Where("created_at <= ?", endTimestamp)
+	}
+	if strings.TrimSpace(modelName) != "" {
+		tx = tx.Where(userVisibleModelNameExpr+" = ?", strings.TrimSpace(modelName))
+	}
+	if strings.TrimSpace(tokenName) != "" {
+		tx = tx.Where("token_name = ?", strings.TrimSpace(tokenName))
 	}
 	var quota int64
 	err := tx.Where("type = ?", logType).Scan(&quota).Error
@@ -414,7 +454,7 @@ func SearchLogsByPeriodAndModel(userId string, start, end int, granularity strin
 	groupSelect := selectGroupByGranularity(granularity)
 	query := fmt.Sprintf(`
 		SELECT `+groupSelect+`,
-		model_name, count(1) as request_count,
+		%s AS model_name, count(1) as request_count,
 		sum(quota) as quota,
 		sum(prompt_tokens) as prompt_tokens,
 		sum(completion_tokens) as completion_tokens
@@ -422,14 +462,14 @@ func SearchLogsByPeriodAndModel(userId string, start, end int, granularity strin
 		WHERE type=2
 		AND user_id= ?
 		AND created_at BETWEEN ? AND ?
-	`, model.EventLogsTableName)
+	`, userVisibleModelNameExpr, model.EventLogsTableName)
 	args := []interface{}{userId, start, end}
 	if len(models) > 0 {
-		query += " AND model_name IN ?"
+		query += " AND " + userVisibleModelNameExpr + " IN ?"
 		args = append(args, models)
 	}
 	query += `
-		GROUP BY day, model_name
+		GROUP BY day, ` + userVisibleModelNameExpr + `
 		ORDER BY day, model_name
 	`
 	var stats []*model.LogStatistic
@@ -438,11 +478,29 @@ func SearchLogsByPeriodAndModel(userId string, start, end int, granularity strin
 }
 
 func SearchLogModelsByPeriod(userId string, start, end int) ([]string, error) {
-	var models []string
-	err := model.LOG_DB.Table(model.EventLogsTableName).
-		Where("type = ? AND user_id = ? AND created_at BETWEEN ? AND ?", model.LogTypeConsume, userId, start, end).
-		Distinct("model_name").
-		Order("model_name").
-		Pluck("model_name", &models).Error
-	return models, err
+	type modelNameRow struct {
+		ModelName string `gorm:"column:model_name"`
+	}
+	var rows []modelNameRow
+	query := fmt.Sprintf(`
+		SELECT DISTINCT %s AS model_name
+		FROM %s
+		WHERE type = ?
+		AND user_id = ?
+		AND created_at BETWEEN ? AND ?
+		AND COALESCE(%s, '') <> ''
+		ORDER BY model_name
+	`, userVisibleModelNameExpr, model.EventLogsTableName, userVisibleModelNameExpr)
+	if err := model.LOG_DB.Raw(query, model.LogTypeConsume, userId, start, end).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	models := make([]string, 0, len(rows))
+	for _, row := range rows {
+		name := strings.TrimSpace(row.ModelName)
+		if name == "" {
+			continue
+		}
+		models = append(models, name)
+	}
+	return models, nil
 }

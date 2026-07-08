@@ -1707,6 +1707,25 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return dropLegacyUsersQuotaWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607081030_channel_model_published_names",
+			Description: "split channel model identity from public published model names",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&ChannelModel{}); err != nil {
+					return err
+				}
+				now := helper.GetTimestamp()
+				if err := tx.Model(&ChannelModel{}).
+					Where("publish_enabled = ? AND COALESCE(NULLIF(TRIM(published_model), ''), '') = ''", true).
+					Updates(map[string]any{
+						"published_model": gorm.Expr("model"),
+						"updated_at":      now,
+					}).Error; err != nil {
+					return err
+				}
+				return rebuildGroupModelChannelsForPublishedChannelModelsWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -2827,6 +2846,29 @@ func openAITextProviderModelEndpointCandidates(raw string) string {
 	return joinProviderModelSupportedEndpoints(ProviderModelTypeText, endpoints)
 }
 
+func backfillLogRouteModelNamesWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if err := db.AutoMigrate(&Log{}); err != nil {
+		return err
+	}
+	if err := db.Exec(`
+		UPDATE event_logs
+		SET request_model_name = model_name
+		WHERE COALESCE(TRIM(request_model_name), '') = ''
+		  AND COALESCE(TRIM(model_name), '') <> ''
+	`).Error; err != nil {
+		return err
+	}
+	return db.Exec(`
+		UPDATE event_logs
+		SET actual_model_name = model_name
+		WHERE COALESCE(TRIM(actual_model_name), '') = ''
+		  AND COALESCE(TRIM(model_name), '') <> ''
+	`).Error
+}
+
 func runLogVersionedMigrations(db *gorm.DB) error {
 	migrations := []versionedMigration{
 		{
@@ -2918,6 +2960,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 			Description: "add text preconsume estimate delta fields to consume logs",
 			Up: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202607081130_log_backfill_route_model_names",
+			Description: "backfill explicit request and actual model names for historical event logs",
+			Up: func(tx *gorm.DB) error {
+				return backfillLogRouteModelNamesWithDB(tx)
 			},
 		},
 	}

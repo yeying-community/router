@@ -134,6 +134,117 @@ func TestResolveChannelModelPricingUsesVolcengineOfficialModelID(t *testing.T) {
 	}
 }
 
+func TestResolveChannelModelPricingUsesCanonicalProviderModelForSnapshotUpstream(t *testing.T) {
+	providerEntry := providerModelPricingEntry{
+		Provider: "qwen",
+		Detail: ProviderModelDetail{
+			Model:       "qwen3.7-max",
+			Type:        ProviderModelTypeText,
+			InputPrice:  0.001,
+			OutputPrice: 0.004,
+			PriceUnit:   ProviderPriceUnitPer1KTokens,
+			Currency:    ProviderPriceCurrencyUSD,
+		},
+	}
+	restore := setModelPricingIndexForTest(providerModelPricingIndex{
+		byProviderAndModel: map[string]providerModelPricingEntry{
+			"qwen:qwen3.7-max": providerEntry,
+		},
+		byModel: map[string][]providerModelPricingEntry{
+			"qwen3.7-max": {providerEntry},
+		},
+	})
+	defer restore()
+
+	overrideInputPrice := 0.002
+	pricing, err := ResolveChannelModelPricing(0, []ChannelModel{
+		{
+			Model:         "qwen3.7-max",
+			UpstreamModel: "qwen3.7-max-2026-05-20",
+			Selected:      true,
+			InputPrice:    &overrideInputPrice,
+			PriceUnit:     ProviderPriceUnitPer1KTokens,
+			Currency:      ProviderPriceCurrencyUSD,
+		},
+	}, "qwen3.7-max-2026-05-20")
+	if err != nil {
+		t.Fatalf("ResolveChannelModelPricing returned error: %v", err)
+	}
+	if pricing.Provider != "qwen" {
+		t.Fatalf("expected qwen provider, got %q", pricing.Provider)
+	}
+	if pricing.Model != "qwen3.7-max-2026-05-20" {
+		t.Fatalf("expected snapshot request model to be preserved, got %q", pricing.Model)
+	}
+	if pricing.Source != "channel_override" {
+		t.Fatalf("expected channel_override source, got %q", pricing.Source)
+	}
+	if pricing.InputPrice != overrideInputPrice {
+		t.Fatalf("expected input override %.6f, got %.6f", overrideInputPrice, pricing.InputPrice)
+	}
+	if pricing.OutputPrice != 0.004 {
+		t.Fatalf("expected canonical provider output price 0.004000, got %.6f", pricing.OutputPrice)
+	}
+	if pricing.Type != ProviderModelTypeText {
+		t.Fatalf("expected text type, got %q", pricing.Type)
+	}
+}
+
+func TestResolveChannelModelPricingPrefersSnapshotProviderModelWhenConfigured(t *testing.T) {
+	canonicalEntry := providerModelPricingEntry{
+		Provider: "qwen",
+		Detail: ProviderModelDetail{
+			Model:       "qwen3.7-max",
+			Type:        ProviderModelTypeText,
+			InputPrice:  0.001,
+			OutputPrice: 0.004,
+			PriceUnit:   ProviderPriceUnitPer1KTokens,
+			Currency:    ProviderPriceCurrencyUSD,
+		},
+	}
+	snapshotEntry := providerModelPricingEntry{
+		Provider: "qwen",
+		Detail: ProviderModelDetail{
+			Model:       "qwen3.7-max-2026-05-20",
+			Type:        ProviderModelTypeText,
+			InputPrice:  0.003,
+			OutputPrice: 0.009,
+			PriceUnit:   ProviderPriceUnitPer1KTokens,
+			Currency:    ProviderPriceCurrencyUSD,
+		},
+	}
+	restore := setModelPricingIndexForTest(providerModelPricingIndex{
+		byProviderAndModel: map[string]providerModelPricingEntry{
+			"qwen:qwen3.7-max":            canonicalEntry,
+			"qwen:qwen3.7-max-2026-05-20": snapshotEntry,
+		},
+		byModel: map[string][]providerModelPricingEntry{
+			"qwen3.7-max":            {canonicalEntry},
+			"qwen3.7-max-2026-05-20": {snapshotEntry},
+		},
+	})
+	defer restore()
+
+	pricing, err := ResolveChannelModelPricing(0, []ChannelModel{
+		{
+			Model:         "qwen3.7-max",
+			UpstreamModel: "qwen3.7-max-2026-05-20",
+			Selected:      true,
+			PriceUnit:     ProviderPriceUnitPer1KTokens,
+			Currency:      ProviderPriceCurrencyUSD,
+		},
+	}, "qwen3.7-max")
+	if err != nil {
+		t.Fatalf("ResolveChannelModelPricing returned error: %v", err)
+	}
+	if pricing.Model != "qwen3.7-max" {
+		t.Fatalf("expected public request model to be preserved, got %q", pricing.Model)
+	}
+	if pricing.InputPrice != 0.003 || pricing.OutputPrice != 0.009 {
+		t.Fatalf("expected snapshot provider pricing input=0.003 output=0.009, got input=%v output=%v", pricing.InputPrice, pricing.OutputPrice)
+	}
+}
+
 func TestResolveImageRequestPricingKeepsChannelOverrideAboveProviderComponent(t *testing.T) {
 	overrideInputPrice := 0.02
 	overrideOutputPrice := 0.05

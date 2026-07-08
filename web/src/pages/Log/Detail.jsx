@@ -71,6 +71,14 @@ function renderText(value) {
   return normalized || '-';
 }
 
+function getLogPublicModelName(log) {
+  return (log?.request_model_name || '').toString().trim();
+}
+
+function getLogActualModelName(log) {
+  return (log?.actual_model_name || '').toString().trim();
+}
+
 function renderBillingSource(value, t) {
   const normalized = (value || '').toString().trim().toLowerCase();
   if (normalized === 'package') {
@@ -96,17 +104,22 @@ function renderEstimatePrecision(value, t) {
   return renderText(value);
 }
 
-function renderRouteExplanationSummary(log, t) {
+function renderRouteExplanationSummary(log, t, isAdminPage) {
   if (!log) return '-';
-  const channel = renderText(log.channel_name || log.channel);
-  const model = renderText(log.actual_model_name || log.model_name);
+  const channel = isAdminPage ? renderText(log.channel_name || log.channel) : '-';
+  const model = renderText(
+    isAdminPage ? getLogActualModelName(log) : getLogPublicModelName(log),
+  );
   const source = renderText(log.billing_estimate_source);
   const settlement = renderText(log.billing_settlement_mode);
   const fallbackCount = Number(log.fallback_count || 0);
-  const summaryKey =
-    Number(log.type) === 6
+  const summaryKey = isAdminPage
+    ? Number(log.type) === 6
       ? 'log.detail.route.failure_summary'
-      : 'log.detail.route.summary';
+      : 'log.detail.route.summary'
+    : Number(log.type) === 6
+      ? 'log.detail.route.user_failure_summary'
+      : 'log.detail.route.user_summary';
   return t(summaryKey, {
     channel,
     model,
@@ -296,102 +309,116 @@ const LogDetail = () => {
     [log?.fallback_attempts],
   );
 
+  const publicModelName = getLogPublicModelName(log);
+  const actualModelName = getLogActualModelName(log);
+
   const routeExplanationItems = useMemo(
-    () => [
-      {
-        key: 'channel',
-        label: t('log.detail.route.fields.channel_target'),
-        value: isAdminPage ? (
-          log?.channel ? (
-            <AppTag
-              className='router-tag'
-              as={Link}
-              to={`/admin/channel/detail/${log.channel}`}
-              state={{ from: currentPagePath }}
-            >
-              {log?.channel_name || log?.channel}
-            </AppTag>
-          ) : (
-            '-'
-          )
-        ) : (
-          renderText(log?.channel_name || log?.channel)
-        ),
-      },
-      {
-        key: 'model',
-        label: t('log.detail.route.fields.request_model'),
-        value: renderText(log?.request_model_name || log?.model_name),
-      },
-      {
-        key: 'actual_model',
-        label: t('log.detail.route.fields.actual_model'),
-        value: renderText(log?.actual_model_name || log?.model_name),
-      },
-      {
-        key: 'upstream_endpoint',
-        label: t('log.detail.route.fields.upstream_endpoint'),
-        value: renderText(log?.upstream_endpoint),
-      },
-      {
-        key: 'upstream_protocol',
-        label: t('log.detail.route.fields.upstream_protocol'),
-        value: renderText(log?.upstream_protocol),
-      },
-      {
-        key: 'stream',
-        label: t('log.detail.route.fields.stream_mode'),
-        value: renderBoolean(log?.is_stream),
-      },
-      {
-        key: 'latency',
-        label: t('log.detail.route.fields.elapsed_time'),
-        value: log?.elapsed_time ? `${log.elapsed_time} ms` : '-',
-      },
-      {
-        key: 'estimate_source',
-        label: t('log.detail.route.fields.estimate_source'),
-        value: renderText(log?.billing_estimate_source),
-      },
-      {
-        key: 'estimate_estimator',
-        label: t('log.detail.route.fields.estimate_estimator'),
-        value: renderText(log?.billing_estimate_estimator),
-      },
-      {
-        key: 'estimate_precision',
-        label: t('log.detail.route.fields.estimate_precision'),
-        value: renderEstimatePrecision(log?.billing_estimate_precision, t),
-      },
-      {
-        key: 'settlement_mode',
-        label: t('log.detail.route.fields.settlement_mode'),
-        value: renderText(log?.billing_settlement_mode),
-      },
-      {
-        key: 'trace_id',
-        label: t('log.detail.route.fields.trace_id'),
-        value: renderText(log?.trace_id),
-      },
-      {
-        key: 'fallback_count',
-        label: t('log.detail.route.fields.fallback_count'),
-        value: Number(log?.fallback_count || 0),
-      },
-      {
-        key: 'relay_error',
-        label: t('log.detail.route.fields.relay_error'),
-        value: renderRelayError(log),
-        span: true,
-      },
-      {
-        key: 'fallback_attempts',
-        label: t('log.detail.route.fields.fallback_attempts'),
-        value: renderFallbackAttemptCards(fallbackAttempts, t),
-        span: true,
-      },
-    ],
-    [currentPagePath, fallbackAttempts, isAdminPage, log, t],
+    () => {
+      const items = [
+        ...(isAdminPage
+          ? [
+              {
+                key: 'channel',
+                label: t('log.detail.route.fields.channel_target'),
+                value: log?.channel ? (
+                  <AppTag
+                    className='router-tag'
+                    as={Link}
+                    to={`/admin/channel/detail/${log.channel}`}
+                    state={{ from: currentPagePath }}
+                  >
+                    {log?.channel_name || log?.channel}
+                  </AppTag>
+                ) : (
+                  '-'
+                ),
+              },
+            ]
+          : []),
+        {
+          key: 'model',
+          label: t('log.detail.route.fields.published_model'),
+          value: renderText(publicModelName),
+        },
+      ];
+      if (isAdminPage) {
+        items.push(
+          {
+            key: 'actual_model',
+            label: t('log.detail.route.fields.channel_model'),
+            value: renderText(actualModelName),
+          },
+          {
+            key: 'upstream_endpoint',
+            label: t('log.detail.route.fields.upstream_endpoint'),
+            value: renderText(log?.upstream_endpoint),
+          },
+          {
+            key: 'upstream_protocol',
+            label: t('log.detail.route.fields.upstream_protocol'),
+            value: renderText(log?.upstream_protocol),
+          },
+        );
+      }
+      items.push(
+        {
+          key: 'stream',
+          label: t('log.detail.route.fields.stream_mode'),
+          value: renderBoolean(log?.is_stream),
+        },
+        {
+          key: 'latency',
+          label: t('log.detail.route.fields.elapsed_time'),
+          value: log?.elapsed_time ? `${log.elapsed_time} ms` : '-',
+        },
+        {
+          key: 'estimate_source',
+          label: t('log.detail.route.fields.estimate_source'),
+          value: renderText(log?.billing_estimate_source),
+        },
+        {
+          key: 'estimate_estimator',
+          label: t('log.detail.route.fields.estimate_estimator'),
+          value: renderText(log?.billing_estimate_estimator),
+        },
+        {
+          key: 'estimate_precision',
+          label: t('log.detail.route.fields.estimate_precision'),
+          value: renderEstimatePrecision(log?.billing_estimate_precision, t),
+        },
+        {
+          key: 'settlement_mode',
+          label: t('log.detail.route.fields.settlement_mode'),
+          value: renderText(log?.billing_settlement_mode),
+        },
+        {
+          key: 'trace_id',
+          label: t('log.detail.route.fields.trace_id'),
+          value: renderText(log?.trace_id),
+        },
+        {
+          key: 'fallback_count',
+          label: t('log.detail.route.fields.fallback_count'),
+          value: Number(log?.fallback_count || 0),
+        },
+        {
+          key: 'relay_error',
+          label: t('log.detail.route.fields.relay_error'),
+          value: renderRelayError(log),
+          span: true,
+        },
+      );
+      if (isAdminPage) {
+        items.push({
+          key: 'fallback_attempts',
+          label: t('log.detail.route.fields.fallback_attempts'),
+          value: renderFallbackAttemptCards(fallbackAttempts, t),
+          span: true,
+        });
+      }
+      return items;
+    },
+    [actualModelName, currentPagePath, fallbackAttempts, isAdminPage, log, publicModelName, t],
   );
 
   const loadDetail = useCallback(async () => {
@@ -474,29 +501,27 @@ const LogDetail = () => {
                         {renderType(log?.type, t)}
                       </div>
                     </div>
-                    <div className='router-detail-item'>
-                      <div className='router-detail-label'>
-                        {t('log.detail.fields.channel')}
+                    {isAdminPage ? (
+                      <div className='router-detail-item'>
+                        <div className='router-detail-label'>
+                          {t('log.detail.fields.channel')}
+                        </div>
+                        <div className='router-detail-value'>
+                          {log?.channel ? (
+                              <AppTag
+                                className='router-tag'
+                                as={Link}
+                                to={`/admin/channel/detail/${log.channel}`}
+                                state={{ from: currentPagePath }}
+                              >
+                                {log?.channel_name || log?.channel}
+                              </AppTag>
+                            ) : (
+                              '-'
+                            )}
+                        </div>
                       </div>
-                      <div className='router-detail-value'>
-                          {isAdminPage ? (
-                            log?.channel ? (
-                            <AppTag
-                              className='router-tag'
-                              as={Link}
-                              to={`/admin/channel/detail/${log.channel}`}
-                              state={{ from: currentPagePath }}
-                            >
-                              {log?.channel_name || log?.channel}
-                            </AppTag>
-                          ) : (
-                            '-'
-                          )
-                        ) : (
-                          '-'
-                        )}
-                      </div>
-                    </div>
+                    ) : null}
                     {isAdminPage ? (
                       <div className='router-detail-item'>
                         <div className='router-detail-label'>
@@ -523,9 +548,19 @@ const LogDetail = () => {
                         {t('log.detail.fields.model')}
                       </div>
                       <pre className='router-detail-value router-monospace-value'>
-                        {renderText(log?.model_name)}
+                        {renderText(publicModelName)}
                       </pre>
                     </div>
+                    {isAdminPage ? (
+                      <div className='router-detail-item'>
+                        <div className='router-detail-label'>
+                          {t('log.detail.fields.channel_model')}
+                        </div>
+                        <pre className='router-detail-value router-monospace-value'>
+                          {renderText(actualModelName)}
+                        </pre>
+                      </div>
+                    ) : null}
                     {isAdminPage ? (
                       <div className='router-detail-item'>
                         <div className='router-detail-label'>
@@ -635,7 +670,7 @@ const LogDetail = () => {
                         {renderRouteOutcomeTags(log, fallbackAttempts, t)}
                       </div>
                       <pre className='router-detail-value'>
-                        {renderRouteExplanationSummary(log, t)}
+                        {renderRouteExplanationSummary(log, t, isAdminPage)}
                       </pre>
                     </div>
                     {routeExplanationItems.map((item) => (

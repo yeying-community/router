@@ -676,12 +676,15 @@
         "summary": "已选择 {{count}} 个模型",
         "empty": "暂无已选择模型，请先到“选择”页启用模型。",
         "action_publish": "发布",
+        "action_save_name": "保存",
         "action_unpublish": "取消发布",
         "publish_success": "模型已发布",
         "unpublish_success": "模型已取消发布",
         "update_failed": "更新发布状态失败",
+        "published_model_required": "发布名称不能为空",
         "unpublish_confirm": "确认取消发布该模型吗？取消后该模型不会参与运行时选路。",
         "table": {
+          "published_model": "发布名称",
           "check": "发布检查",
           "actions": "操作"
         },
@@ -1186,7 +1189,7 @@
         "verify_in_progress": "正在验证连接并同步模型...",
         "verify_ready": "连接已验证，可以提交。",
         "verify_stale": "连接参数已变更，请重新验证并获取模型。",
-        "search_placeholder": "搜索模型、别名、类型、供应商...",
+        "search_placeholder": "搜索模型、类型、供应商...",
         "empty": "暂无可选模型，请先点击“获取模型”或检查配置。",
         "empty_filtered": "当前筛选条件下暂无模型",
         "empty_search": "没有匹配的模型",
@@ -1194,7 +1197,6 @@
         "pricing_detail_button": "详情",
         "pricing_detail_title": "复杂计费详情",
         "pricing_detail_model": "模型：{{model}}",
-        "pricing_detail_alias": "别名：{{alias}}",
         "pricing_detail_empty": "当前模型暂无复杂计费详情",
         "editor": {
           "info_title": "模型信息",
@@ -1310,7 +1312,7 @@
         "channel_not_found": "该渠道不存在或已被删除，已返回渠道列表",
         "fetch_models_failed": "获取模型失败",
         "models_empty": "未返回可用模型",
-        "model_config_invalid": "模型配置无效，请检查模型别名是否为空或重复，价格覆盖是否为非负数。",
+        "model_config_invalid": "模型配置无效，请检查模型名称是否为空或重复，价格覆盖是否为非负数。",
         "blocked_selected_models": "当前保存会校验整条渠道。以下已启用模型当前不可保存：{{models}}。请先停用这些模型，或先重新同步并确认上游返回。",
         "update_success": "渠道更新成功！",
         "create_success": "渠道创建成功！"
@@ -1902,6 +1904,8 @@
         "summary_title": "本次路由摘要",
         "summary": "本次请求最终命中渠道 {{channel}}，最终模型为 {{model}}，经历 {{fallbackCount}} 次 fallback，估算来源为 {{source}}，结算模式为 {{settlement}}。",
         "failure_summary": "本次请求最终失败，最后尝试渠道为 {{channel}}，请求模型为 {{model}}，经历 {{fallbackCount}} 次 fallback。",
+        "user_summary": "本次请求使用发布模型 {{model}}，经历 {{fallbackCount}} 次 fallback，估算来源为 {{source}}，结算模式为 {{settlement}}。",
+        "user_failure_summary": "本次请求最终失败，请求模型为 {{model}}，经历 {{fallbackCount}} 次 fallback。",
         "attempt_title": "第 {{attempt}} 次尝试",
         "outcome": {
           "succeeded": "成功",
@@ -1919,6 +1923,8 @@
         },
         "fields": {
           "channel_target": "命中渠道",
+          "published_model": "发布模型",
+          "channel_model": "渠道实际模型",
           "request_model": "请求模型",
           "actual_model": "最终模型",
           "upstream_endpoint": "上游端点",
@@ -1947,6 +1953,7 @@
         "channel": "渠道",
         "group": "分组",
         "model": "模型",
+        "channel_model": "渠道实际模型",
         "username": "用户名",
         "token_name": "令牌名称",
         "trace_id": "Trace ID",

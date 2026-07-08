@@ -372,7 +372,7 @@ func CacheListSatisfiedChannelsForRequestWithStats(group string, model string, r
 	if err != nil {
 		return nil, ChannelCandidateStats{}, err
 	}
-	filtered, err := cacheFilterChannelsByRequestEndpoint(channels, model, requestPath)
+	filtered, err := cacheFilterChannelsByRequestEndpoint(group, channels, model, requestPath)
 	if err != nil {
 		return nil, ChannelCandidateStats{}, err
 	}
@@ -739,7 +739,7 @@ func buildChannelModelEndpointBaseURLCache(rows []ChannelModelEndpoint) map[stri
 	return result
 }
 
-func cacheFilterChannelsByRequestEndpoint(channels []*Channel, modelName string, requestPath string) ([]*Channel, error) {
+func cacheFilterChannelsByRequestEndpoint(group string, channels []*Channel, modelName string, requestPath string) ([]*Channel, error) {
 	normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(requestPath)
 	if normalizedEndpoint == "" || len(channels) == 0 {
 		result := make([]*Channel, 0, len(channels))
@@ -747,32 +747,36 @@ func cacheFilterChannelsByRequestEndpoint(channels []*Channel, modelName string,
 		return result, nil
 	}
 	if !config.MemoryCacheEnabled {
-		channelIDs := make([]string, 0, len(channels))
+		normalizedModelName := strings.TrimSpace(modelName)
+		wrapped := make(map[string]map[string]map[string]bool, len(channels))
 		for _, channel := range channels {
 			if channel == nil {
 				continue
 			}
-			channelIDs = append(channelIDs, channel.Id)
-		}
-		supportByChannelID, err := listChannelModelEndpointSupportByChannelIDsWithDB(DB, channelIDs, modelName)
-		if err != nil {
-			return nil, err
-		}
-		wrapped := make(map[string]map[string]map[string]bool, len(supportByChannelID))
-		for channelID, endpointMap := range supportByChannelID {
+			channelID := strings.TrimSpace(channel.Id)
+			candidates := endpointLookupCandidatesForChannel(group, normalizedModelName, channelID, nil)
+			endpointMap := CacheGetChannelModelEndpointSupport(channelID, candidates...)
+			if len(endpointMap) == 0 || normalizedModelName == "" {
+				continue
+			}
 			wrapped[channelID] = map[string]map[string]bool{
-				strings.TrimSpace(modelName): endpointMap,
+				normalizedModelName: endpointMap,
 			}
 		}
 		return filterChannelsByRequestEndpoint(channels, modelName, requestPath, wrapped), nil
 	}
 	channelSyncLock.RLock()
 	supportByChannelID := channel2model2endpointEnabled
+	upstreamByGroup := group2model2channel2upstream
 	channelSyncLock.RUnlock()
-	return filterChannelsByRequestEndpoint(channels, modelName, requestPath, supportByChannelID), nil
+	return filterChannelsByRequestEndpointWithMappings(group, channels, modelName, requestPath, supportByChannelID, upstreamByGroup), nil
 }
 
 func filterChannelsByRequestEndpoint(channels []*Channel, modelName string, requestPath string, supportByChannelID map[string]map[string]map[string]bool) []*Channel {
+	return filterChannelsByRequestEndpointWithMappings("", channels, modelName, requestPath, supportByChannelID, nil)
+}
+
+func filterChannelsByRequestEndpointWithMappings(group string, channels []*Channel, modelName string, requestPath string, supportByChannelID map[string]map[string]map[string]bool, upstreamByGroup map[string]map[string]map[string]string) []*Channel {
 	normalizedEndpoint := NormalizeRequestedChannelModelEndpoint(requestPath)
 	if normalizedEndpoint == "" || len(channels) == 0 {
 		result := make([]*Channel, 0, len(channels))
@@ -788,11 +792,45 @@ func filterChannelsByRequestEndpoint(channels []*Channel, modelName string, requ
 		channelID := strings.TrimSpace(channel.Id)
 		explicitSupport := map[string]bool(nil)
 		if groupModels, ok := supportByChannelID[channelID]; ok {
-			explicitSupport = groupModels[normalizedModelName]
+			for _, candidate := range endpointLookupCandidatesForChannel(group, normalizedModelName, channelID, upstreamByGroup) {
+				explicitSupport = groupModels[candidate]
+				if len(explicitSupport) > 0 {
+					break
+				}
+			}
 		}
 		if supported, explicit := IsChannelModelRequestEndpointSupportedByEndpointMap(explicitSupport, requestPath); explicit && supported {
 			result = append(result, channel)
 		}
 	}
 	return result
+}
+
+func endpointLookupCandidatesForChannel(group string, modelName string, channelID string, upstreamByGroup map[string]map[string]map[string]string) []string {
+	candidates := NormalizeProviderLookupCandidates(modelName)
+	normalizedGroup := strings.TrimSpace(group)
+	normalizedChannelID := strings.TrimSpace(channelID)
+	normalizedModelName := strings.TrimSpace(modelName)
+	if normalizedGroup == "" || normalizedChannelID == "" {
+		return candidates
+	}
+	if len(upstreamByGroup) > 0 {
+		upstream := ""
+		if modelMap := upstreamByGroup[normalizedGroup]; len(modelMap) > 0 {
+			if channelMap := modelMap[normalizedModelName]; len(channelMap) > 0 {
+				upstream = strings.TrimSpace(channelMap[normalizedChannelID])
+			}
+		}
+		if upstream == "" || upstream == normalizedModelName {
+			return candidates
+		}
+		candidates = append(candidates, NormalizeProviderLookupCandidates(upstream)...)
+		return normalizeTrimmedValuesPreserveOrder(candidates)
+	}
+	if mapping := CacheGetGroupModelMapping(normalizedGroup, normalizedModelName, normalizedChannelID); len(mapping) > 0 {
+		if upstream := strings.TrimSpace(mapping[normalizedModelName]); upstream != "" && upstream != normalizedModelName {
+			candidates = append(candidates, NormalizeProviderLookupCandidates(upstream)...)
+		}
+	}
+	return normalizeTrimmedValuesPreserveOrder(candidates)
 }

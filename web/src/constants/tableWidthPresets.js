@@ -2,7 +2,6 @@ export const CHANNEL_DETAIL_MODEL_COLUMN_WIDTHS = {
   selection: 64,
   name: 180,
   type: 72,
-  alias: 200,
   status: 92,
   upstreamReturn: 132,
   actions: 176,

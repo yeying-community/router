@@ -676,12 +676,15 @@
         "summary": "{{count}} selected models",
         "empty": "No selected models yet. Enable models in the Selection tab first.",
         "action_publish": "Publish",
+        "action_save_name": "Save",
         "action_unpublish": "Unpublish",
         "publish_success": "Model published",
         "unpublish_success": "Model unpublished",
         "update_failed": "Failed to update publish status",
+        "published_model_required": "Published name is required",
         "unpublish_confirm": "Unpublish this model? It will stop participating in runtime routing.",
         "table": {
+          "published_model": "Published Name",
           "check": "Publish Check",
           "actions": "Actions"
         },
@@ -1186,7 +1189,7 @@
         "verify_in_progress": "Verifying connection and syncing models...",
         "verify_ready": "Connection verified. You can submit now.",
         "verify_stale": "Connection changed. Please verify and fetch models again.",
-        "search_placeholder": "Search model, alias, type, provider...",
+        "search_placeholder": "Search model, type, provider...",
         "empty": "No models available yet. Click \"Fetch Models\" or check your configuration.",
         "empty_filtered": "No models match the current filter",
         "empty_search": "No matching models",
@@ -1194,7 +1197,6 @@
         "pricing_detail_button": "Details",
         "pricing_detail_title": "Complex Pricing Details",
         "pricing_detail_model": "Model: {{model}}",
-        "pricing_detail_alias": "Alias: {{alias}}",
         "pricing_detail_empty": "No complex pricing details for this model",
         "editor": {
           "info_title": "Model Info",
@@ -1310,7 +1312,7 @@
         "channel_not_found": "This channel does not exist or has been deleted. Returned to the channel list.",
         "fetch_models_failed": "Failed to fetch models",
         "models_empty": "No available models were returned",
-        "model_config_invalid": "Invalid model configuration. Check alias emptiness or duplicates, and ensure price overrides are non-negative.",
+        "model_config_invalid": "Invalid model configuration. Check model name emptiness or duplicates, and ensure price overrides are non-negative.",
         "blocked_selected_models": "Saving validates the whole channel. These enabled models currently block the save: {{models}}. Disable them first, or sync models again and confirm the latest upstream return.",
         "update_success": "Channel updated successfully!",
         "create_success": "Channel created successfully!"
@@ -1902,6 +1904,8 @@
         "summary_title": "Route Summary",
         "summary": "This request finally hit channel {{channel}}, final model {{model}}, after {{fallbackCount}} fallback(s), using estimate source {{source}} and settlement mode {{settlement}}.",
         "failure_summary": "This request ultimately failed. The last attempted channel was {{channel}}, requested model {{model}}, after {{fallbackCount}} fallback(s).",
+        "user_summary": "This request used published model {{model}}, after {{fallbackCount}} fallback(s), using estimate source {{source}} and settlement mode {{settlement}}.",
+        "user_failure_summary": "This request ultimately failed. Requested model {{model}}, after {{fallbackCount}} fallback(s).",
         "attempt_title": "Attempt {{attempt}}",
         "outcome": {
           "succeeded": "Succeeded",
@@ -1919,6 +1923,8 @@
         },
         "fields": {
           "channel_target": "Matched Channel",
+          "published_model": "Published Model",
+          "channel_model": "Channel Model",
           "request_model": "Requested Model",
           "actual_model": "Final Model",
           "upstream_endpoint": "Upstream Endpoint",
@@ -1947,6 +1953,7 @@
         "channel": "Channel",
         "group": "Group",
         "model": "Model",
+        "channel_model": "Channel Model",
         "username": "Username",
         "token_name": "Token Name",
         "trace_id": "Trace ID",

@@ -763,7 +763,7 @@ func buildGroupChannelModelOptions(channel *Channel) []GroupChannelModelOption {
 	}
 	items := make([]GroupChannelModelOption, 0, len(selectedConfigs))
 	for _, row := range selectedConfigs {
-		modelName := strings.TrimSpace(row.Model)
+		modelName := ChannelModelPublishedName(row)
 		upstream := NormalizeGroupModelChannelUpstreamModel(modelName, row.UpstreamModel)
 		label := modelName
 		if upstream != "" && upstream != modelName {
@@ -793,7 +793,7 @@ func buildGroupChannelModelCatalog(channel *Channel) groupChannelModelCatalog {
 		upstreamProvider: make(map[string]string),
 	}
 	for _, row := range channelSelectedModels(channel) {
-		modelName := strings.TrimSpace(row.Model)
+		modelName := ChannelModelPublishedName(row)
 		upstream := NormalizeGroupModelChannelUpstreamModel(modelName, row.UpstreamModel)
 		provider := commonutils.NormalizeProvider(row.Provider)
 		if modelName != "" {

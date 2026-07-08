@@ -161,11 +161,21 @@ function getLogChannelLabel(log) {
   return log.channel_name || log.channel || '';
 }
 
+function getLogPublicModelName(log) {
+  return (log?.request_model_name || '').toString().trim();
+}
+
+function getLogActualModelName(log) {
+  return (log?.actual_model_name || '').toString().trim();
+}
+
 function normalizeLogEntry(log) {
   const cacheReadQuantity = Number(log?.billing_cache_read_quantity ?? 0);
   const cacheWriteQuantity = Number(log?.billing_cache_write_quantity ?? 0);
   return {
     ...(log || {}),
+    publicModelName: getLogPublicModelName(log),
+    actualModelName: getLogActualModelName(log),
     // Prefer charge-amount settlement fields, fall back to legacy quota-based logs.
     chargeAmount: Number(log?.charge_amount ?? log?.quota ?? 0),
     userDailyChargeAmount: Number(log?.user_daily_charge_amount ?? log?.user_daily_quota ?? 0),
@@ -701,20 +711,26 @@ const LogsTable = () => {
     return logs.filter((log) => {
       const haystacks = [
         log?.content,
-        log?.model_name,
+        log?.publicModelName,
         log?.token_name,
         log?.username,
-        log?.channel_name,
-        log?.channel,
         log?.group_name,
         log?.group_id,
         log?.trace_id,
+        ...(isAdminScope
+          ? [
+              log?.model_name,
+              log?.actualModelName,
+              log?.channel_name,
+              log?.channel,
+            ]
+          : []),
       ]
         .map((item) => (item || '').toString().toLowerCase())
         .filter((item) => item !== '');
       return haystacks.some((item) => item.includes(keyword));
     });
-  }, [logs, searchKeyword]);
+  }, [isAdminScope, logs, searchKeyword]);
 
   const sortedFilteredLogs = useMemo(() => {
     if (!tableSorter.columnKey || !tableSorter.order) {
@@ -738,7 +754,7 @@ const LogsTable = () => {
         case 'type':
           return compareNumberValue(left.type, right.type);
         case 'model_name':
-          return compareTextValue(left.model_name, right.model_name);
+          return compareTextValue(left.publicModelName, right.publicModelName);
         case 'username':
           return compareTextValue(left.username, right.username);
         case 'token_name':
@@ -1004,7 +1020,7 @@ const LogsTable = () => {
           rowKey={(log) =>
             log.id ||
             log.trace_id ||
-            `${log.timestamp || ''}-${log.type || ''}-${log.token_name || ''}-${log.model_name || ''}`
+            `${log.timestamp || ''}-${log.type || ''}-${log.token_name || ''}-${log.publicModelName || ''}`
           }
           dataSource={sortedFilteredLogs
             .slice((activePage - 1) * ITEMS_PER_PAGE, activePage * ITEMS_PER_PAGE)
@@ -1095,7 +1111,6 @@ const LogsTable = () => {
           },
           {
             title: t('log.table.model'),
-            dataIndex: 'model_name',
             key: 'model_name',
             width: LOG_LIST_COLUMN_WIDTHS.model,
             ellipsis: true,
@@ -1103,7 +1118,8 @@ const LogsTable = () => {
             sortDirections: ['ascend', 'descend'],
             sortOrder:
               tableSorter.columnKey === 'model_name' ? tableSorter.order : null,
-            render: (value) => (value ? renderColorLabel(value) : ''),
+            render: (_, log) =>
+              log?.publicModelName ? renderColorLabel(log.publicModelName) : '',
           },
           ...(showAmountColumns()
             ? [

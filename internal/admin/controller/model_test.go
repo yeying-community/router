@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/ctxkey"
 	"github.com/yeying-community/router/internal/admin/model"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
@@ -365,6 +366,78 @@ func TestListModelsIntersectsTokenScopeWithUserEntitlements(t *testing.T) {
 	}
 	if got := payload.Data[0].Id; got != "qwen3-coder-next" {
 		t.Fatalf("model id = %q, want qwen3-coder-next", got)
+	}
+}
+
+func TestListGroupModelSupportedEndpointsUsesUpstreamModelMapping(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(
+		&model.Channel{},
+		&model.ChannelModel{},
+		&model.GroupModelChannel{},
+		&model.ChannelModelEndpoint{},
+		&model.ChannelModelEndpointPolicy{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	channel := model.Channel{
+		Id:       "channel-1",
+		Name:     "qwen-lx",
+		Protocol: "qwen",
+		Status:   model.ChannelStatusEnabled,
+	}
+	if err := db.Create(&channel).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&model.GroupModelChannel{
+		Group:         "group-1",
+		Model:         "qwen3.7-plus",
+		ChannelId:     "channel-1",
+		UpstreamModel: "qwen3.7-plus-2026-05-26",
+		Provider:      "qwen",
+	}).Error; err != nil {
+		t.Fatalf("create group model channel: %v", err)
+	}
+	if err := db.Create(&[]model.ChannelModelEndpoint{
+		{
+			ChannelId: "channel-1",
+			Model:     "qwen3.7-plus-2026-05-26",
+			Endpoint:  model.ChannelModelEndpointChat,
+			Enabled:   true,
+		},
+		{
+			ChannelId: "channel-1",
+			Model:     "qwen3.7-plus-2026-05-26",
+			Endpoint:  model.ChannelModelEndpointResponses,
+			Enabled:   true,
+		},
+	}).Error; err != nil {
+		t.Fatalf("create channel endpoints: %v", err)
+	}
+
+	originalDB := model.DB
+	originalMemoryCacheEnabled := config.MemoryCacheEnabled
+	model.DB = db
+	config.MemoryCacheEnabled = true
+	model.InitChannelCache()
+	t.Cleanup(func() {
+		model.DB = originalDB
+		config.MemoryCacheEnabled = originalMemoryCacheEnabled
+		if originalDB != nil && originalMemoryCacheEnabled {
+			model.InitChannelCache()
+		}
+	})
+
+	endpointsByModel, err := listGroupModelSupportedEndpoints("group-1", []string{"qwen3.7-plus"})
+	if err != nil {
+		t.Fatalf("listGroupModelSupportedEndpoints returned error: %v", err)
+	}
+	got := endpointsByModel["qwen3.7-plus"]
+	if len(got) != 2 || got[0] != model.ChannelModelEndpointChat || got[1] != model.ChannelModelEndpointResponses {
+		t.Fatalf("supported endpoints = %#v, want [%s %s]", got, model.ChannelModelEndpointChat, model.ChannelModelEndpointResponses)
 	}
 }
 

@@ -490,7 +490,7 @@ func TestSetChannelModelPublishEnabledWithDBBlocksUnsupportedImageTokenBilling(t
 		t.Fatalf("create endpoint test result: %v", err)
 	}
 
-	err := SetChannelModelPublishEnabledWithDB(db, "channel-1", "unsupported-image", true, "tester")
+	err := SetChannelModelPublishEnabledWithDB(db, "channel-1", "unsupported-image", true, "", "tester")
 	if err == nil {
 		t.Fatal("SetChannelModelPublishEnabledWithDB error = nil, want unsupported token image billing block")
 	}
@@ -553,7 +553,7 @@ func TestSetChannelModelPublishEnabledWithDBAllowsGPTImage2TokenBilling(t *testi
 		t.Fatalf("create endpoint test result: %v", err)
 	}
 
-	if err := SetChannelModelPublishEnabledWithDB(db, "channel-1", "gpt-image-2", true, "tester"); err != nil {
+	if err := SetChannelModelPublishEnabledWithDB(db, "channel-1", "gpt-image-2", true, "gpt-image-2-public", "tester"); err != nil {
 		t.Fatalf("SetChannelModelPublishEnabledWithDB error = %v", err)
 	}
 	stored := ChannelModel{}
@@ -562,6 +562,75 @@ func TestSetChannelModelPublishEnabledWithDBAllowsGPTImage2TokenBilling(t *testi
 	}
 	if !stored.PublishEnabled {
 		t.Fatalf("PublishEnabled = false, want true")
+	}
+	if stored.PublishedModel != "gpt-image-2-public" {
+		t.Fatalf("PublishedModel = %q, want gpt-image-2-public", stored.PublishedModel)
+	}
+}
+
+func TestSetChannelModelPublishEnabledWithDBBlocksDuplicatePublishedModel(t *testing.T) {
+	db := openChannelModelTestDB(t)
+	if err := db.AutoMigrate(
+		&Channel{},
+		&ChannelModel{},
+		&ChannelModelEndpoint{},
+		&ChannelModelEndpointTestResult{},
+		&ChannelModelPriceComponent{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{Id: "channel-1", Name: "channel-1", Protocol: "openai"}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	rows := []ChannelModel{
+		{
+			ChannelId:      "channel-1",
+			Model:          "qwen3.7-plus",
+			UpstreamModel:  "qwen3.7-plus",
+			Provider:       "qwen",
+			Type:           ProviderModelTypeText,
+			Selected:       true,
+			PublishEnabled: true,
+			PublishedModel: "qwen3.7-plus",
+		},
+		{
+			ChannelId:     "channel-1",
+			Model:         "qwen3.7-plus-2026-05-26",
+			UpstreamModel: "qwen3.7-plus-2026-05-26",
+			Provider:      "qwen",
+			Type:          ProviderModelTypeText,
+			Selected:      true,
+		},
+	}
+	if err := db.Create(&rows).Error; err != nil {
+		t.Fatalf("create channel models: %v", err)
+	}
+	for _, modelName := range []string{"qwen3.7-plus", "qwen3.7-plus-2026-05-26"} {
+		if err := db.Create(&ChannelModelEndpoint{
+			ChannelId: "channel-1",
+			Model:     modelName,
+			Endpoint:  ChannelModelEndpointResponses,
+			Enabled:   true,
+		}).Error; err != nil {
+			t.Fatalf("create endpoint %s: %v", modelName, err)
+		}
+		if err := db.Create(&ChannelModelEndpointTestResult{
+			ChannelId:      "channel-1",
+			Model:          modelName,
+			Endpoint:       ChannelModelEndpointResponses,
+			LastSupported:  true,
+			LastTestStatus: ChannelModelEndpointTestStatusSuccess,
+		}).Error; err != nil {
+			t.Fatalf("create endpoint test result %s: %v", modelName, err)
+		}
+	}
+
+	err := SetChannelModelPublishEnabledWithDB(db, "channel-1", "qwen3.7-plus-2026-05-26", true, "qwen3.7-plus", "tester")
+	if err == nil {
+		t.Fatal("SetChannelModelPublishEnabledWithDB error = nil, want duplicate published model block")
+	}
+	if !strings.Contains(err.Error(), "发布名称 qwen3.7-plus 已被该渠道其他模型使用") {
+		t.Fatalf("error = %q, want duplicate published model block", err.Error())
 	}
 }
 

@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"gorm.io/gorm"
@@ -30,6 +31,8 @@ type providerModelSpecificationLookupRow struct {
 	Model         string `gorm:"column:model"`
 	Specification string `gorm:"column:specification"`
 }
+
+var providerModelSnapshotSuffixPattern = regexp.MustCompile(`(?i)^(.+?)(?:-(?:preview|latest)|-\d{6}|\-\d{4}-\d{2}-\d{2})+$`)
 
 func LoadUniqueProviderMapByModels(modelNames []string) (map[string]string, error) {
 	return LoadUniqueProviderMapByModelsWithDB(DB, modelNames)
@@ -162,6 +165,14 @@ func NormalizeProviderLookupCandidates(values ...string) []string {
 			seen[normalized] = struct{}{}
 			result = append(result, normalized)
 		}
+		if !strings.Contains(normalized, "/") {
+			if canonical := canonicalProviderModelLookupCandidate(normalized); canonical != "" {
+				if _, ok := seen[canonical]; !ok {
+					seen[canonical] = struct{}{}
+					result = append(result, canonical)
+				}
+			}
+		}
 		if strings.Contains(normalized, "/") {
 			parts := strings.SplitN(normalized, "/", 2)
 			if len(parts) == 2 {
@@ -171,11 +182,33 @@ func NormalizeProviderLookupCandidates(values ...string) []string {
 						seen[suffix] = struct{}{}
 						result = append(result, suffix)
 					}
+					if canonical := canonicalProviderModelLookupCandidate(suffix); canonical != "" {
+						if _, ok := seen[canonical]; !ok {
+							seen[canonical] = struct{}{}
+							result = append(result, canonical)
+						}
+					}
 				}
 			}
 		}
 	}
 	return result
+}
+
+func canonicalProviderModelLookupCandidate(value string) string {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return ""
+	}
+	matches := providerModelSnapshotSuffixPattern.FindStringSubmatch(normalized)
+	if len(matches) != 2 {
+		return ""
+	}
+	canonical := strings.TrimSpace(matches[1])
+	if canonical == "" || canonical == normalized {
+		return ""
+	}
+	return canonical
 }
 
 func ResolveProviderFromModelMap(providerByModel map[string]string, values ...string) string {
@@ -212,8 +245,12 @@ func LoadProviderModelEndpointMapByModelsWithDB(db *gorm.DB, provider string, mo
 	}
 	for _, row := range rows {
 		modelName := canonicalizeModelNameForProvider(normalizedProvider, row.Model)
+		if modelName == "" {
+			continue
+		}
 		modelType := ProviderModelTypeFromTags(splitProviderModelTags(row.Tags))
 		if modelType == "" {
+			result[modelName] = []string{}
 			continue
 		}
 		endpoints := NormalizeProviderModelSupportedEndpoints(
@@ -226,9 +263,6 @@ func LoadProviderModelEndpointMapByModelsWithDB(db *gorm.DB, provider string, mo
 				modelType,
 				modelName,
 			)
-		}
-		if modelName == "" || len(endpoints) == 0 {
-			continue
 		}
 		result[modelName] = endpoints
 	}

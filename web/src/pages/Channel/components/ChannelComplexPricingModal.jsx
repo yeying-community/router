@@ -48,16 +48,9 @@ const ChannelComplexPricingModal = ({
         <div className='router-block-gap-sm'>
           <div className='router-text-meta'>
             {t('channel.edit.model_selector.pricing_detail_model', {
-              model: data?.model || data?.alias || '-',
+              model: data?.model || '-',
             })}
           </div>
-          {data?.alias && data.alias !== data.model ? (
-            <div className='router-text-meta'>
-              {t('channel.edit.model_selector.pricing_detail_alias', {
-                alias: data.alias,
-              })}
-            </div>
-          ) : null}
         </div>
         {(data?.details || []).length === 0 ? (
           <div className='router-empty-cell'>

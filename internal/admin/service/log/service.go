@@ -41,6 +41,10 @@ func SumUsedQuotaByUserIdWithModels(logType int, userId string, startTimestamp i
 	return logrepo.SumUsedQuotaByUserIdWithModels(logType, userId, startTimestamp, endTimestamp, models)
 }
 
+func SumUsedQuotaByUserIdWithModelAndToken(logType int, userId string, startTimestamp int64, endTimestamp int64, modelName string, tokenName string) (int64, error) {
+	return logrepo.SumUsedQuotaByUserIdWithModelAndToken(logType, userId, startTimestamp, endTimestamp, modelName, tokenName)
+}
+
 func MinLogTimestampByUserId(userId string, logTypes []int) (int64, error) {
 	return logrepo.MinLogTimestampByUserId(userId, logTypes)
 }
