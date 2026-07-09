@@ -257,7 +257,11 @@ func prepareTextBillingRequestBody(c *gin.Context, meta *meta.Meta, rawRequestBo
 		}
 		return applyEndpointRequestPolicy(c, meta, normalizedBody)
 	case meta.Mode == relaymode.Responses && upstreamMode == relaymode.Responses:
-		return applyEndpointRequestPolicy(c, meta, rawBody)
+		normalizedBody, err := normalizeTextModelRequestBody(rawBody, meta.ActualModelName)
+		if err != nil {
+			return nil, err
+		}
+		return applyEndpointRequestPolicy(c, meta, normalizedBody)
 	case !config.EnforceIncludeUsage &&
 		meta.APIType == apitype.OpenAI &&
 		meta.OriginModelName == meta.ActualModelName &&
@@ -326,6 +330,10 @@ func getRequestBody(c *gin.Context, meta *meta.Meta, textRequest *model.GeneralO
 	}
 	if meta.Mode == relaymode.Responses && upstreamMode == relaymode.Responses {
 		rawBody, err := common.GetRequestBody(c)
+		if err != nil {
+			return nil, err
+		}
+		rawBody, err = normalizeTextModelRequestBody(rawBody, meta.ActualModelName)
 		if err != nil {
 			return nil, err
 		}

@@ -27,6 +27,20 @@ func normalizeMessagesRequestBody(raw []byte, modelName string) ([]byte, error) 
 	return json.Marshal(payload)
 }
 
+func normalizeTextModelRequestBody(raw []byte, modelName string) ([]byte, error) {
+	if len(raw) == 0 {
+		return raw, nil
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(modelName) != "" {
+		payload["model"] = strings.TrimSpace(modelName)
+	}
+	return json.Marshal(payload)
+}
+
 func cloneGeneralOpenAIRequest(req *relaymodel.GeneralOpenAIRequest) (*relaymodel.GeneralOpenAIRequest, error) {
 	if req == nil {
 		return nil, fmt.Errorf("request is nil")
