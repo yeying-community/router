@@ -8,6 +8,7 @@ import {
   showSuccess,
   showWarning,
   timestamp2string,
+  writePagedRows,
 } from '../helpers';
 
 import { ITEMS_PER_PAGE } from '../constants';
@@ -198,15 +199,7 @@ const RedemptionsTable = () => {
       if (normalizedPage === 1) {
         setRedemptions(nextRows);
       } else {
-        setRedemptions((prev) => {
-          const next = [...prev];
-          next.splice(
-            (normalizedPage - 1) * ITEMS_PER_PAGE,
-            nextRows.length,
-            ...nextRows,
-          );
-          return next;
-        });
+        setRedemptions((prev) => writePagedRows(prev, normalizedPage, ITEMS_PER_PAGE, nextRows));
       }
     } else {
       showError(message);

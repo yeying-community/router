@@ -8,6 +8,7 @@ import {
   showError,
   showSuccess,
   timestamp2string,
+  writePagedRows,
 } from '../helpers';
 
 import { ITEMS_PER_PAGE } from '../constants';
@@ -168,15 +169,7 @@ const TokensTable = () => {
         if (normalizedPage === 1) {
           setTokens(normalizedRows);
         } else {
-          setTokens((prev) => {
-            let next = [...prev];
-            next.splice(
-              (normalizedPage - 1) * ITEMS_PER_PAGE,
-              normalizedRows.length,
-              ...normalizedRows,
-            );
-            return next;
-          });
+          setTokens((prev) => writePagedRows(prev, normalizedPage, ITEMS_PER_PAGE, normalizedRows));
         }
       } else {
         showError(message);
