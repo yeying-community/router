@@ -3,6 +3,7 @@ import {
   API,
   showError,
   timestamp2string,
+  writePagedRows,
 } from '../helpers';
 import { useTranslation } from 'react-i18next';
 import UnitDropdown from './UnitDropdown';
@@ -687,14 +688,7 @@ const LogsTable = () => {
         if (normalizedPage === 1) {
           setLogs(normalizedRows);
         } else {
-          setLogs((prev) => {
-            const next = [...prev];
-            const startIndex = (normalizedPage - 1) * ITEMS_PER_PAGE;
-            normalizedRows.forEach((row, idx) => {
-              next[startIndex + idx] = row;
-            });
-            return next;
-          });
+          setLogs((prev) => writePagedRows(prev, normalizedPage, ITEMS_PER_PAGE, normalizedRows));
         }
       } else {
         showError(message);

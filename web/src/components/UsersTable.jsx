@@ -9,6 +9,7 @@ import {
   showInfo,
   showSuccess,
   timestamp2string,
+  writePagedRows,
 } from '../helpers';
 import { useTranslation } from 'react-i18next';
 import UnitDropdown from './UnitDropdown';
@@ -179,14 +180,7 @@ const UsersTable = () => {
         if (normalizedPage === 1) {
           setUsers(data);
         } else {
-          setUsers((prev) => {
-            const next = [...prev];
-            const startIndex = (normalizedPage - 1) * ITEMS_PER_PAGE;
-            data.forEach((row, idx) => {
-              next[startIndex + idx] = row;
-            });
-            return next;
-          });
+          setUsers((prev) => writePagedRows(prev, normalizedPage, ITEMS_PER_PAGE, data));
         }
       } else {
         showError(message);
