@@ -81,12 +81,82 @@
     "mine": {
       "balance": "Balance",
       "billing": "Billing",
-      "package": "Package"
+      "package": "Package",
+      "spend": "Spending",
+      "quota": "Quota"
     },
     "record_nav": {
       "topup": "Top-up",
       "package": "Purchase",
-      "redeem": "Redeem"
+      "redeem": "Redeem",
+      "gift": "Gift"
+    },
+    "quota_overview": {
+      "title": "Today's Quota Overview",
+      "total": "Total Quota",
+      "used": "Used Quota",
+      "remaining": "Remaining Quota",
+      "hint": "Amount quota combines today's package quota and balance. Reserved package quota is included in used quota.",
+      "count_title": "Request Quota",
+      "count_total": "Total",
+      "count_used": "Used",
+      "count_remaining": "Remaining",
+      "sources": "Quota Sources",
+      "package_card": "Package Quota",
+      "package_total": "Today's Package",
+      "package_used": "Used",
+      "balance_card": "Balance",
+      "balance_used_today": "Used Today",
+      "balance_gift": "Gift Included",
+      "history": "History",
+      "view_detail": "View Details",
+      "package_detail": "Package Details",
+      "balance_detail": "Balance Details",
+      "load_failed": "Failed to load quota overview"
+    },
+    "quota_cards": {
+      "active_title": "Active Quota",
+      "active_empty": "No active quota cards",
+      "history_button": "Quota History",
+      "history_title": "Quota History",
+      "history_section": "Quota Card Records",
+      "history_empty": "No quota card records",
+      "back_to_quota": "Back to Quota",
+      "load_failed": "Failed to load quota cards",
+      "detail_title": "Quota Card Details",
+      "detail_load_failed": "Failed to load quota card details",
+      "detail_empty": "The quota card does not exist or was removed",
+      "total": "Total",
+      "used": "Used",
+      "remaining": "Remaining",
+      "activated_at": "Activated At",
+      "expires_at": "Expires At",
+      "period": "Quota Period",
+      "source_title": "Source Name",
+      "source_status": "Source Status",
+      "credit_origin": "Credit Origin",
+      "source_amount": "Payment or Face Value",
+      "kind": {
+        "all": "All Types",
+        "package": "Package",
+        "topup": "Top-up",
+        "redemption": "Redemption",
+        "gift": "Reward"
+      },
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "replaced": "Replaced",
+        "canceled": "Canceled",
+        "unknown": "Unknown"
+      }
+    },
+    "payment_history": {
+      "button": "Payment Records",
+      "title": "Payment History",
+      "status_title": "Payment Status",
+      "back_to_pricing": "Back to Subscription"
     },
     "nav": {
       "balance": "Balance Top-up",
@@ -97,6 +167,7 @@
     "records": {
       "title": "Top-up Orders",
       "package_title": "Package Orders",
+      "gift_title": "Gift Records",
       "refresh": "Refresh",
       "order_title": "Order Records",
       "order_empty": "No order records yet",
@@ -229,9 +300,9 @@
       }
     },
     "pricing": {
-      "title": "Pricing",
-      "page_title": "Pricing Guide",
-      "subtitle": "You can buy a package directly, or top up balance first and use the service on demand.",
+      "title": "Subscriptions",
+      "page_title": "Subscriptions",
+      "subtitle": "Purchase or adjust a package, or top up balance for on-demand usage.",
       "package_mode_title": "Package Plans",
       "package_hint": "Best for stable usage. You get a daily allowance plus emergency capacity with clearer cost boundaries. Image models count by generated image count, for example n=4 uses 4 package units.",
       "balance_mode_title": "Balance Usage",
@@ -247,7 +318,7 @@
       "supported_models_search_empty": "No matching models"
     },
     "package_status": {
-      "view_pricing": "View Pricing",
+      "view_pricing": "View Subscriptions",
       "no_active_package": "There is no active package",
       "no_upgrade_target": "No upgrade target package is available",
       "no_downgrade_target": "No downgrade target package is available",
@@ -261,7 +332,7 @@
       "select_convert_target": "Select Conversion Target Package",
       "select_convert_target_hint": "Choose a target package of a different type.",
       "convert_next_cycle": "Next",
-      "empty_description": "There is no active package right now. You can buy a package from the pricing page or top up balance to try the service first.",
+      "empty_description": "There is no active package right now. You can buy one from Subscriptions or use balance on demand.",
       "daily_title": "Today's Package Quota",
       "emergency_title": "Monthly Emergency Quota",
       "period": "Period",
@@ -277,6 +348,7 @@
         "status": "Status",
         "amount": "Amount",
         "detail": "Detail",
+        "name": "Name",
         "quota": "Quota",
         "package_name": "Package Name",
         "action": "Action",
@@ -1879,7 +1951,8 @@
       "completion_tokens": "Completion Tokens",
       "cache_tokens": "Cache R/W",
       "quota": "Amount",
-      "detail": "Detail"
+      "detail": "Detail",
+      "drag_column": "Drag to reorder columns"
     },
     "buttons": {
       "query": "Action",
@@ -2086,7 +2159,7 @@
   "workspace_start": {
     "title": "Activate Service",
     "actions": {
-      "view_pricing": "View pricing",
+      "view_pricing": "View subscriptions",
       "view_guide": "Usage guide",
       "create_token": "Create token",
       "open_chat": "Open Chat"
@@ -2094,7 +2167,7 @@
     "steps": {
       "pricing": {
         "title": "Get quota first",
-        "description": "Packages fit stable usage, while balance fits trial-first usage. All purchase actions happen on the pricing page."
+        "description": "Packages fit stable usage, while balance fits trial-first usage. Package purchases and balance top-ups happen on the Subscriptions page."
       },
       "token": {
         "title": "Create a token next",
@@ -2350,7 +2423,7 @@
           }
         },
         "actions": {
-          "view_pricing": "View pricing",
+          "view_pricing": "View subscriptions",
           "create_token": "Create token",
           "view_tokens": "View tokens",
           "view_guide": "Usage guide",

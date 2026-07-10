@@ -2822,6 +2822,275 @@ body,
     gap: 1rem;
 }
 
+.router-topup-quota-layout {
+    display: grid;
+    gap: 1rem;
+}
+
+.router-quota-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    border-radius: 8px;
+    background: rgba(17, 24, 39, 0.08);
+}
+
+.router-quota-summary-item {
+    min-width: 0;
+    padding: 20px 16px;
+    text-align: center;
+    background: #fff;
+}
+
+.router-quota-summary-hint {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.router-quota-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.router-quota-card {
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 18px;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    border: 1px solid rgba(17, 24, 39, 0.1);
+    border-radius: 8px;
+    background: #fff;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.router-quota-card:hover,
+.router-quota-card:focus-visible {
+    border-color: rgba(22, 119, 255, 0.45);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+    outline: none;
+}
+
+.router-quota-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.router-quota-card-heading {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+}
+
+.router-quota-card-kind {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.router-quota-card-name {
+    overflow: hidden;
+    color: #111827;
+    font-size: 16px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.router-quota-card-primary-label {
+    margin-top: 18px;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.router-quota-card-primary-value {
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+    color: #111827;
+    font-size: 26px;
+    font-weight: 650;
+    line-height: 1.2;
+}
+
+.router-quota-card-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.router-quota-card-metrics > div,
+.router-quota-detail-grid > div {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+}
+
+.router-quota-card-metrics span,
+.router-quota-detail-grid span {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.router-quota-card-metrics strong,
+.router-quota-detail-grid strong {
+    overflow-wrap: anywhere;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.router-quota-card-footer {
+    display: grid;
+    gap: 4px;
+    margin-top: auto;
+    padding-top: 18px;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.router-quota-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 24px;
+    margin-top: 20px;
+    padding: 18px;
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.router-quota-source-grid,
+.router-quota-count-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.router-quota-source-card {
+    appearance: none;
+    width: 100%;
+    min-width: 0;
+    padding: 18px;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    border: 1px solid rgba(17, 24, 39, 0.1);
+    border-radius: 8px;
+    background: #fff;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.router-quota-source-card:hover,
+.router-quota-source-card:focus-visible {
+    border-color: rgba(22, 119, 255, 0.45);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+    outline: none;
+}
+
+.router-quota-source-card-header,
+.router-quota-count-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.router-quota-source-card-header {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.router-quota-source-card-action {
+    flex: 0 0 auto;
+    color: #1677ff;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.router-quota-source-card-value {
+    margin-top: 16px;
+    color: #111827;
+    font-size: 26px;
+    font-weight: 650;
+    line-height: 1.2;
+}
+
+.router-quota-source-card-meta {
+    display: flex;
+    gap: 8px 18px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.router-quota-count-card {
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid rgba(17, 24, 39, 0.1);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.router-quota-count-title {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 15px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.router-quota-count-values {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.router-quota-count-values > div {
+    display: grid;
+    gap: 4px;
+}
+
+.router-quota-count-values strong {
+    overflow-wrap: anywhere;
+    color: #111827;
+    font-size: 18px;
+}
+
+.router-topup-history-panel {
+    min-width: 0;
+}
+
+.router-topup-history-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.router-payment-history-page .router-topup-history-toolbar {
+    justify-content: flex-start;
+}
+
+.router-quota-history-kind-select {
+    width: 140px;
+}
+
 .router-topup-balance-stat-grid {
     display: grid;
     gap: 1rem;
@@ -2843,6 +3112,19 @@ body,
 }
 
 @media (max-width: 640px) {
+    .router-quota-summary-grid,
+    .router-quota-card-grid,
+    .router-quota-detail-grid,
+    .router-quota-source-grid,
+    .router-quota-count-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .router-quota-count-values {
+        grid-template-columns: repeat(3, minmax(80px, 1fr));
+        overflow-x: auto;
+    }
+
     .router-topup-balance-actions {
         grid-template-columns: 1fr;
     }
@@ -3595,6 +3877,19 @@ body,
     min-width: 0;
 }
 
+.router-service-pricing-history-link-wrap {
+    margin-left: auto;
+}
+
+.router-service-pricing-history-link {
+    color: #2185d0;
+    text-decoration: none;
+}
+
+.router-service-pricing-history-link:hover {
+    text-decoration: underline;
+}
+
 .router-filter-toolbar {
     width: 100%;
     align-items: center;
@@ -3828,6 +4123,48 @@ body,
 .router-ui-table.router-log-table code {
     font-family: var(--router-font-family) !important;
     font-weight: 400 !important;
+}
+
+.router-log-column-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    width: 100%;
+}
+
+.router-log-column-title-content {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.router-log-column-drag-handle {
+    flex: 0 0 auto;
+    width: 12px;
+    height: 16px;
+    color: rgba(0, 0, 0, 0.34);
+    cursor: grab;
+    border-radius: 3px;
+    background-image: radial-gradient(circle, currentColor 1.2px, transparent 1.3px);
+    background-position: 0 0;
+    background-size: 4px 4px;
+}
+
+.router-log-column-drag-handle:hover {
+    color: rgba(22, 119, 255, 0.85);
+}
+
+.router-log-column-drag-handle:active {
+    cursor: grabbing;
+}
+
+.router-ui-table.router-log-table .ant-table-thead > tr > th.router-log-column-dragging {
+    opacity: 0.58;
+}
+
+.router-ui-table.router-log-table .ant-table-thead > tr > th.router-log-column-drag-target {
+    background: #edf5ff !important;
+    box-shadow: inset 2px 0 0 #1677ff, inset -2px 0 0 #1677ff;
 }
 
 .router-log-filter-editor {

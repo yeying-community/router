@@ -266,7 +266,7 @@ func buildActiveUserPackageEmergencyUsageView(snapshot model.UserPackageEmergenc
 	}
 }
 
-func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscription) (*activeUserPackageSubscriptionView, error) {
+func buildUserPackageSubscriptionView(subscription model.UserPackageSubscription, includeUsage bool) (*activeUserPackageSubscriptionView, error) {
 	groupID := strings.TrimSpace(subscription.GroupID)
 	groupName := ""
 	supportedModels := []string{}
@@ -276,9 +276,12 @@ func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscr
 		}
 		models, err := cacheGetGroupModelsFn(context.Background(), groupID)
 		if err != nil {
-			return nil, err
+			if includeUsage {
+				return nil, err
+			}
+		} else {
+			supportedModels = append(supportedModels, models...)
 		}
-		supportedModels = append(supportedModels, models...)
 	}
 	source := ""
 	if packageID := strings.TrimSpace(subscription.PackageID); packageID != "" {
@@ -289,13 +292,13 @@ func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscr
 	var usage *activeUserPackageUsageView
 	var dailyUsage *activeUserPackageUsageView
 	var emergencyUsage *activeUserPackageUsageView
-	if strings.TrimSpace(subscription.QuotaMetric) == model.ServicePackageQuotaMetricRequestCount {
+	if includeUsage && strings.TrimSpace(subscription.QuotaMetric) == model.ServicePackageQuotaMetricRequestCount {
 		snapshot, err := model.GetRequestPackageUsageSnapshot(subscription)
 		if err != nil {
 			return nil, err
 		}
 		usage = buildActiveUserPackageUsageView(snapshot)
-	} else if strings.TrimSpace(subscription.QuotaMetric) == model.ServicePackageQuotaMetricYYC {
+	} else if includeUsage && strings.TrimSpace(subscription.QuotaMetric) == model.ServicePackageQuotaMetricYYC {
 		if groupID != "" {
 			snapshot, err := model.GetGroupDailyQuotaSnapshot(groupID, strings.TrimSpace(subscription.UserID), "")
 			if err != nil {
@@ -341,6 +344,10 @@ func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscr
 		DailyUsage:                 dailyUsage,
 		EmergencyUsage:             emergencyUsage,
 	}, nil
+}
+
+func buildActiveUserPackageSubscriptionView(subscription model.UserPackageSubscription) (*activeUserPackageSubscriptionView, error) {
+	return buildUserPackageSubscriptionView(subscription, true)
 }
 
 func loadActiveUserPackageSubscriptionPayload(userID string) (activeUserPackageSubscriptionPayload, error) {
@@ -2211,6 +2218,32 @@ type topUpBalanceSummaryData struct {
 	TotalBalanceAmount  int64 `json:"total_balance_amount"`
 }
 
+type userQuotaOverviewPackageData struct {
+	LimitAmount     int64 `json:"limit_amount"`
+	ConsumedAmount  int64 `json:"consumed_amount"`
+	ReservedAmount  int64 `json:"reserved_amount"`
+	RemainingAmount int64 `json:"remaining_amount"`
+}
+
+type userQuotaOverviewBalanceData struct {
+	CurrentAmount        int64 `json:"current_amount"`
+	ConsumedTodayAmount  int64 `json:"consumed_today_amount"`
+	AvailableTodayAmount int64 `json:"available_today_amount"`
+	TopupBalanceAmount   int64 `json:"topup_balance_amount"`
+	RedeemBalanceAmount  int64 `json:"redeem_balance_amount"`
+	GiftBalanceAmount    int64 `json:"gift_balance_amount"`
+}
+
+type userQuotaOverviewData struct {
+	BizDate         string                       `json:"biz_date"`
+	Timezone        string                       `json:"timezone"`
+	TotalAmount     int64                        `json:"total_amount"`
+	UsedAmount      int64                        `json:"used_amount"`
+	RemainingAmount int64                        `json:"remaining_amount"`
+	Package         userQuotaOverviewPackageData `json:"package"`
+	Balance         userQuotaOverviewBalanceData `json:"balance"`
+}
+
 type topUpBalanceLotListData struct {
 	Items    []model.UserBalanceLot `json:"items"`
 	Total    int64                  `json:"total"`
@@ -2235,6 +2268,7 @@ type topUpBalanceLotSourceDetail struct {
 	ID           string  `json:"id"`
 	Title        string  `json:"title,omitempty"`
 	Status       string  `json:"status,omitempty"`
+	CreditOrigin string  `json:"credit_origin,omitempty"`
 	Amount       float64 `json:"amount,omitempty"`
 	Currency     string  `json:"currency,omitempty"`
 	CreditAmount int64   `json:"credit_amount,omitempty"`
@@ -2331,6 +2365,7 @@ func loadTopupBalanceLotTopupSourceDetails(db *gorm.DB, ids []string) (map[strin
 			ID:           id,
 			Title:        strings.TrimSpace(order.Title),
 			Status:       strings.TrimSpace(order.Status),
+			CreditOrigin: strings.TrimSpace(order.CreditOrigin),
 			Amount:       order.Amount,
 			Currency:     strings.TrimSpace(order.Currency),
 			CreditAmount: order.Quota,
@@ -2374,6 +2409,279 @@ func loadTopupBalanceLotRedemptionSourceDetails(db *gorm.DB, ids []string) (map[
 		}
 	}
 	return details, nil
+}
+
+const (
+	userQuotaCardKindPackage    = "package"
+	userQuotaCardKindTopup      = model.UserBalanceLotQuotaCardKindTopup
+	userQuotaCardKindRedemption = model.UserBalanceLotQuotaCardKindRedemption
+	userQuotaCardKindGift       = model.UserBalanceLotQuotaCardKindGift
+)
+
+type userQuotaCardView struct {
+	ID              string                             `json:"id"`
+	Kind            string                             `json:"kind"`
+	Name            string                             `json:"name"`
+	Status          string                             `json:"status"`
+	Metric          string                             `json:"metric"`
+	TotalAmount     int64                              `json:"total_amount"`
+	UsedAmount      int64                              `json:"used_amount"`
+	RemainingAmount int64                              `json:"remaining_amount"`
+	ActivatedAt     int64                              `json:"activated_at"`
+	ExpiresAt       int64                              `json:"expires_at"`
+	UpdatedAt       int64                              `json:"updated_at"`
+	Package         *activeUserPackageSubscriptionView `json:"package,omitempty"`
+	BalanceLot      *adminTopUpBalanceLotListItem      `json:"balance_lot,omitempty"`
+}
+
+type userQuotaCardListData struct {
+	Items    []userQuotaCardView `json:"items"`
+	Total    int64               `json:"total"`
+	Page     int                 `json:"page"`
+	PageSize int                 `json:"page_size"`
+}
+
+func userPackageSubscriptionStatusKey(status int) string {
+	switch status {
+	case model.UserPackageSubscriptionStatusActive:
+		return model.UserBalanceLotStatusActive
+	case model.UserPackageSubscriptionStatusExpired:
+		return model.UserBalanceLotStatusExpired
+	case model.UserPackageSubscriptionStatusReplaced:
+		return "replaced"
+	case model.UserPackageSubscriptionStatusCanceled:
+		return "canceled"
+	default:
+		return "unknown"
+	}
+}
+
+func buildUserPackageQuotaCard(subscription model.UserPackageSubscription) (userQuotaCardView, error) {
+	now := helper.GetTimestamp()
+	includeUsage := subscription.Status == model.UserPackageSubscriptionStatusActive &&
+		subscription.StartedAt <= now &&
+		(subscription.ExpiresAt <= 0 || subscription.ExpiresAt > now)
+	view, err := buildUserPackageSubscriptionView(subscription, includeUsage)
+	if err != nil {
+		return userQuotaCardView{}, err
+	}
+	metric := strings.TrimSpace(subscription.QuotaMetric)
+	totalAmount := normalizeNonNegativeQuota(subscription.DailyQuotaLimit)
+	usedAmount := int64(0)
+	remainingAmount := totalAmount
+	if metric == model.ServicePackageQuotaMetricRequestCount {
+		totalAmount = normalizeNonNegativeQuota(subscription.PeriodLimit)
+		remainingAmount = totalAmount
+		if view.Usage != nil {
+			totalAmount = normalizeNonNegativeQuota(view.Usage.LimitAmount)
+			usedAmount = normalizeNonNegativeQuota(view.Usage.ConsumedAmount) +
+				normalizeNonNegativeQuota(view.Usage.ReservedAmount)
+			remainingAmount = normalizeNonNegativeQuota(view.Usage.RemainingAmount)
+		}
+	} else if view.DailyUsage != nil {
+		totalAmount = normalizeNonNegativeQuota(view.DailyUsage.LimitAmount)
+		usedAmount = normalizeNonNegativeQuota(view.DailyUsage.ConsumedAmount) +
+			normalizeNonNegativeQuota(view.DailyUsage.ReservedAmount)
+		remainingAmount = normalizeNonNegativeQuota(view.DailyUsage.RemainingAmount)
+	}
+	if subscription.Status != model.UserPackageSubscriptionStatusActive {
+		remainingAmount = 0
+	}
+	name := strings.TrimSpace(subscription.PackageName)
+	if name == "" {
+		name = "套餐额度"
+	}
+	return userQuotaCardView{
+		ID:              strings.TrimSpace(subscription.Id),
+		Kind:            userQuotaCardKindPackage,
+		Name:            name,
+		Status:          userPackageSubscriptionStatusKey(subscription.Status),
+		Metric:          metric,
+		TotalAmount:     totalAmount,
+		UsedAmount:      usedAmount,
+		RemainingAmount: remainingAmount,
+		ActivatedAt:     subscription.StartedAt,
+		ExpiresAt:       subscription.ExpiresAt,
+		UpdatedAt:       subscription.UpdatedAt,
+		Package:         view,
+	}, nil
+}
+
+func isGiftCreditOrigin(value string) bool {
+	normalized := strings.TrimSpace(value)
+	for _, giftOrigin := range model.TopupOrderGiftCreditOriginValues() {
+		if normalized == giftOrigin {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveBalanceQuotaCardKind(item adminTopUpBalanceLotListItem) string {
+	if strings.TrimSpace(item.SourceType) == model.UserBalanceLotSourceRedeem {
+		return userQuotaCardKindRedemption
+	}
+	if item.SourceDetail != nil && isGiftCreditOrigin(item.SourceDetail.CreditOrigin) {
+		return userQuotaCardKindGift
+	}
+	return userQuotaCardKindTopup
+}
+
+func defaultBalanceQuotaCardName(kind string) string {
+	switch kind {
+	case userQuotaCardKindRedemption:
+		return "兑换额度"
+	case userQuotaCardKindGift:
+		return "奖励额度"
+	default:
+		return "充值额度"
+	}
+}
+
+func buildUserBalanceQuotaCards(db *gorm.DB, lots []model.UserBalanceLot) ([]userQuotaCardView, error) {
+	items, err := buildAdminTopUpBalanceLotListItemsWithSources(db, lots)
+	if err != nil {
+		return nil, err
+	}
+	cards := make([]userQuotaCardView, 0, len(items))
+	for i := range items {
+		item := items[i]
+		if item.SourceDetail != nil {
+			item.SourceDetail.DetailPath = ""
+		}
+		kind := resolveBalanceQuotaCardKind(item)
+		name := ""
+		if item.SourceDetail != nil {
+			name = strings.TrimSpace(item.SourceDetail.Title)
+		}
+		if name == "" {
+			name = defaultBalanceQuotaCardName(kind)
+		}
+		cards = append(cards, userQuotaCardView{
+			ID:              strings.TrimSpace(item.Id),
+			Kind:            kind,
+			Name:            name,
+			Status:          strings.TrimSpace(item.Status),
+			Metric:          model.ServicePackageQuotaMetricYYC,
+			TotalAmount:     normalizeNonNegativeQuota(item.TotalAmount),
+			UsedAmount:      normalizeNonNegativeQuota(item.UsedAmount),
+			RemainingAmount: normalizeNonNegativeQuota(item.RemainingAmount),
+			ActivatedAt:     item.GrantedAt,
+			ExpiresAt:       item.ExpiresAt,
+			UpdatedAt:       item.UpdatedAt,
+			BalanceLot:      &item,
+		})
+	}
+	return cards, nil
+}
+
+func loadUserQuotaCards(userID string, activeOnly bool, kind string, page int, pageSize int) (userQuotaCardListData, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 50 {
+		pageSize = 50
+	}
+	normalizedKind := strings.TrimSpace(strings.ToLower(kind))
+	if normalizedKind == "all" {
+		normalizedKind = ""
+	}
+	fetchLimit := page * pageSize
+	packageRows := []model.UserPackageSubscription{}
+	packageTotal := int64(0)
+	if normalizedKind == "" || normalizedKind == userQuotaCardKindPackage {
+		var err error
+		packageRows, packageTotal, err = model.ListRecentUserPackageSubscriptionsWithDB(
+			model.DB,
+			userID,
+			activeOnly,
+			fetchLimit,
+		)
+		if err != nil {
+			return userQuotaCardListData{}, err
+		}
+	}
+	if _, expireErr := model.ExpireUserBalanceLots(userID); expireErr != nil {
+		return userQuotaCardListData{}, expireErr
+	}
+	balanceRows := []model.UserBalanceLot{}
+	balanceTotal := int64(0)
+	if normalizedKind != userQuotaCardKindPackage {
+		var err error
+		balanceRows, balanceTotal, err = model.ListRecentUserBalanceLotsByQuotaKindWithDB(
+			model.DB,
+			userID,
+			activeOnly,
+			normalizedKind,
+			fetchLimit,
+		)
+		if err != nil {
+			return userQuotaCardListData{}, err
+		}
+	}
+	cards := make([]userQuotaCardView, 0, len(packageRows)+len(balanceRows))
+	for _, packageRow := range packageRows {
+		card, err := buildUserPackageQuotaCard(packageRow)
+		if err != nil {
+			return userQuotaCardListData{}, err
+		}
+		cards = append(cards, card)
+	}
+	balanceCards, err := buildUserBalanceQuotaCards(model.DB, balanceRows)
+	if err != nil {
+		return userQuotaCardListData{}, err
+	}
+	cards = append(cards, balanceCards...)
+	sort.SliceStable(cards, func(i int, j int) bool {
+		if cards[i].ActivatedAt != cards[j].ActivatedAt {
+			return cards[i].ActivatedAt > cards[j].ActivatedAt
+		}
+		return cards[i].ID > cards[j].ID
+	})
+	start := (page - 1) * pageSize
+	if start > len(cards) {
+		start = len(cards)
+	}
+	end := start + pageSize
+	if end > len(cards) {
+		end = len(cards)
+	}
+	return userQuotaCardListData{
+		Items:    cards[start:end],
+		Total:    packageTotal + balanceTotal,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
+
+func loadUserQuotaCard(userID string, kind string, cardID string) (userQuotaCardView, error) {
+	normalizedKind := strings.TrimSpace(strings.ToLower(kind))
+	normalizedID := strings.TrimSpace(cardID)
+	if normalizedKind == "" || normalizedID == "" {
+		return userQuotaCardView{}, gorm.ErrRecordNotFound
+	}
+	if normalizedKind == userQuotaCardKindPackage {
+		subscription, err := model.GetUserPackageSubscriptionByIDWithDB(model.DB, userID, normalizedID)
+		if err != nil {
+			return userQuotaCardView{}, err
+		}
+		return buildUserPackageQuotaCard(subscription)
+	}
+	lot, err := model.GetUserBalanceLotByIDWithDB(model.DB, userID, normalizedID)
+	if err != nil {
+		return userQuotaCardView{}, err
+	}
+	cards, err := buildUserBalanceQuotaCards(model.DB, []model.UserBalanceLot{lot})
+	if err != nil {
+		return userQuotaCardView{}, err
+	}
+	if len(cards) != 1 || cards[0].Kind != normalizedKind {
+		return userQuotaCardView{}, gorm.ErrRecordNotFound
+	}
+	return cards[0], nil
 }
 
 func writeTopUpError(c *gin.Context, err error) {
@@ -2465,7 +2773,7 @@ func normalizeBatchGrantUserIDs(rawUserIDs []string, limit int) ([]string, error
 	return result, nil
 }
 
-func parseTopupOrderPageParams(c *gin.Context) (int, int, string, error) {
+func parseTopupOrderPageParams(c *gin.Context) (int, int, string, string, error) {
 	page, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("page", "1")))
 	if page < 1 {
 		page = 1
@@ -2475,15 +2783,21 @@ func parseTopupOrderPageParams(c *gin.Context) (int, int, string, error) {
 		pageSize = config.ItemsPerPage
 	}
 	rawBusinessType := strings.TrimSpace(c.Query("business_type"))
-	if rawBusinessType == "" {
-		return page, pageSize, "", nil
+	businessType := ""
+	if rawBusinessType != "" {
+		switch rawBusinessType {
+		case model.TopupOrderBusinessBalance, model.TopupOrderBusinessPackage:
+			businessType = rawBusinessType
+		default:
+			return page, pageSize, "", "", fmt.Errorf("无效的业务类型")
+		}
 	}
-	normalizedBusinessType := strings.TrimSpace(rawBusinessType)
-	switch normalizedBusinessType {
-	case model.TopupOrderBusinessBalance, model.TopupOrderBusinessPackage:
-		return page, pageSize, normalizedBusinessType, nil
+	rawCreditFilter := strings.TrimSpace(strings.ToLower(c.Query("credit_origin")))
+	switch rawCreditFilter {
+	case "", model.TopupOrderCreditFilterPaid, model.TopupOrderCreditFilterGift:
+		return page, pageSize, businessType, rawCreditFilter, nil
 	default:
-		return page, pageSize, "", fmt.Errorf("无效的业务类型")
+		return page, pageSize, "", "", fmt.Errorf("无效的额度来源")
 	}
 }
 
@@ -2589,6 +2903,90 @@ func buildTopUpBalanceSummary(topupRemain int64, redeemRemain int64, giftRemain 
 	}
 }
 
+func loadTopUpBalanceSummaryWithDB(db *gorm.DB, userID string, now int64) (topUpBalanceSummaryData, error) {
+	var topupRemain int64
+	validLotQuery := "l.user_id = ? AND l.status = ? AND l.remaining_amount > 0 AND (l.expires_at = 0 OR l.expires_at > ?)"
+	if err := db.Table(model.UserBalanceLotsTableName+" AS l").
+		Joins("JOIN "+model.TopupOrdersTableName+" AS o ON o.id = l.source_id").
+		Select("COALESCE(SUM(l.remaining_amount), 0)").
+		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
+		Where("l.source_type = ?", model.UserBalanceLotSourceTopup).
+		Where("COALESCE(o.credit_origin, '') = ?", model.TopupOrderCreditOriginPaid).
+		Scan(&topupRemain).Error; err != nil {
+		return topUpBalanceSummaryData{}, err
+	}
+
+	var redeemRemain int64
+	if err := db.Table(model.UserBalanceLotsTableName+" AS l").
+		Select("COALESCE(SUM(l.remaining_amount), 0)").
+		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
+		Where("l.source_type = ?", model.UserBalanceLotSourceRedeem).
+		Scan(&redeemRemain).Error; err != nil {
+		return topUpBalanceSummaryData{}, err
+	}
+
+	var giftRemain int64
+	if err := db.Table(model.UserBalanceLotsTableName+" AS l").
+		Joins("JOIN "+model.TopupOrdersTableName+" AS o ON o.id = l.source_id").
+		Select("COALESCE(SUM(l.remaining_amount), 0)").
+		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
+		Where("l.source_type = ?", model.UserBalanceLotSourceTopup).
+		Where("o.credit_origin IN ?", model.TopupOrderGiftCreditOriginValues()).
+		Scan(&giftRemain).Error; err != nil {
+		return topUpBalanceSummaryData{}, err
+	}
+	return buildTopUpBalanceSummary(topupRemain, redeemRemain, giftRemain), nil
+}
+
+func buildUserQuotaOverview(summary model.UserQuotaSummary, balance topUpBalanceSummaryData, balanceConsumedToday int64) userQuotaOverviewData {
+	packageConsumed := normalizeNonNegativeQuota(summary.Daily.ConsumedQuota)
+	packageReserved := normalizeNonNegativeQuota(summary.Daily.ReservedQuota)
+	packageUsed := packageConsumed + packageReserved
+	packageLimit := normalizeNonNegativeQuota(summary.Daily.Limit)
+	packageRemaining := normalizeNonNegativeQuota(summary.Daily.RemainingQuota)
+	currentBalance := normalizeNonNegativeQuota(balance.TotalBalanceAmount)
+	consumedBalance := normalizeNonNegativeQuota(balanceConsumedToday)
+	availableBalance := currentBalance + consumedBalance
+
+	return userQuotaOverviewData{
+		BizDate:         strings.TrimSpace(summary.Daily.BizDate),
+		Timezone:        strings.TrimSpace(summary.Daily.Timezone),
+		TotalAmount:     packageLimit + availableBalance,
+		UsedAmount:      packageUsed + consumedBalance,
+		RemainingAmount: packageRemaining + currentBalance,
+		Package: userQuotaOverviewPackageData{
+			LimitAmount:     packageLimit,
+			ConsumedAmount:  packageConsumed,
+			ReservedAmount:  packageReserved,
+			RemainingAmount: packageRemaining,
+		},
+		Balance: userQuotaOverviewBalanceData{
+			CurrentAmount:        currentBalance,
+			ConsumedTodayAmount:  consumedBalance,
+			AvailableTodayAmount: availableBalance,
+			TopupBalanceAmount:   normalizeNonNegativeQuota(balance.TopupBalanceAmount),
+			RedeemBalanceAmount:  normalizeNonNegativeQuota(balance.RedeemBalanceAmount),
+			GiftBalanceAmount:    normalizeNonNegativeQuota(balance.GiftBalanceAmount),
+		},
+	}
+}
+
+func quotaBusinessDayBounds(bizDate string, timezone string) (int64, int64, error) {
+	locationName := strings.TrimSpace(timezone)
+	if locationName == "" {
+		locationName = model.DefaultGroupQuotaResetTimezone
+	}
+	location, err := time.LoadLocation(locationName)
+	if err != nil {
+		return 0, 0, err
+	}
+	start, err := time.ParseInLocation("2006-01-02", strings.TrimSpace(bizDate), location)
+	if err != nil {
+		return 0, 0, err
+	}
+	return start.Unix(), start.AddDate(0, 0, 1).Unix(), nil
+}
+
 func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
 	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
 	if userID == "" {
@@ -2601,45 +2999,9 @@ func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
 	if _, expireErr := model.ExpireUserBalanceLots(userID); expireErr != nil {
 		logger.Error(c.Request.Context(), "expire user balance lots failed: "+expireErr.Error())
 	}
-
-	var topupRemain int64
 	now := helper.GetTimestamp()
-	validLotQuery := "l.user_id = ? AND l.status = ? AND l.remaining_amount > 0 AND (l.expires_at = 0 OR l.expires_at > ?)"
-	if err := model.DB.Table(model.UserBalanceLotsTableName+" AS l").
-		Joins("JOIN "+model.TopupOrdersTableName+" AS o ON o.id = l.source_id").
-		Select("COALESCE(SUM(l.remaining_amount), 0)").
-		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
-		Where("l.source_type = ?", model.UserBalanceLotSourceTopup).
-		Where("COALESCE(o.credit_origin, '') = ?", model.TopupOrderCreditOriginPaid).
-		Scan(&topupRemain).Error; err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
-		return
-	}
-
-	var redeemRemain int64
-	if err := model.DB.Table(model.UserBalanceLotsTableName+" AS l").
-		Select("COALESCE(SUM(l.remaining_amount), 0)").
-		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
-		Where("l.source_type = ?", model.UserBalanceLotSourceRedeem).
-		Scan(&redeemRemain).Error; err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
-		return
-	}
-
-	var giftRemain int64
-	if err := model.DB.Table(model.UserBalanceLotsTableName+" AS l").
-		Joins("JOIN "+model.TopupOrdersTableName+" AS o ON o.id = l.source_id").
-		Select("COALESCE(SUM(l.remaining_amount), 0)").
-		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
-		Where("l.source_type = ?", model.UserBalanceLotSourceTopup).
-		Where("COALESCE(o.credit_origin, '') <> ?", model.TopupOrderCreditOriginPaid).
-		Scan(&giftRemain).Error; err != nil {
+	summary, err := loadTopUpBalanceSummaryWithDB(model.DB, userID, now)
+	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": err.Error(),
@@ -2650,7 +3012,136 @@ func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    buildTopUpBalanceSummary(topupRemain, redeemRemain, giftRemain),
+		"data":    summary,
+	})
+}
+
+func GetCurrentUserQuotaOverview(c *gin.Context) {
+	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
+	if userID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "用户 ID 不能为空",
+		})
+		return
+	}
+	summary, err := model.GetUserQuotaSummary(userID, c.Query("date"), c.Query("month"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	if _, expireErr := model.ExpireUserBalanceLots(userID); expireErr != nil {
+		logger.Error(c.Request.Context(), "expire user balance lots failed: "+expireErr.Error())
+	}
+	balance, err := loadTopUpBalanceSummaryWithDB(model.DB, userID, helper.GetTimestamp())
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	startAt, endAt, err := quotaBusinessDayBounds(summary.Daily.BizDate, summary.Daily.Timezone)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	balanceConsumedToday, err := model.SumUserBalanceConsumedAmountWithDB(model.DB, userID, startAt, endAt)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    buildUserQuotaOverview(summary, balance, balanceConsumedToday),
+	})
+}
+
+func GetCurrentUserQuotaCards(c *gin.Context) {
+	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
+	if userID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "用户 ID 不能为空",
+		})
+		return
+	}
+	scope := strings.TrimSpace(strings.ToLower(c.DefaultQuery("scope", "active")))
+	activeOnly := true
+	switch scope {
+	case "active":
+		activeOnly = true
+	case "history", "all":
+		activeOnly = false
+	default:
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无效的卡片范围",
+		})
+		return
+	}
+	page, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("page", "1")))
+	pageSize, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("page_size", "20")))
+	kind := strings.TrimSpace(strings.ToLower(c.DefaultQuery("kind", "all")))
+	switch kind {
+	case "all", userQuotaCardKindPackage, userQuotaCardKindTopup, userQuotaCardKindRedemption, userQuotaCardKindGift:
+	default:
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无效的额度卡片类型",
+		})
+		return
+	}
+	data, err := loadUserQuotaCards(userID, activeOnly, kind, page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    data,
+	})
+}
+
+func GetCurrentUserQuotaCard(c *gin.Context) {
+	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
+	if userID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "用户 ID 不能为空",
+		})
+		return
+	}
+	card, err := loadUserQuotaCard(userID, c.Param("kind"), c.Param("id"))
+	if err != nil {
+		message := err.Error()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			message = "额度卡片不存在"
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": message,
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    card,
 	})
 }
 
@@ -2736,7 +3227,7 @@ func GetCurrentUserTopUpBalanceLotTransactions(c *gin.Context) {
 
 func GetTopUpOrders(c *gin.Context) {
 	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
-	page, pageSize, businessType, err := parseTopupOrderPageParams(c)
+	page, pageSize, businessType, creditFilter, err := parseTopupOrderPageParams(c)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -2744,7 +3235,7 @@ func GetTopUpOrders(c *gin.Context) {
 		})
 		return
 	}
-	items, total, err := model.ListTopupOrdersPageWithDB(model.DB, userID, businessType, page, pageSize)
+	items, total, err := model.ListTopupOrdersPageFilteredWithDB(model.DB, userID, businessType, creditFilter, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

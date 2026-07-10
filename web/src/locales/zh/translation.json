@@ -81,12 +81,82 @@
     "mine": {
       "balance": "余额",
       "billing": "账务",
-      "package": "套餐"
+      "package": "套餐",
+      "spend": "花费",
+      "quota": "额度"
     },
     "record_nav": {
       "topup": "充值",
       "package": "购买",
-      "redeem": "兑换"
+      "redeem": "兑换",
+      "gift": "赠送"
+    },
+    "quota_overview": {
+      "title": "今日额度总览",
+      "total": "总额度",
+      "used": "已用额度",
+      "remaining": "剩余额度",
+      "hint": "金额额度合并计算今日套餐额度与余额；套餐预留中的额度计入已用额度。",
+      "count_title": "次数额度",
+      "count_total": "总次数",
+      "count_used": "已用",
+      "count_remaining": "剩余",
+      "sources": "额度来源",
+      "package_card": "套餐额度",
+      "package_total": "今日套餐",
+      "package_used": "已用",
+      "balance_card": "余额",
+      "balance_used_today": "今日已用",
+      "balance_gift": "含赠送",
+      "history": "历史流水",
+      "view_detail": "查看详情",
+      "package_detail": "套餐详情",
+      "balance_detail": "余额详情",
+      "load_failed": "加载额度总览失败"
+    },
+    "quota_cards": {
+      "active_title": "有效额度",
+      "active_empty": "当前没有有效额度卡片",
+      "history_button": "历史流水",
+      "history_title": "历史流水",
+      "history_section": "额度卡片记录",
+      "history_empty": "暂无额度卡片记录",
+      "back_to_quota": "返回额度",
+      "load_failed": "加载额度卡片失败",
+      "detail_title": "额度卡片详情",
+      "detail_load_failed": "加载额度卡片详情失败",
+      "detail_empty": "额度卡片不存在或已被删除",
+      "total": "总额度",
+      "used": "已用额度",
+      "remaining": "剩余额度",
+      "activated_at": "生效时间",
+      "expires_at": "到期时间",
+      "period": "额度周期",
+      "source_title": "来源名称",
+      "source_status": "来源状态",
+      "credit_origin": "额度来源",
+      "source_amount": "支付或面值",
+      "kind": {
+        "all": "全部类型",
+        "package": "套餐",
+        "topup": "充值",
+        "redemption": "兑换",
+        "gift": "奖励"
+      },
+      "status": {
+        "active": "有效",
+        "expired": "已过期",
+        "exhausted": "已用尽",
+        "replaced": "已替换",
+        "canceled": "已取消",
+        "unknown": "未知"
+      }
+    },
+    "payment_history": {
+      "button": "支付记录",
+      "title": "支付历史",
+      "status_title": "支付状态",
+      "back_to_pricing": "返回订阅"
     },
     "nav": {
       "balance": "余额充值",
@@ -97,6 +167,7 @@
     "records": {
       "title": "充值订单",
       "package_title": "套餐订单",
+      "gift_title": "赠送记录",
       "refresh": "刷新",
       "order_title": "订单记录",
       "order_empty": "暂无订单记录",
@@ -229,9 +300,9 @@
       }
     },
     "pricing": {
-      "title": "报价",
-      "page_title": "报价说明",
-      "subtitle": "你可以直接购买套餐，也可以先充值余额按需体验服务。",
+      "title": "订阅",
+      "page_title": "订阅",
+      "subtitle": "你可以购买或调整套餐，也可以充值余额按需使用服务。",
       "package_mode_title": "套餐使用",
       "package_hint": "适合稳定使用，按套餐获取每日额度和应急额度，成本与边界更清晰。图片模型按张计次，例如 n=4 记 4 次。",
       "balance_mode_title": "余额使用",
@@ -247,7 +318,7 @@
       "supported_models_search_empty": "没有匹配的模型"
     },
     "package_status": {
-      "view_pricing": "查看报价",
+      "view_pricing": "查看订阅",
       "no_active_package": "当前没有生效套餐",
       "no_upgrade_target": "暂无可升级的目标套餐",
       "no_downgrade_target": "暂无可降级的目标套餐",
@@ -261,7 +332,7 @@
       "select_convert_target": "选择转换目标套餐",
       "select_convert_target_hint": "请选择一个不同类型的目标套餐。",
       "convert_next_cycle": "下一步",
-      "empty_description": "当前没有生效套餐。你可以前往报价页购买套餐，或者先充值余额快速体验服务。",
+      "empty_description": "当前没有生效套餐。你可以前往订阅页购买套餐，或者使用余额按需体验服务。",
       "daily_title": "今日套餐额度",
       "emergency_title": "本月应急额度",
       "period": "统计周期",
@@ -277,6 +348,7 @@
         "status": "状态",
         "amount": "金额",
         "detail": "明细",
+        "name": "名称",
         "quota": "额度",
         "package_name": "套餐名称",
         "action": "操作",
@@ -1879,7 +1951,8 @@
       "completion_tokens": "补全消耗",
       "cache_tokens": "缓存读/写",
       "quota": "金额",
-      "detail": "详情"
+      "detail": "详情",
+      "drag_column": "拖拽调整列顺序"
     },
     "buttons": {
       "query": "操作",
@@ -2086,7 +2159,7 @@
   "workspace_start": {
     "title": "开通服务",
     "actions": {
-      "view_pricing": "查看报价",
+      "view_pricing": "查看订阅",
       "view_guide": "使用说明",
       "create_token": "创建令牌",
       "open_chat": "打开 Chat"
@@ -2094,7 +2167,7 @@
     "steps": {
       "pricing": {
         "title": "先获取额度",
-        "description": "套餐适合稳定使用，余额适合先试后扩。购买动作统一在报价页面完成。"
+        "description": "套餐适合稳定使用，余额适合先试后扩。套餐购买和余额充值统一在订阅页面完成。"
       },
       "token": {
         "title": "再创建令牌",
@@ -2350,7 +2423,7 @@
           }
         },
         "actions": {
-          "view_pricing": "查看报价",
+          "view_pricing": "查看订阅",
           "create_token": "创建令牌",
           "view_tokens": "查看令牌",
           "view_guide": "使用说明",

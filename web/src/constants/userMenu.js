@@ -28,11 +28,6 @@ export const buildUserWorkspaceMenuItems = () => {
       icon: 'grid layout',
       items: [
         {
-          name: 'header.dashboard',
-          to: '/workspace/dashboard',
-          icon: 'chart bar',
-        },
-        {
           name: 'topup.pricing.title',
           to: '/workspace/service/pricing',
           icon: 'tags',
@@ -43,9 +38,9 @@ export const buildUserWorkspaceMenuItems = () => {
           icon: 'cube',
         },
         {
-          name: 'header.task',
-          to: '/workspace/task',
-          icon: 'tasks',
+          name: 'header.log',
+          to: '/workspace/log',
+          icon: 'book',
         },
       ],
     },
@@ -59,14 +54,14 @@ export const buildUserWorkspaceMenuItems = () => {
       icon: 'user circle',
       items: [
         {
-          name: 'topup.mine.balance',
-          to: '/workspace/topup?tab=balance',
-          icon: 'credit card',
+          name: 'topup.mine.spend',
+          to: '/workspace/dashboard',
+          icon: 'chart bar',
         },
         {
-          name: 'topup.mine.package',
-          to: '/workspace/topup?tab=package',
-          icon: 'gift',
+          name: 'topup.mine.quota',
+          to: '/workspace/topup?tab=quota',
+          icon: 'credit card',
         },
         {
           name: 'header.token',
@@ -77,34 +72,6 @@ export const buildUserWorkspaceMenuItems = () => {
           name: 'header.account',
           to: '/workspace/setting',
           icon: 'setting',
-        },
-      ],
-    },
-    {
-      key: 'records',
-      type: 'group',
-      name: 'header.records',
-      icon: 'history',
-      items: [
-        {
-          name: 'topup.record_nav.topup',
-          to: '/workspace/topup?tab=records&record=topup',
-          icon: 'credit card',
-        },
-        {
-          name: 'topup.record_nav.package',
-          to: '/workspace/topup?tab=records&record=package',
-          icon: 'gift',
-        },
-        {
-          name: 'topup.record_nav.redeem',
-          to: '/workspace/topup?tab=records&record=redeem',
-          icon: 'ticket alternate',
-        },
-        {
-          name: 'header.log',
-          to: '/workspace/log',
-          icon: 'book',
         },
       ],
     },
@@ -120,7 +87,7 @@ export const buildUserWorkspaceMenuItems = () => {
           icon: 'file alternate outline',
         },
       ],
-    },
+    }
   );
 
   return items;

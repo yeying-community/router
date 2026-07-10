@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import BalanceTopUpPage from '../TopUp/BalanceTopUpPage';
 import PackagePurchasePage from '../TopUp/PackagePurchasePage';
 import TopUpWorkspaceProvider from '../TopUp/provider.jsx';
@@ -18,6 +19,15 @@ const ServicePricing = () => {
             { key: 'pricing', label: t('topup.pricing.title'), active: true },
           ]}
           title={t('topup.pricing.page_title')}
+          meta={
+            <Link
+              className='router-breadcrumb-link router-service-pricing-history-link'
+              to='/workspace/service/pricing/history'
+            >
+              {t('topup.payment_history.button')}
+            </Link>
+          }
+          metaClassName='router-service-pricing-history-link-wrap'
         />
         <div id='pricing-package-section'>
           <PackagePurchasePage />

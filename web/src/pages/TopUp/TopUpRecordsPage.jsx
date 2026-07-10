@@ -26,13 +26,15 @@ import RedeemCodePage from './RedeemCodePage';
 
 const PAGE_SIZE = 10;
 
-const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
+const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { renderDisplayAmount } = useTopUpWorkspace();
   const isRedemptionRecord = recordKey === 'redeem';
   const isPackageRecord = recordKey === 'package';
+  const isGiftRecord = recordKey === 'gift';
+  const isPaymentRecord = recordKey === 'payment';
   const [orders, setOrders] = useState([]);
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersTotal, setOrdersTotal] = useState(0);
@@ -48,6 +50,9 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
     if (recordKey === 'package') {
       return 'package_purchase';
     }
+    if (recordKey === 'payment') {
+      return '';
+    }
     return 'balance_topup';
   }, [recordKey]);
 
@@ -60,6 +65,11 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
             page,
             page_size: PAGE_SIZE,
             business_type: currentBusinessType,
+            credit_origin: isGiftRecord
+              ? 'gift'
+              : recordKey === 'topup' || isPaymentRecord
+                ? 'paid'
+                : undefined,
           },
         });
         const { success, message, data } = res?.data || {};
@@ -76,7 +86,7 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
         setLoadingOrders(false);
       }
     },
-    [currentBusinessType, t],
+    [currentBusinessType, isGiftRecord, isPaymentRecord, recordKey, t],
   );
 
   const loadRedemptionRecords = useCallback(
@@ -259,14 +269,25 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
         return;
       }
       const currentPagePath = `${location.pathname}${location.search}${location.hash}`;
+      const orderRecordKey = isGiftRecord
+        ? 'gift'
+        : order?.business_type === 'package_purchase'
+          ? 'package'
+          : 'topup';
       navigate(`/workspace/topup/orders/${encodeURIComponent(normalizedOrderID)}`, {
         state: {
           from: currentPagePath,
-          recordKey: isPackageRecord ? 'package' : 'topup',
+          recordKey: orderRecordKey,
         },
       });
     },
-    [isPackageRecord, location.hash, location.pathname, location.search, navigate],
+    [
+      isGiftRecord,
+      location.hash,
+      location.pathname,
+      location.search,
+      navigate,
+    ],
   );
 
   const actionButton = useMemo(() => {
@@ -280,6 +301,13 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
         return {
           label: t('topup.record_nav.redeem'),
           onClick: () => setRedeemModalOpen(true),
+        };
+      case 'gift':
+        return null;
+      case 'payment':
+        return {
+          label: t('topup.record_nav.package'),
+          onClick: () => navigate('/workspace/service/pricing'),
         };
       case 'topup':
       default:
@@ -348,9 +376,9 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
         key: 'status',
         className: 'router-table-col-status-compact',
         width: TOPUP_RECORD_COLUMN_WIDTHS.status,
-        render: (value) => {
+        render: (value, order) => {
           const statusNode = renderTopupOrderStatus(value, t);
-          const statusHint = !isPackageRecord
+          const statusHint = order?.business_type !== 'package_purchase'
             ? formatTopupOrderStatusHint(value, t)
             : '';
           if (!statusHint) {
@@ -378,21 +406,37 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
               : '-',
       },
       {
-        title: isPackageRecord
-          ? t('topup.external_topup_orders.columns.package_name')
-          : t('topup.external_topup_orders.columns.quota'),
+        title: isPaymentRecord
+          ? t('topup.external_topup_orders.columns.name')
+          : isPackageRecord
+            ? t('topup.external_topup_orders.columns.package_name')
+            : t('topup.external_topup_orders.columns.quota'),
         dataIndex: isPackageRecord ? 'package_name' : 'quota',
-        key: isPackageRecord ? 'package_name' : 'quota',
+        key: isPaymentRecord
+          ? 'name'
+          : isPackageRecord
+            ? 'package_name'
+            : 'quota',
         width: TOPUP_RECORD_COLUMN_WIDTHS.quotaOrPackage,
         ellipsis: true,
-        render: (_, order) =>
-          isPackageRecord
+        render: (_, order) => {
+          if (isPaymentRecord) {
+            return order.business_type === 'package_purchase'
+              ? order.package_name || order.title || '-'
+              : order.quota > 0
+                ? renderDisplayAmount(order.quota)
+                : order.title || '-';
+          }
+          return isPackageRecord
             ? order.package_name || '-'
             : order.quota > 0
               ? renderDisplayAmount(order.quota)
-              : '-',
+              : '-';
+        },
       },
-      {
+      isGiftRecord
+        ? null
+        : {
         title: t('topup.external_topup_orders.columns.action'),
         key: 'action',
         className: 'router-table-col-actions-token',
@@ -439,13 +483,15 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
             ) : null}
           </div>
         ),
-      },
-    ],
+        },
+    ].filter(Boolean),
     [
       cancelPay,
       continuePay,
       formatTopupBusinessType,
+      isGiftRecord,
       isPackageRecord,
+      isPaymentRecord,
       manualRefreshOrder,
       refreshingOrderID,
       renderDisplayAmount,
@@ -453,95 +499,117 @@ const TopUpRecordsPage = ({ recordKey = 'topup' }) => {
     ],
   );
 
+  const sectionTitle = isRedemptionRecord
+    ? t('topup.redemption_records.title', '兑换记录')
+    : isPaymentRecord
+      ? t('topup.payment_history.title')
+    : isPackageRecord
+      ? t('topup.records.package_title', '套餐订单')
+      : isGiftRecord
+        ? t('topup.records.gift_title', '赠送记录')
+        : t('topup.records.title', '充值订单');
+  const sectionExtra = (
+    <>
+      {isPaymentRecord ? (
+        <AppButton
+          className='router-section-button'
+          onClick={() => navigate('/workspace/service/pricing')}
+        >
+          {t('topup.payment_history.back_to_pricing')}
+        </AppButton>
+      ) : null}
+      {actionButton ? (
+        <AppButton
+          color='blue'
+          className='router-section-button'
+          onClick={actionButton.onClick}
+        >
+          {actionButton.label}
+        </AppButton>
+      ) : null}
+      <AppButton
+        className='router-section-button'
+        onClick={refreshCurrent}
+        loading={loadingOrders || loadingRedemptionRecords}
+      >
+        {t('topup.records.refresh')}
+      </AppButton>
+    </>
+  );
+  const recordsBody = isRedemptionRecord ? (
+    <>
+      <div className='router-table-scroll-x'>
+        <AppTable
+          className='router-list-table router-table-fit-page'
+          rowKey={(log) =>
+            log.id || log.trace_id || `${log.created_at}-${log.content}`
+          }
+          pagination={false}
+          scroll={{ x: TOPUP_REDEMPTION_RECORD_TABLE_MIN_WIDTH }}
+          loading={loadingRedemptionRecords}
+          locale={{ emptyText: t('topup.redemption_records.empty') }}
+          dataSource={redemptionRecords}
+          columns={redemptionColumns}
+        />
+      </div>
+      {redemptionTotalPages > 1 ? (
+        <div className='router-pagination-wrap-md'>
+          <AppPagination
+            className='router-section-pagination'
+            activePage={redemptionPage}
+            totalPages={redemptionTotalPages}
+            onPageChange={(_, { activePage: nextActivePage }) => {
+              setRedemptionPage(Number(nextActivePage) || 1);
+            }}
+          />
+        </div>
+      ) : null}
+    </>
+  ) : (
+    <>
+      <div className='router-table-scroll-x'>
+        <AppTable
+          className='router-list-table router-table-fit-page'
+          rowKey='id'
+          pagination={false}
+          scroll={{ x: TOPUP_RECORD_TABLE_MIN_WIDTH }}
+          loading={loadingOrders}
+          locale={{ emptyText: t('topup.records.order_empty') }}
+          dataSource={orders}
+          columns={orderColumns}
+          onRow={(order) => ({
+            onClick: () => openOrderDetailPage(order),
+            style: { cursor: 'pointer' },
+          })}
+        />
+      </div>
+      {ordersTotalPages > 1 ? (
+        <div className='router-pagination-wrap-md'>
+          <AppPagination
+            className='router-section-pagination'
+            activePage={ordersPage}
+            totalPages={ordersTotalPages}
+            onPageChange={(_, { activePage: nextActivePage }) => {
+              setOrdersPage(Number(nextActivePage) || 1);
+            }}
+          />
+        </div>
+      ) : null}
+    </>
+  );
+
   return (
     <>
-      <AppSection
-        title={
-          isRedemptionRecord
-            ? t('topup.redemption_records.title', '兑换记录')
-            : isPackageRecord
-              ? t('topup.records.package_title', '套餐订单')
-              : t('topup.records.title', '充值订单')
-        }
-        extra={
-          <>
-            <AppButton
-              color='blue'
-              className='router-section-button'
-              onClick={actionButton.onClick}
-            >
-              {actionButton.label}
-            </AppButton>
-            <AppButton
-              className='router-section-button'
-              onClick={refreshCurrent}
-              loading={loadingOrders || loadingRedemptionRecords}
-            >
-              {t('topup.records.refresh')}
-            </AppButton>
-          </>
-        }
-      >
-        {isRedemptionRecord ? (
-            <>
-              <div className='router-table-scroll-x'>
-                <AppTable
-                  className='router-list-table router-table-fit-page'
-                  rowKey={(log) => log.id || log.trace_id || `${log.created_at}-${log.content}`}
-                  pagination={false}
-                  scroll={{ x: TOPUP_REDEMPTION_RECORD_TABLE_MIN_WIDTH }}
-                  loading={loadingRedemptionRecords}
-                  locale={{ emptyText: t('topup.redemption_records.empty') }}
-                  dataSource={redemptionRecords}
-                  columns={redemptionColumns}
-                />
-              </div>
-              {redemptionTotalPages > 1 ? (
-                <div className='router-pagination-wrap-md'>
-                  <AppPagination
-                    className='router-section-pagination'
-                    activePage={redemptionPage}
-                    totalPages={redemptionTotalPages}
-                    onPageChange={(_, { activePage: nextActivePage }) => {
-                      setRedemptionPage(Number(nextActivePage) || 1);
-                    }}
-                  />
-                </div>
-              ) : null}
-            </>
-        ) : (
-            <>
-              <div className='router-table-scroll-x'>
-                <AppTable
-                  className='router-list-table router-table-fit-page'
-                  rowKey='id'
-                  pagination={false}
-                  scroll={{ x: TOPUP_RECORD_TABLE_MIN_WIDTH }}
-                  loading={loadingOrders}
-                  locale={{ emptyText: t('topup.records.order_empty') }}
-                  dataSource={orders}
-                  columns={orderColumns}
-                  onRow={(order) => ({
-                    onClick: () => openOrderDetailPage(order),
-                    style: { cursor: 'pointer' },
-                  })}
-                />
-              </div>
-              {ordersTotalPages > 1 ? (
-                <div className='router-pagination-wrap-md'>
-                  <AppPagination
-                    className='router-section-pagination'
-                    activePage={ordersPage}
-                    totalPages={ordersTotalPages}
-                    onPageChange={(_, { activePage: nextActivePage }) => {
-                      setOrdersPage(Number(nextActivePage) || 1);
-                    }}
-                  />
-                </div>
-              ) : null}
-            </>
-        )}
-      </AppSection>
+      {embedded ? (
+        <div className='router-topup-history-panel'>
+          <div className='router-topup-history-toolbar'>{sectionExtra}</div>
+          {recordsBody}
+        </div>
+      ) : (
+        <AppSection title={sectionTitle} extra={sectionExtra}>
+          {recordsBody}
+        </AppSection>
+      )}
       <RedeemCodePage
         open={redeemModalOpen}
         onClose={() => setRedeemModalOpen(false)}

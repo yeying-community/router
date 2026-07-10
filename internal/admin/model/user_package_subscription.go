@@ -444,6 +444,72 @@ func ListActiveUserPackageSubscriptions(userID string) ([]UserPackageSubscriptio
 	return listActiveUserPackageSubscriptionsWithDB(DB, userID)
 }
 
+func ListRecentUserPackageSubscriptionsWithDB(db *gorm.DB, userID string, activeOnly bool, limit int) ([]UserPackageSubscription, int64, error) {
+	if db == nil {
+		return nil, 0, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return nil, 0, fmt.Errorf("用户 ID 不能为空")
+	}
+	now := helper.GetTimestamp()
+	if err := syncUserPackageSubscriptionsWithDB(db, normalizedUserID, now); err != nil {
+		return nil, 0, err
+	}
+	query := db.Model(&UserPackageSubscription{}).
+		Where("user_id = ?", normalizedUserID).
+		Where("status <> ?", UserPackageSubscriptionStatusCanceled)
+	if activeOnly {
+		query = query.Where(
+			"status = ? AND started_at <= ? AND (expires_at = 0 OR expires_at > ?)",
+			UserPackageSubscriptionStatusActive,
+			now,
+			now,
+		)
+	}
+	total := int64(0)
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 5000 {
+		limit = 5000
+	}
+	rows := make([]UserPackageSubscription, 0, limit)
+	if err := query.
+		Order("started_at desc, updated_at desc, id desc").
+		Limit(limit).
+		Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	for i := range rows {
+		normalizeServicePackageSubscriptionScopeAndQuota(&rows[i])
+	}
+	return rows, total, nil
+}
+
+func GetUserPackageSubscriptionByIDWithDB(db *gorm.DB, userID string, subscriptionID string) (UserPackageSubscription, error) {
+	if db == nil {
+		return UserPackageSubscription{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	normalizedID := strings.TrimSpace(subscriptionID)
+	if normalizedUserID == "" || normalizedID == "" {
+		return UserPackageSubscription{}, gorm.ErrRecordNotFound
+	}
+	if err := syncUserPackageSubscriptionsWithDB(db, normalizedUserID, helper.GetTimestamp()); err != nil {
+		return UserPackageSubscription{}, err
+	}
+	row := UserPackageSubscription{}
+	if err := db.Where("id = ? AND user_id = ?", normalizedID, normalizedUserID).First(&row).Error; err != nil {
+		return UserPackageSubscription{}, err
+	}
+	normalizeServicePackageSubscriptionScopeAndQuota(&row)
+	return row, nil
+}
+
 func ListActiveUserPackageSubscriptionsByUserIDs(userIDs []string) ([]UserPackageSubscription, error) {
 	normalizedIDs := make([]string, 0, len(userIDs))
 	seen := make(map[string]struct{}, len(userIDs))

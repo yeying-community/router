@@ -174,3 +174,30 @@ func ListUserBalanceLotTransactionsPageWithDB(db *gorm.DB, userID string, source
 	}
 	return rows, total, nil
 }
+
+func SumUserBalanceConsumedAmountWithDB(db *gorm.DB, userID string, startAt int64, endAt int64) (int64, error) {
+	if db == nil {
+		return 0, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return 0, fmt.Errorf("用户 ID 不能为空")
+	}
+	if startAt <= 0 || endAt <= startAt {
+		return 0, fmt.Errorf("无效的时间范围")
+	}
+	consumedAmount := int64(0)
+	err := db.Model(&UserBalanceLotTransaction{}).
+		Select("COALESCE(SUM(CASE WHEN delta_amount < 0 THEN -delta_amount ELSE delta_amount END), 0)").
+		Where("user_id = ?", normalizedUserID).
+		Where("tx_type = ?", UserBalanceLotTxTypeConsume).
+		Where("occurred_at >= ? AND occurred_at < ?", startAt, endAt).
+		Scan(&consumedAmount).Error
+	if err != nil {
+		return 0, err
+	}
+	if consumedAmount < 0 {
+		return 0, nil
+	}
+	return consumedAmount, nil
+}
