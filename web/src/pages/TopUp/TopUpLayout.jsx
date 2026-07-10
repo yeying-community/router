@@ -2,9 +2,8 @@ import React, { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import QuotaPage from './QuotaPage';
-import TopUpRecordsPage from './TopUpRecordsPage';
 import {
-  normalizeTopUpRecord,
+  normalizeTopUpHistory,
   normalizeTopUpTab,
   sanitizeTopUpSearchParams,
 } from './shared.jsx';
@@ -18,10 +17,11 @@ const TopUpLayout = () => {
   const searchParamsString = searchParams.toString();
   const rawTab = searchParams.get('tab');
   const rawRecord = searchParams.get('record');
+  const rawHistory = searchParams.get('history');
 
   useEffect(() => {
     const normalizedTab = normalizeTopUpTab(rawTab);
-    const normalizedRecord = normalizeTopUpRecord(rawRecord);
+    const normalizedHistory = normalizeTopUpHistory(rawHistory, rawRecord);
     const nextSearchParams = sanitizeTopUpSearchParams(searchParamsString);
     let changed = false;
 
@@ -33,56 +33,35 @@ const TopUpLayout = () => {
       nextSearchParams.set('tab', normalizedTab);
       changed = true;
     }
-    if (normalizedTab === 'records') {
-      if (rawRecord !== normalizedRecord) {
-        nextSearchParams.set('record', normalizedRecord);
-        changed = true;
-      }
-    } else if (nextSearchParams.has('record')) {
-      nextSearchParams.delete('record');
+    if (rawHistory !== normalizedHistory) {
+      nextSearchParams.set('history', normalizedHistory);
+      changed = true;
+    }
+    if (rawRecord) {
       changed = true;
     }
 
     if (!changed) {
       return;
     }
-    navigate(`/workspace/topup?${nextSearchParams.toString()}`, { replace: true });
-  }, [navigate, rawRecord, rawTab, searchParamsString]);
+    navigate(`/workspace/topup?${nextSearchParams.toString()}`, {
+      replace: true,
+    });
+  }, [navigate, rawHistory, rawRecord, rawTab, searchParamsString]);
 
-  const activeKey = normalizeTopUpTab(rawTab);
-  const activeRecord = normalizeTopUpRecord(rawRecord);
+  const activeHistory = normalizeTopUpHistory(rawHistory, rawRecord);
 
-  const activeContent = useMemo(() => {
-    switch (activeKey) {
-      case 'records':
-        return <TopUpRecordsPage recordKey={activeRecord} />;
-      case 'quota':
-      default:
-        return <QuotaPage />;
-    }
-  }, [activeKey, activeRecord]);
+  const activeContent = useMemo(
+    () => <QuotaPage historyKey={activeHistory} />,
+    [activeHistory]
+  );
 
-  const activeTitle = useMemo(() => {
-    if (activeKey === 'records') {
-      switch (activeRecord) {
-        case 'package':
-          return t('topup.record_nav.package');
-        case 'redeem':
-          return t('topup.record_nav.redeem');
-        case 'topup':
-        default:
-          return t('topup.record_nav.topup');
-      }
-    }
-    return t('topup.mine.quota');
-  }, [activeKey, activeRecord, t]);
+  const activeTitle = useMemo(() => t('topup.mine.quota'), [t]);
 
-  const breadcrumbParent = useMemo(() => {
-    if (activeKey === 'records') {
-      return { key: 'records', label: t('header.records') };
-    }
-    return { key: 'mine', label: t('header.mine') };
-  }, [activeKey, t]);
+  const breadcrumbParent = useMemo(
+    () => ({ key: 'mine', label: t('header.mine') }),
+    [t]
+  );
 
   return (
     <TopUpWorkspaceProvider>

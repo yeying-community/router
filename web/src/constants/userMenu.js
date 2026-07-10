@@ -42,6 +42,11 @@ export const buildUserWorkspaceMenuItems = () => {
           to: '/workspace/task',
           icon: 'tasks',
         },
+        {
+          name: 'header.log',
+          to: '/workspace/log',
+          icon: 'book',
+        },
       ],
     },
   ];
@@ -76,34 +81,6 @@ export const buildUserWorkspaceMenuItems = () => {
       ],
     },
     {
-      key: 'records',
-      type: 'group',
-      name: 'header.records',
-      icon: 'history',
-      items: [
-        {
-          name: 'topup.record_nav.topup',
-          to: '/workspace/topup?tab=records&record=topup',
-          icon: 'credit card',
-        },
-        {
-          name: 'topup.record_nav.package',
-          to: '/workspace/topup?tab=records&record=package',
-          icon: 'gift',
-        },
-        {
-          name: 'topup.record_nav.redeem',
-          to: '/workspace/topup?tab=records&record=redeem',
-          icon: 'ticket alternate',
-        },
-        {
-          name: 'header.log',
-          to: '/workspace/log',
-          icon: 'book',
-        },
-      ],
-    },
-    {
       key: 'help',
       type: 'group',
       name: 'header.help',
@@ -115,7 +92,7 @@ export const buildUserWorkspaceMenuItems = () => {
           icon: 'file alternate outline',
         },
       ],
-    },
+    }
   );
 
   return items;

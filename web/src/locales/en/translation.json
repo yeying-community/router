@@ -88,7 +88,31 @@
     "record_nav": {
       "topup": "Top-up",
       "package": "Purchase",
-      "redeem": "Redeem"
+      "redeem": "Redeem",
+      "gift": "Gift"
+    },
+    "quota_overview": {
+      "title": "Today's Quota Overview",
+      "total": "Total Quota",
+      "used": "Used Quota",
+      "remaining": "Remaining Quota",
+      "hint": "Amount quota combines today's package quota and balance. Reserved package quota is included in used quota.",
+      "count_title": "Request Quota",
+      "count_total": "Total",
+      "count_used": "Used",
+      "count_remaining": "Remaining",
+      "sources": "Quota Sources",
+      "package_card": "Package Quota",
+      "package_total": "Today's Package",
+      "package_used": "Used",
+      "balance_card": "Balance",
+      "balance_used_today": "Used Today",
+      "balance_gift": "Gift Included",
+      "history": "History",
+      "view_detail": "View Details",
+      "package_detail": "Package Details",
+      "balance_detail": "Balance Details",
+      "load_failed": "Failed to load quota overview"
     },
     "nav": {
       "balance": "Balance Top-up",
@@ -99,6 +123,7 @@
     "records": {
       "title": "Top-up Orders",
       "package_title": "Package Orders",
+      "gift_title": "Gift Records",
       "refresh": "Refresh",
       "order_title": "Order Records",
       "order_empty": "No order records yet",

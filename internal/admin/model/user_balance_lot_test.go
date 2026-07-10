@@ -78,6 +78,79 @@ func TestEnsureUserBalanceLotAmountColumnsBackfillsLegacyYYCColumns(t *testing.T
 	}
 }
 
+func TestSumUserBalanceConsumedAmountWithDBUsesRequestedTimeRange(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(&UserBalanceLotTransaction{}); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	rows := []UserBalanceLotTransaction{
+		{
+			Id:          "before",
+			UserID:      "user-1",
+			LotID:       "lot-1",
+			SourceType:  UserBalanceLotSourceTopup,
+			SourceID:    "source-1",
+			TxType:      UserBalanceLotTxTypeConsume,
+			DeltaAmount: -10,
+			OccurredAt:  99,
+		},
+		{
+			Id:          "consume-1",
+			UserID:      "user-1",
+			LotID:       "lot-1",
+			SourceType:  UserBalanceLotSourceTopup,
+			SourceID:    "source-1",
+			TxType:      UserBalanceLotTxTypeConsume,
+			DeltaAmount: -30,
+			OccurredAt:  100,
+		},
+		{
+			Id:          "consume-2",
+			UserID:      "user-1",
+			LotID:       "lot-2",
+			SourceType:  UserBalanceLotSourceRedeem,
+			SourceID:    "source-2",
+			TxType:      UserBalanceLotTxTypeConsume,
+			DeltaAmount: -20,
+			OccurredAt:  199,
+		},
+		{
+			Id:          "credit",
+			UserID:      "user-1",
+			LotID:       "lot-1",
+			SourceType:  UserBalanceLotSourceTopup,
+			SourceID:    "source-1",
+			TxType:      UserBalanceLotTxTypeCredit,
+			DeltaAmount: 100,
+			OccurredAt:  150,
+		},
+		{
+			Id:          "after",
+			UserID:      "user-1",
+			LotID:       "lot-1",
+			SourceType:  UserBalanceLotSourceTopup,
+			SourceID:    "source-1",
+			TxType:      UserBalanceLotTxTypeConsume,
+			DeltaAmount: -40,
+			OccurredAt:  200,
+		},
+	}
+	if err := db.Create(&rows).Error; err != nil {
+		t.Fatalf("create transactions: %v", err)
+	}
+
+	consumed, err := SumUserBalanceConsumedAmountWithDB(db, "user-1", 100, 200)
+	if err != nil {
+		t.Fatalf("sum consumed amount: %v", err)
+	}
+	if consumed != 50 {
+		t.Fatalf("consumed=%d, want 50", consumed)
+	}
+}
+
 func TestEnsureUserBalanceLotTransactionAmountColumnsBackfillsLegacyYYCColumn(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
 	if err != nil {

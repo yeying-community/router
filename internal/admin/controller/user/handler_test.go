@@ -76,6 +76,53 @@ func TestBuildTopUpBalanceSummaryDoesNotAttributeUnknownResidual(t *testing.T) {
 	}
 }
 
+func TestParseTopupOrderPageParamsAcceptsCreditOriginFilter(t *testing.T) {
+	page, pageSize, businessType, creditFilter, err := parseTopupOrderPageParams(
+		newTopupBalanceLotQueryContext("page=2&page_size=30&business_type=balance_topup&credit_origin=gift"),
+	)
+	if err != nil {
+		t.Fatalf("parse order params: %v", err)
+	}
+	if page != 2 || pageSize != 30 {
+		t.Fatalf("page/pageSize=%d/%d, want 2/30", page, pageSize)
+	}
+	if businessType != model.TopupOrderBusinessBalance {
+		t.Fatalf("businessType=%q, want %q", businessType, model.TopupOrderBusinessBalance)
+	}
+	if creditFilter != model.TopupOrderCreditFilterGift {
+		t.Fatalf("creditFilter=%q, want %q", creditFilter, model.TopupOrderCreditFilterGift)
+	}
+}
+
+func TestBuildUserQuotaOverviewCombinesPackageAndBalanceAmounts(t *testing.T) {
+	overview := buildUserQuotaOverview(
+		model.UserQuotaSummary{
+			Daily: model.UserDailyQuotaSnapshot{
+				BizDate:        "2026-07-10",
+				Timezone:       "Asia/Shanghai",
+				Limit:          100,
+				ConsumedQuota:  25,
+				ReservedQuota:  5,
+				RemainingQuota: 70,
+			},
+		},
+		buildTopUpBalanceSummary(20, 10, 5),
+		15,
+	)
+	if overview.TotalAmount != 150 {
+		t.Fatalf("total_amount=%d, want 150", overview.TotalAmount)
+	}
+	if overview.UsedAmount != 45 {
+		t.Fatalf("used_amount=%d, want 45", overview.UsedAmount)
+	}
+	if overview.RemainingAmount != 105 {
+		t.Fatalf("remaining_amount=%d, want 105", overview.RemainingAmount)
+	}
+	if overview.Balance.AvailableTodayAmount != 50 {
+		t.Fatalf("available_today_amount=%d, want 50", overview.Balance.AvailableTodayAmount)
+	}
+}
+
 func TestBuildAdminTopUpBalanceLotListItemsWithSources(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
 	if err != nil {

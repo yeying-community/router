@@ -12,15 +12,21 @@ import { AppButton, AppInput, AppModal, AppTag, AppTooltip } from '../../router-
 
 export const TOPUP_DISPLAY_CURRENCY_STORAGE_KEY = 'topup_display_currency';
 export const TOPUP_DEFAULT_TAB = 'quota';
-export const TOPUP_TAB_KEYS = ['quota', 'records'];
+export const TOPUP_TAB_KEYS = ['quota'];
 export const TOPUP_DEFAULT_RECORD = 'topup';
-export const TOPUP_RECORD_KEYS = ['topup', 'package', 'redeem'];
-export const TOPUP_ALLOWED_QUERY_KEYS = ['tab', 'record', 'intent'];
+export const TOPUP_RECORD_KEYS = ['topup', 'package', 'redeem', 'gift'];
+export const TOPUP_DEFAULT_HISTORY = 'topup';
+export const TOPUP_HISTORY_KEYS = ['topup', 'package', 'redeem', 'gift'];
+export const TOPUP_ALLOWED_QUERY_KEYS = ['tab', 'history', 'intent'];
 export const TopUpWorkspaceContext = createContext(null);
 
 export const normalizeTopUpTab = (rawTab) => {
   const normalizedTab = String(rawTab || '').trim().toLowerCase();
-  if (normalizedTab === 'balance' || normalizedTab === 'package') {
+  if (
+    normalizedTab === 'balance' ||
+    normalizedTab === 'package' ||
+    normalizedTab === 'records'
+  ) {
     return TOPUP_DEFAULT_TAB;
   }
   return TOPUP_TAB_KEYS.includes(normalizedTab)
@@ -30,6 +36,17 @@ export const normalizeTopUpTab = (rawTab) => {
 
 export const normalizeTopUpRecord = (rawRecord) =>
   TOPUP_RECORD_KEYS.includes(rawRecord) ? rawRecord : TOPUP_DEFAULT_RECORD;
+
+export const normalizeTopUpHistory = (rawHistory, legacyRecord = '') => {
+  const normalizedHistory = String(rawHistory || '').trim().toLowerCase();
+  if (TOPUP_HISTORY_KEYS.includes(normalizedHistory)) {
+    return normalizedHistory;
+  }
+  const normalizedLegacyRecord = String(legacyRecord || '').trim().toLowerCase();
+  return TOPUP_HISTORY_KEYS.includes(normalizedLegacyRecord)
+    ? normalizedLegacyRecord
+    : TOPUP_DEFAULT_HISTORY;
+};
 
 export const sanitizeTopUpSearchParams = (rawSearch = '') => {
   const source = new URLSearchParams(rawSearch || '');

@@ -109,6 +109,77 @@ func TestBuildTopupOrderRedirectURLUsesConfiguredMerchantAppAndClientType(t *tes
 	}
 }
 
+func TestListTopupOrdersPageFilteredByCreditOrigin(t *testing.T) {
+	db := newTopupOrderTestDB(t)
+	orders := []TopupOrder{
+		{
+			Id:            "paid-order",
+			UserID:        "user-1",
+			TransactionID: "paid-transaction",
+			BusinessType:  TopupOrderBusinessBalance,
+			CreditOrigin:  TopupOrderCreditOriginPaid,
+			CreatedAt:     30,
+		},
+		{
+			Id:            "gift-order",
+			UserID:        "user-1",
+			TransactionID: "gift-transaction",
+			BusinessType:  TopupOrderBusinessBalance,
+			CreditOrigin:  TopupOrderCreditOriginAdmin,
+			CreatedAt:     20,
+		},
+		{
+			Id:            "package-order",
+			UserID:        "user-1",
+			TransactionID: "package-transaction",
+			BusinessType:  TopupOrderBusinessPackage,
+			CreditOrigin:  TopupOrderCreditOriginPaid,
+			CreatedAt:     10,
+		},
+		{
+			Id:            "unknown-origin-order",
+			UserID:        "user-1",
+			TransactionID: "unknown-origin-transaction",
+			BusinessType:  TopupOrderBusinessBalance,
+			CreditOrigin:  "legacy_unknown",
+			CreatedAt:     5,
+		},
+	}
+	if err := db.Create(&orders).Error; err != nil {
+		t.Fatalf("create orders: %v", err)
+	}
+
+	paid, paidTotal, err := ListTopupOrdersPageFilteredWithDB(
+		db,
+		"user-1",
+		TopupOrderBusinessBalance,
+		TopupOrderCreditFilterPaid,
+		1,
+		20,
+	)
+	if err != nil {
+		t.Fatalf("list paid orders: %v", err)
+	}
+	if paidTotal != 1 || len(paid) != 1 || paid[0].Id != "paid-order" {
+		t.Fatalf("paid orders=%+v total=%d, want paid-order only", paid, paidTotal)
+	}
+
+	gifts, giftTotal, err := ListTopupOrdersPageFilteredWithDB(
+		db,
+		"user-1",
+		TopupOrderBusinessBalance,
+		TopupOrderCreditFilterGift,
+		1,
+		20,
+	)
+	if err != nil {
+		t.Fatalf("list gift orders: %v", err)
+	}
+	if giftTotal != 1 || len(gifts) != 1 || gifts[0].Id != "gift-order" {
+		t.Fatalf("gift orders=%+v total=%d, want gift-order only", gifts, giftTotal)
+	}
+}
+
 func TestBuildTopupOrderRedirectURLRejectsInvalidBaseLink(t *testing.T) {
 	previousSecret := config.TopUpSignSecret
 	previousMerchantApp := config.TopUpMerchantApp

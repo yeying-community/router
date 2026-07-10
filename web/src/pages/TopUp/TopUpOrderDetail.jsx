@@ -30,7 +30,10 @@ const resolveRecordKeyFromBusinessType = (businessType = '') => {
 
 const normalizeRecordKey = (value = '') => {
   const normalized = String(value || '').trim();
-  return normalized === 'package' ? 'package' : 'topup';
+  if (normalized === 'package' || normalized === 'gift') {
+    return normalized;
+  }
+  return 'topup';
 };
 
 const TopUpOrderDetailInner = () => {
@@ -84,7 +87,7 @@ const TopUpOrderDetailInner = () => {
     if (from.startsWith('/workspace/topup')) {
       return from;
     }
-    return `/workspace/topup?tab=records&record=${recordKey}`;
+    return `/workspace/topup?tab=quota&history=${recordKey}`;
   }, [location.state?.from, recordKey]);
 
   const refreshOrderStatus = useCallback(async () => {

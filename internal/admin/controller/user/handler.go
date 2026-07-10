@@ -2211,6 +2211,32 @@ type topUpBalanceSummaryData struct {
 	TotalBalanceAmount  int64 `json:"total_balance_amount"`
 }
 
+type userQuotaOverviewPackageData struct {
+	LimitAmount     int64 `json:"limit_amount"`
+	ConsumedAmount  int64 `json:"consumed_amount"`
+	ReservedAmount  int64 `json:"reserved_amount"`
+	RemainingAmount int64 `json:"remaining_amount"`
+}
+
+type userQuotaOverviewBalanceData struct {
+	CurrentAmount        int64 `json:"current_amount"`
+	ConsumedTodayAmount  int64 `json:"consumed_today_amount"`
+	AvailableTodayAmount int64 `json:"available_today_amount"`
+	TopupBalanceAmount   int64 `json:"topup_balance_amount"`
+	RedeemBalanceAmount  int64 `json:"redeem_balance_amount"`
+	GiftBalanceAmount    int64 `json:"gift_balance_amount"`
+}
+
+type userQuotaOverviewData struct {
+	BizDate         string                       `json:"biz_date"`
+	Timezone        string                       `json:"timezone"`
+	TotalAmount     int64                        `json:"total_amount"`
+	UsedAmount      int64                        `json:"used_amount"`
+	RemainingAmount int64                        `json:"remaining_amount"`
+	Package         userQuotaOverviewPackageData `json:"package"`
+	Balance         userQuotaOverviewBalanceData `json:"balance"`
+}
+
 type topUpBalanceLotListData struct {
 	Items    []model.UserBalanceLot `json:"items"`
 	Total    int64                  `json:"total"`
@@ -2465,7 +2491,7 @@ func normalizeBatchGrantUserIDs(rawUserIDs []string, limit int) ([]string, error
 	return result, nil
 }
 
-func parseTopupOrderPageParams(c *gin.Context) (int, int, string, error) {
+func parseTopupOrderPageParams(c *gin.Context) (int, int, string, string, error) {
 	page, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("page", "1")))
 	if page < 1 {
 		page = 1
@@ -2475,15 +2501,21 @@ func parseTopupOrderPageParams(c *gin.Context) (int, int, string, error) {
 		pageSize = config.ItemsPerPage
 	}
 	rawBusinessType := strings.TrimSpace(c.Query("business_type"))
-	if rawBusinessType == "" {
-		return page, pageSize, "", nil
+	businessType := ""
+	if rawBusinessType != "" {
+		switch rawBusinessType {
+		case model.TopupOrderBusinessBalance, model.TopupOrderBusinessPackage:
+			businessType = rawBusinessType
+		default:
+			return page, pageSize, "", "", fmt.Errorf("无效的业务类型")
+		}
 	}
-	normalizedBusinessType := strings.TrimSpace(rawBusinessType)
-	switch normalizedBusinessType {
-	case model.TopupOrderBusinessBalance, model.TopupOrderBusinessPackage:
-		return page, pageSize, normalizedBusinessType, nil
+	rawCreditFilter := strings.TrimSpace(strings.ToLower(c.Query("credit_origin")))
+	switch rawCreditFilter {
+	case "", model.TopupOrderCreditFilterPaid, model.TopupOrderCreditFilterGift:
+		return page, pageSize, businessType, rawCreditFilter, nil
 	default:
-		return page, pageSize, "", fmt.Errorf("无效的业务类型")
+		return page, pageSize, "", "", fmt.Errorf("无效的额度来源")
 	}
 }
 
@@ -2589,6 +2621,90 @@ func buildTopUpBalanceSummary(topupRemain int64, redeemRemain int64, giftRemain 
 	}
 }
 
+func loadTopUpBalanceSummaryWithDB(db *gorm.DB, userID string, now int64) (topUpBalanceSummaryData, error) {
+	var topupRemain int64
+	validLotQuery := "l.user_id = ? AND l.status = ? AND l.remaining_amount > 0 AND (l.expires_at = 0 OR l.expires_at > ?)"
+	if err := db.Table(model.UserBalanceLotsTableName+" AS l").
+		Joins("JOIN "+model.TopupOrdersTableName+" AS o ON o.id = l.source_id").
+		Select("COALESCE(SUM(l.remaining_amount), 0)").
+		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
+		Where("l.source_type = ?", model.UserBalanceLotSourceTopup).
+		Where("COALESCE(o.credit_origin, '') = ?", model.TopupOrderCreditOriginPaid).
+		Scan(&topupRemain).Error; err != nil {
+		return topUpBalanceSummaryData{}, err
+	}
+
+	var redeemRemain int64
+	if err := db.Table(model.UserBalanceLotsTableName+" AS l").
+		Select("COALESCE(SUM(l.remaining_amount), 0)").
+		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
+		Where("l.source_type = ?", model.UserBalanceLotSourceRedeem).
+		Scan(&redeemRemain).Error; err != nil {
+		return topUpBalanceSummaryData{}, err
+	}
+
+	var giftRemain int64
+	if err := db.Table(model.UserBalanceLotsTableName+" AS l").
+		Joins("JOIN "+model.TopupOrdersTableName+" AS o ON o.id = l.source_id").
+		Select("COALESCE(SUM(l.remaining_amount), 0)").
+		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
+		Where("l.source_type = ?", model.UserBalanceLotSourceTopup).
+		Where("o.credit_origin IN ?", model.TopupOrderGiftCreditOriginValues()).
+		Scan(&giftRemain).Error; err != nil {
+		return topUpBalanceSummaryData{}, err
+	}
+	return buildTopUpBalanceSummary(topupRemain, redeemRemain, giftRemain), nil
+}
+
+func buildUserQuotaOverview(summary model.UserQuotaSummary, balance topUpBalanceSummaryData, balanceConsumedToday int64) userQuotaOverviewData {
+	packageConsumed := normalizeNonNegativeQuota(summary.Daily.ConsumedQuota)
+	packageReserved := normalizeNonNegativeQuota(summary.Daily.ReservedQuota)
+	packageUsed := packageConsumed + packageReserved
+	packageLimit := normalizeNonNegativeQuota(summary.Daily.Limit)
+	packageRemaining := normalizeNonNegativeQuota(summary.Daily.RemainingQuota)
+	currentBalance := normalizeNonNegativeQuota(balance.TotalBalanceAmount)
+	consumedBalance := normalizeNonNegativeQuota(balanceConsumedToday)
+	availableBalance := currentBalance + consumedBalance
+
+	return userQuotaOverviewData{
+		BizDate:         strings.TrimSpace(summary.Daily.BizDate),
+		Timezone:        strings.TrimSpace(summary.Daily.Timezone),
+		TotalAmount:     packageLimit + availableBalance,
+		UsedAmount:      packageUsed + consumedBalance,
+		RemainingAmount: packageRemaining + currentBalance,
+		Package: userQuotaOverviewPackageData{
+			LimitAmount:     packageLimit,
+			ConsumedAmount:  packageConsumed,
+			ReservedAmount:  packageReserved,
+			RemainingAmount: packageRemaining,
+		},
+		Balance: userQuotaOverviewBalanceData{
+			CurrentAmount:        currentBalance,
+			ConsumedTodayAmount:  consumedBalance,
+			AvailableTodayAmount: availableBalance,
+			TopupBalanceAmount:   normalizeNonNegativeQuota(balance.TopupBalanceAmount),
+			RedeemBalanceAmount:  normalizeNonNegativeQuota(balance.RedeemBalanceAmount),
+			GiftBalanceAmount:    normalizeNonNegativeQuota(balance.GiftBalanceAmount),
+		},
+	}
+}
+
+func quotaBusinessDayBounds(bizDate string, timezone string) (int64, int64, error) {
+	locationName := strings.TrimSpace(timezone)
+	if locationName == "" {
+		locationName = model.DefaultGroupQuotaResetTimezone
+	}
+	location, err := time.LoadLocation(locationName)
+	if err != nil {
+		return 0, 0, err
+	}
+	start, err := time.ParseInLocation("2006-01-02", strings.TrimSpace(bizDate), location)
+	if err != nil {
+		return 0, 0, err
+	}
+	return start.Unix(), start.AddDate(0, 0, 1).Unix(), nil
+}
+
 func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
 	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
 	if userID == "" {
@@ -2601,45 +2717,9 @@ func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
 	if _, expireErr := model.ExpireUserBalanceLots(userID); expireErr != nil {
 		logger.Error(c.Request.Context(), "expire user balance lots failed: "+expireErr.Error())
 	}
-
-	var topupRemain int64
 	now := helper.GetTimestamp()
-	validLotQuery := "l.user_id = ? AND l.status = ? AND l.remaining_amount > 0 AND (l.expires_at = 0 OR l.expires_at > ?)"
-	if err := model.DB.Table(model.UserBalanceLotsTableName+" AS l").
-		Joins("JOIN "+model.TopupOrdersTableName+" AS o ON o.id = l.source_id").
-		Select("COALESCE(SUM(l.remaining_amount), 0)").
-		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
-		Where("l.source_type = ?", model.UserBalanceLotSourceTopup).
-		Where("COALESCE(o.credit_origin, '') = ?", model.TopupOrderCreditOriginPaid).
-		Scan(&topupRemain).Error; err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
-		return
-	}
-
-	var redeemRemain int64
-	if err := model.DB.Table(model.UserBalanceLotsTableName+" AS l").
-		Select("COALESCE(SUM(l.remaining_amount), 0)").
-		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
-		Where("l.source_type = ?", model.UserBalanceLotSourceRedeem).
-		Scan(&redeemRemain).Error; err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
-		return
-	}
-
-	var giftRemain int64
-	if err := model.DB.Table(model.UserBalanceLotsTableName+" AS l").
-		Joins("JOIN "+model.TopupOrdersTableName+" AS o ON o.id = l.source_id").
-		Select("COALESCE(SUM(l.remaining_amount), 0)").
-		Where(validLotQuery, userID, model.UserBalanceLotStatusActive, now).
-		Where("l.source_type = ?", model.UserBalanceLotSourceTopup).
-		Where("COALESCE(o.credit_origin, '') <> ?", model.TopupOrderCreditOriginPaid).
-		Scan(&giftRemain).Error; err != nil {
+	summary, err := loadTopUpBalanceSummaryWithDB(model.DB, userID, now)
+	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": err.Error(),
@@ -2650,7 +2730,58 @@ func GetCurrentUserTopUpBalanceSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    buildTopUpBalanceSummary(topupRemain, redeemRemain, giftRemain),
+		"data":    summary,
+	})
+}
+
+func GetCurrentUserQuotaOverview(c *gin.Context) {
+	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
+	if userID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "用户 ID 不能为空",
+		})
+		return
+	}
+	summary, err := model.GetUserQuotaSummary(userID, c.Query("date"), c.Query("month"))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	if _, expireErr := model.ExpireUserBalanceLots(userID); expireErr != nil {
+		logger.Error(c.Request.Context(), "expire user balance lots failed: "+expireErr.Error())
+	}
+	balance, err := loadTopUpBalanceSummaryWithDB(model.DB, userID, helper.GetTimestamp())
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	startAt, endAt, err := quotaBusinessDayBounds(summary.Daily.BizDate, summary.Daily.Timezone)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	balanceConsumedToday, err := model.SumUserBalanceConsumedAmountWithDB(model.DB, userID, startAt, endAt)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    buildUserQuotaOverview(summary, balance, balanceConsumedToday),
 	})
 }
 
@@ -2736,7 +2867,7 @@ func GetCurrentUserTopUpBalanceLotTransactions(c *gin.Context) {
 
 func GetTopUpOrders(c *gin.Context) {
 	userID := strings.TrimSpace(c.GetString(ctxkey.Id))
-	page, pageSize, businessType, err := parseTopupOrderPageParams(c)
+	page, pageSize, businessType, creditFilter, err := parseTopupOrderPageParams(c)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -2744,7 +2875,7 @@ func GetTopUpOrders(c *gin.Context) {
 		})
 		return
 	}
-	items, total, err := model.ListTopupOrdersPageWithDB(model.DB, userID, businessType, page, pageSize)
+	items, total, err := model.ListTopupOrdersPageFilteredWithDB(model.DB, userID, businessType, creditFilter, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

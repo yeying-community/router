@@ -88,7 +88,31 @@
     "record_nav": {
       "topup": "充值",
       "package": "购买",
-      "redeem": "兑换"
+      "redeem": "兑换",
+      "gift": "赠送"
+    },
+    "quota_overview": {
+      "title": "今日额度总览",
+      "total": "总额度",
+      "used": "已用额度",
+      "remaining": "剩余额度",
+      "hint": "金额额度合并计算今日套餐额度与余额；套餐预留中的额度计入已用额度。",
+      "count_title": "次数额度",
+      "count_total": "总次数",
+      "count_used": "已用",
+      "count_remaining": "剩余",
+      "sources": "额度来源",
+      "package_card": "套餐额度",
+      "package_total": "今日套餐",
+      "package_used": "已用",
+      "balance_card": "余额",
+      "balance_used_today": "今日已用",
+      "balance_gift": "含赠送",
+      "history": "历史流水",
+      "view_detail": "查看详情",
+      "package_detail": "套餐详情",
+      "balance_detail": "余额详情",
+      "load_failed": "加载额度总览失败"
     },
     "nav": {
       "balance": "余额充值",
@@ -99,6 +123,7 @@
     "records": {
       "title": "充值订单",
       "package_title": "套餐订单",
+      "gift_title": "赠送记录",
       "refresh": "刷新",
       "order_title": "订单记录",
       "order_empty": "暂无订单记录",

@@ -33,6 +33,8 @@ const (
 	TopupOrderCreditOriginNewUser   = "new_user_reward"
 	TopupOrderCreditOriginInviter   = "inviter_reward"
 	TopupOrderCreditOriginReconcile = "balance_reconciliation"
+	TopupOrderCreditFilterPaid      = "paid"
+	TopupOrderCreditFilterGift      = "gift"
 	TopupOrderBusinessBalance       = "balance_topup"
 	TopupOrderBusinessPackage       = "package_purchase"
 	TopupOrderCurrencyCNY           = "CNY"
@@ -58,6 +60,26 @@ func normalizeTopupOrderCreditOrigin(value string) string {
 		return TopupOrderCreditOriginReconcile
 	default:
 		return ""
+	}
+}
+
+func normalizeTopupOrderCreditFilter(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case TopupOrderCreditFilterPaid:
+		return TopupOrderCreditFilterPaid
+	case TopupOrderCreditFilterGift:
+		return TopupOrderCreditFilterGift
+	default:
+		return ""
+	}
+}
+
+func TopupOrderGiftCreditOriginValues() []string {
+	return []string{
+		TopupOrderCreditOriginAdmin,
+		TopupOrderCreditOriginNewUser,
+		TopupOrderCreditOriginInviter,
+		TopupOrderCreditOriginReconcile,
 	}
 }
 
@@ -1100,6 +1122,10 @@ func GetTopupOrderByIDForAdminWithDB(db *gorm.DB, orderID string) (TopupOrder, e
 }
 
 func ListTopupOrdersPageWithDB(db *gorm.DB, userID string, businessType string, page int, pageSize int) ([]TopupOrder, int64, error) {
+	return ListTopupOrdersPageFilteredWithDB(db, userID, businessType, "", page, pageSize)
+}
+
+func ListTopupOrdersPageFilteredWithDB(db *gorm.DB, userID string, businessType string, creditFilter string, page int, pageSize int) ([]TopupOrder, int64, error) {
 	if db == nil {
 		return nil, 0, fmt.Errorf("database handle is nil")
 	}
@@ -1116,6 +1142,12 @@ func ListTopupOrdersPageWithDB(db *gorm.DB, userID string, businessType string, 
 	query := db.Model(&TopupOrder{}).Where("user_id = ?", normalizedUserID)
 	if normalizedBusinessType := normalizeTopupOrderBusinessType(businessType); normalizedBusinessType != "" {
 		query = applyTopupOrderBusinessTypeFilter(query, db, normalizedBusinessType)
+	}
+	switch normalizeTopupOrderCreditFilter(creditFilter) {
+	case TopupOrderCreditFilterPaid:
+		query = query.Where("COALESCE(credit_origin, '') = ?", TopupOrderCreditOriginPaid)
+	case TopupOrderCreditFilterGift:
+		query = query.Where("credit_origin IN ?", TopupOrderGiftCreditOriginValues())
 	}
 	total := int64(0)
 	if err := query.Count(&total).Error; err != nil {
