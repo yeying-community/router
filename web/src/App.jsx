@@ -63,9 +63,16 @@ const Token = lazy(() => import('./pages/Token'));
 const EditToken = lazy(() => import('./pages/Token/EditToken'));
 const TopUp = lazy(() => import('./pages/TopUp'));
 const TopUpOrderDetail = lazy(() => import('./pages/TopUp/TopUpOrderDetail'));
+const QuotaHistoryPage = lazy(() => import('./pages/TopUp/QuotaHistoryPage'));
+const QuotaCardDetailPage = lazy(
+  () => import('./pages/TopUp/QuotaCardDetailPage'),
+);
 const Chat = lazy(() => import('./pages/Chat'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ServicePricing = lazy(() => import('./pages/ServicePricing'));
+const PaymentHistoryPage = lazy(
+  () => import('./pages/ServicePricing/PaymentHistoryPage'),
+);
 const WorkspaceModels = lazy(() => import('./pages/WorkspaceModels'));
 const HelpDoc = lazy(() => import('./pages/HelpDoc'));
 const WorkspaceStart = lazy(() => import('./pages/WorkspaceStart'));
@@ -613,6 +620,22 @@ function App() {
           }
         />
         <Route
+          path='/workspace/topup/history'
+          element={
+            <Suspense fallback={<Loading />}>
+              <QuotaHistoryPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path='/workspace/topup/cards/:kind/:id'
+          element={
+            <Suspense fallback={<Loading />}>
+              <QuotaCardDetailPage />
+            </Suspense>
+          }
+        />
+        <Route
           path='/workspace/log'
           element={
             <Suspense fallback={<Loading />}>
@@ -657,6 +680,14 @@ function App() {
           element={
             <Suspense fallback={<Loading />}>
               <ServicePricing />
+            </Suspense>
+          }
+        />
+        <Route
+          path='/workspace/service/pricing/history'
+          element={
+            <Suspense fallback={<Loading />}>
+              <PaymentHistoryPage />
             </Suspense>
           }
         />

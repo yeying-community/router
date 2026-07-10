@@ -158,6 +158,61 @@ func normalizeUserBalanceLotRow(row *UserBalanceLot) {
 	row.Status = normalizeUserBalanceLotStatus(row.Status)
 }
 
+func ListRecentUserBalanceLotsWithDB(db *gorm.DB, userID string, activeOnly bool, limit int) ([]UserBalanceLot, int64, error) {
+	if db == nil {
+		return nil, 0, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return nil, 0, fmt.Errorf("用户 ID 不能为空")
+	}
+	query := db.Model(&UserBalanceLot{}).Where("user_id = ?", normalizedUserID)
+	if activeOnly {
+		now := helper.GetTimestamp()
+		query = query.
+			Where("status = ? AND remaining_amount > 0", UserBalanceLotStatusActive).
+			Where("(expires_at = 0 OR expires_at > ?)", now)
+	}
+	total := int64(0)
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 5000 {
+		limit = 5000
+	}
+	rows := make([]UserBalanceLot, 0, limit)
+	if err := query.
+		Order("granted_at desc, created_at desc, id desc").
+		Limit(limit).
+		Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	for i := range rows {
+		normalizeUserBalanceLotRow(&rows[i])
+	}
+	return rows, total, nil
+}
+
+func GetUserBalanceLotByIDWithDB(db *gorm.DB, userID string, lotID string) (UserBalanceLot, error) {
+	if db == nil {
+		return UserBalanceLot{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedUserID := strings.TrimSpace(userID)
+	normalizedID := strings.TrimSpace(lotID)
+	if normalizedUserID == "" || normalizedID == "" {
+		return UserBalanceLot{}, gorm.ErrRecordNotFound
+	}
+	row := UserBalanceLot{}
+	if err := db.Where("id = ? AND user_id = ?", normalizedID, normalizedUserID).First(&row).Error; err != nil {
+		return UserBalanceLot{}, err
+	}
+	normalizeUserBalanceLotRow(&row)
+	return row, nil
+}
+
 func CreditUserBalanceLotWithDB(db *gorm.DB, input UserBalanceLotCreditInput) (UserBalanceLot, bool, error) {
 	if db == nil {
 		return UserBalanceLot{}, false, fmt.Errorf("database handle is nil")

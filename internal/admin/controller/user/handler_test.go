@@ -2,11 +2,13 @@ package user
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/internal/admin/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -255,5 +257,265 @@ func TestBuildActiveUserPackageSubscriptionViewIncludesSupportedModels(t *testin
 	}
 	if view.SupportedModels[0] != "glm-5.2" || view.SupportedModels[1] != "glm-image" {
 		t.Fatalf("supported_models=%#v, want [glm-5.2 glm-image]", view.SupportedModels)
+	}
+}
+
+func TestBuildUserBalanceQuotaCardsClassifiesCreditSources(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&model.UserBalanceLot{}, &model.TopupOrder{}, &model.Redemption{}); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	if err := db.Create([]model.TopupOrder{
+		{
+			Id:            "order-paid",
+			TransactionID: "transaction-paid",
+			Title:         "充值 100",
+			Status:        model.TopupOrderStatusFulfilled,
+			CreditOrigin:  model.TopupOrderCreditOriginPaid,
+		},
+		{
+			Id:            "order-gift",
+			TransactionID: "transaction-gift",
+			Title:         "新用户奖励",
+			Status:        model.TopupOrderStatusFulfilled,
+			CreditOrigin:  model.TopupOrderCreditOriginNewUser,
+		},
+	}).Error; err != nil {
+		t.Fatalf("create topup orders: %v", err)
+	}
+	if err := db.Create(&model.Redemption{
+		Id:           "redemption-1",
+		Name:         "兑换码奖励",
+		Status:       model.RedemptionCodeStatusUsed,
+		RedeemedTime: 100,
+	}).Error; err != nil {
+		t.Fatalf("create redemption: %v", err)
+	}
+
+	cards, err := buildUserBalanceQuotaCards(db, []model.UserBalanceLot{
+		{
+			Id:              "lot-paid",
+			SourceType:      model.UserBalanceLotSourceTopup,
+			SourceID:        "order-paid",
+			TotalAmount:     100,
+			RemainingAmount: 80,
+			Status:          model.UserBalanceLotStatusActive,
+		},
+		{
+			Id:              "lot-gift",
+			SourceType:      model.UserBalanceLotSourceTopup,
+			SourceID:        "order-gift",
+			TotalAmount:     50,
+			RemainingAmount: 50,
+			Status:          model.UserBalanceLotStatusActive,
+		},
+		{
+			Id:              "lot-redemption",
+			SourceType:      model.UserBalanceLotSourceRedeem,
+			SourceID:        "redemption-1",
+			TotalAmount:     30,
+			RemainingAmount: 30,
+			Status:          model.UserBalanceLotStatusActive,
+		},
+	})
+	if err != nil {
+		t.Fatalf("buildUserBalanceQuotaCards: %v", err)
+	}
+	if len(cards) != 3 {
+		t.Fatalf("cards len=%d, want 3", len(cards))
+	}
+	if cards[0].Kind != userQuotaCardKindTopup || cards[0].Name != "充值 100" {
+		t.Fatalf("paid card=%#v, want topup/充值 100", cards[0])
+	}
+	if cards[1].Kind != userQuotaCardKindGift || cards[1].Name != "新用户奖励" {
+		t.Fatalf("gift card=%#v, want gift/新用户奖励", cards[1])
+	}
+	if cards[2].Kind != userQuotaCardKindRedemption || cards[2].Name != "兑换码奖励" {
+		t.Fatalf("redemption card=%#v, want redemption/兑换码奖励", cards[2])
+	}
+	for _, card := range cards {
+		if card.BalanceLot == nil || card.BalanceLot.SourceDetail == nil {
+			t.Fatalf("card %q source detail missing", card.ID)
+		}
+		if card.BalanceLot.SourceDetail.DetailPath != "" {
+			t.Fatalf("card %q leaked admin detail path %q", card.ID, card.BalanceLot.SourceDetail.DetailPath)
+		}
+	}
+}
+
+func TestLoadUserQuotaCardsFiltersSortsPaginatesAndChecksOwnership(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(
+		&model.UserPackageSubscription{},
+		&model.UserBalanceLot{},
+		&model.TopupOrder{},
+		&model.Redemption{},
+	); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	originalDB := model.DB
+	model.DB = db
+	t.Cleanup(func() {
+		model.DB = originalDB
+	})
+
+	now := helper.GetTimestamp()
+	if err := db.Create([]model.UserPackageSubscription{
+		{
+			Id:              "package-active",
+			UserID:          "user-1",
+			PackageName:     "有效套餐",
+			QuotaMetric:     model.ServicePackageQuotaMetricYYC,
+			DailyQuotaLimit: 400,
+			StartedAt:       now - 100,
+			ExpiresAt:       now + 3600,
+			Status:          model.UserPackageSubscriptionStatusActive,
+			UpdatedAt:       now - 100,
+		},
+		{
+			Id:              "package-expired",
+			UserID:          "user-1",
+			PackageName:     "历史套餐",
+			QuotaMetric:     model.ServicePackageQuotaMetricYYC,
+			DailyQuotaLimit: 100,
+			StartedAt:       now - 400,
+			ExpiresAt:       now - 10,
+			Status:          model.UserPackageSubscriptionStatusExpired,
+			UpdatedAt:       now - 10,
+		},
+		{
+			Id:              "package-other",
+			UserID:          "user-2",
+			PackageName:     "其他用户套餐",
+			QuotaMetric:     model.ServicePackageQuotaMetricYYC,
+			DailyQuotaLimit: 999,
+			StartedAt:       now - 50,
+			ExpiresAt:       now + 3600,
+			Status:          model.UserPackageSubscriptionStatusActive,
+			UpdatedAt:       now - 50,
+		},
+	}).Error; err != nil {
+		t.Fatalf("create package subscriptions: %v", err)
+	}
+	if err := db.Create([]model.TopupOrder{
+		{
+			Id:            "order-active",
+			TransactionID: "transaction-active",
+			Title:         "有效充值",
+			Status:        model.TopupOrderStatusFulfilled,
+			CreditOrigin:  model.TopupOrderCreditOriginPaid,
+		},
+		{
+			Id:            "order-other",
+			TransactionID: "transaction-other",
+			Title:         "其他用户充值",
+			Status:        model.TopupOrderStatusFulfilled,
+			CreditOrigin:  model.TopupOrderCreditOriginPaid,
+		},
+	}).Error; err != nil {
+		t.Fatalf("create topup orders: %v", err)
+	}
+	if err := db.Create(&model.Redemption{
+		Id:           "redemption-expired",
+		Name:         "历史兑换",
+		Status:       model.RedemptionCodeStatusUsed,
+		RedeemedTime: now - 300,
+	}).Error; err != nil {
+		t.Fatalf("create redemption: %v", err)
+	}
+	if err := db.Create([]model.UserBalanceLot{
+		{
+			Id:              "lot-active",
+			UserID:          "user-1",
+			SourceType:      model.UserBalanceLotSourceTopup,
+			SourceID:        "order-active",
+			TotalAmount:     300,
+			RemainingAmount: 250,
+			UsedAmount:      50,
+			Status:          model.UserBalanceLotStatusActive,
+			GrantedAt:       now - 200,
+			ExpiresAt:       now + 3600,
+			CreatedAt:       now - 200,
+			UpdatedAt:       now - 200,
+		},
+		{
+			Id:              "lot-expired",
+			UserID:          "user-1",
+			SourceType:      model.UserBalanceLotSourceRedeem,
+			SourceID:        "redemption-expired",
+			TotalAmount:     200,
+			RemainingAmount: 0,
+			UsedAmount:      200,
+			Status:          model.UserBalanceLotStatusExpired,
+			GrantedAt:       now - 300,
+			ExpiresAt:       now - 20,
+			ExpiredAt:       now - 20,
+			CreatedAt:       now - 300,
+			UpdatedAt:       now - 20,
+		},
+		{
+			Id:              "lot-other",
+			UserID:          "user-2",
+			SourceType:      model.UserBalanceLotSourceTopup,
+			SourceID:        "order-other",
+			TotalAmount:     999,
+			RemainingAmount: 999,
+			Status:          model.UserBalanceLotStatusActive,
+			GrantedAt:       now - 50,
+			ExpiresAt:       now + 3600,
+			CreatedAt:       now - 50,
+			UpdatedAt:       now - 50,
+		},
+	}).Error; err != nil {
+		t.Fatalf("create balance lots: %v", err)
+	}
+
+	active, err := loadUserQuotaCards("user-1", true, 1, 20)
+	if err != nil {
+		t.Fatalf("load active cards: %v", err)
+	}
+	if active.Total != 2 || len(active.Items) != 2 {
+		t.Fatalf("active total/items=%d/%d, want 2/2", active.Total, len(active.Items))
+	}
+	if active.Items[0].ID != "package-active" || active.Items[1].ID != "lot-active" {
+		t.Fatalf("active order=%q,%q, want package-active,lot-active", active.Items[0].ID, active.Items[1].ID)
+	}
+
+	firstPage, err := loadUserQuotaCards("user-1", false, 1, 2)
+	if err != nil {
+		t.Fatalf("load history first page: %v", err)
+	}
+	if firstPage.Total != 4 || len(firstPage.Items) != 2 {
+		t.Fatalf("history first total/items=%d/%d, want 4/2", firstPage.Total, len(firstPage.Items))
+	}
+	if firstPage.Items[0].ID != "package-active" || firstPage.Items[1].ID != "lot-active" {
+		t.Fatalf("history first order=%q,%q, want package-active,lot-active", firstPage.Items[0].ID, firstPage.Items[1].ID)
+	}
+
+	secondPage, err := loadUserQuotaCards("user-1", false, 2, 2)
+	if err != nil {
+		t.Fatalf("load history second page: %v", err)
+	}
+	if len(secondPage.Items) != 2 {
+		t.Fatalf("history second items=%d, want 2", len(secondPage.Items))
+	}
+	if secondPage.Items[0].ID != "lot-expired" || secondPage.Items[1].ID != "package-expired" {
+		t.Fatalf("history second order=%q,%q, want lot-expired,package-expired", secondPage.Items[0].ID, secondPage.Items[1].ID)
+	}
+
+	if _, err := loadUserQuotaCard("user-1", userQuotaCardKindTopup, "lot-other"); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("other user's lot error=%v, want record not found", err)
+	}
+	if _, err := loadUserQuotaCard("user-1", userQuotaCardKindPackage, "package-other"); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("other user's package error=%v, want record not found", err)
+	}
+	if _, err := loadUserQuotaCard("user-1", userQuotaCardKindGift, "lot-active"); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("mismatched lot kind error=%v, want record not found", err)
 	}
 }

@@ -87,7 +87,9 @@ const TopUpOrderDetailInner = () => {
     if (from.startsWith('/workspace/topup')) {
       return from;
     }
-    return `/workspace/topup?tab=quota&history=${recordKey}`;
+    return `/workspace/service/pricing/history?type=${
+      recordKey === 'package' ? 'package' : 'topup'
+    }`;
   }, [location.state?.from, recordKey]);
 
   const refreshOrderStatus = useCallback(async () => {

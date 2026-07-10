@@ -114,6 +114,49 @@
       "balance_detail": "Balance Details",
       "load_failed": "Failed to load quota overview"
     },
+    "quota_cards": {
+      "active_title": "Active Quota",
+      "active_empty": "No active quota cards",
+      "history_button": "Quota History",
+      "history_title": "Quota History",
+      "history_section": "Quota Card Records",
+      "history_empty": "No quota card records",
+      "back_to_quota": "Back to Quota",
+      "load_failed": "Failed to load quota cards",
+      "detail_title": "Quota Card Details",
+      "detail_load_failed": "Failed to load quota card details",
+      "detail_empty": "The quota card does not exist or was removed",
+      "total": "Total",
+      "used": "Used",
+      "remaining": "Remaining",
+      "activated_at": "Activated At",
+      "expires_at": "Expires At",
+      "period": "Quota Period",
+      "source_title": "Source Name",
+      "source_status": "Source Status",
+      "credit_origin": "Credit Origin",
+      "source_amount": "Payment or Face Value",
+      "kind": {
+        "package": "Package",
+        "topup": "Top-up",
+        "redemption": "Redemption",
+        "gift": "Reward"
+      },
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "replaced": "Replaced",
+        "canceled": "Canceled",
+        "unknown": "Unknown"
+      }
+    },
+    "payment_history": {
+      "button": "Payment History",
+      "title": "Payment History",
+      "status_title": "Payment Status",
+      "back_to_pricing": "Back to Subscription"
+    },
     "nav": {
       "balance": "Balance Top-up",
       "package": "Buy Package",

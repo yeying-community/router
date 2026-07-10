@@ -114,6 +114,49 @@
       "balance_detail": "余额详情",
       "load_failed": "加载额度总览失败"
     },
+    "quota_cards": {
+      "active_title": "有效额度",
+      "active_empty": "当前没有有效额度卡片",
+      "history_button": "历史流水",
+      "history_title": "历史流水",
+      "history_section": "额度卡片记录",
+      "history_empty": "暂无额度卡片记录",
+      "back_to_quota": "返回额度",
+      "load_failed": "加载额度卡片失败",
+      "detail_title": "额度卡片详情",
+      "detail_load_failed": "加载额度卡片详情失败",
+      "detail_empty": "额度卡片不存在或已被删除",
+      "total": "总额度",
+      "used": "已用额度",
+      "remaining": "剩余额度",
+      "activated_at": "生效时间",
+      "expires_at": "到期时间",
+      "period": "额度周期",
+      "source_title": "来源名称",
+      "source_status": "来源状态",
+      "credit_origin": "额度来源",
+      "source_amount": "支付或面值",
+      "kind": {
+        "package": "套餐",
+        "topup": "充值",
+        "redemption": "兑换",
+        "gift": "奖励"
+      },
+      "status": {
+        "active": "有效",
+        "expired": "已过期",
+        "exhausted": "已用尽",
+        "replaced": "已替换",
+        "canceled": "已取消",
+        "unknown": "未知"
+      }
+    },
+    "payment_history": {
+      "button": "支付历史",
+      "title": "支付历史",
+      "status_title": "支付状态",
+      "back_to_pricing": "返回订阅"
+    },
     "nav": {
       "balance": "余额充值",
       "package": "购买套餐",
