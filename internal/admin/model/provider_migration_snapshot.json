@@ -1608,6 +1608,294 @@
         }
       },
       {
+        "model": "gpt-5.6",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.6 是 OpenAI 当前默认指向的旗舰模型别名，现阶段路由到 GPT-5.6 Sol。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.015,
+        "output_price": 0.12,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
+      },
+      {
+        "model": "gpt-5.6-sol",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.6 Sol 是 GPT-5.6 系列中的旗舰高能力模型，适合复杂推理和生产任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.015,
+        "output_price": 0.12,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
+      },
+      {
+        "model": "gpt-5.6-terra",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.6 Terra 是 GPT-5.6 系列中的中高能力版本，兼顾成本与效果。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.003,
+        "output_price": 0.024,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "type": "text",
+        "status": "active",
+        "description": "GPT-5.6 Luna 是 GPT-5.6 系列中的低成本轻量版本，适合高并发常规任务。",
+        "supported_endpoints": [
+          "/v1/chat/completions",
+          "/v1/responses"
+        ],
+        "input_price": 0.0006,
+        "output_price": 0.0048,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "updated_at": 1700000000,
+        "tags": [
+          "vision"
+        ],
+        "specification": {
+          "version": 1,
+          "endpoints": {
+            "/v1/chat/completions": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            },
+            "/v1/responses": {
+              "input_modalities": [
+                "image",
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ],
+              "parameters": {
+                "detail": {
+                  "type": "enum",
+                  "allowed_values": [
+                    "auto",
+                    "high",
+                    "low",
+                    "original"
+                  ]
+                }
+              },
+              "constraints": {
+                "max_images": 1500,
+                "max_payload_size_mb": 512
+              }
+            }
+          }
+        }
+      },
+      {
         "model": "gpt-audio",
         "type": "audio",
         "status": "active",

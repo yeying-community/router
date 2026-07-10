@@ -33,11 +33,16 @@ type providerTextCachePricingRule struct {
 var providerTextCachePricingRules = []providerTextCachePricingRule{
 	// OpenAI pricing exposes cached input as 10% of regular text input for the
 	// current OpenAI text models where the catalog's base price matches the
-	// standard official price row.
+	// standard official price row. GPT-5.6 family models additionally publish
+	// explicit cache write pricing at 125% of the uncached input rate.
 	{Provider: "openai", Model: "gpt-5.3-codex", CacheReadRate: 0.1, SourceURL: providerTextCachePricingOpenAIURL},
 	{Provider: "openai", Model: "gpt-5.4", CacheReadRate: 0.1, SourceURL: providerTextCachePricingOpenAIURL},
 	{Provider: "openai", Model: "gpt-5.4-mini", CacheReadRate: 0.1, SourceURL: providerTextCachePricingOpenAIURL},
 	{Provider: "openai", Model: "gpt-5.5", CacheReadRate: 0.1, SourceURL: providerTextCachePricingOpenAIURL},
+	{Provider: "openai", Model: "gpt-5.6", CacheReadRate: 0.1, CacheWriteRate: 1.25, SourceURL: providerTextCachePricingOpenAIURL},
+	{Provider: "openai", Model: "gpt-5.6-sol", CacheReadRate: 0.1, CacheWriteRate: 1.25, SourceURL: providerTextCachePricingOpenAIURL},
+	{Provider: "openai", Model: "gpt-5.6-terra", CacheReadRate: 0.1, CacheWriteRate: 1.25, SourceURL: providerTextCachePricingOpenAIURL},
+	{Provider: "openai", Model: "gpt-5.6-luna", CacheReadRate: 0.1, CacheWriteRate: 1.25, SourceURL: providerTextCachePricingOpenAIURL},
 
 	// Anthropic prompt caching prices 5-minute cache writes at 1.25x input and
 	// cache hits at 0.1x input for the Claude models tracked here.

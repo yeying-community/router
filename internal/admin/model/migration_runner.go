@@ -1740,6 +1740,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderTextCachePricingComponentsWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607101130_refresh_openai_provider_for_gpt56_models",
+			Description: "refresh openai provider migration rows to add GPT-5.6 family models",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderMigrationProvidersWithDB(tx, "openai")
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

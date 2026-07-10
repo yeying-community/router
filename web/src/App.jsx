@@ -15,7 +15,10 @@ import { UserContext } from './context/User';
 import { StatusContext } from './context/Status';
 import { WEB3_TOKEN_STORAGE_KEY } from './helpers/web3';
 import { buildLoginPath } from './helpers/authRedirect';
-import { logoutWallet } from './services/web3Auth';
+import {
+  logoutWallet,
+  restoreWalletSession,
+} from './services/web3Auth';
 import { useWalletProviderStatus } from './hooks/useWalletProviderStatus';
 import AdminLayout from './layouts/AdminLayout';
 import UserLayout from './layouts/UserLayout';
@@ -259,6 +262,7 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const walletDisconnectTimerRef = useRef(null);
+  const walletSessionRecoveryRef = useRef(null);
 
   const clearWalletSession = useCallback(
     async () => {
@@ -305,17 +309,58 @@ function App() {
     walletDisconnectTimerRef.current = null;
   }, []);
 
+  const recoverWalletSession = useCallback(async () => {
+    if (!isWalletSessionActive()) {
+      return false;
+    }
+    if (walletSessionRecoveryRef.current) {
+      return walletSessionRecoveryRef.current;
+    }
+    const task = (async () => {
+      try {
+        const restored = await restoreWalletSession();
+        if (!restored?.token) {
+          return false;
+        }
+        try {
+          const user = JSON.parse(localStorage.getItem('user') || '{}');
+          if (user?.id) {
+            userDispatch({
+              type: 'login',
+              payload: {
+                ...user,
+                token: restored.token,
+              },
+            });
+          }
+        } catch (error) {
+          // The SDK token remains usable even if the legacy user cache is malformed.
+        }
+        return true;
+      } catch (error) {
+        return false;
+      }
+    })();
+    walletSessionRecoveryRef.current = task;
+    try {
+      return await task;
+    } finally {
+      walletSessionRecoveryRef.current = null;
+    }
+  }, [isWalletSessionActive, userDispatch]);
+
   const handleWalletDisconnected = useCallback(() => {
     if (!isWalletSessionActive() || walletDisconnectTimerRef.current) {
       return;
     }
-    walletDisconnectTimerRef.current = window.setTimeout(() => {
+    walletDisconnectTimerRef.current = window.setTimeout(async () => {
       walletDisconnectTimerRef.current = null;
-      if (isWalletSessionActive()) {
+      const recovered = await recoverWalletSession();
+      if (!recovered && isWalletSessionActive()) {
         clearWalletSession().then();
       }
     }, 2200);
-  }, [clearWalletSession, isWalletSessionActive]);
+  }, [clearWalletSession, isWalletSessionActive, recoverWalletSession]);
 
   const handleWalletAccountsChanged = useCallback(
     (accounts) => {
@@ -404,6 +449,30 @@ function App() {
       }
     }
   }, [loadUser, loadStatus]);
+
+  useEffect(() => {
+    if (!isWalletSessionActive()) {
+      return undefined;
+    }
+    const recover = () => {
+      if (
+        document.visibilityState &&
+        document.visibilityState !== 'visible'
+      ) {
+        return;
+      }
+      recoverWalletSession().then();
+    };
+    recover();
+    window.addEventListener('focus', recover);
+    document.addEventListener('visibilitychange', recover);
+    const timer = window.setInterval(recover, 10 * 60 * 1000);
+    return () => {
+      window.removeEventListener('focus', recover);
+      document.removeEventListener('visibilitychange', recover);
+      window.clearInterval(timer);
+    };
+  }, [isWalletSessionActive, location.pathname, recoverWalletSession]);
 
   useEffect(() => {
     return () => {

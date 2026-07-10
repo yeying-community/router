@@ -15,8 +15,50 @@ import {
 } from '@yeying-community/web3-bs';
 
 import { WEB3_AUTH_OPTIONS, WEB3_TOKEN_STORAGE_KEY } from '../helpers/web3';
+import {
+  getAccessTokenExpiresAt,
+  isAccessTokenFresh,
+} from '../helpers/walletSession.mjs';
 
 const WALLET_RECONNECT_TIMEOUT_MS = 1600;
+
+function getRefreshPayload(refreshResult) {
+  return refreshResult?.response?.data || refreshResult?.response || {};
+}
+
+function persistRefreshedWalletSession(refreshResult) {
+  const token = refreshResult?.token;
+  if (!token || typeof window === 'undefined') {
+    return;
+  }
+  const payload = getRefreshPayload(refreshResult);
+  const expiresAt =
+    Number(payload?.expiresAt || 0) || getAccessTokenExpiresAt(token);
+  if (expiresAt > 0) {
+    localStorage.setItem(
+      'wallet_token_expires_at',
+      new Date(expiresAt).toISOString(),
+    );
+  }
+  try {
+    const storedUserRaw = localStorage.getItem('user');
+    if (!storedUserRaw) {
+      return;
+    }
+    const storedUser = JSON.parse(storedUserRaw);
+    if (storedUser?.id) {
+      localStorage.setItem(
+        'user',
+        JSON.stringify({
+          ...storedUser,
+          token,
+        }),
+      );
+    }
+  } catch (error) {
+    // Keep the refreshed SDK token even if the legacy user cache is malformed.
+  }
+}
 
 export function normalizeChainId(chainId) {
   if (!chainId) return '';
@@ -134,7 +176,24 @@ export function getStoredAccessToken() {
 }
 
 export async function refreshWalletAccessToken() {
-  return sdkRefreshAccessToken(WEB3_AUTH_OPTIONS);
+  const result = await sdkRefreshAccessToken(WEB3_AUTH_OPTIONS);
+  persistRefreshedWalletSession(result);
+  return result;
+}
+
+export async function restoreWalletSession() {
+  const token = getStoredAccessToken();
+  if (isAccessTokenFresh(token)) {
+    return {
+      token,
+      refreshed: false,
+    };
+  }
+  const result = await refreshWalletAccessToken();
+  return {
+    ...result,
+    refreshed: true,
+  };
 }
 
 export async function logoutWallet() {
