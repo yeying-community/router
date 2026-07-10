@@ -202,7 +202,16 @@ func upsertProviderMigrationSeedsWithDB(db *gorm.DB, providers []string) error {
 			if len(targetModels) == 0 {
 				continue
 			}
-			if err := tx.Where("provider = ? AND model IN ?", provider, targetModels).
+			if err := tx.Where(
+				"provider = ? AND model IN ? AND source = ? AND component NOT IN ?",
+				provider,
+				targetModels,
+				"migration",
+				[]string{
+					ProviderModelPriceComponentTextCacheRead,
+					ProviderModelPriceComponentTextCacheWrite,
+				},
+			).
 				Delete(&ProviderModelPriceComponent{}).Error; err != nil {
 				return err
 			}
@@ -250,7 +259,7 @@ func upsertProviderMigrationSeedsWithDB(db *gorm.DB, providers []string) error {
 				return err
 			}
 		}
-		return nil
+		return upsertProviderTextCachePricingComponentsInTransaction(tx)
 	})
 }
 
