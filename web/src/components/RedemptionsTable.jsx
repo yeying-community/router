@@ -200,11 +200,10 @@ const RedemptionsTable = () => {
       } else {
         setRedemptions((prev) => {
           const next = [...prev];
-          next.splice(
-            (normalizedPage - 1) * ITEMS_PER_PAGE,
-            nextRows.length,
-            ...nextRows,
-          );
+          const startIndex = (normalizedPage - 1) * ITEMS_PER_PAGE;
+          nextRows.forEach((row, idx) => {
+            next[startIndex + idx] = row;
+          });
           return next;
         });
       }

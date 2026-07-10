@@ -169,12 +169,11 @@ const TokensTable = () => {
           setTokens(normalizedRows);
         } else {
           setTokens((prev) => {
-            let next = [...prev];
-            next.splice(
-              (normalizedPage - 1) * ITEMS_PER_PAGE,
-              normalizedRows.length,
-              ...normalizedRows,
-            );
+            const next = [...prev];
+            const startIndex = (normalizedPage - 1) * ITEMS_PER_PAGE;
+            normalizedRows.forEach((row, idx) => {
+              next[startIndex + idx] = row;
+            });
             return next;
           });
         }

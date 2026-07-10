@@ -181,11 +181,10 @@ const UsersTable = () => {
         } else {
           setUsers((prev) => {
             const next = [...prev];
-            next.splice(
-              (normalizedPage - 1) * ITEMS_PER_PAGE,
-              data.length,
-              ...data,
-            );
+            const startIndex = (normalizedPage - 1) * ITEMS_PER_PAGE;
+            data.forEach((row, idx) => {
+              next[startIndex + idx] = row;
+            });
             return next;
           });
         }
