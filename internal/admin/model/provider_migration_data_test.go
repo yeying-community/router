@@ -263,6 +263,18 @@ func TestUpsertProviderTextCachePricingComponentsWithDB(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("create qwen provider model: %v", err)
 	}
+	if err := db.Create(&ProviderModel{
+		Provider:    "openai",
+		Model:       "gpt-5.6-sol",
+		Tags:        ProviderModelTypeText,
+		InputPrice:  0.015,
+		OutputPrice: 0.12,
+		PriceUnit:   ProviderPriceUnitPer1KTokens,
+		Currency:    ProviderPriceCurrencyUSD,
+		Source:      "migration",
+	}).Error; err != nil {
+		t.Fatalf("create openai gpt-5.6-sol provider model: %v", err)
+	}
 	if err := db.Create(&ProviderModelPriceComponent{
 		Provider:   "openai",
 		Model:      "gpt-5.4",
@@ -292,6 +304,34 @@ func TestUpsertProviderTextCachePricingComponentsWithDB(t *testing.T) {
 	}
 	if openAIRead.InputPrice != 0.123 || openAIRead.Source != "manual" {
 		t.Fatalf("manual openai cache read component overwritten: price=%v source=%q", openAIRead.InputPrice, openAIRead.Source)
+	}
+	openAISolRead := ProviderModelPriceComponent{}
+	if err := db.First(
+		&openAISolRead,
+		"provider = ? AND model = ? AND component = ? AND condition = ?",
+		"openai",
+		"gpt-5.6-sol",
+		ProviderModelPriceComponentTextCacheRead,
+		"",
+	).Error; err != nil {
+		t.Fatalf("query openai gpt-5.6-sol cache read component: %v", err)
+	}
+	if openAISolRead.InputPrice != 0.0015 {
+		t.Fatalf("openai gpt-5.6-sol cache read input_price=%v, want 0.0015", openAISolRead.InputPrice)
+	}
+	openAISolWrite := ProviderModelPriceComponent{}
+	if err := db.First(
+		&openAISolWrite,
+		"provider = ? AND model = ? AND component = ? AND condition = ?",
+		"openai",
+		"gpt-5.6-sol",
+		ProviderModelPriceComponentTextCacheWrite,
+		"",
+	).Error; err != nil {
+		t.Fatalf("query openai gpt-5.6-sol cache write component: %v", err)
+	}
+	if openAISolWrite.InputPrice != 0.01875 {
+		t.Fatalf("openai gpt-5.6-sol cache write input_price=%v, want 0.01875", openAISolWrite.InputPrice)
 	}
 
 	anthropicRead := ProviderModelPriceComponent{}
@@ -954,6 +994,10 @@ func TestBuildProviderMigrationSeeds_OpenAIIncludesGPT5xPricing(t *testing.T) {
 		"gpt-5.1-codex":      {input: 0.00125, output: 0.01},
 		"gpt-5.1-codex-max":  {input: 0.00125, output: 0.01},
 		"gpt-5.1-codex-mini": {input: 0.00025, output: 0.002},
+		"gpt-5.6":            {input: 0.015, output: 0.12},
+		"gpt-5.6-sol":        {input: 0.015, output: 0.12},
+		"gpt-5.6-terra":      {input: 0.003, output: 0.024},
+		"gpt-5.6-luna":       {input: 0.0006, output: 0.0048},
 	}
 
 	for _, seed := range seeds {
@@ -1033,6 +1077,9 @@ func TestBuildProviderMigrationSeeds_OpenAIIncludesNewOfficialModels(t *testing.
 		"gpt-5.4-nano":           {modelType: ProviderModelTypeText},
 		"gpt-5.4-pro":            {modelType: ProviderModelTypeText},
 		"gpt-5.5-pro":            {modelType: ProviderModelTypeText},
+		"gpt-5.6-sol":            {modelType: ProviderModelTypeText},
+		"gpt-5.6-terra":          {modelType: ProviderModelTypeText},
+		"gpt-5.6-luna":           {modelType: ProviderModelTypeText},
 		"gpt-image-1.5":          {modelType: ProviderModelTypeImage},
 		"gpt-image-1-mini":       {modelType: ProviderModelTypeImage},
 		"gpt-realtime-translate": {modelType: ProviderModelTypeAudio},
@@ -1064,6 +1111,38 @@ func TestBuildProviderMigrationSeeds_OpenAIIncludesNewOfficialModels(t *testing.
 			}
 		}
 		return
+	}
+	t.Fatalf("expected openai provider to exist")
+}
+
+func TestBuildProviderMigrationSeeds_OpenAIIncludesGPT56AliasPricing(t *testing.T) {
+	seeds := mustLoadProviderMigrationSeeds(t)
+	for _, seed := range seeds {
+		if seed.Provider != "openai" {
+			continue
+		}
+		for _, detail := range seed.ModelDetails {
+			if detail.Model != "gpt-5.6" {
+				continue
+			}
+			if detail.Type != ProviderModelTypeText {
+				t.Fatalf("gpt-5.6 type=%q, want %q", detail.Type, ProviderModelTypeText)
+			}
+			if detail.InputPrice != 0.015 {
+				t.Fatalf("gpt-5.6 input_price=%v, want 0.015", detail.InputPrice)
+			}
+			if detail.OutputPrice != 0.12 {
+				t.Fatalf("gpt-5.6 output_price=%v, want 0.12", detail.OutputPrice)
+			}
+			if detail.PriceUnit != ProviderPriceUnitPer1KTokens {
+				t.Fatalf("gpt-5.6 price_unit=%q, want %q", detail.PriceUnit, ProviderPriceUnitPer1KTokens)
+			}
+			if detail.Currency != ProviderPriceCurrencyUSD {
+				t.Fatalf("gpt-5.6 currency=%q, want %q", detail.Currency, ProviderPriceCurrencyUSD)
+			}
+			return
+		}
+		t.Fatalf("expected openai seed to include gpt-5.6")
 	}
 	t.Fatalf("expected openai provider to exist")
 }
