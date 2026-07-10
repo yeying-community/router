@@ -28,11 +28,6 @@ export const buildUserWorkspaceMenuItems = () => {
       icon: 'grid layout',
       items: [
         {
-          name: 'header.dashboard',
-          to: '/workspace/dashboard',
-          icon: 'chart bar',
-        },
-        {
           name: 'topup.pricing.title',
           to: '/workspace/service/pricing',
           icon: 'tags',
@@ -59,14 +54,14 @@ export const buildUserWorkspaceMenuItems = () => {
       icon: 'user circle',
       items: [
         {
-          name: 'topup.mine.balance',
-          to: '/workspace/topup?tab=balance',
-          icon: 'credit card',
+          name: 'topup.mine.spend',
+          to: '/workspace/dashboard',
+          icon: 'chart bar',
         },
         {
-          name: 'topup.mine.package',
-          to: '/workspace/topup?tab=package',
-          icon: 'gift',
+          name: 'topup.mine.quota',
+          to: '/workspace/topup?tab=quota',
+          icon: 'credit card',
         },
         {
           name: 'header.token',

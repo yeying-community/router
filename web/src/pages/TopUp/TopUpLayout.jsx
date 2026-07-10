@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import BalanceStatusPage from './BalanceStatusPage';
-import CurrentPackagePage from './CurrentPackagePage';
+import QuotaPage from './QuotaPage';
 import TopUpRecordsPage from './TopUpRecordsPage';
 import {
   normalizeTopUpRecord,
@@ -55,20 +54,15 @@ const TopUpLayout = () => {
 
   const activeContent = useMemo(() => {
     switch (activeKey) {
-      case 'package':
-        return <CurrentPackagePage />;
       case 'records':
         return <TopUpRecordsPage recordKey={activeRecord} />;
-      case 'balance':
+      case 'quota':
       default:
-        return <BalanceStatusPage />;
+        return <QuotaPage />;
     }
   }, [activeKey, activeRecord]);
 
   const activeTitle = useMemo(() => {
-    if (activeKey === 'package') {
-      return t('topup.mine.package');
-    }
     if (activeKey === 'records') {
       switch (activeRecord) {
         case 'package':
@@ -80,7 +74,7 @@ const TopUpLayout = () => {
           return t('topup.record_nav.topup');
       }
     }
-    return t('topup.mine.balance');
+    return t('topup.mine.quota');
   }, [activeKey, activeRecord, t]);
 
   const breadcrumbParent = useMemo(() => {

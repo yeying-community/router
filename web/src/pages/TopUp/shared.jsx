@@ -11,15 +11,22 @@ import { formatAmountWithUnit } from '../../helpers/render';
 import { AppButton, AppInput, AppModal, AppTag, AppTooltip } from '../../router-ui';
 
 export const TOPUP_DISPLAY_CURRENCY_STORAGE_KEY = 'topup_display_currency';
-export const TOPUP_DEFAULT_TAB = 'balance';
-export const TOPUP_TAB_KEYS = ['balance', 'package', 'records'];
+export const TOPUP_DEFAULT_TAB = 'quota';
+export const TOPUP_TAB_KEYS = ['quota', 'records'];
 export const TOPUP_DEFAULT_RECORD = 'topup';
 export const TOPUP_RECORD_KEYS = ['topup', 'package', 'redeem'];
 export const TOPUP_ALLOWED_QUERY_KEYS = ['tab', 'record', 'intent'];
 export const TopUpWorkspaceContext = createContext(null);
 
-export const normalizeTopUpTab = (rawTab) =>
-  TOPUP_TAB_KEYS.includes(rawTab) ? rawTab : TOPUP_DEFAULT_TAB;
+export const normalizeTopUpTab = (rawTab) => {
+  const normalizedTab = String(rawTab || '').trim().toLowerCase();
+  if (normalizedTab === 'balance' || normalizedTab === 'package') {
+    return TOPUP_DEFAULT_TAB;
+  }
+  return TOPUP_TAB_KEYS.includes(normalizedTab)
+    ? normalizedTab
+    : TOPUP_DEFAULT_TAB;
+};
 
 export const normalizeTopUpRecord = (rawRecord) =>
   TOPUP_RECORD_KEYS.includes(rawRecord) ? rawRecord : TOPUP_DEFAULT_RECORD;

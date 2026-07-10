@@ -81,7 +81,9 @@
     "mine": {
       "balance": "Balance",
       "billing": "Billing",
-      "package": "Package"
+      "package": "Package",
+      "spend": "Spending",
+      "quota": "Quota"
     },
     "record_nav": {
       "topup": "Top-up",
@@ -229,9 +231,9 @@
       }
     },
     "pricing": {
-      "title": "Pricing",
-      "page_title": "Pricing Guide",
-      "subtitle": "You can buy a package directly, or top up balance first and use the service on demand.",
+      "title": "Subscriptions",
+      "page_title": "Subscriptions",
+      "subtitle": "Purchase or adjust a package, or top up balance for on-demand usage.",
       "package_mode_title": "Package Plans",
       "package_hint": "Best for stable usage. You get a daily allowance plus emergency capacity with clearer cost boundaries. Image models count by generated image count, for example n=4 uses 4 package units.",
       "balance_mode_title": "Balance Usage",
@@ -247,7 +249,7 @@
       "supported_models_search_empty": "No matching models"
     },
     "package_status": {
-      "view_pricing": "View Pricing",
+      "view_pricing": "View Subscriptions",
       "no_active_package": "There is no active package",
       "no_upgrade_target": "No upgrade target package is available",
       "no_downgrade_target": "No downgrade target package is available",
@@ -261,7 +263,7 @@
       "select_convert_target": "Select Conversion Target Package",
       "select_convert_target_hint": "Choose a target package of a different type.",
       "convert_next_cycle": "Next",
-      "empty_description": "There is no active package right now. You can buy a package from the pricing page or top up balance to try the service first.",
+      "empty_description": "There is no active package right now. You can buy one from Subscriptions or use balance on demand.",
       "daily_title": "Today's Package Quota",
       "emergency_title": "Monthly Emergency Quota",
       "period": "Period",
@@ -2086,7 +2088,7 @@
   "workspace_start": {
     "title": "Activate Service",
     "actions": {
-      "view_pricing": "View pricing",
+      "view_pricing": "View subscriptions",
       "view_guide": "Usage guide",
       "create_token": "Create token",
       "open_chat": "Open Chat"
@@ -2094,7 +2096,7 @@
     "steps": {
       "pricing": {
         "title": "Get quota first",
-        "description": "Packages fit stable usage, while balance fits trial-first usage. All purchase actions happen on the pricing page."
+        "description": "Packages fit stable usage, while balance fits trial-first usage. Package purchases and balance top-ups happen on the Subscriptions page."
       },
       "token": {
         "title": "Create a token next",
@@ -2350,7 +2352,7 @@
           }
         },
         "actions": {
-          "view_pricing": "View pricing",
+          "view_pricing": "View subscriptions",
           "create_token": "Create token",
           "view_tokens": "View tokens",
           "view_guide": "Usage guide",
