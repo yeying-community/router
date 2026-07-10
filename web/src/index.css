@@ -3835,6 +3835,48 @@ body,
     font-weight: 400 !important;
 }
 
+.router-log-column-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    width: 100%;
+}
+
+.router-log-column-title-content {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.router-log-column-drag-handle {
+    flex: 0 0 auto;
+    width: 12px;
+    height: 16px;
+    color: rgba(0, 0, 0, 0.34);
+    cursor: grab;
+    border-radius: 3px;
+    background-image: radial-gradient(circle, currentColor 1.2px, transparent 1.3px);
+    background-position: 0 0;
+    background-size: 4px 4px;
+}
+
+.router-log-column-drag-handle:hover {
+    color: rgba(22, 119, 255, 0.85);
+}
+
+.router-log-column-drag-handle:active {
+    cursor: grabbing;
+}
+
+.router-ui-table.router-log-table .ant-table-thead > tr > th.router-log-column-dragging {
+    opacity: 0.58;
+}
+
+.router-ui-table.router-log-table .ant-table-thead > tr > th.router-log-column-drag-target {
+    background: #edf5ff !important;
+    box-shadow: inset 2px 0 0 #1677ff, inset -2px 0 0 #1677ff;
+}
+
 .router-log-filter-editor {
     min-width: 260px;
 }

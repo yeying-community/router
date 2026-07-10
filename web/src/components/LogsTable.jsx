@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   API,
   showError,
@@ -39,6 +39,49 @@ import {
   AppTag,
   AppToolbar,
 } from '../router-ui';
+
+const USER_LOG_COLUMN_ORDER_STORAGE_KEY = 'router_user_log_column_order_v1';
+const DEFAULT_USER_LOG_COLUMN_ORDER = [
+  'created_at',
+  'type',
+  'model_name',
+  'token_name',
+  'prompt_tokens',
+  'completion_tokens',
+  'cacheQuantity',
+  'chargeAmount',
+];
+
+function normalizeUserLogColumnOrder(rawOrder) {
+  const nextOrder = [];
+  const seen = new Set();
+  const append = (key) => {
+    if (!DEFAULT_USER_LOG_COLUMN_ORDER.includes(key) || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    nextOrder.push(key);
+  };
+  if (Array.isArray(rawOrder)) {
+    rawOrder.forEach((key) => append(String(key || '').trim()));
+  }
+  DEFAULT_USER_LOG_COLUMN_ORDER.forEach(append);
+  return nextOrder;
+}
+
+function loadUserLogColumnOrder() {
+  if (typeof window === 'undefined') {
+    return [...DEFAULT_USER_LOG_COLUMN_ORDER];
+  }
+  try {
+    const stored = JSON.parse(
+      window.localStorage.getItem(USER_LOG_COLUMN_ORDER_STORAGE_KEY) || '[]',
+    );
+    return normalizeUserLogColumnOrder(stored);
+  } catch (error) {
+    return [...DEFAULT_USER_LOG_COLUMN_ORDER];
+  }
+}
 
 const compareTextValue = (left, right) =>
   String(left || '').localeCompare(String(right || ''));
@@ -372,6 +415,12 @@ const LogsTable = () => {
   const [currencyIndex, setCurrencyIndex] = useState(() =>
     buildPublicDisplayCurrencyIndex([])
   );
+  const [userLogColumnOrder, setUserLogColumnOrder] = useState(
+    loadUserLogColumnOrder,
+  );
+  const [draggingColumnKey, setDraggingColumnKey] = useState('');
+  const [dragOverColumnKey, setDragOverColumnKey] = useState('');
+  const draggingColumnKeyRef = useRef('');
 
   const LOG_OPTIONS = [
     { key: '0', text: t('log.type.all'), value: 0 },
@@ -741,6 +790,20 @@ const LogsTable = () => {
   }, [loadDisplayUnits]);
 
   useEffect(() => {
+    if (isAdminScope || typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(
+        USER_LOG_COLUMN_ORDER_STORAGE_KEY,
+        JSON.stringify(userLogColumnOrder),
+      );
+    } catch (error) {
+      console.warn('Failed to persist user log column order:', error);
+    }
+  }, [isAdminScope, userLogColumnOrder]);
+
+  useEffect(() => {
     setActivePage(1);
   }, [searchKeyword, activeFilterKeys, username, token_name, model_name, channel, group_id, start_timestamp, end_timestamp]);
 
@@ -871,6 +934,117 @@ const LogsTable = () => {
     : showAmountColumns()
       ? 7
       : 3;
+
+  const moveUserLogColumn = useCallback((sourceKey, targetKey, placeAfter) => {
+    if (!sourceKey || !targetKey || sourceKey === targetKey) {
+      return;
+    }
+    setUserLogColumnOrder((currentOrder) => {
+      const normalizedOrder = normalizeUserLogColumnOrder(currentOrder);
+      if (
+        !normalizedOrder.includes(sourceKey) ||
+        !normalizedOrder.includes(targetKey)
+      ) {
+        return normalizedOrder;
+      }
+      const nextOrder = normalizedOrder.filter((key) => key !== sourceKey);
+      const targetIndex = nextOrder.indexOf(targetKey);
+      nextOrder.splice(targetIndex + (placeAfter ? 1 : 0), 0, sourceKey);
+      return nextOrder;
+    });
+  }, []);
+
+  const clearColumnDragState = useCallback(() => {
+    draggingColumnKeyRef.current = '';
+    setDraggingColumnKey('');
+    setDragOverColumnKey('');
+  }, []);
+
+  const resolveLogColumns = (columns) => {
+    if (isAdminScope) {
+      return columns;
+    }
+    const columnsByKey = new Map(
+      columns.map((column) => [String(column.key || column.dataIndex), column]),
+    );
+    const visibleOrder = [
+      ...userLogColumnOrder.filter((key) => columnsByKey.has(key)),
+      ...columns
+        .map((column) => String(column.key || column.dataIndex))
+        .filter((key) => !userLogColumnOrder.includes(key)),
+    ];
+    return visibleOrder.map((columnKey) => {
+      const column = columnsByKey.get(columnKey);
+      const originalTitle = column.title;
+      return {
+        ...column,
+        title: (
+          <div className='router-log-column-title'>
+            <span
+              className='router-log-column-drag-handle'
+              draggable
+              aria-label={t('log.table.drag_column')}
+              title={t('log.table.drag_column')}
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+              onDragStart={(event) => {
+                event.stopPropagation();
+                draggingColumnKeyRef.current = columnKey;
+                setDraggingColumnKey(columnKey);
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', columnKey);
+              }}
+              onDragEnd={clearColumnDragState}
+            />
+            <span className='router-log-column-title-content'>
+              {originalTitle}
+            </span>
+          </div>
+        ),
+        onHeaderCell: () => ({
+          className: [
+            'router-log-column-draggable',
+            draggingColumnKey === columnKey
+              ? 'router-log-column-dragging'
+              : '',
+            dragOverColumnKey === columnKey
+              ? 'router-log-column-drag-target'
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+          onDragOver: (event) => {
+            const sourceKey = draggingColumnKeyRef.current;
+            if (!sourceKey || sourceKey === columnKey) {
+              return;
+            }
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            setDragOverColumnKey(columnKey);
+          },
+          onDragLeave: (event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              setDragOverColumnKey((currentKey) =>
+                currentKey === columnKey ? '' : currentKey,
+              );
+            }
+          },
+          onDrop: (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const sourceKey =
+              draggingColumnKeyRef.current ||
+              event.dataTransfer.getData('text/plain');
+            const targetRect = event.currentTarget.getBoundingClientRect();
+            const placeAfter =
+              event.clientX >= targetRect.left + targetRect.width / 2;
+            moveUserLogColumn(sourceKey, columnKey, placeAfter);
+            clearColumnDragState();
+          },
+        }),
+      };
+    });
+  };
 
   return (
     <>
@@ -1085,7 +1259,7 @@ const LogsTable = () => {
                 ? navigate(`${detailBasePath}/${log.id}${location.search || ''}`)
                 : undefined,
           })}
-          columns={[
+          columns={resolveLogColumns([
           {
             title: t('log.table.time'),
             dataIndex: 'created_at',
@@ -1305,7 +1479,7 @@ const LogsTable = () => {
                 },
               ]
             : []),
-          ]}
+          ])}
           footer={() => (
             <AppToolbar
               start={

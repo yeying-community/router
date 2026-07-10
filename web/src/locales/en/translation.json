@@ -1881,7 +1881,8 @@
       "completion_tokens": "Completion Tokens",
       "cache_tokens": "Cache R/W",
       "quota": "Amount",
-      "detail": "Detail"
+      "detail": "Detail",
+      "drag_column": "Drag to reorder columns"
     },
     "buttons": {
       "query": "Action",

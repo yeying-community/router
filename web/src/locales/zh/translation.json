@@ -1881,7 +1881,8 @@
       "completion_tokens": "补全消耗",
       "cache_tokens": "缓存读/写",
       "quota": "金额",
-      "detail": "详情"
+      "detail": "详情",
+      "drag_column": "拖拽调整列顺序"
     },
     "buttons": {
       "query": "操作",
