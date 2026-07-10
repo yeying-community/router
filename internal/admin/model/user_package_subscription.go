@@ -456,7 +456,9 @@ func ListRecentUserPackageSubscriptionsWithDB(db *gorm.DB, userID string, active
 	if err := syncUserPackageSubscriptionsWithDB(db, normalizedUserID, now); err != nil {
 		return nil, 0, err
 	}
-	query := db.Model(&UserPackageSubscription{}).Where("user_id = ?", normalizedUserID)
+	query := db.Model(&UserPackageSubscription{}).
+		Where("user_id = ?", normalizedUserID).
+		Where("status <> ?", UserPackageSubscriptionStatusCanceled)
 	if activeOnly {
 		query = query.Where(
 			"status = ? AND started_at <= ? AND (expires_at = 0 OR expires_at > ?)",

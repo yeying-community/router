@@ -1,14 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import BalanceTopUpPage from '../TopUp/BalanceTopUpPage';
 import PackagePurchasePage from '../TopUp/PackagePurchasePage';
 import TopUpWorkspaceProvider from '../TopUp/provider.jsx';
-import { AppButton, AppFilterHeader } from '../../router-ui';
+import { AppFilterHeader } from '../../router-ui';
 
 const ServicePricing = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
 
   return (
     <TopUpWorkspaceProvider>
@@ -20,13 +19,15 @@ const ServicePricing = () => {
             { key: 'pricing', label: t('topup.pricing.title'), active: true },
           ]}
           title={t('topup.pricing.page_title')}
-          actions={
-            <AppButton
-              onClick={() => navigate('/workspace/service/pricing/history')}
+          meta={
+            <Link
+              className='router-breadcrumb-link router-service-pricing-history-link'
+              to='/workspace/service/pricing/history'
             >
               {t('topup.payment_history.button')}
-            </AppButton>
+            </Link>
           }
+          metaClassName='router-service-pricing-history-link-wrap'
         />
         <div id='pricing-package-section'>
           <PackagePurchasePage />

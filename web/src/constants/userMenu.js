@@ -38,11 +38,6 @@ export const buildUserWorkspaceMenuItems = () => {
           icon: 'cube',
         },
         {
-          name: 'header.task',
-          to: '/workspace/task',
-          icon: 'tasks',
-        },
-        {
           name: 'header.log',
           to: '/workspace/log',
           icon: 'book',

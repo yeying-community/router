@@ -2413,9 +2413,9 @@ func loadTopupBalanceLotRedemptionSourceDetails(db *gorm.DB, ids []string) (map[
 
 const (
 	userQuotaCardKindPackage    = "package"
-	userQuotaCardKindTopup      = "topup"
-	userQuotaCardKindRedemption = "redemption"
-	userQuotaCardKindGift       = "gift"
+	userQuotaCardKindTopup      = model.UserBalanceLotQuotaCardKindTopup
+	userQuotaCardKindRedemption = model.UserBalanceLotQuotaCardKindRedemption
+	userQuotaCardKindGift       = model.UserBalanceLotQuotaCardKindGift
 )
 
 type userQuotaCardView struct {
@@ -2575,7 +2575,7 @@ func buildUserBalanceQuotaCards(db *gorm.DB, lots []model.UserBalanceLot) ([]use
 	return cards, nil
 }
 
-func loadUserQuotaCards(userID string, activeOnly bool, page int, pageSize int) (userQuotaCardListData, error) {
+func loadUserQuotaCards(userID string, activeOnly bool, kind string, page int, pageSize int) (userQuotaCardListData, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -2585,27 +2585,42 @@ func loadUserQuotaCards(userID string, activeOnly bool, page int, pageSize int) 
 	if pageSize > 50 {
 		pageSize = 50
 	}
+	normalizedKind := strings.TrimSpace(strings.ToLower(kind))
+	if normalizedKind == "all" {
+		normalizedKind = ""
+	}
 	fetchLimit := page * pageSize
-	packageRows, packageTotal, err := model.ListRecentUserPackageSubscriptionsWithDB(
-		model.DB,
-		userID,
-		activeOnly,
-		fetchLimit,
-	)
-	if err != nil {
-		return userQuotaCardListData{}, err
+	packageRows := []model.UserPackageSubscription{}
+	packageTotal := int64(0)
+	if normalizedKind == "" || normalizedKind == userQuotaCardKindPackage {
+		var err error
+		packageRows, packageTotal, err = model.ListRecentUserPackageSubscriptionsWithDB(
+			model.DB,
+			userID,
+			activeOnly,
+			fetchLimit,
+		)
+		if err != nil {
+			return userQuotaCardListData{}, err
+		}
 	}
 	if _, expireErr := model.ExpireUserBalanceLots(userID); expireErr != nil {
 		return userQuotaCardListData{}, expireErr
 	}
-	balanceRows, balanceTotal, err := model.ListRecentUserBalanceLotsWithDB(
-		model.DB,
-		userID,
-		activeOnly,
-		fetchLimit,
-	)
-	if err != nil {
-		return userQuotaCardListData{}, err
+	balanceRows := []model.UserBalanceLot{}
+	balanceTotal := int64(0)
+	if normalizedKind != userQuotaCardKindPackage {
+		var err error
+		balanceRows, balanceTotal, err = model.ListRecentUserBalanceLotsByQuotaKindWithDB(
+			model.DB,
+			userID,
+			activeOnly,
+			normalizedKind,
+			fetchLimit,
+		)
+		if err != nil {
+			return userQuotaCardListData{}, err
+		}
 	}
 	cards := make([]userQuotaCardView, 0, len(packageRows)+len(balanceRows))
 	for _, packageRow := range packageRows {
@@ -3077,7 +3092,17 @@ func GetCurrentUserQuotaCards(c *gin.Context) {
 	}
 	page, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("page", "1")))
 	pageSize, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("page_size", "20")))
-	data, err := loadUserQuotaCards(userID, activeOnly, page, pageSize)
+	kind := strings.TrimSpace(strings.ToLower(c.DefaultQuery("kind", "all")))
+	switch kind {
+	case "all", userQuotaCardKindPackage, userQuotaCardKindTopup, userQuotaCardKindRedemption, userQuotaCardKindGift:
+	default:
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无效的额度卡片类型",
+		})
+		return
+	}
+	data, err := loadUserQuotaCards(userID, activeOnly, kind, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

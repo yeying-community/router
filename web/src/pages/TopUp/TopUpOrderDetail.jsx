@@ -87,10 +87,8 @@ const TopUpOrderDetailInner = () => {
     if (from.startsWith('/workspace/topup')) {
       return from;
     }
-    return `/workspace/service/pricing/history?type=${
-      recordKey === 'package' ? 'package' : 'topup'
-    }`;
-  }, [location.state?.from, recordKey]);
+    return '/workspace/service/pricing/history';
+  }, [location.state?.from]);
 
   const refreshOrderStatus = useCallback(async () => {
     const normalizedOrderID = String(order?.id || '').trim();

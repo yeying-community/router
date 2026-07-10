@@ -6,7 +6,7 @@ import {
   AppButton,
   AppFilterHeader,
   AppPagination,
-  AppSection,
+  AppSelect,
 } from '../../router-ui';
 import QuotaCardItem from './QuotaCardItem';
 import TopUpWorkspaceProvider from './provider.jsx';
@@ -25,6 +25,7 @@ const QuotaHistoryPageInner = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [kind, setKind] = useState('all');
 
   const loadCards = useCallback(
     async (nextPage = page) => {
@@ -33,6 +34,7 @@ const QuotaHistoryPageInner = () => {
         const response = await API.get('/api/v1/public/user/quota/cards', {
           params: {
             scope: 'history',
+            kind,
             page: nextPage,
             page_size: PAGE_SIZE,
           },
@@ -54,7 +56,7 @@ const QuotaHistoryPageInner = () => {
         setLoading(false);
       }
     },
-    [page, t],
+    [kind, page, t],
   );
 
   useEffect(() => {
@@ -74,6 +76,16 @@ const QuotaHistoryPageInner = () => {
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
     [total],
+  );
+  const kindOptions = useMemo(
+    () => [
+      { value: 'all', text: t('topup.quota_cards.kind.all') },
+      { value: 'package', text: t('topup.quota_cards.kind.package') },
+      { value: 'topup', text: t('topup.quota_cards.kind.topup') },
+      { value: 'redemption', text: t('topup.quota_cards.kind.redemption') },
+      { value: 'gift', text: t('topup.quota_cards.kind.gift') },
+    ],
+    [t],
   );
 
   const openCardDetail = useCallback(
@@ -99,52 +111,56 @@ const QuotaHistoryPageInner = () => {
         ]}
         title={t('topup.quota_cards.history_title')}
         actions={
-          <AppButton onClick={() => navigate('/workspace/topup?tab=quota')}>
-            {t('topup.quota_cards.back_to_quota')}
-          </AppButton>
-        }
-      />
-      <AppSection
-        title={t('topup.quota_cards.history_section')}
-        extra={
+          <>
+            <AppButton onClick={() => navigate('/workspace/topup?tab=quota')}>
+              {t('topup.quota_cards.back_to_quota')}
+            </AppButton>
           <AppButton
-            className='router-section-button'
             loading={loading}
             onClick={() => loadCards(page)}
           >
             {t('common.refresh')}
           </AppButton>
-        }
-      >
-        {cards.length > 0 ? (
-          <div className='router-quota-card-grid'>
-            {cards.map((card) => (
-              <QuotaCardItem
-                key={`${card.kind}-${card.id}`}
-                card={card}
-                renderAmount={renderAmount}
-                onClick={openCardDetail}
-                t={t}
-              />
-            ))}
-          </div>
-        ) : loading ? null : (
-          <div className='router-empty'>
-            {t('topup.quota_cards.history_empty')}
-          </div>
-        )}
-        {totalPages > 1 ? (
-          <div className='router-pagination-wrap-md'>
-            <AppPagination
-              activePage={page}
-              totalPages={totalPages}
-              onPageChange={(_, { activePage }) =>
-                setPage(Number(activePage) || 1)
-              }
+            <AppSelect
+              className='router-quota-history-kind-select'
+              options={kindOptions}
+              value={kind}
+              onChange={(event, { value }) => {
+                setKind(String(value || 'all'));
+                setPage(1);
+              }}
             />
-          </div>
-        ) : null}
-      </AppSection>
+          </>
+        }
+      />
+      {cards.length > 0 ? (
+        <div className='router-quota-card-grid'>
+          {cards.map((card) => (
+            <QuotaCardItem
+              key={`${card.kind}-${card.id}`}
+              card={card}
+              renderAmount={renderAmount}
+              onClick={openCardDetail}
+              t={t}
+            />
+          ))}
+        </div>
+      ) : loading ? null : (
+        <div className='router-empty'>
+          {t('topup.quota_cards.history_empty')}
+        </div>
+      )}
+      {totalPages > 1 ? (
+        <div className='router-pagination-wrap-md'>
+          <AppPagination
+            activePage={page}
+            totalPages={totalPages}
+            onPageChange={(_, { activePage }) =>
+              setPage(Number(activePage) || 1)
+            }
+          />
+        </div>
+      ) : null}
     </div>
   );
 };

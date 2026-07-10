@@ -390,6 +390,17 @@ func TestLoadUserQuotaCardsFiltersSortsPaginatesAndChecksOwnership(t *testing.T)
 			UpdatedAt:       now - 10,
 		},
 		{
+			Id:              "package-canceled",
+			UserID:          "user-1",
+			PackageName:     "已取消套餐",
+			QuotaMetric:     model.ServicePackageQuotaMetricYYC,
+			DailyQuotaLimit: 500,
+			StartedAt:       now - 50,
+			ExpiresAt:       now + 3600,
+			Status:          model.UserPackageSubscriptionStatusCanceled,
+			UpdatedAt:       now - 20,
+		},
+		{
 			Id:              "package-other",
 			UserID:          "user-2",
 			PackageName:     "其他用户套餐",
@@ -417,6 +428,13 @@ func TestLoadUserQuotaCardsFiltersSortsPaginatesAndChecksOwnership(t *testing.T)
 			Title:         "其他用户充值",
 			Status:        model.TopupOrderStatusFulfilled,
 			CreditOrigin:  model.TopupOrderCreditOriginPaid,
+		},
+		{
+			Id:            "order-gift",
+			TransactionID: "transaction-gift-history",
+			Title:         "注册奖励",
+			Status:        model.TopupOrderStatusFulfilled,
+			CreditOrigin:  model.TopupOrderCreditOriginNewUser,
 		},
 	}).Error; err != nil {
 		t.Fatalf("create topup orders: %v", err)
@@ -460,6 +478,19 @@ func TestLoadUserQuotaCardsFiltersSortsPaginatesAndChecksOwnership(t *testing.T)
 			UpdatedAt:       now - 20,
 		},
 		{
+			Id:              "lot-gift",
+			UserID:          "user-1",
+			SourceType:      model.UserBalanceLotSourceTopup,
+			SourceID:        "order-gift",
+			TotalAmount:     100,
+			RemainingAmount: 100,
+			Status:          model.UserBalanceLotStatusActive,
+			GrantedAt:       now - 250,
+			ExpiresAt:       now + 3600,
+			CreatedAt:       now - 250,
+			UpdatedAt:       now - 250,
+		},
+		{
 			Id:              "lot-other",
 			UserID:          "user-2",
 			SourceType:      model.UserBalanceLotSourceTopup,
@@ -476,37 +507,77 @@ func TestLoadUserQuotaCardsFiltersSortsPaginatesAndChecksOwnership(t *testing.T)
 		t.Fatalf("create balance lots: %v", err)
 	}
 
-	active, err := loadUserQuotaCards("user-1", true, 1, 20)
+	active, err := loadUserQuotaCards("user-1", true, "all", 1, 20)
 	if err != nil {
 		t.Fatalf("load active cards: %v", err)
 	}
-	if active.Total != 2 || len(active.Items) != 2 {
-		t.Fatalf("active total/items=%d/%d, want 2/2", active.Total, len(active.Items))
+	if active.Total != 3 || len(active.Items) != 3 {
+		t.Fatalf("active total/items=%d/%d, want 3/3", active.Total, len(active.Items))
 	}
-	if active.Items[0].ID != "package-active" || active.Items[1].ID != "lot-active" {
-		t.Fatalf("active order=%q,%q, want package-active,lot-active", active.Items[0].ID, active.Items[1].ID)
+	if active.Items[0].ID != "package-active" || active.Items[1].ID != "lot-active" || active.Items[2].ID != "lot-gift" {
+		t.Fatalf(
+			"active order=%q,%q,%q, want package-active,lot-active,lot-gift",
+			active.Items[0].ID,
+			active.Items[1].ID,
+			active.Items[2].ID,
+		)
 	}
 
-	firstPage, err := loadUserQuotaCards("user-1", false, 1, 2)
+	firstPage, err := loadUserQuotaCards("user-1", false, "all", 1, 2)
 	if err != nil {
 		t.Fatalf("load history first page: %v", err)
 	}
-	if firstPage.Total != 4 || len(firstPage.Items) != 2 {
-		t.Fatalf("history first total/items=%d/%d, want 4/2", firstPage.Total, len(firstPage.Items))
+	if firstPage.Total != 5 || len(firstPage.Items) != 2 {
+		t.Fatalf("history first total/items=%d/%d, want 5/2", firstPage.Total, len(firstPage.Items))
 	}
 	if firstPage.Items[0].ID != "package-active" || firstPage.Items[1].ID != "lot-active" {
 		t.Fatalf("history first order=%q,%q, want package-active,lot-active", firstPage.Items[0].ID, firstPage.Items[1].ID)
 	}
 
-	secondPage, err := loadUserQuotaCards("user-1", false, 2, 2)
+	secondPage, err := loadUserQuotaCards("user-1", false, "all", 2, 2)
 	if err != nil {
 		t.Fatalf("load history second page: %v", err)
 	}
 	if len(secondPage.Items) != 2 {
 		t.Fatalf("history second items=%d, want 2", len(secondPage.Items))
 	}
-	if secondPage.Items[0].ID != "lot-expired" || secondPage.Items[1].ID != "package-expired" {
-		t.Fatalf("history second order=%q,%q, want lot-expired,package-expired", secondPage.Items[0].ID, secondPage.Items[1].ID)
+	if secondPage.Items[0].ID != "lot-gift" || secondPage.Items[1].ID != "lot-expired" {
+		t.Fatalf("history second order=%q,%q, want lot-gift,lot-expired", secondPage.Items[0].ID, secondPage.Items[1].ID)
+	}
+
+	thirdPage, err := loadUserQuotaCards("user-1", false, "all", 3, 2)
+	if err != nil {
+		t.Fatalf("load history third page: %v", err)
+	}
+	if len(thirdPage.Items) != 1 || thirdPage.Items[0].ID != "package-expired" {
+		t.Fatalf("history third items=%#v, want package-expired", thirdPage.Items)
+	}
+
+	for kind, wantID := range map[string]string{
+		userQuotaCardKindTopup:      "lot-active",
+		userQuotaCardKindRedemption: "lot-expired",
+		userQuotaCardKindGift:       "lot-gift",
+	} {
+		filtered, err := loadUserQuotaCards("user-1", false, kind, 1, 20)
+		if err != nil {
+			t.Fatalf("load %s cards: %v", kind, err)
+		}
+		if filtered.Total != 1 || len(filtered.Items) != 1 || filtered.Items[0].ID != wantID {
+			t.Fatalf("%s cards total/items=%d/%#v, want 1/%s", kind, filtered.Total, filtered.Items, wantID)
+		}
+	}
+
+	packages, err := loadUserQuotaCards("user-1", false, userQuotaCardKindPackage, 1, 20)
+	if err != nil {
+		t.Fatalf("load package cards: %v", err)
+	}
+	if packages.Total != 2 || len(packages.Items) != 2 {
+		t.Fatalf("package cards total/items=%d/%d, want 2/2", packages.Total, len(packages.Items))
+	}
+	for _, card := range packages.Items {
+		if card.ID == "package-canceled" {
+			t.Fatalf("canceled package card should not be listed")
+		}
 	}
 
 	if _, err := loadUserQuotaCard("user-1", userQuotaCardKindTopup, "lot-other"); !errors.Is(err, gorm.ErrRecordNotFound) {

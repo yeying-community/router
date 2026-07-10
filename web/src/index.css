@@ -3083,6 +3083,14 @@ body,
     margin-bottom: 12px;
 }
 
+.router-payment-history-page .router-topup-history-toolbar {
+    justify-content: flex-start;
+}
+
+.router-quota-history-kind-select {
+    width: 140px;
+}
+
 .router-topup-balance-stat-grid {
     display: grid;
     gap: 1rem;
@@ -3867,6 +3875,19 @@ body,
     flex-wrap: wrap;
     gap: 8px;
     min-width: 0;
+}
+
+.router-service-pricing-history-link-wrap {
+    margin-left: auto;
+}
+
+.router-service-pricing-history-link {
+    color: #2185d0;
+    text-decoration: none;
+}
+
+.router-service-pricing-history-link:hover {
+    text-decoration: underline;
 }
 
 .router-filter-toolbar {

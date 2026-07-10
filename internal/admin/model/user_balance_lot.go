@@ -19,6 +19,10 @@ const (
 	UserBalanceLotSourceTopup    = "topup_order"
 	UserBalanceLotSourceRedeem   = "redemption"
 	UserBalanceLotMaxValidityDay = 3650
+
+	UserBalanceLotQuotaCardKindTopup      = "topup"
+	UserBalanceLotQuotaCardKindRedemption = "redemption"
+	UserBalanceLotQuotaCardKindGift       = "gift"
 )
 
 type UserBalanceLot struct {
@@ -159,6 +163,10 @@ func normalizeUserBalanceLotRow(row *UserBalanceLot) {
 }
 
 func ListRecentUserBalanceLotsWithDB(db *gorm.DB, userID string, activeOnly bool, limit int) ([]UserBalanceLot, int64, error) {
+	return ListRecentUserBalanceLotsByQuotaKindWithDB(db, userID, activeOnly, "", limit)
+}
+
+func ListRecentUserBalanceLotsByQuotaKindWithDB(db *gorm.DB, userID string, activeOnly bool, kind string, limit int) ([]UserBalanceLot, int64, error) {
 	if db == nil {
 		return nil, 0, fmt.Errorf("database handle is nil")
 	}
@@ -166,12 +174,33 @@ func ListRecentUserBalanceLotsWithDB(db *gorm.DB, userID string, activeOnly bool
 	if normalizedUserID == "" {
 		return nil, 0, fmt.Errorf("用户 ID 不能为空")
 	}
-	query := db.Model(&UserBalanceLot{}).Where("user_id = ?", normalizedUserID)
+	lotTable := UserBalanceLotsTableName
+	query := db.Model(&UserBalanceLot{}).Where(lotTable+".user_id = ?", normalizedUserID)
+	switch strings.TrimSpace(strings.ToLower(kind)) {
+	case "":
+	case UserBalanceLotQuotaCardKindTopup:
+		query = query.
+			Joins("LEFT JOIN "+TopupOrdersTableName+" AS quota_card_orders ON quota_card_orders.id = "+lotTable+".source_id").
+			Where(lotTable+".source_type = ?", UserBalanceLotSourceTopup).
+			Where(
+				"(quota_card_orders.id IS NULL OR COALESCE(quota_card_orders.credit_origin, '') NOT IN ?)",
+				TopupOrderGiftCreditOriginValues(),
+			)
+	case UserBalanceLotQuotaCardKindRedemption:
+		query = query.Where(lotTable+".source_type = ?", UserBalanceLotSourceRedeem)
+	case UserBalanceLotQuotaCardKindGift:
+		query = query.
+			Joins("JOIN "+TopupOrdersTableName+" AS quota_card_orders ON quota_card_orders.id = "+lotTable+".source_id").
+			Where(lotTable+".source_type = ?", UserBalanceLotSourceTopup).
+			Where("quota_card_orders.credit_origin IN ?", TopupOrderGiftCreditOriginValues())
+	default:
+		return nil, 0, fmt.Errorf("无效的额度卡片类型")
+	}
 	if activeOnly {
 		now := helper.GetTimestamp()
 		query = query.
-			Where("status = ? AND remaining_amount > 0", UserBalanceLotStatusActive).
-			Where("(expires_at = 0 OR expires_at > ?)", now)
+			Where(lotTable+".status = ? AND "+lotTable+".remaining_amount > 0", UserBalanceLotStatusActive).
+			Where("("+lotTable+".expires_at = 0 OR "+lotTable+".expires_at > ?)", now)
 	}
 	total := int64(0)
 	if err := query.Count(&total).Error; err != nil {
@@ -185,7 +214,7 @@ func ListRecentUserBalanceLotsWithDB(db *gorm.DB, userID string, activeOnly bool
 	}
 	rows := make([]UserBalanceLot, 0, limit)
 	if err := query.
-		Order("granted_at desc, created_at desc, id desc").
+		Order(lotTable + ".granted_at desc, " + lotTable + ".created_at desc, " + lotTable + ".id desc").
 		Limit(limit).
 		Find(&rows).Error; err != nil {
 		return nil, 0, err

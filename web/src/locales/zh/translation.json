@@ -137,6 +137,7 @@
       "credit_origin": "额度来源",
       "source_amount": "支付或面值",
       "kind": {
+        "all": "全部类型",
         "package": "套餐",
         "topup": "充值",
         "redemption": "兑换",
@@ -152,7 +153,7 @@
       }
     },
     "payment_history": {
-      "button": "支付历史",
+      "button": "支付记录",
       "title": "支付历史",
       "status_title": "支付状态",
       "back_to_pricing": "返回订阅"
@@ -347,6 +348,7 @@
         "status": "状态",
         "amount": "金额",
         "detail": "明细",
+        "name": "名称",
         "quota": "额度",
         "package_name": "套餐名称",
         "action": "操作",

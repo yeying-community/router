@@ -137,6 +137,7 @@
       "credit_origin": "Credit Origin",
       "source_amount": "Payment or Face Value",
       "kind": {
+        "all": "All Types",
         "package": "Package",
         "topup": "Top-up",
         "redemption": "Redemption",
@@ -152,7 +153,7 @@
       }
     },
     "payment_history": {
-      "button": "Payment History",
+      "button": "Payment Records",
       "title": "Payment History",
       "status_title": "Payment Status",
       "back_to_pricing": "Back to Subscription"
@@ -347,6 +348,7 @@
         "status": "Status",
         "amount": "Amount",
         "detail": "Detail",
+        "name": "Name",
         "quota": "Quota",
         "package_name": "Package Name",
         "action": "Action",

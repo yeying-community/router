@@ -34,6 +34,7 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
   const isRedemptionRecord = recordKey === 'redeem';
   const isPackageRecord = recordKey === 'package';
   const isGiftRecord = recordKey === 'gift';
+  const isPaymentRecord = recordKey === 'payment';
   const [orders, setOrders] = useState([]);
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersTotal, setOrdersTotal] = useState(0);
@@ -49,6 +50,9 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
     if (recordKey === 'package') {
       return 'package_purchase';
     }
+    if (recordKey === 'payment') {
+      return '';
+    }
     return 'balance_topup';
   }, [recordKey]);
 
@@ -63,7 +67,7 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
             business_type: currentBusinessType,
             credit_origin: isGiftRecord
               ? 'gift'
-              : recordKey === 'topup'
+              : recordKey === 'topup' || isPaymentRecord
                 ? 'paid'
                 : undefined,
           },
@@ -82,7 +86,7 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
         setLoadingOrders(false);
       }
     },
-    [currentBusinessType, isGiftRecord, recordKey, t],
+    [currentBusinessType, isGiftRecord, isPaymentRecord, recordKey, t],
   );
 
   const loadRedemptionRecords = useCallback(
@@ -265,16 +269,20 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
         return;
       }
       const currentPagePath = `${location.pathname}${location.search}${location.hash}`;
+      const orderRecordKey = isGiftRecord
+        ? 'gift'
+        : order?.business_type === 'package_purchase'
+          ? 'package'
+          : 'topup';
       navigate(`/workspace/topup/orders/${encodeURIComponent(normalizedOrderID)}`, {
         state: {
           from: currentPagePath,
-          recordKey: isPackageRecord ? 'package' : isGiftRecord ? 'gift' : 'topup',
+          recordKey: orderRecordKey,
         },
       });
     },
     [
       isGiftRecord,
-      isPackageRecord,
       location.hash,
       location.pathname,
       location.search,
@@ -296,6 +304,11 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
         };
       case 'gift':
         return null;
+      case 'payment':
+        return {
+          label: t('topup.record_nav.package'),
+          onClick: () => navigate('/workspace/service/pricing'),
+        };
       case 'topup':
       default:
         return {
@@ -363,9 +376,9 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
         key: 'status',
         className: 'router-table-col-status-compact',
         width: TOPUP_RECORD_COLUMN_WIDTHS.status,
-        render: (value) => {
+        render: (value, order) => {
           const statusNode = renderTopupOrderStatus(value, t);
-          const statusHint = !isPackageRecord
+          const statusHint = order?.business_type !== 'package_purchase'
             ? formatTopupOrderStatusHint(value, t)
             : '';
           if (!statusHint) {
@@ -393,19 +406,33 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
               : '-',
       },
       {
-        title: isPackageRecord
-          ? t('topup.external_topup_orders.columns.package_name')
-          : t('topup.external_topup_orders.columns.quota'),
+        title: isPaymentRecord
+          ? t('topup.external_topup_orders.columns.name')
+          : isPackageRecord
+            ? t('topup.external_topup_orders.columns.package_name')
+            : t('topup.external_topup_orders.columns.quota'),
         dataIndex: isPackageRecord ? 'package_name' : 'quota',
-        key: isPackageRecord ? 'package_name' : 'quota',
+        key: isPaymentRecord
+          ? 'name'
+          : isPackageRecord
+            ? 'package_name'
+            : 'quota',
         width: TOPUP_RECORD_COLUMN_WIDTHS.quotaOrPackage,
         ellipsis: true,
-        render: (_, order) =>
-          isPackageRecord
+        render: (_, order) => {
+          if (isPaymentRecord) {
+            return order.business_type === 'package_purchase'
+              ? order.package_name || order.title || '-'
+              : order.quota > 0
+                ? renderDisplayAmount(order.quota)
+                : order.title || '-';
+          }
+          return isPackageRecord
             ? order.package_name || '-'
             : order.quota > 0
               ? renderDisplayAmount(order.quota)
-              : '-',
+              : '-';
+        },
       },
       isGiftRecord
         ? null
@@ -464,6 +491,7 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
       formatTopupBusinessType,
       isGiftRecord,
       isPackageRecord,
+      isPaymentRecord,
       manualRefreshOrder,
       refreshingOrderID,
       renderDisplayAmount,
@@ -473,6 +501,8 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
 
   const sectionTitle = isRedemptionRecord
     ? t('topup.redemption_records.title', '兑换记录')
+    : isPaymentRecord
+      ? t('topup.payment_history.title')
     : isPackageRecord
       ? t('topup.records.package_title', '套餐订单')
       : isGiftRecord
@@ -480,6 +510,14 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
         : t('topup.records.title', '充值订单');
   const sectionExtra = (
     <>
+      {isPaymentRecord ? (
+        <AppButton
+          className='router-section-button'
+          onClick={() => navigate('/workspace/service/pricing')}
+        >
+          {t('topup.payment_history.back_to_pricing')}
+        </AppButton>
+      ) : null}
       {actionButton ? (
         <AppButton
           color='blue'
