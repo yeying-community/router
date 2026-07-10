@@ -24,6 +24,7 @@
   "scripts": {
     "start": "vite",
     "build": "node ./scripts/check-router-ui-boundary.mjs && node ./scripts/check-popover-select-safety.mjs && vite build",
+    "test:write-paged-rows": "node ./scripts/test-write-paged-rows.mjs",
     "check:router-ui": "node ./scripts/check-router-ui-boundary.mjs",
     "check:popover-safety": "node ./scripts/check-popover-select-safety.mjs",
     "dev": "vite",
