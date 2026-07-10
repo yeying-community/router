@@ -1733,6 +1733,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderMigrationProvidersWithDB(tx, "openai", "deepseek", "xai")
 			},
 		},
+		{
+			Version:     "202607101030_repair_provider_text_cache_pricing_components",
+			Description: "restore provider text cache pricing components removed by provider catalog refreshes",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderTextCachePricingComponentsWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

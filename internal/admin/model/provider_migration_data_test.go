@@ -357,6 +357,85 @@ func TestUpsertProviderTextCachePricingComponentsWithDB(t *testing.T) {
 	}
 }
 
+func TestUpsertProviderMigrationProvidersPreservesTextCachePricingComponents(t *testing.T) {
+	db := newProviderMigrationTestDB(t)
+	if err := upsertProviderMigrationProvidersWithDB(db, "openai"); err != nil {
+		t.Fatalf("seed openai provider catalog: %v", err)
+	}
+
+	cacheRead := ProviderModelPriceComponent{}
+	if err := db.First(
+		&cacheRead,
+		"provider = ? AND model = ? AND component = ? AND condition = ?",
+		"openai",
+		"gpt-5.5",
+		ProviderModelPriceComponentTextCacheRead,
+		"",
+	).Error; err != nil {
+		t.Fatalf("query initial openai cache read component: %v", err)
+	}
+	if cacheRead.InputPrice != 0.0005 || cacheRead.Source != "migration" {
+		t.Fatalf("initial openai cache read price=%v source=%q, want 0.0005 migration", cacheRead.InputPrice, cacheRead.Source)
+	}
+
+	if err := db.Model(&ProviderModelPriceComponent{}).
+		Where(
+			"provider = ? AND model = ? AND component = ? AND condition = ?",
+			"openai",
+			"gpt-5.5",
+			ProviderModelPriceComponentTextCacheRead,
+			"",
+		).
+		Update("input_price", 0.123).Error; err != nil {
+		t.Fatalf("make migration cache price stale: %v", err)
+	}
+	if err := db.Create(&ProviderModelPriceComponent{
+		Provider:   "openai",
+		Model:      "gpt-5.5",
+		Component:  "manual_test_component",
+		InputPrice: 0.321,
+		PriceUnit:  ProviderPriceUnitPer1KTokens,
+		Currency:   ProviderPriceCurrencyUSD,
+		Source:     "manual",
+	}).Error; err != nil {
+		t.Fatalf("create manual provider component: %v", err)
+	}
+
+	if err := upsertProviderMigrationProvidersWithDB(db, "openai"); err != nil {
+		t.Fatalf("refresh openai provider catalog: %v", err)
+	}
+
+	if err := db.First(
+		&cacheRead,
+		"provider = ? AND model = ? AND component = ? AND condition = ?",
+		"openai",
+		"gpt-5.5",
+		ProviderModelPriceComponentTextCacheRead,
+		"",
+	).Error; err != nil {
+		t.Fatalf("query refreshed openai cache read component: %v", err)
+	}
+	if cacheRead.InputPrice != 0.0005 || cacheRead.Source != "migration" {
+		t.Fatalf("refreshed openai cache read price=%v source=%q, want 0.0005 migration", cacheRead.InputPrice, cacheRead.Source)
+	}
+
+	manualCount := int64(0)
+	if err := db.Model(&ProviderModelPriceComponent{}).
+		Where(
+			"provider = ? AND model = ? AND component = ? AND source = ?",
+			"openai",
+			"gpt-5.5",
+			"manual_test_component",
+			"manual",
+		).
+		Count(&manualCount).Error; err != nil {
+		t.Fatalf("count manual provider component: %v", err)
+	}
+	if manualCount != 1 {
+		t.Fatalf("manual provider component count=%d, want 1", manualCount)
+	}
+}
+
 func TestLoadProviderMigrationSeedsFromSnapshot(t *testing.T) {
 	seeds := mustLoadProviderMigrationSeeds(t)
 	if len(seeds) == 0 {

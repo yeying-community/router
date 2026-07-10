@@ -8,7 +8,6 @@ import (
 
 	"github.com/yeying-community/router/common/helper"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 const (
@@ -100,13 +99,17 @@ func upsertProviderTextCachePricingComponentsWithDB(db *gorm.DB) error {
 		return err
 	}
 	return db.Transaction(func(tx *gorm.DB) error {
-		for _, rule := range providerTextCachePricingRules {
-			if err := upsertProviderTextCachePricingRuleWithDB(tx, rule); err != nil {
-				return err
-			}
-		}
-		return nil
+		return upsertProviderTextCachePricingComponentsInTransaction(tx)
 	})
+}
+
+func upsertProviderTextCachePricingComponentsInTransaction(db *gorm.DB) error {
+	for _, rule := range providerTextCachePricingRules {
+		if err := upsertProviderTextCachePricingRuleWithDB(db, rule); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func upsertProviderTextCachePricingRuleWithDB(db *gorm.DB, rule providerTextCachePricingRule) error {
@@ -140,15 +143,50 @@ func upsertProviderTextCachePricingRuleWithDB(db *gorm.DB, rule providerTextCach
 	if len(rows) == 0 {
 		return nil
 	}
-	return db.Clauses(clause.OnConflict{
-		Columns: []clause.Column{
-			{Name: "provider"},
-			{Name: "model"},
-			{Name: "component"},
-			{Name: "condition"},
-		},
-		DoNothing: true,
-	}).Create(&rows).Error
+	for _, row := range rows {
+		if err := upsertProviderTextCachePricingComponentWithDB(db, row); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func upsertProviderTextCachePricingComponentWithDB(db *gorm.DB, row ProviderModelPriceComponent) error {
+	existing := ProviderModelPriceComponent{}
+	result := db.Where(
+		"provider = ? AND model = ? AND component = ? AND condition = ?",
+		row.Provider,
+		row.Model,
+		row.Component,
+		row.Condition,
+	).Limit(1).Find(&existing)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return db.Create(&row).Error
+	}
+	if strings.TrimSpace(strings.ToLower(existing.Source)) != "migration" {
+		return nil
+	}
+	return db.Model(&ProviderModelPriceComponent{}).
+		Where(
+			"provider = ? AND model = ? AND component = ? AND condition = ?",
+			row.Provider,
+			row.Model,
+			row.Component,
+			row.Condition,
+		).
+		Updates(map[string]any{
+			"input_price":  row.InputPrice,
+			"output_price": row.OutputPrice,
+			"price_unit":   row.PriceUnit,
+			"currency":     row.Currency,
+			"source":       row.Source,
+			"source_url":   row.SourceURL,
+			"sort_order":   row.SortOrder,
+			"updated_at":   row.UpdatedAt,
+		}).Error
 }
 
 func buildProviderTextCachePricingComponent(providerModel ProviderModel, component string, rate float64, sourceURL string, now int64, sortOrder int) ProviderModelPriceComponent {
