@@ -209,6 +209,73 @@ function formatFilterDisplayValue(value) {
   return (value || '').toString().trim().replace('T', ' ');
 }
 
+function normalizeSearchDateTimeValue(value) {
+  const raw = (value || '').toString().trim();
+  if (raw === '') {
+    return '';
+  }
+  if (/^\d+$/.test(raw)) {
+    const timestamp = Number(raw);
+    if (!Number.isFinite(timestamp)) {
+      return '';
+    }
+    const normalizedTimestamp = raw.length > 10 ? timestamp : timestamp * 1000;
+    const date = new Date(normalizedTimestamp);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    const hour = `${date.getHours()}`.padStart(2, '0');
+    const minute = `${date.getMinutes()}`.padStart(2, '0');
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+  }
+  return toDatetimeLocalValue(raw);
+}
+
+function parseLogFiltersFromSearch(search, isAdminScope) {
+  const params = new URLSearchParams(search || '');
+  const nextInputs = {
+    username: '',
+    token_name: '',
+    model_name: '',
+    start_timestamp: '',
+    end_timestamp: '',
+    channel: '',
+    group_id: '',
+  };
+  const nextActiveFilterKeys = [];
+  const nextLogType = Number(params.get('log_type') || params.get('type') || 0);
+  if (Number.isFinite(nextLogType) && nextLogType > 0) {
+    nextActiveFilterKeys.push('log_type');
+  }
+  const nextStart = normalizeSearchDateTimeValue(params.get('start_timestamp'));
+  const nextEnd = normalizeSearchDateTimeValue(params.get('end_timestamp'));
+  if (nextStart !== '' || nextEnd !== '') {
+    nextInputs.start_timestamp = nextStart;
+    nextInputs.end_timestamp = nextEnd;
+    nextActiveFilterKeys.push('time_range');
+  }
+  const filterKeys = ['token_name', 'model_name'];
+  if (isAdminScope) {
+    filterKeys.push('channel', 'group_id', 'username');
+  }
+  filterKeys.forEach((key) => {
+    const value = (params.get(key) || '').toString().trim();
+    if (value === '') {
+      return;
+    }
+    nextInputs[key] = value;
+    nextActiveFilterKeys.push(key);
+  });
+  return {
+    inputs: nextInputs,
+    logType: Number.isFinite(nextLogType) && nextLogType > 0 ? nextLogType : 0,
+    activeFilterKeys: Array.from(new Set(nextActiveFilterKeys)),
+  };
+}
+
 function currentDatetimeLocalValue() {
   const now = new Date();
   const year = now.getFullYear();
@@ -259,6 +326,10 @@ const LogsTable = () => {
   const navigate = useNavigate();
   const currentPagePath = `${location.pathname}${location.search}${location.hash}`;
   const isAdminScope = location.pathname.startsWith('/admin/');
+  const initialSearchFilters = useMemo(
+    () => parseLogFiltersFromSearch(location.search, isAdminScope),
+    [isAdminScope, location.search]
+  );
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState(1);
@@ -268,7 +339,7 @@ const LogsTable = () => {
     order: 'descend',
   });
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [logType, setLogType] = useState(0);
+  const [logType, setLogType] = useState(initialSearchFilters.logType);
   const [filterOptions, setFilterOptions] = useState({
     tokenNames: [],
     modelNames: [],
@@ -276,15 +347,7 @@ const LogsTable = () => {
     channels: [],
     groups: [],
   });
-  const [inputs, setInputs] = useState({
-    username: '',
-    token_name: '',
-    model_name: '',
-    start_timestamp: '',
-    end_timestamp: '',
-    channel: '',
-    group_id: '',
-  });
+  const [inputs, setInputs] = useState(initialSearchFilters.inputs);
   const {
     username,
     token_name,
@@ -294,7 +357,9 @@ const LogsTable = () => {
     channel,
     group_id,
   } = inputs;
-  const [activeFilterKeys, setActiveFilterKeys] = useState([]);
+  const [activeFilterKeys, setActiveFilterKeys] = useState(
+    initialSearchFilters.activeFilterKeys
+  );
   const [addFilterPopupOpen, setAddFilterPopupOpen] = useState(false);
   const [draftFilterKey, setDraftFilterKey] = useState('');
   const [draftFilterInputs, setDraftFilterInputs] = useState({
@@ -423,6 +488,13 @@ const LogsTable = () => {
     () => buildDisplayUnitOptions(currencyIndex),
     [currencyIndex]
   );
+
+  useEffect(() => {
+    setInputs(initialSearchFilters.inputs);
+    setLogType(initialSearchFilters.logType);
+    setActiveFilterKeys(initialSearchFilters.activeFilterKeys);
+    setActivePage(1);
+  }, [initialSearchFilters]);
 
   const openFilterDraft = useCallback(
     (filterKey) => {

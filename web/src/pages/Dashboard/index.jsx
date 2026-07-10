@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Bar,
@@ -92,6 +93,15 @@ const formatDateInput = (date) => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const formatDatetimeLocalInput = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hour}:${minute}`;
 };
 
 const parseDateInput = (value) => {
@@ -204,6 +214,71 @@ const getISOWeekLabel = (date) => {
   const yearStart = new Date(Date.UTC(temp.getUTCFullYear(), 0, 1));
   const week = Math.ceil(((temp - yearStart) / 86400000 + 1) / 7);
   return `${temp.getUTCFullYear()}-W${pad2(week)}`;
+};
+
+const parseISOWeekStart = (label) => {
+  const matched = /^(\d{4})-W(\d{2})$/.exec(String(label || '').trim());
+  if (!matched) return null;
+  const year = Number(matched[1]);
+  const week = Number(matched[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(week) || week < 1) {
+    return null;
+  }
+  const jan4 = new Date(year, 0, 4);
+  const jan4Day = jan4.getDay() || 7;
+  const weekOneStart = startOfDay(addDays(jan4, -(jan4Day - 1)));
+  return addDays(weekOneStart, (week - 1) * 7);
+};
+
+const getCalendarBucketDateRange = (label, granularity) => {
+  const normalizedLabel = String(label || '').trim();
+  if (normalizedLabel === '') {
+    return null;
+  }
+  let start = null;
+  let end = null;
+  switch (granularity) {
+    case 'hour': {
+      const parsed = new Date(`${normalizedLabel}:00:00`);
+      if (Number.isNaN(parsed.getTime())) return null;
+      start = parsed;
+      end = new Date(parsed);
+      end.setMinutes(59, 59, 999);
+      break;
+    }
+    case 'week': {
+      const weekStart = parseISOWeekStart(normalizedLabel);
+      if (!weekStart) return null;
+      start = weekStart;
+      end = endOfDay(addDays(weekStart, 6));
+      break;
+    }
+    case 'month': {
+      const matched = /^(\d{4})-(\d{2})$/.exec(normalizedLabel);
+      if (!matched) return null;
+      start = new Date(Number(matched[1]), Number(matched[2]) - 1, 1);
+      end = endOfDay(new Date(Number(matched[1]), Number(matched[2]), 0));
+      break;
+    }
+    case 'year': {
+      const year = Number(normalizedLabel);
+      if (!Number.isFinite(year)) return null;
+      start = new Date(year, 0, 1);
+      end = endOfDay(new Date(year, 11, 31));
+      break;
+    }
+    default: {
+      const parsed = parseDateInput(normalizedLabel);
+      if (!parsed) return null;
+      start = parsed;
+      end = endOfDay(parsed);
+      break;
+    }
+  }
+  return {
+    start,
+    end,
+  };
 };
 
 const buildBucketLabels = (startTimestamp, endTimestamp, granularity) => {
@@ -371,6 +446,7 @@ const getDefaultRange = (granularity, span) => {
 
 const Dashboard = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [providers, setProviders] = useState({});
   const [selectedModels, setSelectedModels] = useState([]);
@@ -945,6 +1021,24 @@ const Dashboard = () => {
     return formatCountValue(value);
   };
 
+  const handleCalendarBucketClick = useCallback(
+    (bucket) => {
+      const range = getCalendarBucketDateRange(bucket?.label, calendarGranularity);
+      if (!range?.start || !range?.end) {
+        return;
+      }
+      const searchParams = new URLSearchParams();
+      searchParams.set('log_type', '2');
+      searchParams.set('start_timestamp', formatDatetimeLocalInput(range.start));
+      searchParams.set('end_timestamp', formatDatetimeLocalInput(range.end));
+      if (selectedModels.length === 1) {
+        searchParams.set('model_name', selectedModels[0]);
+      }
+      navigate(`/workspace/log?${searchParams.toString()}`);
+    },
+    [calendarGranularity, navigate, selectedModels]
+  );
+
   const handleAddFilterCondition = (e, { value }) => {
     if (!value) return;
     setActiveFilters((prev) => {
@@ -1169,18 +1263,18 @@ const Dashboard = () => {
                         {t('dashboard.spending.calendar.empty')}
                       </div>
                     ) : (
-                      calendarBuckets.map((item, index) => (
-                        <div
+                      calendarBuckets.map((item) => (
+                        <button
+                          type='button'
                           key={item.label}
-                          className={`dashboard-calendar-cell ${
-                            index === 0 ? 'is-active' : ''
-                          }`}
+                          className='dashboard-calendar-cell dashboard-calendar-cell-button'
+                          onClick={() => handleCalendarBucketClick(item)}
                         >
                           <div className='dashboard-calendar-label'>{item.label}</div>
                           <div className='dashboard-calendar-value'>
                             {formatCalendarValue(item.value)}
                           </div>
-                        </div>
+                        </button>
                       ))
                     )}
                   </div>
