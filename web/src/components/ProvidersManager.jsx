@@ -35,6 +35,7 @@ import {
 } from '../router-ui';
 
 const PROVIDER_DETAIL_MODEL_PAGE_SIZE = 20;
+const PROVIDER_MODEL_STATUS_FILTER_ALL = 'all';
 const PROVIDER_ENDPOINT_SORT_ORDER = {
   '/v1/chat/completions': 10,
   '/v1/responses': 20,
@@ -833,6 +834,9 @@ const ProvidersManager = () => {
   const [viewRow, setViewRow] = useState(null);
   const [activeProviderDetailTab, setActiveProviderDetailTab] = useState('basic');
   const [viewModelSearchKeyword, setViewModelSearchKeyword] = useState('');
+  const [viewModelStatusFilter, setViewModelStatusFilter] = useState(
+    PROVIDER_MODEL_STATUS_FILTER_ALL,
+  );
   const [viewModelPage, setViewModelPage] = useState(1);
   const [detailEditingSection, setDetailEditingSection] = useState('');
   const [detailBasicDraft, setDetailBasicDraft] = useState(createEmptyRow());
@@ -933,6 +937,7 @@ const ProvidersManager = () => {
     const normalized = normalizeProvider(row?.id || '');
     if (!normalized) return;
     setViewModelSearchKeyword('');
+    setViewModelStatusFilter(PROVIDER_MODEL_STATUS_FILTER_ALL);
     setViewModelPage(1);
     setActiveProviderDetailTab('basic');
     resetDetailEditingState();
@@ -942,6 +947,7 @@ const ProvidersManager = () => {
 
   const closeViewer = () => {
     setViewModelSearchKeyword('');
+    setViewModelStatusFilter(PROVIDER_MODEL_STATUS_FILTER_ALL);
     setViewModelPage(1);
     setActiveProviderDetailTab('basic');
     setViewingProvider('');
@@ -1349,6 +1355,7 @@ const ProvidersManager = () => {
     setModelDetailEditorMode('create');
     setModelDetailEditorOpen(true);
     setViewModelSearchKeyword('');
+    setViewModelStatusFilter(PROVIDER_MODEL_STATUS_FILTER_ALL);
     setViewModelPage(1);
   }, [creating, saving, viewRow]);
 
@@ -2221,24 +2228,37 @@ const ProvidersManager = () => {
     const normalizedModelSearchKeyword = modelSearchKeyword
       .trim()
       .toLowerCase();
+    const modelStatusFilter =
+      typeof options.statusFilter === 'string'
+        ? options.statusFilter.trim().toLowerCase()
+        : PROVIDER_MODEL_STATUS_FILTER_ALL;
     const detailRows = details.map((detail, index) => ({ detail, index }));
-    const visibleDetailRows =
-      normalizedModelSearchKeyword === ''
-        ? detailRows
-        : detailRows.filter(({ detail }) => {
-            const haystack = [
-              detail.model || '',
-              detail.description || '',
-              detail.status || '',
-              (detail.tags || []).join(','),
-              (detail.supported_endpoints || []).join(','),
-              detail.price_unit || '',
-              detail.currency || '',
-            ]
-              .join(' ')
-              .toLowerCase();
-            return haystack.includes(normalizedModelSearchKeyword);
-          });
+    const visibleDetailRows = detailRows.filter(({ detail }) => {
+      const detailStatus = String(detail.status || 'active')
+        .trim()
+        .toLowerCase();
+      if (
+        modelStatusFilter !== PROVIDER_MODEL_STATUS_FILTER_ALL &&
+        detailStatus !== modelStatusFilter
+      ) {
+        return false;
+      }
+      if (normalizedModelSearchKeyword === '') {
+        return true;
+      }
+      const haystack = [
+        detail.model || '',
+        detail.description || '',
+        detailStatus,
+        (detail.tags || []).join(','),
+        (detail.supported_endpoints || []).join(','),
+        detail.price_unit || '',
+        detail.currency || '',
+      ]
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(normalizedModelSearchKeyword);
+    });
     const totalPages = Math.max(
       1,
       Math.ceil(visibleDetailRows.length / pageSize),
@@ -3300,6 +3320,39 @@ const ProvidersManager = () => {
             titleClassName='router-provider-detail-section-title'
             headerEnd={
               <>
+                <AppSelect
+                  className='router-section-dropdown router-mini-dropdown'
+                  options={[
+                    {
+                      key: PROVIDER_MODEL_STATUS_FILTER_ALL,
+                      value: PROVIDER_MODEL_STATUS_FILTER_ALL,
+                      text: t(
+                        'channel.providers.model_detail_table.status_all',
+                      ),
+                    },
+                    {
+                      key: 'active',
+                      value: 'active',
+                      text: t(
+                        'channel.providers.model_detail_table.status_active',
+                      ),
+                    },
+                    {
+                      key: 'deprecated',
+                      value: 'deprecated',
+                      text: t(
+                        'channel.providers.model_detail_table.status_deprecated',
+                      ),
+                    },
+                  ]}
+                  value={viewModelStatusFilter}
+                  onChange={(e, { value }) => {
+                    setViewModelStatusFilter(
+                      value || PROVIDER_MODEL_STATUS_FILTER_ALL,
+                    );
+                    setViewModelPage(1);
+                  }}
+                />
                 <AppInput
                   className='router-inline-input router-search-form-xs router-section-header-search'
                   placeholder={t(
@@ -3327,6 +3380,7 @@ const ProvidersManager = () => {
               hideTitle: true,
               showToolbar: false,
               searchKeyword: viewModelSearchKeyword,
+              statusFilter: viewModelStatusFilter,
               currentPage: viewModelPage,
               pageSize: PROVIDER_DETAIL_MODEL_PAGE_SIZE,
               onPageChange: setViewModelPage,
