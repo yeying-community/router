@@ -59,11 +59,35 @@ func defaultProviderModelStatus(provider string, modelName string) string {
 	modelName = strings.TrimSpace(strings.ToLower(modelName))
 	switch provider {
 	case "openai":
-		if modelName == "codex-mini-latest" {
+		// https://developers.openai.com/api/docs/deprecations
+		switch modelName {
+		case "codex-mini-latest",
+			"dall-e-3",
+			"gpt-4.1-nano",
+			"gpt-5-codex",
+			"gpt-5.1-codex",
+			"gpt-5.1-codex-max",
+			"gpt-5.1-codex-mini",
+			"gpt-5.2-codex",
+			"gpt-image-1",
+			"gpt-image-1-mini",
+			"gpt-image-1.5",
+			"sora-2",
+			"sora-2-pro":
 			return ProviderModelStatusDeprecated
 		}
 	case "anthropic":
-		if modelName == "claude-3-5-haiku-20241022" {
+		// https://platform.claude.com/docs/en/about-claude/model-deprecations
+		switch modelName {
+		case "claude-3-5-haiku-20241022",
+			"claude-opus-4-1-20250805":
+			return ProviderModelStatusDeprecated
+		}
+	case "deepseek":
+		// https://api-docs.deepseek.com/quick_start/pricing
+		switch modelName {
+		case "deepseek-chat",
+			"deepseek-reasoner":
 			return ProviderModelStatusDeprecated
 		}
 	case "google":

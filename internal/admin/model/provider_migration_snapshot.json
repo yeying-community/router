@@ -25,7 +25,7 @@
       {
         "model": "dall-e-3",
         "type": "image",
-        "status": "active",
+        "status": "deprecated",
         "description": "DALL·E 3 是 OpenAI 的图像生成模型，适合根据提示词生成高质量图像。",
         "specification": {
           "version": 1,
@@ -283,7 +283,7 @@
       {
         "model": "gpt-4.1-nano",
         "type": "text",
-        "status": "active",
+        "status": "deprecated",
         "description": "GPT-4.1 Nano 是 GPT-4.1 的超轻量版本，适合简单高并发任务。",
         "supported_endpoints": [
           "/v1/chat/completions",
@@ -574,7 +574,7 @@
       {
         "model": "gpt-5-codex",
         "type": "text",
-        "status": "active",
+        "status": "deprecated",
         "description": "GPT-5 Codex 是 GPT-5 系列中面向代码理解、生成和代理执行的模型。",
         "supported_endpoints": [
           "/v1/chat/completions",
@@ -870,7 +870,7 @@
       {
         "model": "gpt-5.1-codex",
         "type": "text",
-        "status": "active",
+        "status": "deprecated",
         "description": "GPT-5.1 Codex 是面向代码生成、修改和工程代理任务优化的模型。",
         "supported_endpoints": [
           "/v1/chat/completions",
@@ -886,7 +886,7 @@
       {
         "model": "gpt-5.1-codex-max",
         "type": "text",
-        "status": "active",
+        "status": "deprecated",
         "description": "GPT-5.1 Codex Max 是更偏高能力的 Codex 版本，适合复杂代码工作流。",
         "supported_endpoints": [
           "/v1/chat/completions",
@@ -902,7 +902,7 @@
       {
         "model": "gpt-5.1-codex-mini",
         "type": "text",
-        "status": "active",
+        "status": "deprecated",
         "description": "GPT-5.1 Codex Mini 是更轻量的代码模型，适合成本敏感的工程任务。",
         "supported_endpoints": [
           "/v1/chat/completions",
@@ -1042,7 +1042,7 @@
       {
         "model": "gpt-5.2-codex",
         "type": "text",
-        "status": "active",
+        "status": "deprecated",
         "description": "GPT-5.2 Codex 是 GPT-5.2 的代码版本，适合代码理解、生成和修复。",
         "supported_endpoints": [
           "/v1/chat/completions",
@@ -1928,7 +1928,7 @@
       {
         "model": "gpt-image-1",
         "type": "image",
-        "status": "active",
+        "status": "deprecated",
         "description": "GPT Image 1 是 OpenAI 的图像生成与编辑模型，适合多种图片工作流。",
         "specification": {
           "version": 1,
@@ -2116,7 +2116,7 @@
       {
         "model": "gpt-image-1-mini",
         "type": "image",
-        "status": "active",
+        "status": "deprecated",
         "description": "GPT Image 1 Mini 是更低成本的图像生成模型，适合成本敏感场景。",
         "specification": {
           "version": 1,
@@ -2234,7 +2234,7 @@
       {
         "model": "gpt-image-1.5",
         "type": "image",
-        "status": "active",
+        "status": "deprecated",
         "description": "GPT Image 1.5 是更具性价比的图像生成模型，适合图像生成与编辑。",
         "specification": {
           "version": 1,
@@ -2701,7 +2701,7 @@
       {
         "model": "sora-2",
         "type": "video",
-        "status": "active",
+        "status": "deprecated",
         "description": "Sora 2 是 OpenAI 的视频生成模型，适合根据文本或多模态输入生成视频。",
         "supported_endpoints": [
           "/v1/videos"
@@ -2715,7 +2715,7 @@
       {
         "model": "sora-2-pro",
         "type": "video",
-        "status": "active",
+        "status": "deprecated",
         "description": "Sora 2 Pro 是更高能力的视频生成模型，适合更复杂的视频生成任务。",
         "supported_endpoints": [
           "/v1/videos"
@@ -2982,7 +2982,7 @@
       {
         "model": "claude-opus-4-1-20250805",
         "type": "text",
-        "status": "active",
+        "status": "deprecated",
         "description": "Claude Opus 4.1 是 Anthropic 的高能力模型，适合高复杂度分析和代码任务。",
         "supported_endpoints": [
           "/v1/messages"
@@ -3419,7 +3419,7 @@
       {
         "model": "deepseek-chat",
         "type": "text",
-        "status": "active",
+        "status": "deprecated",
         "description": "DeepSeek Chat 是 DeepSeek V4 Flash 非思考模式的兼容别名，将于 2026-07-24 15:59 UTC 后退役。",
         "supported_endpoints": [
           "/v1/chat/completions",
@@ -3438,7 +3438,7 @@
         "tags": [
           "reasoning"
         ],
-        "status": "active",
+        "status": "deprecated",
         "description": "DeepSeek Reasoner 是 DeepSeek V4 Flash 思考模式的兼容别名，将于 2026-07-24 15:59 UTC 后退役。",
         "supported_endpoints": [
           "/v1/chat/completions",

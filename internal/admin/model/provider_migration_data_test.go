@@ -1226,10 +1226,27 @@ func TestBuildProviderMigrationSeeds_DeprecatedStatusApplied(t *testing.T) {
 	seeds := mustLoadProviderMigrationSeeds(t)
 	checks := map[string]map[string]bool{
 		"openai": {
-			"codex-mini-latest": false,
+			"codex-mini-latest":  false,
+			"dall-e-3":           false,
+			"gpt-4.1-nano":       false,
+			"gpt-5-codex":        false,
+			"gpt-5.1-codex":      false,
+			"gpt-5.1-codex-max":  false,
+			"gpt-5.1-codex-mini": false,
+			"gpt-5.2-codex":      false,
+			"gpt-image-1":        false,
+			"gpt-image-1-mini":   false,
+			"gpt-image-1.5":      false,
+			"sora-2":             false,
+			"sora-2-pro":         false,
 		},
 		"anthropic": {
 			"claude-3-5-haiku-20241022": false,
+			"claude-opus-4-1-20250805":  false,
+		},
+		"deepseek": {
+			"deepseek-chat":     false,
+			"deepseek-reasoner": false,
 		},
 		"google": {
 			"gemini-live-2.5-flash-preview": false,
