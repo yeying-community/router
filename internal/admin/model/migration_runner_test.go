@@ -275,6 +275,7 @@ func TestRemoveDefaultUserGroupAndLegacyBalanceSourcesWithDB(t *testing.T) {
 		&TopupOrder{},
 		&UserBalanceLot{},
 		&UserBalanceLotTransaction{},
+		&Redemption{},
 	); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
@@ -368,16 +369,21 @@ func TestMigrateBalanceCreditOriginsReconcilesLegacyUserQuotaAsGiftLots(t *testi
 	}
 	if err := db.AutoMigrate(
 		&User{},
+		&GroupCatalog{},
 		&TopupOrder{},
 		&UserBalanceLot{},
 		&UserBalanceLotTransaction{},
+		&Redemption{},
 	); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
 	if err := db.Exec("ALTER TABLE users ADD COLUMN quota bigint DEFAULT 0").Error; err != nil {
 		t.Fatalf("add legacy quota column: %v", err)
 	}
-	if err := db.Create(&User{Id: "user-legacy", Username: "legacy"}).Error; err != nil {
+	if err := db.Create(&GroupCatalog{Id: "group-legacy", Name: "Legacy Group", Enabled: true}).Error; err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+	if err := db.Create(&User{Id: "user-legacy", Username: "legacy", Group: "group-legacy"}).Error; err != nil {
 		t.Fatalf("create user: %v", err)
 	}
 	if err := db.Exec("UPDATE users SET quota = ? WHERE id = ?", 100, "user-legacy").Error; err != nil {
@@ -433,6 +439,9 @@ func TestMigrateBalanceCreditOriginsReconcilesLegacyUserQuotaAsGiftLots(t *testi
 	if reconcileOrders[0].Quota != 60 {
 		t.Fatalf("reconcile quota=%d, want 60", reconcileOrders[0].Quota)
 	}
+	if reconcileOrders[0].GroupID != "group-legacy" {
+		t.Fatalf("reconcile group_id=%q, want group-legacy", reconcileOrders[0].GroupID)
+	}
 	var lots []UserBalanceLot
 	if err := db.Where("source_type = ? AND source_id = ?", UserBalanceLotSourceTopup, reconcileOrders[0].Id).Find(&lots).Error; err != nil {
 		t.Fatalf("find reconcile lots: %v", err)
@@ -442,6 +451,91 @@ func TestMigrateBalanceCreditOriginsReconcilesLegacyUserQuotaAsGiftLots(t *testi
 	}
 	if lots[0].RemainingAmount != 60 || lots[0].Status != UserBalanceLotStatusActive {
 		t.Fatalf("reconcile lot remaining/status=%d/%q, want 60/%q", lots[0].RemainingAmount, lots[0].Status, UserBalanceLotStatusActive)
+	}
+	groupBalance, err := GetEffectiveUserBalanceAmountForGroupWithDB(db, "user-legacy", "group-legacy", 200)
+	if err != nil {
+		t.Fatalf("get group balance: %v", err)
+	}
+	if groupBalance != 60 {
+		t.Fatalf("group balance=%d, want 60", groupBalance)
+	}
+}
+
+func TestBackfillReconciliationBalanceOrderGroupsWithDB(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(
+		&User{},
+		&GroupCatalog{},
+		&TopupOrder{},
+		&UserBalanceLot{},
+		&UserBalanceLotTransaction{},
+		&Redemption{},
+	); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	if err := db.Create(&GroupCatalog{Id: "group-backfill", Name: "Backfill Group", Enabled: true}).Error; err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+	if err := db.Create(&User{Id: "user-backfill", Username: "backfill", Group: "group-backfill"}).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	order := TopupOrder{
+		Id:            "order-backfill",
+		UserID:        "user-backfill",
+		Username:      "backfill",
+		Status:        TopupOrderStatusFulfilled,
+		Source:        TopupOrderSourceTopUpAPI,
+		ProviderName:  "migration",
+		TransactionID: "balance-reconciliation-user-backfill",
+		BusinessType:  TopupOrderBusinessBalance,
+		OperationType: TopupOrderOperationTopup,
+		CreditOrigin:  TopupOrderCreditOriginReconcile,
+		Title:         "系统补录赠送余额",
+		Quota:         75,
+		CreatedAt:     100,
+		UpdatedAt:     100,
+	}
+	if err := db.Create(&order).Error; err != nil {
+		t.Fatalf("create order: %v", err)
+	}
+	if _, _, err := CreditUserBalanceLotWithDB(db, UserBalanceLotCreditInput{
+		UserID:      "user-backfill",
+		SourceType:  UserBalanceLotSourceTopup,
+		SourceID:    order.Id,
+		TotalAmount: 75,
+		GrantedAt:   100,
+		ExpiresAt:   0,
+	}); err != nil {
+		t.Fatalf("credit lot: %v", err)
+	}
+
+	before, err := GetEffectiveUserBalanceAmountForGroupWithDB(db, "user-backfill", "group-backfill", 200)
+	if err != nil {
+		t.Fatalf("get balance before backfill: %v", err)
+	}
+	if before != 0 {
+		t.Fatalf("group balance before backfill=%d, want 0", before)
+	}
+	if err := backfillReconciliationBalanceOrderGroupsWithDB(db); err != nil {
+		t.Fatalf("backfill order groups: %v", err)
+	}
+
+	migratedOrder := TopupOrder{}
+	if err := db.First(&migratedOrder, "id = ?", order.Id).Error; err != nil {
+		t.Fatalf("load migrated order: %v", err)
+	}
+	if migratedOrder.GroupID != "group-backfill" {
+		t.Fatalf("migrated group_id=%q, want group-backfill", migratedOrder.GroupID)
+	}
+	after, err := GetEffectiveUserBalanceAmountForGroupWithDB(db, "user-backfill", "group-backfill", 200)
+	if err != nil {
+		t.Fatalf("get balance after backfill: %v", err)
+	}
+	if after != 75 {
+		t.Fatalf("group balance after backfill=%d, want 75", after)
 	}
 }
 
