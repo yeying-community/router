@@ -173,7 +173,7 @@
       "order_empty": "暂无订单记录",
       "continue_pay": "继续支付",
       "cancel_pay": "取消支付",
-      "refresh_status": "刷新状态",
+      "refresh_status": "同步支付状态",
       "order_paid": "订单已支付，状态已更新",
       "order_canceled": "订单已取消",
       "redirect_missing": "当前订单缺少支付链接，请重新下单或联系管理员",
@@ -2331,6 +2331,8 @@
     },
     "batch": {
       "grant_topup": "批量赠送额度",
+      "grant_topup_selected": "赠送已选 {{count}} 个",
+      "cancel_selection": "取消批量",
       "confirm_grant": "确认赠送",
       "topup_select_required": "请先选择至少一个用户",
       "topup_confirm_hint": "将向已选 {{count}} 个用户赠送所选充值额度，执行后会生成充值订单和余额流水。",

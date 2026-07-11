@@ -36,6 +36,8 @@ const normalizeRecordKey = (value = '') => {
   return 'topup';
 };
 
+const SYNCABLE_TOPUP_ORDER_STATUSES = new Set(['created', 'pending', 'paid']);
+
 const TopUpOrderDetailInner = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -164,6 +166,9 @@ const TopUpOrderDetailInner = () => {
     () => formatTopupOrderStatusHint(order?.status, t),
     [order?.status, t],
   );
+  const canSyncPaymentStatus = SYNCABLE_TOPUP_ORDER_STATUSES.has(
+    String(order?.status || '').trim(),
+  );
 
   const detailTitle =
     recordKey === 'package'
@@ -191,14 +196,28 @@ const TopUpOrderDetailInner = () => {
       {
         key: 'status',
         label: t('topup.external_topup_orders.columns.status'),
-        value: statusHint ? (
-          <AppTooltip title={statusHint}>
-            <span className='router-help-trigger'>
-              {renderTopupOrderStatus(order?.status, t)}
-            </span>
-          </AppTooltip>
-        ) : (
-          renderTopupOrderStatus(order?.status, t)
+        value: (
+          <div className='router-action-group-tight'>
+            {statusHint ? (
+              <AppTooltip title={statusHint}>
+                <span className='router-help-trigger'>
+                  {renderTopupOrderStatus(order?.status, t)}
+                </span>
+              </AppTooltip>
+            ) : (
+              renderTopupOrderStatus(order?.status, t)
+            )}
+            {canSyncPaymentStatus ? (
+              <AppButton
+                className='router-inline-button'
+                onClick={refreshOrderStatus}
+                loading={refreshing}
+                disabled={!order || refreshing}
+              >
+                {t('topup.records.refresh_status')}
+              </AppButton>
+            ) : null}
+          </div>
         ),
       },
       {
@@ -272,14 +291,6 @@ const TopUpOrderDetailInner = () => {
         title={detailTitle}
         actions={
           <>
-          <AppButton
-            className='router-section-button'
-            onClick={refreshOrderStatus}
-            loading={refreshing}
-            disabled={!order}
-          >
-            {t('topup.records.refresh_status')}
-          </AppButton>
           {['created', 'pending'].includes(String(order?.status || '').trim()) ? (
             <>
               <AppButton

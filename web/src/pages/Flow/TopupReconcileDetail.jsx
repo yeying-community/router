@@ -26,6 +26,8 @@ const formatDateTime = (value) => {
 const normalizeTopupStatus = (value) =>
   (value || '').toString().trim().toLowerCase();
 
+const SYNCABLE_TOPUP_RECONCILE_STATUSES = new Set(['created', 'pending', 'paid']);
+
 const renderTopupStatus = (status, t) => {
   switch (normalizeTopupStatus(status)) {
     case 'created':
@@ -159,6 +161,9 @@ const TopupReconcileDetail = () => {
     () => resolveListPath(location.state?.from),
     [location.state?.from],
   );
+  const canSyncPaymentStatus = SYNCABLE_TOPUP_RECONCILE_STATUSES.has(
+    normalizeTopupStatus(order?.status),
+  );
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -229,24 +234,14 @@ const TopupReconcileDetail = () => {
           title={t('flow.topup_reconcile.detail.sections.basic')}
           titleTag='div'
           headerEnd={
-            <>
-              <AppButton
-                className='router-page-button'
-                onClick={loadDetail}
-                loading={loading}
-                disabled={loading}
-              >
-                {t('task.buttons.refresh')}
-              </AppButton>
-              <AppButton
-                className='router-page-button'
-                onClick={handleRefresh}
-                loading={refreshing}
-                disabled={refreshing}
-              >
-                {t('flow.topup_reconcile.actions.refresh')}
-              </AppButton>
-            </>
+            <AppButton
+              className='router-page-button'
+              onClick={loadDetail}
+              loading={loading}
+              disabled={loading}
+            >
+              {t('task.buttons.refresh')}
+            </AppButton>
           }
         >
 
@@ -296,8 +291,18 @@ const TopupReconcileDetail = () => {
                     <div className='router-detail-label'>
                       {t('flow.topup_reconcile.detail.fields.status')}
                     </div>
-                    <div className='router-detail-value'>
+                    <div className='router-detail-value router-action-group-tight'>
                       {renderTopupStatus(order?.status, t)}
+                      {canSyncPaymentStatus ? (
+                        <AppButton
+                          className='router-inline-button'
+                          onClick={handleRefresh}
+                          loading={refreshing}
+                          disabled={refreshing}
+                        >
+                          {t('flow.topup_reconcile.actions.refresh')}
+                        </AppButton>
+                      ) : null}
                     </div>
                   </div>
                   <div className='router-detail-item'>
