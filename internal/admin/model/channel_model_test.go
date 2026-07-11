@@ -714,6 +714,110 @@ func TestDeleteChannelModelWithDBBlocksWhenModelStillReturned(t *testing.T) {
 	}
 }
 
+func TestDeleteChannelModelWithDBIgnoresReturnedDisplayModel(t *testing.T) {
+	db := openChannelModelTestDB(t)
+	if err := db.AutoMigrate(
+		&Channel{},
+		&ChannelModel{},
+		&ChannelModelEndpoint{},
+		&ChannelModelEndpointPolicy{},
+		&ChannelModelSyncResult{},
+		&ChannelTest{},
+		&ChannelModelPriceComponent{},
+		&GroupModelChannel{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{Id: "channel-1", Name: "channel-1", Protocol: "openai"}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:     "channel-1",
+		Model:         "gpt-5.1-codex-mini",
+		UpstreamModel: "gpt-5.1-codex-mini-2025-11-13",
+		Selected:      false,
+	}).Error; err != nil {
+		t.Fatalf("create channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModelSyncResult{
+		ChannelId:     "channel-1",
+		Model:         "gpt-5.1-codex-mini",
+		UpstreamModel: "gpt-5.1-codex-mini",
+		Returned:      true,
+	}).Error; err != nil {
+		t.Fatalf("create sync result: %v", err)
+	}
+	if err := db.Create(&ChannelModelSyncResult{
+		ChannelId:     "channel-1",
+		Model:         "gpt-5.1-codex-mini-2025-11-13",
+		UpstreamModel: "gpt-5.1-codex-mini-2025-11-13",
+		Returned:      false,
+	}).Error; err != nil {
+		t.Fatalf("create sync result: %v", err)
+	}
+	err := DeleteChannelModelWithDB(db, "channel-1", "gpt-5.1-codex-mini", "gpt-5.1-codex-mini-2025-11-13")
+	if err != nil {
+		t.Fatalf("DeleteChannelModelWithDB error = %v, want nil", err)
+	}
+}
+
+func TestDeleteChannelModelWithDBPrefersExactUpstreamModel(t *testing.T) {
+	db := openChannelModelTestDB(t)
+	if err := db.AutoMigrate(
+		&Channel{},
+		&ChannelModel{},
+		&ChannelModelEndpoint{},
+		&ChannelModelEndpointPolicy{},
+		&ChannelModelSyncResult{},
+		&ChannelTest{},
+		&ChannelModelPriceComponent{},
+		&GroupModelChannel{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{Id: "channel-1", Name: "channel-1", Protocol: "openai"}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:     "channel-1",
+		Model:         "gpt-4o-mini-tts",
+		UpstreamModel: "gpt-4o-mini-tts",
+		Selected:      true,
+		SortOrder:     1,
+	}).Error; err != nil {
+		t.Fatalf("create base channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:     "channel-1",
+		Model:         "gpt-4o-mini-tts-2025-12-15",
+		UpstreamModel: "gpt-4o-mini-tts-2025-12-15",
+		Selected:      false,
+		SortOrder:     2,
+	}).Error; err != nil {
+		t.Fatalf("create dated channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModelSyncResult{
+		ChannelId:     "channel-1",
+		Model:         "gpt-4o-mini-tts",
+		UpstreamModel: "gpt-4o-mini-tts",
+		Returned:      true,
+	}).Error; err != nil {
+		t.Fatalf("create returned sync result: %v", err)
+	}
+	if err := db.Create(&ChannelModelSyncResult{
+		ChannelId:     "channel-1",
+		Model:         "gpt-4o-mini-tts-2025-12-15",
+		UpstreamModel: "gpt-4o-mini-tts-2025-12-15",
+		Returned:      false,
+	}).Error; err != nil {
+		t.Fatalf("create not returned sync result: %v", err)
+	}
+	err := DeleteChannelModelWithDB(db, "channel-1", "gpt-4o-mini-tts-2025-12-15", "gpt-4o-mini-tts-2025-12-15")
+	if err != nil {
+		t.Fatalf("DeleteChannelModelWithDB error = %v, want nil", err)
+	}
+}
+
 func TestDeleteChannelModelWithDBBlocksWhenEnabledEndpointsExist(t *testing.T) {
 	db := openChannelModelTestDB(t)
 	if err := db.AutoMigrate(
@@ -739,14 +843,6 @@ func TestDeleteChannelModelWithDBBlocksWhenEnabledEndpointsExist(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("create channel model: %v", err)
 	}
-	if err := db.Create(&ChannelModelSyncResult{
-		ChannelId:     "channel-1",
-		Model:         "gpt-5.4",
-		UpstreamModel: "gpt-5.4",
-		Returned:      false,
-	}).Error; err != nil {
-		t.Fatalf("create sync result: %v", err)
-	}
 	if err := db.Create(&ChannelModelEndpoint{
 		ChannelId: "channel-1",
 		Model:     "gpt-5.4",
@@ -761,5 +857,52 @@ func TestDeleteChannelModelWithDBBlocksWhenEnabledEndpointsExist(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "仍有已启用端点") {
 		t.Fatalf("error = %q, want enabled endpoint block", err.Error())
+	}
+}
+
+func TestDeleteChannelModelWithDBAllowsNotReturnedModelWithEnabledEndpoints(t *testing.T) {
+	db := openChannelModelTestDB(t)
+	if err := db.AutoMigrate(
+		&Channel{},
+		&ChannelModel{},
+		&ChannelModelEndpoint{},
+		&ChannelModelEndpointPolicy{},
+		&ChannelModelSyncResult{},
+		&ChannelTest{},
+		&ChannelModelPriceComponent{},
+		&GroupModelChannel{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{Id: "channel-1", Name: "channel-1", Protocol: "openai"}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:     "channel-1",
+		Model:         "gpt-realtime-1.5-2026-02-23",
+		UpstreamModel: "gpt-realtime-1.5-2026-02-23",
+		Selected:      false,
+	}).Error; err != nil {
+		t.Fatalf("create channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModelSyncResult{
+		ChannelId:     "channel-1",
+		Model:         "gpt-realtime-1.5-2026-02-23",
+		UpstreamModel: "gpt-realtime-1.5-2026-02-23",
+		Returned:      false,
+	}).Error; err != nil {
+		t.Fatalf("create sync result: %v", err)
+	}
+	if err := db.Create(&ChannelModelEndpoint{
+		ChannelId: "channel-1",
+		Model:     "gpt-realtime-1.5-2026-02-23",
+		Endpoint:  ChannelModelEndpointRealtime,
+		Enabled:   true,
+	}).Error; err != nil {
+		t.Fatalf("create enabled endpoint: %v", err)
+	}
+	err := DeleteChannelModelWithDB(db, "channel-1", "gpt-realtime-1.5-2026-02-23", "gpt-realtime-1.5-2026-02-23")
+	if err != nil {
+		t.Fatalf("DeleteChannelModelWithDB error = %v, want nil", err)
 	}
 }

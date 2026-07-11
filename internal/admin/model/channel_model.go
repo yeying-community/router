@@ -251,30 +251,45 @@ func DeleteChannelModelWithDB(db *gorm.DB, channelID string, modelName string, u
 		return fmt.Errorf("database handle is nil")
 	}
 	normalizedChannelID := strings.TrimSpace(channelID)
-	modelCandidates := NormalizeProviderLookupCandidates(modelName, upstreamModel)
+	normalizedModel := strings.TrimSpace(modelName)
+	normalizedUpstreamModel := strings.TrimSpace(upstreamModel)
+	modelCandidates := NormalizeProviderLookupCandidates(normalizedModel, normalizedUpstreamModel)
 	if normalizedChannelID == "" || len(modelCandidates) == 0 {
 		return fmt.Errorf("渠道模型无效")
 	}
 	targetRow := ChannelModel{}
-	if err := db.
-		Where("channel_id = ? AND (model IN ? OR upstream_model IN ?)", normalizedChannelID, modelCandidates, modelCandidates).
-		Order("sort_order asc, model asc").
-		First(&targetRow).Error; err != nil {
-		return err
+	targetQuery := db.Where("channel_id = ?", normalizedChannelID)
+	if normalizedUpstreamModel != "" {
+		targetQuery = targetQuery.Where("upstream_model = ?", normalizedUpstreamModel)
+		if normalizedModel != "" {
+			targetQuery = targetQuery.Where("model = ?", normalizedModel)
+		}
+		if err := targetQuery.Order("sort_order asc, model asc").First(&targetRow).Error; err != nil {
+			return err
+		}
+	} else {
+		if err := targetQuery.
+			Where("model IN ? OR upstream_model IN ?", modelCandidates, modelCandidates).
+			Order("sort_order asc, model asc").
+			First(&targetRow).Error; err != nil {
+			return err
+		}
 	}
-	returned, err := HasReturnedChannelModelSyncResultWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
+	syncFound, returned, err := GetChannelModelSyncReturnStatusWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
 	if err != nil {
 		return err
 	}
 	if returned {
 		return fmt.Errorf("模型 %s 最近一次上游返回仍包含，无法删除", displayChannelModelName(targetRow))
 	}
-	enabledEndpointRows, err := ListEnabledChannelModelEndpointsByCandidatesWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
-	if err != nil {
-		return err
-	}
-	if len(enabledEndpointRows) > 0 {
-		return fmt.Errorf("模型 %s 仍有已启用端点，无法删除：%s", displayChannelModelName(targetRow), formatChannelModelEnabledEndpoints(enabledEndpointRows))
+	if !syncFound {
+		enabledEndpointRows, err := ListEnabledChannelModelEndpointsByCandidatesWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
+		if err != nil {
+			return err
+		}
+		if len(enabledEndpointRows) > 0 {
+			return fmt.Errorf("模型 %s 仍有已启用端点，无法删除：%s", displayChannelModelName(targetRow), formatChannelModelEnabledEndpoints(enabledEndpointRows))
+		}
 	}
 	usages, err := ListChannelModelUsageReferencesWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
 	if err != nil {

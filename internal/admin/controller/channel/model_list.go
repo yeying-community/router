@@ -82,37 +82,13 @@ func buildChannelModelListData(channelID string, page int, pageSize int, keyword
 	if err != nil {
 		return channelModelListData{}, err
 	}
-	syncByModel := make(map[string]model.ChannelModelSyncResult, len(syncRows)*2)
-	for _, row := range syncRows {
-		if modelName := strings.TrimSpace(row.Model); modelName != "" {
-			syncByModel[modelName] = row
-		}
-		if upstreamModel := strings.TrimSpace(row.UpstreamModel); upstreamModel != "" {
-			if _, ok := syncByModel[upstreamModel]; !ok {
-				syncByModel[upstreamModel] = row
-			}
-		}
-	}
 	items := make([]channelModelListItem, 0, len(rows))
 	for _, row := range rows {
+		syncStatus, lastSyncedAt := resolveChannelModelSyncStatus(syncRows, row)
 		item := channelModelListItem{
 			ChannelModel: row,
-			SyncStatus:   "unknown",
-		}
-		if syncRow, ok := syncByModel[strings.TrimSpace(row.Model)]; ok {
-			item.LastSyncedAt = syncRow.LastSyncedAt
-			if syncRow.Returned {
-				item.SyncStatus = "returned"
-			} else {
-				item.SyncStatus = "not_returned"
-			}
-		} else if syncRow, ok := syncByModel[strings.TrimSpace(row.UpstreamModel)]; ok {
-			item.LastSyncedAt = syncRow.LastSyncedAt
-			if syncRow.Returned {
-				item.SyncStatus = "returned"
-			} else {
-				item.SyncStatus = "not_returned"
-			}
+			SyncStatus:   syncStatus,
+			LastSyncedAt: lastSyncedAt,
 		}
 		if !row.Inactive && !row.Selected {
 			reason, reasonErr := model.ExplainManualChannelModelEnableBlockWithDB(model.DB, channelID, row)
@@ -146,6 +122,35 @@ func buildChannelModelListData(channelID string, page int, pageSize int, keyword
 		ActiveCount:   activeCount,
 		InactiveCount: inactiveCount,
 	}, nil
+}
+
+func resolveChannelModelSyncStatus(syncRows []model.ChannelModelSyncResult, row model.ChannelModel) (string, int64) {
+	upstreamCandidate := strings.TrimSpace(row.UpstreamModel)
+	if upstreamCandidate == "" {
+		upstreamCandidate = strings.TrimSpace(row.Model)
+	}
+	if upstreamCandidate == "" {
+		return "unknown", 0
+	}
+	found := false
+	lastSyncedAt := int64(0)
+	for _, syncRow := range syncRows {
+		upstreamModel := strings.TrimSpace(syncRow.UpstreamModel)
+		if upstreamModel != upstreamCandidate {
+			continue
+		}
+		found = true
+		if syncRow.LastSyncedAt > lastSyncedAt {
+			lastSyncedAt = syncRow.LastSyncedAt
+		}
+		if syncRow.Returned {
+			return "returned", lastSyncedAt
+		}
+	}
+	if found {
+		return "not_returned", lastSyncedAt
+	}
+	return "unknown", 0
 }
 
 func buildChannelTestListData(channelID string) (channelTestListData, error) {

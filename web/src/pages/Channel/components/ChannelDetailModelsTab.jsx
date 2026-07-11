@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   AppAlert,
   AppButton,
@@ -8,6 +8,7 @@ import {
   AppPagination,
   AppPopconfirm,
   AppSelect,
+  AppSwitch,
   AppTable,
   AppTableActionButton,
   AppTag,
@@ -28,6 +29,8 @@ const ChannelDetailModelsTab = ({
   modelSectionMetaText,
   detailModelFilter,
   setDetailModelFilter,
+  detailUpstreamStatusFilter,
+  setDetailUpstreamStatusFilter,
   detailProviderFilter,
   setDetailProviderFilter,
   detailProviderFilterOptions,
@@ -45,18 +48,44 @@ const ChannelDetailModelsTab = ({
   providerDataLoading,
   toggleModelSelection,
   canSelectChannelModel,
-  detailCurrentPageAllSelected,
-  detailCurrentPagePartiallySelected,
-  detailCurrentPageSelectableCount,
-  toggleDetailCurrentPageSelections,
   normalizeChannelModelType,
   startDetailModelEdit,
   handleDeleteDetailModel,
+  handleBatchSelectDetailModels,
+  handleBatchDeleteDetailModels,
   detailModelTotalPages,
   detailModelPage,
   setDetailModelPage,
   modelsSyncError,
 }) => {
+  const [batchDeleteMode, setBatchDeleteMode] = useState(false);
+  const [batchDeleteRowKeys, setBatchDeleteRowKeys] = useState([]);
+  const [batchSelectMode, setBatchSelectMode] = useState(false);
+  const [batchSelectRowKeys, setBatchSelectRowKeys] = useState([]);
+
+  const buildRowKey = (row) => `${row.upstream_model}-${row.model}`;
+
+  const batchDeleteRows = useMemo(() => {
+    const selectedKeySet = new Set(batchDeleteRowKeys);
+    return visibleChannelModels.filter((row) => selectedKeySet.has(buildRowKey(row)));
+  }, [batchDeleteRowKeys, visibleChannelModels]);
+
+  const batchSelectRows = useMemo(() => {
+    const selectedKeySet = new Set(batchSelectRowKeys);
+    return visibleChannelModels.filter((row) => selectedKeySet.has(buildRowKey(row)));
+  }, [batchSelectRowKeys, visibleChannelModels]);
+
+  const batchSelectableRows = useMemo(
+    () => renderedChannelModels.filter((row) => canSelectChannelModel(row)),
+    [canSelectChannelModel, renderedChannelModels]
+  );
+
+  const batchMode = batchSelectMode || batchDeleteMode;
+  const batchRowKeys = batchSelectMode ? batchSelectRowKeys : batchDeleteRowKeys;
+  const setBatchRowKeys = batchSelectMode
+    ? setBatchSelectRowKeys
+    : setBatchDeleteRowKeys;
+
   const buildDisableInfo = (row) => {
     const parts = [];
     const disabledBy = (row?.disabled_by || '').toString().trim();
@@ -82,139 +111,321 @@ const ChannelDetailModelsTab = ({
     return t('channel.edit.model_selector.inactive');
   };
 
-  const tableRowSelection = {
-    columnWidth: columnWidths.selection,
-    selectedRowKeys: renderedChannelModels
-      .filter((row) => row?.selected)
-      .map((row) => `${row.upstream_model}-${row.model}`),
-    getTitleCheckboxProps: () => ({
-      checked: detailCurrentPageAllSelected,
-      indeterminate: detailCurrentPagePartiallySelected,
-      disabled:
-        detailModelsEditing ||
-        detailModelMutating ||
-        providerDataLoading ||
-        detailCurrentPageSelectableCount === 0,
-    }),
-    getCheckboxProps: (row) => {
-      const canSelect = canSelectChannelModel(row);
-      const isUnavailable = !canSelect && !row.selected;
-      const disabledReason = isUnavailable
-        ? row.enable_block_reason ||
-          t('channel.edit.model_selector.selection_disabled_unassigned')
-        : '';
-      return {
-        className: isUnavailable ? 'router-model-toggle-disabled' : undefined,
-        disabled:
-          detailModelMutating ||
-          detailModelsEditing ||
-          providerDataLoading ||
-          isUnavailable,
-        title: disabledReason || undefined,
-      };
-    },
-    renderCell: (_, row, __, originNode) => {
-      const canSelect = canSelectChannelModel(row);
-      const isUnavailable = !canSelect && !row.selected;
-      const disabledReason = isUnavailable
-        ? row.enable_block_reason ||
-          t('channel.edit.model_selector.selection_disabled_unassigned')
-        : '';
-      const checkboxNode = (
-        <span
-          className={[
-            'router-inline-block',
-            'router-model-toggle-wrap',
-            isUnavailable ? 'router-model-toggle-wrap-disabled' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-label={disabledReason || undefined}
-        >
-          {originNode}
-        </span>
-      );
-      if (disabledReason === '') {
-        return checkboxNode;
+  const tableRowSelection = batchMode
+    ? {
+        columnWidth: columnWidths.selection,
+        selectedRowKeys: batchRowKeys,
+        getTitleCheckboxProps: () => ({
+          disabled:
+            detailModelsEditing ||
+            detailModelMutating ||
+            providerDataLoading ||
+            (batchSelectMode
+              ? batchSelectableRows.length === 0
+              : renderedChannelModels.length === 0),
+        }),
+        getCheckboxProps: (row) => ({
+          disabled:
+            detailModelsEditing ||
+            detailModelMutating ||
+            providerDataLoading ||
+            (batchSelectMode && !canSelectChannelModel(row)),
+        }),
+        onSelect: (record, selected) => {
+          const rowKey = buildRowKey(record);
+          setBatchRowKeys((prev) => {
+            const next = new Set(prev);
+            if (selected) {
+              next.add(rowKey);
+            } else {
+              next.delete(rowKey);
+            }
+            return Array.from(next);
+          });
+        },
+        onSelectAll: (selected, selectedRows, changeRows) => {
+          const changedRows = batchSelectMode
+            ? changeRows.filter((row) => canSelectChannelModel(row))
+            : changeRows;
+          const changedKeys = changedRows.map(buildRowKey);
+          setBatchRowKeys((prev) => {
+            const next = new Set(prev);
+            changedKeys.forEach((rowKey) => {
+              if (selected) {
+                next.add(rowKey);
+              } else {
+                next.delete(rowKey);
+              }
+            });
+            return Array.from(next);
+          });
+        },
       }
-      return <AppTooltip title={disabledReason}>{checkboxNode}</AppTooltip>;
-    },
-    onSelect: (record, selected) => {
-      toggleModelSelection(record.upstream_model, selected);
-    },
-    onSelectAll: (selected) => {
-      toggleDetailCurrentPageSelections(selected);
-    },
+    : undefined;
+
+  const renderSelectionStatus = (row) => {
+    const canSelect = canSelectChannelModel(row);
+    const isUnavailable = !canSelect && !row.selected;
+    const disabledReason = isUnavailable
+      ? row.enable_block_reason ||
+        t('channel.edit.model_selector.selection_disabled_unassigned')
+      : '';
+    const checkboxNode = (
+      <span
+        className={[
+          'router-inline-block',
+          'router-model-toggle-wrap',
+          isUnavailable ? 'router-model-toggle-wrap-disabled' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        aria-label={disabledReason || undefined}
+      >
+        <AppSwitch
+          checked={row.selected === true}
+          disabled={
+            detailModelMutating ||
+            detailModelsEditing ||
+            providerDataLoading ||
+            isUnavailable
+          }
+          onChange={(e, { checked }) =>
+            toggleModelSelection(row.upstream_model, checked === true)
+          }
+        />
+      </span>
+    );
+    if (disabledReason === '') {
+      return checkboxNode;
+    }
+    return <AppTooltip title={disabledReason}>{checkboxNode}</AppTooltip>;
   };
+
+  const handleConfirmBatchSelect = async () => {
+    const ok = await handleBatchSelectDetailModels(batchSelectRows);
+    if (ok) {
+      setBatchSelectRowKeys([]);
+      setBatchSelectMode(false);
+    }
+  };
+
+  const handleConfirmBatchDelete = async () => {
+    const ok = await handleBatchDeleteDetailModels(batchDeleteRows);
+    if (ok) {
+      setBatchDeleteRowKeys([]);
+      setBatchDeleteMode(false);
+    }
+  };
+
+  const renderToolbar = () => (
+    <div className='router-toolbar router-toolbar-compact router-block-gap-sm'>
+      <div className='router-toolbar-start'>
+        <AppSelect
+          className='router-section-dropdown router-dropdown-min-170 router-detail-filter-dropdown'
+          disabled={detailModelsEditing}
+          options={[
+            {
+              key: 'all',
+              value: 'all',
+              text: t('channel.edit.model_selector.filters.all'),
+            },
+            {
+              key: 'enabled',
+              value: 'enabled',
+              text: t('channel.edit.model_selector.filters.enabled'),
+            },
+            {
+              key: 'disabled',
+              value: 'disabled',
+              text: t('channel.edit.model_selector.filters.disabled'),
+            },
+          ]}
+          value={detailModelFilter}
+          onChange={(e, { value }) =>
+            setDetailModelFilter((value || 'all').toString())
+          }
+        />
+        <AppSelect
+          className='router-section-dropdown router-dropdown-min-170 router-detail-filter-dropdown'
+          disabled={detailModelsEditing}
+          options={[
+            {
+              key: 'all',
+              value: 'all',
+              text: t('channel.edit.model_selector.filters.upstream_status_all'),
+            },
+            {
+              key: 'returned',
+              value: 'returned',
+              text: t('channel.edit.model_selector.upstream_return_status.returned'),
+            },
+            {
+              key: 'not_returned',
+              value: 'not_returned',
+              text: t(
+                'channel.edit.model_selector.upstream_return_status.not_returned'
+              ),
+            },
+            {
+              key: 'unknown',
+              value: 'unknown',
+              text: t('channel.edit.model_selector.upstream_return_status.unknown'),
+            },
+          ]}
+          value={detailUpstreamStatusFilter}
+          onChange={(e, { value }) =>
+            setDetailUpstreamStatusFilter((value || 'all').toString())
+          }
+        />
+        <AppSelect
+          className='router-section-dropdown router-dropdown-min-170 router-detail-filter-dropdown'
+          disabled={detailModelsEditing || providerDataLoading}
+          options={detailProviderFilterOptions}
+          value={detailProviderFilter}
+          onChange={(e, { value }) =>
+            setDetailProviderFilter((value || 'all').toString())
+          }
+        />
+        <AppInput
+          className='router-section-input router-search-form-sm'
+          icon='search'
+          iconPosition='left'
+          disabled={detailModelsEditing}
+          placeholder={t('channel.edit.model_selector.search_placeholder')}
+          value={modelSearchKeyword}
+          onChange={(e, { value }) => setModelSearchKeyword(value || '')}
+        />
+      </div>
+      <div className='router-toolbar-end'>
+        <AppButton
+          type='button'
+          className='router-page-button'
+          loading={fetchModelsLoading || !!activeRefreshModelsTask}
+          disabled={
+            detailModelsEditing ||
+            fetchModelsLoading ||
+            !!activeRefreshModelsTask ||
+            detailModelMutating
+          }
+          onClick={() => handleFetchModels({ silent: false })}
+        >
+          {t('channel.edit.buttons.sync_models')}
+        </AppButton>
+        {batchSelectMode ? (
+          <>
+            <AppButton
+              type='button'
+              color='blue'
+              className='router-page-button'
+              loading={detailModelMutating}
+              disabled={batchSelectRows.length === 0 || detailModelMutating}
+              onClick={handleConfirmBatchSelect}
+            >
+              {t('channel.edit.model_selector.batch_select_selected', {
+                count: batchSelectRows.length,
+              })}
+            </AppButton>
+            <AppButton
+              type='button'
+              className='router-page-button'
+              disabled={detailModelMutating}
+              onClick={() => {
+                setBatchSelectMode(false);
+                setBatchSelectRowKeys([]);
+              }}
+            >
+              {t('common.cancel')}
+            </AppButton>
+          </>
+        ) : (
+          <AppButton
+            type='button'
+            className='router-page-button'
+            disabled={
+              detailModelsEditing ||
+              detailModelMutating ||
+              providerDataLoading ||
+              batchDeleteMode ||
+              searchedChannelModels.length === 0
+            }
+            onClick={() => {
+              setBatchDeleteMode(false);
+              setBatchDeleteRowKeys([]);
+              setBatchSelectMode(true);
+            }}
+          >
+            {t('channel.edit.model_selector.batch_select')}
+          </AppButton>
+        )}
+        {batchDeleteMode ? (
+          <>
+            <AppPopconfirm
+              title={t('channel.edit.model_selector.batch_delete_confirm', {
+                count: batchDeleteRows.length,
+              })}
+              onConfirm={handleConfirmBatchDelete}
+              okText={t('common.confirm')}
+              cancelText={t('common.cancel')}
+              disabled={batchDeleteRows.length === 0 || detailModelMutating}
+            >
+              <span>
+                <AppButton
+                  type='button'
+                  color='red'
+                  className='router-page-button'
+                  loading={detailModelMutating}
+                  disabled={batchDeleteRows.length === 0 || detailModelMutating}
+                >
+                  {t('channel.edit.model_selector.batch_delete_selected', {
+                    count: batchDeleteRows.length,
+                  })}
+                </AppButton>
+              </span>
+            </AppPopconfirm>
+            <AppButton
+              type='button'
+              className='router-page-button'
+              disabled={detailModelMutating}
+              onClick={() => {
+                setBatchDeleteMode(false);
+                setBatchDeleteRowKeys([]);
+              }}
+            >
+              {t('common.cancel')}
+            </AppButton>
+          </>
+        ) : (
+          <AppButton
+            type='button'
+            className='router-page-button'
+            disabled={
+              detailModelsEditing ||
+              detailModelMutating ||
+              providerDataLoading ||
+              batchSelectMode ||
+              searchedChannelModels.length === 0
+            }
+            onClick={() => {
+              setBatchSelectMode(false);
+              setBatchSelectRowKeys([]);
+              setBatchDeleteMode(true);
+            }}
+          >
+            {t('channel.edit.model_selector.batch_delete')}
+          </AppButton>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <AppDetailSection
       title={t('channel.edit.detail_models_title')}
       titleTag='span'
       headerStart={<span className='router-toolbar-meta'>({modelSectionMetaText})</span>}
-      headerEnd={
-        <>
-          <AppSelect
-            className='router-section-dropdown router-dropdown-min-170 router-detail-filter-dropdown'
-            disabled={detailModelsEditing}
-            options={[
-              {
-                key: 'all',
-                value: 'all',
-                text: t('channel.edit.model_selector.filters.all'),
-              },
-              {
-                key: 'enabled',
-                value: 'enabled',
-                text: t('channel.edit.model_selector.filters.enabled'),
-              },
-              {
-                key: 'disabled',
-                value: 'disabled',
-                text: t('channel.edit.model_selector.filters.disabled'),
-              },
-            ]}
-            value={detailModelFilter}
-            onChange={(e, { value }) =>
-              setDetailModelFilter((value || 'all').toString())
-            }
-          />
-          <AppSelect
-            className='router-section-dropdown router-dropdown-min-170 router-detail-filter-dropdown'
-            disabled={detailModelsEditing || providerDataLoading}
-            options={detailProviderFilterOptions}
-            value={detailProviderFilter}
-            onChange={(e, { value }) =>
-              setDetailProviderFilter((value || 'all').toString())
-            }
-          />
-          <AppInput
-            className='router-section-input router-search-form-sm'
-            icon='search'
-            iconPosition='left'
-            disabled={detailModelsEditing}
-            placeholder={t('channel.edit.model_selector.search_placeholder')}
-            value={modelSearchKeyword}
-            onChange={(e, { value }) => setModelSearchKeyword(value || '')}
-          />
-          <AppButton
-            type='button'
-            className='router-page-button'
-            loading={fetchModelsLoading || !!activeRefreshModelsTask}
-            disabled={
-              detailModelsEditing ||
-              fetchModelsLoading ||
-              !!activeRefreshModelsTask ||
-              detailModelMutating
-            }
-            onClick={() => handleFetchModels({ silent: false })}
-          >
-            {t('channel.edit.buttons.sync_models')}
-          </AppButton>
-        </>
-      }
     >
       <div>
+        {renderToolbar()}
         <AppAlert
           type='info'
           showIcon
@@ -239,6 +450,13 @@ const ChannelDetailModelsTab = ({
           rowKey={(row) => `${row.upstream_model}-${row.model}`}
           dataSource={searchedChannelModels.length === 0 ? [] : renderedChannelModels}
           columns={[
+            {
+              title: t('channel.edit.model_selector.table.selection_status'),
+              key: 'selection_status',
+              className: 'router-table-col-status-compact',
+              width: columnWidths.selection,
+              render: (_, row) => renderSelectionStatus(row),
+            },
             {
               title: t('channel.edit.model_selector.table.name'),
               dataIndex: 'upstream_model',
