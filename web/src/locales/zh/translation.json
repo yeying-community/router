@@ -650,6 +650,9 @@
         "actions": "操作",
         "empty": "暂无模型明细",
         "delete_confirm": "确认删除该模型吗？",
+        "batch_delete": "批量删除",
+        "batch_delete_selected": "删除所选 {{count}} 个",
+        "batch_delete_confirm": "确认删除所选 {{count}} 个模型吗？",
         "edit_title": "编辑模型",
         "create_title": "新增模型"
       },

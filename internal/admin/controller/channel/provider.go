@@ -272,7 +272,7 @@ func collectProviderModelUsageWithDB(db *gorm.DB, provider string, modelName str
 	channelRefs := make([]channelModelRef, 0)
 	if err := db.Model(&model.ChannelModel{}).
 		Select("DISTINCT channel_id").
-		Where("provider = ? AND inactive = ? AND (model = ? OR upstream_model = ?)", normalizedProvider, false, normalizedModel, normalizedModel).
+		Where("provider = ? AND publish_enabled = ? AND (model = ? OR upstream_model = ?)", normalizedProvider, true, normalizedModel, normalizedModel).
 		Order("channel_id asc").
 		Find(&channelRefs).Error; err != nil {
 		return providerModelUsageSummary{}, err

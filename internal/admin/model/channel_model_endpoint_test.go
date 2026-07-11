@@ -294,7 +294,7 @@ func TestBuildChannelModelEndpointRowsSkipsInactiveOrUnselectedModels(t *testing
 
 	got := BuildChannelModelEndpointRowsWithProviderEndpoints(nil, rows, providerEndpoints)
 	if len(got) != 0 {
-		t.Fatalf("len(got)=%d, want 0 for inactive/unselected model", len(got))
+		t.Fatalf("len(got)=%d, want 0 for unselected model", len(got))
 	}
 }
 

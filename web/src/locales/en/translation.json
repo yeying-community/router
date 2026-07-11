@@ -650,6 +650,9 @@
         "actions": "Actions",
         "empty": "No model details",
         "delete_confirm": "Delete this model?",
+        "batch_delete": "Batch Delete",
+        "batch_delete_selected": "Delete {{count}} Selected",
+        "batch_delete_confirm": "Delete {{count}} selected models?",
         "edit_title": "Edit Model",
         "create_title": "Add Model"
       },

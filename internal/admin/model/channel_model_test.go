@@ -139,7 +139,7 @@ func TestApplyChannelModelEndpointState_PreservesExplicitPrimaryEvenIfDisabled(t
 	}
 }
 
-func TestBuildFetchedChannelModelsPreservesExistingSelectionsAndMarksMissingRowsInactive(t *testing.T) {
+func TestBuildFetchedChannelModelsPreservesExistingSelectionsAndMarksMissingRowsUnselected(t *testing.T) {
 	existingRows := []ChannelModel{
 		{
 			Model:         "alias-gpt-4.1",
@@ -214,12 +214,12 @@ func TestBuildFetchedChannelModelsPreservesExistingSelectionsAndMarksMissingRows
 	if rows[2].Selected {
 		t.Fatalf("rows[2].Selected = true, want false")
 	}
-	if !rows[2].Inactive {
-		t.Fatalf("rows[2].Inactive = false, want true")
+	if rows[2].Inactive {
+		t.Fatalf("rows[2].Inactive = true, want false")
 	}
 }
 
-func TestBuildDisabledChannelModelConfigsMarksOnlyTargetModelInactive(t *testing.T) {
+func TestBuildDisabledChannelModelConfigsMarksOnlyTargetModelUnselected(t *testing.T) {
 	rows := []ChannelModel{
 		{
 			Model:         "gpt-5.3-codex",
@@ -242,8 +242,8 @@ func TestBuildDisabledChannelModelConfigsMarksOnlyTargetModelInactive(t *testing
 	if len(updated) != 2 {
 		t.Fatalf("updated len = %d, want 2", len(updated))
 	}
-	if !updated[0].Inactive {
-		t.Fatalf("updated[0].Inactive = false, want true")
+	if updated[0].Inactive {
+		t.Fatalf("updated[0].Inactive = true, want false")
 	}
 	if updated[0].Selected {
 		t.Fatalf("updated[0].Selected = true, want false")

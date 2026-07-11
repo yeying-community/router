@@ -147,8 +147,7 @@ func BuildChannelModelEndpointRowsWithProviderEndpoints(existing []ChannelModelE
 		if channelID == "" || modelID == "" {
 			continue
 		}
-		eligibleForEnable := row.Selected && !row.Inactive
-		if !eligibleForEnable {
+		if !row.Selected {
 			continue
 		}
 		for _, endpoint := range resolveProviderEndpointCandidatesForChannelModel(row, providerEndpoints) {
@@ -170,7 +169,7 @@ func BuildChannelModelEndpointRowsWithProviderEndpoints(existing []ChannelModelE
 			}
 			if existingRow, ok := existingByKey[key]; ok {
 				item.BaseURL = existingRow.BaseURL
-				item.Enabled = existingRow.Enabled && eligibleForEnable
+				item.Enabled = existingRow.Enabled
 				item.UpdatedAt = existingRow.UpdatedAt
 				item.DisabledReason = existingRow.DisabledReason
 				item.DisabledAt = existingRow.DisabledAt
@@ -772,7 +771,7 @@ func ResolveSelectedChannelModelConfig(rows []ChannelModel, modelName string) (C
 		return ChannelModel{}, false
 	}
 	for _, row := range NormalizeChannelModelsPreserveOrder(rows) {
-		if row.Inactive || !row.Selected {
+		if !row.Selected {
 			continue
 		}
 		if normalizedModelName == strings.TrimSpace(row.Model) || normalizedModelName == strings.TrimSpace(row.UpstreamModel) {

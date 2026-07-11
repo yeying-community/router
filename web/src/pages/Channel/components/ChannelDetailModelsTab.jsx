@@ -104,14 +104,6 @@ const ChannelDetailModelsTab = ({
     return parts.join('\n');
   };
 
-  const resolveInactiveLabel = (row) => {
-    const disabledBy = (row?.disabled_by || '').toString().trim();
-    if (disabledBy) {
-      return t('channel.edit.model_selector.auto_paused');
-    }
-    return t('channel.edit.model_selector.inactive');
-  };
-
   const tableRowSelection = batchMode
     ? {
         columnWidth: columnWidths.selection,
@@ -466,19 +458,17 @@ const ChannelDetailModelsTab = ({
               ellipsis: true,
               render: (value, row) => {
                 const disableInfo = buildDisableInfo(row);
-                const inactiveTag = row.inactive ? (
+                const disabledTag = disableInfo ? (
                   <AppTag color='grey' className='router-tag'>
-                    {resolveInactiveLabel(row)}
+                    {t('channel.edit.model_selector.auto_paused')}
                   </AppTag>
                 ) : null;
                 return (
                   <div className='router-cell-truncate' title={value}>
                     <span className='router-nowrap router-monospace-value'>{value}</span>
-                    {disableInfo && inactiveTag ? (
-                      <AppTooltip title={disableInfo}>{inactiveTag}</AppTooltip>
-                    ) : (
-                      inactiveTag
-                    )}
+                    {disabledTag ? (
+                      <AppTooltip title={disableInfo}>{disabledTag}</AppTooltip>
+                    ) : null}
                   </div>
                 );
               },

@@ -1472,7 +1472,7 @@ const buildChannelModelState = (channelModels, protocol) => {
     protocol
   );
   const selectedModels = normalizedChannelModels
-    .filter((row) => row.selected && row.inactive !== true)
+    .filter((row) => row.selected)
     .map((row) => row.model);
   return {
     channelModels: normalizedChannelModels,
@@ -1511,11 +1511,11 @@ const getChangedSelectedChannelModels = (rows, previousRows, protocol) => {
     ])
   );
   return normalizeChannelModels(rows, protocol).filter((row) => {
-    if (row.inactive === true || row.selected !== true) {
+    if (row.selected !== true) {
       return false;
     }
     const previous = previousByModel.get(row.model);
-    if (!previous || previous.inactive === true || previous.selected !== true) {
+    if (!previous || previous.selected !== true) {
       return true;
     }
     return (
@@ -2450,7 +2450,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const modelTestRows = useMemo(() => {
     const modelByName = new Map();
     visibleChannelModels
-      .filter((row) => row.inactive !== true && row.selected === true)
+      .filter((row) => row.selected === true)
       .forEach((row) => {
         const modelName = (row.model || '').toString().trim();
         if (modelName !== '') {
@@ -2775,13 +2775,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   );
   const canSelectChannelModel = useCallback(
     (row) =>
-      row?.inactive !== true &&
       hasProviderConfiguredForModel(row) &&
       !(row?.enable_block_reason || '').toString().trim(),
     [hasProviderConfiguredForModel]
   );
   const activeChannelModels = useMemo(
-    () => visibleChannelModels.filter((row) => row.inactive !== true),
+    () => visibleChannelModels,
     [visibleChannelModels]
   );
   const detailProviderFilterOptions = useMemo(() => {
@@ -4942,13 +4941,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     async (upstreamModel, checked) => {
       const nextConfigs = visibleChannelModels.map((row) =>
         row.upstream_model === upstreamModel &&
-        (checked
-          ? canSelectChannelModel({ ...row, inactive: false })
-          : row.selected === true)
+        (checked ? canSelectChannelModel(row) : row.selected === true)
           ? {
               ...row,
               selected: !!checked,
-              inactive: checked ? false : row.inactive,
+              inactive: false,
               disabled_reason: checked ? '' : row.disabled_reason,
               disabled_at: checked ? 0 : row.disabled_at,
               disabled_by: checked ? '' : row.disabled_by,

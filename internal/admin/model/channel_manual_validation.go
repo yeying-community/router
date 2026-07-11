@@ -25,7 +25,7 @@ func ValidateManualChannelModelsWithDB(db *gorm.DB, channelID string, rows []Cha
 		return nil
 	}
 	for _, row := range normalizedRows {
-		if row.Inactive || !row.Selected {
+		if !row.Selected {
 			continue
 		}
 		reason, err := ExplainManualChannelModelEnableBlockWithDB(db, normalizedChannelID, row)
@@ -81,13 +81,13 @@ func ValidateManualChannelModelChangesWithDB(db *gorm.DB, channelID string, curr
 }
 
 func shouldValidateManualChannelModelChange(current ChannelModel, next ChannelModel) bool {
-	if next.Inactive || !next.Selected {
+	if !next.Selected {
 		return false
 	}
 	if strings.TrimSpace(current.Model) == "" {
 		return true
 	}
-	if current.Inactive || !current.Selected {
+	if !current.Selected {
 		return true
 	}
 	if strings.TrimSpace(current.UpstreamModel) != strings.TrimSpace(next.UpstreamModel) {
@@ -103,10 +103,9 @@ func shouldValidateManualChannelModelChange(current ChannelModel, next ChannelMo
 }
 
 func isRuntimeDisabledChannelModel(row ChannelModel) bool {
-	return row.Inactive &&
-		(strings.TrimSpace(row.DisabledBy) == "runtime" ||
-			row.DisabledAt > 0 ||
-			strings.TrimSpace(row.DisabledReason) != "")
+	return strings.TrimSpace(row.DisabledBy) == "runtime" ||
+		row.DisabledAt > 0 ||
+		strings.TrimSpace(row.DisabledReason) != ""
 }
 
 func ValidateManualChannelEndpointEnableWithDB(db *gorm.DB, channelID string, row ChannelModel, endpoint string) error {

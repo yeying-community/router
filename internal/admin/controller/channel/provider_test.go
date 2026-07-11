@@ -74,10 +74,11 @@ func TestCollectProviderModelUsageIncludesChannelNames(t *testing.T) {
 		t.Fatalf("create channel: %v", err)
 	}
 	if err := db.Create(&model.ChannelModel{
-		ChannelId: channelID,
-		Provider:  "openai",
-		Model:     "openai/codex-mini-latest",
-		Inactive:  false,
+		ChannelId:      channelID,
+		Provider:       "openai",
+		Model:          "openai/codex-mini-latest",
+		Selected:       true,
+		PublishEnabled: true,
 	}).Error; err != nil {
 		t.Fatalf("create channel model: %v", err)
 	}
@@ -91,5 +92,50 @@ func TestCollectProviderModelUsageIncludesChannelNames(t *testing.T) {
 	want := "channels=primary-openai (" + channelID + ")"
 	if !strings.Contains(message, want) {
 		t.Fatalf("usage error=%q, want to contain %q", message, want)
+	}
+}
+
+func TestCollectProviderModelUsageIgnoresUnpublishedChannelModels(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite database: %v", err)
+	}
+	if err := db.AutoMigrate(
+		&model.Channel{},
+		&model.ChannelModel{},
+		&model.GroupModel{},
+		&model.GroupModelChannel{},
+	); err != nil {
+		t.Fatalf("migrate tables: %v", err)
+	}
+
+	const channelID = "f4dd52e7117948d58bfd5cdee400e571"
+	if err := db.Create(&model.Channel{
+		Id:       channelID,
+		Name:     "qingyuntop-2",
+		Protocol: "openai",
+		Status:   model.ChannelStatusEnabled,
+	}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&model.ChannelModel{
+		ChannelId:      channelID,
+		Provider:       "openai",
+		Model:          "dall-e-3",
+		Selected:       true,
+		PublishEnabled: false,
+	}).Error; err != nil {
+		t.Fatalf("create channel model: %v", err)
+	}
+
+	usage, err := collectProviderModelUsageWithDB(db, "openai", "dall-e-3")
+	if err != nil {
+		t.Fatalf("collect usage: %v", err)
+	}
+	if len(usage.ChannelModels) != 0 {
+		t.Fatalf("ChannelModels=%v, want empty for unpublished model", usage.ChannelModels)
+	}
+	if usage.InUse() {
+		t.Fatalf("usage.InUse()=true, want false")
 	}
 }
