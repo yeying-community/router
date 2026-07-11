@@ -4,6 +4,7 @@ import {
   AppButton,
   AppDetailSection,
   AppEmpty,
+  AppFilterHeader,
   AppInput,
   AppPagination,
   AppPopconfirm,
@@ -218,8 +219,10 @@ const ChannelDetailModelsTab = ({
   };
 
   const renderToolbar = () => (
-    <div className='router-toolbar router-toolbar-compact router-block-gap-sm'>
-      <div className='router-toolbar-start'>
+    <AppFilterHeader
+      className='router-toolbar-compact'
+      picker={
+        <>
         <AppSelect
           className='router-section-dropdown router-dropdown-min-170 router-detail-filter-dropdown'
           disabled={detailModelsEditing}
@@ -266,11 +269,6 @@ const ChannelDetailModelsTab = ({
                 'channel.edit.model_selector.upstream_return_status.not_returned'
               ),
             },
-            {
-              key: 'unknown',
-              value: 'unknown',
-              text: t('channel.edit.model_selector.upstream_return_status.unknown'),
-            },
           ]}
           value={detailUpstreamStatusFilter}
           onChange={(e, { value }) =>
@@ -295,8 +293,10 @@ const ChannelDetailModelsTab = ({
           value={modelSearchKeyword}
           onChange={(e, { value }) => setModelSearchKeyword(value || '')}
         />
-      </div>
-      <div className='router-toolbar-end'>
+        </>
+      }
+      actions={
+        <>
         <AppButton
           type='button'
           className='router-page-button'
@@ -414,8 +414,9 @@ const ChannelDetailModelsTab = ({
             {t('channel.edit.model_selector.batch_delete')}
           </AppButton>
         )}
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 
   return (
@@ -425,13 +426,13 @@ const ChannelDetailModelsTab = ({
       headerStart={<span className='router-toolbar-meta'>({modelSectionMetaText})</span>}
     >
       <div>
-        {renderToolbar()}
         <AppAlert
           type='info'
           showIcon
           className='router-section-message'
           title={t('channel.edit.model_selector.enable_hint')}
         />
+        {renderToolbar()}
         <AppTable
           className='router-detail-table router-table-fit-page router-channel-detail-model-table'
           pagination={false}
