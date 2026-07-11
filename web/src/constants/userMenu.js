@@ -37,11 +37,6 @@ export const buildUserWorkspaceMenuItems = () => {
           to: '/workspace/service/models',
           icon: 'cube',
         },
-        {
-          name: 'header.log',
-          to: '/workspace/log',
-          icon: 'book',
-        },
       ],
     },
   ];
@@ -53,11 +48,6 @@ export const buildUserWorkspaceMenuItems = () => {
       name: 'header.mine',
       icon: 'user circle',
       items: [
-        {
-          name: 'topup.mine.spend',
-          to: '/workspace/dashboard',
-          icon: 'chart bar',
-        },
         {
           name: 'topup.mine.quota',
           to: '/workspace/topup?tab=quota',
@@ -72,6 +62,11 @@ export const buildUserWorkspaceMenuItems = () => {
           name: 'header.account',
           to: '/workspace/setting',
           icon: 'setting',
+        },
+        {
+          name: 'header.log',
+          to: '/workspace/log',
+          icon: 'book',
         },
       ],
     },

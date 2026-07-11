@@ -508,7 +508,8 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
       : isGiftRecord
         ? t('topup.records.gift_title', '赠送记录')
         : t('topup.records.title', '充值订单');
-  const sectionExtra = (
+  const shouldShowSectionExtra = !(embedded && isPaymentRecord);
+  const sectionExtra = shouldShowSectionExtra ? (
     <>
       {isPaymentRecord ? (
         <AppButton
@@ -535,7 +536,7 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
         {t('topup.records.refresh')}
       </AppButton>
     </>
-  );
+  ) : null;
   const recordsBody = isRedemptionRecord ? (
     <>
       <div className='router-table-scroll-x'>
@@ -602,7 +603,9 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
     <>
       {embedded ? (
         <div className='router-topup-history-panel'>
-          <div className='router-topup-history-toolbar'>{sectionExtra}</div>
+          {sectionExtra ? (
+            <div className='router-topup-history-toolbar'>{sectionExtra}</div>
+          ) : null}
           {recordsBody}
         </div>
       ) : (

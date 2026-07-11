@@ -68,7 +68,6 @@ const QuotaCardDetailPage = lazy(
   () => import('./pages/TopUp/QuotaCardDetailPage'),
 );
 const Chat = lazy(() => import('./pages/Chat'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ServicePricing = lazy(() => import('./pages/ServicePricing'));
 const PaymentHistoryPage = lazy(
   () => import('./pages/ServicePricing/PaymentHistoryPage'),
@@ -129,7 +128,7 @@ function UserWorkspaceEntryRedirect() {
         if (!active) {
           return;
         }
-        setTargetPath(hasActivePackage || hasBalance ? '/workspace/dashboard' : '/workspace/start');
+        setTargetPath(hasActivePackage || hasBalance ? '/workspace/topup?tab=quota' : '/workspace/start');
       } catch (error) {
         if (!active) {
           return;
@@ -669,11 +668,7 @@ function App() {
         />
         <Route
           path='/workspace/dashboard'
-          element={
-            <Suspense fallback={<Loading />}>
-              <Dashboard />
-            </Suspense>
-          }
+          element={<Navigate to='/workspace/topup?tab=quota' replace />}
         />
         <Route
           path='/workspace/service/pricing'

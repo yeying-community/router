@@ -1761,6 +1761,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return dropChannelModelInactiveWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607111130_backfill_reconciliation_balance_order_groups",
+			Description: "backfill group ownership for legacy balance reconciliation topup orders",
+			Up: func(tx *gorm.DB) error {
+				return backfillReconciliationBalanceOrderGroupsWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -1962,18 +1969,9 @@ func removeDefaultUserGroupAndLegacyBalanceSourcesWithDB(db *gorm.DB) error {
 		if paidAt <= 0 {
 			paidAt = createdAt
 		}
-		groupID := ""
-		if group, ok, err := scanSingleGroupID(db.Raw(`
-			SELECT u."group"
-			FROM users u
-			JOIN groups g ON g.id = u."group" AND g.enabled = TRUE
-			WHERE u.id = ?
-			  AND COALESCE(TRIM(u."group"), '') <> ''
-			LIMIT 1
-		`, lot.UserID).Row()); err != nil {
+		groupID, err := resolveEnabledUserCurrentGroupIDWithDB(db, lot.UserID)
+		if err != nil {
 			return err
-		} else if ok {
-			groupID = group
 		}
 		order := TopupOrder{
 			Id:            random.GetUUID(),
@@ -2084,7 +2082,10 @@ func migrateBalanceCreditOriginsWithDB(db *gorm.DB) error {
 	`, TopupOrderCreditOriginReconcile, TopupOrderBusinessBalance, TopupOrderSourceTopUpAPI, TopupOrderCreditOriginPaid).Error; err != nil {
 		return err
 	}
-	return reconcileLegacyUserQuotaToGiftLotsWithDB(db)
+	if err := reconcileLegacyUserQuotaToGiftLotsWithDB(db); err != nil {
+		return err
+	}
+	return backfillReconciliationBalanceOrderGroupsWithDB(db)
 }
 
 func dropLegacyUsersQuotaWithDB(db *gorm.DB) error {
@@ -2150,6 +2151,10 @@ func reconcileLegacyUserQuotaToGiftLotsWithDB(db *gorm.DB) error {
 			continue
 		}
 		transactionID := "balance-reconciliation-" + userID
+		groupID, err := resolveEnabledUserCurrentGroupIDWithDB(db, userID)
+		if err != nil {
+			return err
+		}
 		order := TopupOrder{}
 		if err := db.Where("transaction_id = ?", transactionID).Take(&order).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -2170,6 +2175,7 @@ func reconcileLegacyUserQuotaToGiftLotsWithDB(db *gorm.DB) error {
 				Amount:        0,
 				Currency:      TopupOrderCurrencyCNY,
 				Quota:         candidate.Delta,
+				GroupID:       groupID,
 				PaidAt:        now,
 				RedeemedAt:    now,
 				CreatedAt:     now,
@@ -2181,6 +2187,17 @@ func reconcileLegacyUserQuotaToGiftLotsWithDB(db *gorm.DB) error {
 			}
 		} else {
 			normalizeTopupOrderRow(&order)
+			if strings.TrimSpace(order.GroupID) == "" && groupID != "" {
+				if err := db.Model(&TopupOrder{}).
+					Where("id = ?", order.Id).
+					Updates(map[string]any{
+						"group_id":   groupID,
+						"updated_at": now,
+					}).Error; err != nil {
+					return err
+				}
+				order.GroupID = groupID
+			}
 		}
 		if _, _, err := CreditUserBalanceLotWithDB(db, UserBalanceLotCreditInput{
 			UserID:      userID,
@@ -2190,6 +2207,71 @@ func reconcileLegacyUserQuotaToGiftLotsWithDB(db *gorm.DB) error {
 			GrantedAt:   now,
 			ExpiresAt:   0,
 		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func resolveEnabledUserCurrentGroupIDWithDB(db *gorm.DB, userID string) (string, error) {
+	normalizedUserID := strings.TrimSpace(userID)
+	if normalizedUserID == "" {
+		return "", nil
+	}
+	groupID, _, err := scanSingleGroupID(db.Raw(`
+		SELECT u."group"
+		FROM users u
+		JOIN groups g ON g.id = u."group" AND g.enabled = TRUE
+		WHERE u.id = ?
+		  AND COALESCE(TRIM(u."group"), '') <> ''
+		LIMIT 1
+	`, normalizedUserID).Row())
+	if err != nil {
+		return "", err
+	}
+	return groupID, nil
+}
+
+func backfillReconciliationBalanceOrderGroupsWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if err := db.AutoMigrate(&TopupOrder{}, &GroupCatalog{}); err != nil {
+		return err
+	}
+	orders := make([]TopupOrder, 0)
+	if err := db.
+		Where("business_type = ?", TopupOrderBusinessBalance).
+		Where("credit_origin = ?", TopupOrderCreditOriginReconcile).
+		Where("COALESCE(TRIM(group_id), '') = ''").
+		Where("COALESCE(TRIM(provider_name), '') = ?", "migration").
+		Where("transaction_id LIKE ?", "balance-reconciliation-%").
+		Order("created_at asc, id asc").
+		Find(&orders).Error; err != nil {
+		return err
+	}
+	if len(orders) == 0 {
+		return nil
+	}
+	now := helper.GetTimestamp()
+	for _, order := range orders {
+		userID := strings.TrimSpace(order.UserID)
+		if userID == "" {
+			continue
+		}
+		groupID, err := resolveEnabledUserCurrentGroupIDWithDB(db, userID)
+		if err != nil {
+			return err
+		}
+		if groupID == "" {
+			continue
+		}
+		if err := db.Model(&TopupOrder{}).
+			Where("id = ?", order.Id).
+			Updates(map[string]any{
+				"group_id":   groupID,
+				"updated_at": now,
+			}).Error; err != nil {
 			return err
 		}
 	}
