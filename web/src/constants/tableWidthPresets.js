@@ -204,6 +204,7 @@ export const LOG_LIST_COLUMN_WIDTHS = {
   channel: 140,
   group: 140,
   type: 88,
+  billingSource: 180,
   model: 180,
   username: 140,
   tokenName: 160,
@@ -217,7 +218,7 @@ export const LOG_LIST_TABLE_MIN_WIDTH =
   LOG_LIST_COLUMN_WIDTHS.time +
   LOG_LIST_COLUMN_WIDTHS.channel +
   LOG_LIST_COLUMN_WIDTHS.group +
-  LOG_LIST_COLUMN_WIDTHS.type +
+  LOG_LIST_COLUMN_WIDTHS.billingSource +
   LOG_LIST_COLUMN_WIDTHS.model +
   LOG_LIST_COLUMN_WIDTHS.username +
   LOG_LIST_COLUMN_WIDTHS.tokenName +

@@ -46,6 +46,13 @@ func (plan relayBillingPlan) ChargeTokenQuota() bool {
 	return !plan.UsesRequestPackage()
 }
 
+func (plan relayBillingPlan) LogBillingSourceSnapshot() model.LogBillingSourceSnapshot {
+	if plan.RequestPackageReservation.Active() {
+		return plan.RequestPackageReservation.LogBillingSourceSnapshot()
+	}
+	return plan.PackageReservation.LogBillingSourceSnapshot()
+}
+
 func buildBalanceRelayBillingPlan(packageActive bool) relayBillingPlan {
 	source := relayBillingSourceBalance
 	if packageActive {

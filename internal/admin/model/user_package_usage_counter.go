@@ -59,6 +59,7 @@ type RequestPackageReservation struct {
 	SubscriptionID string
 	UserID         string
 	PackageID      string
+	PackageName    string
 	GroupID        string
 	Metric         string
 	ScopeType      string
@@ -394,6 +395,7 @@ func reserveRequestPackageSubscriptionWithDB(db *gorm.DB, subscription UserPacka
 			SubscriptionID: strings.TrimSpace(subscription.Id),
 			UserID:         strings.TrimSpace(subscription.UserID),
 			PackageID:      strings.TrimSpace(subscription.PackageID),
+			PackageName:    strings.TrimSpace(subscription.PackageName),
 			GroupID:        strings.TrimSpace(subscription.GroupID),
 			Metric:         strings.TrimSpace(subscription.QuotaMetric),
 			ScopeType:      strings.TrimSpace(subscription.ScopeType),
@@ -433,6 +435,18 @@ func ReleaseRequestPackageReservationWithDB(db *gorm.DB, reservation RequestPack
 		}
 		return ReleaseEntitlementConcurrencyReservationWithDB(tx, reservation.Concurrency)
 	})
+}
+
+func (reservation RequestPackageReservation) LogBillingSourceSnapshot() LogBillingSourceSnapshot {
+	sourceID := strings.TrimSpace(reservation.PackageID)
+	if sourceID == "" {
+		sourceID = strings.TrimSpace(reservation.SubscriptionID)
+	}
+	return LogBillingSourceSnapshot{
+		ID:     sourceID,
+		Name:   strings.TrimSpace(reservation.PackageName),
+		Detail: strings.TrimSpace(reservation.SubscriptionID),
+	}
 }
 
 func ReleaseRequestPackageReservation(reservation RequestPackageReservation) error {

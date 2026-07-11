@@ -50,6 +50,15 @@ type UserBalanceLotCreditInput struct {
 	ExpiresAt   int64
 }
 
+type UserBalanceLotConsumeResult struct {
+	ConsumedAmount int64
+	Source         LogBillingSourceSnapshot
+}
+
+func (result UserBalanceLotConsumeResult) LogBillingSourceSnapshot() LogBillingSourceSnapshot {
+	return result.Source
+}
+
 func (UserBalanceLot) TableName() string {
 	return UserBalanceLotsTableName
 }
@@ -454,16 +463,16 @@ func GetEffectiveUserBalanceAmount(userID string) (int64, error) {
 	return GetEffectiveUserBalanceAmountWithDB(DB, userID, helper.GetTimestamp())
 }
 
-func ConsumeUserBalanceLotsForGroupWithDB(db *gorm.DB, userID string, groupID string, quota int64, now int64) (int64, error) {
+func ConsumeUserBalanceLotsForGroupDetailedWithDB(db *gorm.DB, userID string, groupID string, quota int64, now int64) (UserBalanceLotConsumeResult, error) {
+	result := UserBalanceLotConsumeResult{}
 	if db == nil {
-		return 0, fmt.Errorf("database handle is nil")
+		return result, fmt.Errorf("database handle is nil")
 	}
 	normalizedUserID := strings.TrimSpace(userID)
 	if normalizedUserID == "" || quota <= 0 {
-		return 0, nil
+		return result, nil
 	}
 	normalizedGroupID := strings.TrimSpace(groupID)
-	consumed := int64(0)
 	err := db.Transaction(func(tx *gorm.DB) error {
 		effectiveNow := now
 		if effectiveNow <= 0 {
@@ -536,22 +545,76 @@ func ConsumeUserBalanceLotsForGroupWithDB(db *gorm.DB, userID string, groupID st
 			}); err != nil {
 				return err
 			}
+			if strings.TrimSpace(result.Source.ID) == "" {
+				result.Source = LogBillingSourceSnapshot{
+					ID:     strings.TrimSpace(row.SourceID),
+					Name:   strings.TrimSpace(row.SourceID),
+					Detail: strings.TrimSpace(row.SourceType),
+				}
+			}
 			remainingToConsume -= delta
-			consumed += delta
+			result.ConsumedAmount += delta
 		}
 		return nil
 	})
 	if err != nil {
-		return 0, err
+		return UserBalanceLotConsumeResult{}, err
 	}
-	if consumed > 0 {
+	if result.ConsumedAmount > 0 {
 		RefreshUserGroupCaches(normalizedUserID)
 	}
-	return consumed, nil
+	result.Source = resolveBalanceLogBillingSourceSnapshotWithDB(db, result.Source)
+	return result, nil
+}
+
+func resolveBalanceLogBillingSourceSnapshotWithDB(db *gorm.DB, source LogBillingSourceSnapshot) LogBillingSourceSnapshot {
+	source.ID = strings.TrimSpace(source.ID)
+	source.Name = strings.TrimSpace(source.Name)
+	source.Detail = strings.TrimSpace(source.Detail)
+	if db == nil || source.ID == "" {
+		return source
+	}
+	switch source.Detail {
+	case UserBalanceLotSourceTopup:
+		order := TopupOrder{}
+		if err := db.Select("id", "title", "package_name", "transaction_id").Where("id = ?", source.ID).First(&order).Error; err == nil {
+			switch {
+			case strings.TrimSpace(order.Title) != "":
+				source.Name = strings.TrimSpace(order.Title)
+			case strings.TrimSpace(order.PackageName) != "":
+				source.Name = strings.TrimSpace(order.PackageName)
+			case strings.TrimSpace(order.TransactionID) != "":
+				source.Name = strings.TrimSpace(order.TransactionID)
+			}
+		}
+	case UserBalanceLotSourceRedeem:
+		redemption := Redemption{}
+		if err := db.Select("id", "name", "code").Where("id = ?", source.ID).First(&redemption).Error; err == nil {
+			switch {
+			case strings.TrimSpace(redemption.Name) != "":
+				source.Name = strings.TrimSpace(redemption.Name)
+			case strings.TrimSpace(redemption.Code) != "":
+				source.Name = strings.TrimSpace(redemption.Code)
+			}
+		}
+	}
+	return source
+}
+
+func ConsumeUserBalanceLotsForGroupWithDB(db *gorm.DB, userID string, groupID string, quota int64, now int64) (int64, error) {
+	result, err := ConsumeUserBalanceLotsForGroupDetailedWithDB(db, userID, groupID, quota, now)
+	if err != nil {
+		return 0, err
+	}
+	return result.ConsumedAmount, nil
 }
 
 func ConsumeUserBalanceLotsWithDB(db *gorm.DB, userID string, quota int64, now int64) (int64, error) {
 	return ConsumeUserBalanceLotsForGroupWithDB(db, userID, "", quota, now)
+}
+
+func ConsumeUserBalanceLotsForGroupDetailed(userID string, groupID string, quota int64) (UserBalanceLotConsumeResult, error) {
+	return ConsumeUserBalanceLotsForGroupDetailedWithDB(DB, userID, groupID, quota, helper.GetTimestamp())
 }
 
 func ConsumeUserBalanceLotsForGroup(userID string, groupID string, quota int64) (int64, error) {

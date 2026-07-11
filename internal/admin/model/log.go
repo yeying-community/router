@@ -17,6 +17,9 @@ type Log struct {
 	GroupName                        string  `json:"group_name,omitempty" gorm:"-"`
 	Quota                            int     `json:"quota" gorm:"default:0"`
 	BillingSource                    string  `json:"billing_source" gorm:"type:varchar(32);index;default:''"`
+	BillingSourceID                  string  `json:"billing_source_id" gorm:"type:char(36);index;default:''"`
+	BillingSourceName                string  `json:"billing_source_name" gorm:"type:varchar(255);default:''"`
+	BillingSourceDetail              string  `json:"billing_source_detail" gorm:"type:varchar(255);default:''"`
 	UserDailyQuota                   int     `json:"user_daily_quota" gorm:"column:user_daily_quota;default:0"`
 	UserEmergencyQuota               int     `json:"user_emergency_quota" gorm:"column:user_emergency_quota;default:0"`
 	BillingPriceUnit                 string  `json:"billing_price_unit" gorm:"type:varchar(64);default:''"`
@@ -103,6 +106,26 @@ func ResolveConsumeLogBillingSource(chargeUserBalance bool) string {
 		return LogBillingSourceBalance
 	}
 	return LogBillingSourcePackage
+}
+
+func ApplyConsumeLogBillingSource(log *Log, chargeUserBalance bool, packageSource LogBillingSourceSnapshot, balanceSource LogBillingSourceSnapshot) {
+	if log == nil {
+		return
+	}
+	log.BillingSource = ResolveConsumeLogBillingSource(chargeUserBalance)
+	source := packageSource
+	if chargeUserBalance {
+		source = balanceSource
+	}
+	log.BillingSourceID = source.ID
+	log.BillingSourceName = source.Name
+	log.BillingSourceDetail = source.Detail
+}
+
+type LogBillingSourceSnapshot struct {
+	ID     string
+	Name   string
+	Detail string
 }
 
 func RecordLog(ctx context.Context, userId string, logType int, content string) {

@@ -266,13 +266,17 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 			logger.Error(ctx, "error consuming token remain quota: "+err.Error())
 		}
 	}
+	balanceSource := model.LogBillingSourceSnapshot{}
 	if chargeUserBalance {
 		if quota > 0 {
-			consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(meta.UserId, meta.Group, quota)
+			consumeResult, consumeErr := model.ConsumeUserBalanceLotsForGroupDetailed(meta.UserId, meta.Group, quota)
 			if consumeErr != nil {
 				logger.Error(ctx, "error consuming user balance lots: "+consumeErr.Error())
-			} else if consumedFromLots < quota {
-				logger.Warnf(ctx, "user balance lot coverage partial user=%s consumed=%d requested=%d", strings.TrimSpace(meta.UserId), consumedFromLots, quota)
+			} else {
+				balanceSource = consumeResult.LogBillingSourceSnapshot()
+				if consumeResult.ConsumedAmount < quota {
+					logger.Warnf(ctx, "user balance lot coverage partial user=%s consumed=%d requested=%d", strings.TrimSpace(meta.UserId), consumeResult.ConsumedAmount, quota)
+				}
 			}
 		}
 		err = model.CacheUpdateUserQuota(ctx, meta.UserId)
@@ -301,13 +305,13 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		ModelName:          textRequest.Model,
 		TokenName:          meta.TokenName,
 		Quota:              int(quota),
-		BillingSource:      model.ResolveConsumeLogBillingSource(chargeUserBalance),
 		UserDailyQuota:     userDailyQuota,
 		UserEmergencyQuota: userEmergencyQuota,
 		Content:            buildTextBillingLogContent(settlementPricing, groupRatio, imageFeeNote),
 		IsStream:           meta.IsStream,
 		ElapsedTime:        helper.CalcElapsedTime(meta.StartTime),
 	}
+	model.ApplyConsumeLogBillingSource(entry, chargeUserBalance, billingPlan.LogBillingSourceSnapshot(), balanceSource)
 	applyRouteObservabilityToLog(entry, meta, textRequest.Model)
 	billingSnapshot.ApplyToLog(entry)
 	annotateTextEstimateLogFields(entry, estimateResult)

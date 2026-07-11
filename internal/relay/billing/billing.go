@@ -53,13 +53,17 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 			logger.Errorf(ctx, "billing post_consume failed code=post_consume_token_quota_failed user_id=%s group=%s channel_id=%s model=%s token_id=%s quota_delta=%d total_quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), strings.TrimSpace(tokenId), quotaDelta, totalQuota, chargeUserBalance, err.Error())
 		}
 	}
+	balanceSource := model.LogBillingSourceSnapshot{}
 	if chargeUserBalance {
 		if totalQuota > 0 {
-			consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(userId, groupID, totalQuota)
+			consumeResult, consumeErr := model.ConsumeUserBalanceLotsForGroupDetailed(userId, groupID, totalQuota)
 			if consumeErr != nil {
 				logger.Errorf(ctx, "billing lots consume failed code=consume_user_balance_lots_failed user_id=%s group=%s channel_id=%s model=%s total_quota=%d err=%q", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), totalQuota, consumeErr.Error())
-			} else if consumedFromLots < totalQuota {
-				logger.Warnf(ctx, "billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), consumedFromLots, totalQuota)
+			} else {
+				balanceSource = consumeResult.LogBillingSourceSnapshot()
+				if consumeResult.ConsumedAmount < totalQuota {
+					logger.Warnf(ctx, "billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(userId), strings.TrimSpace(groupID), strings.TrimSpace(channelId), strings.TrimSpace(modelName), consumeResult.ConsumedAmount, totalQuota)
+				}
 			}
 		}
 		err = model.CacheUpdateUserQuota(ctx, userId)
@@ -85,7 +89,7 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 	// totalQuota is total quota consumed
 	if totalQuota != 0 {
 		snapshot.ChargeAmount = totalQuota
-		entry := buildPostConsumeLogEntry(userId, groupID, channelId, modelName, tokenName, totalQuota, chargeUserBalance, userDailyQuota, userEmergencyQuota, pricing, groupRatio, snapshot)
+		entry := buildPostConsumeLogEntry(userId, groupID, channelId, modelName, tokenName, totalQuota, chargeUserBalance, userDailyQuota, userEmergencyQuota, pricing, groupRatio, snapshot, packageReservation.LogBillingSourceSnapshot(), balanceSource)
 		for _, observer := range routeObservers {
 			if observer != nil {
 				observer(entry)
@@ -105,8 +109,8 @@ func PostConsumeQuota(ctx context.Context, tokenId string, quotaDelta int64, tot
 	}
 }
 
-func buildPostConsumeLogEntry(userId string, groupID string, channelId string, modelName string, tokenName string, totalQuota int64, chargeUserBalance bool, userDailyQuota int, userEmergencyQuota int, pricing model.ResolvedModelPricing, groupRatio float64, snapshot BillingSnapshot) *model.Log {
-	return &model.Log{
+func buildPostConsumeLogEntry(userId string, groupID string, channelId string, modelName string, tokenName string, totalQuota int64, chargeUserBalance bool, userDailyQuota int, userEmergencyQuota int, pricing model.ResolvedModelPricing, groupRatio float64, snapshot BillingSnapshot, packageSource model.LogBillingSourceSnapshot, balanceSource model.LogBillingSourceSnapshot) *model.Log {
+	entry := &model.Log{
 		UserId:             userId,
 		GroupId:            groupID,
 		ChannelId:          channelId,
@@ -115,11 +119,12 @@ func buildPostConsumeLogEntry(userId string, groupID string, channelId string, m
 		ModelName:          modelName,
 		TokenName:          tokenName,
 		Quota:              int(totalQuota),
-		BillingSource:      model.ResolveConsumeLogBillingSource(chargeUserBalance),
 		UserDailyQuota:     userDailyQuota,
 		UserEmergencyQuota: userEmergencyQuota,
 		Content:            FormatPricingLog(pricing, groupRatio),
 	}
+	model.ApplyConsumeLogBillingSource(entry, chargeUserBalance, packageSource, balanceSource)
+	return entry
 }
 
 func billingSnapshotUsageQuantity(snapshot BillingSnapshot) int {

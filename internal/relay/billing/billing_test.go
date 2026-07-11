@@ -28,6 +28,8 @@ func TestBuildPostConsumeLogEntryUsesBillingQuantity(t *testing.T) {
 		},
 		1,
 		snapshot,
+		adminmodel.LogBillingSourceSnapshot{},
+		adminmodel.LogBillingSourceSnapshot{},
 	)
 	if entry.PromptTokens != 123 {
 		t.Fatalf("PromptTokens = %d, want billing quantity 123", entry.PromptTokens)

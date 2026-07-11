@@ -72,6 +72,9 @@ type UserPackageEmergencyQuotaReservation struct {
 type PackageQuotaReservation struct {
 	GroupDaily            GroupDailyQuotaReservation
 	PackageEmergency      UserPackageEmergencyQuotaReservation
+	SubscriptionID        string
+	PackageID             string
+	PackageName           string
 	DailyLimit            int64
 	PackageEmergencyLimit int64
 	Timezone              string
@@ -332,6 +335,9 @@ func ReservePackageQuotaWithDB(db *gorm.DB, groupID string, userID string, quota
 	bizDate := businessDateByTimezone(time.Now(), timezone)
 	bizMonth := businessMonthByTimezone(time.Now(), timezone)
 	reservation := PackageQuotaReservation{
+		SubscriptionID:        strings.TrimSpace(subscription.Id),
+		PackageID:             strings.TrimSpace(subscription.PackageID),
+		PackageName:           strings.TrimSpace(subscription.PackageName),
 		DailyLimit:            dailyLimit,
 		PackageEmergencyLimit: packageEmergencyLimit,
 		Timezone:              timezone,
@@ -399,6 +405,18 @@ func ReservePackageQuotaWithDB(db *gorm.DB, groupID string, userID string, quota
 		return PackageQuotaReservation{}, false, nil
 	}
 	return reservation, true, nil
+}
+
+func (reservation PackageQuotaReservation) LogBillingSourceSnapshot() LogBillingSourceSnapshot {
+	sourceID := strings.TrimSpace(reservation.PackageID)
+	if sourceID == "" {
+		sourceID = strings.TrimSpace(reservation.SubscriptionID)
+	}
+	return LogBillingSourceSnapshot{
+		ID:     sourceID,
+		Name:   strings.TrimSpace(reservation.PackageName),
+		Detail: strings.TrimSpace(reservation.SubscriptionID),
+	}
 }
 
 func ReservePackageQuota(groupID string, userID string, quota int64) (PackageQuotaReservation, bool, error) {

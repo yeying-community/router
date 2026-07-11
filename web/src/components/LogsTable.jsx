@@ -43,7 +43,7 @@ import {
 const USER_LOG_COLUMN_ORDER_STORAGE_KEY = 'router_user_log_column_order_v1';
 const DEFAULT_USER_LOG_COLUMN_ORDER = [
   'created_at',
-  'type',
+  'billingSource',
   'model_name',
   'token_name',
   'prompt_tokens',
@@ -56,11 +56,15 @@ function normalizeUserLogColumnOrder(rawOrder) {
   const nextOrder = [];
   const seen = new Set();
   const append = (key) => {
-    if (!DEFAULT_USER_LOG_COLUMN_ORDER.includes(key) || seen.has(key)) {
+    const normalizedKey = key === 'type' ? 'billingSource' : key;
+    if (
+      !DEFAULT_USER_LOG_COLUMN_ORDER.includes(normalizedKey) ||
+      seen.has(normalizedKey)
+    ) {
       return;
     }
-    seen.add(key);
-    nextOrder.push(key);
+    seen.add(normalizedKey);
+    nextOrder.push(normalizedKey);
   };
   if (Array.isArray(rawOrder)) {
     rawOrder.forEach((key) => append(String(key || '').trim()));
@@ -151,6 +155,31 @@ function renderType(type) {
         </AppTag>
       );
   }
+}
+
+function renderBillingSource(log, t) {
+  const name = String(log?.billing_source_name || '').trim();
+  const source = String(log?.billing_source || '').trim();
+  const fallback =
+    source === 'package'
+      ? t('log.detail.billing_sources.package')
+      : source === 'balance'
+        ? t('log.detail.billing_sources.balance')
+        : '';
+  const label = name || fallback || '-';
+  const color = source === 'package' ? 'blue' : source === 'balance' ? 'teal' : 'grey';
+  const sourceID = String(log?.billing_source_id || '').trim();
+  const sourceDetail = String(log?.billing_source_detail || '').trim();
+  const title = [sourceDetail, sourceID].filter(Boolean).join(' / ');
+
+  if (label === '-') {
+    return '-';
+  }
+  return (
+    <AppTag className='router-tag' color={color} title={title || label}>
+      {label}
+    </AppTag>
+  );
 }
 
 function getColorByElapsedTime(elapsedTime) {
@@ -370,6 +399,33 @@ const LogsTable = () => {
   const navigate = useNavigate();
   const currentPagePath = `${location.pathname}${location.search}${location.hash}`;
   const isAdminScope = location.pathname.startsWith('/admin/');
+  const logSource = useMemo(() => {
+    const params = new URLSearchParams(location.search || '');
+    return (params.get('source') || '').trim();
+  }, [location.search]);
+  const breadcrumbs = useMemo(() => {
+    const items = [
+      {
+        key: 'workspace',
+        label: isAdminScope
+          ? t('header.admin_workspace')
+          : t('header.user_workspace'),
+      },
+      {
+        key: 'section',
+        label: isAdminScope ? t('header.platform_operation') : t('header.mine'),
+      },
+    ];
+    if (!isAdminScope && logSource === 'quota') {
+      items.push({
+        key: 'quota',
+        label: t('topup.mine.quota'),
+        onClick: () => navigate('/workspace/topup?tab=quota'),
+      });
+    }
+    items.push({ key: 'log', label: t('header.log'), active: true });
+    return items;
+  }, [isAdminScope, logSource, navigate, t]);
   const initialSearchFilters = useMemo(
     () => parseLogFiltersFromSearch(location.search, isAdminScope),
     [isAdminScope, location.search]
@@ -868,6 +924,11 @@ const LogsTable = () => {
           );
         case 'type':
           return compareNumberValue(left.type, right.type);
+        case 'billingSource':
+          return compareTextValue(
+            left.billing_source_name || left.billing_source,
+            right.billing_source_name || right.billing_source,
+          );
         case 'model_name':
           return compareTextValue(left.publicModelName, right.publicModelName);
         case 'username':
@@ -1049,19 +1110,7 @@ const LogsTable = () => {
   return (
     <>
       <AppFilterHeader
-        breadcrumbs={[
-          {
-            key: 'workspace',
-            label: isAdminScope
-              ? t('header.admin_workspace')
-              : t('header.user_workspace'),
-          },
-          {
-            key: 'section',
-            label: isAdminScope ? t('header.platform_operation') : t('header.mine'),
-          },
-          { key: 'log', label: t('header.log'), active: true },
-        ]}
+        breadcrumbs={breadcrumbs}
         title={t('header.log')}
         picker={
             <AppPopover
@@ -1324,17 +1373,36 @@ const LogsTable = () => {
                 },
               ]
             : []),
-          {
-            title: t('log.table.type'),
-            dataIndex: 'type',
-            key: 'type',
-            className: 'router-table-col-type-narrow',
-            width: LOG_LIST_COLUMN_WIDTHS.type,
-            sorter: true,
-            sortDirections: ['ascend', 'descend'],
-            sortOrder: tableSorter.columnKey === 'type' ? tableSorter.order : null,
-            render: (value) => renderType(value),
-          },
+          ...(isAdminScope
+            ? [
+                {
+                  title: t('log.table.type'),
+                  dataIndex: 'type',
+                  key: 'type',
+                  className: 'router-table-col-type-narrow',
+                  width: LOG_LIST_COLUMN_WIDTHS.type,
+                  sorter: true,
+                  sortDirections: ['ascend', 'descend'],
+                  sortOrder:
+                    tableSorter.columnKey === 'type' ? tableSorter.order : null,
+                  render: (value) => renderType(value),
+                },
+              ]
+            : [
+                {
+                  title: t('log.table.billing_source'),
+                  key: 'billingSource',
+                  width: LOG_LIST_COLUMN_WIDTHS.billingSource,
+                  ellipsis: true,
+                  sorter: true,
+                  sortDirections: ['ascend', 'descend'],
+                  sortOrder:
+                    tableSorter.columnKey === 'billingSource'
+                      ? tableSorter.order
+                      : null,
+                  render: (_, log) => renderBillingSource(log, t),
+                },
+              ]),
           {
             title: t('log.table.model'),
             key: 'model_name',
