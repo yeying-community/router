@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { API, showError } from '../../helpers';
 import { AppButton, AppSection, AppStatistic } from '../../router-ui';
 import QuotaCardItem from './QuotaCardItem';
+import SpendingCalendar from './SpendingCalendar';
 import {
   renderTopupIntegerAmountWithExactPopup,
   useTopUpWorkspace,
@@ -125,6 +126,12 @@ const QuotaPage = () => {
           {t('topup.quota_overview.hint')}
         </div>
       </AppSection>
+
+      <div className='dashboard-spend-section'>
+        <div className='dashboard-spend-stack'>
+          <SpendingCalendar />
+        </div>
+      </div>
 
       <AppSection
         title={t('topup.quota_cards.active_title')}

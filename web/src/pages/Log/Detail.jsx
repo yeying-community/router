@@ -453,7 +453,7 @@ const LogDetail = () => {
             key: 'section',
             label: isAdminPage
               ? t('header.platform_operation')
-              : t('header.records'),
+              : t('header.mine'),
           },
           {
             key: 'log-list',

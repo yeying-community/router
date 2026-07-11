@@ -153,7 +153,7 @@
       }
     },
     "payment_history": {
-      "button": "Payment Records",
+      "button": "Payment History",
       "title": "Payment History",
       "status_title": "Payment Status",
       "back_to_pricing": "Back to Subscription"

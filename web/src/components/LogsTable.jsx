@@ -1058,7 +1058,7 @@ const LogsTable = () => {
           },
           {
             key: 'section',
-            label: isAdminScope ? t('header.platform_operation') : t('header.records'),
+            label: isAdminScope ? t('header.platform_operation') : t('header.mine'),
           },
           { key: 'log', label: t('header.log'), active: true },
         ]}
