@@ -531,7 +531,6 @@ func TestRestoreRuntimeDisabledCapabilitiesAfterSuccessfulTests(t *testing.T) {
 		Type:           adminmodel.ProviderModelTypeText,
 		Endpoint:       adminmodel.ChannelModelEndpointChat,
 		Endpoints:      []string{adminmodel.ChannelModelEndpointChat},
-		Inactive:       true,
 		Selected:       false,
 		DisabledReason: "model not found",
 		DisabledAt:     123,
@@ -580,7 +579,7 @@ func TestRestoreRuntimeDisabledCapabilitiesAfterSuccessfulTests(t *testing.T) {
 	if err := db.First(&modelRow, "channel_id = ? AND model = ?", "channel-1", "qwen3.7-max").Error; err != nil {
 		t.Fatalf("load channel model: %v", err)
 	}
-	if modelRow.Inactive || !modelRow.Selected || modelRow.DisabledReason != "" || modelRow.DisabledAt != 0 || modelRow.DisabledBy != "" {
+	if !modelRow.Selected || modelRow.DisabledReason != "" || modelRow.DisabledAt != 0 || modelRow.DisabledBy != "" {
 		t.Fatalf("model row after restore = %+v, want selected active without runtime metadata", modelRow)
 	}
 	endpointRow := adminmodel.ChannelModelEndpoint{}

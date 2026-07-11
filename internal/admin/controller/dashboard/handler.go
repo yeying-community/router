@@ -1427,7 +1427,7 @@ func buildModelDashboard(startAt int64, endAt int64, limit int) (modelSummaryDat
 
 	selectedRows := make([]model.ChannelModel, 0)
 	if err := model.DB.Model(&model.ChannelModel{}).
-		Where("selected = ? AND inactive = ?", true, false).
+		Where("publish_enabled = ?", true).
 		Find(&selectedRows).Error; err != nil {
 		return summary, nil, err
 	}

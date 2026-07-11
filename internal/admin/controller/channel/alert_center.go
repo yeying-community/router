@@ -393,7 +393,7 @@ func buildChannelAlertFeedItems(billingRows []model.ChannelBillingAlertEvent, ci
 		items = append(items, channelAlertFeedItem{
 			ID:          strings.TrimSpace(channelID + ":" + row.Model + ":" + strconv.FormatInt(row.DisabledAt, 10)),
 			Type:        model.ChannelAlertTypeModelDisabled,
-			Title:       "渠道模型已自动暂停",
+			Title:       "渠道模型已运行时禁用",
 			Summary:     joinAlertParts(strings.TrimSpace(channelNameByID[channelID]), strings.TrimSpace(row.Model), strings.TrimSpace(row.DisabledBy)),
 			Detail:      strings.TrimSpace(row.DisabledReason),
 			Level:       "warning",
@@ -407,7 +407,7 @@ func buildChannelAlertFeedItems(billingRows []model.ChannelBillingAlertEvent, ci
 		items = append(items, channelAlertFeedItem{
 			ID:          strings.TrimSpace(channelID + ":" + row.Model + ":" + row.Endpoint + ":" + strconv.FormatInt(row.DisabledAt, 10)),
 			Type:        model.ChannelAlertTypeEndpointDisabled,
-			Title:       "渠道端点已自动暂停",
+			Title:       "渠道端点已运行时禁用",
 			Summary:     joinAlertParts(strings.TrimSpace(channelNameByID[channelID]), strings.TrimSpace(row.Model), strings.TrimSpace(row.Endpoint), strings.TrimSpace(row.DisabledBy)),
 			Detail:      strings.TrimSpace(row.DisabledReason),
 			Level:       "warning",

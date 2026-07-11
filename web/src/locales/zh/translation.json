@@ -53,14 +53,14 @@
       "circuit_breaker_recovered_title": "渠道已恢复",
       "circuit_breaker_canceled_title": "渠道已取消熔断",
       "circuit_breaker_no_reason": "请查看渠道详情",
-      "channel_endpoint_disabled_title": "渠道端点已自动暂停",
-      "channel_endpoint_disabled_source": "渠道端点自动暂停",
+      "channel_endpoint_disabled_title": "渠道端点已运行时禁用",
+      "channel_endpoint_disabled_source": "渠道端点运行时禁用",
       "channel_endpoint_disabled_no_reason": "请查看端点详情",
-      "channel_endpoint_disabled_by": "暂停来源",
-      "channel_model_disabled_title": "渠道模型已自动暂停",
-      "channel_model_disabled_source": "渠道模型自动暂停",
+      "channel_endpoint_disabled_by": "禁用来源",
+      "channel_model_disabled_title": "渠道模型已运行时禁用",
+      "channel_model_disabled_source": "渠道模型运行时禁用",
       "channel_model_disabled_no_reason": "请查看模型详情",
-      "channel_model_disabled_by": "暂停来源",
+      "channel_model_disabled_by": "禁用来源",
       "task_source_admin": "系统任务",
       "task_source_user": "我的任务",
       "admin_task_failed_title": "渠道任务失败",
@@ -1036,13 +1036,13 @@
         "summary_cards": {
           "total": "端点总数",
           "available": "可用",
-          "paused": "已暂停",
+          "paused": "运行时禁用",
           "blocked": "受阻",
           "untested": "待测试"
         },
         "runtime_state": {
           "available": "可用",
-          "paused": "已暂停",
+          "paused": "运行时禁用",
           "blocked": "受阻",
           "untested": "待测试",
           "disabled": "未启用"
@@ -1053,9 +1053,9 @@
           "recovery_state_blocked": "恢复状态：需先解决启用阻断",
           "recovery_state_untested": "恢复状态：需先完成端点测试",
           "recovery_state_disabled": "恢复状态：当前未启用",
-          "pause_reason": "暂停原因：{{value}}",
-          "paused_at": "暂停时间：{{value}}",
-          "paused_by": "最近自动暂停来源：{{value}}",
+          "pause_reason": "禁用原因：{{value}}",
+          "paused_at": "禁用时间：{{value}}",
+          "paused_by": "最近运行时禁用来源：{{value}}",
           "block_reason": "启用阻断：{{value}}",
           "last_tested_at": "最近测试：{{value}}"
         },
@@ -1083,7 +1083,7 @@
       },
       "circuit_breaker": {
         "title": "熔断事件",
-        "hint": "这里记录渠道低成功率熔断、半开探测、自动恢复和取消恢复的历史事件，用于排查渠道为什么被自动暂停或恢复。",
+        "hint": "这里记录渠道低成功率熔断、半开探测、自动恢复和取消恢复的历史事件，用于排查渠道为什么被运行时禁用或恢复。",
         "empty": "当前没有熔断事件。",
         "load_failed": "加载熔断事件失败",
         "columns": {
@@ -1191,8 +1191,7 @@
         "cards": {
           "enabled": "已启用模型",
           "selectable": "可直接启用",
-          "unselectable": "待补充配置",
-          "inactive": "已关闭模型"
+          "unselectable": "待补充配置"
         },
         "table": {
           "selected": "启用",
@@ -1225,8 +1224,7 @@
         "auto_assign_success": "已一键录入 {{success}} 个模型，失败 {{failed}} 个",
         "provider_loading": "加载供应商中...",
         "provider_unassigned": "待配置",
-        "inactive": "已关闭",
-        "auto_paused": "自动暂停",
+        "runtime_disabled": "运行禁用",
         "publish_status": {
           "selectable": "待选择",
           "pending_config": "待配置",
@@ -1314,9 +1312,9 @@
         }
       },
       "capability_disable": {
-        "by": "暂停来源：{{value}}",
-        "at": "暂停时间：{{value}}",
-        "reason": "暂停原因：{{value}}"
+        "by": "禁用来源：{{value}}",
+        "at": "禁用时间：{{value}}",
+        "reason": "禁用原因：{{value}}"
       },
       "model_tester": {
         "title": "模型测试",
@@ -2684,7 +2682,7 @@
       },
       "alerts": {
         "title": "活跃告警",
-        "description": "汇总渠道账务异常、熔断事件以及模型/端点自动暂停，集中进入处理流程。",
+        "description": "汇总渠道账务异常、熔断事件以及模型/端点运行时禁用，集中进入处理流程。",
         "empty": "当前没有活跃告警",
         "active_count": "当前 {{count}} 条",
         "page_count": "当前页 {{page_count}} 条 / 共 {{total_count}} 条",
@@ -2766,8 +2764,8 @@
         },
         "types": {
           "billing": "账务刷新告警",
-          "model_disabled": "模型已自动暂停",
-          "endpoint_disabled": "端点已自动暂停"
+          "model_disabled": "模型已运行时禁用",
+          "endpoint_disabled": "端点已运行时禁用"
         },
         "type_labels": {
           "billing": "账务",

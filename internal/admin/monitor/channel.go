@@ -40,7 +40,7 @@ func NotifyRootUser(subject string, content string) error {
 }
 
 func NotifyChannelModelCapabilityDisabled(channelId string, channelName string, modelName string, reason string) {
-	subject := "渠道模型能力自动暂停提醒"
+	subject := "渠道模型能力运行时禁用提醒"
 	content := message.EmailTemplate(
 		subject,
 		fmt.Sprintf(`
@@ -48,9 +48,9 @@ func NotifyChannelModelCapabilityDisabled(channelId string, channelName string, 
 			<p>发生时间：%s</p>
 			<p>渠道：<strong>%s</strong></p>
 			<p>标识：%s</p>
-			<p>提示：该渠道的模型能力已被系统自动暂停。</p>
+			<p>提示：该渠道的模型能力已被系统运行时禁用。</p>
 			<p>模型：<strong>%s</strong></p>
-			<p>暂停原因：</p>
+			<p>禁用原因：</p>
 			<p style="background-color: #f8f8f8; padding: 10px; border-radius: 4px;">%s</p>
 			<p>该模型已从运行态路由候选中移除，请检查上游模型权限或模型名称配置。</p>
 		`, notificationOccurredAt(), notificationValue(channelName), notificationValue(channelId), notificationValue(modelName), notificationValue(reason)),
@@ -59,7 +59,7 @@ func NotifyChannelModelCapabilityDisabled(channelId string, channelName string, 
 }
 
 func NotifyChannelModelEndpointCapabilityDisabled(channelId string, channelName string, modelName string, endpoint string, reason string) {
-	subject := "渠道模型端点能力自动暂停提醒"
+	subject := "渠道模型端点能力运行时禁用提醒"
 	content := message.EmailTemplate(
 		subject,
 		fmt.Sprintf(`
@@ -67,10 +67,10 @@ func NotifyChannelModelEndpointCapabilityDisabled(channelId string, channelName 
 			<p>发生时间：%s</p>
 			<p>渠道：<strong>%s</strong></p>
 			<p>标识：%s</p>
-			<p>提示：该渠道的模型端点能力已被系统自动暂停。</p>
+			<p>提示：该渠道的模型端点能力已被系统运行时禁用。</p>
 			<p>模型：<strong>%s</strong></p>
 			<p>端点：<strong>%s</strong></p>
-			<p>暂停原因：</p>
+			<p>禁用原因：</p>
 			<p style="background-color: #f8f8f8; padding: 10px; border-radius: 4px;">%s</p>
 			<p>该模型端点已从运行态路由候选中移除，请检查供应商端点支持情况或渠道配置。</p>
 		`, notificationOccurredAt(), notificationValue(channelName), notificationValue(channelId), notificationValue(modelName), notificationValue(endpoint), notificationValue(reason)),

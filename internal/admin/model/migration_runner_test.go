@@ -60,6 +60,39 @@ func TestEnsureProcurementCostTablesWithDBRepairsMissingCostPerUnitColumn(t *tes
 	}
 }
 
+func TestDropChannelModelInactiveWithDB(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.Exec(`
+		CREATE TABLE channel_models (
+			channel_id varchar(64) NOT NULL,
+			model varchar(255) NOT NULL,
+			upstream_model varchar(255) NOT NULL DEFAULT '',
+			selected boolean DEFAULT false,
+			inactive boolean DEFAULT false,
+			disabled_reason text,
+			disabled_at bigint,
+			disabled_by varchar(64) NOT NULL DEFAULT '',
+			PRIMARY KEY (channel_id, model)
+		)
+	`).Error; err != nil {
+		t.Fatalf("create legacy channel_models: %v", err)
+	}
+	if !db.Migrator().HasColumn(ChannelModelsTableName, "inactive") {
+		t.Fatalf("legacy table missing inactive column before migration")
+	}
+
+	if err := dropChannelModelInactiveWithDB(db); err != nil {
+		t.Fatalf("drop channel model inactive: %v", err)
+	}
+
+	if db.Migrator().HasColumn(ChannelModelsTableName, "inactive") {
+		t.Fatalf("inactive column still exists after migration")
+	}
+}
+
 func TestBackfillLogRouteModelNamesWithDB(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
 	if err != nil {

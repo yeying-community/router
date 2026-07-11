@@ -383,10 +383,8 @@ func previewChannelModelSelection(existingRows []model.ChannelModel, selected []
 		}
 		seen[row.Model] = struct{}{}
 		row.Selected = false
-		if !row.Inactive {
-			if _, ok := selectedSet[row.Model]; ok {
-				row.Selected = true
-			}
+		if _, ok := selectedSet[row.Model]; ok {
+			row.Selected = true
 		}
 		rows = append(rows, row)
 	}

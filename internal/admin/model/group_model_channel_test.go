@@ -63,7 +63,7 @@ func TestCloneChannelWithPriorityDoesNotMutateOriginal(t *testing.T) {
 	}
 }
 
-func TestChannelSelectedModelConfigsSkipsInactiveRows(t *testing.T) {
+func TestChannelSelectedModelConfigsOnlyIncludesPublishedRows(t *testing.T) {
 	channel := &Channel{}
 	channel.SetChannelModels([]ChannelModel{
 		{
@@ -73,10 +73,10 @@ func TestChannelSelectedModelConfigsSkipsInactiveRows(t *testing.T) {
 			PublishStatus:  ChannelModelPublishStatusPublished,
 		},
 		{
-			Model:         "inactive-model",
-			Selected:      true,
-			Inactive:      true,
-			PublishStatus: ChannelModelPublishStatusDisabled,
+			Model:          "unpublished-model",
+			Selected:       true,
+			PublishEnabled: false,
+			PublishStatus:  ChannelModelPublishStatusPendingPublish,
 		},
 		{
 			Model:         "unselected-model",

@@ -458,16 +458,15 @@ const ChannelDetailModelsTab = ({
               ellipsis: true,
               render: (value, row) => {
                 const disableInfo = buildDisableInfo(row);
-                const disabledTag = disableInfo ? (
-                  <AppTag color='grey' className='router-tag'>
-                    {t('channel.edit.model_selector.auto_paused')}
-                  </AppTag>
-                ) : null;
                 return (
                   <div className='router-cell-truncate' title={value}>
                     <span className='router-nowrap router-monospace-value'>{value}</span>
-                    {disabledTag ? (
-                      <AppTooltip title={disableInfo}>{disabledTag}</AppTooltip>
+                    {disableInfo ? (
+                      <AppTooltip title={disableInfo}>
+                        <AppTag color='grey' className='router-tag'>
+                          {t('channel.edit.model_selector.runtime_disabled')}
+                        </AppTag>
+                      </AppTooltip>
                     ) : null}
                   </div>
                 );

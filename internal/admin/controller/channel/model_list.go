@@ -19,7 +19,6 @@ type channelModelListData struct {
 	PageSize      int                    `json:"page_size"`
 	SelectedCount int                    `json:"selected_count"`
 	ActiveCount   int                    `json:"active_count"`
-	InactiveCount int                    `json:"inactive_count"`
 }
 
 type channelTestListData struct {
@@ -90,7 +89,7 @@ func buildChannelModelListData(channelID string, page int, pageSize int, keyword
 			SyncStatus:   syncStatus,
 			LastSyncedAt: lastSyncedAt,
 		}
-		if !row.Inactive && !row.Selected {
+		if !row.Selected {
 			reason, reasonErr := model.ExplainManualChannelModelEnableBlockWithDB(model.DB, channelID, row)
 			if reasonErr != nil {
 				return channelModelListData{}, reasonErr
@@ -101,14 +100,7 @@ func buildChannelModelListData(channelID string, page int, pageSize int, keyword
 	}
 	allRows := channelRow.GetChannelModels()
 	selectedCount := 0
-	activeCount := 0
-	inactiveCount := 0
 	for _, row := range allRows {
-		if row.Inactive {
-			inactiveCount++
-			continue
-		}
-		activeCount++
 		if row.Selected {
 			selectedCount++
 		}
@@ -119,8 +111,7 @@ func buildChannelModelListData(channelID string, page int, pageSize int, keyword
 		Page:          page,
 		PageSize:      pageSize,
 		SelectedCount: selectedCount,
-		ActiveCount:   activeCount,
-		InactiveCount: inactiveCount,
+		ActiveCount:   len(allRows),
 	}, nil
 }
 
@@ -335,19 +326,15 @@ func collectRestoredChannelModelCapabilities(currentRows []model.ChannelModel, n
 		if !ok || !isChannelModelRuntimeDisabled(current) {
 			continue
 		}
-		if row.Inactive {
-			continue
-		}
 		restored = append(restored, modelName)
 	}
 	return restored
 }
 
 func isChannelModelRuntimeDisabled(row model.ChannelModel) bool {
-	return row.Inactive &&
-		(row.DisabledAt > 0 ||
-			strings.TrimSpace(row.DisabledReason) != "" ||
-			strings.TrimSpace(row.DisabledBy) != "")
+	return row.DisabledAt > 0 ||
+		strings.TrimSpace(row.DisabledReason) != "" ||
+		strings.TrimSpace(row.DisabledBy) != ""
 }
 
 func channelAdminOperator(c *gin.Context) string {

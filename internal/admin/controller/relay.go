@@ -524,7 +524,7 @@ func processChannelRelayError(ctx context.Context, userId string, groupID string
 		}
 		return
 	}
-	if shouldAutoPauseChannelModelEndpointAfterRepeatedFailures(ctx, channelId, channelName, requestModel, requestPath, err) {
+	if shouldRuntimeDisableChannelModelEndpointAfterRepeatedFailures(ctx, channelId, channelName, requestModel, requestPath, err) {
 		return
 	}
 	if monitor.IsInsufficientBalanceError(&err.Error, err.StatusCode) {
@@ -540,11 +540,11 @@ func processChannelRelayError(ctx context.Context, userId string, groupID string
 	}
 }
 
-func shouldAutoPauseChannelModelEndpointAfterRepeatedFailures(ctx context.Context, channelId string, channelName string, requestModel string, requestPath string, err model.ErrorWithStatusCode) bool {
+func shouldRuntimeDisableChannelModelEndpointAfterRepeatedFailures(ctx context.Context, channelId string, channelName string, requestModel string, requestPath string, err model.ErrorWithStatusCode) bool {
 	if !shouldTrackRuntimeCapabilityFailure(&err) {
 		return false
 	}
-	count, shouldPause := recordRuntimeCapabilityFailureWindow(channelId, requestModel, requestPath, time.Now())
+	count, shouldDisable := recordRuntimeCapabilityFailureWindow(channelId, requestModel, requestPath, time.Now())
 	logger.RelayWarnf(ctx, relaylogging.NewFields("RUNTIME_CAPABILITY_FAILURE_WINDOW").
 		String("channel_id", channelId).
 		String("channel_name", channelName).
@@ -556,11 +556,11 @@ func shouldAutoPauseChannelModelEndpointAfterRepeatedFailures(ctx context.Contex
 		String("error_code", errorCodeString(err.Code)).
 		String("error", err.Message).
 		Build())
-	if !shouldPause {
+	if !shouldDisable {
 		return false
 	}
 	normalizedEndpoint := dbmodel.NormalizeRequestedChannelModelEndpoint(requestPath)
-	reason := fmt.Sprintf("连续临时失败自动暂停：%s 内失败 %d 次；最近错误：%s", runtimeCapabilityFailureWindow.String(), count, strings.TrimSpace(err.Message))
+	reason := fmt.Sprintf("连续临时失败运行时禁用：%s 内失败 %d 次；最近错误：%s", runtimeCapabilityFailureWindow.String(), count, strings.TrimSpace(err.Message))
 	disabled, disableErr := dbmodel.DisableChannelModelRequestEndpointCapabilityWithReason(channelId, requestModel, normalizedEndpoint, reason, "runtime")
 	logChannelModelRequestEndpointDisableResult(ctx, channelId, channelName, requestModel, normalizedEndpoint, err, disabled, disableErr)
 	if disableErr != nil {

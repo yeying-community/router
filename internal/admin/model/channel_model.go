@@ -18,7 +18,6 @@ const (
 	ChannelModelPublishStatusPendingTest    = "pending_test"
 	ChannelModelPublishStatusPendingPublish = "pending_publish"
 	ChannelModelPublishStatusPublished      = "published"
-	ChannelModelPublishStatusDisabled       = "disabled"
 )
 
 type ChannelModel struct {
@@ -34,7 +33,6 @@ type ChannelModel struct {
 	PublishedModel  string                              `json:"published_model,omitempty" gorm:"type:varchar(255);default:'';index"`
 	PublishedAt     int64                               `json:"published_at,omitempty" gorm:"bigint;index"`
 	PublishedBy     string                              `json:"published_by,omitempty" gorm:"type:varchar(128);default:''"`
-	Inactive        bool                                `json:"inactive,omitempty" gorm:"not null;default:false;index"`
 	Selected        bool                                `json:"selected" gorm:"default:false;index"`
 	InputPrice      *float64                            `json:"input_price,omitempty" gorm:"type:double precision"`
 	OutputPrice     *float64                            `json:"output_price,omitempty" gorm:"type:double precision"`
@@ -152,7 +150,7 @@ func ListRecentDisabledChannelModelsWithDB(db *gorm.DB, limit int) ([]ChannelMod
 	}
 	rows := make([]ChannelModel, 0, limit)
 	if err := db.
-		Where("inactive = ? AND disabled_at > 0", true).
+		Where("disabled_at > 0").
 		Order("disabled_at desc, updated_at desc, channel_id asc, sort_order asc, model asc").
 		Limit(limit).
 		Find(&rows).Error; err != nil {
@@ -502,7 +500,6 @@ func AppendMissingFetchedChannelModelsWithDB(db *gorm.DB, channelID string, fetc
 		appended.Model = modelName
 		appended.UpstreamModel = upstreamModel
 		appended.Selected = false
-		appended.Inactive = false
 		completeChannelModelRowDefaults(&appended, channelProtocol)
 		nextRows = append(nextRows, appended)
 		existingKeys["model:"+modelName] = struct{}{}
@@ -767,8 +764,6 @@ func publishableTraditionalImagePromptInputPrice(pricing ResolvedModelPricing) f
 
 func channelModelPublishBlockedMessage(status string) string {
 	switch status {
-	case ChannelModelPublishStatusDisabled:
-		return "模型已停用，不能发布"
 	case ChannelModelPublishStatusSelectable:
 		return "模型未启用，不能发布"
 	case ChannelModelPublishStatusPendingConfig:
@@ -842,7 +837,6 @@ func RestoreRuntimeDisabledChannelModelCapabilityWithDB(db *gorm.DB, channelID s
 		if !isRuntimeDisabledChannelModel(rows[idx]) {
 			continue
 		}
-		rows[idx].Inactive = false
 		rows[idx].Selected = true
 		rows[idx].DisabledReason = ""
 		rows[idx].DisabledAt = 0
@@ -1087,7 +1081,7 @@ func ListChannelModelRowsPageWithDB(db *gorm.DB, channelID string, page int, pag
 	}
 	rows := make([]ChannelModel, 0, pageSize)
 	if err := query.
-		Order("inactive asc, sort_order asc, model asc").
+		Order("sort_order asc, model asc").
 		Limit(pageSize).
 		Offset(page * pageSize).
 		Find(&rows).Error; err != nil {
@@ -1226,7 +1220,6 @@ func buildDisabledChannelModels(rows []ChannelModel, modelName string, reason st
 			normalizedRows[idx].DisabledAt > 0 {
 			return normalizedRows, changed
 		}
-		normalizedRows[idx].Inactive = false
 		normalizedRows[idx].Selected = false
 		normalizedRows[idx].DisabledReason = normalizedReason
 		normalizedRows[idx].DisabledAt = now
@@ -1430,7 +1423,6 @@ func BuildFetchedChannelModels(existingRows []ChannelModel, fetchedRows []Channe
 			row.Provider = strings.TrimSpace(fetchedRow.Provider)
 		}
 		row.UpstreamModel = upstreamModel
-		row.Inactive = false
 		if selectAll {
 			row.Selected = true
 		}
@@ -1451,7 +1443,6 @@ func BuildFetchedChannelModels(existingRows []ChannelModel, fetchedRows []Channe
 			continue
 		}
 		row.Selected = false
-		row.Inactive = false
 		row.SortOrder = len(rows) + 1
 		completeChannelModelRowDefaults(&row, channelProtocol)
 		rows = append(rows, row)

@@ -273,7 +273,7 @@ func TestBuildChannelModelEndpointRowsPreservesExistingDisabledEndpointState(t *
 	}
 }
 
-func TestBuildChannelModelEndpointRowsSkipsInactiveOrUnselectedModels(t *testing.T) {
+func TestBuildChannelModelEndpointRowsSkipsUnselectedModels(t *testing.T) {
 	rows := []ChannelModel{
 		{
 			ChannelId:     "channel-1",
@@ -282,7 +282,6 @@ func TestBuildChannelModelEndpointRowsSkipsInactiveOrUnselectedModels(t *testing
 			Provider:      "openai",
 			Type:          ProviderModelTypeText,
 			Selected:      false,
-			Inactive:      true,
 		},
 	}
 	providerEndpoints := map[string][]string{

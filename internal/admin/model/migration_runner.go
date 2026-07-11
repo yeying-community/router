@@ -1754,6 +1754,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderMigrationProvidersWithDB(tx, "openai", "anthropic", "deepseek")
 			},
 		},
+		{
+			Version:     "202607111030_drop_channel_model_inactive",
+			Description: "drop legacy inactive column from channel models",
+			Up: func(tx *gorm.DB) error {
+				return dropChannelModelInactiveWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

@@ -91,7 +91,6 @@ func TestValidateManualChannelModelChangesRequiresSuccessfulTestBeforeRuntimeRes
 			UpstreamModel:  "qwen3.7-max",
 			Provider:       "qwen",
 			Type:           ProviderModelTypeText,
-			Inactive:       true,
 			Selected:       false,
 			DisabledReason: "model not found",
 			DisabledAt:     123,

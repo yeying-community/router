@@ -1360,7 +1360,6 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
       ? normalizedEndpointCandidate
       : normalizedEndpoints[0],
     endpoints: normalizedEndpoints,
-    inactive: row.inactive === true,
     selected: row.selected === true,
     disabled_reason: (row.disabled_reason || '').toString().trim(),
     disabled_at: Number(row.disabled_at || 0),
@@ -4945,7 +4944,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           ? {
               ...row,
               selected: !!checked,
-              inactive: false,
               disabled_reason: checked ? '' : row.disabled_reason,
               disabled_at: checked ? 0 : row.disabled_at,
               disabled_by: checked ? '' : row.disabled_by,
@@ -5050,7 +5048,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           ? {
               ...row,
               selected: true,
-              inactive: false,
               disabled_reason: '',
               disabled_at: 0,
               disabled_by: '',

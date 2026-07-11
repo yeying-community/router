@@ -14,3 +14,16 @@ func dropChannelModelStreamOnlyWithDB(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+func dropChannelModelInactiveWithDB(tx *gorm.DB) error {
+	if tx == nil {
+		return nil
+	}
+	tableName := (&ChannelModel{}).TableName()
+	if tx.Migrator().HasColumn(tableName, "inactive") {
+		if err := tx.Exec("ALTER TABLE " + tableName + " DROP COLUMN inactive").Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}

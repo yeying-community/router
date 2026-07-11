@@ -164,7 +164,6 @@ func TestCollectRestoredChannelModelCapabilities(t *testing.T) {
 	currentRows := []model.ChannelModel{
 		{
 			Model:          "qwen3.7-max",
-			Inactive:       true,
 			Selected:       false,
 			DisabledReason: "model not found",
 			DisabledAt:     123,
@@ -172,7 +171,6 @@ func TestCollectRestoredChannelModelCapabilities(t *testing.T) {
 		},
 		{
 			Model:    "deepseek-chat",
-			Inactive: true,
 			Selected: false,
 		},
 	}

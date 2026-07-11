@@ -53,14 +53,14 @@
       "circuit_breaker_recovered_title": "Channel recovered",
       "circuit_breaker_canceled_title": "Channel canceled circuit breaker",
       "circuit_breaker_no_reason": "Open channel details for more information",
-      "channel_endpoint_disabled_title": "Channel endpoint auto-paused",
-      "channel_endpoint_disabled_source": "Channel endpoint auto-pause",
+      "channel_endpoint_disabled_title": "Channel endpoint runtime disabled",
+      "channel_endpoint_disabled_source": "Channel endpoint runtime disablement",
       "channel_endpoint_disabled_no_reason": "Open endpoint details for more information",
-      "channel_endpoint_disabled_by": "Paused by",
-      "channel_model_disabled_title": "Channel model auto-paused",
-      "channel_model_disabled_source": "Channel model auto-pause",
+      "channel_endpoint_disabled_by": "Disabled by",
+      "channel_model_disabled_title": "Channel model runtime disabled",
+      "channel_model_disabled_source": "Channel model runtime disablement",
       "channel_model_disabled_no_reason": "Open model details for more information",
-      "channel_model_disabled_by": "Paused by",
+      "channel_model_disabled_by": "Disabled by",
       "task_source_admin": "System task",
       "task_source_user": "My task",
       "admin_task_failed_title": "Channel task failed",
@@ -1036,13 +1036,13 @@
         "summary_cards": {
           "total": "Total Endpoints",
           "available": "Available",
-          "paused": "Paused",
+          "paused": "Runtime Disabled",
           "blocked": "Blocked",
           "untested": "Needs Test"
         },
         "runtime_state": {
           "available": "Available",
-          "paused": "Paused",
+          "paused": "Runtime Disabled",
           "blocked": "Blocked",
           "untested": "Needs Test",
           "disabled": "Disabled"
@@ -1053,9 +1053,9 @@
           "recovery_state_blocked": "Recovery state: resolve enable blocker first",
           "recovery_state_untested": "Recovery state: run endpoint test first",
           "recovery_state_disabled": "Recovery state: currently disabled",
-          "pause_reason": "Pause reason: {{value}}",
-          "paused_at": "Paused at: {{value}}",
-          "paused_by": "Latest auto-pause source: {{value}}",
+          "pause_reason": "Disable reason: {{value}}",
+          "paused_at": "Disabled at: {{value}}",
+          "paused_by": "Latest runtime disable source: {{value}}",
           "block_reason": "Enable blocker: {{value}}",
           "last_tested_at": "Last tested: {{value}}"
         },
@@ -1191,8 +1191,7 @@
         "cards": {
           "enabled": "Enabled Models",
           "selectable": "Ready to Enable",
-          "unselectable": "Needs Setup",
-          "inactive": "Disabled Models"
+          "unselectable": "Needs Setup"
         },
         "table": {
           "selected": "Enabled",
@@ -1225,8 +1224,7 @@
         "auto_assign_success": "Imported {{success}} models, failed {{failed}}",
         "provider_loading": "Loading providers...",
         "provider_unassigned": "Pending",
-        "inactive": "Disabled",
-        "auto_paused": "Auto-paused",
+        "runtime_disabled": "Runtime Disabled",
         "publish_status": {
           "selectable": "Pending Selection",
           "pending_config": "Needs Config",
@@ -1314,9 +1312,9 @@
         }
       },
       "capability_disable": {
-        "by": "Paused by: {{value}}",
-        "at": "Paused at: {{value}}",
-        "reason": "Pause reason: {{value}}"
+        "by": "Disabled by: {{value}}",
+        "at": "Disabled at: {{value}}",
+        "reason": "Disable reason: {{value}}"
       },
       "model_tester": {
         "title": "Model Test",
