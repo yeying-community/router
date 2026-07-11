@@ -25,6 +25,7 @@ import {
 import RedeemCodePage from './RedeemCodePage';
 
 const PAGE_SIZE = 10;
+const REFRESHABLE_TOPUP_ORDER_STATUSES = new Set(['created', 'pending']);
 
 const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
   const { t } = useTranslation();
@@ -441,48 +442,50 @@ const TopUpRecordsPage = ({ recordKey = 'topup', embedded = false }) => {
         key: 'action',
         className: 'router-table-col-actions-token',
         width: TOPUP_RECORD_COLUMN_WIDTHS.actions,
-        render: (_, order) => (
-          <div className='router-action-group-tight router-table-actions-wide'>
-            <AppButton
-              className='router-inline-button'
-              onClick={(event) => {
-                event.stopPropagation();
-                manualRefreshOrder(order.id);
-              }}
-              loading={refreshingOrderID === order.id}
-              disabled={refreshingOrderID === order.id}
-            >
-              {t('topup.records.refresh_status')}
-            </AppButton>
-            {['created', 'pending'].includes(order.status) ? (
-              <>
-                <AppButton
-                  className='router-inline-button'
-                  color='blue'
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    continuePay(order);
-                  }}
-                  loading={refreshingOrderID === order.id}
-                  disabled={refreshingOrderID === order.id}
-                >
-                  {t('topup.records.continue_pay')}
-                </AppButton>
-                <AppButton
-                  className='router-inline-button'
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    cancelPay(order.id);
-                  }}
-                  loading={refreshingOrderID === order.id}
-                  disabled={refreshingOrderID === order.id}
-                >
-                  {t('topup.records.cancel_pay')}
-                </AppButton>
-              </>
-            ) : null}
-          </div>
-        ),
+        render: (_, order) => {
+          const canRefreshStatus = REFRESHABLE_TOPUP_ORDER_STATUSES.has(order.status);
+          if (!canRefreshStatus) {
+            return '-';
+          }
+          return (
+            <div className='router-action-group-tight router-table-actions-wide'>
+              <AppButton
+                className='router-inline-button'
+                onClick={(event) => {
+                  event.stopPropagation();
+                  manualRefreshOrder(order.id);
+                }}
+                loading={refreshingOrderID === order.id}
+                disabled={refreshingOrderID === order.id}
+              >
+                {t('topup.records.refresh_status')}
+              </AppButton>
+              <AppButton
+                className='router-inline-button'
+                color='blue'
+                onClick={(event) => {
+                  event.stopPropagation();
+                  continuePay(order);
+                }}
+                loading={refreshingOrderID === order.id}
+                disabled={refreshingOrderID === order.id}
+              >
+                {t('topup.records.continue_pay')}
+              </AppButton>
+              <AppButton
+                className='router-inline-button'
+                onClick={(event) => {
+                  event.stopPropagation();
+                  cancelPay(order.id);
+                }}
+                loading={refreshingOrderID === order.id}
+                disabled={refreshingOrderID === order.id}
+              >
+                {t('topup.records.cancel_pay')}
+              </AppButton>
+            </div>
+          );
+        },
         },
     ].filter(Boolean),
     [

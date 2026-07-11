@@ -451,13 +451,17 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 				logger.Errorf(ctx, "video billing failed code=post_consume_token_quota_failed user_id=%s group=%s channel_id=%s model=%s token_id=%s quota=%d charge_user_balance=%t err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), strings.TrimSpace(meta.TokenId), quota, billingPlan.ChargeUserBalance(), err.Error())
 			}
 		}
+		balanceSource := model.LogBillingSourceSnapshot{}
 		if billingPlan.ChargeUserBalance() {
 			if quota > 0 {
-				consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(meta.UserId, meta.Group, quota)
+				consumeResult, consumeErr := model.ConsumeUserBalanceLotsForGroupDetailed(meta.UserId, meta.Group, quota)
 				if consumeErr != nil {
 					logger.Errorf(ctx, "video billing lots consume failed user_id=%s group=%s channel_id=%s model=%s quota=%d err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), quota, consumeErr.Error())
-				} else if consumedFromLots < quota {
-					logger.Warnf(ctx, "video billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), consumedFromLots, quota)
+				} else {
+					balanceSource = consumeResult.LogBillingSourceSnapshot()
+					if consumeResult.ConsumedAmount < quota {
+						logger.Warnf(ctx, "video billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), consumeResult.ConsumedAmount, quota)
+					}
 				}
 			}
 			if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
@@ -478,11 +482,11 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			ModelName:          videoRequest.Model,
 			TokenName:          tokenName,
 			Quota:              int(quota),
-			BillingSource:      adminmodel.ResolveConsumeLogBillingSource(billingPlan.ChargeUserBalance()),
 			UserDailyQuota:     userDailyQuota,
 			UserEmergencyQuota: userEmergencyQuota,
 			Content:            appendVideoSummaryToLogContent(billing.FormatPricingLog(pricing, groupRatio), responseSummary),
 		}
+		adminmodel.ApplyConsumeLogBillingSource(entry, billingPlan.ChargeUserBalance(), billingPlan.LogBillingSourceSnapshot(), balanceSource)
 		applyRouteObservabilityToLog(entry, meta, videoRequest.Model)
 		billingSnapshot.ApplyToLog(entry)
 		billing.ApplyProcurementCostObservation(entry)

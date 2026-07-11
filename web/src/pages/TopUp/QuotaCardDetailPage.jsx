@@ -8,7 +8,6 @@ import {
   getServicePackageTypeLabel,
 } from '../../helpers/package';
 import {
-  AppButton,
   AppFilterHeader,
   AppSection,
   AppStatistic,
@@ -157,15 +156,14 @@ const QuotaCardDetailPageInner = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'mine', label: t('header.mine') },
-          { key: 'quota', label: t('topup.mine.quota') },
+          {
+            key: 'quota',
+            label: t('topup.mine.quota'),
+            onClick: () => navigate('/workspace/topup?tab=quota'),
+          },
           { key: 'card', label: cardName, active: true },
         ]}
         title={cardName}
-        actions={
-          <AppButton onClick={() => navigate(-1)}>
-            {t('common.back')}
-          </AppButton>
-        }
       />
       <AppSection
         title={cardName}

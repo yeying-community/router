@@ -170,13 +170,15 @@ func recordRealtimeProxyLog(c *gin.Context, relayMeta *meta.Meta, upstreamURL st
 	if entry == nil {
 		return
 	}
-	billing.ApplyProcurementCostObservation(entry)
-	adminmodel.RecordConsumeLog(c.Request.Context(), entry)
+	balanceSource := adminmodel.LogBillingSourceSnapshot{}
 	if entry.Quota > 0 {
-		if consumedFromLots, err := adminmodel.ConsumeUserBalanceLotsForGroup(relayMeta.UserId, relayMeta.Group, int64(entry.Quota)); err != nil {
+		if consumeResult, err := adminmodel.ConsumeUserBalanceLotsForGroupDetailed(relayMeta.UserId, relayMeta.Group, int64(entry.Quota)); err != nil {
 			logger.Errorf(c.Request.Context(), "realtime billing lots consume failed code=consume_user_balance_lots_failed user_id=%s group=%s channel_id=%s model=%s total_quota=%d err=%q", strings.TrimSpace(relayMeta.UserId), strings.TrimSpace(relayMeta.Group), strings.TrimSpace(relayMeta.ChannelId), strings.TrimSpace(entry.ModelName), entry.Quota, err.Error())
-		} else if consumedFromLots < int64(entry.Quota) {
-			logger.Warnf(c.Request.Context(), "realtime billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(relayMeta.UserId), strings.TrimSpace(relayMeta.Group), strings.TrimSpace(relayMeta.ChannelId), strings.TrimSpace(entry.ModelName), consumedFromLots, entry.Quota)
+		} else {
+			balanceSource = consumeResult.LogBillingSourceSnapshot()
+			if consumeResult.ConsumedAmount < int64(entry.Quota) {
+				logger.Warnf(c.Request.Context(), "realtime billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(relayMeta.UserId), strings.TrimSpace(relayMeta.Group), strings.TrimSpace(relayMeta.ChannelId), strings.TrimSpace(entry.ModelName), consumeResult.ConsumedAmount, entry.Quota)
+			}
 		}
 		if err := adminmodel.CacheUpdateUserQuota(c.Request.Context(), relayMeta.UserId); err != nil {
 			logger.Errorf(c.Request.Context(), "realtime billing cache update failed code=update_user_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s total_quota=%d err=%q", strings.TrimSpace(relayMeta.UserId), strings.TrimSpace(relayMeta.Group), strings.TrimSpace(relayMeta.ChannelId), strings.TrimSpace(entry.ModelName), entry.Quota, err.Error())
@@ -185,6 +187,9 @@ func recordRealtimeProxyLog(c *gin.Context, relayMeta *meta.Meta, upstreamURL st
 			logger.Errorf(c.Request.Context(), "realtime billing group cache update failed code=update_user_group_quota_cache_failed user_id=%s group=%s channel_id=%s model=%s total_quota=%d err=%q", strings.TrimSpace(relayMeta.UserId), strings.TrimSpace(relayMeta.Group), strings.TrimSpace(relayMeta.ChannelId), strings.TrimSpace(entry.ModelName), entry.Quota, err.Error())
 		}
 	}
+	adminmodel.ApplyConsumeLogBillingSource(entry, true, adminmodel.LogBillingSourceSnapshot{}, balanceSource)
+	billing.ApplyProcurementCostObservation(entry)
+	adminmodel.RecordConsumeLog(c.Request.Context(), entry)
 	billing.RecordProcurementConsumptionObservation(c.Request.Context(), entry)
 	adminmodel.UpdateUserUsedQuotaAndRequestCount(relayMeta.UserId, int64(entry.Quota))
 	adminmodel.UpdateChannelUsedQuota(relayMeta.ChannelId, int64(entry.Quota))

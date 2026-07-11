@@ -173,7 +173,7 @@
       "order_empty": "No order records yet",
       "continue_pay": "Continue Pay",
       "cancel_pay": "Cancel Payment",
-      "refresh_status": "Refresh Status",
+      "refresh_status": "Sync Payment Status",
       "order_paid": "The order has been paid and refreshed",
       "order_canceled": "The order has been canceled",
       "redirect_missing": "This order is missing a payment link. Please create a new order or contact admin.",
@@ -1966,6 +1966,7 @@
       "completion_tokens": "Completion Tokens",
       "cache_tokens": "Cache R/W",
       "quota": "Amount",
+      "billing_source": "Billing Source",
       "detail": "Detail",
       "drag_column": "Drag to reorder columns"
     },
@@ -2331,6 +2332,8 @@
     },
     "batch": {
       "grant_topup": "Batch Grant Balance",
+      "grant_topup_selected": "Grant {{count}} Selected",
+      "cancel_selection": "Cancel Batch",
       "confirm_grant": "Confirm Grant",
       "topup_select_required": "Please select at least one user",
       "topup_confirm_hint": "The selected top-up plan will be granted to {{count}} selected users. This creates top-up orders and balance ledger entries.",

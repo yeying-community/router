@@ -160,6 +160,7 @@ const UsersTable = () => {
     resolvePreferredDisplayCurrency(buildPublicDisplayCurrencyIndex([]), 'USD'),
   );
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [batchSelectionMode, setBatchSelectionMode] = useState(false);
   const [topupPlanOptions, setTopupPlanOptions] = useState([]);
   const [topupPlanOptionsLoading, setTopupPlanOptionsLoading] = useState(false);
   const [batchTopupOpen, setBatchTopupOpen] = useState(false);
@@ -400,6 +401,19 @@ const UsersTable = () => {
     setBatchTopupOpen(true);
   }, [selectedRowKeys.length, t]);
 
+  const enterBatchSelectionMode = useCallback(() => {
+    setBatchSelectionMode(true);
+  }, []);
+
+  const cancelBatchSelectionMode = useCallback(() => {
+    if (batchTopupSubmitting) {
+      return;
+    }
+    setBatchSelectionMode(false);
+    setSelectedRowKeys([]);
+    setBatchTopupResult(null);
+  }, [batchTopupSubmitting]);
+
   const closeBatchTopupModal = useCallback(() => {
     if (batchTopupSubmitting) {
       return;
@@ -453,6 +467,7 @@ const UsersTable = () => {
       if (result.failed === 0) {
         setBatchTopupForm({ plan_id: '' });
         setBatchTopupOpen(false);
+        setBatchSelectionMode(false);
       }
       await refresh();
     } catch (error) {
@@ -611,6 +626,25 @@ const UsersTable = () => {
   const batchTopupFailedItems = (batchTopupResult?.items || []).filter(
     (item) => !item?.success,
   );
+  const userRowSelection = batchSelectionMode
+    ? {
+        selectedRowKeys,
+        preserveSelectedRowKeys: true,
+        renderCell: (_, __, ___, originNode) => (
+          <span onClick={stopRowClick}>{originNode}</span>
+        ),
+        onChange: (nextSelectedRowKeys) => {
+          setSelectedRowKeys(
+            nextSelectedRowKeys
+              .map((item) => (item || '').toString().trim())
+              .filter(Boolean),
+          );
+        },
+        getCheckboxProps: (record) => ({
+          disabled: record?.deleted === true,
+        }),
+      }
+    : undefined;
 
   return (
     <>
@@ -637,11 +671,25 @@ const UsersTable = () => {
             </AppButton>
             <AppButton
               className='router-page-button'
-              disabled={selectedUserCount === 0}
-              onClick={openBatchTopupModal}
+              onClick={
+                batchSelectionMode ? openBatchTopupModal : enterBatchSelectionMode
+              }
             >
-              {t('user.batch.grant_topup')}
+              {batchSelectionMode
+                ? t('user.batch.grant_topup_selected', {
+                    count: selectedUserCount,
+                  })
+                : t('user.batch.grant_topup')}
             </AppButton>
+            {batchSelectionMode ? (
+              <AppButton
+                className='router-page-button'
+                onClick={cancelBatchSelectionMode}
+                disabled={batchTopupSubmitting}
+              >
+                {t('user.batch.cancel_selection')}
+              </AppButton>
+            ) : null}
             <AppButton
               className='router-page-button'
               loading={loading}
@@ -709,20 +757,7 @@ const UsersTable = () => {
           pagination={false}
           scroll={{ x: USER_LIST_TABLE_MIN_WIDTH }}
           rowKey={(user) => user.id}
-          rowSelection={{
-            selectedRowKeys,
-            preserveSelectedRowKeys: true,
-            onChange: (nextSelectedRowKeys) => {
-              setSelectedRowKeys(
-                nextSelectedRowKeys
-                  .map((item) => (item || '').toString().trim())
-                  .filter(Boolean),
-              );
-            },
-            getCheckboxProps: (record) => ({
-              disabled: record?.deleted === true,
-            }),
-          }}
+          rowSelection={userRowSelection}
           onChange={handleTableChange}
           dataSource={users
             .slice(
@@ -732,7 +767,21 @@ const UsersTable = () => {
             .filter((user) => !user?.deleted)}
           onRow={(user, idx) => ({
             className: 'router-row-clickable',
-            onClick: () => navigate(`/admin/user/detail/${user.id}`),
+            onClick: () => {
+              if (batchSelectionMode) {
+                const userID = (user?.id || '').toString().trim();
+                if (!userID || user?.deleted === true) {
+                  return;
+                }
+                setSelectedRowKeys((previous) =>
+                  previous.includes(userID)
+                    ? previous.filter((item) => item !== userID)
+                    : [...previous, userID],
+                );
+                return;
+              }
+              navigate(`/admin/user/detail/${user.id}`);
+            },
           })}
           columns={[
           {

@@ -1768,6 +1768,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return backfillReconciliationBalanceOrderGroupsWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607111430_log_billing_source_details",
+			Description: "add concrete billing source fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -3084,6 +3091,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 			Description: "backfill explicit request and actual model names for historical event logs",
 			Up: func(tx *gorm.DB) error {
 				return backfillLogRouteModelNamesWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607111430_log_billing_source_details",
+			Description: "add concrete billing source fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
 			},
 		},
 	}

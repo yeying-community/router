@@ -438,6 +438,7 @@ const SpendingCalendar = () => {
         return;
       }
       const searchParams = new URLSearchParams();
+      searchParams.set('source', 'quota');
       searchParams.set('log_type', '2');
       searchParams.set('start_timestamp', formatDatetimeLocalInput(range.start));
       searchParams.set('end_timestamp', formatDatetimeLocalInput(range.end));

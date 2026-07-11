@@ -891,13 +891,17 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 				}
 			}
 		}
+		balanceSource := model.LogBillingSourceSnapshot{}
 		if billingPlan.ChargeUserBalance() {
 			if quota > 0 {
-				consumedFromLots, consumeErr := model.ConsumeUserBalanceLotsForGroup(meta.UserId, meta.Group, quota)
+				consumeResult, consumeErr := model.ConsumeUserBalanceLotsForGroupDetailed(meta.UserId, meta.Group, quota)
 				if consumeErr != nil {
 					logger.Errorf(ctx, "image billing lots consume failed user_id=%s group=%s channel_id=%s model=%s quota=%d err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), quota, consumeErr.Error())
-				} else if consumedFromLots < quota {
-					logger.Warnf(ctx, "image billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), consumedFromLots, quota)
+				} else {
+					balanceSource = consumeResult.LogBillingSourceSnapshot()
+					if consumeResult.ConsumedAmount < quota {
+						logger.Warnf(ctx, "image billing lots consume partial user_id=%s group=%s channel_id=%s model=%s consumed=%d requested=%d", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), consumeResult.ConsumedAmount, quota)
+					}
 				}
 			}
 			if err := model.CacheUpdateUserQuota(ctx, meta.UserId); err != nil {
@@ -918,11 +922,11 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			ModelName:          imageRequest.Model,
 			TokenName:          tokenName,
 			Quota:              int(quota),
-			BillingSource:      model.ResolveConsumeLogBillingSource(billingPlan.ChargeUserBalance()),
 			UserDailyQuota:     userDailyQuota,
 			UserEmergencyQuota: userEmergencyQuota,
 			Content:            billing.FormatPricingLog(pricing, groupRatio),
 		}
+		model.ApplyConsumeLogBillingSource(entry, billingPlan.ChargeUserBalance(), billingPlan.LogBillingSourceSnapshot(), balanceSource)
 		applyRouteObservabilityToLog(entry, meta, imageRequest.Model)
 		billingSnapshot.ApplyToLog(entry)
 		billing.ApplyProcurementCostObservation(entry)
