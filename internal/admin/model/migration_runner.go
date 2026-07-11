@@ -1747,6 +1747,20 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderMigrationProvidersWithDB(tx, "openai")
 			},
 		},
+		{
+			Version:     "202607101230_refresh_official_deprecated_provider_models",
+			Description: "mark officially deprecated openai, anthropic, and deepseek provider models",
+			Up: func(tx *gorm.DB) error {
+				return upsertProviderMigrationProvidersWithDB(tx, "openai", "anthropic", "deepseek")
+			},
+		},
+		{
+			Version:     "202607111030_drop_channel_model_inactive",
+			Description: "drop legacy inactive column from channel models",
+			Up: func(tx *gorm.DB) error {
+				return dropChannelModelInactiveWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

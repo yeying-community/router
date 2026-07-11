@@ -616,7 +616,7 @@ func calcChannelHealth(channel *model.Channel, nowTs int64) channelHealthMetrics
 	}
 	selectedModels := make(map[string]struct{})
 	for _, row := range channel.GetChannelModels() {
-		if !row.Selected || row.Inactive || strings.TrimSpace(row.Model) == "" {
+		if !model.IsChannelModelPublished(row) || strings.TrimSpace(row.Model) == "" {
 			continue
 		}
 		selectedModels[row.Model] = struct{}{}
@@ -722,7 +722,7 @@ func collectCapabilities(channel *model.Channel) []string {
 	}
 	selected := map[string]struct{}{}
 	for _, row := range channel.GetChannelModels() {
-		if !row.Selected || row.Inactive {
+		if !model.IsChannelModelPublished(row) {
 			continue
 		}
 		modelType := strings.TrimSpace(strings.ToLower(row.Type))
@@ -1427,7 +1427,7 @@ func buildModelDashboard(startAt int64, endAt int64, limit int) (modelSummaryDat
 
 	selectedRows := make([]model.ChannelModel, 0)
 	if err := model.DB.Model(&model.ChannelModel{}).
-		Where("selected = ? AND inactive = ?", true, false).
+		Where("publish_enabled = ?", true).
 		Find(&selectedRows).Error; err != nil {
 		return summary, nil, err
 	}

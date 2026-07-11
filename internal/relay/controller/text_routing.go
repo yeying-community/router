@@ -177,9 +177,9 @@ func resolveSelectedModelDirectTextEndpointSupport(meta *meta.Meta, row adminmod
 	return supportsChat, supportsResponses, supportsMessages
 }
 
-func hasSelectedTextChannelModelConfigs(rows []adminmodel.ChannelModel) bool {
+func hasPublishedTextChannelModelConfigs(rows []adminmodel.ChannelModel) bool {
 	for _, row := range adminmodel.NormalizeChannelModelsPreserveOrder(rows) {
-		if !row.Selected || row.Inactive {
+		if !adminmodel.IsChannelModelPublished(row) {
 			continue
 		}
 		endpoint := adminmodel.NormalizeChannelModelEndpoint(row.Type, row.Endpoint)
@@ -222,7 +222,7 @@ func resolveChannelTextUpstream(meta *meta.Meta, originModelName string, actualM
 			requestEndpoint,
 		)
 	}
-	if hasSelectedTextChannelModelConfigs(meta.ChannelModelConfigs) {
+	if hasPublishedTextChannelModelConfigs(meta.ChannelModelConfigs) {
 		requestModel := strings.TrimSpace(actualModelName)
 		if requestModel == "" {
 			requestModel = strings.TrimSpace(originModelName)

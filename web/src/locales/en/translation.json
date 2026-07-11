@@ -53,14 +53,14 @@
       "circuit_breaker_recovered_title": "Channel recovered",
       "circuit_breaker_canceled_title": "Channel canceled circuit breaker",
       "circuit_breaker_no_reason": "Open channel details for more information",
-      "channel_endpoint_disabled_title": "Channel endpoint auto-paused",
-      "channel_endpoint_disabled_source": "Channel endpoint auto-pause",
+      "channel_endpoint_disabled_title": "Channel endpoint runtime disabled",
+      "channel_endpoint_disabled_source": "Channel endpoint runtime disablement",
       "channel_endpoint_disabled_no_reason": "Open endpoint details for more information",
-      "channel_endpoint_disabled_by": "Paused by",
-      "channel_model_disabled_title": "Channel model auto-paused",
-      "channel_model_disabled_source": "Channel model auto-pause",
+      "channel_endpoint_disabled_by": "Disabled by",
+      "channel_model_disabled_title": "Channel model runtime disabled",
+      "channel_model_disabled_source": "Channel model runtime disablement",
       "channel_model_disabled_no_reason": "Open model details for more information",
-      "channel_model_disabled_by": "Paused by",
+      "channel_model_disabled_by": "Disabled by",
       "task_source_admin": "System task",
       "task_source_user": "My task",
       "admin_task_failed_title": "Channel task failed",
@@ -629,6 +629,9 @@
         "search_placeholder": "Search model details...",
         "model": "Model",
         "status": "Status",
+        "status_all": "All statuses",
+        "status_active": "Active",
+        "status_deprecated": "Deprecated",
         "description": "Description",
         "type": "Type",
         "tags": "Tags",
@@ -647,6 +650,9 @@
         "actions": "Actions",
         "empty": "No model details",
         "delete_confirm": "Delete this model?",
+        "batch_delete": "Batch Delete",
+        "batch_delete_selected": "Delete {{count}} Selected",
+        "batch_delete_confirm": "Delete {{count}} selected models?",
         "edit_title": "Edit Model",
         "create_title": "Add Model"
       },
@@ -1030,13 +1036,13 @@
         "summary_cards": {
           "total": "Total Endpoints",
           "available": "Available",
-          "paused": "Paused",
+          "paused": "Runtime Disabled",
           "blocked": "Blocked",
           "untested": "Needs Test"
         },
         "runtime_state": {
           "available": "Available",
-          "paused": "Paused",
+          "paused": "Runtime Disabled",
           "blocked": "Blocked",
           "untested": "Needs Test",
           "disabled": "Disabled"
@@ -1047,9 +1053,9 @@
           "recovery_state_blocked": "Recovery state: resolve enable blocker first",
           "recovery_state_untested": "Recovery state: run endpoint test first",
           "recovery_state_disabled": "Recovery state: currently disabled",
-          "pause_reason": "Pause reason: {{value}}",
-          "paused_at": "Paused at: {{value}}",
-          "paused_by": "Latest auto-pause source: {{value}}",
+          "pause_reason": "Disable reason: {{value}}",
+          "paused_at": "Disabled at: {{value}}",
+          "paused_by": "Latest runtime disable source: {{value}}",
           "block_reason": "Enable blocker: {{value}}",
           "last_tested_at": "Last tested: {{value}}"
         },
@@ -1185,8 +1191,7 @@
         "cards": {
           "enabled": "Enabled Models",
           "selectable": "Ready to Enable",
-          "unselectable": "Needs Setup",
-          "inactive": "Disabled Models"
+          "unselectable": "Needs Setup"
         },
         "table": {
           "selected": "Enabled",
@@ -1203,12 +1208,14 @@
           "output_price": "Output Price",
           "upstream_return": "Latest Upstream Return",
           "enable_block_reason": "Blocked Reason",
+          "selection_status": "Selection Status",
           "actions": "Actions"
         },
         "filters": {
           "all": "All Models",
           "enabled": "Enabled",
           "disabled": "Disabled",
+          "upstream_status_all": "All Upstream Statuses",
           "provider_all": "All Providers"
         },
         "enable_hint": "Only models already in the provider model list can be enabled. Models not in that list stay unselectable until you add them and sync again.",
@@ -1217,8 +1224,7 @@
         "auto_assign_success": "Imported {{success}} models, failed {{failed}}",
         "provider_loading": "Loading providers...",
         "provider_unassigned": "Pending",
-        "inactive": "Disabled",
-        "auto_paused": "Auto-paused",
+        "runtime_disabled": "Runtime Disabled",
         "publish_status": {
           "selectable": "Pending Selection",
           "pending_config": "Needs Config",
@@ -1236,6 +1242,15 @@
         "delete_confirm": "Are you sure you want to delete this model?",
         "delete_success": "Model deleted",
         "delete_failed": "Failed to delete model",
+        "batch_select": "Batch Select",
+        "batch_select_selected": "Select {{count}} Selected",
+        "batch_select_select_required": "Please select at least one model that can be enabled.",
+        "batch_select_done": "Selected {{count}} models.",
+        "batch_delete": "Batch Delete",
+        "batch_delete_selected": "Delete {{count}} Selected",
+        "batch_delete_confirm": "Delete {{count}} selected models?",
+        "batch_delete_select_required": "Please select at least one model to delete.",
+        "batch_delete_done": "Batch deletion finished: {{success}} succeeded, {{failed}} failed.",
         "selection_disabled_unassigned": "This model is not in the provider model list and cannot be enabled.",
         "selection_skipped_unassigned": "Skipped {{count}} models on this page that are not in the provider model list.",
         "realtime_enabled": "Realtime model sync is enabled: changing address or key refreshes the model list, but does not select all by default.",
@@ -1297,9 +1312,9 @@
         }
       },
       "capability_disable": {
-        "by": "Paused by: {{value}}",
-        "at": "Paused at: {{value}}",
-        "reason": "Pause reason: {{value}}"
+        "by": "Disabled by: {{value}}",
+        "at": "Disabled at: {{value}}",
+        "reason": "Disable reason: {{value}}"
       },
       "model_tester": {
         "title": "Model Test",

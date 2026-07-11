@@ -1360,7 +1360,6 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
       ? normalizedEndpointCandidate
       : normalizedEndpoints[0],
     endpoints: normalizedEndpoints,
-    inactive: row.inactive === true,
     selected: row.selected === true,
     disabled_reason: (row.disabled_reason || '').toString().trim(),
     disabled_at: Number(row.disabled_at || 0),
@@ -1472,7 +1471,7 @@ const buildChannelModelState = (channelModels, protocol) => {
     protocol
   );
   const selectedModels = normalizedChannelModels
-    .filter((row) => row.selected && row.inactive !== true)
+    .filter((row) => row.selected)
     .map((row) => row.model);
   return {
     channelModels: normalizedChannelModels,
@@ -1511,11 +1510,11 @@ const getChangedSelectedChannelModels = (rows, previousRows, protocol) => {
     ])
   );
   return normalizeChannelModels(rows, protocol).filter((row) => {
-    if (row.inactive === true || row.selected !== true) {
+    if (row.selected !== true) {
       return false;
     }
     const previous = previousByModel.get(row.model);
-    if (!previous || previous.inactive === true || previous.selected !== true) {
+    if (!previous || previous.selected !== true) {
       return true;
     }
     return (
@@ -2269,6 +2268,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   });
   const [modelSearchKeyword, setModelSearchKeyword] = useState('');
   const [detailModelFilter, setDetailModelFilter] = useState('all');
+  const [detailUpstreamStatusFilter, setDetailUpstreamStatusFilter] =
+    useState('all');
   const [detailProviderFilter, setDetailProviderFilter] = useState('all');
   const [detailModelPage, setDetailModelPage] = useState(1);
   const fetchingModelsRef = useRef(false);
@@ -2448,7 +2449,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const modelTestRows = useMemo(() => {
     const modelByName = new Map();
     visibleChannelModels
-      .filter((row) => row.inactive !== true && row.selected === true)
+      .filter((row) => row.selected === true)
       .forEach((row) => {
         const modelName = (row.model || '').toString().trim();
         if (modelName !== '') {
@@ -2773,13 +2774,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   );
   const canSelectChannelModel = useCallback(
     (row) =>
-      row?.inactive !== true &&
       hasProviderConfiguredForModel(row) &&
       !(row?.enable_block_reason || '').toString().trim(),
     [hasProviderConfiguredForModel]
   );
   const activeChannelModels = useMemo(
-    () => visibleChannelModels.filter((row) => row.inactive !== true),
+    () => visibleChannelModels,
     [visibleChannelModels]
   );
   const detailProviderFilterOptions = useMemo(() => {
@@ -2835,6 +2835,15 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         }
       }
       if (
+        detailUpstreamStatusFilter !== '' &&
+        detailUpstreamStatusFilter !== 'all'
+      ) {
+        const syncStatus = (row?.sync_status || 'unknown').toString().trim();
+        if (syncStatus !== detailUpstreamStatusFilter) {
+          return false;
+        }
+      }
+      if (
         normalizedProviderFilter !== '' &&
         normalizedProviderFilter !== 'all'
       ) {
@@ -2847,6 +2856,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     });
   }, [
     detailModelFilter,
+    detailUpstreamStatusFilter,
     detailProviderFilter,
     getProviderOwnersForModel,
     isDetailMode,
@@ -2894,29 +2904,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       offset + CHANNEL_MODEL_PAGE_SIZE
     );
   }, [searchedChannelModels, detailModelPage]);
-  const detailCurrentPageSelectableModels = useMemo(
-    () => renderedChannelModels.filter((row) => canSelectChannelModel(row)),
-    [canSelectChannelModel, renderedChannelModels]
-  );
-  const detailCurrentPageBlockedModels = useMemo(
-    () =>
-      renderedChannelModels.filter(
-        (row) => row.inactive !== true && !canSelectChannelModel(row)
-      ),
-    [canSelectChannelModel, renderedChannelModels]
-  );
-  const detailCurrentPageAllSelected = useMemo(
-    () =>
-      detailCurrentPageSelectableModels.length > 0 &&
-      detailCurrentPageSelectableModels.every((row) => row.selected === true),
-    [detailCurrentPageSelectableModels]
-  );
-  const detailCurrentPagePartiallySelected = useMemo(
-    () =>
-      !detailCurrentPageAllSelected &&
-      detailCurrentPageSelectableModels.some((row) => row.selected === true),
-    [detailCurrentPageAllSelected, detailCurrentPageSelectableModels]
-  );
   const modelSelectionSummaryText = useMemo(
     () =>
       t('channel.edit.model_selector.summary', {
@@ -4953,13 +4940,10 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     async (upstreamModel, checked) => {
       const nextConfigs = visibleChannelModels.map((row) =>
         row.upstream_model === upstreamModel &&
-        (checked
-          ? canSelectChannelModel({ ...row, inactive: false })
-          : row.selected === true)
+        (checked ? canSelectChannelModel(row) : row.selected === true)
           ? {
               ...row,
               selected: !!checked,
-              inactive: checked ? false : row.inactive,
               disabled_reason: checked ? '' : row.disabled_reason,
               disabled_at: checked ? 0 : row.disabled_at,
               disabled_by: checked ? '' : row.disabled_by,
@@ -4992,40 +4976,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       visibleChannelModels,
     ]
   );
-  const toggleDetailCurrentPageSelections = useCallback(
-    async (checked) => {
-      if (checked && detailCurrentPageBlockedModels.length > 0) {
-        showInfo(
-          t('channel.edit.model_selector.selection_skipped_unassigned', {
-            count: detailCurrentPageBlockedModels.length,
-          })
-        );
-      }
-      const targetIDs = new Set(
-        detailCurrentPageSelectableModels.map((row) => row.upstream_model)
-      );
-      if (targetIDs.size === 0) {
-        return;
-      }
-      const nextConfigs = visibleChannelModels.map((row) =>
-        targetIDs.has(row.upstream_model)
-          ? {
-              ...row,
-              selected: !!checked,
-            }
-          : row
-      );
-      await persistDetailChannelModels(nextConfigs);
-    },
-    [
-      detailCurrentPageBlockedModels.length,
-      detailCurrentPageSelectableModels,
-      persistDetailChannelModels,
-      t,
-      visibleChannelModels,
-    ]
-  );
-
   const handleDeleteDetailModel = useCallback(
     async (row) => {
       if (!isDetailMode || detailModelMutating || detailModelsEditing) {
@@ -5064,6 +5014,126 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         showError(
           error?.message || t('channel.edit.model_selector.delete_failed')
         );
+      } finally {
+        setDetailModelMutating(false);
+      }
+    },
+    [
+      channelId,
+      detailModelMutating,
+      detailModelsEditing,
+      isDetailMode,
+      refreshChannelRuntimeState,
+      t,
+    ]
+  );
+
+  const handleBatchSelectDetailModels = useCallback(
+    async (rows) => {
+      if (!isDetailMode || detailModelMutating || detailModelsEditing) {
+        return false;
+      }
+      const targetRows = Array.isArray(rows)
+        ? rows.filter((row) => canSelectChannelModel(row))
+        : [];
+      if (targetRows.length === 0) {
+        showInfo(t('channel.edit.model_selector.batch_select_select_required'));
+        return false;
+      }
+      const targetUpstreamModels = new Set(
+        targetRows.map((row) => (row?.upstream_model || '').toString().trim())
+      );
+      const nextConfigs = visibleChannelModels.map((row) =>
+        targetUpstreamModels.has((row?.upstream_model || '').toString().trim())
+          ? {
+              ...row,
+              selected: true,
+              disabled_reason: '',
+              disabled_at: 0,
+              disabled_by: '',
+            }
+          : row
+      );
+      const ok = await persistDetailChannelModels(nextConfigs);
+      if (ok) {
+        showSuccess(
+          t('channel.edit.model_selector.batch_select_done', {
+            count: targetRows.length,
+          })
+        );
+      }
+      return ok;
+    },
+    [
+      canSelectChannelModel,
+      detailModelMutating,
+      detailModelsEditing,
+      isDetailMode,
+      persistDetailChannelModels,
+      t,
+      visibleChannelModels,
+    ]
+  );
+
+  const handleBatchDeleteDetailModels = useCallback(
+    async (rows) => {
+      if (!isDetailMode || detailModelMutating || detailModelsEditing) {
+        return false;
+      }
+      const targetChannelId = (channelId || '').toString().trim();
+      const targetRows = Array.isArray(rows)
+        ? rows.filter((row) => {
+            const modelName = (row?.model || '').toString().trim();
+            const upstreamModel = (row?.upstream_model || '').toString().trim();
+            return modelName !== '' || upstreamModel !== '';
+          })
+        : [];
+      if (targetChannelId === '' || targetRows.length === 0) {
+        showInfo(t('channel.edit.model_selector.batch_delete_select_required'));
+        return false;
+      }
+      setDetailModelMutating(true);
+      let successCount = 0;
+      let failedCount = 0;
+      try {
+        for (const row of targetRows) {
+          const modelName = (row?.model || '').toString().trim();
+          const upstreamModel = (row?.upstream_model || '').toString().trim();
+          try {
+            const res = await API.delete(
+              `/api/v1/admin/channel/${targetChannelId}/models`,
+              {
+                params: {
+                  model: modelName,
+                  upstream_model: upstreamModel,
+                },
+              }
+            );
+            const { success } = res.data || {};
+            if (success) {
+              successCount += 1;
+            } else {
+              failedCount += 1;
+            }
+          } catch (error) {
+            failedCount += 1;
+          }
+        }
+        if (successCount > 0) {
+          await refreshChannelRuntimeState(targetChannelId);
+          setDetailEditingModelKey('');
+          setDetailEditingModelSnapshot(null);
+        }
+        const message = t('channel.edit.model_selector.batch_delete_done', {
+          success: successCount,
+          failed: failedCount,
+        });
+        if (failedCount > 0) {
+          showError(message);
+        } else {
+          showSuccess(message);
+        }
+        return successCount > 0;
       } finally {
         setDetailModelMutating(false);
       }
@@ -5502,7 +5572,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
 
   useEffect(() => {
     setDetailModelPage(1);
-  }, [detailModelFilter, detailProviderFilter, modelSearchKeyword]);
+  }, [
+    detailModelFilter,
+    detailProviderFilter,
+    detailUpstreamStatusFilter,
+    modelSearchKeyword,
+  ]);
 
   useEffect(() => {
     if (modelTestRows.length === 0) {
@@ -6064,6 +6139,10 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                     modelSectionMetaText={modelSectionMetaText}
                     detailModelFilter={detailModelFilter}
                     setDetailModelFilter={setDetailModelFilter}
+                    detailUpstreamStatusFilter={detailUpstreamStatusFilter}
+                    setDetailUpstreamStatusFilter={
+                      setDetailUpstreamStatusFilter
+                    }
                     detailProviderFilter={detailProviderFilter}
                     setDetailProviderFilter={setDetailProviderFilter}
                     detailProviderFilterOptions={detailProviderFilterOptions}
@@ -6081,19 +6160,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                     providerDataLoading={providerDataLoading}
                     toggleModelSelection={toggleModelSelection}
                     canSelectChannelModel={canSelectChannelModel}
-                    detailCurrentPageAllSelected={detailCurrentPageAllSelected}
-                    detailCurrentPagePartiallySelected={
-                      detailCurrentPagePartiallySelected
-                    }
-                    detailCurrentPageSelectableCount={
-                      detailCurrentPageSelectableModels.length
-                    }
-                    toggleDetailCurrentPageSelections={
-                      toggleDetailCurrentPageSelections
-                    }
                     normalizeChannelModelType={normalizeChannelModelType}
                     startDetailModelEdit={startDetailModelEdit}
                     handleDeleteDetailModel={handleDeleteDetailModel}
+                    handleBatchSelectDetailModels={handleBatchSelectDetailModels}
+                    handleBatchDeleteDetailModels={handleBatchDeleteDetailModels}
                     detailModelTotalPages={detailModelTotalPages}
                     detailModelPage={detailModelPage}
                     setDetailModelPage={setDetailModelPage}

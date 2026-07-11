@@ -19,7 +19,6 @@ type channelModelListData struct {
 	PageSize      int                    `json:"page_size"`
 	SelectedCount int                    `json:"selected_count"`
 	ActiveCount   int                    `json:"active_count"`
-	InactiveCount int                    `json:"inactive_count"`
 }
 
 type channelTestListData struct {
@@ -82,39 +81,15 @@ func buildChannelModelListData(channelID string, page int, pageSize int, keyword
 	if err != nil {
 		return channelModelListData{}, err
 	}
-	syncByModel := make(map[string]model.ChannelModelSyncResult, len(syncRows)*2)
-	for _, row := range syncRows {
-		if modelName := strings.TrimSpace(row.Model); modelName != "" {
-			syncByModel[modelName] = row
-		}
-		if upstreamModel := strings.TrimSpace(row.UpstreamModel); upstreamModel != "" {
-			if _, ok := syncByModel[upstreamModel]; !ok {
-				syncByModel[upstreamModel] = row
-			}
-		}
-	}
 	items := make([]channelModelListItem, 0, len(rows))
 	for _, row := range rows {
+		syncStatus, lastSyncedAt := resolveChannelModelSyncStatus(syncRows, row)
 		item := channelModelListItem{
 			ChannelModel: row,
-			SyncStatus:   "unknown",
+			SyncStatus:   syncStatus,
+			LastSyncedAt: lastSyncedAt,
 		}
-		if syncRow, ok := syncByModel[strings.TrimSpace(row.Model)]; ok {
-			item.LastSyncedAt = syncRow.LastSyncedAt
-			if syncRow.Returned {
-				item.SyncStatus = "returned"
-			} else {
-				item.SyncStatus = "not_returned"
-			}
-		} else if syncRow, ok := syncByModel[strings.TrimSpace(row.UpstreamModel)]; ok {
-			item.LastSyncedAt = syncRow.LastSyncedAt
-			if syncRow.Returned {
-				item.SyncStatus = "returned"
-			} else {
-				item.SyncStatus = "not_returned"
-			}
-		}
-		if !row.Inactive && !row.Selected {
+		if !row.Selected {
 			reason, reasonErr := model.ExplainManualChannelModelEnableBlockWithDB(model.DB, channelID, row)
 			if reasonErr != nil {
 				return channelModelListData{}, reasonErr
@@ -125,14 +100,7 @@ func buildChannelModelListData(channelID string, page int, pageSize int, keyword
 	}
 	allRows := channelRow.GetChannelModels()
 	selectedCount := 0
-	activeCount := 0
-	inactiveCount := 0
 	for _, row := range allRows {
-		if row.Inactive {
-			inactiveCount++
-			continue
-		}
-		activeCount++
 		if row.Selected {
 			selectedCount++
 		}
@@ -143,9 +111,37 @@ func buildChannelModelListData(channelID string, page int, pageSize int, keyword
 		Page:          page,
 		PageSize:      pageSize,
 		SelectedCount: selectedCount,
-		ActiveCount:   activeCount,
-		InactiveCount: inactiveCount,
+		ActiveCount:   len(allRows),
 	}, nil
+}
+
+func resolveChannelModelSyncStatus(syncRows []model.ChannelModelSyncResult, row model.ChannelModel) (string, int64) {
+	upstreamCandidate := strings.TrimSpace(row.UpstreamModel)
+	if upstreamCandidate == "" {
+		upstreamCandidate = strings.TrimSpace(row.Model)
+	}
+	if upstreamCandidate == "" {
+		return "unknown", 0
+	}
+	found := false
+	lastSyncedAt := int64(0)
+	for _, syncRow := range syncRows {
+		upstreamModel := strings.TrimSpace(syncRow.UpstreamModel)
+		if upstreamModel != upstreamCandidate {
+			continue
+		}
+		found = true
+		if syncRow.LastSyncedAt > lastSyncedAt {
+			lastSyncedAt = syncRow.LastSyncedAt
+		}
+		if syncRow.Returned {
+			return "returned", lastSyncedAt
+		}
+	}
+	if found {
+		return "not_returned", lastSyncedAt
+	}
+	return "unknown", 0
 }
 
 func buildChannelTestListData(channelID string) (channelTestListData, error) {
@@ -330,19 +326,15 @@ func collectRestoredChannelModelCapabilities(currentRows []model.ChannelModel, n
 		if !ok || !isChannelModelRuntimeDisabled(current) {
 			continue
 		}
-		if row.Inactive {
-			continue
-		}
 		restored = append(restored, modelName)
 	}
 	return restored
 }
 
 func isChannelModelRuntimeDisabled(row model.ChannelModel) bool {
-	return row.Inactive &&
-		(row.DisabledAt > 0 ||
-			strings.TrimSpace(row.DisabledReason) != "" ||
-			strings.TrimSpace(row.DisabledBy) != "")
+	return row.DisabledAt > 0 ||
+		strings.TrimSpace(row.DisabledReason) != "" ||
+		strings.TrimSpace(row.DisabledBy) != ""
 }
 
 func channelAdminOperator(c *gin.Context) string {

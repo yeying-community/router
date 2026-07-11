@@ -177,7 +177,7 @@ func (channel *Channel) UsesVolcengineRealtimeEndpoint() bool {
 		return false
 	}
 	for _, row := range channel.GetChannelModels() {
-		if row.Inactive || !row.Selected {
+		if !row.Selected {
 			continue
 		}
 		if NormalizeRequestedChannelModelEndpoint(row.Endpoint) == ChannelModelEndpointRealtime {
@@ -347,7 +347,7 @@ func (channel *Channel) SelectedModelIDs() []string {
 	if len(channel.ChannelModels) > 0 {
 		modelIDs := make([]string, 0, len(channel.ChannelModels))
 		for _, row := range channel.GetChannelModels() {
-			if row.Inactive || !row.Selected {
+			if !row.Selected {
 				continue
 			}
 			modelIDs = append(modelIDs, row.Model)
@@ -376,10 +376,8 @@ func (channel *Channel) SetSelectedModelIDs(modelIDs []string) {
 			continue
 		}
 		row.Selected = false
-		if !row.Inactive {
-			if _, ok := selectedSet[row.Model]; ok {
-				row.Selected = true
-			}
+		if _, ok := selectedSet[row.Model]; ok {
+			row.Selected = true
 		}
 		completeChannelModelRowDefaults(&row, channel.GetChannelProtocol())
 		next = append(next, row)
@@ -418,10 +416,8 @@ func (channel *Channel) SetChannelModels(configs []ChannelModel) {
 	available := make([]string, 0, len(normalized))
 	selected := make([]string, 0, len(normalized))
 	for _, row := range normalized {
-		if !row.Inactive {
-			available = append(available, row.Model)
-		}
-		if row.Inactive || !row.Selected {
+		available = append(available, row.Model)
+		if !row.Selected {
 			continue
 		}
 		selected = append(selected, row.Model)
@@ -510,7 +506,7 @@ func (channel *Channel) selectedChannelModels() []ChannelModel {
 	}
 	selected := make([]ChannelModel, 0, len(configs))
 	for _, row := range configs {
-		if !row.Selected {
+		if !IsChannelModelPublished(row) {
 			continue
 		}
 		selected = append(selected, row)

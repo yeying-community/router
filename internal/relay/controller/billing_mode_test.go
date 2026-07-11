@@ -105,7 +105,7 @@ func TestTryBuildRequestPackageBillingPlanMatchesGroupBeforePricing(t *testing.T
 		t.Fatalf("request package plan mismatch: %+v", plan)
 	}
 	if !plan.RequestPackageReservation.Active() {
-		t.Fatalf("request package reservation inactive: %+v", plan.RequestPackageReservation)
+		t.Fatalf("request package reservation not active: %+v", plan.RequestPackageReservation)
 	}
 }
 

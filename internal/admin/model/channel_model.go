@@ -18,7 +18,6 @@ const (
 	ChannelModelPublishStatusPendingTest    = "pending_test"
 	ChannelModelPublishStatusPendingPublish = "pending_publish"
 	ChannelModelPublishStatusPublished      = "published"
-	ChannelModelPublishStatusDisabled       = "disabled"
 )
 
 type ChannelModel struct {
@@ -34,7 +33,6 @@ type ChannelModel struct {
 	PublishedModel  string                              `json:"published_model,omitempty" gorm:"type:varchar(255);default:'';index"`
 	PublishedAt     int64                               `json:"published_at,omitempty" gorm:"bigint;index"`
 	PublishedBy     string                              `json:"published_by,omitempty" gorm:"type:varchar(128);default:''"`
-	Inactive        bool                                `json:"inactive,omitempty" gorm:"not null;default:false;index"`
 	Selected        bool                                `json:"selected" gorm:"default:false;index"`
 	InputPrice      *float64                            `json:"input_price,omitempty" gorm:"type:double precision"`
 	OutputPrice     *float64                            `json:"output_price,omitempty" gorm:"type:double precision"`
@@ -152,7 +150,7 @@ func ListRecentDisabledChannelModelsWithDB(db *gorm.DB, limit int) ([]ChannelMod
 	}
 	rows := make([]ChannelModel, 0, limit)
 	if err := db.
-		Where("inactive = ? AND disabled_at > 0", true).
+		Where("disabled_at > 0").
 		Order("disabled_at desc, updated_at desc, channel_id asc, sort_order asc, model asc").
 		Limit(limit).
 		Find(&rows).Error; err != nil {
@@ -224,14 +222,14 @@ func ValidateChannelModelDisableTransitionsWithDB(db *gorm.DB, channelID string,
 		nextByModel[modelName] = row
 	}
 	for modelName, existingRow := range existingByModel {
-		if existingRow.Inactive || !existingRow.Selected {
+		if !existingRow.Selected {
 			continue
 		}
 		nextRow, ok := nextByModel[modelName]
 		if !ok {
 			continue
 		}
-		if !nextRow.Inactive && nextRow.Selected {
+		if nextRow.Selected {
 			continue
 		}
 		enabledEndpointRows, err := ListEnabledChannelModelEndpointsByCandidatesWithDB(db, normalizedChannelID, existingRow.Model, existingRow.UpstreamModel)
@@ -251,30 +249,45 @@ func DeleteChannelModelWithDB(db *gorm.DB, channelID string, modelName string, u
 		return fmt.Errorf("database handle is nil")
 	}
 	normalizedChannelID := strings.TrimSpace(channelID)
-	modelCandidates := NormalizeProviderLookupCandidates(modelName, upstreamModel)
+	normalizedModel := strings.TrimSpace(modelName)
+	normalizedUpstreamModel := strings.TrimSpace(upstreamModel)
+	modelCandidates := NormalizeProviderLookupCandidates(normalizedModel, normalizedUpstreamModel)
 	if normalizedChannelID == "" || len(modelCandidates) == 0 {
 		return fmt.Errorf("渠道模型无效")
 	}
 	targetRow := ChannelModel{}
-	if err := db.
-		Where("channel_id = ? AND (model IN ? OR upstream_model IN ?)", normalizedChannelID, modelCandidates, modelCandidates).
-		Order("sort_order asc, model asc").
-		First(&targetRow).Error; err != nil {
-		return err
+	targetQuery := db.Where("channel_id = ?", normalizedChannelID)
+	if normalizedUpstreamModel != "" {
+		targetQuery = targetQuery.Where("upstream_model = ?", normalizedUpstreamModel)
+		if normalizedModel != "" {
+			targetQuery = targetQuery.Where("model = ?", normalizedModel)
+		}
+		if err := targetQuery.Order("sort_order asc, model asc").First(&targetRow).Error; err != nil {
+			return err
+		}
+	} else {
+		if err := targetQuery.
+			Where("model IN ? OR upstream_model IN ?", modelCandidates, modelCandidates).
+			Order("sort_order asc, model asc").
+			First(&targetRow).Error; err != nil {
+			return err
+		}
 	}
-	returned, err := HasReturnedChannelModelSyncResultWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
+	syncFound, returned, err := GetChannelModelSyncReturnStatusWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
 	if err != nil {
 		return err
 	}
 	if returned {
 		return fmt.Errorf("模型 %s 最近一次上游返回仍包含，无法删除", displayChannelModelName(targetRow))
 	}
-	enabledEndpointRows, err := ListEnabledChannelModelEndpointsByCandidatesWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
-	if err != nil {
-		return err
-	}
-	if len(enabledEndpointRows) > 0 {
-		return fmt.Errorf("模型 %s 仍有已启用端点，无法删除：%s", displayChannelModelName(targetRow), formatChannelModelEnabledEndpoints(enabledEndpointRows))
+	if !syncFound {
+		enabledEndpointRows, err := ListEnabledChannelModelEndpointsByCandidatesWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
+		if err != nil {
+			return err
+		}
+		if len(enabledEndpointRows) > 0 {
+			return fmt.Errorf("模型 %s 仍有已启用端点，无法删除：%s", displayChannelModelName(targetRow), formatChannelModelEnabledEndpoints(enabledEndpointRows))
+		}
 	}
 	usages, err := ListChannelModelUsageReferencesWithDB(db, normalizedChannelID, targetRow.Model, targetRow.UpstreamModel)
 	if err != nil {
@@ -371,7 +384,7 @@ func ListSelectedChannelModelIDsByChannelIDWithDB(db *gorm.DB, channelID string)
 	}
 	modelIDs := make([]string, 0, len(rows))
 	for _, row := range rows {
-		if row.Inactive || !row.Selected {
+		if !row.Selected {
 			continue
 		}
 		modelIDs = append(modelIDs, row.Model)
@@ -386,9 +399,6 @@ func ListAvailableChannelModelIDsByChannelIDWithDB(db *gorm.DB, channelID string
 	}
 	modelIDs := make([]string, 0, len(rows))
 	for _, row := range rows {
-		if row.Inactive {
-			continue
-		}
 		modelIDs = append(modelIDs, row.Model)
 	}
 	return NormalizeChannelModelIDsPreserveOrder(modelIDs), nil
@@ -490,7 +500,6 @@ func AppendMissingFetchedChannelModelsWithDB(db *gorm.DB, channelID string, fetc
 		appended.Model = modelName
 		appended.UpstreamModel = upstreamModel
 		appended.Selected = false
-		appended.Inactive = false
 		completeChannelModelRowDefaults(&appended, channelProtocol)
 		nextRows = append(nextRows, appended)
 		existingKeys["model:"+modelName] = struct{}{}
@@ -535,10 +544,8 @@ func ReplaceChannelSelectedModelsWithDB(db *gorm.DB, channelID string, selected 
 		}
 		seen[row.Model] = struct{}{}
 		row.Selected = false
-		if !row.Inactive {
-			if _, ok := selectedSet[row.Model]; ok {
-				row.Selected = true
-			}
+		if _, ok := selectedSet[row.Model]; ok {
+			row.Selected = true
 		}
 		rows = append(rows, row)
 	}
@@ -757,8 +764,6 @@ func publishableTraditionalImagePromptInputPrice(pricing ResolvedModelPricing) f
 
 func channelModelPublishBlockedMessage(status string) string {
 	switch status {
-	case ChannelModelPublishStatusDisabled:
-		return "模型已停用，不能发布"
 	case ChannelModelPublishStatusSelectable:
 		return "模型未启用，不能发布"
 	case ChannelModelPublishStatusPendingConfig:
@@ -832,7 +837,6 @@ func RestoreRuntimeDisabledChannelModelCapabilityWithDB(db *gorm.DB, channelID s
 		if !isRuntimeDisabledChannelModel(rows[idx]) {
 			continue
 		}
-		rows[idx].Inactive = false
 		rows[idx].Selected = true
 		rows[idx].DisabledReason = ""
 		rows[idx].DisabledAt = 0
@@ -1077,7 +1081,7 @@ func ListChannelModelRowsPageWithDB(db *gorm.DB, channelID string, page int, pag
 	}
 	rows := make([]ChannelModel, 0, pageSize)
 	if err := query.
-		Order("inactive asc, sort_order asc, model asc").
+		Order("sort_order asc, model asc").
 		Limit(pageSize).
 		Offset(page * pageSize).
 		Find(&rows).Error; err != nil {
@@ -1210,13 +1214,12 @@ func buildDisabledChannelModels(rows []ChannelModel, modelName string, reason st
 		if strings.TrimSpace(normalizedRows[idx].Model) != normalizedModelName {
 			continue
 		}
-		if normalizedRows[idx].Inactive && !normalizedRows[idx].Selected &&
+		if !normalizedRows[idx].Selected &&
 			strings.TrimSpace(normalizedRows[idx].DisabledReason) == normalizedReason &&
 			strings.TrimSpace(normalizedRows[idx].DisabledBy) == normalizedDisabledBy &&
 			normalizedRows[idx].DisabledAt > 0 {
 			return normalizedRows, changed
 		}
-		normalizedRows[idx].Inactive = true
 		normalizedRows[idx].Selected = false
 		normalizedRows[idx].DisabledReason = normalizedReason
 		normalizedRows[idx].DisabledAt = now
@@ -1269,7 +1272,7 @@ func replaceChannelModelRowsWithDB(db *gorm.DB, channelID string, rows []Channel
 		if strings.TrimSpace(row.Provider) == "" {
 			row.Provider = ResolveProviderFromModelMap(providerByModel, row.UpstreamModel, row.Model)
 		}
-		if row.Selected && !row.Inactive {
+		if row.Selected {
 			row.DisabledReason = ""
 			row.DisabledAt = 0
 			row.DisabledBy = ""
@@ -1287,7 +1290,7 @@ func replaceChannelModelRowsWithDB(db *gorm.DB, channelID string, rows []Channel
 				row.PublishedBy = ""
 			}
 		}
-		if row.Inactive || !row.Selected {
+		if !row.Selected {
 			row.PublishEnabled = false
 			row.PublishedAt = 0
 			row.PublishedBy = ""
@@ -1420,7 +1423,6 @@ func BuildFetchedChannelModels(existingRows []ChannelModel, fetchedRows []Channe
 			row.Provider = strings.TrimSpace(fetchedRow.Provider)
 		}
 		row.UpstreamModel = upstreamModel
-		row.Inactive = false
 		if selectAll {
 			row.Selected = true
 		}
@@ -1441,7 +1443,6 @@ func BuildFetchedChannelModels(existingRows []ChannelModel, fetchedRows []Channe
 			continue
 		}
 		row.Selected = false
-		row.Inactive = true
 		row.SortOrder = len(rows) + 1
 		completeChannelModelRowDefaults(&row, channelProtocol)
 		rows = append(rows, row)
@@ -1699,9 +1700,6 @@ func applyChannelModelPublishStatus(row *ChannelModel, state channelModelEndpoin
 }
 
 func ResolveChannelModelPublishStatus(row ChannelModel, state channelModelEndpointState, endpointSupport map[string]bool) string {
-	if row.Inactive {
-		return ChannelModelPublishStatusDisabled
-	}
 	if !row.Selected {
 		return ChannelModelPublishStatusSelectable
 	}

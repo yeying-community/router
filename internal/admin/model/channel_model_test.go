@@ -139,7 +139,7 @@ func TestApplyChannelModelEndpointState_PreservesExplicitPrimaryEvenIfDisabled(t
 	}
 }
 
-func TestBuildFetchedChannelModelsPreservesExistingSelectionsAndMarksMissingRowsInactive(t *testing.T) {
+func TestBuildFetchedChannelModelsPreservesExistingSelectionsAndMarksMissingRowsUnselected(t *testing.T) {
 	existingRows := []ChannelModel{
 		{
 			Model:         "alias-gpt-4.1",
@@ -194,18 +194,11 @@ func TestBuildFetchedChannelModelsPreservesExistingSelectionsAndMarksMissingRows
 	if rows[0].OutputPrice == nil || *rows[0].OutputPrice != 2.4 {
 		t.Fatalf("rows[0].OutputPrice = %#v, want 2.4", rows[0].OutputPrice)
 	}
-	if rows[0].Inactive {
-		t.Fatalf("rows[0].Inactive = true, want false")
-	}
-
 	if rows[1].Model != "gpt-image-1" {
 		t.Fatalf("rows[1].Model = %q, want gpt-image-1", rows[1].Model)
 	}
 	if rows[1].Selected {
 		t.Fatalf("rows[1].Selected = true, want false")
-	}
-	if rows[1].Inactive {
-		t.Fatalf("rows[1].Inactive = true, want false")
 	}
 
 	if rows[2].Model != "legacy-removed" {
@@ -214,12 +207,9 @@ func TestBuildFetchedChannelModelsPreservesExistingSelectionsAndMarksMissingRows
 	if rows[2].Selected {
 		t.Fatalf("rows[2].Selected = true, want false")
 	}
-	if !rows[2].Inactive {
-		t.Fatalf("rows[2].Inactive = false, want true")
-	}
 }
 
-func TestBuildDisabledChannelModelConfigsMarksOnlyTargetModelInactive(t *testing.T) {
+func TestBuildDisabledChannelModelConfigsMarksOnlyTargetModelUnselected(t *testing.T) {
 	rows := []ChannelModel{
 		{
 			Model:         "gpt-5.3-codex",
@@ -242,17 +232,11 @@ func TestBuildDisabledChannelModelConfigsMarksOnlyTargetModelInactive(t *testing
 	if len(updated) != 2 {
 		t.Fatalf("updated len = %d, want 2", len(updated))
 	}
-	if !updated[0].Inactive {
-		t.Fatalf("updated[0].Inactive = false, want true")
-	}
 	if updated[0].Selected {
 		t.Fatalf("updated[0].Selected = true, want false")
 	}
 	if updated[0].DisabledReason != "model not found" || updated[0].DisabledBy != "runtime" || updated[0].DisabledAt == 0 {
 		t.Fatalf("updated[0] disable metadata = reason:%q by:%q at:%d, want populated", updated[0].DisabledReason, updated[0].DisabledBy, updated[0].DisabledAt)
-	}
-	if updated[1].Inactive {
-		t.Fatalf("updated[1].Inactive = true, want false")
 	}
 	if !updated[1].Selected {
 		t.Fatalf("updated[1].Selected = false, want true")
@@ -275,9 +259,6 @@ func TestBuildDisabledChannelModelConfigsNoopWhenTargetMissing(t *testing.T) {
 	}
 	if len(updated) != 1 {
 		t.Fatalf("updated len = %d, want 1", len(updated))
-	}
-	if updated[0].Inactive {
-		t.Fatalf("updated[0].Inactive = true, want false")
 	}
 	if !updated[0].Selected {
 		t.Fatalf("updated[0].Selected = false, want true")
@@ -305,7 +286,6 @@ func TestReplaceChannelModelsWithDBClearsRuntimeDisableMetadataWhenModelRestored
 		UpstreamModel:  "gpt-5.4",
 		Provider:       "openai",
 		Type:           ProviderModelTypeText,
-		Inactive:       true,
 		Selected:       false,
 		DisabledReason: "model not found",
 		DisabledAt:     123,
@@ -320,7 +300,6 @@ func TestReplaceChannelModelsWithDBClearsRuntimeDisableMetadataWhenModelRestored
 			UpstreamModel: "gpt-5.4",
 			Provider:      "openai",
 			Type:          ProviderModelTypeText,
-			Inactive:      false,
 			Selected:      true,
 		},
 	}); err != nil {
@@ -333,9 +312,6 @@ func TestReplaceChannelModelsWithDBClearsRuntimeDisableMetadataWhenModelRestored
 	}
 	if len(rows) != 1 {
 		t.Fatalf("len(rows) = %d, want 1", len(rows))
-	}
-	if rows[0].Inactive {
-		t.Fatalf("rows[0].Inactive = true, want false")
 	}
 	if !rows[0].Selected {
 		t.Fatalf("rows[0].Selected = false, want true")
@@ -714,6 +690,110 @@ func TestDeleteChannelModelWithDBBlocksWhenModelStillReturned(t *testing.T) {
 	}
 }
 
+func TestDeleteChannelModelWithDBIgnoresReturnedDisplayModel(t *testing.T) {
+	db := openChannelModelTestDB(t)
+	if err := db.AutoMigrate(
+		&Channel{},
+		&ChannelModel{},
+		&ChannelModelEndpoint{},
+		&ChannelModelEndpointPolicy{},
+		&ChannelModelSyncResult{},
+		&ChannelTest{},
+		&ChannelModelPriceComponent{},
+		&GroupModelChannel{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{Id: "channel-1", Name: "channel-1", Protocol: "openai"}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:     "channel-1",
+		Model:         "gpt-5.1-codex-mini",
+		UpstreamModel: "gpt-5.1-codex-mini-2025-11-13",
+		Selected:      false,
+	}).Error; err != nil {
+		t.Fatalf("create channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModelSyncResult{
+		ChannelId:     "channel-1",
+		Model:         "gpt-5.1-codex-mini",
+		UpstreamModel: "gpt-5.1-codex-mini",
+		Returned:      true,
+	}).Error; err != nil {
+		t.Fatalf("create sync result: %v", err)
+	}
+	if err := db.Create(&ChannelModelSyncResult{
+		ChannelId:     "channel-1",
+		Model:         "gpt-5.1-codex-mini-2025-11-13",
+		UpstreamModel: "gpt-5.1-codex-mini-2025-11-13",
+		Returned:      false,
+	}).Error; err != nil {
+		t.Fatalf("create sync result: %v", err)
+	}
+	err := DeleteChannelModelWithDB(db, "channel-1", "gpt-5.1-codex-mini", "gpt-5.1-codex-mini-2025-11-13")
+	if err != nil {
+		t.Fatalf("DeleteChannelModelWithDB error = %v, want nil", err)
+	}
+}
+
+func TestDeleteChannelModelWithDBPrefersExactUpstreamModel(t *testing.T) {
+	db := openChannelModelTestDB(t)
+	if err := db.AutoMigrate(
+		&Channel{},
+		&ChannelModel{},
+		&ChannelModelEndpoint{},
+		&ChannelModelEndpointPolicy{},
+		&ChannelModelSyncResult{},
+		&ChannelTest{},
+		&ChannelModelPriceComponent{},
+		&GroupModelChannel{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{Id: "channel-1", Name: "channel-1", Protocol: "openai"}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:     "channel-1",
+		Model:         "gpt-4o-mini-tts",
+		UpstreamModel: "gpt-4o-mini-tts",
+		Selected:      true,
+		SortOrder:     1,
+	}).Error; err != nil {
+		t.Fatalf("create base channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:     "channel-1",
+		Model:         "gpt-4o-mini-tts-2025-12-15",
+		UpstreamModel: "gpt-4o-mini-tts-2025-12-15",
+		Selected:      false,
+		SortOrder:     2,
+	}).Error; err != nil {
+		t.Fatalf("create dated channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModelSyncResult{
+		ChannelId:     "channel-1",
+		Model:         "gpt-4o-mini-tts",
+		UpstreamModel: "gpt-4o-mini-tts",
+		Returned:      true,
+	}).Error; err != nil {
+		t.Fatalf("create returned sync result: %v", err)
+	}
+	if err := db.Create(&ChannelModelSyncResult{
+		ChannelId:     "channel-1",
+		Model:         "gpt-4o-mini-tts-2025-12-15",
+		UpstreamModel: "gpt-4o-mini-tts-2025-12-15",
+		Returned:      false,
+	}).Error; err != nil {
+		t.Fatalf("create not returned sync result: %v", err)
+	}
+	err := DeleteChannelModelWithDB(db, "channel-1", "gpt-4o-mini-tts-2025-12-15", "gpt-4o-mini-tts-2025-12-15")
+	if err != nil {
+		t.Fatalf("DeleteChannelModelWithDB error = %v, want nil", err)
+	}
+}
+
 func TestDeleteChannelModelWithDBBlocksWhenEnabledEndpointsExist(t *testing.T) {
 	db := openChannelModelTestDB(t)
 	if err := db.AutoMigrate(
@@ -739,14 +819,6 @@ func TestDeleteChannelModelWithDBBlocksWhenEnabledEndpointsExist(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("create channel model: %v", err)
 	}
-	if err := db.Create(&ChannelModelSyncResult{
-		ChannelId:     "channel-1",
-		Model:         "gpt-5.4",
-		UpstreamModel: "gpt-5.4",
-		Returned:      false,
-	}).Error; err != nil {
-		t.Fatalf("create sync result: %v", err)
-	}
 	if err := db.Create(&ChannelModelEndpoint{
 		ChannelId: "channel-1",
 		Model:     "gpt-5.4",
@@ -761,5 +833,52 @@ func TestDeleteChannelModelWithDBBlocksWhenEnabledEndpointsExist(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "仍有已启用端点") {
 		t.Fatalf("error = %q, want enabled endpoint block", err.Error())
+	}
+}
+
+func TestDeleteChannelModelWithDBAllowsNotReturnedModelWithEnabledEndpoints(t *testing.T) {
+	db := openChannelModelTestDB(t)
+	if err := db.AutoMigrate(
+		&Channel{},
+		&ChannelModel{},
+		&ChannelModelEndpoint{},
+		&ChannelModelEndpointPolicy{},
+		&ChannelModelSyncResult{},
+		&ChannelTest{},
+		&ChannelModelPriceComponent{},
+		&GroupModelChannel{},
+	); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Create(&Channel{Id: "channel-1", Name: "channel-1", Protocol: "openai"}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:     "channel-1",
+		Model:         "gpt-realtime-1.5-2026-02-23",
+		UpstreamModel: "gpt-realtime-1.5-2026-02-23",
+		Selected:      false,
+	}).Error; err != nil {
+		t.Fatalf("create channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModelSyncResult{
+		ChannelId:     "channel-1",
+		Model:         "gpt-realtime-1.5-2026-02-23",
+		UpstreamModel: "gpt-realtime-1.5-2026-02-23",
+		Returned:      false,
+	}).Error; err != nil {
+		t.Fatalf("create sync result: %v", err)
+	}
+	if err := db.Create(&ChannelModelEndpoint{
+		ChannelId: "channel-1",
+		Model:     "gpt-realtime-1.5-2026-02-23",
+		Endpoint:  ChannelModelEndpointRealtime,
+		Enabled:   true,
+	}).Error; err != nil {
+		t.Fatalf("create enabled endpoint: %v", err)
+	}
+	err := DeleteChannelModelWithDB(db, "channel-1", "gpt-realtime-1.5-2026-02-23", "gpt-realtime-1.5-2026-02-23")
+	if err != nil {
+		t.Fatalf("DeleteChannelModelWithDB error = %v, want nil", err)
 	}
 }

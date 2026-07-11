@@ -105,20 +105,48 @@ func ReplaceChannelModelSyncResultsWithDB(db *gorm.DB, channelID string, existin
 	})
 }
 
-func HasReturnedChannelModelSyncResultWithDB(db *gorm.DB, channelID string, candidates ...string) (bool, error) {
+func normalizeChannelModelSyncUpstreamCandidate(modelName string, upstreamModel string) string {
+	normalizedUpstreamModel := strings.TrimSpace(upstreamModel)
+	if normalizedUpstreamModel != "" {
+		return normalizedUpstreamModel
+	}
+	return strings.TrimSpace(modelName)
+}
+
+func HasReturnedChannelModelSyncResultWithDB(db *gorm.DB, channelID string, modelName string, upstreamModel string) (bool, error) {
+	found, returned, err := GetChannelModelSyncReturnStatusWithDB(db, channelID, modelName, upstreamModel)
+	if err != nil {
+		return false, err
+	}
+	return found && returned, nil
+}
+
+func GetChannelModelSyncReturnStatusWithDB(db *gorm.DB, channelID string, modelName string, upstreamModel string) (bool, bool, error) {
 	if db == nil {
-		return false, fmt.Errorf("database handle is nil")
+		return false, false, fmt.Errorf("database handle is nil")
 	}
 	normalizedChannelID := strings.TrimSpace(channelID)
-	modelCandidates := NormalizeProviderLookupCandidates(candidates...)
-	if normalizedChannelID == "" || len(modelCandidates) == 0 {
-		return false, nil
+	upstreamCandidate := normalizeChannelModelSyncUpstreamCandidate(modelName, upstreamModel)
+	if normalizedChannelID == "" || upstreamCandidate == "" {
+		return false, false, nil
 	}
-	count := int64(0)
-	err := db.Model(&ChannelModelSyncResult{}).
-		Where("channel_id = ? AND returned = ? AND (model IN ? OR upstream_model IN ?)", normalizedChannelID, true, modelCandidates, modelCandidates).
-		Count(&count).Error
-	return count > 0, err
+	rows := make([]ChannelModelSyncResult, 0)
+	err := db.
+		Where("channel_id = ? AND upstream_model = ?", normalizedChannelID, upstreamCandidate).
+		Order("last_synced_at desc, updated_at desc, model asc").
+		Find(&rows).Error
+	if err != nil {
+		return false, false, err
+	}
+	if len(rows) == 0 {
+		return false, false, nil
+	}
+	for _, row := range rows {
+		if row.Returned {
+			return true, true, nil
+		}
+	}
+	return true, false, nil
 }
 
 func ListChannelModelSyncResultsByChannelIDWithDB(db *gorm.DB, channelID string) ([]ChannelModelSyncResult, error) {

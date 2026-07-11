@@ -194,7 +194,7 @@ func collectChannelCapabilities(channel *model.Channel) []string {
 	}
 	selectedTypes := map[string]struct{}{}
 	for _, row := range channel.GetChannelModels() {
-		if !row.Selected || row.Inactive {
+		if !row.Selected {
 			continue
 		}
 		modelType := strings.TrimSpace(strings.ToLower(row.Type))

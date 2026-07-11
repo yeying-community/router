@@ -35,6 +35,7 @@ import {
 } from '../router-ui';
 
 const PROVIDER_DETAIL_MODEL_PAGE_SIZE = 20;
+const PROVIDER_MODEL_STATUS_FILTER_ALL = 'all';
 const PROVIDER_ENDPOINT_SORT_ORDER = {
   '/v1/chat/completions': 10,
   '/v1/responses': 20,
@@ -833,7 +834,12 @@ const ProvidersManager = () => {
   const [viewRow, setViewRow] = useState(null);
   const [activeProviderDetailTab, setActiveProviderDetailTab] = useState('basic');
   const [viewModelSearchKeyword, setViewModelSearchKeyword] = useState('');
+  const [viewModelStatusFilter, setViewModelStatusFilter] = useState(
+    PROVIDER_MODEL_STATUS_FILTER_ALL,
+  );
   const [viewModelPage, setViewModelPage] = useState(1);
+  const [viewModelBatchDeleteMode, setViewModelBatchDeleteMode] = useState(false);
+  const [viewModelBatchDeleteKeys, setViewModelBatchDeleteKeys] = useState([]);
   const [detailEditingSection, setDetailEditingSection] = useState('');
   const [detailBasicDraft, setDetailBasicDraft] = useState(createEmptyRow());
   const [detailModelsDraft, setDetailModelsDraft] = useState(createEmptyRow());
@@ -933,6 +939,7 @@ const ProvidersManager = () => {
     const normalized = normalizeProvider(row?.id || '');
     if (!normalized) return;
     setViewModelSearchKeyword('');
+    setViewModelStatusFilter(PROVIDER_MODEL_STATUS_FILTER_ALL);
     setViewModelPage(1);
     setActiveProviderDetailTab('basic');
     resetDetailEditingState();
@@ -942,6 +949,7 @@ const ProvidersManager = () => {
 
   const closeViewer = () => {
     setViewModelSearchKeyword('');
+    setViewModelStatusFilter(PROVIDER_MODEL_STATUS_FILTER_ALL);
     setViewModelPage(1);
     setActiveProviderDetailTab('basic');
     setViewingProvider('');
@@ -1349,6 +1357,7 @@ const ProvidersManager = () => {
     setModelDetailEditorMode('create');
     setModelDetailEditorOpen(true);
     setViewModelSearchKeyword('');
+    setViewModelStatusFilter(PROVIDER_MODEL_STATUS_FILTER_ALL);
     setViewModelPage(1);
   }, [creating, saving, viewRow]);
 
@@ -1392,6 +1401,43 @@ const ProvidersManager = () => {
       }
       details.splice(index, 1);
       await persistViewerModelDetails(details);
+    },
+    [creating, persistViewerModelDetails, saving, t, viewRow],
+  );
+
+  const deleteDetailModels = useCallback(
+    async (indexes) => {
+      const sourceRow = cloneEditableRow(viewRow);
+      const details = Array.isArray(sourceRow.model_details)
+        ? [...sourceRow.model_details]
+        : [];
+      const normalizedIndexes = Array.from(
+        new Set(
+          (Array.isArray(indexes) ? indexes : [])
+            .map((item) => Number(item))
+            .filter((item) => Number.isInteger(item) && item >= 0 && item < details.length),
+        ),
+      ).sort((a, b) => b - a);
+      if (saving || creating || normalizedIndexes.length === 0) {
+        return false;
+      }
+      if (
+        typeof window !== 'undefined' &&
+        !window.confirm(
+          t('channel.providers.model_detail_table.batch_delete_confirm', {
+            count: normalizedIndexes.length,
+          }),
+        )
+      ) {
+        return false;
+      }
+      normalizedIndexes.forEach((index) => {
+        details.splice(index, 1);
+      });
+      await persistViewerModelDetails(details);
+      setViewModelBatchDeleteKeys([]);
+      setViewModelBatchDeleteMode(false);
+      return true;
     },
     [creating, persistViewerModelDetails, saving, t, viewRow],
   );
@@ -2216,29 +2262,45 @@ const ProvidersManager = () => {
         : PROVIDER_DETAIL_MODEL_PAGE_SIZE;
     const currentPage =
       Number(options.currentPage || 0) > 0 ? Number(options.currentPage) : 1;
+    const selectedRowKeys = Array.isArray(options.selectedRowKeys)
+      ? options.selectedRowKeys
+      : [];
     const modelSearchKeyword =
       typeof options.searchKeyword === 'string' ? options.searchKeyword : '';
     const normalizedModelSearchKeyword = modelSearchKeyword
       .trim()
       .toLowerCase();
+    const modelStatusFilter =
+      typeof options.statusFilter === 'string'
+        ? options.statusFilter.trim().toLowerCase()
+        : PROVIDER_MODEL_STATUS_FILTER_ALL;
     const detailRows = details.map((detail, index) => ({ detail, index }));
-    const visibleDetailRows =
-      normalizedModelSearchKeyword === ''
-        ? detailRows
-        : detailRows.filter(({ detail }) => {
-            const haystack = [
-              detail.model || '',
-              detail.description || '',
-              detail.status || '',
-              (detail.tags || []).join(','),
-              (detail.supported_endpoints || []).join(','),
-              detail.price_unit || '',
-              detail.currency || '',
-            ]
-              .join(' ')
-              .toLowerCase();
-            return haystack.includes(normalizedModelSearchKeyword);
-          });
+    const visibleDetailRows = detailRows.filter(({ detail }) => {
+      const detailStatus = String(detail.status || 'active')
+        .trim()
+        .toLowerCase();
+      if (
+        modelStatusFilter !== PROVIDER_MODEL_STATUS_FILTER_ALL &&
+        detailStatus !== modelStatusFilter
+      ) {
+        return false;
+      }
+      if (normalizedModelSearchKeyword === '') {
+        return true;
+      }
+      const haystack = [
+        detail.model || '',
+        detail.description || '',
+        detailStatus,
+        (detail.tags || []).join(','),
+        (detail.supported_endpoints || []).join(','),
+        detail.price_unit || '',
+        detail.currency || '',
+      ]
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(normalizedModelSearchKeyword);
+    });
     const totalPages = Math.max(
       1,
       Math.ceil(visibleDetailRows.length / pageSize),
@@ -2248,6 +2310,44 @@ const ProvidersManager = () => {
       (safeCurrentPage - 1) * pageSize,
       safeCurrentPage * pageSize,
     );
+    const rowSelection =
+      options.batchDeleteMode === true
+        ? {
+            selectedRowKeys,
+            columnWidth: 48,
+            getCheckboxProps: () => ({
+              disabled: actionsDisabled,
+            }),
+            onSelect: (record, selected) => {
+              if (typeof options.onSelectedRowKeysChange !== 'function') {
+                return;
+              }
+              const rowKey = `${record?.detail?.model || 'model'}-${record?.index ?? '0'}`;
+              const nextKeys = new Set(selectedRowKeys);
+              if (selected) {
+                nextKeys.add(rowKey);
+              } else {
+                nextKeys.delete(rowKey);
+              }
+              options.onSelectedRowKeysChange(Array.from(nextKeys));
+            },
+            onSelectAll: (selected, selectedRows, changeRows) => {
+              if (typeof options.onSelectedRowKeysChange !== 'function') {
+                return;
+              }
+              const nextKeys = new Set(selectedRowKeys);
+              changeRows.forEach((record) => {
+                const rowKey = `${record?.detail?.model || 'model'}-${record?.index ?? '0'}`;
+                if (selected) {
+                  nextKeys.add(rowKey);
+                } else {
+                  nextKeys.delete(rowKey);
+                }
+              });
+              options.onSelectedRowKeysChange(Array.from(nextKeys));
+            },
+          }
+        : undefined;
     return (
       <div className='router-block-top-sm'>
         {showToolbar ? (
@@ -2277,6 +2377,7 @@ const ProvidersManager = () => {
           size='small'
           tableLayout='fixed'
           pagination={false}
+          rowSelection={rowSelection}
           rowKey={(record) =>
             `${record?.detail?.model || 'model'}-${record?.index ?? '0'}`
           }
@@ -3298,10 +3399,55 @@ const ProvidersManager = () => {
             className='router-provider-detail-section'
             title={t('channel.providers.dialog.model_details')}
             titleClassName='router-provider-detail-section-title'
-            headerEnd={
-              <>
+            headerStart={
+              <span className='router-toolbar-meta'>
+                ({t('channel.providers.table.model_count', {
+                  count: Array.isArray(viewRow?.model_details)
+                    ? viewRow.model_details.length
+                    : 0,
+                })})
+              </span>
+            }
+          >
+            <AppFilterHeader
+              className='router-toolbar-compact'
+              picker={
+                <>
+                <AppSelect
+                  className='router-section-dropdown router-detail-filter-dropdown router-dropdown-min-170'
+                  options={[
+                    {
+                      key: PROVIDER_MODEL_STATUS_FILTER_ALL,
+                      value: PROVIDER_MODEL_STATUS_FILTER_ALL,
+                      text: t(
+                        'channel.providers.model_detail_table.status_all',
+                      ),
+                    },
+                    {
+                      key: 'active',
+                      value: 'active',
+                      text: t(
+                        'channel.providers.model_detail_table.status_active',
+                      ),
+                    },
+                    {
+                      key: 'deprecated',
+                      value: 'deprecated',
+                      text: t(
+                        'channel.providers.model_detail_table.status_deprecated',
+                      ),
+                    },
+                  ]}
+                  value={viewModelStatusFilter}
+                  onChange={(e, { value }) => {
+                    setViewModelStatusFilter(
+                      value || PROVIDER_MODEL_STATUS_FILTER_ALL,
+                    );
+                    setViewModelPage(1);
+                  }}
+                />
                 <AppInput
-                  className='router-inline-input router-search-form-xs router-section-header-search'
+                  className='router-section-input router-search-form-sm'
                   placeholder={t(
                     'channel.providers.model_detail_table.search_placeholder',
                   )}
@@ -3311,6 +3457,10 @@ const ProvidersManager = () => {
                     setViewModelPage(1);
                   }}
                 />
+                </>
+              }
+              actions={
+                <>
                 <AppButton
                   type='button'
                   className='router-page-button'
@@ -3319,14 +3469,82 @@ const ProvidersManager = () => {
                 >
                   {t('channel.providers.model_detail_table.add')}
                 </AppButton>
-              </>
-            }
-          >
+                {viewModelBatchDeleteMode ? (
+                  <>
+                    <AppButton
+                      type='button'
+                      color='red'
+                      className='router-page-button'
+                      disabled={
+                        saving ||
+                        basicEditing ||
+                        modelsEditing ||
+                        viewModelBatchDeleteKeys.length === 0
+                      }
+                      onClick={() => {
+                        const selectedIndexByKey = new Map(
+                          (Array.isArray(viewRow?.model_details)
+                            ? viewRow.model_details
+                            : []
+                          ).map((detail, index) => [
+                            `${detail?.model || 'model'}-${index}`,
+                            index,
+                          ]),
+                        );
+                        deleteDetailModels(
+                          viewModelBatchDeleteKeys
+                            .map((key) => selectedIndexByKey.get(key))
+                            .filter((index) => Number.isInteger(index)),
+                        );
+                      }}
+                    >
+                      {t('channel.providers.model_detail_table.batch_delete_selected', {
+                        count: viewModelBatchDeleteKeys.length,
+                      })}
+                    </AppButton>
+                    <AppButton
+                      type='button'
+                      className='router-page-button'
+                      disabled={saving}
+                      onClick={() => {
+                        setViewModelBatchDeleteMode(false);
+                        setViewModelBatchDeleteKeys([]);
+                      }}
+                    >
+                      {t('common.cancel')}
+                    </AppButton>
+                  </>
+                ) : (
+                  <AppButton
+                    type='button'
+                    className='router-page-button'
+                    disabled={
+                      saving ||
+                      basicEditing ||
+                      modelsEditing ||
+                      !Array.isArray(viewRow?.model_details) ||
+                      viewRow.model_details.length === 0
+                    }
+                    onClick={() => {
+                      setViewModelBatchDeleteMode(true);
+                      setViewModelBatchDeleteKeys([]);
+                    }}
+                  >
+                    {t('channel.providers.model_detail_table.batch_delete')}
+                  </AppButton>
+                )}
+                </>
+              }
+            />
             {renderModelDetailsReadonly(viewRow, {
               searchable: false,
               hideTitle: true,
               showToolbar: false,
+              batchDeleteMode: viewModelBatchDeleteMode,
+              selectedRowKeys: viewModelBatchDeleteKeys,
+              onSelectedRowKeysChange: setViewModelBatchDeleteKeys,
               searchKeyword: viewModelSearchKeyword,
+              statusFilter: viewModelStatusFilter,
               currentPage: viewModelPage,
               pageSize: PROVIDER_DETAIL_MODEL_PAGE_SIZE,
               onPageChange: setViewModelPage,

@@ -15,9 +15,6 @@ const normalizePublishStatus = (row) => {
   if (explicitStatus) {
     return explicitStatus;
   }
-  if (row?.inactive) {
-    return 'disabled';
-  }
   if (!row?.selected) {
     return 'selectable';
   }

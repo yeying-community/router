@@ -206,6 +206,56 @@ func (summary providerModelUsageSummary) Error(provider string, modelName string
 	return fmt.Errorf("provider model %s/%s is still in use: %s", provider, modelName, strings.Join(parts, "; "))
 }
 
+func formatChannelUsageLabelsWithDB(db *gorm.DB, channelIDs []string) ([]string, error) {
+	if len(channelIDs) == 0 {
+		return []string{}, nil
+	}
+	normalizedIDs := make([]string, 0, len(channelIDs))
+	seen := make(map[string]struct{}, len(channelIDs))
+	for _, rawID := range channelIDs {
+		channelID := strings.TrimSpace(rawID)
+		if channelID == "" {
+			continue
+		}
+		if _, exists := seen[channelID]; exists {
+			continue
+		}
+		seen[channelID] = struct{}{}
+		normalizedIDs = append(normalizedIDs, channelID)
+	}
+	if len(normalizedIDs) == 0 {
+		return []string{}, nil
+	}
+
+	channels := make([]model.Channel, 0, len(normalizedIDs))
+	if err := db.Model(&model.Channel{}).
+		Select("id", "name").
+		Where("id IN ?", normalizedIDs).
+		Find(&channels).Error; err != nil {
+		return nil, err
+	}
+
+	displayNames := make(map[string]string, len(channels))
+	for i := range channels {
+		channelID := strings.TrimSpace(channels[i].Id)
+		if channelID == "" {
+			continue
+		}
+		displayNames[channelID] = strings.TrimSpace(channels[i].DisplayName())
+	}
+
+	labels := make([]string, 0, len(normalizedIDs))
+	for _, channelID := range normalizedIDs {
+		displayName := displayNames[channelID]
+		if displayName == "" || displayName == channelID {
+			labels = append(labels, channelID)
+			continue
+		}
+		labels = append(labels, fmt.Sprintf("%s (%s)", displayName, channelID))
+	}
+	return labels, nil
+}
+
 func collectProviderModelUsageWithDB(db *gorm.DB, provider string, modelName string) (providerModelUsageSummary, error) {
 	if db == nil {
 		return providerModelUsageSummary{}, fmt.Errorf("database handle is nil")
@@ -222,7 +272,7 @@ func collectProviderModelUsageWithDB(db *gorm.DB, provider string, modelName str
 	channelRefs := make([]channelModelRef, 0)
 	if err := db.Model(&model.ChannelModel{}).
 		Select("DISTINCT channel_id").
-		Where("provider = ? AND inactive = ? AND (model = ? OR upstream_model = ?)", normalizedProvider, false, normalizedModel, normalizedModel).
+		Where("provider = ? AND publish_enabled = ? AND (model = ? OR upstream_model = ?)", normalizedProvider, true, normalizedModel, normalizedModel).
 		Order("channel_id asc").
 		Find(&channelRefs).Error; err != nil {
 		return providerModelUsageSummary{}, err
@@ -264,6 +314,11 @@ func collectProviderModelUsageWithDB(db *gorm.DB, provider string, modelName str
 			summary.ChannelModels = append(summary.ChannelModels, channelID)
 		}
 	}
+	channelLabels, err := formatChannelUsageLabelsWithDB(db, summary.ChannelModels)
+	if err != nil {
+		return providerModelUsageSummary{}, err
+	}
+	summary.ChannelModels = channelLabels
 	for _, item := range groupRefs {
 		groupID := strings.TrimSpace(item.Group)
 		if groupID != "" {
