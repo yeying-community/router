@@ -3211,9 +3211,25 @@ body,
 }
 
 .router-package-purchase-card-title {
-    font-size: 1.05rem;
-    font-weight: 700;
+    font-size: 0.98rem;
+    font-weight: 500;
     color: #111827;
+}
+
+.router-package-purchase-card .router-ui-tag.router-tag {
+    font-weight: 400 !important;
+    color: #475569 !important;
+    background: #f8fafc !important;
+    border-color: #e5e7eb !important;
+    padding: 0.36em 0.62em !important;
+}
+
+.router-package-purchase-card .router-ui-button.router-section-button {
+    font-weight: 400 !important;
+    min-height: 34px !important;
+    padding: 0.52em 0.82em !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
 }
 
 .router-package-purchase-description {
@@ -3309,8 +3325,8 @@ body,
 }
 
 .router-package-purchase-price {
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 1.32rem;
+    font-weight: 500;
     color: #111827;
 }
 
@@ -3333,8 +3349,9 @@ body,
 }
 
 .router-package-purchase-meta-value {
+    font-size: 0.95rem;
     color: #111827;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .router-package-preview-desc {
@@ -3399,7 +3416,7 @@ body,
 }
 
 .router-current-package-info-value {
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: #111827;
 }
 
@@ -3431,7 +3448,7 @@ body,
 
 .router-supported-models-count-button {
     color: #1677ff;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .router-supported-models-dialog {
