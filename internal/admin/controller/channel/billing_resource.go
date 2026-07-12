@@ -22,7 +22,6 @@ type channelBillingSummaryData struct {
 	ActionCapabilities    []string                           `json:"action_capabilities"`
 	BillingPortalURL      string                             `json:"billing_portal_url,omitempty"`
 	ActivateSupported     bool                               `json:"activate_supported"`
-	ManualUpdateSupported bool                               `json:"manual_update_supported"`
 	RefreshSupported      bool                               `json:"refresh_supported"`
 	LatestSnapshotAt      int64                              `json:"latest_snapshot_at"`
 	LatestSnapshotStatus  string                             `json:"latest_snapshot_status"`
@@ -133,7 +132,6 @@ func buildChannelBillingSummary(channelRow *model.Channel, profile model.Channel
 		ActionCapabilities:    capabilities,
 		BillingPortalURL:      extractBillingPortalURL(profile),
 		ActivateSupported:     profile.HasCapability(model.ChannelBillingCapabilityOpenActivatePage),
-		ManualUpdateSupported: profile.HasCapability(model.ChannelBillingCapabilityManualUpdateSnapshot),
 		RefreshSupported:      profile.HasCapability(model.ChannelBillingCapabilityRefreshBilling),
 		LatestSnapshotAt:      snapshot.CreatedAt,
 		LatestSnapshotStatus:  strings.TrimSpace(snapshot.RawStatus),
@@ -763,14 +761,10 @@ func CreateChannelBillingSnapshot(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	channelRow, profile, err := getEffectiveChannelBillingProfile(channelID)
+	channelRow, _, err := getEffectiveChannelBillingProfile(channelID)
 	if err != nil {
 		logChannelAdminWarn(c, "create_billing_snapshot", stringField("channel_id", channelID), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	if !profile.HasCapability(model.ChannelBillingCapabilityManualUpdateSnapshot) {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "当前渠道不支持人工更新余额"})
 		return
 	}
 	operatorUserID := strings.TrimSpace(c.GetString(ctxkey.Id))
@@ -838,14 +832,10 @@ func UpdateChannelBillingSnapshot(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	channelRow, profile, err := getEffectiveChannelBillingProfile(channelID)
+	channelRow, _, err := getEffectiveChannelBillingProfile(channelID)
 	if err != nil {
 		logChannelAdminWarn(c, "update_billing_snapshot", stringField("channel_id", channelID), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	if !profile.HasCapability(model.ChannelBillingCapabilityManualUpdateSnapshot) {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "当前渠道不支持人工更新余额"})
 		return
 	}
 	operatorUserID := strings.TrimSpace(c.GetString(ctxkey.Id))
@@ -923,14 +913,10 @@ func DeleteChannelBillingSnapshot(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "参数无效"})
 		return
 	}
-	channelRow, profile, err := getEffectiveChannelBillingProfile(channelID)
+	channelRow, _, err := getEffectiveChannelBillingProfile(channelID)
 	if err != nil {
 		logChannelAdminWarn(c, "delete_billing_snapshot", stringField("channel_id", channelID), stringField("reason", err.Error()))
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	if !profile.HasCapability(model.ChannelBillingCapabilityManualUpdateSnapshot) {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "当前渠道不支持人工更新余额"})
 		return
 	}
 	current, err := model.GetChannelBillingSnapshotByIDWithDB(model.DB, snapshotID)

@@ -1352,7 +1352,7 @@ const ChannelDetailBillingTab = ({
             { value: 'upstream', label: t('channel.edit.billing.upstream_status_title') },
           ]}
         />
-        {billingView === 'records' && billingSummary?.manual_update_supported ? (
+        {billingView === 'records' || billingView === 'batches' ? (
           <AppButton type='button' className='router-page-button' color='blue'
             disabled={billingReadonly || billingSubmitting}
             onClick={openCreateManualModal}>

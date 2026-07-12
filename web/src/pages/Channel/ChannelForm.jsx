@@ -615,7 +615,6 @@ const normalizeChannelBillingSummary = (item) => {
       : [],
     billing_portal_url: (item.billing_portal_url || '').toString().trim(),
     activate_supported: item.activate_supported === true,
-    manual_update_supported: item.manual_update_supported === true,
     refresh_supported: item.refresh_supported === true,
     latest_snapshot_at: Number(item.latest_snapshot_at || 0),
     latest_snapshot_status: (item.latest_snapshot_status || '')
