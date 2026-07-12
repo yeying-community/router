@@ -3,6 +3,7 @@ package model
 import (
 	"testing"
 
+	"github.com/yeying-community/router/common/helper"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -68,6 +69,131 @@ func TestConsumeChannelProcurementBatchesWithDB(t *testing.T) {
 	}
 	if updated.CostStatus != ProcurementCostStatusActive {
 		t.Fatalf("CostStatus=%q, want active", updated.CostStatus)
+	}
+}
+
+func TestConsumeChannelProcurementBatchesSkipsFutureBatch(t *testing.T) {
+	db := newProcurementTestDB(t)
+	now := helper.GetTimestamp()
+	batch, err := CreateChannelProcurementBatchWithDB(db, ChannelProcurementBatch{
+		ChannelId:         "channel-future",
+		ResourceType:      ChannelBillingResourceTypeQuota,
+		QuotaType:         "total",
+		CapacityUnit:      "usd_equivalent",
+		CapacityTotal:     100,
+		CapacityEffective: 100,
+		CapacityRemaining: 100,
+		CostPerUnitAmount: 1,
+		CostSource:        ProcurementCostSourceActual,
+		CostStatus:        ProcurementCostStatusActive,
+		ValidFrom:         now + 3600,
+	})
+	if err != nil {
+		t.Fatalf("create procurement batch: %v", err)
+	}
+	result, err := ConsumeChannelProcurementBatchesWithDB(db, ProcurementConsumeInput{
+		RequestLogID: "request-future",
+		ChannelID:    "channel-future",
+		ScopeType:    "global",
+		CapacityUnit: "usd_equivalent",
+		Quantity:     10,
+	})
+	if err != nil {
+		t.Fatalf("consume procurement: %v", err)
+	}
+	if len(result.Consumptions) != 0 {
+		t.Fatalf("consumptions=%d, want 0", len(result.Consumptions))
+	}
+	var updated ChannelProcurementBatch
+	if err := db.First(&updated, "id = ?", batch.Id).Error; err != nil {
+		t.Fatalf("reload procurement batch: %v", err)
+	}
+	if updated.CapacityRemaining != 100 {
+		t.Fatalf("CapacityRemaining=%v, want 100", updated.CapacityRemaining)
+	}
+}
+
+func TestConsumeChannelProcurementBatchesAppliesSnapshotConstraintsTogether(t *testing.T) {
+	db := newProcurementTestDB(t)
+	snapshotID := "snapshot-constraints"
+	for _, row := range []ChannelProcurementBatch{
+		{
+			ChannelId: "channel-constraints", ResourceType: "quota", QuotaType: "daily",
+			CapacityUnit: "token", CapacityTotal: 50, CapacityEffective: 500,
+			CapacityRemaining: 500, ResetCycle: "daily", WindowRemaining: 50,
+			WindowStartedAt:  procurementWindowStart("daily", helper.GetTimestamp()),
+			SourceSnapshotId: snapshotID, CostSource: ProcurementCostSourceActual,
+			CostStatus: ProcurementCostStatusActive,
+		},
+		{
+			ChannelId: "channel-constraints", ResourceType: "quota", QuotaType: "total",
+			CapacityUnit: "token", CapacityTotal: 100, CapacityEffective: 100,
+			CapacityRemaining: 100, ResetCycle: "none", CostPerUnitAmount: 0.1,
+			SourceSnapshotId: snapshotID, CostSource: ProcurementCostSourceActual,
+			CostStatus: ProcurementCostStatusActive,
+		},
+	} {
+		if _, err := CreateChannelProcurementBatchWithDB(db, row); err != nil {
+			t.Fatalf("create constraint batch: %v", err)
+		}
+	}
+	result, err := ConsumeChannelProcurementBatchesWithDB(db, ProcurementConsumeInput{
+		RequestLogID: "request-constraints", ChannelID: "channel-constraints",
+		ScopeType: "global", CapacityUnit: "token", Quantity: 40,
+	})
+	if err != nil {
+		t.Fatalf("consume constraints: %v", err)
+	}
+	if len(result.Consumptions) != 2 {
+		t.Fatalf("consumptions=%d, want 2 constraint entries", len(result.Consumptions))
+	}
+	if result.TotalCostAmount != 4 {
+		t.Fatalf("TotalCostAmount=%v, want 4", result.TotalCostAmount)
+	}
+	var rows []ChannelProcurementBatch
+	if err := db.Where("source_snapshot_id = ?", snapshotID).Order("quota_type").Find(&rows).Error; err != nil {
+		t.Fatalf("reload constraints: %v", err)
+	}
+	for _, row := range rows {
+		if row.CapacityRemaining != row.CapacityEffective-40 {
+			t.Fatalf("%s CapacityRemaining=%v", row.QuotaType, row.CapacityRemaining)
+		}
+	}
+}
+
+func TestConsumeChannelProcurementBatchesResetsPeriodicWindow(t *testing.T) {
+	db := newProcurementTestDB(t)
+	now := helper.GetTimestamp()
+	batch, err := CreateChannelProcurementBatchWithDB(db, ChannelProcurementBatch{
+		ChannelId: "channel-reset", ResourceType: "quota", QuotaType: "daily",
+		CapacityUnit: "token", CapacityTotal: 25, CapacityEffective: 250,
+		CapacityRemaining: 200, ResetCycle: "daily", WindowRemaining: 0,
+		WindowStartedAt:   procurementWindowStart("daily", now-86400),
+		CostPerUnitAmount: 0.2, CostSource: ProcurementCostSourceActual,
+		CostStatus: ProcurementCostStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("create periodic batch: %v", err)
+	}
+	result, err := ConsumeChannelProcurementBatchesWithDB(db, ProcurementConsumeInput{
+		RequestLogID: "request-reset", ChannelID: "channel-reset",
+		ScopeType: "global", CapacityUnit: "token", Quantity: 10,
+	})
+	if err != nil {
+		t.Fatalf("consume reset batch: %v", err)
+	}
+	if result.TotalCostAmount != 2 {
+		t.Fatalf("TotalCostAmount=%v, want 2", result.TotalCostAmount)
+	}
+	var updated ChannelProcurementBatch
+	if err := db.First(&updated, "id = ?", batch.Id).Error; err != nil {
+		t.Fatalf("reload periodic batch: %v", err)
+	}
+	if updated.WindowRemaining != 15 {
+		t.Fatalf("WindowRemaining=%v, want 15", updated.WindowRemaining)
+	}
+	if updated.CapacityRemaining != 190 {
+		t.Fatalf("CapacityRemaining=%v, want 190", updated.CapacityRemaining)
 	}
 }
 

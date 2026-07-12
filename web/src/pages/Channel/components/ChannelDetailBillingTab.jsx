@@ -54,6 +54,8 @@ const buildManualPurchaseRecord = () => ({
   purchase_amount: null,
   purchase_fx_rate: 1,
   purchase_cost_amount: null,
+  valid_from_input: '',
+  valid_until_input: '',
 });
 
 const MANUAL_CURRENCY_OPTIONS = ['USD', 'CNY', 'YYC'].map((value) => ({
@@ -434,13 +436,22 @@ const formatNumberText = (value, digits = 6) => {
   return Number(amount.toFixed(digits)).toString();
 };
 
-const formatProcurementCapacityText = (row) => {
+const formatProcurementCapacityText = (row, t) => {
   const remaining = formatNumberText(row?.capacity_remaining, 6);
   const effective = formatNumberText(
     row?.capacity_effective || row?.capacity_total,
     6
   );
   const unit = (row?.capacity_unit || '').toString().trim();
+  const resetCycle = normalizeBillingValue(row?.reset_cycle);
+  if (resetCycle && resetCycle !== 'none') {
+    const windowRemaining = formatNumberText(row?.window_remaining, 6);
+    const windowTotal = formatNumberText(row?.capacity_total, 6);
+    return t('channel.edit.billing.procurement_table.periodic_capacity', {
+      window: `${windowRemaining} / ${windowTotal}${unit ? ` ${unit}` : ''}`,
+      total: `${remaining} / ${effective}${unit ? ` ${unit}` : ''}`,
+    });
+  }
   return `${remaining} / ${effective}${unit ? ` ${unit}` : ''}`;
 };
 
@@ -449,6 +460,9 @@ const formatProcurementCostText = (row, t) => {
   const status = (row?.cost_status || '').toString().trim();
   if (status === 'cost_unconfigured' || source === 'none' || source === '') {
     return t('channel.edit.billing.procurement_table.cost_unconfigured');
+  }
+  if (Number(row?.cost_per_unit_amount || 0) <= 0) {
+    return t('channel.edit.billing.procurement_table.constraint_only');
   }
   return `${formatNumberText(row?.purchase_cost_amount, 6)} CNY`;
 };
@@ -563,6 +577,8 @@ const buildManualPurchaseRecordFromSnapshot = (row) => ({
 	purchase_amount: Number(row?.purchase_amount || 0),
 	purchase_fx_rate: Number(row?.purchase_fx_rate || 1) || 1,
 	purchase_cost_amount: Number(row?.purchase_cost_amount || 0),
+	valid_from_input: toDateTimeLocalValueFromTimestamp(row?.valid_from),
+	valid_until_input: toDateTimeLocalValueFromTimestamp(row?.valid_until),
 });
 
 const buildManualQuotaItemFromSnapshotItem = (item) => ({
@@ -772,6 +788,8 @@ const ChannelDetailBillingTab = ({
       purchase_amount: purchaseAmount,
       purchase_fx_rate: purchaseFXRate,
       purchase_cost_amount: purchaseCostAmount,
+      valid_from: toUnixTimestamp(manualPurchaseRecord.valid_from_input),
+      valid_until: toUnixTimestamp(manualPurchaseRecord.valid_until_input),
       items: manualItems.map((manualItem) => {
         const amounts = resolveManualItemAmounts(manualItem);
         return {
@@ -929,6 +947,28 @@ const ChannelDetailBillingTab = ({
               </AppField>
             </>
           )}
+          <AppField label={t('channel.edit.billing.manual_valid_from')}>
+            <AppInput
+              className='router-section-input'
+              type='datetime-local'
+              value={manualPurchaseRecord.valid_from_input}
+              onChange={(e, { value }) =>
+                updateManualPurchaseRecord({ valid_from_input: (value || '').toString() })
+              }
+              readOnly={billingReadonly || billingSubmitting}
+            />
+          </AppField>
+          <AppField label={t('channel.edit.billing.manual_valid_until')}>
+            <AppInput
+              className='router-section-input'
+              type='datetime-local'
+              value={manualPurchaseRecord.valid_until_input}
+              onChange={(e, { value }) =>
+                updateManualPurchaseRecord({ valid_until_input: (value || '').toString() })
+              }
+              readOnly={billingReadonly || billingSubmitting}
+            />
+          </AppField>
         </AppFormRow>
       </div>
       {manualItems.map((item, index) => (
@@ -1563,6 +1603,20 @@ const ChannelDetailBillingTab = ({
                     : '-',
               },
               {
+                title: t('channel.edit.billing.snapshot_table.validity'),
+                key: 'validity',
+                width: 250,
+                render: (_, row) => {
+                  const start = Number(row?.valid_from || 0) > 0
+                    ? timestamp2string(row.valid_from)
+                    : t('channel.edit.billing.validity_immediate');
+                  const end = Number(row?.valid_until || 0) > 0
+                    ? timestamp2string(row.valid_until)
+                    : t('channel.edit.billing.no_expire');
+                  return `${start} - ${end}`;
+                },
+              },
+              {
                 title: t('channel.edit.billing.snapshot_table.quota_items'),
                 dataIndex: 'items',
                 key: 'items',
@@ -1658,7 +1712,7 @@ const ChannelDetailBillingTab = ({
                 dataIndex: 'capacity_remaining',
                 key: 'capacity',
                 width: 220,
-                render: (_, row) => formatProcurementCapacityText(row),
+                render: (_, row) => formatProcurementCapacityText(row, t),
               },
               {
                 title: t('channel.edit.billing.procurement_table.cost'),

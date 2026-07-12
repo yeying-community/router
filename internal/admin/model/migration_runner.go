@@ -1549,6 +1549,16 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			},
 		},
 		{
+			Version:     "202607131000_channel_procurement_constraint_windows",
+			Description: "add purchase validity and procurement entitlement window state",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&ChannelBillingSnapshot{}); err != nil {
+					return err
+				}
+				return ensureProcurementCostTablesWithDB(tx)
+			},
+		},
+		{
 			Version:     "202606271030_user_wallet_address_case_insensitive_unique",
 			Description: "normalize wallet addresses, clean duplicate bindings, and add case-insensitive unique index",
 			Up: func(tx *gorm.DB) error {

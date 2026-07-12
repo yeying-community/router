@@ -60,6 +60,8 @@ type channelBillingManualSnapshotRequest struct {
 	PurchaseAmount     float64                                `json:"purchase_amount"`
 	PurchaseFXRate     float64                                `json:"purchase_fx_rate"`
 	PurchaseCostAmount float64                                `json:"purchase_cost_amount"`
+	ValidFrom          int64                                  `json:"valid_from"`
+	ValidUntil         int64                                  `json:"valid_until"`
 	Items              []channelBillingManualQuotaItemRequest `json:"items"`
 	Message            string                                 `json:"message"`
 }
@@ -167,39 +169,70 @@ func attachManualPurchaseCostToSnapshotBatches(tx *gorm.DB, snapshotID string, p
 	if err := tx.Where("source_snapshot_id = ?", normalizedSnapshotID).Find(&rows).Error; err != nil {
 		return err
 	}
-	totalEffectiveCapacity := 0.0
+	type costGroup struct {
+		rows     []model.ChannelProcurementBatch
+		primary  int
+		capacity float64
+	}
+	groups := make(map[string]*costGroup)
+	groupOrder := make([]string, 0)
 	for _, row := range rows {
-		if row.CapacityEffective > 0 {
-			totalEffectiveCapacity += row.CapacityEffective
+		key := strings.Join([]string{row.ScopeType, row.ScopeValue, row.CapacityUnit}, "|")
+		group := groups[key]
+		if group == nil {
+			group = &costGroup{primary: -1}
+			groups[key] = group
+			groupOrder = append(groupOrder, key)
+		}
+		group.rows = append(group.rows, row)
+		rowIndex := len(group.rows) - 1
+		if group.primary < 0 || row.QuotaType == "total" || row.QuotaType == "custom" || row.ResetCycle == "none" {
+			group.primary = rowIndex
+			group.capacity = row.CapacityEffective
+		}
+	}
+	totalEffectiveCapacity := 0.0
+	for _, key := range groupOrder {
+		if groups[key].capacity > 0 {
+			totalEffectiveCapacity += groups[key].capacity
 		}
 	}
 	if len(rows) == 0 || totalEffectiveCapacity <= 0 {
 		return nil
 	}
 	now := helper.GetTimestamp()
-	for _, row := range rows {
-		if row.CapacityEffective <= 0 {
+	for _, key := range groupOrder {
+		group := groups[key]
+		if group.primary < 0 || group.capacity <= 0 {
 			continue
 		}
-		ratio := row.CapacityEffective / totalEffectiveCapacity
+		ratio := group.capacity / totalEffectiveCapacity
 		allocatedCostAmount := purchaseCostAmount * ratio
 		if allocatedCostAmount <= 0 {
 			continue
 		}
-		costPerUnitAmount := allocatedCostAmount / row.CapacityEffective
-		if err := tx.Model(&model.ChannelProcurementBatch{}).
-			Where("id = ?", row.Id).
-			Updates(map[string]any{
+		costPerUnitAmount := allocatedCostAmount / group.capacity
+		for rowIndex, row := range group.rows {
+			rowPurchaseAmount := 0.0
+			rowCostAmount := 0.0
+			rowUnitCost := 0.0
+			if rowIndex == group.primary {
+				rowPurchaseAmount = purchaseAmount * ratio
+				rowCostAmount = allocatedCostAmount
+				rowUnitCost = costPerUnitAmount
+			}
+			if err := tx.Model(&model.ChannelProcurementBatch{}).Where("id = ?", row.Id).Updates(map[string]any{
 				"purchase_currency":    strings.TrimSpace(strings.ToUpper(purchaseCurrency)),
-				"purchase_amount":      purchaseAmount * ratio,
+				"purchase_amount":      rowPurchaseAmount,
 				"purchase_fx_rate":     purchaseFXRate,
-				"purchase_cost_amount": allocatedCostAmount,
-				"cost_per_unit_amount": costPerUnitAmount,
+				"purchase_cost_amount": rowCostAmount,
+				"cost_per_unit_amount": rowUnitCost,
 				"cost_source":          model.ProcurementCostSourceActual,
 				"cost_status":          model.ProcurementCostStatusActive,
 				"updated_at":           now,
 			}).Error; err != nil {
-			return err
+				return err
+			}
 		}
 	}
 	return nil
@@ -634,6 +667,8 @@ type normalizedManualBillingSnapshotRequest struct {
 	PurchaseAmount     float64
 	PurchaseFXRate     float64
 	PurchaseCostAmount float64
+	ValidFrom          int64
+	ValidUntil         int64
 	Items              []model.ChannelBillingSnapshotItem
 	Message            string
 }
@@ -669,6 +704,14 @@ func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotReque
 	if purchaseAt <= 0 {
 		purchaseAt = now
 	}
+	validFrom := req.ValidFrom
+	validUntil := req.ValidUntil
+	if validFrom < 0 || validUntil < 0 {
+		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("有效期无效")
+	}
+	if validUntil > 0 && validFrom > 0 && validUntil <= validFrom {
+		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("有效期结束时间必须晚于开始时间")
+	}
 	quotaItems := make([]model.ChannelBillingSnapshotItem, 0, len(req.Items))
 	for index, item := range req.Items {
 		resourceType := strings.TrimSpace(strings.ToLower(item.ResourceType))
@@ -680,9 +723,13 @@ func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotReque
 			return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条额度名称不能为空", index+1)
 		}
 		quotaType := strings.TrimSpace(strings.ToLower(item.QuotaType))
+		itemExpiresAt := item.ExpiresAt
+		if itemExpiresAt <= 0 {
+			itemExpiresAt = validUntil
+		}
 		if resourceType == model.ChannelBillingResourceTypePlan {
 			quotaType = "plan"
-			if item.ExpiresAt <= 0 {
+			if itemExpiresAt <= 0 {
 				return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条套餐必须填写截止时间", index+1)
 			}
 		}
@@ -692,7 +739,7 @@ func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotReque
 			default:
 				return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条额度类型无效", index+1)
 			}
-			if (quotaType == "daily" || quotaType == "weekly" || quotaType == "monthly") && item.ExpiresAt <= 0 {
+			if (quotaType == "daily" || quotaType == "weekly" || quotaType == "monthly") && itemExpiresAt <= 0 {
 				return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条套餐周期额度必须填写截止时间", index+1)
 			}
 		}
@@ -731,7 +778,7 @@ func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotReque
 			RemainingAmount: remainingAmount,
 			Currency:        strings.TrimSpace(item.Currency),
 			ResetAt:         item.ResetAt,
-			ExpiresAt:       item.ExpiresAt,
+			ExpiresAt:       itemExpiresAt,
 			SourceRef:       sourceRef,
 			SortOrder:       index + 1,
 		})
@@ -745,6 +792,8 @@ func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotReque
 		PurchaseAmount:     purchaseAmount,
 		PurchaseFXRate:     purchaseFXRate,
 		PurchaseCostAmount: purchaseCostAmount,
+		ValidFrom:          validFrom,
+		ValidUntil:         validUntil,
 		Items:              quotaItems,
 		Message:            strings.TrimSpace(req.Message),
 	}, nil
@@ -783,6 +832,8 @@ func CreateChannelBillingSnapshot(c *gin.Context) {
 			PurchaseAmount:     normalizedReq.PurchaseAmount,
 			PurchaseFXRate:     normalizedReq.PurchaseFXRate,
 			PurchaseCostAmount: normalizedReq.PurchaseCostAmount,
+			ValidFrom:          normalizedReq.ValidFrom,
+			ValidUntil:         normalizedReq.ValidUntil,
 			RawStatus:          "manual",
 			Message:            normalizedReq.Message,
 			OperatorUserId:     operatorUserID,
@@ -871,6 +922,8 @@ func UpdateChannelBillingSnapshot(c *gin.Context) {
 			PurchaseAmount:     normalizedReq.PurchaseAmount,
 			PurchaseFXRate:     normalizedReq.PurchaseFXRate,
 			PurchaseCostAmount: normalizedReq.PurchaseCostAmount,
+			ValidFrom:          normalizedReq.ValidFrom,
+			ValidUntil:         normalizedReq.ValidUntil,
 			Message:            normalizedReq.Message,
 			OperatorUserId:     operatorUserID,
 		})

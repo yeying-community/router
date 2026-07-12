@@ -3662,6 +3662,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       purchase_amount,
       purchase_fx_rate,
       purchase_cost_amount,
+      valid_from,
+      valid_until,
       items,
       message,
     }) => {
@@ -3716,6 +3718,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             purchase_amount: Number(purchase_amount || 0),
             purchase_fx_rate: Number(purchase_fx_rate || 0),
             purchase_cost_amount: Number(purchase_cost_amount || 0),
+            valid_from: Number(valid_from || 0),
+            valid_until: Number(valid_until || 0),
             items: normalizedItems,
             message: (message || '').toString().trim(),
           }

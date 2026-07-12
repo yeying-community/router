@@ -853,6 +853,9 @@
         "management_title": "Purchase Management",
         "snapshots_title": "Purchase Records",
         "snapshots_hint": "Record a purchase or top-up payment and the plan, balance, or quota it bought.",
+        "manual_valid_from": "Valid From (blank means immediately)",
+        "manual_valid_until": "Valid Until (blank means no expiry)",
+        "validity_immediate": "Immediately",
         "upstream_status_title": "Upstream Status",
         "procurement_title": "Procurement Batches",
         "procurement_hint": "These are not upstream billing records. Procurement batches come from purchase records. Request settlement consumes capacity from these batches to calculate actual procurement cost.",
@@ -905,7 +908,10 @@
           "purchase_amount": "Purchase Amount",
           "purchase_fx_rate": "FX Rate",
           "purchase_cost_amount": "Purchase Cost CNY",
-          "cost_unconfigured": "Cost unconfigured"
+          "validity": "Validity",
+          "cost_unconfigured": "Cost unconfigured",
+          "constraint_only": "Constraint only; cost is not duplicated",
+          "periodic_capacity": "Current period {{window}}; total {{total}}"
         },
         "procurement_consumption_table": {
           "request_log": "Request Log",
@@ -986,6 +992,7 @@
           "purchase_at": "Purchase Time",
           "purchase_amount": "Paid Amount",
           "purchase_cost_amount": "Purchase Cost CNY",
+          "validity": "Validity",
           "source_type": "Source",
           "quota_items": "Quota Items",
           "message": "Message",
