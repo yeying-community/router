@@ -33,7 +33,6 @@ import {
   AppToolbar,
 } from '../../router-ui';
 import AdminChannelAlertsPanel from '../../components/AdminChannelAlertsPanel';
-import AdminCircuitBreakerEventsPanel from '../../components/AdminCircuitBreakerEventsPanel';
 import '../Dashboard/Dashboard.css';
 import './AdminDashboard.css';
 
@@ -1550,7 +1549,6 @@ const AdminDashboard = () => {
                 );
               })}
             </div>
-            <AdminCircuitBreakerEventsPanel embedded />
             <AdminChannelAlertsPanel embedded />
           </>
         )}

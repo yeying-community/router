@@ -1082,19 +1082,6 @@
           "base_url_placeholder": "留空时继承模型访问地址"
         }
       },
-      "circuit_breaker": {
-        "title": "熔断事件",
-        "hint": "这里记录渠道低成功率熔断、半开探测、自动恢复和取消恢复的历史事件，用于排查渠道为什么被运行时禁用或恢复。",
-        "empty": "当前没有熔断事件。",
-        "load_failed": "加载熔断事件失败",
-        "columns": {
-          "event": "事件",
-          "reason": "原因",
-          "success_rate": "成功率",
-          "recover_after": "预计恢复",
-          "created_at": "时间"
-        }
-      },
       "endpoint_policies": {
         "title": "端点策略",
         "summary": "共 {{total}} 条，启用 {{enabled}} 条",
@@ -2655,19 +2642,6 @@
             "success": "成功",
             "failure": "失败",
             "unknown": "无数据"
-          }
-        },
-        "events": {
-          "title": "最近熔断事件",
-          "hint": "汇总全局渠道熔断、半开、恢复和取消记录，方便直接进入渠道详情继续排查。",
-          "empty": "暂无熔断事件",
-          "columns": {
-            "time": "发生时间",
-            "channel": "渠道",
-            "state": "状态",
-            "reason": "原因",
-            "success_rate": "触发成功率",
-            "recover_after": "预计恢复"
           }
         },
         "circuit": {

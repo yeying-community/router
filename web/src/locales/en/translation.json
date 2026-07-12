@@ -1082,19 +1082,6 @@
           "base_url_placeholder": "Leave empty to inherit the model API base URL"
         }
       },
-      "circuit_breaker": {
-        "title": "Circuit Events",
-        "hint": "This records low-success-rate circuit opens, half-open probes, automatic recovery, and canceled recovery events for channel troubleshooting.",
-        "empty": "No circuit events.",
-        "load_failed": "Failed to load circuit events",
-        "columns": {
-          "event": "Event",
-          "reason": "Reason",
-          "success_rate": "Success Rate",
-          "recover_after": "Recover After",
-          "created_at": "Time"
-        }
-      },
       "endpoint_policies": {
         "title": "Endpoint Policies",
         "summary": "{{total}} total, {{enabled}} enabled",
@@ -2655,19 +2642,6 @@
             "success": "Success",
             "failure": "Failure",
             "unknown": "No Data"
-          }
-        },
-        "events": {
-          "title": "Recent Circuit Breaker Events",
-          "hint": "Shows recent open, half-open, recovered, and canceled events across channels so operators can jump into channel detail directly.",
-          "empty": "No circuit breaker events yet",
-          "columns": {
-            "time": "Occurred At",
-            "channel": "Channel",
-            "state": "State",
-            "reason": "Reason",
-            "success_rate": "Trigger Success Rate",
-            "recover_after": "Expected Recovery"
           }
         },
         "circuit": {
