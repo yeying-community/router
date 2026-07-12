@@ -5,7 +5,6 @@ import {
   AppButton,
   AppCompact,
   AppDetailSection,
-  AppDivider,
   AppField,
   AppFormActions,
   AppFormRow,
@@ -13,6 +12,7 @@ import {
   AppInputNumber,
   AppModal,
   AppPopconfirm,
+  AppSegmented,
   AppSelect,
   AppTable,
   AppTableActionButton,
@@ -615,6 +615,7 @@ const ChannelDetailBillingTab = ({
   const [consumptionRows, setConsumptionRows] = useState([]);
   const [consumptionLoading, setConsumptionLoading] = useState(false);
   const [viewingProcurementBatch, setViewingProcurementBatch] = useState(null);
+  const [billingView, setBillingView] = useState('records');
 
   const purchaseRecords = useMemo(
     () =>
@@ -1341,6 +1342,25 @@ const ChannelDetailBillingTab = ({
       titleTag='span'
       bodyClassName='router-billing-page'
     >
+      <div className='router-billing-workspace-toolbar'>
+        <AppSegmented
+          value={billingView}
+          onChange={(e, { value }) => setBillingView(value)}
+          options={[
+            { value: 'records', label: t('channel.edit.billing.snapshots_title') },
+            { value: 'batches', label: t('channel.edit.billing.procurement_title') },
+            { value: 'upstream', label: t('channel.edit.billing.upstream_status_title') },
+          ]}
+        />
+        {billingView === 'records' && billingSummary?.manual_update_supported ? (
+          <AppButton type='button' className='router-page-button' color='blue'
+            disabled={billingReadonly || billingSubmitting}
+            onClick={openCreateManualModal}>
+            {t('channel.edit.billing.add_purchase_record')}
+          </AppButton>
+        ) : null}
+      </div>
+      {billingView === 'upstream' && <div className='router-billing-upstream-view'>
       <div className='router-billing-overview-strip'>
         <div className='router-billing-overview-main'>
           <AppTag color={entitlementModeSummary.color}>
@@ -1492,31 +1512,20 @@ const ChannelDetailBillingTab = ({
             </AppButton>
           </AppDetailSection>
         )}
+      </div>
+      </div>}
+      {billingView === 'records' && (
         <AppDetailSection
           className='router-billing-management-section'
-          title={t('channel.edit.billing.management_title')}
+          title={t('channel.edit.billing.snapshots_title')}
           titleTag='span'
         >
           <div className='router-billing-subsection-header'>
             <div>
-              <div className='router-billing-subsection-title'>
-                {t('channel.edit.billing.snapshots_title')}
-              </div>
               <div className='router-billing-subsection-description'>
                 {t('channel.edit.billing.snapshots_hint')}
               </div>
             </div>
-            {billingSummary?.manual_update_supported ? (
-              <AppButton
-                type='button'
-                className='router-page-button'
-                color='blue'
-                disabled={billingReadonly || billingSubmitting}
-                onClick={openCreateManualModal}
-              >
-                {t('channel.edit.billing.add_purchase_record')}
-              </AppButton>
-            ) : null}
           </div>
           <AppTable
             className='router-detail-table'
@@ -1611,12 +1620,13 @@ const ChannelDetailBillingTab = ({
               },
             ]}
           />
-          <AppDivider className='router-billing-subsection-divider' />
+        </AppDetailSection>
+      )}
+      {billingView === 'batches' && (
+        <AppDetailSection className='router-billing-management-section'
+          title={t('channel.edit.billing.procurement_title')} titleTag='span'>
           <div className='router-billing-subsection-header'>
             <div>
-              <div className='router-billing-subsection-title'>
-                {t('channel.edit.billing.procurement_title')}
-              </div>
               <div className='router-billing-subsection-description'>
                 {t('channel.edit.billing.procurement_hint')}
               </div>
@@ -1761,6 +1771,8 @@ const ChannelDetailBillingTab = ({
             }}
           />
         </AppDetailSection>
+      )}
+      <div>
         <AppModal
           size='large'
           open={manualModalOpen}

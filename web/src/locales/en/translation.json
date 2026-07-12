@@ -853,6 +853,7 @@
         "management_title": "Purchase Management",
         "snapshots_title": "Purchase Records",
         "snapshots_hint": "Record a purchase or top-up payment and the plan, balance, or quota it bought.",
+        "upstream_status_title": "Upstream Status",
         "procurement_title": "Procurement Batches",
         "procurement_hint": "These are not upstream billing records. Procurement batches come from purchase records. Request settlement consumes capacity from these batches to calculate actual procurement cost.",
         "procurement_edit_cost": "Edit Cost",

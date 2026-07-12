@@ -853,6 +853,7 @@
         "management_title": "采购管理",
         "snapshots_title": "采购记录",
         "snapshots_hint": "记录某次采购或充值的实付金额，以及买到的套餐、余额或额度。",
+        "upstream_status_title": "上游状态",
         "procurement_title": "采购批次",
         "procurement_hint": "这里不是上游账务明细。采购批次来自采购记录，请求结算时会从这些批次里扣容量，并计算实际采购成本。",
         "procurement_edit_cost": "补成本",
