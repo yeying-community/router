@@ -502,6 +502,10 @@ func processChannelRelayError(ctx context.Context, userId string, groupID string
 			Build())
 		return
 	}
+	if isUpstreamQuotaRelayError(&err) {
+		disableUpstreamQuotaChannelModelEndpoint(ctx, channelId, channelName, requestModel, requestPath, err)
+		return
+	}
 	if shouldDisableChannelModelRequestEndpointCapability(&err) {
 		disabled, disableErr := dbmodel.DisableChannelModelRequestEndpointCapabilityWithReason(channelId, requestModel, requestPath, err.Message, "runtime")
 		logChannelModelRequestEndpointDisableResult(ctx, channelId, channelName, requestModel, requestPath, err, disabled, disableErr)
@@ -527,17 +531,34 @@ func processChannelRelayError(ctx context.Context, userId string, groupID string
 	if shouldRuntimeDisableChannelModelEndpointAfterRepeatedFailures(ctx, channelId, channelName, requestModel, requestPath, err) {
 		return
 	}
-	if monitor.IsInsufficientBalanceError(&err.Error, err.StatusCode) {
-		if disableErr := monitor.DisableChannelForInsufficientBalance(channelId, channelName, 0); disableErr != nil {
-			monitor.Emit(channelId, false)
-		}
-		return
-	}
 	if monitor.ShouldDisableChannel(&err.Error, err.StatusCode) {
 		monitor.DisableChannel(channelId, channelName, err.Message)
 	} else {
 		monitor.Emit(channelId, false)
 	}
+}
+
+func disableUpstreamQuotaChannelModelEndpoint(ctx context.Context, channelId string, channelName string, requestModel string, requestPath string, err model.ErrorWithStatusCode) {
+	normalizedEndpoint := dbmodel.NormalizeRequestedChannelModelEndpoint(requestPath)
+	reason := upstreamQuotaEndpointDisableReason(err)
+	disabled, disableErr := dbmodel.DisableChannelModelRequestEndpointCapabilityWithReason(channelId, requestModel, normalizedEndpoint, reason, "runtime")
+	logChannelModelRequestEndpointDisableResult(ctx, channelId, channelName, requestModel, normalizedEndpoint, err, disabled, disableErr)
+	if disableErr != nil {
+		monitor.Emit(channelId, false)
+		return
+	}
+	if disabled {
+		monitor.NotifyChannelModelEndpointCapabilityDisabled(channelId, channelName, requestModel, normalizedEndpoint, reason)
+		enqueueChannelModelCapabilityRecoveryTest(ctx, channelId, requestModel, normalizedEndpoint)
+	}
+}
+
+func upstreamQuotaEndpointDisableReason(err model.ErrorWithStatusCode) string {
+	message := strings.TrimSpace(err.Message)
+	if message == "" {
+		message = "上游返回额度或余额不足"
+	}
+	return "上游额度不足，运行时禁用该模型端点：" + message
 }
 
 func shouldRuntimeDisableChannelModelEndpointAfterRepeatedFailures(ctx context.Context, channelId string, channelName string, requestModel string, requestPath string, err model.ErrorWithStatusCode) bool {

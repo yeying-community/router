@@ -188,6 +188,40 @@ func TestNormalizeFinalRelayErrorForUpstreamQuotaExhausted(t *testing.T) {
 	}
 }
 
+func TestIsUpstreamQuotaRelayErrorForDailyLimitExceeded(t *testing.T) {
+	err := &relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusPaymentRequired,
+		Error: relaymodel.Error{
+			Message: "每日额度超限：当前 $50.1702 USD（限制：$50.0000 USD）。将于 2026年07月14日 00:00:00 重置",
+			Type:    "rate_limit_error",
+			Code:    "rate_limit_exceeded",
+		},
+	}
+
+	if !isUpstreamQuotaRelayError(err) {
+		t.Fatalf("isUpstreamQuotaRelayError = false, want true for upstream daily limit exceeded")
+	}
+	if shouldTrackRuntimeCapabilityFailure(err) {
+		t.Fatalf("shouldTrackRuntimeCapabilityFailure = true, want false for upstream quota endpoint disable path")
+	}
+}
+
+func TestUpstreamQuotaEndpointDisableReasonIncludesProviderMessage(t *testing.T) {
+	err := relaymodel.ErrorWithStatusCode{
+		StatusCode: http.StatusPaymentRequired,
+		Error: relaymodel.Error{
+			Message: "每日额度超限：当前 $50.1702 USD",
+			Type:    "rate_limit_error",
+			Code:    "rate_limit_exceeded",
+		},
+	}
+
+	got := upstreamQuotaEndpointDisableReason(err)
+	if got != "上游额度不足，运行时禁用该模型端点：每日额度超限：当前 $50.1702 USD" {
+		t.Fatalf("unexpected reason: %q", got)
+	}
+}
+
 func TestNormalizeFinalRelayErrorForZhipuInsufficientBalanceCode(t *testing.T) {
 	err := &relaymodel.ErrorWithStatusCode{
 		StatusCode: http.StatusTooManyRequests,
