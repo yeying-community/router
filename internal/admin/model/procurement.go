@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/random"
@@ -52,6 +53,8 @@ type ChannelProcurementBatch struct {
 	ValidFrom            int64   `json:"valid_from" gorm:"bigint;not null;default:0;index"`
 	ExpireAt             int64   `json:"expire_at" gorm:"bigint;not null;default:0;index"`
 	ResetCycle           string  `json:"reset_cycle" gorm:"type:varchar(32);not null;default:'none';index"`
+	WindowStartedAt      int64   `json:"window_started_at" gorm:"bigint;not null;default:0;index"`
+	WindowRemaining      float64 `json:"window_remaining" gorm:"type:double precision;not null;default:0"`
 	SourceSnapshotId     string  `json:"source_snapshot_id" gorm:"type:char(36);not null;default:'';index"`
 	SourceSnapshotItemId string  `json:"source_snapshot_item_id" gorm:"type:char(36);not null;default:'';index"`
 	SourceRef            string  `json:"source_ref" gorm:"type:varchar(191);not null;default:'';index"`
@@ -226,6 +229,9 @@ func procurementBatchExpireAtFromSnapshotItem(item ChannelBillingSnapshotItem) i
 }
 
 func procurementBatchExpireAtFromSnapshot(snapshot ChannelBillingSnapshot, item ChannelBillingSnapshotItem) int64 {
+	if snapshot.ValidUntil > 0 && (item.ExpiresAt <= 0 || snapshot.ValidUntil < item.ExpiresAt) {
+		return snapshot.ValidUntil
+	}
 	if item.ExpiresAt > 0 {
 		return item.ExpiresAt
 	}
@@ -263,7 +269,13 @@ func BuildProcurementBatchFromBillingSnapshotItem(snapshot ChannelBillingSnapsho
 	if channelID == "" {
 		channelID = strings.TrimSpace(normalizedItem.ChannelId)
 	}
-	validFrom := snapshot.CreatedAt
+	validFrom := snapshot.ValidFrom
+	if validFrom == 0 {
+		validFrom = snapshot.PurchaseAt
+	}
+	if validFrom == 0 {
+		validFrom = snapshot.CreatedAt
+	}
 	if validFrom == 0 {
 		validFrom = normalizedItem.CreatedAt
 	}
@@ -292,6 +304,10 @@ func BuildProcurementBatchFromBillingSnapshotItem(snapshot ChannelBillingSnapsho
 		SourceRef:            strings.TrimSpace(normalizedItem.SourceRef),
 		Metadata:             strings.TrimSpace(normalizedItem.Metadata),
 		CreatedAt:            normalizedItem.CreatedAt,
+	}
+	if row.ResetCycle != "none" {
+		row.WindowStartedAt = procurementWindowStart(row.ResetCycle, validFrom)
+		row.WindowRemaining = capacityTotal
 	}
 	normalizeProcurementBatchRow(&row)
 	if row.ChannelId == "" || row.CapacityUnit == "" || row.SourceSnapshotId == "" || row.SourceSnapshotItemId == "" {
@@ -428,6 +444,41 @@ func normalizeProcurementBatchRow(row *ChannelProcurementBatch) {
 	if row.CostPerUnitAmount < 0 {
 		row.CostPerUnitAmount = 0
 	}
+	if row.WindowRemaining < 0 {
+		row.WindowRemaining = 0
+	}
+}
+
+func procurementWindowStart(cycle string, timestamp int64) int64 {
+	if timestamp <= 0 {
+		timestamp = helper.GetTimestamp()
+	}
+	t := time.Unix(timestamp, 0).UTC()
+	switch strings.TrimSpace(strings.ToLower(cycle)) {
+	case "daily":
+		return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC).Unix()
+	case "weekly":
+		daysSinceMonday := (int(t.Weekday()) + 6) % 7
+		monday := t.AddDate(0, 0, -daysSinceMonday)
+		return time.Date(monday.Year(), monday.Month(), monday.Day(), 0, 0, 0, 0, time.UTC).Unix()
+	case "monthly":
+		return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC).Unix()
+	default:
+		return 0
+	}
+}
+
+func procurementBatchAvailableAt(row ChannelProcurementBatch, now int64) (float64, int64, float64) {
+	available := row.CapacityRemaining
+	if row.ResetCycle == "none" || row.ResetCycle == "" {
+		return available, 0, 0
+	}
+	windowStart := procurementWindowStart(row.ResetCycle, now)
+	windowRemaining := row.WindowRemaining
+	if row.WindowStartedAt != windowStart {
+		windowRemaining = row.CapacityTotal
+	}
+	return math.Min(available, windowRemaining), windowStart, windowRemaining
 }
 
 func CreateChannelProcurementBatchWithDB(db *gorm.DB, row ChannelProcurementBatch) (ChannelProcurementBatch, error) {
@@ -696,6 +747,39 @@ func EstimateChannelProcurementCost(input ProcurementConsumeInput) (ProcurementE
 	return EstimateChannelProcurementCostWithDB(DB, input)
 }
 
+type procurementConstraintGroup struct {
+	Rows      []ChannelProcurementBatch
+	Available float64
+	CostRow   int
+}
+
+func buildProcurementConstraintGroups(rows []ChannelProcurementBatch, now int64) []procurementConstraintGroup {
+	groups := make([]procurementConstraintGroup, 0, len(rows))
+	groupIndex := make(map[string]int)
+	for _, row := range rows {
+		key := strings.TrimSpace(row.SourceSnapshotId)
+		if key == "" {
+			key = "batch:" + row.Id
+		}
+		key = strings.Join([]string{key, row.ScopeType, row.ScopeValue, row.CapacityUnit}, "|")
+		index, ok := groupIndex[key]
+		if !ok {
+			index = len(groups)
+			groupIndex[key] = index
+			groups = append(groups, procurementConstraintGroup{Available: math.MaxFloat64, CostRow: -1})
+		}
+		available, _, _ := procurementBatchAvailableAt(row, now)
+		group := &groups[index]
+		group.Rows = append(group.Rows, row)
+		group.Available = math.Min(group.Available, available)
+		rowIndex := len(group.Rows) - 1
+		if group.CostRow < 0 || row.QuotaType == "total" || row.QuotaType == "custom" || row.ResetCycle == "none" {
+			group.CostRow = rowIndex
+		}
+	}
+	return groups
+}
+
 func EstimateChannelProcurementCostWithDB(db *gorm.DB, input ProcurementConsumeInput) (ProcurementEstimateResult, error) {
 	if db == nil {
 		return ProcurementEstimateResult{}, fmt.Errorf("database handle is nil")
@@ -715,6 +799,7 @@ func EstimateChannelProcurementCostWithDB(db *gorm.DB, input ProcurementConsumeI
 		Where("cost_status = ?", ProcurementCostStatusActive).
 		Where("cost_source IN ?", []string{ProcurementCostSourceActual, ProcurementCostSourceEstimated, ProcurementCostSourceZeroCost}).
 		Where("capacity_remaining > 0").
+		Where("(valid_from = 0 OR valid_from <= ?)", now).
 		Where("(expire_at = 0 OR expire_at > ?)", now)
 	query = query.Where("(scope_type = ? OR (scope_type = ? AND scope_value = ?))", "global", normalizedScopeType, normalizedScopeValue)
 	if err := query.Order(procurementBatchConsumeOrderSQL()).Find(&rows).Error; err != nil {
@@ -722,14 +807,15 @@ func EstimateChannelProcurementCostWithDB(db *gorm.DB, input ProcurementConsumeI
 	}
 	result := ProcurementEstimateResult{MissingQuantity: input.Quantity}
 	remaining := input.Quantity
-	for _, row := range rows {
+	for _, group := range buildProcurementConstraintGroups(rows, now) {
 		if remaining <= 0 {
 			break
 		}
-		quantity := math.Min(remaining, row.CapacityRemaining)
+		quantity := math.Min(remaining, group.Available)
 		if quantity <= 0 {
 			continue
 		}
+		row := group.Rows[group.CostRow]
 		result.CoveredQuantity += quantity
 		result.TotalCostAmount += quantity * row.CostPerUnitAmount
 		if result.CostSource == "" {
@@ -774,6 +860,7 @@ func ConsumeChannelProcurementBatchesWithDB(db *gorm.DB, input ProcurementConsum
 			Where("cost_status = ?", ProcurementCostStatusActive).
 			Where("cost_source IN ?", []string{ProcurementCostSourceActual, ProcurementCostSourceEstimated, ProcurementCostSourceZeroCost}).
 			Where("capacity_remaining > 0").
+			Where("(valid_from = 0 OR valid_from <= ?)", now).
 			Where("(expire_at = 0 OR expire_at > ?)", now)
 		query = query.Where("(scope_type = ? OR (scope_type = ? AND scope_value = ?))", "global", normalizedScopeType, normalizedScopeValue)
 		rows := make([]ChannelProcurementBatch, 0)
@@ -781,61 +868,67 @@ func ConsumeChannelProcurementBatchesWithDB(db *gorm.DB, input ProcurementConsum
 			return err
 		}
 		remaining := input.Quantity
-		for _, row := range rows {
+		for _, group := range buildProcurementConstraintGroups(rows, now) {
 			if remaining <= 0 {
 				break
 			}
-			consumeQuantity := math.Min(remaining, row.CapacityRemaining)
+			consumeQuantity := math.Min(remaining, group.Available)
 			if consumeQuantity <= 0 {
 				continue
 			}
-			remainingBefore := row.CapacityRemaining
-			nextRemaining := row.CapacityRemaining - consumeQuantity
-			nextStatus := row.CostStatus
-			if nextRemaining <= 0 {
-				nextRemaining = 0
-				nextStatus = ProcurementCostStatusExhausted
-			}
-			if err := tx.Model(&ChannelProcurementBatch{}).
-				Where("id = ?", row.Id).
-				Updates(map[string]any{
+			costRow := group.Rows[group.CostRow]
+			for rowIndex, row := range group.Rows {
+				_, windowStart, windowRemaining := procurementBatchAvailableAt(row, now)
+				nextRemaining := math.Max(row.CapacityRemaining-consumeQuantity, 0)
+				nextStatus := row.CostStatus
+				if nextRemaining <= 0 {
+					nextStatus = ProcurementCostStatusExhausted
+				}
+				updates := map[string]any{
 					"capacity_remaining": nextRemaining,
 					"cost_status":        nextStatus,
 					"updated_at":         now,
-				}).Error; err != nil {
-				return err
+				}
+				if row.ResetCycle != "none" && row.ResetCycle != "" {
+					updates["window_started_at"] = windowStart
+					updates["window_remaining"] = math.Max(windowRemaining-consumeQuantity, 0)
+				}
+				if err := tx.Model(&ChannelProcurementBatch{}).Where("id = ?", row.Id).Updates(updates).Error; err != nil {
+					return err
+				}
+				unitCost := 0.0
+				if rowIndex == group.CostRow {
+					unitCost = costRow.CostPerUnitAmount
+				}
+				consumption := RequestProcurementConsumption{
+					Id:                  random.GetUUID(),
+					RequestLogId:        normalizedRequestLogID,
+					ChannelId:           normalizedChannelID,
+					ProcurementBatchId:  row.Id,
+					ResourceType:        row.ResourceType,
+					QuotaType:           row.QuotaType,
+					ScopeType:           row.ScopeType,
+					ScopeValue:          row.ScopeValue,
+					CapacityUnit:        row.CapacityUnit,
+					ConsumedQuantity:    consumeQuantity,
+					UnitCostAmount:      unitCost,
+					ConsumedCostAmount:  consumeQuantity * unitCost,
+					SettlementTruthMode: strings.TrimSpace(input.SettlementTruthMode),
+					CostSource:          row.CostSource,
+					CreatedAt:           now,
+				}
+				if err := tx.Create(&consumption).Error; err != nil {
+					return err
+				}
+				result.Consumptions = append(result.Consumptions, consumption)
 			}
-			consumption := RequestProcurementConsumption{
-				Id:                  random.GetUUID(),
-				RequestLogId:        normalizedRequestLogID,
-				ChannelId:           normalizedChannelID,
-				ProcurementBatchId:  row.Id,
-				ResourceType:        row.ResourceType,
-				QuotaType:           row.QuotaType,
-				ScopeType:           row.ScopeType,
-				ScopeValue:          row.ScopeValue,
-				CapacityUnit:        row.CapacityUnit,
-				ConsumedQuantity:    consumeQuantity,
-				UnitCostAmount:      row.CostPerUnitAmount,
-				ConsumedCostAmount:  consumeQuantity * row.CostPerUnitAmount,
-				SettlementTruthMode: strings.TrimSpace(input.SettlementTruthMode),
-				CostSource:          row.CostSource,
-				CreatedAt:           now,
-			}
-			if err := tx.Create(&consumption).Error; err != nil {
-				return err
-			}
-			result.Consumptions = append(result.Consumptions, consumption)
-			result.TotalCostAmount += consumption.ConsumedCostAmount
+			result.TotalCostAmount += consumeQuantity * costRow.CostPerUnitAmount
 			if result.CostSource == "" {
-				result.CostSource = row.CostSource
-			} else if result.CostSource != row.CostSource {
+				result.CostSource = costRow.CostSource
+			} else if result.CostSource != costRow.CostSource {
 				result.CostSource = ProcurementCostSourceEstimated
 			}
 			remaining -= consumeQuantity
-			if remainingBefore == nextRemaining {
-				break
-			}
 		}
 		return nil
 	})

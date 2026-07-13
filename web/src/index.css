@@ -5000,6 +5000,20 @@ body,
     gap: 14px;
 }
 
+.router-billing-workspace-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 36px;
+}
+
+.router-billing-upstream-view {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
 .router-billing-overview-strip {
     display: flex;
     align-items: center;
@@ -5158,10 +5172,15 @@ body,
 }
 
 @media (max-width: 768px) {
+    .router-billing-workspace-toolbar,
     .router-billing-overview-strip,
     .router-billing-subsection-header {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .router-billing-workspace-toolbar .router-ui-segmented {
+        width: 100%;
     }
 
     .router-billing-overview-meta {

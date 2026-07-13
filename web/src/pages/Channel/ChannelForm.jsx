@@ -25,7 +25,6 @@ import ChannelDetailModelsTab from './components/ChannelDetailModelsTab';
 import ChannelDetailOverviewTab from './components/ChannelDetailOverviewTab';
 import ChannelDetailPublishTab from './components/ChannelDetailPublishTab';
 import ChannelDetailTestsTab from './components/ChannelDetailTestsTab';
-import ChannelCircuitBreakerEventsSection from './components/ChannelCircuitBreakerEventsSection';
 import ChannelAppendProviderModal from './components/ChannelAppendProviderModal';
 import ChannelComplexPricingModal from './components/ChannelComplexPricingModal';
 import ChannelModelEditorModal from './components/ChannelModelEditorModal';
@@ -616,7 +615,6 @@ const normalizeChannelBillingSummary = (item) => {
       : [],
     billing_portal_url: (item.billing_portal_url || '').toString().trim(),
     activate_supported: item.activate_supported === true,
-    manual_update_supported: item.manual_update_supported === true,
     refresh_supported: item.refresh_supported === true,
     latest_snapshot_at: Number(item.latest_snapshot_at || 0),
     latest_snapshot_status: (item.latest_snapshot_status || '')
@@ -1771,21 +1769,6 @@ const fetchChannelProcurementBatchConsumptions = async (channelId, batchId) => {
   return Array.isArray(data?.items) ? data.items : [];
 };
 
-const fetchChannelCircuitBreakerEvents = async (channelId) => {
-  const normalizedChannelId = (channelId || '').toString().trim();
-  if (normalizedChannelId === '') {
-    return [];
-  }
-  const res = await API.get(
-    `/api/v1/admin/channel/${normalizedChannelId}/circuit-breaker/events`
-  );
-  const { success, message, data } = res.data || {};
-  if (!success) {
-    throw new Error(message || 'fetch channel circuit breaker events failed');
-  }
-  return Array.isArray(data?.items) ? data.items : [];
-};
-
 const fetchTaskById = async (taskId) => {
   const normalizedTaskId = (taskId || '').toString().trim();
   if (normalizedTaskId === '') {
@@ -2158,16 +2141,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const [channelProcurementBatches, setChannelProcurementBatches] = useState(
     []
   );
-  const [channelCircuitBreakerEvents, setChannelCircuitBreakerEvents] =
-    useState([]);
-  const [
-    channelCircuitBreakerEventsLoading,
-    setChannelCircuitBreakerEventsLoading,
-  ] = useState(false);
-  const [
-    channelCircuitBreakerEventsError,
-    setChannelCircuitBreakerEventsError,
-  ] = useState('');
   const [channelBillingLoading, setChannelBillingLoading] = useState(false);
   const [channelBillingError, setChannelBillingError] = useState('');
   const [channelBillingSubmitting, setChannelBillingSubmitting] =
@@ -3366,19 +3339,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     [t]
   );
 
-  const loadChannelCircuitBreakerEventsFromServer = useCallback(
-    async (targetChannelId) => {
-      try {
-        return await fetchChannelCircuitBreakerEvents(targetChannelId);
-      } catch (error) {
-        throw new Error(
-          error?.message || t('channel.edit.circuit_breaker.load_failed')
-        );
-      }
-    },
-    [t]
-  );
-
   const refreshChannelBillingState = useCallback(
     async (targetChannelId) => {
       const normalizedChannelId = (targetChannelId || '').toString().trim();
@@ -3702,6 +3662,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       purchase_amount,
       purchase_fx_rate,
       purchase_cost_amount,
+      entitlement_name,
+      valid_from,
+      valid_until,
       items,
       message,
     }) => {
@@ -3726,8 +3689,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         .filter(
           (item) =>
             item.resource_type !== '' &&
-            item.quota_label !== '' &&
-            ((item.resource_type === 'plan' && item.expires_at > 0) ||
+            (item.resource_type === 'plan' ||
               (Number.isFinite(item.amount) &&
                 item.amount >= 0 &&
                 (item.amount > 0 ||
@@ -3756,6 +3718,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             purchase_amount: Number(purchase_amount || 0),
             purchase_fx_rate: Number(purchase_fx_rate || 0),
             purchase_cost_amount: Number(purchase_cost_amount || 0),
+            entitlement_name: (entitlement_name || '').toString().trim(),
+            valid_from: Number(valid_from || 0),
+            valid_until: Number(valid_until || 0),
             items: normalizedItems,
             message: (message || '').toString().trim(),
           }
@@ -4019,7 +3984,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             billingSnapshotsData,
             billingActionsData,
             procurementBatchesData,
-            circuitBreakerEventsData,
           ] = await Promise.all([
             loadChannelModelsFromServer(
               data.id || targetId,
@@ -4032,7 +3996,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             loadChannelBillingSnapshotsFromServer(data.id || targetId),
             loadChannelBillingActionsFromServer(data.id || targetId),
             loadChannelProcurementBatchesFromServer(data.id || targetId),
-            loadChannelCircuitBreakerEventsFromServer(data.id || targetId),
           ]);
           const storedModelTestResults = normalizeModelTestResults(
             channelTestsData.items
@@ -4094,8 +4057,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           setChannelBillingSnapshots(billingSnapshotsData);
           setChannelBillingActions(billingActionsData);
           setChannelProcurementBatches(procurementBatchesData);
-          setChannelCircuitBreakerEvents(circuitBreakerEventsData);
-          setChannelCircuitBreakerEventsError('');
           setChannelBillingError('');
           setConfig({
             ...CHANNEL_DEFAULT_CONFIG,
@@ -4131,7 +4092,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       navigate,
       hasChannelID,
       loadChannelBillingActionsFromServer,
-      loadChannelCircuitBreakerEventsFromServer,
       loadChannelBillingProfileFromServer,
       loadChannelProcurementBatchesFromServer,
       loadChannelBillingSnapshotsFromServer,
@@ -5284,47 +5244,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   }, [channelId, refreshChannelBillingState, showDetailBillingTab]);
 
   useEffect(() => {
-    if (!showDetailOverviewTab || !channelId) {
-      setChannelCircuitBreakerEvents([]);
-      setChannelCircuitBreakerEventsError('');
-      setChannelCircuitBreakerEventsLoading(false);
-      return undefined;
-    }
-    let disposed = false;
-    setChannelCircuitBreakerEventsLoading(true);
-    loadChannelCircuitBreakerEventsFromServer(channelId)
-      .then((items) => {
-        if (disposed) {
-          return;
-        }
-        setChannelCircuitBreakerEvents(Array.isArray(items) ? items : []);
-        setChannelCircuitBreakerEventsError('');
-      })
-      .catch((error) => {
-        if (disposed) {
-          return;
-        }
-        setChannelCircuitBreakerEvents([]);
-        setChannelCircuitBreakerEventsError(
-          error?.message || t('channel.edit.circuit_breaker.load_failed')
-        );
-      })
-      .finally(() => {
-        if (!disposed) {
-          setChannelCircuitBreakerEventsLoading(false);
-        }
-      });
-    return () => {
-      disposed = true;
-    };
-  }, [
-    channelId,
-    loadChannelCircuitBreakerEventsFromServer,
-    showDetailOverviewTab,
-    t,
-  ]);
-
-  useEffect(() => {
     if (!isDetailMode || !channelId) {
       setChannelEndpoints([]);
       setChannelEndpointsError('');
@@ -6119,15 +6038,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 onUpdateBillingProfileDraft={updateBillingProfileDraft}
                 onCancelBillingProfileEdit={cancelDetailBillingEdit}
                 onSaveBillingProfile={saveDetailBillingProfile}
-              />
-            )}
-            {showDetailOverviewTab && (
-              <ChannelCircuitBreakerEventsSection
-                t={t}
-                events={channelCircuitBreakerEvents}
-                loading={channelCircuitBreakerEventsLoading}
-                error={channelCircuitBreakerEventsError}
-                timestamp2string={timestamp2string}
               />
             )}
             {showStepTwo && inputs.protocol !== 'proxy' && (

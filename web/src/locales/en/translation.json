@@ -807,6 +807,18 @@
         "manual_purchase_fx_rate": "FX Rate",
         "manual_purchase_cost_amount": "Purchase Cost CNY",
         "manual_purchase_hint": "Fill in the purchase payment details first, then record what entitlements were bought.",
+        "entitlement_info_title": "Entitlement Information",
+        "entitlement_name": "Entitlement Name",
+        "entitlement_items_title": "Entitlement Items",
+        "entitlement_types": {
+          "balance": "Account Balance",
+          "credit": "Credit Limit",
+          "daily": "Daily Quota",
+          "weekly": "Weekly Quota",
+          "monthly": "Monthly Quota",
+          "total": "Total Quota"
+        },
+        "add_entitlement_item": "Add Entitlement Item",
         "manual_snapshot_invalid": "Please provide at least one valid entitlement item",
         "manual_snapshot_success": "Purchase record saved",
         "manual_snapshot_failed": "Failed to save purchase record",
@@ -819,13 +831,12 @@
         "delete_purchase_record_failed": "Failed to delete purchase record",
         "manual_resource_type": "Entitlement Type",
         "manual_resource_hints": {
-          "default": "After selecting the entitlement type, only the required fields for that type are shown.",
+          "default": "Items jointly constrain current usage. Periodic quotas reset daily, weekly, or monthly, while total quota keeps decreasing. If any applicable item is insufficient, the entitlement group cannot provide that usage.",
           "balance": "Balance: directly consumable account balance. Fill total, used, and remaining amount.",
           "credit": "Credit: granted or promotional upstream credit. It is consumable like balance, but has a different source.",
           "quota": "Quota: consumable usage capacity. Daily, weekly, and monthly quotas are package periodic quota rules; total quota is cumulative and decreases as it is used.",
-          "periodic": "Package periodic quota rule: fill the quota per period and package expiration time. You do not need to enter one item per day. Unused quota does not carry over.",
+          "periodic": "Periodic quota: enter the amount available in each period. It resets automatically, and unused quota does not carry over.",
           "total": "Total quota: cumulative consumable quota. It decreases as it is used and does not reset daily, weekly, or monthly.",
-          "plan": "Plan item records only the plan name and expiration time. Add a plan quota item for daily, weekly, monthly, or total quota limits.",
           "source_ref": "Use the upstream original name as source reference for traceability."
         },
         "manual_plan_name": "Plan Name",
@@ -853,6 +864,10 @@
         "management_title": "Purchase Management",
         "snapshots_title": "Purchase Records",
         "snapshots_hint": "Record a purchase or top-up payment and the plan, balance, or quota it bought.",
+        "manual_valid_from": "Valid From (blank means immediately)",
+        "manual_valid_until": "Valid Until (blank means no expiry)",
+        "validity_immediate": "Immediately",
+        "upstream_status_title": "Upstream Status",
         "procurement_title": "Procurement Batches",
         "procurement_hint": "These are not upstream billing records. Procurement batches come from purchase records. Request settlement consumes capacity from these batches to calculate actual procurement cost.",
         "procurement_edit_cost": "Edit Cost",
@@ -904,7 +919,10 @@
           "purchase_amount": "Purchase Amount",
           "purchase_fx_rate": "FX Rate",
           "purchase_cost_amount": "Purchase Cost CNY",
-          "cost_unconfigured": "Cost unconfigured"
+          "validity": "Validity",
+          "cost_unconfigured": "Cost unconfigured",
+          "constraint_only": "Constraint only; cost is not duplicated",
+          "periodic_capacity": "Current period {{window}}; total {{total}}"
         },
         "procurement_consumption_table": {
           "request_log": "Request Log",
@@ -985,6 +1003,8 @@
           "purchase_at": "Purchase Time",
           "purchase_amount": "Paid Amount",
           "purchase_cost_amount": "Purchase Cost CNY",
+          "entitlement_name": "Entitlement Name",
+          "validity": "Validity",
           "source_type": "Source",
           "quota_items": "Quota Items",
           "message": "Message",
@@ -1079,19 +1099,6 @@
         "editor": {
           "base_url": "Dedicated Access Address",
           "base_url_placeholder": "Leave empty to inherit the model API base URL"
-        }
-      },
-      "circuit_breaker": {
-        "title": "Circuit Events",
-        "hint": "This records low-success-rate circuit opens, half-open probes, automatic recovery, and canceled recovery events for channel troubleshooting.",
-        "empty": "No circuit events.",
-        "load_failed": "Failed to load circuit events",
-        "columns": {
-          "event": "Event",
-          "reason": "Reason",
-          "success_rate": "Success Rate",
-          "recover_after": "Recover After",
-          "created_at": "Time"
         }
       },
       "endpoint_policies": {
@@ -2654,19 +2661,6 @@
             "success": "Success",
             "failure": "Failure",
             "unknown": "No Data"
-          }
-        },
-        "events": {
-          "title": "Recent Circuit Breaker Events",
-          "hint": "Shows recent open, half-open, recovered, and canceled events across channels so operators can jump into channel detail directly.",
-          "empty": "No circuit breaker events yet",
-          "columns": {
-            "time": "Occurred At",
-            "channel": "Channel",
-            "state": "State",
-            "reason": "Reason",
-            "success_rate": "Trigger Success Rate",
-            "recover_after": "Expected Recovery"
           }
         },
         "circuit": {

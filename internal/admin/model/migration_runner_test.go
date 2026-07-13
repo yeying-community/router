@@ -55,6 +55,12 @@ func TestEnsureProcurementCostTablesWithDBRepairsMissingCostPerUnitColumn(t *tes
 	if !db.Migrator().HasColumn(&ChannelProcurementBatch{}, "CostPerUnitAmount") {
 		t.Fatalf("cost_per_unit_amount column was not repaired")
 	}
+	if !db.Migrator().HasColumn(&ChannelProcurementBatch{}, "WindowStartedAt") {
+		t.Fatalf("window_started_at column was not added")
+	}
+	if !db.Migrator().HasColumn(&ChannelProcurementBatch{}, "WindowRemaining") {
+		t.Fatalf("window_remaining column was not added")
+	}
 	if !db.Migrator().HasTable(&RequestProcurementConsumption{}) {
 		t.Fatalf("request procurement consumption table was not created")
 	}

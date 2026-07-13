@@ -97,6 +97,9 @@ type ChannelBillingSnapshot struct {
 	PurchaseAmount     float64                      `json:"purchase_amount" gorm:"type:double precision;not null;default:0"`
 	PurchaseFXRate     float64                      `json:"purchase_fx_rate" gorm:"type:double precision;not null;default:0"`
 	PurchaseCostAmount float64                      `json:"purchase_cost_amount" gorm:"type:double precision;not null;default:0"`
+	EntitlementName    string                       `json:"entitlement_name" gorm:"type:varchar(191);not null;default:''"`
+	ValidFrom          int64                        `json:"valid_from" gorm:"bigint;not null;default:0;index"`
+	ValidUntil         int64                        `json:"valid_until" gorm:"bigint;not null;default:0;index"`
 	RawStatus          string                       `json:"raw_status" gorm:"type:varchar(64);default:''"`
 	Message            string                       `json:"message" gorm:"type:text"`
 	RequestURL         string                       `json:"request_url" gorm:"type:text"`
@@ -126,6 +129,9 @@ func ensureChannelBillingSnapshotPurchaseFieldsWithDB(db *gorm.DB) error {
 			"PurchaseAmount",
 			"PurchaseFXRate",
 			"PurchaseCostAmount",
+			"EntitlementName",
+			"ValidFrom",
+			"ValidUntil",
 		}
 		for _, column := range requiredColumns {
 			if db.Migrator().HasColumn(&ChannelBillingSnapshot{}, column) {
@@ -740,6 +746,7 @@ func CreateChannelBillingSnapshotWithDB(db *gorm.DB, row ChannelBillingSnapshot)
 	normalized.SourceType = strings.TrimSpace(normalized.SourceType)
 	normalized.Currency = strings.TrimSpace(strings.ToUpper(normalized.Currency))
 	normalized.PurchaseCurrency = strings.TrimSpace(strings.ToUpper(normalized.PurchaseCurrency))
+	normalized.EntitlementName = strings.TrimSpace(normalized.EntitlementName)
 	normalized.OperatorUserId = strings.TrimSpace(normalized.OperatorUserId)
 	if normalized.ChannelId == "" {
 		return ChannelBillingSnapshot{}, fmt.Errorf("渠道账务快照无效")
@@ -759,7 +766,10 @@ func CreateChannelBillingSnapshotWithDB(db *gorm.DB, row ChannelBillingSnapshot)
 		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "PurchaseCurrency") ||
 		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "PurchaseAmount") ||
 		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "PurchaseFXRate") ||
-		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "PurchaseCostAmount") {
+		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "PurchaseCostAmount") ||
+		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "EntitlementName") ||
+		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "ValidFrom") ||
+		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "ValidUntil") {
 		if err := ensureChannelBillingSnapshotPurchaseFieldsWithDB(db); err != nil {
 			return ChannelBillingSnapshot{}, err
 		}
@@ -797,6 +807,9 @@ func UpdateChannelBillingSnapshotPurchaseWithDB(db *gorm.DB, row ChannelBillingS
 		"purchase_amount":      row.PurchaseAmount,
 		"purchase_fx_rate":     row.PurchaseFXRate,
 		"purchase_cost_amount": row.PurchaseCostAmount,
+		"entitlement_name":     strings.TrimSpace(row.EntitlementName),
+		"valid_from":           row.ValidFrom,
+		"valid_until":          row.ValidUntil,
 		"message":              strings.TrimSpace(row.Message),
 		"operator_user_id":     strings.TrimSpace(row.OperatorUserId),
 	}
@@ -805,7 +818,10 @@ func UpdateChannelBillingSnapshotPurchaseWithDB(db *gorm.DB, row ChannelBillingS
 		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "PurchaseCurrency") ||
 		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "PurchaseAmount") ||
 		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "PurchaseFXRate") ||
-		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "PurchaseCostAmount") {
+		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "PurchaseCostAmount") ||
+		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "EntitlementName") ||
+		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "ValidFrom") ||
+		!db.Migrator().HasColumn(&ChannelBillingSnapshot{}, "ValidUntil") {
 		if err := ensureChannelBillingSnapshotPurchaseFieldsWithDB(db); err != nil {
 			return ChannelBillingSnapshot{}, err
 		}
