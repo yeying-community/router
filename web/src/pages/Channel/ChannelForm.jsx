@@ -3662,6 +3662,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       purchase_amount,
       purchase_fx_rate,
       purchase_cost_amount,
+      entitlement_name,
       valid_from,
       valid_until,
       items,
@@ -3688,8 +3689,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         .filter(
           (item) =>
             item.resource_type !== '' &&
-            item.quota_label !== '' &&
-            ((item.resource_type === 'plan' && item.expires_at > 0) ||
+            (item.resource_type === 'plan' ||
               (Number.isFinite(item.amount) &&
                 item.amount >= 0 &&
                 (item.amount > 0 ||
@@ -3718,6 +3718,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             purchase_amount: Number(purchase_amount || 0),
             purchase_fx_rate: Number(purchase_fx_rate || 0),
             purchase_cost_amount: Number(purchase_cost_amount || 0),
+            entitlement_name: (entitlement_name || '').toString().trim(),
             valid_from: Number(valid_from || 0),
             valid_until: Number(valid_until || 0),
             items: normalizedItems,

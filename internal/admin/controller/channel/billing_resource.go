@@ -60,6 +60,7 @@ type channelBillingManualSnapshotRequest struct {
 	PurchaseAmount     float64                                `json:"purchase_amount"`
 	PurchaseFXRate     float64                                `json:"purchase_fx_rate"`
 	PurchaseCostAmount float64                                `json:"purchase_cost_amount"`
+	EntitlementName    string                                 `json:"entitlement_name"`
 	ValidFrom          int64                                  `json:"valid_from"`
 	ValidUntil         int64                                  `json:"valid_until"`
 	Items              []channelBillingManualQuotaItemRequest `json:"items"`
@@ -667,6 +668,7 @@ type normalizedManualBillingSnapshotRequest struct {
 	PurchaseAmount     float64
 	PurchaseFXRate     float64
 	PurchaseCostAmount float64
+	EntitlementName    string
 	ValidFrom          int64
 	ValidUntil         int64
 	Items              []model.ChannelBillingSnapshotItem
@@ -712,15 +714,15 @@ func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotReque
 	if validUntil > 0 && validFrom > 0 && validUntil <= validFrom {
 		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("有效期结束时间必须晚于开始时间")
 	}
+	entitlementName := strings.TrimSpace(req.EntitlementName)
+	if entitlementName == "" {
+		return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("权益名称不能为空")
+	}
 	quotaItems := make([]model.ChannelBillingSnapshotItem, 0, len(req.Items))
 	for index, item := range req.Items {
 		resourceType := strings.TrimSpace(strings.ToLower(item.ResourceType))
 		if !isSupportedBillingResourceType(resourceType) {
 			return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条权益类型无效", index+1)
-		}
-		quotaLabel := strings.TrimSpace(item.QuotaLabel)
-		if quotaLabel == "" {
-			return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条额度名称不能为空", index+1)
 		}
 		quotaType := strings.TrimSpace(strings.ToLower(item.QuotaType))
 		itemExpiresAt := item.ExpiresAt
@@ -729,9 +731,6 @@ func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotReque
 		}
 		if resourceType == model.ChannelBillingResourceTypePlan {
 			quotaType = "plan"
-			if itemExpiresAt <= 0 {
-				return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条套餐必须填写截止时间", index+1)
-			}
 		}
 		if resourceType == model.ChannelBillingResourceTypeQuota {
 			switch quotaType {
@@ -739,8 +738,12 @@ func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotReque
 			default:
 				return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条额度类型无效", index+1)
 			}
-			if (quotaType == "daily" || quotaType == "weekly" || quotaType == "monthly") && itemExpiresAt <= 0 {
-				return normalizedManualBillingSnapshotRequest{}, fmt.Errorf("第 %d 条套餐周期额度必须填写截止时间", index+1)
+		}
+		quotaLabel := strings.TrimSpace(item.QuotaLabel)
+		if quotaLabel == "" {
+			quotaLabel = resourceType
+			if quotaType != "" && quotaType != resourceType {
+				quotaLabel += ":" + quotaType
 			}
 		}
 		limitAmount := item.LimitAmount
@@ -792,6 +795,7 @@ func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotReque
 		PurchaseAmount:     purchaseAmount,
 		PurchaseFXRate:     purchaseFXRate,
 		PurchaseCostAmount: purchaseCostAmount,
+		EntitlementName:    entitlementName,
 		ValidFrom:          validFrom,
 		ValidUntil:         validUntil,
 		Items:              quotaItems,
@@ -832,6 +836,7 @@ func CreateChannelBillingSnapshot(c *gin.Context) {
 			PurchaseAmount:     normalizedReq.PurchaseAmount,
 			PurchaseFXRate:     normalizedReq.PurchaseFXRate,
 			PurchaseCostAmount: normalizedReq.PurchaseCostAmount,
+			EntitlementName:    normalizedReq.EntitlementName,
 			ValidFrom:          normalizedReq.ValidFrom,
 			ValidUntil:         normalizedReq.ValidUntil,
 			RawStatus:          "manual",
@@ -922,6 +927,7 @@ func UpdateChannelBillingSnapshot(c *gin.Context) {
 			PurchaseAmount:     normalizedReq.PurchaseAmount,
 			PurchaseFXRate:     normalizedReq.PurchaseFXRate,
 			PurchaseCostAmount: normalizedReq.PurchaseCostAmount,
+			EntitlementName:    normalizedReq.EntitlementName,
 			ValidFrom:          normalizedReq.ValidFrom,
 			ValidUntil:         normalizedReq.ValidUntil,
 			Message:            normalizedReq.Message,
