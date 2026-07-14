@@ -3554,6 +3554,16 @@
       "past": "Past",
       "now": "Now"
     },
+    "tooltip": {
+      "response_time": "Response time",
+      "endpoint": "Test endpoint",
+      "no_sample": "No health check recorded",
+      "summary": {
+        "success": "Model responded normally ({{latency}} ms)",
+        "warning": "This check was skipped",
+        "failure": "Model is temporarily unavailable"
+      }
+    },
     "card": {
       "health_score": "Health score",
       "pass_rate": "Pass rate",

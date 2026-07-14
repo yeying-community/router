@@ -158,6 +158,42 @@ const buildHealthHistory = (points) => {
   }));
 };
 
+const renderHealthPointTooltip = (point, stateLabel, t, formatUpdatedAt) => {
+  const endpoint = String(point?.endpoint || '').trim();
+  const latency = toNumber(point?.latency_ms);
+  const summaryKey = point?.state === 'success'
+    ? 'success'
+    : point?.state === 'warning'
+      ? 'warning'
+      : 'failure';
+  return (
+    <div className='workspace-model-health-tooltip'>
+      <div className='workspace-model-health-tooltip-header'>
+        <span className={`workspace-model-health-tooltip-status workspace-model-health-tooltip-status-${point?.state || 'unknown'}`}>
+          {stateLabel}
+        </span>
+        <span className='workspace-model-health-tooltip-time'>
+          {formatUpdatedAt(point?.tested_at)}
+        </span>
+      </div>
+      <div className='workspace-model-health-tooltip-divider' />
+      <div className='workspace-model-health-tooltip-row'>
+        <span>{t('workspace_models.tooltip.response_time')}</span>
+        <strong>{latency > 0 ? `${latency} ms` : '-'}</strong>
+      </div>
+      <div className='workspace-model-health-tooltip-row'>
+        <span>{t('workspace_models.tooltip.endpoint')}</span>
+        <strong>{endpoint || '-'}</strong>
+      </div>
+      <div className='workspace-model-health-tooltip-summary'>
+        {t(`workspace_models.tooltip.summary.${summaryKey}`, {
+          latency: latency > 0 ? latency : '-',
+        })}
+      </div>
+    </div>
+  );
+};
+
 const WorkspaceModels = () => {
   const { t } = useTranslation();
   const [payload, setPayload] = useState(EMPTY_PAYLOAD);
@@ -410,20 +446,22 @@ const WorkspaceModels = () => {
                             ? t(`workspace_models.history.${point.state}`)
                             : t('workspace_models.history.no_data');
                           const title = point.observed
-                            ? [
-                                `${item.model} #${index + 1}: ${stateLabel}`,
-                                point.endpoint || '',
-                                point.latency_ms > 0
-                                  ? `${point.latency_ms} ms`
-                                  : '',
-                                formatUpdatedAt(point.tested_at),
-                                point.message || '',
-                              ]
-                                .filter(Boolean)
-                                .join(' / ')
-                            : `${item.model}: ${stateLabel}`;
+                            ? renderHealthPointTooltip(
+                                point,
+                                stateLabel,
+                                t,
+                                formatUpdatedAt,
+                              )
+                            : t('workspace_models.tooltip.no_sample');
                           return (
-                            <AppTooltip key={point.key} title={title}>
+                            <AppTooltip
+                              key={point.key}
+                              title={title}
+                              placement='top'
+                              color='#ffffff'
+                              overlayClassName='workspace-model-health-tooltip-popup'
+                              classNames={{ root: 'workspace-model-health-tooltip-popup' }}
+                            >
                               <span
                                 className={`workspace-model-health-cell workspace-model-health-cell-${point.state}`}
                                 style={{
