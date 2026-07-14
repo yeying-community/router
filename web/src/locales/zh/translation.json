@@ -3549,6 +3549,16 @@
       "past": "过去",
       "now": "现在"
     },
+    "tooltip": {
+      "response_time": "响应耗时",
+      "endpoint": "测试接口",
+      "no_sample": "暂无检测记录",
+      "summary": {
+        "success": "模型响应正常（{{latency}} ms）",
+        "warning": "本次检测未执行",
+        "failure": "模型暂时不可用"
+      }
+    },
     "card": {
       "health_score": "健康分",
       "pass_rate": "通过率",

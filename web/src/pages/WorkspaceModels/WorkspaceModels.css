@@ -215,6 +215,96 @@
   opacity: 0.72;
 }
 
+.workspace-model-health-tooltip-popup .ant-tooltip-inner {
+  width: 292px;
+  max-width: calc(100vw - 24px);
+  padding: 0;
+  color: #202124 !important;
+  background: #fff !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16);
+}
+
+.workspace-model-health-tooltip-popup .ant-tooltip-arrow::before {
+  background: #fff !important;
+}
+
+.workspace-model-health-tooltip-popup.ant-tooltip {
+  --antd-arrow-background-color: #fff;
+}
+
+.workspace-model-health-tooltip {
+  padding: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.workspace-model-health-tooltip-header,
+.workspace-model-health-tooltip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.workspace-model-health-tooltip-status {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.workspace-model-health-tooltip-status-success {
+  color: #15803d;
+  background: #ecfdf3;
+}
+
+.workspace-model-health-tooltip-status-warning {
+  color: #a16207;
+  background: #fef9c3;
+}
+
+.workspace-model-health-tooltip-status-failure {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.workspace-model-health-tooltip-status-unknown {
+  color: #64748b;
+  background: #f1f5f9;
+}
+
+.workspace-model-health-tooltip-time,
+.workspace-model-health-tooltip-row span {
+  color: #7c818b;
+}
+
+.workspace-model-health-tooltip-divider {
+  height: 1px;
+  margin: 12px 0;
+  background: #e5e7eb;
+}
+
+.workspace-model-health-tooltip-row + .workspace-model-health-tooltip-row {
+  margin-top: 9px;
+}
+
+.workspace-model-health-tooltip-row strong {
+  max-width: 170px;
+  color: #202124;
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.workspace-model-health-tooltip-summary {
+  margin-top: 13px;
+  padding: 10px 12px;
+  color: #5f6368;
+  background: #f5f6f8;
+  border-radius: 6px;
+}
+
 .workspace-model-health-axis {
   display: flex;
   justify-content: space-between;
