@@ -1002,7 +1002,7 @@
           "created_at": "Time",
           "purchase_at": "Purchase Time",
           "purchase_amount": "Paid Amount",
-          "purchase_cost_amount": "Purchase Cost CNY",
+          "purchase_cost_amount": "Purchase Cost",
           "entitlement_name": "Entitlement Name",
           "validity": "Validity",
           "source_type": "Source",
