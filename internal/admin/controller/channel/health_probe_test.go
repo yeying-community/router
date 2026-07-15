@@ -68,3 +68,41 @@ func TestEnqueueDueChannelHealthProbesRetriesFailureAfterBackoff(t *testing.T) {
 		t.Fatalf("created=%d, want 1", created)
 	}
 }
+
+func TestPersistAutomaticProbeDoesNotUpdateEndpointConfiguration(t *testing.T) {
+	db := newChannelHealthProbeTestDB(t)
+	if err := db.AutoMigrate(&model.Channel{}, &model.ChannelModelPriceComponent{}, &model.ChannelModelEndpointTestResult{}); err != nil {
+		t.Fatalf("migrate endpoint test results: %v", err)
+	}
+	if err := db.Create(&model.Channel{Id: "image-channel", Name: "image-channel"}).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	previousDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = previousDB })
+
+	result := model.ChannelTest{
+		ChannelId: "image-channel",
+		Model:     "gpt-5.5",
+		Endpoint:  model.ChannelModelEndpointResponses,
+		Source:    "automatic_probe",
+		Status:    model.ChannelTestStatusUnsupported,
+		Supported: false,
+		TestedAt:  1_800_000_000,
+		Message:   "upstream model unavailable",
+	}
+	if err := persistChannelModelTests("image-channel", "probe-task", []model.ChannelTest{result}); err != nil {
+		t.Fatalf("persist automatic probe: %v", err)
+	}
+	var endpointResult model.ChannelModelEndpointTestResult
+	if err := db.First(&endpointResult).Error; err == nil {
+		t.Fatal("automatic probe must not create endpoint configuration test result")
+	}
+	var signal model.ChannelTest
+	if err := db.First(&signal, "channel_id = ? AND model = ?", "image-channel", "gpt-5.5").Error; err != nil {
+		t.Fatalf("load health signal: %v", err)
+	}
+	if signal.Source != "automatic_probe" {
+		t.Fatalf("signal source=%q, want automatic_probe", signal.Source)
+	}
+}

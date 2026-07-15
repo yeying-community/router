@@ -130,6 +130,19 @@ func persistChannelModelTests(channelID string, taskID string, results []model.C
 		targetModels = append(targetModels, item.Model)
 	}
 	targetModels = model.NormalizeChannelModelIDsPreserveOrder(targetModels)
+	// Health probes are observational signals. They must not change endpoint
+	// configuration or runtime routing capabilities used by manual tests.
+	isHealthProbe := false
+	for _, item := range results {
+		if strings.TrimSpace(item.Source) == "automatic_probe" {
+			isHealthProbe = true
+			break
+		}
+	}
+	if isHealthProbe {
+		_, err := model.AppendChannelTestsForModelsWithDB(model.DB, normalizedChannelID, targetModels, results)
+		return err
+	}
 	restoredModels := make([]string, 0)
 	restoredEndpoints := make([]channelModelEndpointRestore, 0)
 	shouldRestoreChannel, err := shouldRestoreInsufficientBalanceChannelAfterSuccessfulTests(normalizedChannelID, results)
