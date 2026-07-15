@@ -3552,6 +3552,12 @@
     "tooltip": {
       "response_time": "响应耗时",
       "endpoint": "测试接口",
+      "source": "数据来源",
+      "sources": {
+        "traffic": "真实请求",
+        "manual_test": "人工检测",
+        "automatic_probe": "自动检测"
+      },
       "no_sample": "暂无检测记录",
       "summary": {
         "success": "模型响应正常（{{latency}} ms）",
@@ -3563,8 +3569,8 @@
       "health_score": "健康分",
       "pass_rate": "通过率",
       "latency": "延迟",
-      "channels": "测试渠道",
-      "last_tested": "最近测试：{{time}}",
+      "channels": "观测渠道",
+      "last_tested": "最近信号：{{time}}",
       "no_endpoints": "暂无可用端点"
     }
   },

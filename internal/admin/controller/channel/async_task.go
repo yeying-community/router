@@ -498,10 +498,16 @@ func executeChannelModelTestTask(ctx context.Context, task *model.AsyncTask) (st
 	if endpoint := strings.TrimSpace(payload.Endpoint); endpoint != "" {
 		row.Endpoint = endpoint
 	}
+	if strings.TrimSpace(task.CreatedBy) == "health_probe" {
+		ctx = withChannelHealthProbeContext(ctx)
+	}
 	testResult, execution := runSingleChannelModelTestWithContextAndStream(ctx, channelRow, row, payload.IsStream, payload.AudioLanguage, imageEditTestInput{
 		URL:     payload.ImageEditURL,
 		DataURI: payload.ImageEditData,
 	}, payload.ResponsesTestMode)
+	if strings.TrimSpace(task.CreatedBy) == "health_probe" {
+		testResult.Source = "automatic_probe"
+	}
 	testResult.ChannelId = channelID
 	persistChannelTestArtifactForExecution(ctx, task.Id, &testResult, &execution)
 	logChannelAsyncTestExecution(task, testResult, execution)

@@ -3557,6 +3557,12 @@
     "tooltip": {
       "response_time": "Response time",
       "endpoint": "Test endpoint",
+      "source": "Data source",
+      "sources": {
+        "traffic": "Live traffic",
+        "manual_test": "Manual check",
+        "automatic_probe": "Automatic check"
+      },
       "no_sample": "No health check recorded",
       "summary": {
         "success": "Model responded normally ({{latency}} ms)",
@@ -3568,8 +3574,8 @@
       "health_score": "Health score",
       "pass_rate": "Pass rate",
       "latency": "Latency",
-      "channels": "Tested channels",
-      "last_tested": "Last tested: {{time}}",
+      "channels": "Observed channels",
+      "last_tested": "Latest signal: {{time}}",
       "no_endpoints": "No available endpoints"
     }
   },

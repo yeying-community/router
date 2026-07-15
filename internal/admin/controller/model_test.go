@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/ctxkey"
+	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/internal/admin/model"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 	"gorm.io/driver/sqlite"
@@ -636,6 +637,7 @@ func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Set(ctxkey.AvailableModels, "gpt-5.4,claude-sonnet-4-6")
+	now := helper.GetTimestamp()
 
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
 	if err != nil {
@@ -654,7 +656,7 @@ func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
 			Status:    model.ChannelTestStatusSupported,
 			Supported: true,
 			LatencyMs: 1200,
-			TestedAt:  100,
+			TestedAt:  now - 20,
 		},
 		{
 			ChannelId: "channel-2",
@@ -665,7 +667,7 @@ func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
 			Status:    model.ChannelTestStatusUnsupported,
 			Supported: false,
 			LatencyMs: 3000,
-			TestedAt:  110,
+			TestedAt:  now - 10,
 		},
 		{
 			ChannelId: "channel-3",
@@ -676,7 +678,7 @@ func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
 			Status:    model.ChannelTestStatusSkipped,
 			Supported: false,
 			LatencyMs: 0,
-			TestedAt:  90,
+			TestedAt:  now - 30,
 		},
 	}).Error; err != nil {
 		t.Fatalf("create channel tests: %v", err)
@@ -754,5 +756,34 @@ func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
 	}
 	if len(claude.SupportedEndpoints) != 1 || claude.SupportedEndpoints[0] != model.ChannelModelEndpointMessages {
 		t.Fatalf("claude endpoints = %#v, want messages", claude.SupportedEndpoints)
+	}
+}
+
+func TestLoadUserModelStatusTrafficRowsFiltersClientAbort(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&model.Log{}); err != nil {
+		t.Fatalf("auto migrate logs: %v", err)
+	}
+	now := helper.GetTimestamp()
+	rows := []model.Log{
+		{Id: "success", Type: model.LogTypeConsume, ChannelId: "channel-1", RequestModelName: "gpt-5.4", CreatedAt: now, ElapsedTime: 1200},
+		{Id: "failure", Type: model.LogTypeRelayFailure, ChannelId: "channel-1", RequestModelName: "gpt-5.4", CreatedAt: now, RelayErrorCode: "upstream_unavailable"},
+		{Id: "abort", Type: model.LogTypeRelayFailure, ChannelId: "channel-1", RequestModelName: "gpt-5.4", CreatedAt: now, RelayErrorType: "client_abort"},
+	}
+	if err := db.Create(&rows).Error; err != nil {
+		t.Fatalf("create logs: %v", err)
+	}
+	originalLogDB := model.LOG_DB
+	model.LOG_DB = db
+	t.Cleanup(func() { model.LOG_DB = originalLogDB })
+	got, err := loadUserModelStatusTrafficRows([]string{"channel-1"}, []string{"gpt-5.4"}, now-60)
+	if err != nil {
+		t.Fatalf("load traffic rows: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("traffic rows=%d, want 2", len(got))
 	}
 }

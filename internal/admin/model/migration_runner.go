@@ -1785,6 +1785,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
 			},
 		},
+		{
+			Version:     "202607151030_channel_test_signal_source",
+			Description: "track whether channel model health signals come from manual or automatic checks",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelTest{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

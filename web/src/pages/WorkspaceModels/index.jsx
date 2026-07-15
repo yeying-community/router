@@ -161,6 +161,7 @@ const buildHealthHistory = (points) => {
 const renderHealthPointTooltip = (point, stateLabel, t, formatUpdatedAt) => {
   const endpoint = String(point?.endpoint || '').trim();
   const latency = toNumber(point?.latency_ms);
+  const source = String(point?.source || 'manual_test').trim();
   const summaryKey = point?.state === 'success'
     ? 'success'
     : point?.state === 'warning'
@@ -184,6 +185,12 @@ const renderHealthPointTooltip = (point, stateLabel, t, formatUpdatedAt) => {
       <div className='workspace-model-health-tooltip-row'>
         <span>{t('workspace_models.tooltip.endpoint')}</span>
         <strong>{endpoint || '-'}</strong>
+      </div>
+      <div className='workspace-model-health-tooltip-row'>
+        <span>{t('workspace_models.tooltip.source')}</span>
+        <strong>{t(`workspace_models.tooltip.sources.${source}`, {
+          defaultValue: source,
+        })}</strong>
       </div>
       <div className='workspace-model-health-tooltip-summary'>
         {t(`workspace_models.tooltip.summary.${summaryKey}`, {

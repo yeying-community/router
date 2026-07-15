@@ -99,6 +99,17 @@ type channelModelTestExecution struct {
 	Err                error
 }
 
+type channelHealthProbeContextKey struct{}
+
+func withChannelHealthProbeContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, channelHealthProbeContextKey{}, true)
+}
+
+func isChannelHealthProbeContext(ctx context.Context) bool {
+	value, _ := ctx.Value(channelHealthProbeContextKey{}).(bool)
+	return value
+}
+
 const (
 	channelModelTestModeBatch  = "batch"
 	channelModelTestModeSingle = "model"
@@ -368,6 +379,7 @@ func buildChannelModelTestResult(row model.ChannelModel, execution channelModelT
 		IsStream:      execution.IsStream,
 		LatencyMs:     execution.LatencyMs,
 		Message:       strings.TrimSpace(execution.Message),
+		Source:        "manual_test",
 	}
 	if result.UpstreamModel == "" {
 		result.UpstreamModel = result.Model
@@ -535,13 +547,20 @@ func runSingleChannelModelTestWithContextAndStream(ctx context.Context, channel 
 		if requestedStream != nil {
 			stream = *requestedStream
 		}
+		prompt := config.TestPrompt
+		maxTokens := 0
+		if isChannelHealthProbeContext(ctx) {
+			prompt = "1"
+			maxTokens = 1
+		}
 		execution := executeChannelTextModelTest(ctx, channel, endpoint, &relaymodel.GeneralOpenAIRequest{
 			Model: row.Model,
 			Messages: []relaymodel.Message{{
 				Role:    "user",
-				Content: config.TestPrompt,
+				Content: prompt,
 			}},
-			Stream: stream,
+			Stream:    stream,
+			MaxTokens: maxTokens,
 		})
 		return buildChannelModelTestResult(model.ChannelModel{
 			Model:         row.Model,
@@ -554,7 +573,13 @@ func runSingleChannelModelTestWithContextAndStream(ctx context.Context, channel 
 		if requestedStream != nil {
 			stream = *requestedStream
 		}
-		requestBody := buildResponsesTextModelTestRequestBody(row.Model, stream)
+		request := buildResponsesTextModelTestRequest(row.Model, stream)
+		if isChannelHealthProbeContext(ctx) {
+			request.Input = "1"
+			maxOutputTokens := 1
+			request.MaxOutputTokens = &maxOutputTokens
+		}
+		requestBody, _ := json.Marshal(request)
 		execution := executeChannelTextModelTestRawBodyWithRetry(
 			ctx,
 			channel,

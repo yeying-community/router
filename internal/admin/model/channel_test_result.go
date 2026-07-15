@@ -29,6 +29,7 @@ type ChannelTest struct {
 	Status              string `json:"status" gorm:"type:varchar(32);index"`
 	Supported           bool   `json:"supported" gorm:"not null;default:false"`
 	Message             string `json:"message,omitempty" gorm:"type:text"`
+	Source              string `json:"source,omitempty" gorm:"type:varchar(32);not null;default:'manual_test';index"`
 	LatencyMs           int64  `json:"latency_ms,omitempty" gorm:"bigint"`
 	ArtifactPath        string `json:"artifact_path,omitempty" gorm:"type:text;default:''"`
 	ArtifactName        string `json:"artifact_name,omitempty" gorm:"type:varchar(255);default:''"`
@@ -71,6 +72,7 @@ func NormalizeChannelTestRows(rows []ChannelTest) []ChannelTest {
 			Status:              NormalizeChannelTestStatus(row.Status),
 			Supported:           row.Supported && NormalizeChannelTestStatus(row.Status) == ChannelTestStatusSupported,
 			Message:             strings.TrimSpace(row.Message),
+			Source:              strings.TrimSpace(row.Source),
 			LatencyMs:           row.LatencyMs,
 			ArtifactPath:        strings.TrimSpace(row.ArtifactPath),
 			ArtifactName:        strings.TrimSpace(row.ArtifactName),
@@ -84,6 +86,9 @@ func NormalizeChannelTestRows(rows []ChannelTest) []ChannelTest {
 		}
 		if normalized.UpstreamModel == "" {
 			normalized.UpstreamModel = normalized.Model
+		}
+		if normalized.Source == "" {
+			normalized.Source = "manual_test"
 		}
 		if normalized.ChannelId == "" || normalized.Model == "" || normalized.Endpoint == "" {
 			continue
