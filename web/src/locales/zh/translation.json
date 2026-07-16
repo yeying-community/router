@@ -3467,7 +3467,7 @@
       "risks": { "title": "待处理风险", "view_details": "查看明细", "empty": "暂未发现待处理风险" },
       "channels": { "title": "渠道底线影响", "view_details": "查看渠道对账", "empty": "暂无渠道数据" },
       "trend": { "title": "近 7 天底线趋势" },
-      "channel_placeholder": "筛选渠道"
+      "channel_placeholder": "筛选渠道", "model_placeholder": "筛选模型"
     },
     "procurement_report": {
       "nav": "采购成本",

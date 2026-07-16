@@ -45,22 +45,30 @@ function BillingOverview() {
   const [health, setHealth] = useState({ status: 'ok', issues: [], critical_count: 0, warning_count: 0 });
   const [trend, setTrend] = useState([]);
   const [channelID, setChannelID] = useState('');
+  const [modelName, setModelName] = useState('');
+  const [modelOptions, setModelOptions] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     const range = recentRange();
     try {
-      const [reportResponse, healthResponse, trendResponse] = await Promise.all([
+      const [reportResponse, modelReportResponse, healthResponse, trendResponse] = await Promise.all([
         API.get('/api/v1/admin/billing/procurement-report', {
           params: { ...range, group_by: 'channel', cost_scope: 'all' },
         }),
+        API.get('/api/v1/admin/billing/procurement-report', {
+          params: { ...range, group_by: 'model', cost_scope: 'all' },
+        }),
         API.get('/api/v1/admin/billing/health'),
-        API.get('/api/v1/admin/billing/procurement-trend', { params: { ...range, channel_id: channelID } }),
+        API.get('/api/v1/admin/billing/procurement-trend', { params: { ...range, channel_id: channelID, model: modelName } }),
       ]);
       if (reportResponse.data?.success) {
         setReport(normalize(reportResponse.data.data));
       } else {
         showError(reportResponse.data?.message || t('billing.overview.load_failed'));
+      }
+      if (modelReportResponse.data?.success) {
+        setModelOptions((Array.isArray(modelReportResponse.data?.data?.items) ? modelReportResponse.data.data.items : []).map((item) => ({ key: item.dimension_key, value: item.dimension_key, text: item.dimension_key })));
       }
       if (healthResponse.data?.success) {
         setHealth(healthResponse.data.data || {});
@@ -71,7 +79,7 @@ function BillingOverview() {
     } finally {
       setLoading(false);
     }
-  }, [channelID, t]);
+  }, [channelID, modelName, t]);
 
   useEffect(() => {
     load().then();
@@ -95,10 +103,10 @@ function BillingOverview() {
 
   return (
     <div className='dashboard-container billing-overview-page'>
-      <AppFilterHeader
+        <AppFilterHeader
         breadcrumbs={[{ key: 'billing', label: t('header.billing') }, { key: 'billing-overview', label: t('billing.overview.title'), active: true }]}
         title={t('billing.overview.title')}
-        actions={<><AppSelect clearable options={report.items.map((item) => ({ key: item.dimension_key, value: item.dimension_key, text: item.dimension_key }))} value={channelID} placeholder={t('billing.overview.channel_placeholder')} onChange={(e, { value }) => setChannelID((value || '').toString())} /><AppButton className='router-page-button' color='blue' loading={loading} onClick={() => load().then()}>{t('common.refresh')}</AppButton></>}
+        actions={<><AppSelect clearable options={report.items.map((item) => ({ key: item.dimension_key, value: item.dimension_key, text: item.dimension_key }))} value={channelID} placeholder={t('billing.overview.channel_placeholder')} onChange={(e, { value }) => setChannelID((value || '').toString())} /><AppSelect clearable options={modelOptions} value={modelName} placeholder={t('billing.overview.model_placeholder')} onChange={(e, { value }) => setModelName((value || '').toString())} /><AppButton className='router-page-button' color='blue' loading={loading} onClick={() => load().then()}>{t('common.refresh')}</AppButton></>}
       />
       <AppSpin spinning={loading}>
         <AppSection className='billing-overview-section'>

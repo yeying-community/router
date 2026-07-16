@@ -3472,7 +3472,7 @@
       "risks": { "title": "Risks to handle", "view_details": "View details", "empty": "No pending risks" },
       "channels": { "title": "Channel floor impact", "view_details": "View reconciliation", "empty": "No channel data" },
       "trend": { "title": "7-day floor trend" },
-      "channel_placeholder": "Filter channel"
+      "channel_placeholder": "Filter channel", "model_placeholder": "Filter model"
     },
     "procurement_report": {
       "nav": "Procurement Cost",
