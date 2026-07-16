@@ -42,16 +42,18 @@ function BillingOverview() {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(() => normalize({}));
   const [health, setHealth] = useState({ status: 'ok', issues: [], critical_count: 0, warning_count: 0 });
+  const [trend, setTrend] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     const range = recentRange();
     try {
-      const [reportResponse, healthResponse] = await Promise.all([
+      const [reportResponse, healthResponse, trendResponse] = await Promise.all([
         API.get('/api/v1/admin/billing/procurement-report', {
           params: { ...range, group_by: 'channel', cost_scope: 'all' },
         }),
         API.get('/api/v1/admin/billing/health'),
+        API.get('/api/v1/admin/billing/procurement-trend', { params: range }),
       ]);
       if (reportResponse.data?.success) {
         setReport(normalize(reportResponse.data.data));
@@ -61,6 +63,7 @@ function BillingOverview() {
       if (healthResponse.data?.success) {
         setHealth(healthResponse.data.data || {});
       }
+      if (trendResponse.data?.success) setTrend(Array.isArray(trendResponse.data?.data?.items) ? trendResponse.data.data.items : []);
     } catch (error) {
       showError(error?.message || t('billing.overview.load_failed'));
     } finally {
@@ -116,6 +119,10 @@ function BillingOverview() {
             {topChannels.length === 0 ? <div className='billing-overview-empty'>{t('billing.overview.channels.empty')}</div> : topChannels.map((item) => <div className='billing-overview-channel' key={item.dimension_key}><span>{item.dimension_name || item.dimension_key}</span><strong>{item.cost_floor_triggered_count > 0 ? `${formatCount(item.cost_floor_triggered_count)} / ${formatCNY(item.cost_floor_triggered_amount)}` : formatCNY(item.gross_profit_base_amount)}</strong></div>)}
           </AppSection>
         </div>
+        <AppSection className='billing-overview-section'>
+          <div className='billing-overview-section-heading'><h2>{t('billing.overview.trend.title')}</h2></div>
+          <div className='billing-overview-trend'>{trend.map((item) => <div className='billing-overview-channel' key={item.day}><span>{item.day}</span><strong>{`${formatCount(item.cost_floor_triggered_count)} / ${formatCNY(item.cost_floor_triggered_amount)}`}</strong></div>)}</div>
+        </AppSection>
       </AppSpin>
     </div>
   );

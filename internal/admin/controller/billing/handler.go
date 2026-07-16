@@ -591,6 +591,17 @@ func GetProcurementReport(c *gin.Context) {
 	})
 }
 
+func GetProcurementTrend(c *gin.Context) {
+	startAt := parseBillingReportTimestamp(c.Query("start_at"))
+	endAt := parseBillingReportTimestamp(c.Query("end_at"))
+	rows, err := model.ListProcurementTrendWithDB(model.LOG_DB, startAt, endAt)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "加载计费趋势失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"items": rows}})
+}
+
 func GetProcurementBatches(c *gin.Context) {
 	rows, err := model.ListProcurementBatchesWithDB(model.DB, 1000)
 	if err != nil {
