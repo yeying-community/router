@@ -32,6 +32,8 @@ const normalize = (payload) => ({
     procurement_cost_base_amount: Number(item?.procurement_cost_base_amount || 0),
     gross_profit_base_amount: Number(item?.gross_profit_base_amount || 0),
     gross_margin: Number(item?.gross_margin || 0),
+    cost_floor_triggered_count: Number(item?.cost_floor_triggered_count || 0),
+    cost_floor_triggered_amount: Number(item?.cost_floor_triggered_amount || 0),
     procurement_cost_base_per_unit: Number(item?.procurement_cost_base_per_unit || 0),
   })),
 });
@@ -233,6 +235,13 @@ function BillingPricingAnalysis() {
       key: 'decision',
       width: 130,
       render: (_, row) => row.pricing_matrix?.cost_floor_triggered ? <AppTag color='red'>{t('billing.pricing_analysis.decision.cost_floor')}</AppTag> : <AppTag color='green'>{t('billing.pricing_analysis.decision.current_price')}</AppTag>,
+    },
+    {
+      title: t('billing.pricing_analysis.columns.floor_impact'),
+      key: 'floor_impact',
+      width: 130,
+      align: 'right',
+      render: (_, row) => row.cost_floor_triggered_count > 0 ? `${formatCount(row.cost_floor_triggered_count)} / ${formatCNY(row.cost_floor_triggered_amount)}` : '-',
     },
     {
       title: t('billing.pricing_analysis.columns.details'),

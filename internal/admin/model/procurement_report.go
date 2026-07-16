@@ -43,6 +43,8 @@ type ProcurementReportItem struct {
 	GrossMargin                  float64 `json:"gross_margin" gorm:"-"`
 	ActualCostBaseAmount         float64 `json:"actual_cost_base_amount" gorm:"column:actual_cost_base_amount"`
 	EstimatedCostBaseAmount      float64 `json:"estimated_cost_base_amount" gorm:"column:estimated_cost_base_amount"`
+	CostFloorTriggeredCount      int64   `json:"cost_floor_triggered_count" gorm:"column:cost_floor_triggered_count"`
+	CostFloorTriggeredAmount     float64 `json:"cost_floor_triggered_amount" gorm:"column:cost_floor_triggered_amount"`
 	ZeroCostRequestCount         int64   `json:"zero_cost_request_count" gorm:"column:zero_cost_request_count"`
 	FirstRequestAt               int64   `json:"first_request_at" gorm:"column:first_request_at"`
 	LastRequestAt                int64   `json:"last_request_at" gorm:"column:last_request_at"`
@@ -67,6 +69,8 @@ type ProcurementReportSummary struct {
 	ProcurementCostBaseAmount    float64                 `json:"procurement_cost_base_amount"`
 	GrossProfitBaseAmount        float64                 `json:"gross_profit_base_amount"`
 	GrossMargin                  float64                 `json:"gross_margin"`
+	CostFloorTriggeredCount      int64                   `json:"cost_floor_triggered_count"`
+	CostFloorTriggeredAmount     float64                 `json:"cost_floor_triggered_amount"`
 }
 
 func NormalizeProcurementReportCostScope(value string) string {
@@ -143,6 +147,8 @@ func ListProcurementReportWithDB(db *gorm.DB, query ProcurementReportQuery) (Pro
 			COALESCE(SUM(CASE WHEN billing_procurement_cost_source IN ? THEN billing_gross_profit_base_amount ELSE 0 END), 0) AS gross_profit_base_amount,
 			COALESCE(SUM(CASE WHEN billing_procurement_cost_source = ? THEN billing_procurement_cost_base_amount ELSE 0 END), 0) AS actual_cost_base_amount,
 			COALESCE(SUM(CASE WHEN billing_procurement_cost_source = ? THEN billing_procurement_cost_base_amount ELSE 0 END), 0) AS estimated_cost_base_amount,
+			COALESCE(SUM(CASE WHEN billing_cost_floor_triggered = TRUE THEN 1 ELSE 0 END), 0) AS cost_floor_triggered_count,
+			COALESCE(SUM(CASE WHEN billing_cost_floor_triggered = TRUE THEN billing_cost_floor_base_amount ELSE 0 END), 0) AS cost_floor_triggered_amount,
 			COALESCE(SUM(CASE WHEN billing_procurement_cost_source = ? THEN 1 ELSE 0 END), 0) AS zero_cost_request_count,
 			COALESCE(MIN(created_at), 0) AS first_request_at,
 			COALESCE(MAX(created_at), 0) AS last_request_at
@@ -176,6 +182,8 @@ func ListProcurementReportWithDB(db *gorm.DB, query ProcurementReportQuery) (Pro
 		summary.UnconfiguredSellBaseAmount += rows[index].UnconfiguredSellBaseAmount
 		summary.ProcurementCostBaseAmount += rows[index].ProcurementCostBaseAmount
 		summary.GrossProfitBaseAmount += rows[index].GrossProfitBaseAmount
+		summary.CostFloorTriggeredCount += rows[index].CostFloorTriggeredCount
+		summary.CostFloorTriggeredAmount += rows[index].CostFloorTriggeredAmount
 	}
 	if summary.ConfiguredSellBaseAmount > 0 {
 		summary.GrossMargin = summary.GrossProfitBaseAmount / summary.ConfiguredSellBaseAmount
