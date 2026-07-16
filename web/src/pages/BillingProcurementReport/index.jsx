@@ -412,7 +412,7 @@ function BillingProcurementReport() {
     <div className='dashboard-container billing-procurement-report-page'>
       <AppFilterHeader
         breadcrumbs={[
-          { key: 'operation', label: t('header.platform_operation') },
+          { key: 'billing', label: t('header.billing') },
           {
             key: 'procurement-report',
             label: t('billing.procurement_report.title'),

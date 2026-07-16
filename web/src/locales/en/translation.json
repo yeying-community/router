@@ -21,6 +21,7 @@
     "business_operation": "Business Operations",
     "business_flow": "Business Flow",
     "platform_operation": "Platform Operations",
+    "billing": "Billing",
     "config": "Config",
     "package": "Package",
     "log": "Log",
@@ -3438,6 +3439,35 @@
     }
   },
   "billing": {
+    "channel_reconciliation": {
+      "nav": "Channel Reconciliation",
+      "title": "Channel Reconciliation",
+      "load_failed": "Failed to load channel reconciliation",
+      "note": "Shows Router consumption from the last 7 days and the procurement batch status for each channel. Open channel billing for batch details.",
+      "empty": "No channel reconciliation data",
+      "batch_summary": "{{count}} batches, {{active}} active",
+      "incomplete": "Incomplete cost {{count}}",
+      "load_error": "Batch load failed",
+      "columns": { "channel": "Channel", "requests": "Requests", "yyc": "YYC consumed", "revenue": "Revenue CNY", "cost": "Procurement CNY", "profit": "Profit CNY", "margin": "Margin", "batches": "Procurement batches" }
+    },
+    "pricing_analysis": {
+      "nav": "Pricing Analysis",
+      "title": "Pricing Analysis",
+      "load_failed": "Failed to load pricing analysis",
+      "note": "Showing models with requests in the last 7 days. Formal margin uses actual or explicitly zero cost only; models with incomplete cost coverage are not treated as healthy.",
+      "empty": "No model billing data",
+      "states": { "healthy": "Healthy", "low_margin": "Low margin", "loss": "Below cost", "unknown": "Insufficient data" },
+      "columns": { "model": "Model", "state": "Pricing state", "requests": "Requests", "router_yyc": "YYC consumed", "sell": "Sell CNY", "cost": "Cost CNY", "profit": "Profit CNY", "margin": "Margin", "cost_coverage": "Cost coverage", "details": "Details", "view": "View" }
+    },
+    "overview": {
+      "nav": "Business Overview",
+      "title": "Billing Business Overview",
+      "load_failed": "Failed to load business data",
+      "metrics": { "revenue": "Revenue CNY", "cost": "Procurement Cost CNY", "profit": "Gross Profit CNY", "margin": "Gross Margin", "yyc": "Router YYC Consumed", "requests": "Requests" },
+      "confidence": { "title": "Cost data confidence", "coverage": "Actual cost coverage {{value}}", "detail": "Estimated {{estimated}}, pending {{pending}}, unconfigured {{unconfigured}}" },
+      "risks": { "title": "Risks to handle", "view_details": "View details", "empty": "No pending risks" },
+      "channels": { "title": "Channel gross profit", "view_details": "View reconciliation", "empty": "No channel data" }
+    },
     "procurement_report": {
       "nav": "Procurement Cost",
       "title": "Procurement Cost Report",

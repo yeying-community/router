@@ -525,6 +525,20 @@ func ListChannelProcurementBatchesByChannelIDWithDB(db *gorm.DB, channelID strin
 	return rows, nil
 }
 
+func ListProcurementBatchesWithDB(db *gorm.DB, limit int) ([]ChannelProcurementBatch, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database handle is nil")
+	}
+	if limit <= 0 {
+		limit = 1000
+	}
+	rows := make([]ChannelProcurementBatch, 0, limit)
+	if err := db.Order("created_at desc").Limit(limit).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
 func ListChannelProcurementBatchesBySourceSnapshotIDWithDB(db *gorm.DB, snapshotID string) ([]ChannelProcurementBatch, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database handle is nil")

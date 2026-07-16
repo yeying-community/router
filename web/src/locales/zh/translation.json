@@ -21,6 +21,7 @@
     "business_operation": "业务运营",
     "business_flow": "业务流水",
     "platform_operation": "平台运营",
+    "billing": "计费",
     "config": "配置",
     "package": "套餐",
     "log": "日志",
@@ -3433,6 +3434,35 @@
     }
   },
   "billing": {
+    "channel_reconciliation": {
+      "nav": "渠道对账",
+      "title": "渠道对账",
+      "load_failed": "渠道对账加载失败",
+      "note": "默认展示最近 7 天的 Router 消费，并读取各渠道采购批次状态。批次明细可进入渠道账务查看。",
+      "empty": "暂无渠道对账数据",
+      "batch_summary": "{{count}} 个批次，{{active}} 个有效",
+      "incomplete": "成本未完整 {{count}}",
+      "load_error": "批次读取失败",
+      "columns": { "channel": "渠道", "requests": "请求数", "yyc": "消耗 YYC", "revenue": "收入 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "batches": "采购批次" }
+    },
+    "pricing_analysis": {
+      "nav": "定价分析",
+      "title": "定价分析",
+      "load_failed": "定价分析加载失败",
+      "note": "默认展示最近 7 天有请求的模型。正式毛利只基于真实或明确零成本，成本覆盖不足的模型不会被判定为正常盈利。",
+      "empty": "暂无模型计费数据",
+      "states": { "healthy": "正常", "low_margin": "低毛利", "loss": "低于成本", "unknown": "数据不足" },
+      "columns": { "model": "模型", "state": "价格状态", "requests": "请求数", "router_yyc": "消耗 YYC", "sell": "售价 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "cost_coverage": "成本覆盖", "details": "明细", "view": "查看" }
+    },
+    "overview": {
+      "nav": "经营总览",
+      "title": "计费经营总览",
+      "load_failed": "经营数据加载失败",
+      "metrics": { "revenue": "收入 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "yyc": "Router 消耗 YYC", "requests": "请求数" },
+      "confidence": { "title": "成本数据可信度", "coverage": "真实成本覆盖 {{value}}", "detail": "估算 {{estimated}}，待归因 {{pending}}，未配置 {{unconfigured}}" },
+      "risks": { "title": "待处理风险", "view_details": "查看明细", "empty": "暂未发现待处理风险" },
+      "channels": { "title": "渠道毛利排行", "view_details": "查看渠道对账", "empty": "暂无渠道数据" }
+    },
     "procurement_report": {
       "nav": "采购成本",
       "title": "采购成本报表",

@@ -591,6 +591,15 @@ func GetProcurementReport(c *gin.Context) {
 	})
 }
 
+func GetProcurementBatches(c *gin.Context) {
+	rows, err := model.ListProcurementBatchesWithDB(model.DB, 1000)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "加载采购批次失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"items": rows, "total": len(rows)}})
+}
+
 func GetPublicBillingCurrencies(c *gin.Context) {
 	rows, err := model.ListBillingCurrencies()
 	if err != nil {
