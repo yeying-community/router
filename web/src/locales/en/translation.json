@@ -3467,10 +3467,10 @@
       "nav": "Business Overview",
       "title": "Billing Business Overview",
       "load_failed": "Failed to load business data",
-      "metrics": { "revenue": "Revenue CNY", "cost": "Procurement Cost CNY", "profit": "Gross Profit CNY", "margin": "Gross Margin", "yyc": "Router YYC Consumed", "requests": "Requests" },
+      "metrics": { "revenue": "Revenue CNY", "cost": "Procurement Cost CNY", "profit": "Gross Profit CNY", "margin": "Gross Margin", "yyc": "Router YYC Consumed", "requests": "Requests", "floor_triggered": "Floor triggers", "floor_amount": "Floor impact CNY" },
       "confidence": { "title": "Cost data confidence", "coverage": "Actual cost coverage {{value}}", "detail": "Estimated {{estimated}}, pending {{pending}}, unconfigured {{unconfigured}}" },
       "risks": { "title": "Risks to handle", "view_details": "View details", "empty": "No pending risks" },
-      "channels": { "title": "Channel gross profit", "view_details": "View reconciliation", "empty": "No channel data" }
+      "channels": { "title": "Channel floor impact", "view_details": "View reconciliation", "empty": "No channel data" }
     },
     "procurement_report": {
       "nav": "Procurement Cost",

@@ -32,6 +32,8 @@ const normalize = (payload) => ({
   estimated_cost_request_count: Number(payload?.estimated_cost_request_count || 0),
   pending_cost_request_count: Number(payload?.pending_cost_request_count || 0),
   unconfigured_cost_request_count: Number(payload?.unconfigured_cost_request_count || 0),
+  cost_floor_triggered_count: Number(payload?.cost_floor_triggered_count || 0),
+  cost_floor_triggered_amount: Number(payload?.cost_floor_triggered_amount || 0),
   items: Array.isArray(payload?.items) ? payload.items : [],
 });
 
@@ -77,6 +79,8 @@ function BillingOverview() {
     [t('billing.overview.metrics.margin'), formatPercent(report.gross_margin)],
     [t('billing.overview.metrics.yyc'), formatCount(report.router_consumed_yyc)],
     [t('billing.overview.metrics.requests'), formatCount(report.request_count)],
+    [t('billing.overview.metrics.floor_triggered'), formatCount(report.cost_floor_triggered_count)],
+    [t('billing.overview.metrics.floor_amount'), formatCNY(report.cost_floor_triggered_amount)],
   ];
   const knownCostCount = report.configured_cost_request_count;
   const totalCostStateCount = knownCostCount + report.estimated_cost_request_count + report.pending_cost_request_count + report.unconfigured_cost_request_count;
@@ -109,7 +113,7 @@ function BillingOverview() {
           </AppSection>
           <AppSection className='billing-overview-section'>
             <div className='billing-overview-section-heading'><h2>{t('billing.overview.channels.title')}</h2><Link to='/admin/billing/procurement-report'>{t('billing.overview.channels.view_details')}</Link></div>
-            {topChannels.length === 0 ? <div className='billing-overview-empty'>{t('billing.overview.channels.empty')}</div> : topChannels.map((item) => <div className='billing-overview-channel' key={item.dimension_key}><span>{item.dimension_name || item.dimension_key}</span><strong>{formatCNY(item.gross_profit_base_amount)}</strong></div>)}
+            {topChannels.length === 0 ? <div className='billing-overview-empty'>{t('billing.overview.channels.empty')}</div> : topChannels.map((item) => <div className='billing-overview-channel' key={item.dimension_key}><span>{item.dimension_name || item.dimension_key}</span><strong>{item.cost_floor_triggered_count > 0 ? `${formatCount(item.cost_floor_triggered_count)} / ${formatCNY(item.cost_floor_triggered_amount)}` : formatCNY(item.gross_profit_base_amount)}</strong></div>)}
           </AppSection>
         </div>
       </AppSpin>

@@ -3462,10 +3462,10 @@
       "nav": "经营总览",
       "title": "计费经营总览",
       "load_failed": "经营数据加载失败",
-      "metrics": { "revenue": "收入 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "yyc": "Router 消耗 YYC", "requests": "请求数" },
+      "metrics": { "revenue": "收入 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "yyc": "Router 消耗 YYC", "requests": "请求数", "floor_triggered": "底线触发次数", "floor_amount": "底线影响 CNY" },
       "confidence": { "title": "成本数据可信度", "coverage": "真实成本覆盖 {{value}}", "detail": "估算 {{estimated}}，待归因 {{pending}}，未配置 {{unconfigured}}" },
       "risks": { "title": "待处理风险", "view_details": "查看明细", "empty": "暂未发现待处理风险" },
-      "channels": { "title": "渠道毛利排行", "view_details": "查看渠道对账", "empty": "暂无渠道数据" }
+      "channels": { "title": "渠道底线影响", "view_details": "查看渠道对账", "empty": "暂无渠道数据" }
     },
     "procurement_report": {
       "nav": "采购成本",
