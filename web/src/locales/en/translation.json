@@ -3459,7 +3459,8 @@
       },
       "group_by": {
         "channel": "By channel",
-        "model": "By model"
+        "model": "By model",
+        "endpoint": "By endpoint"
       },
       "cost_scope": {
         "all": "All requests",
@@ -3471,6 +3472,8 @@
       "summary": {
         "request_count": "Requests",
         "request_count_hint": "Billable requests in the selected range",
+        "router_consumed_yyc": "Router YYC consumed",
+        "router_consumed_yyc_hint": "YYC deducted after final settlement",
         "sell_amount": "Sell amount",
         "sell_amount_hint": "Includes configured and unconfigured cost requests",
         "procurement_cost": "Procurement cost",
@@ -3484,7 +3487,9 @@
       "columns": {
         "channel": "Channel",
         "model": "Model",
+        "endpoint": "Endpoint",
         "request_count": "Requests",
+        "router_consumed_yyc": "YYC consumed",
         "configured_count": "Configured cost",
         "unconfigured_count": "Unconfigured cost",
         "related_channels": "Related channels",

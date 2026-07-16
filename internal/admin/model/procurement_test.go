@@ -932,7 +932,9 @@ func TestListProcurementReportWithDB(t *testing.T) {
 			Type:                             LogTypeConsume,
 			CreatedAt:                        100,
 			ChannelId:                        "channel-1",
+			UpstreamEndpoint:                 "/v1/chat/completions",
 			ModelName:                        "gpt-5",
+			BillingChargeAmount:              100,
 			BillingSellBaseAmount:            10,
 			BillingProcurementCostBaseAmount: 4,
 			BillingProcurementCostSource:     ProcurementCostSourceActual,
@@ -943,7 +945,9 @@ func TestListProcurementReportWithDB(t *testing.T) {
 			Type:                         LogTypeConsume,
 			CreatedAt:                    120,
 			ChannelId:                    "channel-1",
+			UpstreamEndpoint:             "/v1/chat/completions",
 			ModelName:                    "gpt-5",
+			BillingChargeAmount:          80,
 			BillingSellBaseAmount:        8,
 			BillingProcurementCostSource: ProcurementCostSourceNone,
 		},
@@ -952,7 +956,9 @@ func TestListProcurementReportWithDB(t *testing.T) {
 			Type:                         LogTypeConsume,
 			CreatedAt:                    130,
 			ChannelId:                    "channel-2",
+			UpstreamEndpoint:             "/v1/responses",
 			ModelName:                    "gpt-5-mini",
+			BillingChargeAmount:          50,
 			BillingSellBaseAmount:        5,
 			BillingProcurementCostSource: ProcurementCostSourceZeroCost,
 			BillingGrossProfitBaseAmount: 5,
@@ -996,6 +1002,21 @@ func TestListProcurementReportWithDB(t *testing.T) {
 	}
 	if report.GrossMargin != 11.0/15.0 {
 		t.Fatalf("GrossMargin=%v, want %v", report.GrossMargin, 11.0/15.0)
+	}
+	if report.RouterConsumedYYC != 230 {
+		t.Fatalf("RouterConsumedYYC=%d, want 230", report.RouterConsumedYYC)
+	}
+
+	endpointReport, err := ListProcurementReportWithDB(db, ProcurementReportQuery{
+		StartAt: 90,
+		EndAt:   140,
+		GroupBy: ProcurementReportGroupByEndpoint,
+	})
+	if err != nil {
+		t.Fatalf("list endpoint report: %v", err)
+	}
+	if len(endpointReport.Items) != 2 {
+		t.Fatalf("endpoint report items=%d, want 2", len(endpointReport.Items))
 	}
 
 	unconfiguredReport, err := ListProcurementReportWithDB(db, ProcurementReportQuery{

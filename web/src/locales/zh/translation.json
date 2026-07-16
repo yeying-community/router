@@ -3454,7 +3454,8 @@
       },
       "group_by": {
         "channel": "按渠道",
-        "model": "按模型"
+        "model": "按模型",
+        "endpoint": "按端点"
       },
       "cost_scope": {
         "all": "全部请求",
@@ -3466,6 +3467,8 @@
       "summary": {
         "request_count": "请求数",
         "request_count_hint": "当前时间范围内的计费请求",
+        "router_consumed_yyc": "Router 消耗 YYC",
+        "router_consumed_yyc_hint": "用户最终结算扣除的 YYC",
         "sell_amount": "用户侧售价",
         "sell_amount_hint": "包含已配置和未配置成本请求",
         "procurement_cost": "采购成本",
@@ -3479,7 +3482,9 @@
       "columns": {
         "channel": "渠道",
         "model": "模型",
+        "endpoint": "端点",
         "request_count": "请求数",
+        "router_consumed_yyc": "消耗 YYC",
         "configured_count": "已配置成本",
         "unconfigured_count": "未配置成本",
         "related_channels": "关联渠道",

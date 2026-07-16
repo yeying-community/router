@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	ProcurementReportGroupByChannel = "channel"
-	ProcurementReportGroupByModel   = "model"
+	ProcurementReportGroupByChannel  = "channel"
+	ProcurementReportGroupByModel    = "model"
+	ProcurementReportGroupByEndpoint = "endpoint"
 )
 
 const (
@@ -31,6 +32,9 @@ type ProcurementReportItem struct {
 	RequestCount                 int64   `json:"request_count" gorm:"column:request_count"`
 	ConfiguredCostRequestCount   int64   `json:"configured_cost_request_count" gorm:"column:configured_cost_request_count"`
 	UnconfiguredCostRequestCount int64   `json:"unconfigured_cost_request_count" gorm:"column:unconfigured_cost_request_count"`
+	EstimatedCostRequestCount    int64   `json:"estimated_cost_request_count" gorm:"column:estimated_cost_request_count"`
+	PendingCostRequestCount      int64   `json:"pending_cost_request_count" gorm:"column:pending_cost_request_count"`
+	RouterConsumedYYC            int64   `json:"router_consumed_yyc" gorm:"column:router_consumed_yyc"`
 	SellBaseAmount               float64 `json:"sell_base_amount" gorm:"column:sell_base_amount"`
 	ConfiguredSellBaseAmount     float64 `json:"configured_sell_base_amount" gorm:"column:configured_sell_base_amount"`
 	UnconfiguredSellBaseAmount   float64 `json:"unconfigured_sell_base_amount" gorm:"column:unconfigured_sell_base_amount"`
@@ -54,6 +58,9 @@ type ProcurementReportSummary struct {
 	RequestCount                 int64                   `json:"request_count"`
 	ConfiguredCostRequestCount   int64                   `json:"configured_cost_request_count"`
 	UnconfiguredCostRequestCount int64                   `json:"unconfigured_cost_request_count"`
+	EstimatedCostRequestCount    int64                   `json:"estimated_cost_request_count"`
+	PendingCostRequestCount      int64                   `json:"pending_cost_request_count"`
+	RouterConsumedYYC            int64                   `json:"router_consumed_yyc"`
 	SellBaseAmount               float64                 `json:"sell_base_amount"`
 	ConfiguredSellBaseAmount     float64                 `json:"configured_sell_base_amount"`
 	UnconfiguredSellBaseAmount   float64                 `json:"unconfigured_sell_base_amount"`
@@ -75,6 +82,8 @@ func NormalizeProcurementReportGroupBy(value string) string {
 	switch strings.TrimSpace(strings.ToLower(value)) {
 	case ProcurementReportGroupByModel:
 		return ProcurementReportGroupByModel
+	case ProcurementReportGroupByEndpoint:
+		return ProcurementReportGroupByEndpoint
 	case ProcurementReportGroupByChannel, "":
 		return ProcurementReportGroupByChannel
 	default:
@@ -86,6 +95,8 @@ func procurementReportDimensionExpression(groupBy string) string {
 	switch NormalizeProcurementReportGroupBy(groupBy) {
 	case ProcurementReportGroupByModel:
 		return "COALESCE(NULLIF(TRIM(model_name), ''), '-')"
+	case ProcurementReportGroupByEndpoint:
+		return "COALESCE(NULLIF(TRIM(upstream_endpoint), ''), '-')"
 	default:
 		return "COALESCE(NULLIF(TRIM(channel_id), ''), '-')"
 	}
@@ -115,13 +126,16 @@ func ListProcurementReportWithDB(db *gorm.DB, query ProcurementReportQuery) (Pro
 
 	dimensionExpr := procurementReportDimensionExpression(groupBy)
 	rows := make([]ProcurementReportItem, 0)
-	configuredSources := []string{ProcurementCostSourceActual, ProcurementCostSourceEstimated, ProcurementCostSourceZeroCost}
+	configuredSources := []string{ProcurementCostSourceActual, ProcurementCostSourceZeroCost}
 	queryDB := db.Table(EventLogsTableName).
 		Select(`
 			`+dimensionExpr+` AS dimension_key,
 			COUNT(1) AS request_count,
 			COALESCE(SUM(CASE WHEN billing_procurement_cost_source IN ? THEN 1 ELSE 0 END), 0) AS configured_cost_request_count,
 			COALESCE(SUM(CASE WHEN billing_procurement_cost_source NOT IN ? OR COALESCE(NULLIF(TRIM(billing_procurement_cost_source), ''), '') = '' THEN 1 ELSE 0 END), 0) AS unconfigured_cost_request_count,
+			COALESCE(SUM(CASE WHEN billing_procurement_cost_source = ? THEN 1 ELSE 0 END), 0) AS estimated_cost_request_count,
+			COALESCE(SUM(CASE WHEN billing_procurement_cost_source = ? THEN 1 ELSE 0 END), 0) AS pending_cost_request_count,
+			COALESCE(SUM(billing_charge_amount), 0) AS router_consumed_yyc,
 			COALESCE(SUM(billing_sell_base_amount), 0) AS sell_base_amount,
 			COALESCE(SUM(CASE WHEN billing_procurement_cost_source IN ? THEN billing_sell_base_amount ELSE 0 END), 0) AS configured_sell_base_amount,
 			COALESCE(SUM(CASE WHEN billing_procurement_cost_source NOT IN ? OR COALESCE(NULLIF(TRIM(billing_procurement_cost_source), ''), '') = '' THEN billing_sell_base_amount ELSE 0 END), 0) AS unconfigured_sell_base_amount,
@@ -132,7 +146,7 @@ func ListProcurementReportWithDB(db *gorm.DB, query ProcurementReportQuery) (Pro
 			COALESCE(SUM(CASE WHEN billing_procurement_cost_source = ? THEN 1 ELSE 0 END), 0) AS zero_cost_request_count,
 			COALESCE(MIN(created_at), 0) AS first_request_at,
 			COALESCE(MAX(created_at), 0) AS last_request_at
-		`, configuredSources, configuredSources, configuredSources, configuredSources, configuredSources, configuredSources, ProcurementCostSourceActual, ProcurementCostSourceEstimated, ProcurementCostSourceZeroCost).
+		`, configuredSources, configuredSources, ProcurementCostSourceEstimated, "pending", configuredSources, configuredSources, configuredSources, configuredSources, ProcurementCostSourceActual, ProcurementCostSourceEstimated, ProcurementCostSourceZeroCost).
 		Where("type = ? AND created_at BETWEEN ? AND ?", LogTypeConsume, query.StartAt, query.EndAt)
 	if summary.GroupID != "" {
 		queryDB = queryDB.Where("group_id = ?", summary.GroupID)
@@ -154,6 +168,9 @@ func ListProcurementReportWithDB(db *gorm.DB, query ProcurementReportQuery) (Pro
 		summary.RequestCount += rows[index].RequestCount
 		summary.ConfiguredCostRequestCount += rows[index].ConfiguredCostRequestCount
 		summary.UnconfiguredCostRequestCount += rows[index].UnconfiguredCostRequestCount
+		summary.EstimatedCostRequestCount += rows[index].EstimatedCostRequestCount
+		summary.PendingCostRequestCount += rows[index].PendingCostRequestCount
+		summary.RouterConsumedYYC += rows[index].RouterConsumedYYC
 		summary.SellBaseAmount += rows[index].SellBaseAmount
 		summary.ConfiguredSellBaseAmount += rows[index].ConfiguredSellBaseAmount
 		summary.UnconfiguredSellBaseAmount += rows[index].UnconfiguredSellBaseAmount
