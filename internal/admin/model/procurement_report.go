@@ -80,17 +80,35 @@ type ProcurementTrendItem struct {
 	CostFloorTriggeredAmount float64 `json:"cost_floor_triggered_amount" gorm:"column:cost_floor_triggered_amount"`
 }
 
-func ListProcurementTrendWithDB(db *gorm.DB, startAt, endAt int64) ([]ProcurementTrendItem, error) {
+type ProcurementTrendQuery struct {
+	StartAt   int64
+	EndAt     int64
+	GroupID   string
+	ChannelID string
+	Model     string
+}
+
+func ListProcurementTrendWithDB(db *gorm.DB, query ProcurementTrendQuery) ([]ProcurementTrendItem, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database handle is nil")
 	}
 	rows := make([]ProcurementTrendItem, 0)
-	err := db.Table(EventLogsTableName).Select(`
+	dbQuery := db.Table(EventLogsTableName).Select(`
 		TO_CHAR(TO_TIMESTAMP(created_at), 'YYYY-MM-DD') AS day,
 		COUNT(1) AS request_count,
 		COALESCE(SUM(CASE WHEN billing_cost_floor_triggered = TRUE THEN 1 ELSE 0 END), 0) AS cost_floor_triggered_count,
 		COALESCE(SUM(CASE WHEN billing_cost_floor_triggered = TRUE THEN billing_cost_floor_base_amount ELSE 0 END), 0) AS cost_floor_triggered_amount
-	`).Where("type = ? AND created_at BETWEEN ? AND ?", LogTypeConsume, startAt, endAt).Group("day").Order("day ASC").Scan(&rows).Error
+	`).Where("type = ? AND created_at BETWEEN ? AND ?", LogTypeConsume, query.StartAt, query.EndAt)
+	if strings.TrimSpace(query.GroupID) != "" {
+		dbQuery = dbQuery.Where("group_id = ?", strings.TrimSpace(query.GroupID))
+	}
+	if strings.TrimSpace(query.ChannelID) != "" {
+		dbQuery = dbQuery.Where("channel_id = ?", strings.TrimSpace(query.ChannelID))
+	}
+	if strings.TrimSpace(query.Model) != "" {
+		dbQuery = dbQuery.Where("model_name = ?", strings.TrimSpace(query.Model))
+	}
+	err := dbQuery.Group("day").Order("day ASC").Scan(&rows).Error
 	return rows, err
 }
 

@@ -3471,7 +3471,8 @@
       "confidence": { "title": "Cost data confidence", "coverage": "Actual cost coverage {{value}}", "detail": "Estimated {{estimated}}, pending {{pending}}, unconfigured {{unconfigured}}" },
       "risks": { "title": "Risks to handle", "view_details": "View details", "empty": "No pending risks" },
       "channels": { "title": "Channel floor impact", "view_details": "View reconciliation", "empty": "No channel data" },
-      "trend": { "title": "7-day floor trend" }
+      "trend": { "title": "7-day floor trend" },
+      "channel_placeholder": "Filter channel"
     },
     "procurement_report": {
       "nav": "Procurement Cost",
