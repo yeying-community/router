@@ -3454,10 +3454,14 @@
       "nav": "Pricing Analysis",
       "title": "Pricing Analysis",
       "load_failed": "Failed to load pricing analysis",
+      "group_placeholder": "Filter group",
       "note": "Showing models with requests in the last 7 days. Formal margin uses actual or explicitly zero cost only; models with incomplete cost coverage are not treated as healthy.",
       "empty": "No model billing data",
+      "mixed": "Multiple channels",
       "states": { "healthy": "Healthy", "low_margin": "Low margin", "loss": "Below cost", "unknown": "Insufficient data" },
-      "columns": { "model": "Model", "state": "Pricing state", "requests": "Requests", "router_yyc": "YYC consumed", "sell": "Sell CNY", "cost": "Cost CNY", "profit": "Profit CNY", "margin": "Margin", "cost_coverage": "Cost coverage", "details": "Details", "view": "View" }
+      "cost_states": { "actual_available": "Actual cost available", "estimated_only": "Estimated only", "pending": "Cost pending", "none": "Cost not configured", "unit_mismatch": "Unit mismatch", "currency_mismatch": "Currency mismatch" },
+      "decision": { "cost_floor": "Cost floor triggered", "current_price": "Current price usable" },
+      "columns": { "model": "Model", "state": "Pricing state", "requests": "Requests", "router_yyc": "YYC consumed", "sell": "Sell CNY", "official_price": "Official price", "current_price": "Current price", "ratio": "Group ratio", "cost": "Cost CNY", "profit": "Profit CNY", "margin": "Margin", "cost_coverage": "Cost coverage", "cost_state": "Cost state", "cost_unit": "Procurement unit cost", "selected_price": "Cost-floor sell", "decision": "Price decision", "details": "Details", "view": "View" }
     },
     "overview": {
       "nav": "Business Overview",

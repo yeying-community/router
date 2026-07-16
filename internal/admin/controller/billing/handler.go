@@ -600,6 +600,20 @@ func GetProcurementBatches(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"items": rows, "total": len(rows)}})
 }
 
+func GetPricingMatrix(c *gin.Context) {
+	rows, err := model.ListPricingMatrixWithDB(model.DB, model.PricingMatrixQuery{
+		GroupID:  c.Query("group_id"),
+		Provider: c.Query("provider"),
+		Model:    c.Query("model"),
+		Endpoint: c.Query("endpoint"),
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "加载价格矩阵失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"items": rows, "total": len(rows)}})
+}
+
 func GetPublicBillingCurrencies(c *gin.Context) {
 	rows, err := model.ListBillingCurrencies()
 	if err != nil {

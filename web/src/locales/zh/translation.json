@@ -3449,10 +3449,14 @@
       "nav": "定价分析",
       "title": "定价分析",
       "load_failed": "定价分析加载失败",
+      "group_placeholder": "筛选分组",
       "note": "默认展示最近 7 天有请求的模型。正式毛利只基于真实或明确零成本，成本覆盖不足的模型不会被判定为正常盈利。",
       "empty": "暂无模型计费数据",
+      "mixed": "多渠道",
       "states": { "healthy": "正常", "low_margin": "低毛利", "loss": "低于成本", "unknown": "数据不足" },
-      "columns": { "model": "模型", "state": "价格状态", "requests": "请求数", "router_yyc": "消耗 YYC", "sell": "售价 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "cost_coverage": "成本覆盖", "details": "明细", "view": "查看" }
+      "cost_states": { "actual_available": "真实成本可用", "estimated_only": "仅估算成本", "pending": "成本待归因", "none": "成本未配置", "unit_mismatch": "单位不匹配", "currency_mismatch": "币种不匹配" },
+      "decision": { "cost_floor": "成本底线触发", "current_price": "当前售价可用" },
+      "columns": { "model": "模型", "state": "价格状态", "requests": "请求数", "router_yyc": "消耗 YYC", "sell": "售价 CNY", "official_price": "官方价格", "current_price": "当前价格", "ratio": "分组倍率", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "cost_coverage": "成本覆盖", "cost_state": "成本状态", "cost_unit": "采购单位成本", "selected_price": "成本底线售价", "decision": "价格决策", "details": "明细", "view": "查看" }
     },
     "overview": {
       "nav": "经营总览",
