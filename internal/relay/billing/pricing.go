@@ -524,7 +524,13 @@ func ApplyEstimatedProcurementCostFloor(snapshot *BillingSnapshot, channelID str
 		if err != nil {
 			return err
 		}
-		if result.CoveredQuantity <= 0 || result.TotalCostAmount <= 0 {
+		// A cost floor may affect a user's charge only when the full usage is
+		// covered by authoritative procurement data. Estimated or partial cost
+		// coverage belongs in reconciliation, not in the online charge path.
+		if result.CoveredQuantity <= 0 || result.MissingQuantity > 0 || result.TotalCostAmount <= 0 {
+			continue
+		}
+		if result.CostSource != model.ProcurementCostSourceActual && result.CostSource != model.ProcurementCostSourceZeroCost {
 			continue
 		}
 		applyPricingDecisionWithProcurementCost(snapshot, MoneyAmount{
