@@ -72,6 +72,10 @@ func (snapshot BillingSnapshot) ApplyToLog(log *model.Log) {
 		log.BillingOfficialAnchorCurrency = snapshot.Currency
 		log.BillingOfficialAnchorBaseAmount = snapshot.PricingDecision.OfficialAnchor.Amount
 		log.BillingSellBaseAmount = snapshot.PricingDecision.SelectedSell.Amount
+		log.BillingCostFloorBaseAmount = snapshot.PricingDecision.CostFloor.Amount
+		log.BillingSelectedSellBaseAmount = snapshot.PricingDecision.SelectedSell.Amount
+		log.BillingPricingDecisionReason = snapshot.PricingDecision.Reason
+		log.BillingCostFloorTriggered = snapshot.PricingDecision.Reason == PricingDecisionReasonCostFloor
 	}
 	log.BillingImageToolCalls = snapshot.ImageToolCalls
 	log.BillingImageToolOutputTokens = snapshot.ImageToolOutputTokens

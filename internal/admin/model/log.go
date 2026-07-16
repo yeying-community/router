@@ -54,6 +54,10 @@ type Log struct {
 	BillingProcurementCostSource     string  `json:"billing_procurement_cost_source" gorm:"type:varchar(32);default:''"`
 	BillingProcurementCostConfidence string  `json:"billing_procurement_cost_confidence" gorm:"type:varchar(64);default:''"`
 	BillingSellBaseAmount            float64 `json:"billing_sell_base_amount" gorm:"type:double precision;default:0"`
+	BillingCostFloorBaseAmount       float64 `json:"billing_cost_floor_base_amount" gorm:"type:double precision;default:0"`
+	BillingSelectedSellBaseAmount    float64 `json:"billing_selected_sell_base_amount" gorm:"type:double precision;default:0"`
+	BillingPricingDecisionReason     string  `json:"billing_pricing_decision_reason" gorm:"type:varchar(64);default:''"`
+	BillingCostFloorTriggered        bool    `json:"billing_cost_floor_triggered" gorm:"default:false"`
 	BillingGrossProfitBaseAmount     float64 `json:"billing_gross_profit_base_amount" gorm:"type:double precision;default:0"`
 	BillingGrossMargin               float64 `json:"billing_gross_margin" gorm:"type:double precision;default:0"`
 	BillingPricingRuleVersion        string  `json:"billing_pricing_rule_version" gorm:"type:varchar(64);default:''"`

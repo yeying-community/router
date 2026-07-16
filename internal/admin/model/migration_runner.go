@@ -3117,6 +3117,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
 			},
 		},
+		{
+			Version:     "202607161200_log_pricing_decision_snapshot",
+			Description: "add pricing decision and cost floor fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeLog, migrations)
 }
