@@ -76,33 +76,6 @@ export const ADMIN_MENU_GROUPS = [
     ],
   },
   {
-    key: 'flow',
-    name: 'header.business_flow',
-    icon: 'clipboard list',
-    items: [
-      {
-        name: 'flow.topup.title',
-        to: '/admin/flow/topup',
-        icon: 'credit card',
-      },
-      {
-        name: 'flow.package.title',
-        to: '/admin/flow/package',
-        icon: 'gift',
-      },
-      {
-        name: 'flow.redemption.title',
-        to: '/admin/flow/redemption',
-        icon: 'exchange',
-      },
-      {
-        name: 'flow.topup_reconcile.title',
-        to: '/admin/flow/topup-reconcile',
-        icon: 'heartbeat',
-      },
-    ],
-  },
-  {
     key: 'operation',
     name: 'header.platform_operation',
     icon: 'tasks',

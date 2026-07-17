@@ -7,7 +7,6 @@ import {
   AppDetailSection,
   AppFilterHeader,
   AppIcon,
-  AppTag,
 } from '../../router-ui';
 
 const readOnlyText = (value) => {
@@ -31,62 +30,21 @@ const formatChargeAmount = (value) => {
   return `${numericValue.toFixed(6)} YYC`;
 };
 
-const renderPackageStatus = (status, t) => {
-  switch (Number(status)) {
-    case 1:
-      return (
-        <AppTag color='green' className='router-tag'>
-          {t('user.detail.package_status_types.active')}
-        </AppTag>
-      );
-    case 2:
-      return (
-        <AppTag color='grey' className='router-tag'>
-          {t('user.detail.package_status_types.expired')}
-        </AppTag>
-      );
-    case 3:
-      return (
-        <AppTag color='blue' className='router-tag'>
-          {t('user.detail.package_status_types.replaced')}
-        </AppTag>
-      );
-    case 4:
-      return (
-        <AppTag color='red' className='router-tag'>
-          {t('user.detail.package_status_types.canceled')}
-        </AppTag>
-      );
-    case 5:
-      return (
-        <AppTag color='teal' className='router-tag'>
-          {t('user.detail.package_status_types.pending')}
-        </AppTag>
-      );
-    default:
-      return (
-        <AppTag color='grey' className='router-tag'>
-          {t('user.detail.package_status_types.unknown')}
-        </AppTag>
-      );
-  }
-};
-
 const resolveListPath = (stateFrom) => {
   if (typeof stateFrom !== 'string') {
-    return '/admin/flow/package';
+    return '/admin/redemption/records';
   }
   const normalized = stateFrom.trim();
   if (!normalized.startsWith('/')) {
-    return '/admin/flow/package';
+    return '/admin/redemption/records';
   }
-  if (normalized.startsWith('/admin/flow/package/')) {
-    return '/admin/flow/package';
+  if (normalized.startsWith('/admin/redemption/records/')) {
+    return '/admin/redemption/records';
   }
-  return normalized || '/admin/flow/package';
+  return normalized || '/admin/redemption/records';
 };
 
-const PackageDetail = () => {
+const RedemptionRecordDetail = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -103,7 +61,7 @@ const PackageDetail = () => {
     setLoading(true);
     try {
       const res = await API.get(
-        `/api/v1/admin/flow/package-records/${encodeURIComponent(id)}`,
+        `/api/v1/admin/flow/redemption-records/${encodeURIComponent(id)}`,
       );
       const { success, message, data } = res.data || {};
       if (!success) {
@@ -127,23 +85,28 @@ const PackageDetail = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'flow', label: t('header.business_flow') },
+          { key: 'business', label: t('header.business_operation') },
           {
-            key: 'flow-package-list',
-            label: t('flow.package.title'),
+            key: 'redemption-root',
+            label: t('header.redemption'),
+            onClick: () => navigate('/admin/redemption'),
+          },
+          {
+            key: 'flow-redemption-list',
+            label: '兑换记录',
             onClick: () => navigate(listPath),
           },
           {
-            key: 'flow-package-current',
+            key: 'flow-redemption-current',
             label: readOnlyText(record?.id || id),
             active: true,
           },
         ]}
-        title={t('flow.package.title')}
+        title='兑换记录'
       />
       <div className='router-entity-detail-page'>
         <AppDetailSection
-          title={t('flow.package.title')}
+          title={t('common.basic_info')}
           titleTag='div'
         >
               {loading ? (
@@ -152,31 +115,33 @@ const PackageDetail = () => {
                 <div className='router-detail-grid'>
                   <div className='router-detail-item'>
                     <div className='router-detail-label'>
-                      {t('flow.topup_reconcile.detail.fields.id')}
+                      {t('redemption.table.id')}
                     </div>
-                    <pre className='router-detail-value'>
+                    <pre className='router-detail-value router-monospace-value'>
                       {readOnlyText(record?.id || id)}
                     </pre>
                   </div>
                   <div className='router-detail-item'>
                     <div className='router-detail-label'>
-                      {t('flow.topup_reconcile.detail.fields.user')}
+                      {t('user.table.username')}
                     </div>
                     <pre className='router-detail-value'>
-                      {readOnlyText(record?.username || record?.user_id)}
+                      {readOnlyText(
+                        record?.redeemed_by_username || record?.redeemed_by_user_id,
+                      )}
                     </pre>
                   </div>
                   <div className='router-detail-item'>
                     <div className='router-detail-label'>
-                      {t('user.detail.package_name')}
+                      {t('redemption.table.name')}
                     </div>
                     <pre className='router-detail-value'>
-                      {readOnlyText(record?.package_name)}
+                      {readOnlyText(record?.name)}
                     </pre>
                   </div>
                   <div className='router-detail-item'>
                     <div className='router-detail-label'>
-                      {t('user.detail.package_group')}
+                      {t('redemption.table.group')}
                     </div>
                     <pre className='router-detail-value'>
                       {readOnlyText(record?.group_name || record?.group_id)}
@@ -184,76 +149,38 @@ const PackageDetail = () => {
                   </div>
                   <div className='router-detail-item'>
                     <div className='router-detail-label'>
-                      {t('flow.package.columns.amount')}
+                      {t('redemption.table.face_value')}
                     </div>
                     <pre className='router-detail-value'>
-                      {Number(record?.amount || 0) > 0
-                        ? formatAmountWithUnit(
-                            record?.amount || 0,
-                            record?.currency || '',
-                            6,
-                          )
-                        : '-'}
+                      {formatAmountWithUnit(
+                        record?.face_value_amount || 0,
+                        record?.face_value_unit || '',
+                        6,
+                      )}
                     </pre>
                   </div>
                   <div className='router-detail-item'>
                     <div className='router-detail-label'>
-                      {t('user.detail.package_daily_limit')}
+                      {t('topup.external_topup_orders.columns.quota')}
                     </div>
                     <pre className='router-detail-value'>
-                      {Number(record?.daily_quota_limit || 0) > 0
-                        ? formatChargeAmount(record?.daily_quota_limit)
-                        : t('common.unlimited')}
+                      {formatChargeAmount(record?.credit_amount)}
                     </pre>
                   </div>
                   <div className='router-detail-item'>
                     <div className='router-detail-label'>
-                      {t('user.detail.package_emergency_limit')}
+                      {t('redemption.table.redeemed_time')}
                     </div>
                     <pre className='router-detail-value'>
-                      {formatChargeAmount(record?.package_emergency_quota_limit)}
+                      {formatDateTime(record?.redeemed_time)}
                     </pre>
                   </div>
                   <div className='router-detail-item'>
                     <div className='router-detail-label'>
-                      {t('user.detail.package_status')}
-                    </div>
-                    <div className='router-detail-value'>
-                      {renderPackageStatus(record?.status, t)}
-                    </div>
-                  </div>
-                  <div className='router-detail-item'>
-                    <div className='router-detail-label'>
-                      {t('user.detail.package_started_at')}
+                      {t('redemption.table.created_time')}
                     </div>
                     <pre className='router-detail-value'>
-                      {formatDateTime(record?.started_at)}
-                    </pre>
-                  </div>
-                  <div className='router-detail-item'>
-                    <div className='router-detail-label'>
-                      {t('user.detail.package_expires_at')}
-                    </div>
-                    <pre className='router-detail-value'>
-                      {Number(record?.expires_at || 0) > 0
-                        ? formatDateTime(record?.expires_at)
-                        : t('common.unlimited')}
-                    </pre>
-                  </div>
-                  <div className='router-detail-item'>
-                    <div className='router-detail-label'>
-                      {t('user.detail.quota_reset_timezone')}
-                    </div>
-                    <pre className='router-detail-value'>
-                      {readOnlyText(record?.quota_reset_timezone)}
-                    </pre>
-                  </div>
-                  <div className='router-detail-item'>
-                    <div className='router-detail-label'>
-                      {t('user.table.updated_at')}
-                    </div>
-                    <pre className='router-detail-value'>
-                      {formatDateTime(record?.updated_at)}
+                      {formatDateTime(record?.created_time)}
                     </pre>
                   </div>
                 </div>
@@ -264,4 +191,4 @@ const PackageDetail = () => {
   );
 };
 
-export default PackageDetail;
+export default RedemptionRecordDetail;

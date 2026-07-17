@@ -14,6 +14,7 @@ import {
   resolveBillingInputStep,
 } from '../../helpers/billing';
 import UnitDropdown from '../../components/UnitDropdown';
+import BusinessRecordsTable from '../../components/BusinessRecordsTable';
 import {
   AppButton,
   AppCompact,
@@ -1174,6 +1175,11 @@ const UserDetail = () => {
       label: t('user.detail.balance_mode_title'),
       disabled: editSection !== '' && activeDetailTab !== 'balance',
     },
+    {
+      key: 'records',
+      label: t('topup.payment_history.title'),
+      disabled: editSection !== '' && activeDetailTab !== 'records',
+    },
   ];
 
   return (
@@ -1189,7 +1195,7 @@ const UserDetail = () => {
           },
           {
             key: 'user-current',
-            label: readOnlyValue(inputs.username || userId),
+            label: userId,
             active: true,
           },
         ]}
@@ -1698,6 +1704,39 @@ const UserDetail = () => {
                     ) : null}
                   </>
                 )}
+              </AppDetailSection>
+              ) : null}
+
+              {activeDetailTab === 'records' ? (
+              <AppDetailSection
+                title={t('topup.payment_history.title')}
+              >
+                <BusinessRecordsTable
+                  kind='topup-reconcile'
+                  embedded
+                  title={t('topup.payment_history.title')}
+                  breadcrumbs={[
+                    { key: 'admin', label: t('header.admin_workspace') },
+                    { key: 'business', label: t('header.business_operation') },
+                    { key: 'user', label: t('header.user') },
+                    {
+                      key: 'current-user-records',
+                      label: t('topup.payment_history.title'),
+                      active: true,
+                    },
+                  ]}
+                  requestParams={{ user_id: userId }}
+                  searchPlaceholder={t('topup.payment_history.user_search_placeholder')}
+                  emptyText={t('topup.payment_history.user_empty')}
+                  hiddenColumnKeys={['username']}
+                  detailPathBuilder={(row, defaultPath) => {
+                    const paymentID = (row?.id || '').toString().trim();
+                    if (!paymentID) {
+                      return defaultPath;
+                    }
+                    return `/admin/user/detail/${encodeURIComponent(userId)}/payment/${encodeURIComponent(paymentID)}`;
+                  }}
+                />
               </AppDetailSection>
               ) : null}
         </div>

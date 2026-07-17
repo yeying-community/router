@@ -25,7 +25,7 @@ export const PROVIDER_LIST_TABLE_MIN_WIDTH =
 export const TOPUP_PLAN_LIST_COLUMN_WIDTHS = {
   name: 160,
   group: 140,
-  supportedModels: 150,
+  supportedModels: 96,
   payAmount: 120,
   creditedAmount: 120,
   concurrency: 180,

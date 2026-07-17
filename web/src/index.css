@@ -3990,6 +3990,20 @@ body,
     min-width: 0;
 }
 
+.router-page-header-meta-links {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    line-height: 1.5715;
+}
+
+.router-page-header-link {
+    font-size: inherit;
+    line-height: inherit;
+}
+
 .router-filter-toolbar .router-section-button,
 .router-filter-toolbar .router-page-button {
     white-space: nowrap;

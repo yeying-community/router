@@ -21,6 +21,8 @@ import {
 } from '../router-ui';
 
 const STATUS_FILTER_ALL_VALUE = '__all_status__';
+const EMPTY_OBJECT = Object.freeze({});
+const EMPTY_ARRAY = Object.freeze([]);
 const BUSINESS_FLOW_HEADER_KEY = {
   topup: 'header.topup',
   'topup-reconcile': 'flow.topup_reconcile.title',
@@ -113,7 +115,25 @@ const renderReconcileStage = (row, t) => {
   }
 };
 
-const BusinessFlowTable = ({ kind }) => {
+const DEFAULT_BREADCRUMB_KEY = {
+  topup: 'header.topup',
+  'topup-reconcile': 'flow.topup_reconcile.title',
+  package: 'header.package',
+  redemption: 'header.redemption',
+};
+
+const BusinessRecordsTable = ({
+  kind,
+  embedded = false,
+  breadcrumbs = null,
+  title = '',
+  detailBasePath = '',
+  detailPathBuilder = null,
+  requestParams = EMPTY_OBJECT,
+  searchPlaceholder = '',
+  emptyText = '',
+  hiddenColumnKeys = EMPTY_ARRAY,
+}) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -142,6 +162,36 @@ const BusinessFlowTable = ({ kind }) => {
   const displayUnitOptions = useMemo(
     () => buildDisplayUnitOptions(currencyIndex, { order: 'charge-first' }),
     [currencyIndex],
+  );
+
+  const resolveDetailPath = useCallback(
+    (row, defaultPath) => {
+      if (typeof detailPathBuilder === 'function') {
+        return detailPathBuilder(row, defaultPath);
+      }
+      if (detailBasePath) {
+        const rowID = readOnlyText(row?.id);
+        if (rowID === '-') {
+          return '';
+        }
+        return `${detailBasePath}/${encodeURIComponent(rowID)}`;
+      }
+      return defaultPath;
+    },
+    [detailBasePath, detailPathBuilder],
+  );
+
+  const navigateToDetail = useCallback(
+    (row, defaultPath) => {
+      const targetPath = resolveDetailPath(row, defaultPath);
+      if (!targetPath) {
+        return;
+      }
+      navigate(targetPath, {
+        state: { from: currentPagePath },
+      });
+    },
+    [currentPagePath, navigate, resolveDetailPath],
   );
 
   const config = useMemo(() => {
@@ -202,16 +252,17 @@ const BusinessFlowTable = ({ kind }) => {
     if (kind === 'topup') {
       return {
         endpoint: '/api/v1/admin/flow/topup-orders',
-        searchPlaceholder: t('flow.topup.search_placeholder'),
-        emptyText: t('flow.topup.empty'),
+        searchPlaceholder: searchPlaceholder || t('flow.topup.search_placeholder'),
+        emptyText: emptyText || t('flow.topup.empty'),
         onRowClick: (row) => {
           const rowID = readOnlyText(row?.id);
           if (rowID === '-') {
             return;
           }
-          navigate(`/admin/flow/topup/${encodeURIComponent(rowID)}`, {
-            state: { from: currentPagePath },
-          });
+          navigateToDetail(
+            row,
+            `/admin/topup/records/${encodeURIComponent(rowID)}`,
+          );
         },
         statusOptions: [
           { key: 'all', value: '', text: t('task.filters.status_all') },
@@ -315,16 +366,17 @@ const BusinessFlowTable = ({ kind }) => {
     if (kind === 'topup-reconcile') {
       return {
         endpoint: '/api/v1/admin/flow/topup-reconcile-records',
-        searchPlaceholder: t('flow.topup_reconcile.search_placeholder'),
-        emptyText: t('flow.topup_reconcile.empty'),
+        searchPlaceholder: searchPlaceholder || t('flow.topup_reconcile.search_placeholder'),
+        emptyText: emptyText || t('flow.topup_reconcile.empty'),
         onRowClick: (row) => {
           const rowID = readOnlyText(row?.id);
           if (rowID === '-') {
             return;
           }
-          navigate(`/admin/flow/topup-reconcile/${encodeURIComponent(rowID)}`, {
-            state: { from: currentPagePath },
-          });
+          navigateToDetail(
+            row,
+            `/admin/topup/payment/${encodeURIComponent(rowID)}`,
+          );
         },
         statusOptions: [
           { key: 'all', value: '', text: t('task.filters.status_all') },
@@ -462,16 +514,17 @@ const BusinessFlowTable = ({ kind }) => {
       return {
         endpoint: '/api/v1/admin/flow/package-records',
         tableWrapperClassName: 'router-business-flow-package-scroll',
-        searchPlaceholder: t('flow.package.search_placeholder'),
-        emptyText: t('flow.package.empty'),
+        searchPlaceholder: searchPlaceholder || t('flow.package.search_placeholder'),
+        emptyText: emptyText || t('flow.package.empty'),
         onRowClick: (row) => {
           const rowID = readOnlyText(row?.id);
           if (rowID === '-') {
             return;
           }
-          navigate(`/admin/flow/package/${encodeURIComponent(rowID)}`, {
-            state: { from: currentPagePath },
-          });
+          navigateToDetail(
+            row,
+            `/admin/package/records/${encodeURIComponent(rowID)}`,
+          );
         },
         statusOptions: [
           { key: 'all', value: '', text: t('task.filters.status_all') },
@@ -608,16 +661,17 @@ const BusinessFlowTable = ({ kind }) => {
 
     return {
       endpoint: '/api/v1/admin/flow/redemption-records',
-      searchPlaceholder: t('flow.redemption.search_placeholder'),
-      emptyText: t('flow.redemption.empty'),
+      searchPlaceholder: searchPlaceholder || t('flow.redemption.search_placeholder'),
+      emptyText: emptyText || t('flow.redemption.empty'),
       onRowClick: (row) => {
         const rowID = readOnlyText(row?.id);
         if (rowID === '-') {
           return;
         }
-        navigate(`/admin/flow/redemption/${encodeURIComponent(rowID)}`, {
-          state: { from: currentPagePath },
-        });
+        navigateToDetail(
+          row,
+          `/admin/redemption/records/${encodeURIComponent(rowID)}`,
+        );
       },
       statusOptions: [],
       columns: [
@@ -693,7 +747,26 @@ const BusinessFlowTable = ({ kind }) => {
         order: 'descend',
       },
     };
-  }, [currencyIndex, currentPagePath, displayUnit, displayUnitOptions, fulfillingRowID, kind, navigate, refreshingRowID, t]);
+  }, [
+    currencyIndex,
+    displayUnit,
+    displayUnitOptions,
+    emptyText,
+    fulfillingRowID,
+    kind,
+    navigateToDetail,
+    refreshingRowID,
+    searchPlaceholder,
+    t,
+  ]);
+
+  const visibleColumns = useMemo(
+    () =>
+      (config.columns || []).filter(
+        (column) => !hiddenColumnKeys.includes(column.key),
+      ),
+    [config.columns, hiddenColumnKeys],
+  );
 
   useEffect(() => {
     setTableSorter(config.defaultSorter || { columnKey: null, order: null });
@@ -721,13 +794,13 @@ const BusinessFlowTable = ({ kind }) => {
   const tableMinWidth = useMemo(
     () =>
       Math.max(
-        (config.columns || []).reduce(
+        visibleColumns.reduce(
           (total, column) => total + Number(column?.width || 0),
           0,
         ),
         640,
       ),
-    [config.columns],
+    [visibleColumns],
   );
 
   const statusDropdownOptions = useMemo(
@@ -779,6 +852,7 @@ const BusinessFlowTable = ({ kind }) => {
             page_size: ITEMS_PER_PAGE,
             keyword: (nextKeyword || '').toString().trim(),
             status: (nextStatus || '').toString().trim(),
+            ...requestParams,
           },
         });
         const { success, message, data } = res.data || {};
@@ -795,7 +869,7 @@ const BusinessFlowTable = ({ kind }) => {
         setLoading(false);
       }
     },
-    [config.endpoint, t],
+    [config.endpoint, requestParams, t],
   );
 
   useEffect(() => {
@@ -875,16 +949,16 @@ const BusinessFlowTable = ({ kind }) => {
   return (
     <>
       <AppFilterHeader
-        breadcrumbs={[
+        breadcrumbs={breadcrumbs || [
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'flow', label: t('header.business_flow') },
+          { key: 'business', label: t('header.business_operation') },
           {
             key: kind,
-            label: t(BUSINESS_FLOW_HEADER_KEY[kind] || 'header.business_flow'),
+            label: t(DEFAULT_BREADCRUMB_KEY[kind] || BUSINESS_FLOW_HEADER_KEY[kind] || 'common.records'),
             active: true,
           },
         ]}
-        title={t(BUSINESS_FLOW_HEADER_KEY[kind] || 'header.business_flow')}
+        title={title || t(BUSINESS_FLOW_HEADER_KEY[kind] || 'common.records')}
         actions={
           <div className='router-list-toolbar-actions'>
             <AppButton
@@ -962,7 +1036,7 @@ const BusinessFlowTable = ({ kind }) => {
                 ? { cursor: 'pointer' }
                 : undefined,
           })}
-          columns={config.columns.map((column) => ({
+          columns={visibleColumns.map((column) => ({
             title: column.label,
             key: column.key,
             className: column.cellClassName || '',
@@ -979,7 +1053,7 @@ const BusinessFlowTable = ({ kind }) => {
         />
       </div>
 
-      <div className='router-pagination-wrap'>
+      <div className={embedded ? 'router-pagination-wrap-md' : 'router-pagination-wrap'}>
         <AppPagination
           activePage={activePage}
           totalPages={totalPages}
@@ -990,4 +1064,4 @@ const BusinessFlowTable = ({ kind }) => {
   );
 };
 
-export default BusinessFlowTable;
+export default BusinessRecordsTable;

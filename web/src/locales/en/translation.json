@@ -6,7 +6,7 @@
     "group": "Group",
     "token": "Token",
     "account": "Account",
-    "redemption": "Redemption Codes",
+    "redemption": "Redemption",
     "topup": "Top Up",
     "service": "Service",
     "help": "Help",
@@ -19,11 +19,10 @@
     "resource": "Resource Management",
     "operation": "Operations",
     "business_operation": "Business Operations",
-    "business_flow": "Business Flow",
     "platform_operation": "Platform Operations",
     "billing": "Billing",
     "config": "Config",
-    "package": "Package",
+    "package": "Subscription",
     "log": "Log",
     "task": "Tasks",
     "setting": "Settings",
@@ -154,9 +153,11 @@
       }
     },
     "payment_history": {
-      "button": "Payment History",
-      "title": "Payment History",
+      "button": "Payment Records",
+      "title": "Payment Records",
       "status_title": "Payment Status",
+      "user_search_placeholder": "Search payment ID, transaction ID, status, or product name...",
+      "user_empty": "This user has no payment records",
       "back_to_pricing": "Back to Subscription"
     },
     "nav": {
@@ -247,6 +248,7 @@
     },
     "manage": {
       "title": "Top-up Plans",
+      "detail_title": "Top-up Detail",
       "create_title": "Create Top-up Plan",
       "edit_title": "Edit Top-up Plan",
       "delete_title": "Delete Top-up Plan",
@@ -1575,7 +1577,7 @@
     }
   },
   "package_manage": {
-    "title": "Package Management",
+    "title": "Subscription Management",
     "search": "Search package name or group",
     "table": {
       "name": "Name",
@@ -1607,7 +1609,7 @@
       "partial": "Partial"
     },
     "buttons": {
-      "add": "Add Package",
+      "add": "Add",
       "refresh": "Refresh",
       "edit": "Edit",
       "assign": "Assign User",
@@ -1661,12 +1663,12 @@
       "package": "Package"
     },
     "dialog": {
-      "create_title": "Create Package",
-      "edit_title": "Edit Package",
-      "detail_title": "Package Detail",
-      "assign_title": "Assign Package",
-      "delete_title": "Delete Package",
-      "delete_content": "Are you sure to delete package {{name}}?"
+      "create_title": "Create Subscription",
+      "edit_title": "Edit Subscription",
+      "detail_title": "Subscription Detail",
+      "assign_title": "Assign Subscription",
+      "delete_title": "Delete Subscription",
+      "delete_content": "Are you sure to delete subscription {{name}}?"
     },
     "messages": {
       "loading": "Loading...",
@@ -1685,14 +1687,14 @@
       "duration_invalid": "Duration must be greater than 0",
       "user_required": "Please select a user",
       "start_at_invalid": "Invalid start time format",
-      "create_success": "Package created successfully",
-      "create_failed": "Failed to create package",
-      "update_success": "Package updated successfully",
-      "update_failed": "Failed to update package",
-      "delete_success": "Package deleted successfully",
-      "delete_failed": "Failed to delete package",
-      "assign_success": "Package assigned successfully",
-      "assign_failed": "Failed to assign package"
+      "create_success": "Subscription created successfully",
+      "create_failed": "Failed to create subscription",
+      "update_success": "Subscription updated successfully",
+      "update_failed": "Failed to update subscription",
+      "delete_success": "Subscription deleted successfully",
+      "delete_failed": "Failed to delete subscription",
+      "assign_success": "Subscription assigned successfully",
+      "assign_failed": "Failed to assign subscription"
     }
   },
   "token": {
@@ -1851,7 +1853,7 @@
     "delete": "Delete"
   },
   "redemption": {
-    "title": "Redemption Code Management",
+    "title": "Redemption Management",
     "search": "Search redemption codes and names ...",
     "table": {
       "id": "ID",
@@ -1875,7 +1877,7 @@
       "enable": "Enable",
       "disable": "Disable",
       "edit": "Edit",
-      "add": "Add Code",
+      "add": "Add",
       "refresh": "Refresh"
     },
     "status": {
@@ -1885,8 +1887,8 @@
       "unknown": "Unknown"
     },
     "edit": {
-      "title_edit": "Update Redemption Code",
-      "title_create": "Add Redemption Code",
+      "title_edit": "Update Redemption",
+      "title_create": "Add",
       "name": "Name",
       "name_placeholder": "Please enter name",
       "group": "Group",
@@ -1920,8 +1922,8 @@
       }
     },
     "messages": {
-      "update_success": "Redemption code updated successfully!",
-      "create_success": "Redemption code created successfully!",
+      "update_success": "Redemption updated successfully!",
+      "create_success": "Redemption created successfully!",
       "load_groups_failed": "Failed to load groups",
       "load_units_failed": "Failed to load face value units",
       "name_required": "Please enter the redemption code name",

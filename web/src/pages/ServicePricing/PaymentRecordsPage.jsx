@@ -5,7 +5,7 @@ import { AppFilterHeader } from '../../router-ui';
 import TopUpRecordsPage from '../TopUp/TopUpRecordsPage';
 import TopUpWorkspaceProvider from '../TopUp/provider.jsx';
 
-const PaymentHistoryPageInner = () => {
+const PaymentRecordsPageInner = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -32,10 +32,10 @@ const PaymentHistoryPageInner = () => {
   );
 };
 
-const PaymentHistoryPage = () => (
+const PaymentRecordsPage = () => (
   <TopUpWorkspaceProvider>
-    <PaymentHistoryPageInner />
+    <PaymentRecordsPageInner />
   </TopUpWorkspaceProvider>
 );
 
-export default PaymentHistoryPage;
+export default PaymentRecordsPage;

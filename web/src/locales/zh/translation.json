@@ -6,7 +6,7 @@
     "group": "分组",
     "token": "令牌",
     "account": "账户",
-    "redemption": "兑换码",
+    "redemption": "兑换",
     "topup": "充值",
     "service": "服务",
     "help": "帮助",
@@ -19,11 +19,10 @@
     "resource": "资源管理",
     "operation": "运营",
     "business_operation": "业务运营",
-    "business_flow": "业务流水",
     "platform_operation": "平台运营",
     "billing": "计费",
     "config": "配置",
-    "package": "套餐",
+    "package": "订阅",
     "log": "日志",
     "task": "任务",
     "setting": "设置",
@@ -154,9 +153,11 @@
       }
     },
     "payment_history": {
-      "button": "支付历史",
-      "title": "支付历史",
+      "button": "支付记录",
+      "title": "支付记录",
       "status_title": "支付状态",
+      "user_search_placeholder": "搜索支付单号、交易号、状态、商品名称...",
+      "user_empty": "该用户暂无支付记录",
       "back_to_pricing": "返回订阅"
     },
     "nav": {
@@ -247,6 +248,7 @@
     },
     "manage": {
       "title": "充值额度",
+      "detail_title": "充值详情",
       "create_title": "新增充值额度",
       "edit_title": "编辑充值额度",
       "delete_title": "删除充值额度",
@@ -426,7 +428,7 @@
   },
   "flow": {
     "messages": {
-      "load_failed": "读取业务流水失败"
+      "load_failed": "读取记录失败"
     },
     "topup": {
       "title": "充值",
@@ -1575,7 +1577,7 @@
     }
   },
   "package_manage": {
-    "title": "套餐管理",
+    "title": "订阅管理",
     "search": "搜索套餐名称或分组",
     "table": {
       "name": "名称",
@@ -1607,7 +1609,7 @@
       "partial": "部分"
     },
     "buttons": {
-      "add": "新增套餐",
+      "add": "新增",
       "refresh": "刷新",
       "edit": "编辑",
       "assign": "开通用户",
@@ -1661,12 +1663,12 @@
       "package": "套餐"
     },
     "dialog": {
-      "create_title": "新增套餐",
-      "edit_title": "编辑套餐",
-      "detail_title": "套餐详情",
-      "assign_title": "开通套餐",
-      "delete_title": "删除套餐",
-      "delete_content": "确定删除套餐 {{name}} 吗？"
+      "create_title": "新增订阅",
+      "edit_title": "编辑订阅",
+      "detail_title": "订阅详情",
+      "assign_title": "开通订阅",
+      "delete_title": "删除订阅",
+      "delete_content": "确定删除订阅 {{name}} 吗？"
     },
     "messages": {
       "loading": "加载中...",
@@ -1685,14 +1687,14 @@
       "duration_invalid": "使用天数必须大于 0",
       "user_required": "请选择用户",
       "start_at_invalid": "生效时间格式不正确",
-      "create_success": "套餐创建成功",
-      "create_failed": "套餐创建失败",
-      "update_success": "套餐更新成功",
-      "update_failed": "套餐更新失败",
-      "delete_success": "套餐删除成功",
-      "delete_failed": "套餐删除失败",
-      "assign_success": "套餐开通成功",
-      "assign_failed": "套餐开通失败"
+      "create_success": "订阅创建成功",
+      "create_failed": "订阅创建失败",
+      "update_success": "订阅更新成功",
+      "update_failed": "订阅更新失败",
+      "delete_success": "订阅删除成功",
+      "delete_failed": "订阅删除失败",
+      "assign_success": "订阅开通成功",
+      "assign_failed": "订阅开通失败"
     }
   },
   "token": {
@@ -1851,7 +1853,7 @@
     "delete": "删除"
   },
   "redemption": {
-    "title": "兑换码管理",
+    "title": "兑换管理",
     "search": "搜索兑换码和名称 ...",
     "table": {
       "id": "ID",
@@ -1875,7 +1877,7 @@
       "enable": "启用",
       "disable": "禁用",
       "edit": "编辑",
-      "add": "新增兑换码",
+      "add": "新增",
       "refresh": "刷新"
     },
     "status": {
@@ -1885,8 +1887,8 @@
       "unknown": "未知状态"
     },
     "edit": {
-      "title_edit": "更新兑换码信息",
-      "title_create": "新增兑换码",
+      "title_edit": "更新兑换信息",
+      "title_create": "新增",
       "name": "名称",
       "name_placeholder": "请输入名称",
       "group": "分组",
@@ -1908,7 +1910,7 @@
       }
     },
     "detail": {
-      "title": "兑换码详情",
+      "title": "兑换详情",
       "code": "兑换码",
       "redeemed_by": "兑换用户",
       "code_validity_days": "兑换码有效期",
@@ -1920,8 +1922,8 @@
       }
     },
     "messages": {
-      "update_success": "兑换码更新成功！",
-      "create_success": "兑换码创建成功！",
+      "update_success": "兑换更新成功！",
+      "create_success": "兑换创建成功！",
       "load_groups_failed": "加载分组失败",
       "load_units_failed": "加载面值单位失败",
       "name_required": "请输入兑换码名称",

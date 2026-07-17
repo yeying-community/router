@@ -21,7 +21,7 @@ type flowListData[T any] struct {
 	PageSize int   `json:"page_size"`
 }
 
-func parseFlowPageParams(c *gin.Context) (page int, pageSize int, keyword string, status string) {
+func parseFlowPageParams(c *gin.Context) (page int, pageSize int, keyword string, status string, userID string) {
 	page = 1
 	if raw := strings.TrimSpace(c.Query("page")); raw != "" {
 		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
@@ -39,7 +39,8 @@ func parseFlowPageParams(c *gin.Context) (page int, pageSize int, keyword string
 	}
 	keyword = strings.TrimSpace(c.Query("keyword"))
 	status = strings.TrimSpace(c.Query("status"))
-	return page, pageSize, keyword, status
+	userID = strings.TrimSpace(c.Query("user_id"))
+	return page, pageSize, keyword, status, userID
 }
 
 func writeFlowList[T any](c *gin.Context, rows []T, total int64, page int, pageSize int) {
@@ -63,8 +64,8 @@ func writeFlowError(c *gin.Context, err error) {
 }
 
 func GetTopupOrderRecords(c *gin.Context) {
-	page, pageSize, keyword, status := parseFlowPageParams(c)
-	rows, total, err := model.ListAdminTopupOrderRecordsPageWithDB(model.DB, page, pageSize, keyword, status)
+	page, pageSize, keyword, status, userID := parseFlowPageParams(c)
+	rows, total, err := model.ListAdminTopupOrderRecordsPageWithDB(model.DB, page, pageSize, keyword, status, userID)
 	if err != nil {
 		writeFlowError(c, err)
 		return
@@ -87,8 +88,8 @@ func GetTopupOrderRecord(c *gin.Context) {
 }
 
 func GetTopupReconcileRecords(c *gin.Context) {
-	page, pageSize, keyword, status := parseFlowPageParams(c)
-	rows, total, err := model.ListAdminTopupReconcileRecordsPageWithDB(model.DB, page, pageSize, keyword, status)
+	page, pageSize, keyword, status, userID := parseFlowPageParams(c)
+	rows, total, err := model.ListAdminTopupReconcileRecordsPageWithDB(model.DB, page, pageSize, keyword, status, userID)
 	if err != nil {
 		writeFlowError(c, err)
 		return
@@ -165,14 +166,14 @@ func FulfillTopupReconcileRecord(c *gin.Context) {
 }
 
 func GetPackageRecords(c *gin.Context) {
-	page, pageSize, keyword, status := parseFlowPageParams(c)
+	page, pageSize, keyword, status, userID := parseFlowPageParams(c)
 	statusCode := 0
 	if status != "" {
 		if parsed, err := strconv.Atoi(status); err == nil && parsed > 0 {
 			statusCode = parsed
 		}
 	}
-	rows, total, err := model.ListAdminUserPackageRecordsPageWithDB(model.DB, page, pageSize, keyword, statusCode)
+	rows, total, err := model.ListAdminUserPackageRecordsPageWithDB(model.DB, page, pageSize, keyword, statusCode, userID)
 	if err != nil {
 		writeFlowError(c, err)
 		return
@@ -195,8 +196,8 @@ func GetPackageRecord(c *gin.Context) {
 }
 
 func GetRedemptionRecords(c *gin.Context) {
-	page, pageSize, keyword, _ := parseFlowPageParams(c)
-	rows, total, err := model.ListAdminRedemptionRecordsPageWithDB(model.DB, page, pageSize, keyword)
+	page, pageSize, keyword, _, userID := parseFlowPageParams(c)
+	rows, total, err := model.ListAdminRedemptionRecordsPageWithDB(model.DB, page, pageSize, keyword, userID)
 	if err != nil {
 		writeFlowError(c, err)
 		return

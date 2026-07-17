@@ -327,7 +327,7 @@ const RedemptionDetail = () => {
           },
           {
             key: 'redemption-current',
-            label: redemption?.name || redemption?.code || id,
+            label: id,
             active: true,
           },
         ]}
