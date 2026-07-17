@@ -675,9 +675,13 @@ const normalizeChannelBillingSnapshots = (items) => {
       purchase_amount: Number(item.purchase_amount || 0),
       purchase_fx_rate: Number(item.purchase_fx_rate || 0),
       purchase_cost_amount: Number(item.purchase_cost_amount || 0),
+      entitlement_name: (item.entitlement_name || '').toString(),
+      valid_from: Number(item.valid_from || 0),
+      valid_until: Number(item.valid_until || 0),
       created_at: Number(item.created_at || 0),
       items: Array.isArray(item.items)
         ? item.items.map((quotaItem) => ({
+            id: (quotaItem?.id || '').toString().trim(),
             resource_type: (quotaItem?.resource_type || '').toString().trim(),
             quota_type: (quotaItem?.quota_type || '').toString().trim(),
             quota_label: (quotaItem?.quota_label || '').toString().trim(),
@@ -3674,6 +3678,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       const normalizedItems = (Array.isArray(items) ? items : [])
         .map((item) => ({
+          id: (item?.id || '').toString().trim(),
           resource_type: (item?.resource_type || '').toString().trim(),
           quota_type: (item?.quota_type || '').toString().trim(),
           quota_label: (item?.quota_label || '').toString().trim(),
