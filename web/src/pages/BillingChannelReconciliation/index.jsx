@@ -95,7 +95,6 @@ function BillingChannelReconciliation() {
     <div className='dashboard-container billing-channel-reconciliation-page'>
       <AppFilterHeader
         breadcrumbs={[{ key: 'billing', label: t('header.billing') }, { key: 'channel-reconciliation', label: t('billing.channel_reconciliation.title'), active: true }]}
-        title={t('billing.channel_reconciliation.title')}
         actions={<AppButton className='router-page-button' color='blue' loading={loading} onClick={() => load().then()}>{t('common.refresh')}</AppButton>}
       />
       <AppSpin spinning={loading}>

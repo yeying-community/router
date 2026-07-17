@@ -419,7 +419,6 @@ function BillingProcurementReport() {
             active: true,
           },
         ]}
-        title={t('billing.procurement_report.title')}
         actions={
           <AppButton
             className='router-page-button'

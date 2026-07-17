@@ -14,7 +14,7 @@ import {
   AppSpin,
 } from '../router-ui';
 
-const SystemSetting = ({ section = '' }) => {
+const SystemSetting = ({ section = '', showSectionTitle = true }) => {
   const { t } = useTranslation();
   const [inputs, setInputs] = useState({
     PasswordLoginEnabled: 'true',
@@ -117,11 +117,13 @@ const SystemSetting = ({ section = '' }) => {
       <div className='router-settings-system-block'>
       {sectionVisible.general ? (
         <>
-          <AppFilterHeader
-            title={t('setting.system.general.title')}
-            titleClassName='router-ui-section-title'
-            className='router-toolbar-compact'
-          />
+          {showSectionTitle ? (
+            <AppFilterHeader
+              title={t('setting.system.general.title')}
+              titleClassName='router-ui-section-title'
+              className='router-toolbar-compact'
+            />
+          ) : null}
           <div className='router-settings-section-body'>
             <AppFormRow>
               <AppField label={t('setting.system.general.system_name')}>
@@ -153,17 +155,13 @@ const SystemSetting = ({ section = '' }) => {
 
       {sectionVisible.smtp ? (
         <>
-          <AppFilterHeader
-            title={t('setting.system.smtp.title')}
-            titleClassName='router-ui-section-title'
-            className='router-toolbar-compact'
-          />
-          <AppAlert
-            className='router-section-message router-settings-inline-message'
-            type='info'
-            showIcon
-            title={t('setting.system.smtp.subtitle')}
-          />
+          {showSectionTitle ? (
+            <AppFilterHeader
+              title={t('setting.system.smtp.title')}
+              titleClassName='router-ui-section-title'
+              className='router-toolbar-compact'
+            />
+          ) : null}
           <div className='router-settings-section-body'>
             <AppFormRow>
               <AppField label={t('setting.system.smtp.server')}>
@@ -226,11 +224,13 @@ const SystemSetting = ({ section = '' }) => {
 
       {sectionVisible.login ? (
         <>
-          <AppFilterHeader
-            title={t('setting.system.login.title')}
-            titleClassName='router-ui-section-title'
-            className='router-toolbar-compact'
-          />
+          {showSectionTitle ? (
+            <AppFilterHeader
+              title={t('setting.system.login.title')}
+              titleClassName='router-ui-section-title'
+              className='router-toolbar-compact'
+            />
+          ) : null}
           <div className='router-settings-section-body router-page-stack'>
             <AppFormRow>
               <AppField label={t('setting.system.login.password_login')}>

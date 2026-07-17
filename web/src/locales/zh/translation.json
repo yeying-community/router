@@ -2982,17 +2982,10 @@
   "setting": {
     "empty_admin": "暂无可配置项",
     "title": "设置",
-    "tabs": {
-      "personal": "个人设置",
-      "operation": "运营设置",
-      "currency": "币种",
-      "system": "设置",
-      "other": "其他设置",
-      "exchange": "汇率"
-    },
     "groups": {
       "basic": "基础信息",
-      "billing": "支付与计费",
+      "payment": "支付设置",
+      "billing": "计费设置",
       "content": "内容设置",
       "runtime": "系统运行"
     },
@@ -3052,17 +3045,9 @@
       }
     },
     "system": {
-      "basic": {
-        "title": "基础设置"
-      },
-      "content": {
-        "title": "内容设置"
-      },
-      "runtime": {
-        "title": "运行设置"
-      },
       "general": {
-        "title": "通用设置",
+        "title": "站点信息",
+        "description": "配置站点名称与品牌展示信息，便于运营统一维护站点对外标识。",
         "server_address": "服务器地址",
         "server_address_placeholder": "例如：https://yourdomain.com",
         "system_name": "系统名称",
@@ -3072,6 +3057,7 @@
         }
       },
       "notice": "站点公告",
+      "notice_description": "面向用户展示站点公告与运营提示，支持使用 Markdown 编写内容。",
       "notice_placeholder": "支持 Markdown",
       "buttons": {
         "save": "保存"
@@ -3079,6 +3065,7 @@
       "saved": "已保存",
       "login": {
         "title": "登录与注册",
+        "description": "控制新用户注册、密码登录和密码注册等基础账号入口策略。",
         "password_login": "允许通过密码进行登录",
         "password_register": "允许通过密码进行注册",
         "email_verification": "通过密码注册时需要进行邮箱验证",
@@ -3101,16 +3088,17 @@
       },
       "smtp": {
         "title": "邮件发送",
+        "description": "配置系统邮件发送服务，用于验证码、通知和其他邮件触达场景。",
         "subtitle": "用于配置系统发送邮件所需的信息",
         "server": "邮件服务器地址",
         "server_placeholder": "例如：smtp.qq.com",
         "port": "服务器端口",
         "port_placeholder": "默认: 587",
-        "account": "发件账户",
+        "account": "发件邮箱账号",
         "account_placeholder": "通常是邮箱地址",
         "from": "发件邮箱",
         "from_placeholder": "通常和邮箱地址保持一致",
-        "token": "发信凭证",
+        "token": "邮件授权码",
         "token_placeholder": "敏感信息不会发送到前端显示",
         "buttons": {
           "save": "保存邮件设置"
@@ -3185,10 +3173,11 @@
     "operation": {
       "quota": {
         "title": "奖励与预扣",
+        "description": "配置奖励发放和预扣规则。",
         "new_user_reward": "新客奖励",
         "new_user_reward_description": "新用户注册成功后发放奖励。请选择一个充值额度作为奖励来源，留空表示不发放。",
         "reward_plan_placeholder": "请选择充值额度（默认不发放）",
-        "pre_consume": "请求预留金额",
+        "pre_consume": "预扣金额",
         "pre_consume_placeholder": "请求结束后按实际消耗补扣或退回",
         "pre_consume_description": "请求开始时先预留一笔金额，请求完成后再按实际消耗结算，多退少补。",
         "inviter_reward": "邀请奖励",
@@ -3198,16 +3187,18 @@
           "plan_invalid": "充值额度无效，请刷新后重试"
         },
         "buttons": {
-          "save": "保存余额设置"
+          "save": "保存设置"
         }
       },
       "log": {
         "title": "日志记录",
+        "description": "控制是否保留消费日志。",
         "enable_consume": "记录消费日志"
       },
       "monitor": {
         "title": "告警与阈值",
-        "max_response_time": "渠道响应上限",
+        "description": "配置余额提醒和渠道超时阈值。",
+        "max_response_time": "渠道超时阈值",
         "max_response_time_placeholder": "单位秒，渠道测试超过该时间会自动禁用",
         "quota_reminder": "余额告警阈值",
         "quota_reminder_placeholder": "用户余额低于该值时发送提醒",
@@ -3217,8 +3208,9 @@
       },
       "retry": {
         "title": "失败重试",
+        "description": "配置请求失败后的重试策略。",
         "description_title": "同次请求失败后的处理",
-        "description": "这里控制一次请求在首个上游失败后，是否继续尝试当前分组内同模型的其他可用渠道。",
+        "description": "控制一次请求失败后是否继续尝试其他可用渠道。",
         "description_effective": "启用后，只要错误允许重试、没有指定具体渠道，并且还有未尝试的候选渠道，系统就会继续依次尝试。",
         "description_disabled": "关闭后首次失败会直接返回。启用时，同一次请求里已经失败过的渠道不会重复尝试，直到全部失败或其中一次成功。",
         "limit": "重试策略",
@@ -3231,36 +3223,43 @@
           "save": "保存重试配置"
         }
       },
-      "general": {
-        "title": "支付与计价",
-        "topup_link": "充值链接",
-        "topup_link_placeholder": "例如发卡网站的购买链接",
-        "chat_link": "聊天页面地址",
-        "chat_link_placeholder": "例如 Chat Web 的访问地址",
-        "quota_per_unit": "USD -> YYC 折算比率",
-        "quota_per_unit_placeholder": "1 USD 折算为多少扣减额度",
+      "payment": {
+        "title": "访问入口",
+        "description": "配置用户支付完成后返回的业务入口地址。",
+        "chat_link": "用户工作台地址",
+        "chat_link_placeholder": "例如用户对话页或工作台的访问地址",
+        "buttons": {
+          "save": "保存设置"
+        }
+      },
+      "automation": {
+        "title": "渠道账务同步",
+        "description": "配置渠道账务自动同步频率。",
         "channel_billing_auto_refresh": {
           "enabled": "自动刷新渠道账务",
           "interval_seconds": "刷新间隔（秒）",
           "last_run": "上次刷新时间",
           "interval_invalid": "刷新间隔必须大于或等于 60 秒"
         },
-        "pricing_policy": {
-          "title": "计价规则",
-          "description_title": "扣费如何计算",
-          "description": "系统会先按供应商官方价格计算基础金额，再结合采购成本、目标毛利和风险缓冲，得出最终扣费金额。",
-          "official_markup": "官方价加价倍数",
-          "official_markup_hint": "基于供应商官方价格的加价倍数，1 表示不加价，1.2 表示上浮 20%。",
-          "target_margin": "目标毛利率",
-          "target_margin_hint": "小数填写，0.2 表示目标毛利 20%；必须小于 0.95。",
-          "risk_buffer": "成本风险缓冲率",
-          "risk_buffer_hint": "用于覆盖采购成本波动，小数填写，0.1 表示成本上浮 10% 后再计算保底售价。",
-          "official_markup_invalid": "官方价格加价系数必须大于 0",
-          "target_margin_invalid": "目标毛利率必须大于或等于 0 且小于 0.95",
-          "risk_buffer_invalid": "采购风险缓冲率必须大于或等于 0"
-        },
         "buttons": {
-          "save": "保存通用设置"
+          "save": "保存设置"
+        }
+      },
+      "pricing": {
+        "title": "计价规则",
+        "description": "配置对外计价和利润目标。",
+        "description_title": "扣费如何计算",
+        "official_markup": "官方价倍率",
+        "official_markup_hint": "基于供应商官方价格计算对外售价，1 表示按官方价，1.2 表示上浮 20%。",
+        "target_margin": "目标毛利率",
+        "target_margin_hint": "小数填写，0.2 表示目标毛利 20%；必须小于 0.95。",
+        "risk_buffer": "成本缓冲比例",
+        "risk_buffer_hint": "用于覆盖采购成本波动，小数填写，0.1 表示先按成本上浮 10% 再计算保底售价。",
+        "official_markup_invalid": "官方价倍率必须大于 0",
+        "target_margin_invalid": "目标毛利率必须大于或等于 0 且小于 0.95",
+        "risk_buffer_invalid": "成本缓冲比例必须大于或等于 0",
+        "buttons": {
+          "save": "保存设置"
         }
       },
       "billing": {
@@ -3318,6 +3317,7 @@
     "currency": {
       "catalog": {
         "title": "币种管理",
+        "description": "维护支付与结算使用的币种基础信息，包括代码、名称、精度和启停状态。",
         "subtitle": "管理币种基础信息。汇率请在汇率管理页面维护。",
         "empty": "暂无币种",
         "columns": {
@@ -3357,33 +3357,9 @@
       }
     },
     "other": {
-      "notice": {
-        "title": "公告设置",
-        "content": "公告内容",
-        "content_placeholder": "在此输入新的公告内容，支持 Markdown & HTML 代码",
-        "buttons": {
-          "save": "保存公告"
-        }
-      },
-      "system": {
-        "title": "系统设置",
-        "name": "系统名称",
-        "name_placeholder": "请输入系统名称",
-        "logo": "Logo 图片地址",
-        "logo_placeholder": "在此输入 Logo 图片地址",
-        "theme": {
-          "title": "主题名称",
-          "link": "当前可用主题",
-          "placeholder": "请输入主题名称"
-        },
-        "buttons": {
-          "save_name": "设置系统名称",
-          "save_logo": "设置 Logo",
-          "save_theme": "设置主题（重启生效）"
-        }
-      },
       "content": {
         "title": "内容设置",
+        "description": "维护首页内容、关于页面与页脚文案，便于运营统一管理展示信息。",
         "homepage": {
           "title": "首页内容",
           "placeholder": "在此输入首页内容，支持 Markdown & HTML 代码，设置后首页的状态信息将不再显示。如果输入的是一个链接，则会使用该链接作为 iframe 的 src 属性，这允许你设置任意网页作为首页。"
@@ -3397,9 +3373,7 @@
           "placeholder": "在此输入新的页脚，留空则使用默认页脚，支持 HTML 代码"
         },
         "buttons": {
-          "save_homepage": "保存首页内容",
-          "save_about": "保存关于",
-          "save_footer": "设置页脚"
+          "save": "保存设置"
         }
       },
       "copyright": {
@@ -3408,6 +3382,7 @@
     },
     "exchange": {
       "title": "汇率管理",
+      "description": "维护币种兑换关系与人工汇率，保证计费折算和结算展示一致。",
       "subtitle": "统一展示手动维护的 */扣减汇率，以及同步得到的法币货币对汇率。",
       "empty": "暂无汇率数据",
       "columns": {

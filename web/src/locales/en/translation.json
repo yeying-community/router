@@ -2982,17 +2982,10 @@
   "setting": {
     "empty_admin": "No configurable items",
     "title": "Settings",
-    "tabs": {
-      "personal": "Personal Settings",
-      "operation": "Operation Settings",
-      "currency": "Currency",
-      "system": "Settings",
-      "other": "Other Settings",
-      "exchange": "Exchange"
-    },
     "groups": {
       "basic": "Basic Info",
-      "billing": "Payments & Billing",
+      "payment": "Payment Settings",
+      "billing": "Billing Settings",
       "content": "Content Settings",
       "runtime": "System Runtime"
     },
@@ -3052,17 +3045,9 @@
       }
     },
     "system": {
-      "basic": {
-        "title": "Basic Settings"
-      },
-      "content": {
-        "title": "Content Settings"
-      },
-      "runtime": {
-        "title": "Runtime Settings"
-      },
       "general": {
-        "title": "General Settings",
+        "title": "Site Information",
+        "description": "Configure the site name and brand-facing identity used across the workspace.",
         "server_address": "Server Address",
         "server_address_placeholder": "e.g.: https://yourdomain.com",
         "system_name": "System Name",
@@ -3072,6 +3057,7 @@
         }
       },
       "notice": "Site Announcement",
+      "notice_description": "Publish site-wide notices and operational messages for users. Markdown is supported.",
       "notice_placeholder": "Supports Markdown",
       "buttons": {
         "save": "Save"
@@ -3079,6 +3065,7 @@
       "saved": "Saved",
       "login": {
         "title": "Login & Registration",
+        "description": "Control core account entry policies including registration and password-based access.",
         "password_login": "Allow Password Login",
         "password_register": "Allow Password Registration",
         "email_verification": "Require Email Verification for Password Registration",
@@ -3101,16 +3088,17 @@
       },
       "smtp": {
         "title": "Email Delivery",
+        "description": "Configure outbound email service for verification codes, notifications, and other mail delivery.",
         "subtitle": "Configure the information required for system emails",
         "server": "Mail Server Address",
         "server_placeholder": "e.g.: smtp.gmail.com",
         "port": "Server Port",
         "port_placeholder": "Default: 587",
-        "account": "Sender Account",
+        "account": "Sender Email Account",
         "account_placeholder": "Usually your email address",
         "from": "Sender Email",
         "from_placeholder": "Usually same as email address",
-        "token": "Mail Credential",
+        "token": "Email Authorization Code",
         "token_placeholder": "Sensitive information will not be sent to frontend",
         "buttons": {
           "save": "Save Email Settings"
@@ -3187,10 +3175,11 @@
     "operation": {
       "quota": {
         "title": "Rewards & Reserve",
+        "description": "Configure reward grants and pre-charge rules.",
         "new_user_reward": "New User Reward",
         "new_user_reward_description": "Granted after a new user completes registration. Select a topup plan as reward source; leave empty to disable.",
         "reward_plan_placeholder": "Select a topup plan (empty means disabled)",
-        "pre_consume": "Reserved Amount per Request",
+        "pre_consume": "Pre-authorized Amount",
         "pre_consume_placeholder": "Refund or charge the difference after settlement",
         "pre_consume_description": "Reserve an estimated amount when a request starts, then settle by actual usage after it finishes.",
         "inviter_reward": "Invite Reward",
@@ -3200,16 +3189,18 @@
           "plan_invalid": "Invalid topup plan, please refresh and try again"
         },
         "buttons": {
-          "save": "Save Balance Settings"
+          "save": "Save Settings"
         }
       },
       "log": {
         "title": "Log Recording",
+        "description": "Control whether consumption logs are retained.",
         "enable_consume": "Record Consumption Logs"
       },
       "monitor": {
         "title": "Alerts & Thresholds",
-        "max_response_time": "Channel Response Limit",
+        "description": "Configure balance reminders and channel timeout thresholds.",
+        "max_response_time": "Channel Timeout Threshold",
         "max_response_time_placeholder": "In seconds. Channels exceeding this during tests will be disabled automatically",
         "quota_reminder": "Balance Alert Threshold",
         "quota_reminder_placeholder": "Send a reminder when user balance drops below this value",
@@ -3219,8 +3210,9 @@
       },
       "retry": {
         "title": "Failure Retry",
+        "description": "Configure retry behavior after request failure.",
         "description_title": "What happens after the first failure",
-        "description": "This controls whether a request should continue trying other available channels for the same model in the current group after the first upstream failure.",
+        "description": "Control whether a failed request should continue trying other available channels.",
         "description_effective": "When enabled, if the error is retryable, no specific channel is pinned, and unused candidates remain, the system keeps trying them in order.",
         "description_disabled": "When disabled, the first failure is returned immediately. When enabled, channels that already failed in the same request are not retried again.",
         "limit": "Retry strategy",
@@ -3233,36 +3225,43 @@
           "save": "Save Retry Settings"
         }
       },
-      "general": {
-        "title": "Payments & Pricing",
-        "topup_link": "Top-up Link",
-        "topup_link_placeholder": "e.g.: Card selling website purchase link",
-        "chat_link": "Chat Page URL",
-        "chat_link_placeholder": "e.g.: Chat Web access URL",
-        "quota_per_unit": "USD -> YYC Conversion Rate",
-        "quota_per_unit_placeholder": "How many YYC 1 USD converts to",
+      "payment": {
+        "title": "Access Entry",
+        "description": "Configure the destination users return to after payment.",
+        "chat_link": "User Workspace URL",
+        "chat_link_placeholder": "e.g.: the user chat page or workspace URL",
+        "buttons": {
+          "save": "Save Settings"
+        }
+      },
+      "automation": {
+        "title": "Channel Billing Sync",
+        "description": "Configure how often channel billing sync runs.",
         "channel_billing_auto_refresh": {
           "enabled": "Auto-refresh channel billing",
           "interval_seconds": "Refresh interval (seconds)",
           "last_run": "Last refresh time",
           "interval_invalid": "Refresh interval must be greater than or equal to 60 seconds"
         },
-        "pricing_policy": {
-          "title": "Pricing Rules",
-          "description_title": "How charges are calculated",
-          "description": "The system starts from provider official pricing, then combines procurement cost, target margin, and a risk buffer to determine the final charge.",
-          "official_markup": "Official price markup multiplier",
-          "official_markup_hint": "Multiplier over provider official price. 1 means no markup, 1.2 means 20% markup.",
-          "target_margin": "Target margin",
-          "target_margin_hint": "Use decimals. 0.2 means 20% target margin; must be lower than 0.95.",
-          "risk_buffer": "Cost risk buffer",
-          "risk_buffer_hint": "Covers procurement cost fluctuation. 0.1 means applying a 10% cost buffer before calculating the cost floor.",
-          "official_markup_invalid": "Official price markup must be greater than 0",
-          "target_margin_invalid": "Target margin must be greater than or equal to 0 and lower than 0.95",
-          "risk_buffer_invalid": "Procurement risk buffer must be greater than or equal to 0"
-        },
         "buttons": {
-          "save": "Save General Settings"
+          "save": "Save Settings"
+        }
+      },
+      "pricing": {
+        "title": "Pricing Rules",
+        "description": "Configure selling-price rules and profit targets.",
+        "description_title": "How charges are calculated",
+        "official_markup": "Official Price Multiplier",
+        "official_markup_hint": "Used to calculate the selling price from provider list pricing. 1 means list price, 1.2 means a 20% uplift.",
+        "target_margin": "Target margin",
+        "target_margin_hint": "Use decimals. 0.2 means 20% target margin; must be lower than 0.95.",
+        "risk_buffer": "Cost Buffer Ratio",
+        "risk_buffer_hint": "Used to absorb procurement cost fluctuation. 0.1 means adding a 10% buffer before calculating the floor price.",
+        "official_markup_invalid": "Official price multiplier must be greater than 0",
+        "target_margin_invalid": "Target margin must be greater than or equal to 0 and lower than 0.95",
+        "risk_buffer_invalid": "Cost buffer ratio must be greater than or equal to 0",
+        "buttons": {
+          "save": "Save Settings"
         }
       },
       "billing": {
@@ -3320,6 +3319,7 @@
     "currency": {
       "catalog": {
         "title": "Currency Catalog",
+        "description": "Manage the currency metadata used by payment and settlement flows, including code, name, precision, and status.",
         "subtitle": "Manage currency metadata. Rates are maintained in exchange management.",
         "empty": "No currencies",
         "columns": {
@@ -3359,33 +3359,9 @@
       }
     },
     "other": {
-      "notice": {
-        "title": "Notice Settings",
-        "content": "Notice Content",
-        "content_placeholder": "Enter new notice content here, supports Markdown & HTML code",
-        "buttons": {
-          "save": "Save Notice"
-        }
-      },
-      "system": {
-        "title": "System Settings",
-        "name": "System Name",
-        "name_placeholder": "Please enter system name",
-        "logo": "Logo Image URL",
-        "logo_placeholder": "Enter Logo image URL here",
-        "theme": {
-          "title": "Theme Name",
-          "link": "Available Themes",
-          "placeholder": "Please enter theme name"
-        },
-        "buttons": {
-          "save_name": "Set System Name",
-          "save_logo": "Set Logo",
-          "save_theme": "Set Theme (Restart Required)"
-        }
-      },
       "content": {
         "title": "Content Settings",
+        "description": "Maintain homepage, about page, and footer content for consistent site messaging.",
         "homepage": {
           "title": "Homepage Content",
           "placeholder": "Enter homepage content here, supports Markdown & HTML code. Status information will not be shown after setting. If a link is entered, it will be used as the src attribute of an iframe, allowing you to set any webpage as homepage."
@@ -3402,9 +3378,7 @@
           "placeholder": "Enter new footer here, leave empty to use default footer, supports HTML code"
         },
         "buttons": {
-          "save_homepage": "Save Homepage Content",
-          "save_about": "Save About",
-          "save_footer": "Set Footer"
+          "save": "Save Settings"
         }
       },
       "copyright": {
@@ -3413,6 +3387,7 @@
     },
     "exchange": {
       "title": "Exchange Management",
+      "description": "Maintain currency conversion relationships and manual rates for consistent billing settlement.",
       "subtitle": "Show both manually maintained */charge rates and synced fiat currency-pair rates.",
       "empty": "No rates",
       "columns": {

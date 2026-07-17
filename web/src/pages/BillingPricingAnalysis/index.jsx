@@ -255,7 +255,6 @@ function BillingPricingAnalysis() {
     <div className='dashboard-container billing-pricing-analysis-page'>
       <AppFilterHeader
         breadcrumbs={[{ key: 'billing', label: t('header.billing') }, { key: 'pricing-analysis', label: t('billing.pricing_analysis.title'), active: true }]}
-        title={t('billing.pricing_analysis.title')}
         actions={<AppButton className='router-page-button' color='blue' loading={loading} onClick={() => load().then()}>{t('common.refresh')}</AppButton>}
         query={<AppSelect className='billing-pricing-analysis-group-select' clearable search options={groupOptions} value={groupID} placeholder={t('billing.pricing_analysis.group_placeholder')} onChange={(e, { value }) => setGroupID((value || '').toString())} />}
       />

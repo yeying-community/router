@@ -849,6 +849,31 @@ body,
     gap: 8px;
 }
 
+.router-settings-card .router-ui-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.router-settings-card-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.router-settings-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.92);
+}
+
+.router-settings-card-description {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #6b7280;
+}
+
 .router-settings-page-block {
     display: flex;
     flex-direction: column;
@@ -898,6 +923,17 @@ body,
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+.router-settings-content-list {
+    gap: 12px;
+}
+
+.router-settings-content-block {
+    padding: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    background: rgba(248, 250, 252, 0.72);
 }
 
 .router-settings-inline-message.ant-alert {

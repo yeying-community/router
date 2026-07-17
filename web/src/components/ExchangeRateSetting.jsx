@@ -31,7 +31,7 @@ const createdAtColumnStyle = { width: '160px', minWidth: '160px' };
 const updatedAtColumnStyle = { width: '168px', minWidth: '168px' };
 const actionColumnStyle = { width: 76 };
 
-const ExchangeRateSetting = ({ section = '' }) => {
+const ExchangeRateSetting = ({ section = '', showSectionTitle = true }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [savingKey, setSavingKey] = useState('');
@@ -222,14 +222,18 @@ const ExchangeRateSetting = ({ section = '' }) => {
   return (
     <AppSpin spinning={loading}>
       <div>
-        <AppFilterHeader
-          title={t('setting.exchange.title')}
-          titleClassName='router-ui-section-title'
-          className='router-toolbar-compact'
-        />
-        <div className='router-settings-note'>
-          {t('setting.exchange.subtitle')}
-        </div>
+        {showSectionTitle ? (
+          <>
+            <AppFilterHeader
+              title={t('setting.exchange.title')}
+              titleClassName='router-ui-section-title'
+              className='router-toolbar-compact'
+            />
+            <div className='router-settings-note'>
+              {t('setting.exchange.subtitle')}
+            </div>
+          </>
+        ) : null}
         <div className='router-table-scroll-x'>
           <AppTable
             className='router-detail-table'

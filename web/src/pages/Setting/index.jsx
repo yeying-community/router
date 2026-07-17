@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { AppDivider, AppFilterHeader, AppSection } from '../../router-ui';
+import { AppFilterHeader, AppSection } from '../../router-ui';
 import SystemSetting from '../../components/SystemSetting';
 import { isRoot } from '../../helpers';
 import OtherSetting from '../../components/OtherSetting';
@@ -9,43 +9,23 @@ import PersonalSetting from '../../components/PersonalSetting';
 import OperationSetting from '../../components/OperationSetting';
 import ExchangeRateSetting from '../../components/ExchangeRateSetting';
 import CurrencySetting from '../../components/CurrencySetting';
+import { resolveAdminSettingLocation } from '../../helpers/adminSetting';
 
-const resolveAdminSettingLocation = (rawTab, rawSection) => {
-  if (rawTab === 'currency') {
-    return { tab: 'basic', section: 'general' };
-  }
-  if (rawTab === 'exchange') {
-    return { tab: 'basic', section: 'general' };
-  }
-  if (
-    rawTab === 'system' ||
-    rawTab === 'general' ||
-    rawTab === 'smtp' ||
-    rawTab === 'login'
-  ) {
-    return { tab: 'basic', section: 'general' };
-  }
-  if (rawTab === 'operation') {
-    if (rawSection === 'monitor' || rawSection === 'retry' || rawSection === 'log') {
-      return { tab: 'runtime', section: rawSection };
+const SettingCard = ({ title, description, children }) => (
+  <AppSection
+    className='router-settings-card'
+    title={
+      <div className='router-settings-card-heading'>
+        <div className='router-settings-card-title'>{title}</div>
+        {description ? (
+          <div className='router-settings-card-description'>{description}</div>
+        ) : null}
+      </div>
     }
-    return { tab: 'billing', section: 'balance' };
-  }
-  if (
-    rawTab === 'monitor' ||
-    rawTab === 'retry' ||
-    rawTab === 'log_setting'
-  ) {
-    return { tab: 'runtime', section: 'monitor' };
-  }
-  if (rawTab === 'other' || rawTab === 'notice') {
-    return { tab: 'content', section: 'notice' };
-  }
-  return {
-    tab: rawTab,
-    section: rawSection,
-  };
-};
+  >
+    {children}
+  </AppSection>
+);
 
 const Setting = () => {
   const { t } = useTranslation();
@@ -74,6 +54,10 @@ const Setting = () => {
     menuGroups.push({
       key: 'basic',
       label: t('setting.groups.basic'),
+    });
+    menuGroups.push({
+      key: 'payment',
+      label: t('setting.groups.payment'),
     });
     menuGroups.push({
       key: 'billing',
@@ -109,44 +93,113 @@ const Setting = () => {
     if (activeTab === 'basic') {
       return (
         <div className='router-settings-page-content'>
-          <div className='router-settings-page-block router-settings-page-block-primary'>
-            <SystemSetting section='all' />
-          </div>
-          <AppDivider className='router-settings-page-divider' />
-          <div className='router-settings-page-block'>
-            <CurrencySetting section='catalog' />
-          </div>
-          <AppDivider className='router-settings-page-divider' />
-          <div className='router-settings-page-block'>
-            <ExchangeRateSetting section='rates' />
-          </div>
+          <SettingCard
+            title={t('setting.system.general.title')}
+            description={t('setting.system.general.description')}
+          >
+            <SystemSetting section='general' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.system.smtp.title')}
+            description={t('setting.system.smtp.description')}
+          >
+            <SystemSetting section='smtp' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.system.login.title')}
+            description={t('setting.system.login.description')}
+          >
+            <SystemSetting section='login' showSectionTitle={false} />
+          </SettingCard>
+        </div>
+      );
+    }
+    if (activeTab === 'payment') {
+      return (
+        <div className='router-settings-page-content'>
+          <SettingCard
+            title={t('setting.operation.payment.title')}
+            description={t('setting.operation.payment.description')}
+          >
+            <OperationSetting section='payment' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.currency.catalog.title')}
+            description={t('setting.currency.catalog.description')}
+          >
+            <CurrencySetting section='catalog' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.exchange.title')}
+            description={t('setting.exchange.description')}
+          >
+            <ExchangeRateSetting section='rates' showSectionTitle={false} />
+          </SettingCard>
         </div>
       );
     }
     if (activeTab === 'billing') {
       return (
         <div className='router-settings-page-content'>
-          <div className='router-settings-page-block'>
-            <OperationSetting section='billing' />
-          </div>
+          <SettingCard
+            title={t('setting.operation.quota.title')}
+            description={t('setting.operation.quota.description')}
+          >
+            <OperationSetting section='balance' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.operation.automation.title')}
+            description={t('setting.operation.automation.description')}
+          >
+            <OperationSetting section='automation' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.operation.pricing.title')}
+          >
+            <OperationSetting section='pricing' showSectionTitle={false} />
+          </SettingCard>
         </div>
       );
     }
     if (activeTab === 'content') {
       return (
         <div className='router-settings-page-content'>
-          <div className='router-settings-page-block'>
-            <OtherSetting section='all' />
-          </div>
+          <SettingCard
+            title={t('setting.system.notice')}
+            description={t('setting.system.notice_description')}
+          >
+            <OtherSetting section='notice' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.other.content.title')}
+            description={t('setting.other.content.description')}
+          >
+            <OtherSetting section='content' showSectionTitle={false} />
+          </SettingCard>
         </div>
       );
     }
     if (activeTab === 'runtime') {
       return (
         <div className='router-settings-page-content'>
-          <div className='router-settings-page-block'>
-            <OperationSetting section='runtime' />
-          </div>
+          <SettingCard
+            title={t('setting.operation.monitor.title')}
+            description={t('setting.operation.monitor.description')}
+          >
+            <OperationSetting section='monitor' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.operation.retry.title')}
+            description={t('setting.operation.retry.description')}
+          >
+            <OperationSetting section='retry' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.operation.log.title')}
+            description={t('setting.operation.log.description')}
+          >
+            <OperationSetting section='log' showSectionTitle={false} />
+          </SettingCard>
         </div>
       );
     }

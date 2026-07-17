@@ -65,7 +65,7 @@ const PRICING_POLICY_KEYS = {
   riskBuffer: 'BillingRiskBuffer',
 };
 
-const OperationSetting = ({ section = '' }) => {
+const OperationSetting = ({ section = '', showSectionTitle = true }) => {
   const { t } = useTranslation();
   const now = new Date();
   const [inputs, setInputs] = useState({
@@ -99,6 +99,12 @@ const OperationSetting = ({ section = '' }) => {
   const showConfigSection = normalizedSection === 'config';
   const showBillingGroup = normalizedSection === 'billing';
   const showRuntimeGroup = normalizedSection === 'runtime';
+  const showPaymentSection =
+    normalizedSection === 'payment' || normalizedSection === 'general';
+  const showAutomationSection =
+    normalizedSection === 'automation' || normalizedSection === 'general';
+  const showPricingSection =
+    normalizedSection === 'pricing' || normalizedSection === 'general';
   const showBalanceSection =
     showAllSections ||
     showBillingGroup ||
@@ -110,13 +116,25 @@ const OperationSetting = ({ section = '' }) => {
     monitor: showAllSections || showRuntimeGroup || normalizedSection === 'monitor',
     retry: showAllSections || showRuntimeGroup || normalizedSection === 'retry',
     log: showAllSections || showRuntimeGroup || normalizedSection === 'log',
-    general:
+    payment:
+      showAllSections || showBillingGroup || showConfigSection || showPaymentSection,
+    automation:
       showAllSections ||
       showBillingGroup ||
       showConfigSection ||
-      normalizedSection === 'general',
+      showAutomationSection,
+    pricing:
+      showAllSections || showBillingGroup || showConfigSection || showPricingSection,
   };
-  const sectionOrder = ['balance', 'monitor', 'retry', 'log', 'general'];
+  const sectionOrder = [
+    'balance',
+    'monitor',
+    'retry',
+    'log',
+    'payment',
+    'automation',
+    'pricing',
+  ];
   const shouldRenderDividerAfter = (key) => {
     if (!showAllSections) {
       return false;
@@ -363,7 +381,7 @@ const OperationSetting = ({ section = '' }) => {
           }
         }
         break;
-      case 'general':
+      case 'payment':
         {
           const chatLink = normalizeOptionValue(inputs.ChatLink, '').trim();
           if (
@@ -372,6 +390,10 @@ const OperationSetting = ({ section = '' }) => {
           ) {
             await updateOption('ChatLink', chatLink);
           }
+        }
+        break;
+      case 'automation':
+        {
           const billingRefreshInterval = Math.trunc(
             Number(inputs.ChannelBillingAutoRefreshIntervalSeconds || 0)
           );
@@ -380,7 +402,7 @@ const OperationSetting = ({ section = '' }) => {
             billingRefreshInterval < 60
           ) {
             showError(
-              t('setting.operation.general.channel_billing_auto_refresh.interval_invalid')
+              t('setting.operation.automation.channel_billing_auto_refresh.interval_invalid')
             );
             break;
           }
@@ -395,19 +417,23 @@ const OperationSetting = ({ section = '' }) => {
               `${billingRefreshInterval}`
             );
           }
+        }
+        break;
+      case 'pricing':
+        {
           const officialMarkup = Number(inputs[PRICING_POLICY_KEYS.officialMarkup] ?? 1);
           const targetMargin = Number(inputs[PRICING_POLICY_KEYS.targetMargin] ?? 0);
           const riskBuffer = Number(inputs[PRICING_POLICY_KEYS.riskBuffer] ?? 0);
           if (!Number.isFinite(officialMarkup) || officialMarkup <= 0) {
-            showError(t('setting.operation.general.pricing_policy.official_markup_invalid'));
+            showError(t('setting.operation.pricing.official_markup_invalid'));
             break;
           }
           if (!Number.isFinite(targetMargin) || targetMargin < 0 || targetMargin >= 0.95) {
-            showError(t('setting.operation.general.pricing_policy.target_margin_invalid'));
+            showError(t('setting.operation.pricing.target_margin_invalid'));
             break;
           }
           if (!Number.isFinite(riskBuffer) || riskBuffer < 0) {
-            showError(t('setting.operation.general.pricing_policy.risk_buffer_invalid'));
+            showError(t('setting.operation.pricing.risk_buffer_invalid'));
             break;
           }
           const pricingOptions = [
@@ -538,11 +564,13 @@ const OperationSetting = ({ section = '' }) => {
       <div className='router-settings-system-block'>
           {sectionVisible.balance ? (
             <>
-              <AppFilterHeader
-                title={t('setting.operation.quota.title')}
-                titleClassName='router-ui-section-title'
-                className='router-toolbar-compact'
-              />
+              {showSectionTitle ? (
+                <AppFilterHeader
+                  title={t('setting.operation.quota.title')}
+                  titleClassName='router-ui-section-title'
+                  className='router-toolbar-compact'
+                />
+              ) : null}
               <div className='router-settings-section-body'>
                 <AppFormRow>
                   {renderBalanceInputField(
@@ -581,11 +609,13 @@ const OperationSetting = ({ section = '' }) => {
 
           {sectionVisible.monitor ? (
             <>
-              <AppFilterHeader
-                title={t('setting.operation.monitor.title')}
-                titleClassName='router-ui-section-title'
-                className='router-toolbar-compact'
-              />
+              {showSectionTitle ? (
+                <AppFilterHeader
+                  title={t('setting.operation.monitor.title')}
+                  titleClassName='router-ui-section-title'
+                  className='router-toolbar-compact'
+                />
+              ) : null}
               <div className='router-settings-section-body'>
                 <AppFormRow>
                   <AppField label={t('setting.operation.monitor.max_response_time')}>
@@ -634,25 +664,14 @@ const OperationSetting = ({ section = '' }) => {
 
           {sectionVisible.retry ? (
             <>
-              <AppFilterHeader
-                title={t('setting.operation.retry.title')}
-                titleClassName='router-ui-section-title'
-                className='router-toolbar-compact'
-              />
-              <div className='router-settings-section-body'>
-                <AppAlert
-                  className='router-section-message router-settings-inline-message'
-                  type='info'
-                  showIcon
-                  title={t('setting.operation.retry.description_title')}
-                  description={
-                    <>
-                      <p>{t('setting.operation.retry.description')}</p>
-                      <p>{t('setting.operation.retry.description_effective')}</p>
-                      <p>{t('setting.operation.retry.description_disabled')}</p>
-                    </>
-                  }
+              {showSectionTitle ? (
+                <AppFilterHeader
+                  title={t('setting.operation.retry.title')}
+                  titleClassName='router-ui-section-title'
+                  className='router-toolbar-compact'
                 />
+              ) : null}
+              <div className='router-settings-section-body'>
                 <AppFormRow>
                   <AppField label={t('setting.operation.retry.limit')}>
                     <AppSelect
@@ -693,11 +712,13 @@ const OperationSetting = ({ section = '' }) => {
 
           {sectionVisible.log ? (
             <>
-              <AppFilterHeader
-                title={t('setting.operation.log.title')}
-                titleClassName='router-ui-section-title'
-                className='router-toolbar-compact'
-              />
+              {showSectionTitle ? (
+                <AppFilterHeader
+                  title={t('setting.operation.log.title')}
+                  titleClassName='router-ui-section-title'
+                  className='router-toolbar-compact'
+                />
+              ) : null}
               <div className='router-settings-section-body'>
                 <AppFormRow>
                   <AppField label={t('setting.operation.log.enable_consume')}>
@@ -719,30 +740,55 @@ const OperationSetting = ({ section = '' }) => {
             </>
           ) : null}
 
-          {sectionVisible.general ? (
+          {sectionVisible.payment ? (
             <>
-              <AppFilterHeader
-                title={t('setting.operation.general.title')}
-                titleClassName='router-ui-section-title'
-                className='router-toolbar-compact'
-              />
+              {showSectionTitle ? (
+                <AppFilterHeader
+                  title={t('setting.operation.payment.title')}
+                  titleClassName='router-ui-section-title'
+                  className='router-toolbar-compact'
+                />
+              ) : null}
               <div className='router-settings-section-body'>
                 <AppFormRow>
-                  <AppField label={t('setting.operation.general.chat_link')}>
+                  <AppField label={t('setting.operation.payment.chat_link')}>
                     <AppInput
                       className='router-section-input'
                       name='ChatLink'
                       value={inputs.ChatLink || ''}
                       onChange={handleInputChange}
-                      placeholder={t('setting.operation.general.chat_link_placeholder')}
+                      placeholder={t('setting.operation.payment.chat_link_placeholder')}
                     />
                   </AppField>
                 </AppFormRow>
+                <AppFormActions align='start'>
+                  <AppButton
+                    className='router-section-button'
+                    onClick={() => {
+                      saveSectionConfig('payment').then();
+                    }}
+                  >
+                    {t('setting.operation.payment.buttons.save')}
+                  </AppButton>
+                </AppFormActions>
+              </div>
+              {shouldRenderDividerAfter('payment') ? <AppDivider /> : null}
+            </>
+          ) : null}
+
+          {sectionVisible.automation ? (
+            <>
+              {showSectionTitle ? (
+                <AppFilterHeader
+                  title={t('setting.operation.automation.title')}
+                  titleClassName='router-ui-section-title'
+                  className='router-toolbar-compact'
+                />
+              ) : null}
+              <div className='router-settings-section-body'>
                 <AppFormRow>
                   <AppField
-                    label={t(
-                      'setting.operation.general.channel_billing_auto_refresh.enabled'
-                    )}
+                    label={t('setting.operation.automation.channel_billing_auto_refresh.enabled')}
                   >
                     <AppSwitch
                       checked={inputs.ChannelBillingAutoRefreshEnabled === 'true'}
@@ -758,9 +804,7 @@ const OperationSetting = ({ section = '' }) => {
                     />
                   </AppField>
                   <AppField
-                    label={t(
-                      'setting.operation.general.channel_billing_auto_refresh.interval_seconds'
-                    )}
+                    label={t('setting.operation.automation.channel_billing_auto_refresh.interval_seconds')}
                   >
                     <AppInputNumber
                       className='router-section-input'
@@ -775,9 +819,7 @@ const OperationSetting = ({ section = '' }) => {
                 </AppFormRow>
                 <AppFormRow>
                   <AppField
-                    label={t(
-                      'setting.operation.general.channel_billing_auto_refresh.last_run'
-                    )}
+                    label={t('setting.operation.automation.channel_billing_auto_refresh.last_run')}
                   >
                     <AppInput
                       className='router-section-input'
@@ -792,22 +834,35 @@ const OperationSetting = ({ section = '' }) => {
                     />
                   </AppField>
                 </AppFormRow>
+                <AppFormActions align='start'>
+                  <AppButton
+                    className='router-section-button'
+                    onClick={() => {
+                      saveSectionConfig('automation').then();
+                    }}
+                  >
+                    {t('setting.operation.automation.buttons.save')}
+                  </AppButton>
+                </AppFormActions>
+              </div>
+              {shouldRenderDividerAfter('automation') ? <AppDivider /> : null}
+            </>
+          ) : null}
+
+          {sectionVisible.pricing ? (
+            <>
+              {showSectionTitle ? (
                 <AppFilterHeader
-                  title={t('setting.operation.general.pricing_policy.title')}
+                  title={t('setting.operation.pricing.title')}
                   titleClassName='router-ui-section-title'
                   className='router-toolbar-compact'
                 />
-                <AppAlert
-                  className='router-section-message router-settings-inline-message'
-                  type='info'
-                  showIcon
-                  title={t('setting.operation.general.pricing_policy.description_title')}
-                  description={t('setting.operation.general.pricing_policy.description')}
-                />
+              ) : null}
+              <div className='router-settings-section-body'>
                 <AppFormRow>
                   <AppField
-                    label={t('setting.operation.general.pricing_policy.official_markup')}
-                    hint={t('setting.operation.general.pricing_policy.official_markup_hint')}
+                    label={t('setting.operation.pricing.official_markup')}
+                    hint={t('setting.operation.pricing.official_markup_hint')}
                   >
                     <AppInputNumber
                       className='router-section-input'
@@ -821,8 +876,8 @@ const OperationSetting = ({ section = '' }) => {
                     />
                   </AppField>
                   <AppField
-                    label={t('setting.operation.general.pricing_policy.target_margin')}
-                    hint={t('setting.operation.general.pricing_policy.target_margin_hint')}
+                    label={t('setting.operation.pricing.target_margin')}
+                    hint={t('setting.operation.pricing.target_margin_hint')}
                   >
                     <AppInputNumber
                       className='router-section-input'
@@ -837,8 +892,8 @@ const OperationSetting = ({ section = '' }) => {
                     />
                   </AppField>
                   <AppField
-                    label={t('setting.operation.general.pricing_policy.risk_buffer')}
-                    hint={t('setting.operation.general.pricing_policy.risk_buffer_hint')}
+                    label={t('setting.operation.pricing.risk_buffer')}
+                    hint={t('setting.operation.pricing.risk_buffer_hint')}
                   >
                     <AppInputNumber
                       className='router-section-input'
@@ -856,10 +911,10 @@ const OperationSetting = ({ section = '' }) => {
                   <AppButton
                     className='router-section-button'
                     onClick={() => {
-                      saveSectionConfig('general').then();
+                      saveSectionConfig('pricing').then();
                     }}
                   >
-                    {t('setting.operation.general.buttons.save')}
+                    {t('setting.operation.pricing.buttons.save')}
                   </AppButton>
                 </AppFormActions>
               </div>

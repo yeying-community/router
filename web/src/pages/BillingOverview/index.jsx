@@ -103,9 +103,8 @@ function BillingOverview() {
 
   return (
     <div className='dashboard-container billing-overview-page'>
-        <AppFilterHeader
+      <AppFilterHeader
         breadcrumbs={[{ key: 'billing', label: t('header.billing') }, { key: 'billing-overview', label: t('billing.overview.title'), active: true }]}
-        title={t('billing.overview.title')}
         actions={<><AppSelect clearable options={report.items.map((item) => ({ key: item.dimension_key, value: item.dimension_key, text: item.dimension_key }))} value={channelID} placeholder={t('billing.overview.channel_placeholder')} onChange={(e, { value }) => setChannelID((value || '').toString())} /><AppSelect clearable options={modelOptions} value={modelName} placeholder={t('billing.overview.model_placeholder')} onChange={(e, { value }) => setModelName((value || '').toString())} /><AppButton className='router-page-button' color='blue' loading={loading} onClick={() => load().then()}>{t('common.refresh')}</AppButton></>}
       />
       <AppSpin spinning={loading}>

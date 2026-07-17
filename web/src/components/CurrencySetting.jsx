@@ -47,7 +47,7 @@ const currencyTableMinWidth =
   updatedAtColumnWidth +
   actionColumnWidth;
 
-const CurrencySetting = ({ section = '' }) => {
+const CurrencySetting = ({ section = '', showSectionTitle = true }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [savingKey, setSavingKey] = useState('');
@@ -190,9 +190,9 @@ const CurrencySetting = ({ section = '' }) => {
     <AppSpin spinning={loading}>
       <div>
         <AppFilterHeader
-          title={t('setting.currency.catalog.title')}
+          title={showSectionTitle ? t('setting.currency.catalog.title') : null}
           titleClassName='router-ui-section-title'
-          meta={t('setting.currency.catalog.subtitle')}
+          meta={showSectionTitle ? t('setting.currency.catalog.subtitle') : null}
           className='router-toolbar-compact'
           actions={
             <AppButton

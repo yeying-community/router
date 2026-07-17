@@ -20,7 +20,7 @@ const optionKeys = [
   'Footer',
 ];
 
-const OtherSetting = ({ section = '' }) => {
+const OtherSetting = ({ section = '', showSectionTitle = true }) => {
   const { t } = useTranslation();
   let [inputs, setInputs] = useState({
     Notice: '',
@@ -94,7 +94,7 @@ const OtherSetting = ({ section = '' }) => {
           {sectionVisible.notice ? (
             <>
               <AppFilterHeader
-                title={t('setting.system.notice', '站点公告')}
+                title={showSectionTitle ? t('setting.system.notice', '站点公告') : null}
                 titleClassName='router-ui-section-title'
                 className='router-toolbar-compact'
               />
@@ -123,12 +123,6 @@ const OtherSetting = ({ section = '' }) => {
                   </AppButton>
                 </AppFormActions>
 
-                <AppAlert
-                  className='router-section-message router-settings-inline-message'
-                  type='info'
-                  showIcon
-                  title={t('setting.other.copyright.notice')}
-                />
               </div>
               {showAllSections && sectionVisible.content ? <AppDivider /> : null}
             </>
@@ -137,12 +131,12 @@ const OtherSetting = ({ section = '' }) => {
           {sectionVisible.content ? (
             <>
               <AppFilterHeader
-                title={t('setting.other.content.title')}
+                title={showSectionTitle ? t('setting.other.content.title') : null}
                 titleClassName='router-ui-section-title'
                 className='router-toolbar-compact'
               />
-              <div className='router-settings-section-body'>
-                <div className='router-settings-page-block'>
+              <div className='router-settings-section-body router-settings-content-list'>
+                <div className='router-settings-page-block router-settings-content-block'>
                   <AppFormRow>
                     <AppField label={t('setting.other.content.homepage.title')}>
                       <AppTextarea
@@ -160,11 +154,11 @@ const OtherSetting = ({ section = '' }) => {
                       className='router-section-button'
                       onClick={() => submitOption('HomePageContent')}
                     >
-                      {t('setting.other.content.buttons.save_homepage')}
+                      {t('setting.other.content.buttons.save')}
                     </AppButton>
                   </AppFormActions>
                 </div>
-                <div className='router-settings-page-block'>
+                <div className='router-settings-page-block router-settings-content-block'>
                   <AppFormRow>
                     <AppField label={t('setting.other.content.about.title')}>
                       <AppTextarea
@@ -182,11 +176,11 @@ const OtherSetting = ({ section = '' }) => {
                       className='router-section-button'
                       onClick={submitAbout}
                     >
-                      {t('setting.other.content.buttons.save_about')}
+                      {t('setting.other.content.buttons.save')}
                     </AppButton>
                   </AppFormActions>
                 </div>
-                <div className='router-settings-page-block'>
+                <div className='router-settings-page-block router-settings-content-block'>
                   <AppFormRow>
                     <AppField label={t('setting.other.content.footer.title')}>
                       <AppTextarea
@@ -204,7 +198,7 @@ const OtherSetting = ({ section = '' }) => {
                       className='router-section-button'
                       onClick={() => submitOption('Footer')}
                     >
-                      {t('setting.other.content.buttons.save_footer')}
+                      {t('setting.other.content.buttons.save')}
                     </AppButton>
                   </AppFormActions>
                 </div>

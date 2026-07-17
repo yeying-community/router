@@ -1,3 +1,5 @@
+import { resolveAdminSettingLocation } from '../helpers/adminSetting';
+
 export const ADMIN_MENU_GROUPS = [
   {
     key: 'dashboard',
@@ -123,6 +125,11 @@ export const ADMIN_MENU_GROUPS = [
         icon: 'sliders horizontal',
       },
       {
+        name: 'setting.groups.payment',
+        to: '/admin/setting?tab=payment&section=currency',
+        icon: 'credit card outline',
+      },
+      {
         name: 'setting.groups.billing',
         to: '/admin/setting?tab=billing&section=balance',
         icon: 'money bill alternate outline',
@@ -159,43 +166,10 @@ export const isAdminRouteActive = (location, to) => {
   const currentParams = new URLSearchParams(location.search || '');
   const targetTab = (targetParams.get('tab') || '').trim().toLowerCase();
   if (path === '/admin/setting' && targetTab !== '') {
-    const rawCurrentTab = (currentParams.get('tab') || 'general')
-      .trim()
-      .toLowerCase();
-    const currentSection = (currentParams.get('section') || '')
-      .trim()
-      .toLowerCase();
-    const currentTab =
-      rawCurrentTab === 'system'
-        ? currentSection === 'smtp'
-          ? 'smtp'
-          : currentSection === 'login'
-            ? 'login'
-            : currentSection === 'monitor'
-              ? 'monitor'
-              : currentSection === 'log'
-                ? 'log_setting'
-                : 'general'
-        : rawCurrentTab === 'operation'
-          ? currentSection === 'monitor'
-            ? 'monitor'
-            : currentSection === 'log'
-              ? 'log_setting'
-              : 'operation'
-          : rawCurrentTab === 'other'
-            ? currentSection === 'content'
-              ? 'content'
-              : 'notice'
-            : rawCurrentTab === 'general' ||
-                rawCurrentTab === 'smtp' ||
-                rawCurrentTab === 'login'
-              ? 'basic'
-              : rawCurrentTab === 'notice'
-                ? 'content'
-                : rawCurrentTab === 'monitor' ||
-                    rawCurrentTab === 'log_setting'
-                  ? 'runtime'
-                  : rawCurrentTab;
+    const { tab: currentTab } = resolveAdminSettingLocation(
+      currentParams.get('tab') || 'basic',
+      currentParams.get('section') || 'general',
+    );
     if (currentTab !== targetTab) {
       return false;
     }
