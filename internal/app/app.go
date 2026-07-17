@@ -15,6 +15,7 @@ import (
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/i18n"
 	"github.com/yeying-community/router/common/logger"
+	channelcontroller "github.com/yeying-community/router/internal/admin/controller/channel"
 	task "github.com/yeying-community/router/internal/admin/controller/task"
 	"github.com/yeying-community/router/internal/admin/model"
 	"github.com/yeying-community/router/internal/admin/monitor"
@@ -83,6 +84,7 @@ func Run() {
 	client.Init()
 	if config.IsMasterNode {
 		task.StartAsyncTaskWorkers()
+		channelcontroller.StartChannelHealthProbeWorker()
 		billingsvc.StartFXAutoSyncWorker()
 		billingsvc.StartChannelBillingAutoRefreshWorker()
 		topupsvc.StartTopupReconcileWorker()

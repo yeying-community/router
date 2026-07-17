@@ -136,23 +136,31 @@ const formatAmount = (row) =>
 
 const resolveListPath = (stateFrom) => {
   if (typeof stateFrom !== 'string') {
-    return '/admin/flow/topup-reconcile';
+    return '/admin/user';
   }
   const normalized = stateFrom.trim();
   if (!normalized.startsWith('/')) {
-    return '/admin/flow/topup-reconcile';
+    return '/admin/user';
   }
-  if (normalized.startsWith('/admin/flow/topup-reconcile/')) {
-    return '/admin/flow/topup-reconcile';
+  if (normalized.startsWith('/admin/user/detail/')) {
+    const cleanPath = normalized.split('?')[0].split('#')[0];
+    const segments = cleanPath.split('/').filter(Boolean);
+    if (segments.length >= 4) {
+      return `/admin/user/detail/${segments[3]}`;
+    }
   }
-  return normalized || '/admin/flow/topup-reconcile';
+  if (normalized.startsWith('/admin/topup/payment/')) {
+    return '/admin/user';
+  }
+  return normalized || '/admin/user';
 };
 
-const TopupReconcileDetail = () => {
+const PaymentRecordDetail = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams();
+  const { id, paymentId } = useParams();
+  const orderID = (paymentId || id || '').toString().trim();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [order, setOrder] = useState(null);
@@ -161,6 +169,44 @@ const TopupReconcileDetail = () => {
     () => resolveListPath(location.state?.from),
     [location.state?.from],
   );
+  const fromUserDetail = listPath.startsWith('/admin/user/detail/');
+  const listLabel = useMemo(() => {
+    if (fromUserDetail) {
+      return t('topup.payment_history.title');
+    }
+    return t('flow.topup_reconcile.title');
+  }, [fromUserDetail, listPath, t]);
+  const breadcrumbItems = useMemo(() => {
+    if (fromUserDetail) {
+      return [
+        { key: 'admin', label: t('header.admin_workspace') },
+        {
+          key: 'user-current',
+          label: readOnlyText(order?.username || order?.user_id),
+          onClick: () => navigate(listPath),
+        },
+        {
+          key: 'payment-record-current',
+          label: readOnlyText(order?.id || id),
+          active: true,
+        },
+      ];
+    }
+    return [
+      { key: 'admin', label: t('header.admin_workspace') },
+      { key: 'business', label: t('header.business_operation') },
+      {
+        key: 'flow-topup-reconcile-list',
+        label: listLabel,
+        onClick: () => navigate(listPath),
+      },
+      {
+        key: 'flow-topup-reconcile-current',
+        label: readOnlyText(order?.id || id),
+        active: true,
+      },
+    ];
+  }, [fromUserDetail, id, listLabel, listPath, navigate, order?.id, order?.user_id, order?.username, t]);
   const canSyncPaymentStatus = SYNCABLE_TOPUP_RECONCILE_STATUSES.has(
     normalizeTopupStatus(order?.status),
   );
@@ -169,7 +215,7 @@ const TopupReconcileDetail = () => {
     setLoading(true);
     try {
       const res = await API.get(
-        `/api/v1/admin/flow/topup-reconcile-records/${encodeURIComponent(id)}`,
+        `/api/v1/admin/flow/topup-reconcile-records/${encodeURIComponent(orderID)}`,
       );
       const { success, message, data } = res.data || {};
       if (!success) {
@@ -182,16 +228,16 @@ const TopupReconcileDetail = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, t]);
+  }, [orderID, t]);
 
   const handleRefresh = useCallback(async () => {
-    if (!id) {
+    if (!orderID) {
       return;
     }
     setRefreshing(true);
     try {
       const res = await API.post(
-        `/api/v1/admin/flow/topup-reconcile-records/${encodeURIComponent(id)}/refresh`,
+        `/api/v1/admin/flow/topup-reconcile-records/${encodeURIComponent(orderID)}/refresh`,
       );
       const { success, message, data } = res.data || {};
       if (!success) {
@@ -204,7 +250,7 @@ const TopupReconcileDetail = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [id, t]);
+  }, [orderID, t]);
 
   useEffect(() => {
     loadDetail().then();
@@ -213,25 +259,12 @@ const TopupReconcileDetail = () => {
   return (
     <div className='dashboard-container'>
       <AppFilterHeader
-        breadcrumbs={[
-          { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'flow', label: t('header.business_flow') },
-          {
-            key: 'flow-topup-reconcile-list',
-            label: t('flow.topup_reconcile.title'),
-            onClick: () => navigate(listPath),
-          },
-          {
-            key: 'flow-topup-reconcile-current',
-            label: readOnlyText(order?.id || id),
-            active: true,
-          },
-        ]}
-        title={t('flow.topup_reconcile.title')}
+        breadcrumbs={breadcrumbItems}
+        title={listLabel}
       />
       <div className='router-entity-detail-page'>
         <AppDetailSection
-          title={t('flow.topup_reconcile.detail.sections.basic')}
+          title={t('common.basic_info')}
           titleTag='div'
           headerEnd={
             <AppButton
@@ -386,4 +419,4 @@ const TopupReconcileDetail = () => {
   );
 };
 
-export default TopupReconcileDetail;
+export default PaymentRecordDetail;

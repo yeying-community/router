@@ -106,13 +106,16 @@ func applyKeywordFilter(query *gorm.DB, keyword string, conditions []string, arg
 	return query.Where("("+strings.Join(conditions, " OR ")+")", resolvedArgs...)
 }
 
-func ListAdminTopupOrderRecordsPageWithDB(db *gorm.DB, page int, pageSize int, keyword string, status string) ([]AdminTopupOrderRecord, int64, error) {
+func ListAdminTopupOrderRecordsPageWithDB(db *gorm.DB, page int, pageSize int, keyword string, status string, userID string) ([]AdminTopupOrderRecord, int64, error) {
 	if db == nil {
 		return nil, 0, fmt.Errorf("database handle is nil")
 	}
 	page, pageSize = normalizeBusinessFlowPage(page, pageSize)
 	query := db.Table(TopupOrdersTableName + " AS o").
 		Joins("LEFT JOIN users u ON u.id = o.user_id")
+	if normalizedUserID := strings.TrimSpace(userID); normalizedUserID != "" {
+		query = query.Where("o.user_id = ?", normalizedUserID)
+	}
 	if normalizedStatus := NormalizeTopupOrderStatus(status); normalizedStatus != "" {
 		query = query.Where("o.status = ?", normalizedStatus)
 	}
@@ -190,7 +193,7 @@ func GetAdminTopupOrderRecordByIDWithDB(db *gorm.DB, id string) (AdminTopupOrder
 	return row, nil
 }
 
-func ListAdminUserPackageRecordsPageWithDB(db *gorm.DB, page int, pageSize int, keyword string, status int) ([]AdminUserPackageRecord, int64, error) {
+func ListAdminUserPackageRecordsPageWithDB(db *gorm.DB, page int, pageSize int, keyword string, status int, userID string) ([]AdminUserPackageRecord, int64, error) {
 	if db == nil {
 		return nil, 0, fmt.Errorf("database handle is nil")
 	}
@@ -199,6 +202,9 @@ func ListAdminUserPackageRecordsPageWithDB(db *gorm.DB, page int, pageSize int, 
 		Joins("LEFT JOIN users u ON u.id = s.user_id").
 		Joins("LEFT JOIN " + GroupCatalog{}.TableName() + " g ON g.id = s.group_id").
 		Joins("LEFT JOIN " + ServicePackage{}.TableName() + " p ON p.id = s.package_id")
+	if normalizedUserID := strings.TrimSpace(userID); normalizedUserID != "" {
+		query = query.Where("s.user_id = ?", normalizedUserID)
+	}
 	if status > 0 {
 		query = query.Where("s.status = ?", status)
 	}
@@ -278,7 +284,7 @@ func GetAdminUserPackageRecordByIDWithDB(db *gorm.DB, id string) (AdminUserPacka
 	return row, nil
 }
 
-func ListAdminRedemptionRecordsPageWithDB(db *gorm.DB, page int, pageSize int, keyword string) ([]AdminRedemptionRecord, int64, error) {
+func ListAdminRedemptionRecordsPageWithDB(db *gorm.DB, page int, pageSize int, keyword string, userID string) ([]AdminRedemptionRecord, int64, error) {
 	if db == nil {
 		return nil, 0, fmt.Errorf("database handle is nil")
 	}
@@ -287,6 +293,9 @@ func ListAdminRedemptionRecordsPageWithDB(db *gorm.DB, page int, pageSize int, k
 		Joins("LEFT JOIN users u ON u.id = r.redeemed_by_user_id").
 		Joins("LEFT JOIN "+GroupCatalog{}.TableName()+" g ON g.id = r.group_id").
 		Where("r.redeemed_time > 0 AND r.status = ?", RedemptionCodeStatusUsed)
+	if normalizedUserID := strings.TrimSpace(userID); normalizedUserID != "" {
+		query = query.Where("r.redeemed_by_user_id = ?", normalizedUserID)
+	}
 	query = applyKeywordFilter(query, keyword, []string{
 		"LOWER(r.id) LIKE ?",
 		"LOWER(COALESCE(r.name, '')) LIKE ?",
@@ -352,7 +361,7 @@ func GetAdminRedemptionRecordByIDWithDB(db *gorm.DB, id string) (AdminRedemption
 	return row, nil
 }
 
-func ListAdminTopupReconcileRecordsPageWithDB(db *gorm.DB, page int, pageSize int, keyword string, status string) ([]AdminTopupReconcileRecord, int64, error) {
+func ListAdminTopupReconcileRecordsPageWithDB(db *gorm.DB, page int, pageSize int, keyword string, status string, userID string) ([]AdminTopupReconcileRecord, int64, error) {
 	if db == nil {
 		return nil, 0, fmt.Errorf("database handle is nil")
 	}
@@ -360,6 +369,9 @@ func ListAdminTopupReconcileRecordsPageWithDB(db *gorm.DB, page int, pageSize in
 	query := db.Table(TopupOrdersTableName+" AS o").
 		Joins("LEFT JOIN users u ON u.id = o.user_id").
 		Where("o.source = ?", TopupOrderSourceTopUpAPI)
+	if normalizedUserID := strings.TrimSpace(userID); normalizedUserID != "" {
+		query = query.Where("o.user_id = ?", normalizedUserID)
+	}
 	if normalizedStatus := NormalizeTopupOrderStatus(status); normalizedStatus != "" {
 		query = query.Where("o.status = ?", normalizedStatus)
 	}

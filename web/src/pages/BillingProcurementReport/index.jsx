@@ -19,6 +19,7 @@ import './BillingProcurementReport.css';
 const GROUP_BY_OPTIONS = [
   { label: '按渠道', value: 'channel' },
   { label: '按模型', value: 'model' },
+  { label: '按端点', value: 'endpoint' },
 ];
 
 const COST_SCOPE_OPTIONS = [
@@ -65,6 +66,7 @@ const normalizeReport = (payload) => {
   return {
     group_by: payload?.group_by || 'channel',
     request_count: Number(payload?.request_count || 0),
+    router_consumed_yyc: Number(payload?.router_consumed_yyc || 0),
     configured_cost_request_count: Number(payload?.configured_cost_request_count || 0),
     unconfigured_cost_request_count: Number(payload?.unconfigured_cost_request_count || 0),
     sell_base_amount: Number(payload?.sell_base_amount || 0),
@@ -84,6 +86,7 @@ const normalizeReport = (payload) => {
         : [],
       unconfigured_channel_count: Number(item?.unconfigured_channel_count || 0),
       request_count: Number(item?.request_count || 0),
+      router_consumed_yyc: Number(item?.router_consumed_yyc || 0),
       configured_cost_request_count: Number(item?.configured_cost_request_count || 0),
       unconfigured_cost_request_count: Number(item?.unconfigured_cost_request_count || 0),
       sell_base_amount: Number(item?.sell_base_amount || 0),
@@ -227,6 +230,12 @@ function BillingProcurementReport() {
       hint: t('billing.procurement_report.summary.request_count_hint'),
     },
     {
+      key: 'router_consumed_yyc',
+      label: t('billing.procurement_report.summary.router_consumed_yyc'),
+      value: formatCount(report.router_consumed_yyc),
+      hint: t('billing.procurement_report.summary.router_consumed_yyc_hint'),
+    },
+    {
       key: 'sell_amount',
       label: t('billing.procurement_report.summary.sell_amount'),
       value: formatCNY(report.sell_base_amount),
@@ -302,7 +311,9 @@ function BillingProcurementReport() {
       title:
         groupBy === 'model'
           ? t('billing.procurement_report.columns.model')
-          : t('billing.procurement_report.columns.channel'),
+          : groupBy === 'endpoint'
+            ? t('billing.procurement_report.columns.endpoint')
+            : t('billing.procurement_report.columns.channel'),
       key: 'dimension',
       width: 240,
       render: (_, row) => {
@@ -331,6 +342,13 @@ function BillingProcurementReport() {
           },
         ]
       : []),
+    {
+      title: t('billing.procurement_report.columns.router_consumed_yyc'),
+      dataIndex: 'router_consumed_yyc',
+      width: 132,
+      align: 'right',
+      render: formatCount,
+    },
     {
       title: t('billing.procurement_report.columns.request_count'),
       dataIndex: 'request_count',
@@ -394,7 +412,7 @@ function BillingProcurementReport() {
     <div className='dashboard-container billing-procurement-report-page'>
       <AppFilterHeader
         breadcrumbs={[
-          { key: 'operation', label: t('header.platform_operation') },
+          { key: 'billing', label: t('header.billing') },
           {
             key: 'procurement-report',
             label: t('billing.procurement_report.title'),

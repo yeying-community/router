@@ -335,7 +335,7 @@ const renderPackageAmountFieldValue = (row, type, displayUnit, currencyIndex) =>
   return renderPackageAmountValue(normalizedChargeAmount, displayUnit, currencyIndex);
 };
 
-const PackagesManager = () => {
+const PackagesManager = ({ headerMeta = null }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -1035,6 +1035,8 @@ const PackagesManager = () => {
           { key: 'package', label: t('header.package'), active: true },
         ]}
         title={t('header.package')}
+        meta={headerMeta}
+        metaClassName='router-page-header-meta-links'
         actions={
           <div className='router-list-toolbar-actions'>
             <AppButton

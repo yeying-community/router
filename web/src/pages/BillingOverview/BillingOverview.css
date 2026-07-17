@@ -1,0 +1,22 @@
+.billing-overview-page { max-width: 1600px; }
+.billing-overview-section { margin-top: 0; }
+.billing-overview-metric-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.billing-overview-metric { min-height: 92px; padding: 14px; border: 1px solid rgba(15, 23, 42, .08); border-radius: 10px; background: #fff; }
+.billing-overview-label { color: #64748b; font-size: 12px; }
+.billing-overview-value { margin-top: 10px; color: #0f172a; font-size: 22px; font-weight: 700; }
+.billing-overview-confidence { margin-top: 12px; padding: 12px 14px; border: 1px solid rgba(245, 158, 11, .3); border-radius: 10px; background: #fffbeb; }
+.billing-overview-confidence.is-good { border-color: rgba(22, 163, 74, .25); background: #f0fdf4; }
+.billing-overview-confidence > div:first-child { display: flex; gap: 10px; color: #334155; font-size: 13px; }
+.billing-overview-confidence-bar { height: 6px; margin-top: 10px; overflow: hidden; border-radius: 6px; background: rgba(148, 163, 184, .25); }
+.billing-overview-confidence-bar span { display: block; height: 100%; background: #16a34a; }
+.billing-overview-confidence-detail { margin-top: 8px; color: #64748b; font-size: 12px; }
+.billing-overview-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.billing-overview-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.billing-overview-section-heading h2 { margin: 0; font-size: 16px; }
+.billing-overview-section-heading a { color: #2563eb; font-size: 13px; }
+.billing-overview-risk, .billing-overview-channel { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 38px; border-bottom: 1px solid rgba(15, 23, 42, .06); color: #334155; font-size: 13px; }
+.billing-overview-risk span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.billing-overview-channel strong { color: #0f172a; }
+.billing-overview-empty { padding: 24px 0; color: #64748b; text-align: center; }
+@media (max-width: 900px) { .billing-overview-metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .billing-overview-columns { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .billing-overview-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

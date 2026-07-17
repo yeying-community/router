@@ -88,12 +88,15 @@ type OpenAIModels struct {
 
 type UserModelStatusPoint struct {
 	State     string `json:"state"`
+	Source    string `json:"source,omitempty"`
 	ChannelID string `json:"channel_id,omitempty"`
 	Endpoint  string `json:"endpoint,omitempty"`
 	TestedAt  int64  `json:"tested_at,omitempty"`
 	LatencyMs int64  `json:"latency_ms,omitempty"`
 	Message   string `json:"message,omitempty"`
 }
+
+const userModelStatusFreshnessSeconds int64 = 2 * 60 * 60
 
 type UserModelStatusItem struct {
 	Model               string                 `json:"model"`
@@ -621,12 +624,73 @@ func normalizeUserModelStatusPoint(row model.ChannelTest) UserModelStatusPoint {
 	}
 	return UserModelStatusPoint{
 		State:     state,
+		Source:    strings.TrimSpace(row.Source),
 		ChannelID: strings.TrimSpace(row.ChannelId),
 		Endpoint:  model.NormalizeRequestedChannelModelEndpoint(row.Endpoint),
 		TestedAt:  row.TestedAt,
 		LatencyMs: row.LatencyMs,
 		Message:   strings.TrimSpace(row.Message),
 	}
+}
+
+func isUserModelUpstreamFailureLog(row model.Log) bool {
+	if row.Type != model.LogTypeRelayFailure {
+		return false
+	}
+	errorType := strings.TrimSpace(strings.ToLower(row.RelayErrorType))
+	errorCode := strings.TrimSpace(strings.ToLower(row.RelayErrorCode))
+	if errorType == "client_abort" || errorCode == "request_aborted" {
+		return false
+	}
+	return strings.TrimSpace(row.ChannelId) != ""
+}
+
+func normalizeUserModelTrafficPoint(row model.Log) UserModelStatusPoint {
+	state := userModelStatusPointSuccess
+	message := ""
+	if row.Type == model.LogTypeRelayFailure {
+		state = userModelStatusPointFailure
+		message = strings.TrimSpace(row.RelayErrorMessage)
+	}
+	return UserModelStatusPoint{
+		State:     state,
+		Source:    "traffic",
+		ChannelID: strings.TrimSpace(row.ChannelId),
+		Endpoint:  model.NormalizeRequestedChannelModelEndpoint(row.UpstreamEndpoint),
+		TestedAt:  row.CreatedAt,
+		LatencyMs: row.ElapsedTime,
+		Message:   message,
+	}
+}
+
+func loadUserModelStatusTrafficRows(channelIDs []string, modelNames []string, since int64) ([]model.Log, error) {
+	if model.LOG_DB == nil {
+		return []model.Log{}, nil
+	}
+	normalizedChannelIDs := model.NormalizeChannelModelIDsPreserveOrder(channelIDs)
+	normalizedModels := model.NormalizeChannelModelIDsPreserveOrder(modelNames)
+	if len(normalizedChannelIDs) == 0 || len(normalizedModels) == 0 {
+		return []model.Log{}, nil
+	}
+	rows := make([]model.Log, 0)
+	err := model.LOG_DB.Model(&model.Log{}).
+		Where("channel_id IN ?", normalizedChannelIDs).
+		Where("type IN ?", []int{model.LogTypeConsume, model.LogTypeRelayFailure}).
+		Where("created_at >= ?", since).
+		Where("request_model_name IN ? OR actual_model_name IN ? OR model_name IN ?", normalizedModels, normalizedModels, normalizedModels).
+		Order("created_at desc").
+		Limit(5000).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	result := make([]model.Log, 0, len(rows))
+	for _, row := range rows {
+		if row.Type == model.LogTypeConsume || isUserModelUpstreamFailureLog(row) {
+			result = append(result, row)
+		}
+	}
+	return result, nil
 }
 
 func loadUserModelStatusTestRows(channelIDs []string, modelNames []string) (map[string][]model.ChannelTest, error) {
@@ -730,6 +794,14 @@ func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error)
 	if err != nil {
 		return UserModelStatusPayload{}, err
 	}
+	trafficRows, err := loadUserModelStatusTrafficRows(
+		channelIDs,
+		testModelNames,
+		helper.GetTimestamp()-userModelStatusFreshnessSeconds,
+	)
+	if err != nil {
+		return UserModelStatusPayload{}, err
+	}
 
 	items := make([]UserModelStatusItem, 0, len(modelNames))
 	for _, modelName := range modelNames {
@@ -746,6 +818,53 @@ func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error)
 			HealthLevel:        userModelHealthLevelUnknown,
 			Status:             userModelStatusUnknown,
 			HealthPoints:       []UserModelStatusPoint{},
+		}
+		candidateSet := make(map[string]struct{})
+		for _, candidate := range model.NormalizeChannelModelIDsPreserveOrder(testModelCandidatesByModel[modelName]) {
+			candidateSet[candidate] = struct{}{}
+		}
+		trafficPoints := make([]UserModelStatusPoint, 0)
+		for _, row := range trafficRows {
+			if _, ok := channelIDSetByModel[modelName][strings.TrimSpace(row.ChannelId)]; !ok {
+				continue
+			}
+			matched := false
+			for _, candidate := range []string{row.RequestModelName, row.ActualModelName, row.ModelName} {
+				if _, ok := candidateSet[strings.TrimSpace(candidate)]; ok {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+			trafficPoints = append(trafficPoints, normalizeUserModelTrafficPoint(row))
+			if len(trafficPoints) >= 60 {
+				break
+			}
+		}
+		if len(trafficPoints) > 0 {
+			for _, point := range trafficPoints {
+				if point.ChannelID != "" {
+					testedChannels[point.ChannelID] = struct{}{}
+				}
+				if point.Endpoint != "" {
+					testedEndpoints[point.Endpoint] = struct{}{}
+				}
+				if point.State == userModelStatusPointSuccess {
+					item.SupportedCount++
+				} else if point.State == userModelStatusPointFailure {
+					item.UnsupportedCount++
+				}
+				if point.LatencyMs > 0 {
+					latencyTotal += point.LatencyMs
+					latencyCount++
+				}
+				if point.TestedAt > item.LastTestedAt {
+					item.LastTestedAt = point.TestedAt
+				}
+			}
+			item.HealthPoints = trafficPoints
 		}
 		modelTestRows := make([]model.ChannelTest, 0)
 		for _, testModelName := range model.NormalizeChannelModelIDsPreserveOrder(testModelCandidatesByModel[modelName]) {
@@ -765,37 +884,42 @@ func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error)
 			}
 			return modelTestRows[i].Endpoint < modelTestRows[j].Endpoint
 		})
-		for _, row := range modelTestRows {
-			channelID := strings.TrimSpace(row.ChannelId)
-			if channelID != "" {
-				testedChannels[channelID] = struct{}{}
-			}
-			endpoint := model.NormalizeRequestedChannelModelEndpoint(row.Endpoint)
-			if endpoint != "" {
-				testedEndpoints[endpoint] = struct{}{}
-			}
-			item.TestedEndpointCount++
-			if row.TestedAt > item.LastTestedAt {
-				item.LastTestedAt = row.TestedAt
-			}
-			switch model.NormalizeChannelTestStatus(row.Status) {
-			case model.ChannelTestStatusSupported:
-				if row.Supported {
-					item.SupportedCount++
-				} else {
+		if len(trafficPoints) == 0 {
+			for _, row := range modelTestRows {
+				if row.TestedAt < helper.GetTimestamp()-userModelStatusFreshnessSeconds {
+					continue
+				}
+				channelID := strings.TrimSpace(row.ChannelId)
+				if channelID != "" {
+					testedChannels[channelID] = struct{}{}
+				}
+				endpoint := model.NormalizeRequestedChannelModelEndpoint(row.Endpoint)
+				if endpoint != "" {
+					testedEndpoints[endpoint] = struct{}{}
+				}
+				item.TestedEndpointCount++
+				if row.TestedAt > item.LastTestedAt {
+					item.LastTestedAt = row.TestedAt
+				}
+				switch model.NormalizeChannelTestStatus(row.Status) {
+				case model.ChannelTestStatusSupported:
+					if row.Supported {
+						item.SupportedCount++
+					} else {
+						item.UnsupportedCount++
+					}
+				case model.ChannelTestStatusSkipped:
+					// Skipped tests are surfaced as warning points but should not count
+					// as hard unsupported assertions.
+				default:
 					item.UnsupportedCount++
 				}
-			case model.ChannelTestStatusSkipped:
-				// Skipped tests are surfaced as warning points but should not count
-				// as hard unsupported assertions.
-			default:
-				item.UnsupportedCount++
+				if row.LatencyMs > 0 {
+					latencyTotal += row.LatencyMs
+					latencyCount++
+				}
+				item.HealthPoints = append(item.HealthPoints, normalizeUserModelStatusPoint(row))
 			}
-			if row.LatencyMs > 0 {
-				latencyTotal += row.LatencyMs
-				latencyCount++
-			}
-			item.HealthPoints = append(item.HealthPoints, normalizeUserModelStatusPoint(row))
 		}
 		if latencyCount > 0 {
 			item.AvgLatencyMs = latencyTotal / latencyCount

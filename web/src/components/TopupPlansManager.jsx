@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { API, showError, showSuccess, timestamp2string } from '../helpers';
 import {
   TOPUP_PLAN_LIST_COLUMN_WIDTHS,
@@ -133,8 +134,104 @@ const normalizeGroupModelItems = (items) =>
     )
   );
 
-const TopupPlansManager = () => {
+const SupportedModelsCountButton = ({ models, t }) => {
+  const [open, setOpen] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const normalizedModels = useMemo(() => normalizeSupportedModels(models), [models]);
+
+  const stopEventPropagation = (event) => {
+    event?.stopPropagation?.();
+  };
+
+  const filteredModels = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    if (!normalizedKeyword) {
+      return normalizedModels;
+    }
+    return normalizedModels.filter((modelName) =>
+      modelName.toLowerCase().includes(normalizedKeyword),
+    );
+  }, [keyword, normalizedModels]);
+
+  const closeDialog = (event) => {
+    stopEventPropagation(event);
+    setOpen(false);
+    setKeyword('');
+  };
+
+  if (normalizedModels.length === 0) {
+    return (
+      <span className='router-text-muted'>
+        {t('topup.pricing.supported_models_empty')}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <button
+        className='router-link-button router-supported-models-count-button'
+        type='button'
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen(true);
+        }}
+      >
+        {normalizedModels.length}
+      </button>
+      <AppModal
+        size='small'
+        open={open}
+        onClose={closeDialog}
+        title={t('topup.pricing.supported_models_dialog_title')}
+        modalRender={(modal) => (
+          <div onClick={stopEventPropagation}>
+            {modal}
+          </div>
+        )}
+        footer={[
+          <AppButton key='close' onClick={closeDialog}>
+            {t('common.close')}
+          </AppButton>,
+        ]}
+      >
+        <div className='router-supported-models-dialog'>
+          <AppInput
+            className='router-supported-models-search'
+            type='search'
+            value={keyword}
+            placeholder={t('topup.pricing.supported_models_search_placeholder')}
+            onChange={(_, { value }) => setKeyword(value)}
+          />
+          <div className='router-supported-models-dialog-meta'>
+            {t('topup.pricing.supported_models_dialog_count', {
+              count: filteredModels.length,
+              total: normalizedModels.length,
+            })}
+          </div>
+          {filteredModels.length === 0 ? (
+            <div className='router-text-muted router-supported-models-empty'>
+              {t('topup.pricing.supported_models_search_empty')}
+            </div>
+          ) : (
+            <div className='router-supported-models-dialog-list'>
+              {filteredModels.map((modelName) => (
+                <div key={modelName} className='router-supported-models-dialog-item'>
+                  {modelName}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </AppModal>
+    </>
+  );
+};
+
+const TopupPlansManager = ({ headerMeta = null }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -505,6 +602,19 @@ const TopupPlansManager = () => {
     }
   };
 
+  const openViewPage = useCallback(
+    (row) => {
+      const id = (row?.id || '').toString().trim();
+      if (id === '') {
+        return;
+      }
+      navigate(`/admin/topup/detail/${encodeURIComponent(id)}`, {
+        state: { from: `${location.pathname}${location.search}${location.hash}` },
+      });
+    },
+    [location.hash, location.pathname, location.search, navigate],
+  );
+
   return (
     <>
       <AppFilterHeader
@@ -516,6 +626,8 @@ const TopupPlansManager = () => {
         ]}
         title={t('topup.manage.title')}
         titleClassName='router-ui-section-title'
+        meta={headerMeta}
+        metaClassName='router-page-header-meta-links'
         actions={
           <div className='router-list-toolbar-actions'>
             <AppButton className='router-page-button' color='blue' onClick={openCreate}>
@@ -536,6 +648,10 @@ const TopupPlansManager = () => {
           rowKey={(row) => row?.id || [row?.group_id || 'group', row?.name || 'plan', row?.amount || 0].join('-')}
           pagination={false}
           locale={{ emptyText: t('common.no_data', '暂无数据') }}
+          onRow={(row) => ({
+            className: saving ? '' : 'router-row-clickable',
+            onClick: () => openViewPage(row),
+          })}
           columns={[
             {
               title: t('topup.manage.columns.name'),
@@ -559,7 +675,7 @@ const TopupPlansManager = () => {
               key: 'supported_models',
               width: TOPUP_PLAN_LIST_COLUMN_WIDTHS.supportedModels,
               render: (_, row) => (
-                <SupportedModelsSummary models={row?.supported_models} t={t} />
+                <SupportedModelsCountButton models={row?.supported_models} t={t} />
               ),
             },
             {

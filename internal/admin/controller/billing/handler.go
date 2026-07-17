@@ -432,6 +432,83 @@ func appendProcurementCostHealthIssues(response *billingHealthResponse) {
 	})
 }
 
+func appendProcurementBatchHealthIssues(response *billingHealthResponse) {
+	if model.DB == nil {
+		appendBillingHealthIssue(response, billingHealthIssue{
+			Key:     "procurement_batch_db_unavailable",
+			Level:   "warning",
+			Title:   "采购批次检查不可用",
+			Message: "主数据库不可用，无法检查采购批次容量和成本数据。",
+		})
+		return
+	}
+	checks := []struct {
+		key     string
+		title   string
+		message string
+		query   string
+	}{
+		{
+			key:     "procurement_batch_capacity_invalid",
+			title:   "采购批次容量异常",
+			message: "存在采购批次剩余容量大于有效容量或小于零。",
+			query:   `SELECT COUNT(1) FROM channel_procurement_batches WHERE capacity_remaining < 0 OR capacity_remaining > capacity_effective`,
+		},
+		{
+			key:     "procurement_batch_unit_cost_missing",
+			title:   "采购批次单位成本缺失",
+			message: "存在有效采购批次没有配置单位成本，不能参与正式成本分摊。",
+			query:   `SELECT COUNT(1) FROM channel_procurement_batches WHERE cost_status = 'active' AND cost_source IN ('actual', 'estimated') AND capacity_effective > 0 AND cost_per_unit_amount <= 0`,
+		},
+		{
+			key:     "procurement_batch_expired_active",
+			title:   "过期采购批次仍处于有效状态",
+			message: "存在已过期但仍标记为 active 的采购批次。",
+			query:   `SELECT COUNT(1) FROM channel_procurement_batches WHERE cost_status = 'active' AND expire_at > 0 AND expire_at < ?`,
+		},
+		{
+			key:     "procurement_batch_overconsumed",
+			title:   "采购批次容量超耗",
+			message: "存在请求消耗总量大于采购批次有效容量的批次。",
+			query:   `SELECT COUNT(1) FROM (SELECT b.id FROM channel_procurement_batches b JOIN request_procurement_consumptions c ON c.procurement_batch_id = b.id GROUP BY b.id, b.capacity_effective HAVING COALESCE(SUM(c.consumed_quantity), 0) > b.capacity_effective) AS overconsumed`,
+		},
+		{
+			key:     "procurement_consumption_duplicate",
+			title:   "请求采购消耗可能重复",
+			message: "存在同一请求重复记录同一采购批次和容量单位的消耗。",
+			query:   `SELECT COUNT(1) FROM (SELECT request_log_id, procurement_batch_id, capacity_unit FROM request_procurement_consumptions GROUP BY request_log_id, procurement_batch_id, capacity_unit HAVING COUNT(1) > 1) AS duplicates`,
+		},
+	}
+	for _, check := range checks {
+		var count int64
+		var err error
+		if strings.Contains(check.query, "expire_at") {
+			err = model.DB.Raw(check.query, helper.GetTimestamp()).Scan(&count).Error
+		} else {
+			err = model.DB.Raw(check.query).Scan(&count).Error
+		}
+		if err != nil {
+			appendBillingHealthIssue(response, billingHealthIssue{
+				Key:     check.key + "_check_failed",
+				Level:   "warning",
+				Title:   check.title + "检查失败",
+				Message: check.message + " 查询失败: " + err.Error(),
+			})
+			continue
+		}
+		if count > 0 {
+			appendBillingHealthIssue(response, billingHealthIssue{
+				Key:     check.key,
+				Level:   "warning",
+				Title:   check.title,
+				Message: check.message,
+				Count:   count,
+				Link:    "/admin/billing/procurement-report",
+			})
+		}
+	}
+}
+
 func appendPricingPolicyHealthIssues(response *billingHealthResponse) {
 	if config.BillingOfficialMarkup <= 1 && config.BillingTargetMargin <= 0 && config.BillingRiskBuffer <= 0 {
 		appendBillingHealthIssue(response, billingHealthIssue{
@@ -470,6 +547,7 @@ func GetBillingHealth(c *gin.Context) {
 	appendBillingCurrencyHealthIssues(&response)
 	appendProviderPricingHealthIssues(&response)
 	appendProcurementCostHealthIssues(&response)
+	appendProcurementBatchHealthIssues(&response)
 	appendPricingPolicyHealthIssues(&response)
 	if response.CriticalCount > 0 {
 		response.Status = "critical"
@@ -511,6 +589,40 @@ func GetProcurementReport(c *gin.Context) {
 		"message": "",
 		"data":    buildProcurementReportResponse(summary),
 	})
+}
+
+func GetProcurementTrend(c *gin.Context) {
+	startAt := parseBillingReportTimestamp(c.Query("start_at"))
+	endAt := parseBillingReportTimestamp(c.Query("end_at"))
+	rows, err := model.ListProcurementTrendWithDB(model.LOG_DB, model.ProcurementTrendQuery{StartAt: startAt, EndAt: endAt, GroupID: c.Query("group_id"), ChannelID: c.Query("channel_id"), Model: c.Query("model")})
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "加载计费趋势失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"items": rows}})
+}
+
+func GetProcurementBatches(c *gin.Context) {
+	rows, err := model.ListProcurementBatchesWithDB(model.DB, 1000)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "加载采购批次失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"items": rows, "total": len(rows)}})
+}
+
+func GetPricingMatrix(c *gin.Context) {
+	rows, err := model.ListPricingMatrixWithDB(model.DB, model.PricingMatrixQuery{
+		GroupID:  c.Query("group_id"),
+		Provider: c.Query("provider"),
+		Model:    c.Query("model"),
+		Endpoint: c.Query("endpoint"),
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "加载价格矩阵失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"items": rows, "total": len(rows)}})
 }
 
 func GetPublicBillingCurrencies(c *gin.Context) {

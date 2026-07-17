@@ -6,7 +6,7 @@
     "group": "分组",
     "token": "令牌",
     "account": "账户",
-    "redemption": "兑换码",
+    "redemption": "兑换",
     "topup": "充值",
     "service": "服务",
     "help": "帮助",
@@ -19,10 +19,10 @@
     "resource": "资源管理",
     "operation": "运营",
     "business_operation": "业务运营",
-    "business_flow": "业务流水",
     "platform_operation": "平台运营",
+    "billing": "计费",
     "config": "配置",
-    "package": "套餐",
+    "package": "订阅",
     "log": "日志",
     "task": "任务",
     "setting": "设置",
@@ -153,9 +153,11 @@
       }
     },
     "payment_history": {
-      "button": "支付历史",
-      "title": "支付历史",
+      "button": "支付记录",
+      "title": "支付记录",
       "status_title": "支付状态",
+      "user_search_placeholder": "搜索支付单号、交易号、状态、商品名称...",
+      "user_empty": "该用户暂无支付记录",
       "back_to_pricing": "返回订阅"
     },
     "nav": {
@@ -246,6 +248,7 @@
     },
     "manage": {
       "title": "充值额度",
+      "detail_title": "充值详情",
       "create_title": "新增充值额度",
       "edit_title": "编辑充值额度",
       "delete_title": "删除充值额度",
@@ -425,7 +428,7 @@
   },
   "flow": {
     "messages": {
-      "load_failed": "读取业务流水失败"
+      "load_failed": "读取记录失败"
     },
     "topup": {
       "title": "充值",
@@ -1574,7 +1577,7 @@
     }
   },
   "package_manage": {
-    "title": "套餐管理",
+    "title": "订阅管理",
     "search": "搜索套餐名称或分组",
     "table": {
       "name": "名称",
@@ -1606,7 +1609,7 @@
       "partial": "部分"
     },
     "buttons": {
-      "add": "新增套餐",
+      "add": "新增",
       "refresh": "刷新",
       "edit": "编辑",
       "assign": "开通用户",
@@ -1660,12 +1663,12 @@
       "package": "套餐"
     },
     "dialog": {
-      "create_title": "新增套餐",
-      "edit_title": "编辑套餐",
-      "detail_title": "套餐详情",
-      "assign_title": "开通套餐",
-      "delete_title": "删除套餐",
-      "delete_content": "确定删除套餐 {{name}} 吗？"
+      "create_title": "新增订阅",
+      "edit_title": "编辑订阅",
+      "detail_title": "订阅详情",
+      "assign_title": "开通订阅",
+      "delete_title": "删除订阅",
+      "delete_content": "确定删除订阅 {{name}} 吗？"
     },
     "messages": {
       "loading": "加载中...",
@@ -1684,14 +1687,14 @@
       "duration_invalid": "使用天数必须大于 0",
       "user_required": "请选择用户",
       "start_at_invalid": "生效时间格式不正确",
-      "create_success": "套餐创建成功",
-      "create_failed": "套餐创建失败",
-      "update_success": "套餐更新成功",
-      "update_failed": "套餐更新失败",
-      "delete_success": "套餐删除成功",
-      "delete_failed": "套餐删除失败",
-      "assign_success": "套餐开通成功",
-      "assign_failed": "套餐开通失败"
+      "create_success": "订阅创建成功",
+      "create_failed": "订阅创建失败",
+      "update_success": "订阅更新成功",
+      "update_failed": "订阅更新失败",
+      "delete_success": "订阅删除成功",
+      "delete_failed": "订阅删除失败",
+      "assign_success": "订阅开通成功",
+      "assign_failed": "订阅开通失败"
     }
   },
   "token": {
@@ -1850,7 +1853,7 @@
     "delete": "删除"
   },
   "redemption": {
-    "title": "兑换码管理",
+    "title": "兑换管理",
     "search": "搜索兑换码和名称 ...",
     "table": {
       "id": "ID",
@@ -1874,7 +1877,7 @@
       "enable": "启用",
       "disable": "禁用",
       "edit": "编辑",
-      "add": "新增兑换码",
+      "add": "新增",
       "refresh": "刷新"
     },
     "status": {
@@ -1884,8 +1887,8 @@
       "unknown": "未知状态"
     },
     "edit": {
-      "title_edit": "更新兑换码信息",
-      "title_create": "新增兑换码",
+      "title_edit": "更新兑换信息",
+      "title_create": "新增",
       "name": "名称",
       "name_placeholder": "请输入名称",
       "group": "分组",
@@ -1907,7 +1910,7 @@
       }
     },
     "detail": {
-      "title": "兑换码详情",
+      "title": "兑换详情",
       "code": "兑换码",
       "redeemed_by": "兑换用户",
       "code_validity_days": "兑换码有效期",
@@ -1919,8 +1922,8 @@
       }
     },
     "messages": {
-      "update_success": "兑换码更新成功！",
-      "create_success": "兑换码创建成功！",
+      "update_success": "兑换更新成功！",
+      "create_success": "兑换创建成功！",
       "load_groups_failed": "加载分组失败",
       "load_units_failed": "加载面值单位失败",
       "name_required": "请输入兑换码名称",
@@ -3433,6 +3436,41 @@
     }
   },
   "billing": {
+    "channel_reconciliation": {
+      "nav": "渠道对账",
+      "title": "渠道对账",
+      "load_failed": "渠道对账加载失败",
+      "note": "默认展示最近 7 天的 Router 消费，并读取各渠道采购批次状态。批次明细可进入渠道账务查看。",
+      "empty": "暂无渠道对账数据",
+      "batch_summary": "{{count}} 个批次，{{active}} 个有效",
+      "incomplete": "成本未完整 {{count}}",
+      "load_error": "批次读取失败",
+      "columns": { "channel": "渠道", "requests": "请求数", "yyc": "消耗 YYC", "revenue": "收入 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "batches": "采购批次" }
+    },
+    "pricing_analysis": {
+      "nav": "定价分析",
+      "title": "定价分析",
+      "load_failed": "定价分析加载失败",
+      "group_placeholder": "筛选分组",
+      "note": "默认展示最近 7 天有请求的模型。正式毛利只基于真实或明确零成本，成本覆盖不足的模型不会被判定为正常盈利。",
+      "empty": "暂无模型计费数据",
+      "mixed": "多渠道",
+      "states": { "healthy": "正常", "low_margin": "低毛利", "loss": "低于成本", "unknown": "数据不足" },
+      "cost_states": { "actual_available": "真实成本可用", "estimated_only": "仅估算成本", "pending": "成本待归因", "none": "成本未配置", "unit_mismatch": "单位不匹配", "currency_mismatch": "币种不匹配" },
+      "decision": { "cost_floor": "成本底线触发", "current_price": "当前售价可用" },
+      "columns": { "model": "模型", "state": "价格状态", "requests": "请求数", "router_yyc": "消耗 YYC", "sell": "售价 CNY", "official_price": "官方价格", "current_price": "当前价格", "ratio": "分组倍率", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "cost_coverage": "成本覆盖", "cost_state": "成本状态", "cost_unit": "采购单位成本", "selected_price": "成本底线售价", "decision": "价格决策", "floor_impact": "底线影响", "details": "明细", "view": "查看" }
+    },
+    "overview": {
+      "nav": "经营总览",
+      "title": "计费经营总览",
+      "load_failed": "经营数据加载失败",
+      "metrics": { "revenue": "收入 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "yyc": "Router 消耗 YYC", "requests": "请求数", "floor_triggered": "底线触发次数", "floor_amount": "底线影响 CNY" },
+      "confidence": { "title": "成本数据可信度", "coverage": "真实成本覆盖 {{value}}", "detail": "估算 {{estimated}}，待归因 {{pending}}，未配置 {{unconfigured}}" },
+      "risks": { "title": "待处理风险", "view_details": "查看明细", "empty": "暂未发现待处理风险" },
+      "channels": { "title": "渠道底线影响", "view_details": "查看渠道对账", "empty": "暂无渠道数据" },
+      "trend": { "title": "近 7 天底线趋势" },
+      "channel_placeholder": "筛选渠道", "model_placeholder": "筛选模型"
+    },
     "procurement_report": {
       "nav": "采购成本",
       "title": "采购成本报表",
@@ -3454,7 +3492,8 @@
       },
       "group_by": {
         "channel": "按渠道",
-        "model": "按模型"
+        "model": "按模型",
+        "endpoint": "按端点"
       },
       "cost_scope": {
         "all": "全部请求",
@@ -3466,6 +3505,8 @@
       "summary": {
         "request_count": "请求数",
         "request_count_hint": "当前时间范围内的计费请求",
+        "router_consumed_yyc": "Router 消耗 YYC",
+        "router_consumed_yyc_hint": "用户最终结算扣除的 YYC",
         "sell_amount": "用户侧售价",
         "sell_amount_hint": "包含已配置和未配置成本请求",
         "procurement_cost": "采购成本",
@@ -3479,7 +3520,9 @@
       "columns": {
         "channel": "渠道",
         "model": "模型",
+        "endpoint": "端点",
         "request_count": "请求数",
+        "router_consumed_yyc": "消耗 YYC",
         "configured_count": "已配置成本",
         "unconfigured_count": "未配置成本",
         "related_channels": "关联渠道",
@@ -3552,6 +3595,12 @@
     "tooltip": {
       "response_time": "响应耗时",
       "endpoint": "测试接口",
+      "source": "数据来源",
+      "sources": {
+        "traffic": "真实请求",
+        "manual_test": "人工检测",
+        "automatic_probe": "自动检测"
+      },
       "no_sample": "暂无检测记录",
       "summary": {
         "success": "模型响应正常（{{latency}} ms）",
@@ -3563,8 +3612,8 @@
       "health_score": "健康分",
       "pass_rate": "通过率",
       "latency": "延迟",
-      "channels": "测试渠道",
-      "last_tested": "最近测试：{{time}}",
+      "channels": "观测渠道",
+      "last_tested": "最近信号：{{time}}",
       "no_endpoints": "暂无可用端点"
     }
   },

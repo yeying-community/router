@@ -1,0 +1,6 @@
+.billing-pricing-analysis-page { max-width: 1600px; }
+.billing-pricing-analysis-section { margin-top: 0; }
+.billing-pricing-analysis-note { margin-bottom: 12px; padding: 10px 12px; border: 1px solid rgba(37, 99, 235, .16); border-radius: 8px; background: #eff6ff; color: #1e40af; font-size: 13px; }
+.billing-pricing-analysis-model { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.billing-pricing-analysis-group-select { min-width: 190px; }
+.billing-pricing-analysis-table .ant-table-thead > tr > th, .billing-pricing-analysis-table .ant-table-tbody > tr > td { white-space: nowrap; }

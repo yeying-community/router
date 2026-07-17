@@ -39,21 +39,25 @@ import Redemption from './pages/Redemption';
 import EditRedemption from './pages/Redemption/EditRedemption';
 import RedemptionDetail from './pages/Redemption/RedemptionDetail';
 import AdminTopup from './pages/AdminTopup';
+import TopupPlanDetail from './pages/AdminTopup/Detail';
 import AdminChannelTaskPage from './pages/Task/AdminChannelTaskPage';
 import AdminChannelTaskDetailPage from './pages/Task/AdminChannelTaskDetailPage';
 import AdminUserTaskPage from './pages/Task/AdminUserTaskPage';
 import AdminUserTaskDetailPage from './pages/Task/AdminUserTaskDetailPage';
 import WorkspaceTaskPage from './pages/Task/WorkspaceTaskPage';
 import WorkspaceTaskDetailPage from './pages/Task/WorkspaceTaskDetailPage';
-import FlowPage from './pages/Flow';
-import TopupReconcileDetail from './pages/Flow/TopupReconcileDetail';
-import TopupDetail from './pages/Flow/TopupDetail';
-import PackageFlowDetail from './pages/Flow/PackageDetail';
-import RedemptionFlowDetail from './pages/Flow/RedemptionDetail';
+import RecordListPage from './pages/Records/RecordListPage';
+import PaymentRecordDetail from './pages/Records/PaymentRecordDetail';
+import TopupRecordDetail from './pages/Records/TopupRecordDetail';
+import PackageRecordDetail from './pages/Records/PackageRecordDetail';
+import RedemptionRecordDetail from './pages/Records/RedemptionRecordDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminAlerts from './pages/AdminAlerts';
 import Providers from './pages/Providers';
 import BillingProcurementReport from './pages/BillingProcurementReport';
+import BillingOverview from './pages/BillingOverview';
+import BillingPricingAnalysis from './pages/BillingPricingAnalysis';
+import BillingChannelReconciliation from './pages/BillingChannelReconciliation';
 
 const RegisterForm = lazy(() => import('./components/RegisterForm'));
 const LoginForm = lazy(() => import('./components/LoginForm'));
@@ -69,8 +73,8 @@ const QuotaCardDetailPage = lazy(
 );
 const Chat = lazy(() => import('./pages/Chat'));
 const ServicePricing = lazy(() => import('./pages/ServicePricing'));
-const PaymentHistoryPage = lazy(
-  () => import('./pages/ServicePricing/PaymentHistoryPage'),
+const PaymentRecordsPage = lazy(
+  () => import('./pages/ServicePricing/PaymentRecordsPage'),
 );
 const WorkspaceModels = lazy(() => import('./pages/WorkspaceModels'));
 const HelpDoc = lazy(() => import('./pages/HelpDoc'));
@@ -682,7 +686,7 @@ function App() {
           path='/workspace/service/pricing/history'
           element={
             <Suspense fallback={<Loading />}>
-              <PaymentHistoryPage />
+              <PaymentRecordsPage />
             </Suspense>
           }
         />
@@ -766,36 +770,40 @@ function App() {
           element={<AdminTopup />}
         />
         <Route
-          path='/admin/flow/topup'
-          element={<FlowPage kind='topup' />}
+          path='/admin/topup/detail/:id'
+          element={<TopupPlanDetail />}
         />
         <Route
-          path='/admin/flow/topup/:id'
-          element={<TopupDetail />}
+          path='/admin/topup/records'
+          element={<RecordListPage kind='topup' />}
         />
         <Route
-          path='/admin/flow/topup-reconcile'
-          element={<FlowPage kind='topup-reconcile' />}
+          path='/admin/topup/records/:id'
+          element={<TopupRecordDetail />}
         />
         <Route
-          path='/admin/flow/topup-reconcile/:id'
-          element={<TopupReconcileDetail />}
+          path='/admin/topup/payment/:id'
+          element={<PaymentRecordDetail />}
         />
         <Route
-          path='/admin/flow/package'
-          element={<FlowPage kind='package' />}
+          path='/admin/package/records'
+          element={<RecordListPage kind='package' />}
         />
         <Route
-          path='/admin/flow/package/:id'
-          element={<PackageFlowDetail />}
+          path='/admin/package/records/:id'
+          element={<PackageRecordDetail />}
         />
         <Route
-          path='/admin/flow/redemption'
-          element={<FlowPage kind='redemption' />}
+          path='/admin/redemption/records'
+          element={<RecordListPage kind='redemption' />}
         />
         <Route
-          path='/admin/flow/redemption/:id'
-          element={<RedemptionFlowDetail />}
+          path='/admin/redemption/records/:id'
+          element={<RedemptionRecordDetail />}
+        />
+        <Route
+          path='/admin/user/detail/:id/payment/:paymentId'
+          element={<PaymentRecordDetail />}
         />
         <Route
           path='/admin/redemption'
@@ -840,6 +848,18 @@ function App() {
         <Route
           path='/admin/alerts'
           element={<AdminAlerts />}
+        />
+        <Route
+          path='/admin/billing/channel-reconciliation'
+          element={<BillingChannelReconciliation />}
+        />
+        <Route
+          path='/admin/billing/pricing-analysis'
+          element={<BillingPricingAnalysis />}
+        />
+        <Route
+          path='/admin/billing/overview'
+          element={<BillingOverview />}
         />
         <Route
           path='/admin/billing/procurement-report'

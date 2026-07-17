@@ -1785,6 +1785,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
 			},
 		},
+		{
+			Version:     "202607151030_channel_test_signal_source",
+			Description: "track whether channel model health signals come from manual or automatic checks",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelTest{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
@@ -3106,6 +3113,13 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 		{
 			Version:     "202607111430_log_billing_source_details",
 			Description: "add concrete billing source fields to consume logs",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202607161200_log_pricing_decision_snapshot",
+			Description: "add pricing decision and cost floor fields to consume logs",
 			Up: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
 			},

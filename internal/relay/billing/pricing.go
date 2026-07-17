@@ -72,6 +72,10 @@ func (snapshot BillingSnapshot) ApplyToLog(log *model.Log) {
 		log.BillingOfficialAnchorCurrency = snapshot.Currency
 		log.BillingOfficialAnchorBaseAmount = snapshot.PricingDecision.OfficialAnchor.Amount
 		log.BillingSellBaseAmount = snapshot.PricingDecision.SelectedSell.Amount
+		log.BillingCostFloorBaseAmount = snapshot.PricingDecision.CostFloor.Amount
+		log.BillingSelectedSellBaseAmount = snapshot.PricingDecision.SelectedSell.Amount
+		log.BillingPricingDecisionReason = snapshot.PricingDecision.Reason
+		log.BillingCostFloorTriggered = snapshot.PricingDecision.Reason == PricingDecisionReasonCostFloor
 	}
 	log.BillingImageToolCalls = snapshot.ImageToolCalls
 	log.BillingImageToolOutputTokens = snapshot.ImageToolOutputTokens
@@ -524,7 +528,13 @@ func ApplyEstimatedProcurementCostFloor(snapshot *BillingSnapshot, channelID str
 		if err != nil {
 			return err
 		}
-		if result.CoveredQuantity <= 0 || result.TotalCostAmount <= 0 {
+		// A cost floor may affect a user's charge only when the full usage is
+		// covered by authoritative procurement data. Estimated or partial cost
+		// coverage belongs in reconciliation, not in the online charge path.
+		if result.CoveredQuantity <= 0 || result.MissingQuantity > 0 || result.TotalCostAmount <= 0 {
+			continue
+		}
+		if result.CostSource != model.ProcurementCostSourceActual && result.CostSource != model.ProcurementCostSourceZeroCost {
 			continue
 		}
 		applyPricingDecisionWithProcurementCost(snapshot, MoneyAmount{

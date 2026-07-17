@@ -76,33 +76,6 @@ export const ADMIN_MENU_GROUPS = [
     ],
   },
   {
-    key: 'flow',
-    name: 'header.business_flow',
-    icon: 'clipboard list',
-    items: [
-      {
-        name: 'flow.topup.title',
-        to: '/admin/flow/topup',
-        icon: 'credit card',
-      },
-      {
-        name: 'flow.package.title',
-        to: '/admin/flow/package',
-        icon: 'gift',
-      },
-      {
-        name: 'flow.redemption.title',
-        to: '/admin/flow/redemption',
-        icon: 'exchange',
-      },
-      {
-        name: 'flow.topup_reconcile.title',
-        to: '/admin/flow/topup-reconcile',
-        icon: 'heartbeat',
-      },
-    ],
-  },
-  {
     key: 'operation',
     name: 'header.platform_operation',
     icon: 'tasks',
@@ -118,11 +91,6 @@ export const ADMIN_MENU_GROUPS = [
         icon: 'exchange',
       },
       {
-        name: 'billing.procurement_report.nav',
-        to: '/admin/billing/procurement-report',
-        icon: 'calculator',
-      },
-      {
         name: 'header.config',
         to: '/admin/setting?tab=operation&section=config',
         icon: 'sliders horizontal',
@@ -136,6 +104,33 @@ export const ADMIN_MENU_GROUPS = [
         name: 'header.task',
         to: '/admin/task',
         icon: 'tasks',
+      },
+    ],
+  },
+  {
+    key: 'billing',
+    name: 'header.billing',
+    icon: 'calculator',
+    items: [
+      {
+        name: 'billing.overview.nav',
+        to: '/admin/billing/overview',
+        icon: 'dashboard',
+      },
+      {
+        name: 'billing.pricing_analysis.nav',
+        to: '/admin/billing/pricing-analysis',
+        icon: 'line chart',
+      },
+      {
+        name: 'billing.channel_reconciliation.nav',
+        to: '/admin/billing/channel-reconciliation',
+        icon: 'exchange alternate',
+      },
+      {
+        name: 'billing.procurement_report.nav',
+        to: '/admin/billing/procurement-report',
+        icon: 'calculator',
       },
     ],
   },

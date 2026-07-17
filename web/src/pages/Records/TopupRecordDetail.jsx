@@ -87,19 +87,19 @@ const renderTopupStatus = (status, t) => {
 
 const resolveListPath = (stateFrom) => {
   if (typeof stateFrom !== 'string') {
-    return '/admin/flow/topup';
+    return '/admin/topup/records';
   }
   const normalized = stateFrom.trim();
   if (!normalized.startsWith('/')) {
-    return '/admin/flow/topup';
+    return '/admin/topup/records';
   }
-  if (normalized.startsWith('/admin/flow/topup/')) {
-    return '/admin/flow/topup';
+  if (normalized.startsWith('/admin/topup/records/')) {
+    return '/admin/topup/records';
   }
-  return normalized || '/admin/flow/topup';
+  return normalized || '/admin/topup/records';
 };
 
-const TopupDetail = () => {
+const TopupRecordDetail = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -140,10 +140,15 @@ const TopupDetail = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'flow', label: t('header.business_flow') },
+          { key: 'business', label: t('header.business_operation') },
+          {
+            key: 'topup-root',
+            label: t('header.topup'),
+            onClick: () => navigate('/admin/topup'),
+          },
           {
             key: 'flow-topup-list',
-            label: t('flow.topup.title'),
+            label: '充值记录',
             onClick: () => navigate(listPath),
           },
           {
@@ -152,11 +157,11 @@ const TopupDetail = () => {
             active: true,
           },
         ]}
-        title={t('flow.topup.title')}
+        title='充值记录'
       />
       <div className='router-entity-detail-page'>
         <AppDetailSection
-          title={t('flow.topup.title')}
+          title={t('common.basic_info')}
           titleTag='div'
         >
               {loading ? (
@@ -276,4 +281,4 @@ const TopupDetail = () => {
   );
 };
 
-export default TopupDetail;
+export default TopupRecordDetail;

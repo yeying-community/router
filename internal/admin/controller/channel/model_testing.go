@@ -99,6 +99,17 @@ type channelModelTestExecution struct {
 	Err                error
 }
 
+type channelHealthProbeContextKey struct{}
+
+func withChannelHealthProbeContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, channelHealthProbeContextKey{}, true)
+}
+
+func isChannelHealthProbeContext(ctx context.Context) bool {
+	value, _ := ctx.Value(channelHealthProbeContextKey{}).(bool)
+	return value
+}
+
 const (
 	channelModelTestModeBatch  = "batch"
 	channelModelTestModeSingle = "model"
@@ -119,6 +130,19 @@ func persistChannelModelTests(channelID string, taskID string, results []model.C
 		targetModels = append(targetModels, item.Model)
 	}
 	targetModels = model.NormalizeChannelModelIDsPreserveOrder(targetModels)
+	// Health probes are observational signals. They must not change endpoint
+	// configuration or runtime routing capabilities used by manual tests.
+	isHealthProbe := false
+	for _, item := range results {
+		if strings.TrimSpace(item.Source) == "automatic_probe" {
+			isHealthProbe = true
+			break
+		}
+	}
+	if isHealthProbe {
+		_, err := model.AppendChannelTestsForModelsWithDB(model.DB, normalizedChannelID, targetModels, results)
+		return err
+	}
 	restoredModels := make([]string, 0)
 	restoredEndpoints := make([]channelModelEndpointRestore, 0)
 	shouldRestoreChannel, err := shouldRestoreInsufficientBalanceChannelAfterSuccessfulTests(normalizedChannelID, results)
@@ -368,6 +392,7 @@ func buildChannelModelTestResult(row model.ChannelModel, execution channelModelT
 		IsStream:      execution.IsStream,
 		LatencyMs:     execution.LatencyMs,
 		Message:       strings.TrimSpace(execution.Message),
+		Source:        "manual_test",
 	}
 	if result.UpstreamModel == "" {
 		result.UpstreamModel = result.Model
@@ -535,13 +560,20 @@ func runSingleChannelModelTestWithContextAndStream(ctx context.Context, channel 
 		if requestedStream != nil {
 			stream = *requestedStream
 		}
+		prompt := config.TestPrompt
+		maxTokens := 0
+		if isChannelHealthProbeContext(ctx) {
+			prompt = "1"
+			maxTokens = 1
+		}
 		execution := executeChannelTextModelTest(ctx, channel, endpoint, &relaymodel.GeneralOpenAIRequest{
 			Model: row.Model,
 			Messages: []relaymodel.Message{{
 				Role:    "user",
-				Content: config.TestPrompt,
+				Content: prompt,
 			}},
-			Stream: stream,
+			Stream:    stream,
+			MaxTokens: maxTokens,
 		})
 		return buildChannelModelTestResult(model.ChannelModel{
 			Model:         row.Model,
@@ -554,7 +586,13 @@ func runSingleChannelModelTestWithContextAndStream(ctx context.Context, channel 
 		if requestedStream != nil {
 			stream = *requestedStream
 		}
-		requestBody := buildResponsesTextModelTestRequestBody(row.Model, stream)
+		request := buildResponsesTextModelTestRequest(row.Model, stream)
+		if isChannelHealthProbeContext(ctx) {
+			request.Input = "1"
+			maxOutputTokens := 1
+			request.MaxOutputTokens = &maxOutputTokens
+		}
+		requestBody, _ := json.Marshal(request)
 		execution := executeChannelTextModelTestRawBodyWithRetry(
 			ctx,
 			channel,
