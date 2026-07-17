@@ -158,11 +158,11 @@
       "status_title": "支付状态",
       "user_search_placeholder": "搜索支付单号、交易号、状态、商品名称...",
       "user_empty": "该用户暂无支付记录",
-      "back_to_pricing": "返回订阅"
+      "back_to_pricing": "返回购买"
     },
     "nav": {
       "balance": "余额充值",
-      "package": "购买套餐",
+      "package": "套餐订阅",
       "redeem": "兑换码",
       "records": "充值记录"
     },
@@ -186,7 +186,7 @@
     },
     "business_type": {
       "balance_topup": "余额充值",
-      "package_purchase": "套餐购买"
+      "package_purchase": "套餐订阅"
     },
     "external_topup": {
       "title": "额度充值",
@@ -196,16 +196,16 @@
       "redeem_balance": "兑换余额",
       "gift_balance": "赠送余额",
       "button": "立即充值",
-      "package_button": "购买套餐",
+      "package_button": "套餐订阅",
       "creating": "创建订单中...",
       "description": "Router 会先创建订单，再跳转到外部支付收银台完成支付。",
       "amount": "充值金额（CNY）",
       "amount_placeholder": "请输入充值金额",
       "credited_yyc": "预计到账 YYC",
-      "package_title": "套餐购买",
+      "package_title": "套餐订阅",
       "package_empty": "暂无可购买套餐",
       "package_select_required": "请选择套餐",
-      "package_preview_title": "套餐购买",
+      "package_preview_title": "套餐订阅",
       "package_preview_desc": "请确认本次套餐操作与应付金额。",
       "package_preview_operation": "操作类型",
       "package_preview_slot_active_package": "同槽位生效套餐",
@@ -303,8 +303,8 @@
       }
     },
     "pricing": {
-      "title": "订阅",
-      "page_title": "订阅",
+      "title": "购买",
+      "page_title": "购买",
       "subtitle": "你可以购买或调整套餐，也可以充值余额按需使用服务。",
       "package_mode_title": "套餐使用",
       "package_hint": "适合稳定使用，按套餐获取每日额度和应急额度，成本与边界更清晰。图片模型按张计次，例如 n=4 记 4 次。",
@@ -321,7 +321,7 @@
       "supported_models_search_empty": "没有匹配的模型"
     },
     "package_status": {
-      "view_pricing": "查看订阅",
+      "view_pricing": "查看购买",
       "no_active_package": "当前没有生效套餐",
       "no_upgrade_target": "暂无可升级的目标套餐",
       "no_downgrade_target": "暂无可降级的目标套餐",
@@ -335,7 +335,7 @@
       "select_convert_target": "选择转换目标套餐",
       "select_convert_target_hint": "请选择一个不同类型的目标套餐。",
       "convert_next_cycle": "下一步",
-      "empty_description": "当前没有生效套餐。你可以前往订阅页购买套餐，或者使用余额按需体验服务。",
+      "empty_description": "当前没有生效套餐。你可以前往购买页订阅套餐，或者使用余额按需体验服务。",
       "daily_title": "今日套餐额度",
       "emergency_title": "本月应急额度",
       "period": "统计周期",

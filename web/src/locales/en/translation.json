@@ -158,11 +158,11 @@
       "status_title": "Payment Status",
       "user_search_placeholder": "Search payment ID, transaction ID, status, or product name...",
       "user_empty": "This user has no payment records",
-      "back_to_pricing": "Back to Subscription"
+      "back_to_pricing": "Back to Purchase"
     },
     "nav": {
       "balance": "Balance Top-up",
-      "package": "Buy Package",
+      "package": "Package Subscription",
       "redeem": "Redeem Code",
       "records": "Top-up Records"
     },
@@ -186,7 +186,7 @@
     },
     "business_type": {
       "balance_topup": "Balance Top-up",
-      "package_purchase": "Package Purchase"
+      "package_purchase": "Package Subscription"
     },
     "external_topup": {
       "title": "Quota Top-up",
@@ -196,16 +196,16 @@
       "redeem_balance": "Redeem Balance",
       "gift_balance": "Gift Balance",
       "button": "Top Up Now",
-      "package_button": "Buy Package",
+      "package_button": "Package Subscription",
       "creating": "Creating order...",
       "description": "Router creates the order first, then redirects to the hosted payment cashier.",
       "amount": "Top-up Amount (CNY)",
       "amount_placeholder": "Enter amount",
       "credited_yyc": "Estimated YYC",
-      "package_title": "Package Purchase",
+      "package_title": "Package Subscription",
       "package_empty": "No purchasable packages",
       "package_select_required": "Please select a package",
-      "package_preview_title": "Package Purchase",
+      "package_preview_title": "Package Subscription",
       "package_preview_desc": "Please confirm the package action and payable amount.",
       "package_preview_operation": "Operation",
       "package_preview_slot_active_package": "Active Package in Same Slot",
@@ -303,8 +303,8 @@
       }
     },
     "pricing": {
-      "title": "Subscriptions",
-      "page_title": "Subscriptions",
+      "title": "Purchase",
+      "page_title": "Purchase",
       "subtitle": "Purchase or adjust a package, or top up balance for on-demand usage.",
       "package_mode_title": "Package Plans",
       "package_hint": "Best for stable usage. You get a daily allowance plus emergency capacity with clearer cost boundaries. Image models count by generated image count, for example n=4 uses 4 package units.",
@@ -321,7 +321,7 @@
       "supported_models_search_empty": "No matching models"
     },
     "package_status": {
-      "view_pricing": "View Subscriptions",
+      "view_pricing": "View Purchase",
       "no_active_package": "There is no active package",
       "no_upgrade_target": "No upgrade target package is available",
       "no_downgrade_target": "No downgrade target package is available",
@@ -335,7 +335,7 @@
       "select_convert_target": "Select Conversion Target Package",
       "select_convert_target_hint": "Choose a target package of a different type.",
       "convert_next_cycle": "Next",
-      "empty_description": "There is no active package right now. You can buy one from Subscriptions or use balance on demand.",
+      "empty_description": "There is no active package right now. You can subscribe to one from Purchase or use balance on demand.",
       "daily_title": "Today's Package Quota",
       "emergency_title": "Monthly Emergency Quota",
       "period": "Period",
