@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { AppDivider, AppFilterHeader, AppSection } from '../../router-ui';
 import SystemSetting from '../../components/SystemSetting';
 import { isRoot } from '../../helpers';
@@ -50,7 +50,6 @@ const resolveAdminSettingLocation = (rawTab, rawSection) => {
 const Setting = () => {
   const { t } = useTranslation();
   const location = useLocation();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isAdminWorkspace = location.pathname.startsWith('/admin/');
 
@@ -166,30 +165,7 @@ const Setting = () => {
       />
       <AppSection className='router-settings-page-section'>
         {menuGroups.length > 0 ? (
-          <>
-            <div className='router-settings-page-nav' role='tablist' aria-label={t('setting.title')}>
-              {menuGroups.map((item) => {
-                const isActive = item.key === activeTab;
-                return (
-                  <button
-                    key={item.key}
-                    type='button'
-                    role='tab'
-                    aria-selected={isActive}
-                    className={`router-settings-page-nav-item${isActive ? ' active' : ''}`}
-                    onClick={() =>
-                      navigate(`/admin/setting?tab=${encodeURIComponent(item.key)}`, {
-                        replace: item.key === activeTab,
-                      })
-                    }
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-            {renderContent()}
-          </>
+          renderContent()
         ) : (
           <div className='router-empty-cell'>
             {t('setting.empty_admin', '暂无可配置项')}

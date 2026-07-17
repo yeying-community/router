@@ -849,38 +849,6 @@ body,
     gap: 8px;
 }
 
-.router-settings-page-nav {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-wrap: wrap;
-    margin-bottom: 4px;
-}
-
-.router-settings-page-nav-item {
-    border: none;
-    background: transparent;
-    color: rgba(15, 23, 42, 0.62);
-    font: inherit;
-    font-size: 13px;
-    line-height: 1.4;
-    padding: 4px 8px;
-    margin: 0;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.router-settings-page-nav-item:hover {
-    color: #1f2937;
-    background: rgba(15, 23, 42, 0.04);
-}
-
-.router-settings-page-nav-item.active {
-    color: #1f2937;
-    font-weight: 600;
-    background: rgba(15, 23, 42, 0.06);
-}
-
 .router-settings-page-block {
     display: flex;
     flex-direction: column;
