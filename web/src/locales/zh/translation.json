@@ -26,7 +26,7 @@
     "log": "日志",
     "task": "任务",
     "setting": "设置",
-    "setting_center": "系统设置",
+    "setting_center": "设置",
     "sidebar_expand": "展开侧栏",
     "sidebar_compact": "收起侧栏",
     "chat": "聊天",
@@ -1935,6 +1935,13 @@
     }
   },
   "log": {
+    "cleanup": {
+      "label": "清理到",
+      "button": "清理历史日志",
+      "invalid_time": "请选择有效的清理时间",
+      "failed": "日志清理失败",
+      "success": "已清理 {{count}} 条日志"
+    },
     "title": "操作日志",
     "search": "搜索日志...",
     "filters": {
@@ -2976,14 +2983,20 @@
   },
   "setting": {
     "empty_admin": "暂无可配置项",
-    "title": "系统设置",
+    "title": "设置",
     "tabs": {
       "personal": "个人设置",
       "operation": "运营设置",
       "currency": "币种",
-      "system": "系统设置",
+      "system": "设置",
       "other": "其他设置",
       "exchange": "汇率"
+    },
+    "groups": {
+      "basic": "基础信息",
+      "billing": "支付与计费",
+      "content": "内容设置",
+      "runtime": "系统运行"
     },
     "personal": {
       "tokens": {
@@ -2997,7 +3010,7 @@
         "confirm": "确认删除"
       },
       "general": {
-        "title": "通用设置",
+        "title": "站点信息",
         "system_token_notice": "注意，此处生成的令牌用于系统管理，而非用于请求 OpenAI 相关的服务，请知悉。",
         "buttons": {
           "update_profile": "更新个人信息",
@@ -3067,7 +3080,7 @@
       },
       "saved": "已保存",
       "login": {
-        "title": "登录设置",
+        "title": "登录与注册",
         "password_login": "允许通过密码进行登录",
         "password_register": "允许通过密码进行注册",
         "email_verification": "通过密码注册时需要进行邮箱验证",
@@ -3089,20 +3102,20 @@
         }
       },
       "smtp": {
-        "title": "邮箱设置",
-        "subtitle": "用以支持系统的邮件发送",
-        "server": "SMTP 服务器地址",
+        "title": "邮件发送",
+        "subtitle": "用于配置系统发送邮件所需的信息",
+        "server": "邮件服务器地址",
         "server_placeholder": "例如：smtp.qq.com",
-        "port": "SMTP 端口",
+        "port": "服务器端口",
         "port_placeholder": "默认: 587",
-        "account": "SMTP 账户",
+        "account": "发件账户",
         "account_placeholder": "通常是邮箱地址",
-        "from": "SMTP 发送者邮箱",
+        "from": "发件邮箱",
         "from_placeholder": "通常和邮箱地址保持一致",
-        "token": "SMTP 访问凭证",
+        "token": "发信凭证",
         "token_placeholder": "敏感信息不会发送到前端显示",
         "buttons": {
-          "save": "保存 SMTP 设置"
+          "save": "保存邮件设置"
         }
       },
       "github": {
@@ -3173,13 +3186,13 @@
     },
     "operation": {
       "quota": {
-        "title": "余额设置",
+        "title": "奖励与预扣",
         "new_user_reward": "新客奖励",
         "new_user_reward_description": "新用户注册成功后发放奖励。请选择一个充值额度作为奖励来源，留空表示不发放。",
         "reward_plan_placeholder": "请选择充值额度（默认不发放）",
-        "pre_consume": "请求预扣金额",
-        "pre_consume_placeholder": "请求结束后多退少补",
-        "pre_consume_description": "用于请求开始时的预估预扣，成功后按实际消耗结算，多退少补。",
+        "pre_consume": "请求预留金额",
+        "pre_consume_placeholder": "请求结束后按实际消耗补扣或退回",
+        "pre_consume_description": "请求开始时先预留一笔金额，请求完成后再按实际消耗结算，多退少补。",
         "inviter_reward": "邀请奖励",
         "inviter_reward_description": "用户通过邀请链接完成注册后，给邀请人发放奖励。请选择一个充值额度作为奖励来源，留空表示不发放。",
         "messages": {
@@ -3191,29 +3204,25 @@
         }
       },
       "log": {
-        "title": "日志设置",
-        "enable_consume": "启用消费日志记录",
-        "target_time": "目标时间",
-        "buttons": {
-          "clean": "清理历史日志"
-        }
+        "title": "日志记录",
+        "enable_consume": "记录消费日志"
       },
       "monitor": {
-        "title": "监控设置",
-        "max_response_time": "最长响应时间",
-        "max_response_time_placeholder": "单位秒，当运行渠道全部测试时，超过此时间将自动禁用渠道",
-        "quota_reminder": "余额提醒阈值",
-        "quota_reminder_placeholder": "低于此余额时将发送邮件提醒用户",
+        "title": "告警与阈值",
+        "max_response_time": "渠道响应上限",
+        "max_response_time_placeholder": "单位秒，渠道测试超过该时间会自动禁用",
+        "quota_reminder": "余额告警阈值",
+        "quota_reminder_placeholder": "用户余额低于该值时发送提醒",
         "buttons": {
           "save": "保存监控设置"
         }
       },
       "retry": {
-        "title": "重试配置",
-        "description_title": "请求内切换说明",
-        "description": "该配置控制同一个请求在首次上游失败后，Router 是否继续尝试当前分组内该模型的其他候选渠道。",
-        "description_effective": "启用后，只要错误可重试、没有指定具体渠道，并且还有未失败的候选渠道，Router 就会把剩余候选渠道依次尝试一遍。",
-        "description_disabled": "关闭时首次失败就直接返回。启用时，同一次请求里已经失败过的渠道不会重复尝试，直到所有候选渠道都失败或某次成功为止。",
+        "title": "失败重试",
+        "description_title": "同次请求失败后的处理",
+        "description": "这里控制一次请求在首个上游失败后，是否继续尝试当前分组内同模型的其他可用渠道。",
+        "description_effective": "启用后，只要错误允许重试、没有指定具体渠道，并且还有未尝试的候选渠道，系统就会继续依次尝试。",
+        "description_disabled": "关闭后首次失败会直接返回。启用时，同一次请求里已经失败过的渠道不会重复尝试，直到全部失败或其中一次成功。",
         "limit": "重试策略",
         "limit_placeholder": "请选择重试策略",
         "options": {
@@ -3225,28 +3234,28 @@
         }
       },
       "general": {
-        "title": "通用设置",
+        "title": "支付与计价",
         "topup_link": "充值链接",
         "topup_link_placeholder": "例如发卡网站的购买链接",
-        "chat_link": "聊天页面链接",
-        "chat_link_placeholder": "例如 Chat Web 的部署地址",
+        "chat_link": "聊天页面地址",
+        "chat_link_placeholder": "例如 Chat Web 的访问地址",
         "quota_per_unit": "USD -> YYC 折算比率",
         "quota_per_unit_placeholder": "1 USD 折算为多少扣减额度",
         "channel_billing_auto_refresh": {
-          "enabled": "启用渠道账务自动刷新",
+          "enabled": "自动刷新渠道账务",
           "interval_seconds": "刷新间隔（秒）",
-          "last_run": "最近运行时间",
+          "last_run": "上次刷新时间",
           "interval_invalid": "刷新间隔必须大于或等于 60 秒"
         },
         "pricing_policy": {
-          "title": "计价策略",
-          "description_title": "计价策略说明",
-          "description": "计价层先按供应商官方价格计算官方金额，再结合采购成本、目标毛利和风险缓冲决定最终扣减金额。",
-          "official_markup": "官方价格加价系数",
+          "title": "计价规则",
+          "description_title": "扣费如何计算",
+          "description": "系统会先按供应商官方价格计算基础金额，再结合采购成本、目标毛利和风险缓冲，得出最终扣费金额。",
+          "official_markup": "官方价加价倍数",
           "official_markup_hint": "基于供应商官方价格的加价倍数，1 表示不加价，1.2 表示上浮 20%。",
           "target_margin": "目标毛利率",
           "target_margin_hint": "小数填写，0.2 表示目标毛利 20%；必须小于 0.95。",
-          "risk_buffer": "采购风险缓冲率",
+          "risk_buffer": "成本风险缓冲率",
           "risk_buffer_hint": "用于覆盖采购成本波动，小数填写，0.1 表示成本上浮 10% 后再计算保底售价。",
           "official_markup_invalid": "官方价格加价系数必须大于 0",
           "target_margin_invalid": "目标毛利率必须大于或等于 0 且小于 0.95",

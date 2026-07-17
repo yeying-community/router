@@ -31,7 +31,17 @@ type logFilterOptions struct {
 	Groups     []logGroupOption   `json:"groups,omitempty"`
 }
 
+func normalizeRequestedLogOptionField(raw string) string {
+	switch strings.TrimSpace(raw) {
+	case "token_name", "model_name", "username", "channel", "group_id":
+		return strings.TrimSpace(raw)
+	default:
+		return ""
+	}
+}
+
 const userVisibleModelNameExpr = "NULLIF(TRIM(request_model_name), '')"
+const adminVisibleModelNameExpr = "COALESCE(NULLIF(TRIM(request_model_name), ''), NULLIF(TRIM(model_name), ''))"
 
 func normalizeStatLogType(raw int) int {
 	if raw == model.LogTypeAll {
@@ -80,6 +90,36 @@ func distinctUserVisibleModelValues(userID string) ([]string, error) {
 		LIMIT 200
 	`
 	if err := model.LOG_DB.Raw(query, strings.TrimSpace(userID)).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	values := make([]string, 0, len(rows))
+	for _, row := range rows {
+		values = append(values, row.ModelName)
+	}
+	return normalizeDistinctLogValues(values), nil
+}
+
+func distinctAdminVisibleModelValues(keyword string) ([]string, error) {
+	type modelNameRow struct {
+		ModelName string `gorm:"column:model_name"`
+	}
+	rows := make([]modelNameRow, 0)
+	args := make([]interface{}, 0, 1)
+	query := `
+		SELECT DISTINCT ` + adminVisibleModelNameExpr + ` AS model_name
+		FROM ` + model.EventLogsTableName + `
+		WHERE COALESCE(` + adminVisibleModelNameExpr + `, '') <> ''
+	`
+	normalizedKeyword := strings.TrimSpace(keyword)
+	if normalizedKeyword != "" {
+		query += ` AND ` + adminVisibleModelNameExpr + ` LIKE ?`
+		args = append(args, "%"+normalizedKeyword+"%")
+	}
+	query += `
+		ORDER BY model_name ASC
+		LIMIT 50
+	`
+	if err := model.LOG_DB.Raw(query, args...).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	values := make([]string, 0, len(rows))
@@ -221,13 +261,75 @@ func buildLogFilterOptions(userID string, includeAdmin bool) (logFilterOptions, 
 	return options, nil
 }
 
+func buildPartialLogFilterOptions(userID string, includeAdmin bool, field string, keyword string) (logFilterOptions, error) {
+	switch normalizeRequestedLogOptionField(field) {
+	case "token_name":
+		tokenNames, err := distinctLogValues("token_name", userID)
+		if err != nil {
+			return logFilterOptions{}, err
+		}
+		return logFilterOptions{TokenNames: tokenNames}, nil
+	case "model_name":
+		var (
+			modelNames []string
+			err        error
+		)
+		if includeAdmin {
+			modelNames, err = distinctAdminVisibleModelValues(keyword)
+		} else {
+			modelNames, err = distinctUserVisibleModelValues(userID)
+		}
+		if err != nil {
+			return logFilterOptions{}, err
+		}
+		return logFilterOptions{ModelNames: modelNames}, nil
+	case "username":
+		if !includeAdmin {
+			return logFilterOptions{}, nil
+		}
+		usernames, err := distinctLogValues("username", "")
+		if err != nil {
+			return logFilterOptions{}, err
+		}
+		return logFilterOptions{Usernames: usernames}, nil
+	case "channel":
+		if !includeAdmin {
+			return logFilterOptions{}, nil
+		}
+		channelIDs, err := distinctLogValues("channel_id", "")
+		if err != nil {
+			return logFilterOptions{}, err
+		}
+		channels, err := loadChannelOptions(channelIDs)
+		if err != nil {
+			return logFilterOptions{}, err
+		}
+		return logFilterOptions{Channels: channels}, nil
+	case "group_id":
+		if !includeAdmin {
+			return logFilterOptions{}, nil
+		}
+		groupIDs, err := distinctLogValues("group_id", "")
+		if err != nil {
+			return logFilterOptions{}, err
+		}
+		groups, err := loadGroupOptions(groupIDs)
+		if err != nil {
+			return logFilterOptions{}, err
+		}
+		return logFilterOptions{Groups: groups}, nil
+	default:
+		return buildLogFilterOptions(userID, includeAdmin)
+	}
+}
+
 func countAdminLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, groupID string, channel string) (int64, error) {
 	query := model.LOG_DB.Table(model.EventLogsTableName)
 	if logType != model.LogTypeAll {
 		query = query.Where("type = ?", logType)
 	}
 	if modelName != "" {
-		query = query.Where("model_name = ?", modelName)
+		query = query.Where(adminVisibleModelNameExpr+" = ?", modelName)
 	}
 	if username != "" {
 		query = query.Where("username = ?", username)
@@ -253,7 +355,7 @@ func countAdminLogs(logType int, startTimestamp int64, endTimestamp int64, model
 }
 
 func GetLogFilterOptions(c *gin.Context) {
-	options, err := buildLogFilterOptions("", true)
+	options, err := buildPartialLogFilterOptions("", true, c.Query("field"), c.Query("keyword"))
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -269,7 +371,7 @@ func GetLogFilterOptions(c *gin.Context) {
 }
 
 func GetUserLogFilterOptions(c *gin.Context) {
-	options, err := buildLogFilterOptions(c.GetString(ctxkey.Id), false)
+	options, err := buildPartialLogFilterOptions(c.GetString(ctxkey.Id), false, c.Query("field"), c.Query("keyword"))
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

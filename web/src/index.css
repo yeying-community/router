@@ -839,6 +839,76 @@ body,
     margin-bottom: 8px;
 }
 
+.router-settings-page-section.ant-card .ant-card-body {
+    padding: 12px 14px;
+}
+
+.router-settings-page-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.router-settings-page-divider.ant-divider {
+    margin: 2px 0 0;
+    border-color: rgba(15, 23, 42, 0.08);
+}
+
+.router-settings-page-section .router-ui-section-header {
+    margin-bottom: 8px;
+}
+
+.router-settings-page-section .router-ui-section-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.router-settings-page-section .router-toolbar-compact {
+    margin-top: 0;
+    margin-bottom: 4px;
+}
+
+.router-settings-page-section .router-section-message {
+    padding: 0.7em 0.9em !important;
+    margin-bottom: 10px;
+}
+
+.router-settings-page-section .router-ui-form-actions {
+    margin-top: 10px;
+}
+
+.router-log-cleanup-actions {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.router-log-cleanup-label {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.router-log-cleanup-input {
+    min-width: 220px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 8px;
+    background: #fff;
+    color: #1f2937;
+    font: inherit;
+}
+
+.router-log-cleanup-input:focus {
+    outline: none;
+    border-color: #1677ff;
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
 .router-settings-layout {
     margin-top: 8px !important;
     display: grid;

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   API,
   showError,
+  showSuccess,
   timestamp2string,
   writePagedRows,
 } from '../helpers';
@@ -245,8 +246,36 @@ function normalizeLogEntry(log) {
 function toDatetimeLocalValue(value) {
   const raw = (value || '').toString().trim();
   if (raw === '') {
-    return '';
+  return '';
+}
+
+function toUserFilterOption(item) {
+  const username = (item?.username || '').toString().trim();
+  const displayName = (item?.display_name || '').toString().trim();
+  const walletAddress = (item?.wallet_address || '').toString().trim();
+  if (!username) {
+    return null;
   }
+  const label = [displayName || username, walletAddress].filter(Boolean).join(' / ');
+  return {
+    key: username,
+    text: label || username,
+    value: username,
+  };
+}
+
+function toTokenFilterOption(item) {
+  const tokenName = (item?.name || '').toString().trim();
+  const tokenID = (item?.id || '').toString().trim();
+  if (!tokenName) {
+    return null;
+  }
+  return {
+    key: tokenName,
+    text: [tokenName, tokenID].filter(Boolean).join(' / '),
+    value: tokenName,
+  };
+}
   if (raw.includes('T')) {
     return raw.slice(0, 16);
   }
@@ -276,6 +305,17 @@ function parseDatetimeInput(value) {
     return 0;
   }
   return Math.floor(parsed / 1000);
+}
+
+function cleanupDatetimeLocalValue() {
+  const date = new Date();
+  date.setMonth(date.getMonth() - 1);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  const hour = `${date.getHours()}`.padStart(2, '0');
+  const minute = `${date.getMinutes()}`.padStart(2, '0');
+  return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
 function formatFilterDisplayValue(value) {
@@ -447,6 +487,11 @@ const LogsTable = () => {
     channels: [],
     groups: [],
   });
+  const [loadedFilterKeys, setLoadedFilterKeys] = useState([]);
+  const [loadingFilterKeys, setLoadingFilterKeys] = useState([]);
+  const [userFilterSearchLoading, setUserFilterSearchLoading] = useState(false);
+  const [tokenFilterSearchLoading, setTokenFilterSearchLoading] = useState(false);
+  const [modelFilterSearchLoading, setModelFilterSearchLoading] = useState(false);
   const [inputs, setInputs] = useState(initialSearchFilters.inputs);
   const {
     username,
@@ -476,6 +521,10 @@ const LogsTable = () => {
   );
   const [draggingColumnKey, setDraggingColumnKey] = useState('');
   const [dragOverColumnKey, setDragOverColumnKey] = useState('');
+  const [cleanupTimestamp, setCleanupTimestamp] = useState(
+    cleanupDatetimeLocalValue(),
+  );
+  const [cleaningLogs, setCleaningLogs] = useState(false);
   const draggingColumnKeyRef = useRef('');
 
   const LOG_OPTIONS = [
@@ -505,23 +554,15 @@ const LogsTable = () => {
         key: 'token_name',
         label: t('log.table.token_name'),
         placeholder: t('log.table.token_name_placeholder'),
-        type: filterOptions.tokenNames.length > 0 ? 'select' : 'text',
-        options: filterOptions.tokenNames.map((item) => ({
-          key: item,
-          text: item,
-          value: item,
-        })),
+        type: isAdminScope ? 'select' : 'text',
+        options: filterOptions.tokenNames,
       },
       {
         key: 'model_name',
         label: t('log.table.model_name'),
         placeholder: t('log.table.model_name_placeholder'),
-        type: filterOptions.modelNames.length > 0 ? 'select' : 'text',
-        options: filterOptions.modelNames.map((item) => ({
-          key: item,
-          text: item,
-          value: item,
-        })),
+        type: isAdminScope ? 'select' : 'text',
+        options: filterOptions.modelNames,
       },
     ];
     if (isAdminScope) {
@@ -552,12 +593,8 @@ const LogsTable = () => {
           key: 'username',
           label: t('log.table.username'),
           placeholder: t('log.table.username_placeholder'),
-          type: filterOptions.usernames.length > 0 ? 'select' : 'text',
-          options: filterOptions.usernames.map((item) => ({
-            key: item,
-            text: item,
-            value: item,
-          })),
+          type: 'select',
+          options: filterOptions.usernames,
         }
       );
     }
@@ -602,6 +639,111 @@ const LogsTable = () => {
     setActivePage(1);
   }, [initialSearchFilters]);
 
+  const loadFilterOptions = useCallback(async (filterKey = '') => {
+    const normalizedFilterKey = String(filterKey || '').trim();
+    if (
+      isAdminScope &&
+      normalizedFilterKey !== 'channel' &&
+      normalizedFilterKey !== 'group_id'
+    ) {
+      return;
+    }
+    if (
+      normalizedFilterKey &&
+      (loadedFilterKeys.includes(normalizedFilterKey) ||
+        loadingFilterKeys.includes(normalizedFilterKey))
+    ) {
+      return;
+    }
+    if (normalizedFilterKey) {
+      setLoadingFilterKeys((prev) =>
+        prev.includes(normalizedFilterKey) ? prev : [...prev, normalizedFilterKey]
+      );
+    }
+    try {
+      if (isAdminScope && normalizedFilterKey === 'channel') {
+        const res = await API.get('/api/v1/admin/channels/', {
+          params: {
+            page: 1,
+            page_size: 100,
+          },
+        });
+        const { success, message, data } = res.data || {};
+        if (!success) {
+          showError(message || t('log.messages.load_failed'));
+          return;
+        }
+        setFilterOptions((prev) => ({
+          ...prev,
+          channels: Array.isArray(data?.items)
+            ? data.items.map((item) => ({
+                id: item.id,
+                label: item.name || item.id,
+              }))
+            : [],
+        }));
+      } else if (isAdminScope && normalizedFilterKey === 'group_id') {
+        const res = await API.get('/api/v1/admin/groups', {
+          params: {
+            page: 1,
+            page_size: 100,
+          },
+        });
+        const { success, message, data } = res.data || {};
+        if (!success) {
+          showError(message || t('log.messages.load_failed'));
+          return;
+        }
+        setFilterOptions((prev) => ({
+          ...prev,
+          groups: Array.isArray(data?.items)
+            ? data.items.map((item) => ({
+                id: item.id,
+                label: item.name || item.id,
+              }))
+            : [],
+        }));
+      } else {
+        const suffix = normalizedFilterKey
+          ? `?field=${encodeURIComponent(normalizedFilterKey)}`
+          : '';
+        const url = `/api/v1/public/log/options${suffix}`;
+        const res = await API.get(url);
+        const { success, message, data } = res.data || {};
+        if (!success) {
+          showError(message || t('log.messages.load_failed'));
+          return;
+        }
+        setFilterOptions((prev) => ({
+          ...prev,
+          tokenNames:
+            !normalizedFilterKey || normalizedFilterKey === 'token_name'
+              ? Array.isArray(data?.token_names)
+                ? data.token_names
+                : []
+              : prev.tokenNames,
+          modelNames:
+            !normalizedFilterKey || normalizedFilterKey === 'model_name'
+              ? Array.isArray(data?.model_names)
+                ? data.model_names
+                : []
+              : prev.modelNames,
+        }));
+      }
+      if (normalizedFilterKey) {
+        setLoadedFilterKeys((prev) =>
+          prev.includes(normalizedFilterKey) ? prev : [...prev, normalizedFilterKey]
+        );
+      }
+    } finally {
+      if (normalizedFilterKey) {
+        setLoadingFilterKeys((prev) =>
+          prev.filter((item) => item !== normalizedFilterKey)
+        );
+      }
+    }
+  }, [isAdminScope, loadedFilterKeys, loadingFilterKeys, t]);
+
   const openFilterDraft = useCallback(
     (filterKey) => {
       const config = conditionalFilterConfig.find((item) => item.key === filterKey);
@@ -631,10 +773,17 @@ const LogsTable = () => {
           end_timestamp: '',
         });
       }
+      if (
+        ['channel', 'group_id'].includes(
+          filterKey
+        )
+      ) {
+        loadFilterOptions(filterKey).then();
+      }
       setDraftFilterKey(filterKey);
       setAddFilterPopupOpen(true);
     },
-    [conditionalFilterConfig, inputs]
+    [conditionalFilterConfig, inputs, loadFilterOptions, logType]
   );
 
   const closeFilterDraft = useCallback(() => {
@@ -691,6 +840,82 @@ const LogsTable = () => {
     closeFilterDraft();
   }, [closeFilterDraft, conditionalFilterConfig, draftFilterInputs, draftFilterKey, t]);
 
+  const searchAdminUsers = useCallback(async (keyword) => {
+    const normalizedKeyword = String(keyword || '').trim();
+    setUserFilterSearchLoading(true);
+    try {
+      const res = await API.get('/api/v1/admin/user/search', {
+        params: normalizedKeyword ? { keyword: normalizedKeyword } : undefined,
+      });
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('log.messages.load_failed'));
+        return;
+      }
+      setFilterOptions((prev) => ({
+        ...prev,
+        usernames: (Array.isArray(data) ? data : [])
+          .map(toUserFilterOption)
+          .filter(Boolean),
+      }));
+    } finally {
+      setUserFilterSearchLoading(false);
+    }
+  }, [t]);
+
+  const searchAdminTokens = useCallback(async (keyword) => {
+    const normalizedKeyword = String(keyword || '').trim();
+    setTokenFilterSearchLoading(true);
+    try {
+      const res = await API.get('/api/v1/admin/token/search', {
+        params: normalizedKeyword ? { keyword: normalizedKeyword } : undefined,
+      });
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('log.messages.load_failed'));
+        return;
+      }
+      setFilterOptions((prev) => ({
+        ...prev,
+        tokenNames: (Array.isArray(data) ? data : [])
+          .map(toTokenFilterOption)
+          .filter(Boolean),
+      }));
+    } finally {
+      setTokenFilterSearchLoading(false);
+    }
+  }, [t]);
+
+  const searchAdminModels = useCallback(async (keyword) => {
+    const normalizedKeyword = String(keyword || '').trim();
+    setModelFilterSearchLoading(true);
+    try {
+      const res = await API.get('/api/v1/admin/log/options', {
+        params: {
+          field: 'model_name',
+          keyword: normalizedKeyword,
+        },
+      });
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('log.messages.load_failed'));
+        return;
+      }
+      setFilterOptions((prev) => ({
+        ...prev,
+        modelNames: (Array.isArray(data?.model_names) ? data.model_names : []).map(
+          (item) => ({
+            key: item,
+            text: item,
+            value: item,
+          })
+        ),
+      }));
+    } finally {
+      setModelFilterSearchLoading(false);
+    }
+  }, [t]);
+
   const removeConditionalFilter = useCallback((filterKey) => {
     setActiveFilterKeys((prev) => prev.filter((item) => item !== filterKey));
     if (filterKey === 'log_type') {
@@ -710,23 +935,6 @@ const LogsTable = () => {
       [filterKey]: '',
     }));
   }, []);
-
-  const loadFilterOptions = useCallback(async () => {
-    const url = isAdminScope ? '/api/v1/admin/log/options' : '/api/v1/public/log/options';
-    const res = await API.get(url);
-    const { success, message, data } = res.data || {};
-    if (!success) {
-      showError(message || t('log.messages.load_failed'));
-      return;
-    }
-    setFilterOptions({
-      tokenNames: Array.isArray(data?.token_names) ? data.token_names : [],
-      modelNames: Array.isArray(data?.model_names) ? data.model_names : [],
-      usernames: Array.isArray(data?.usernames) ? data.usernames : [],
-      channels: Array.isArray(data?.channels) ? data.channels : [],
-      groups: Array.isArray(data?.groups) ? data.groups : [],
-    });
-  }, [isAdminScope, t]);
 
   const loadDisplayUnits = useCallback(async () => {
     try {
@@ -833,13 +1041,34 @@ const LogsTable = () => {
     await loadLogs(1);
   }, [loadLogs]);
 
+  const deleteHistoryLogs = useCallback(async () => {
+    const parsed = Date.parse(cleanupTimestamp);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      showError(t('log.cleanup.invalid_time'));
+      return;
+    }
+    setCleaningLogs(true);
+    try {
+      const res = await API.delete(
+        `/api/v1/admin/log/?target_timestamp=${Math.floor(parsed / 1000)}`,
+      );
+      const { success, message, data } = res.data || {};
+      if (!success) {
+        showError(message || t('log.cleanup.failed'));
+        return;
+      }
+      showSuccess(t('log.cleanup.success', { count: Number(data || 0) || 0 }));
+      await refresh();
+    } catch (error) {
+      showError(error?.message || t('log.cleanup.failed'));
+    } finally {
+      setCleaningLogs(false);
+    }
+  }, [cleanupTimestamp, refresh, t]);
+
   useEffect(() => {
     refresh().then();
   }, [refresh]);
-
-  useEffect(() => {
-    loadFilterOptions().then();
-  }, [loadFilterOptions]);
 
   useEffect(() => {
     loadDisplayUnits().then();
@@ -1112,12 +1341,40 @@ const LogsTable = () => {
       <AppFilterHeader
         breadcrumbs={breadcrumbs}
         title={t('header.log')}
+        actions={
+          isAdminScope ? (
+            <div className='router-log-cleanup-actions'>
+              <label className='router-log-cleanup-label'>
+                <span>{t('log.cleanup.label')}</span>
+                <input
+                  className='router-log-cleanup-input'
+                  type='datetime-local'
+                  value={cleanupTimestamp}
+                  onChange={(e) => setCleanupTimestamp(e.target.value)}
+                />
+              </label>
+              <AppButton
+                type='button'
+                className='router-section-button'
+                onClick={deleteHistoryLogs}
+                loading={cleaningLogs}
+                disabled={loading}
+              >
+                {t('log.cleanup.button')}
+              </AppButton>
+            </div>
+          ) : null
+        }
         picker={
             <AppPopover
               open={addFilterPopupOpen}
               trigger='click'
               placement='bottomLeft'
               onOpenChange={(open) => {
+                if (open) {
+                  setAddFilterPopupOpen(true);
+                  return;
+                }
                 if (!open) {
                   closeFilterDraft();
                 }
@@ -1176,12 +1433,39 @@ const LogsTable = () => {
                           fluid
                           search
                           clearable
+                          loading={
+                            draftFilterKey === 'username'
+                              ? userFilterSearchLoading
+                              : draftFilterKey === 'token_name'
+                                ? tokenFilterSearchLoading
+                                : draftFilterKey === 'model_name'
+                                  ? modelFilterSearchLoading
+                                : loadingFilterKeys.includes(draftFilterKey)
+                          }
                           getPopupContainer={resolvePopupContainer}
                           options={
                             conditionalFilterConfig.find((item) => item.key === draftFilterKey)
                               ?.options || []
                           }
                           value={draftFilterInputs.value}
+                          onClick={() => {
+                            if (draftFilterKey === 'username') {
+                              searchAdminUsers(draftFilterInputs.value).then();
+                            } else if (draftFilterKey === 'token_name' && isAdminScope) {
+                              searchAdminTokens(draftFilterInputs.value).then();
+                            } else if (draftFilterKey === 'model_name' && isAdminScope) {
+                              searchAdminModels(draftFilterInputs.value).then();
+                            }
+                          }}
+                          onSearch={(value) => {
+                            if (draftFilterKey === 'username') {
+                              searchAdminUsers(value).then();
+                            } else if (draftFilterKey === 'token_name' && isAdminScope) {
+                              searchAdminTokens(value).then();
+                            } else if (draftFilterKey === 'model_name' && isAdminScope) {
+                              searchAdminModels(value).then();
+                            }
+                          }}
                           onChange={(e, { value }) =>
                             setDraftFilterInputs((prev) => ({
                               ...prev,

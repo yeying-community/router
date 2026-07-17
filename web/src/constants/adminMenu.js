@@ -81,21 +81,6 @@ export const ADMIN_MENU_GROUPS = [
     icon: 'tasks',
     items: [
       {
-        name: 'setting.tabs.currency',
-        to: '/admin/setting?tab=currency&section=catalog',
-        icon: 'money bill alternate outline',
-      },
-      {
-        name: 'setting.tabs.exchange',
-        to: '/admin/setting?tab=exchange&section=rates',
-        icon: 'exchange',
-      },
-      {
-        name: 'header.config',
-        to: '/admin/setting?tab=operation&section=config',
-        icon: 'sliders horizontal',
-      },
-      {
         name: 'header.log',
         to: '/admin/log',
         icon: 'book',
@@ -136,21 +121,26 @@ export const ADMIN_MENU_GROUPS = [
   },
   {
     key: 'setting',
-    name: 'header.setting_center',
+    name: 'header.setting',
     icon: 'setting',
     items: [
       {
-        name: 'setting.system.basic.title',
+        name: 'setting.groups.basic',
         to: '/admin/setting?tab=basic&section=general',
         icon: 'sliders horizontal',
       },
       {
-        name: 'setting.system.content.title',
+        name: 'setting.groups.billing',
+        to: '/admin/setting?tab=billing&section=balance',
+        icon: 'money bill alternate outline',
+      },
+      {
+        name: 'setting.groups.content',
         to: '/admin/setting?tab=content&section=notice',
         icon: 'file alternate outline',
       },
       {
-        name: 'setting.system.runtime.title',
+        name: 'setting.groups.runtime',
         to: '/admin/setting?tab=runtime&section=monitor',
         icon: 'heartbeat',
       },

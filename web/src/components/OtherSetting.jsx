@@ -16,7 +16,8 @@ import {
 const optionKeys = [
   'Notice',
   'About',
-  'HomePageContent'
+  'HomePageContent',
+  'Footer',
 ];
 
 const OtherSetting = ({ section = '' }) => {
@@ -25,6 +26,7 @@ const OtherSetting = ({ section = '' }) => {
     Notice: '',
     About: '',
     HomePageContent: '',
+    Footer: '',
   });
   let [loading, setLoading] = useState(false);
   const normalizedSection = (section || '').trim().toLowerCase();
@@ -175,6 +177,26 @@ const OtherSetting = ({ section = '' }) => {
                   onClick={submitAbout}
                 >
                   {t('setting.other.content.buttons.save_about')}
+                </AppButton>
+              </AppFormActions>
+              <AppFormRow>
+                <AppField label={t('setting.other.content.footer.title')}>
+                  <AppTextarea
+                    className='router-section-textarea router-code-textarea router-code-textarea-sm'
+                    placeholder={t('setting.other.content.footer.placeholder')}
+                    value={inputs.Footer}
+                    name='Footer'
+                    onChange={handleInputChange}
+                  />
+                </AppField>
+              </AppFormRow>
+              <AppFormActions align='start'>
+                <AppButton
+                  type='button'
+                  className='router-section-button'
+                  onClick={() => submitOption('Footer')}
+                >
+                  {t('setting.other.content.buttons.save_footer')}
                 </AppButton>
               </AppFormActions>
             </>

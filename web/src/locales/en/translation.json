@@ -26,7 +26,7 @@
     "log": "Log",
     "task": "Tasks",
     "setting": "Settings",
-    "setting_center": "System Settings",
+    "setting_center": "Settings",
     "sidebar_expand": "Expand Sidebar",
     "sidebar_compact": "Collapse Sidebar",
     "chat": "Chat",
@@ -1935,6 +1935,13 @@
     }
   },
   "log": {
+    "cleanup": {
+      "label": "Clean up to",
+      "button": "Clean Historical Logs",
+      "invalid_time": "Please choose a valid cleanup time",
+      "failed": "Failed to clean logs",
+      "success": "Cleaned {{count}} log entries"
+    },
     "title": "Operation Log",
     "search": "Search logs...",
     "filters": {
@@ -2976,14 +2983,20 @@
   },
   "setting": {
     "empty_admin": "No configurable items",
-    "title": "System Settings",
+    "title": "Settings",
     "tabs": {
       "personal": "Personal Settings",
       "operation": "Operation Settings",
       "currency": "Currency",
-      "system": "System Settings",
+      "system": "Settings",
       "other": "Other Settings",
       "exchange": "Exchange"
+    },
+    "groups": {
+      "basic": "Basic Info",
+      "billing": "Payments & Billing",
+      "content": "Content Settings",
+      "runtime": "System Runtime"
     },
     "personal": {
       "tokens": {
@@ -2997,7 +3010,7 @@
         "confirm": "Confirm Delete"
       },
       "general": {
-        "title": "General Settings",
+        "title": "Site Information",
         "system_token_notice": "Note: The token generated here is for system management, not for requesting OpenAI related services.",
         "buttons": {
           "update_profile": "Update Profile",
@@ -3067,7 +3080,7 @@
       },
       "saved": "Saved",
       "login": {
-        "title": "Login Settings",
+        "title": "Login & Registration",
         "password_login": "Allow Password Login",
         "password_register": "Allow Password Registration",
         "email_verification": "Require Email Verification for Password Registration",
@@ -3089,20 +3102,20 @@
         }
       },
       "smtp": {
-        "title": "Email Settings",
-        "subtitle": "Used to support system email sending",
-        "server": "SMTP Server Address",
+        "title": "Email Delivery",
+        "subtitle": "Configure the information required for system emails",
+        "server": "Mail Server Address",
         "server_placeholder": "e.g.: smtp.gmail.com",
-        "port": "SMTP Port",
+        "port": "Server Port",
         "port_placeholder": "Default: 587",
-        "account": "SMTP Account",
+        "account": "Sender Account",
         "account_placeholder": "Usually your email address",
-        "from": "SMTP Sender Email",
+        "from": "Sender Email",
         "from_placeholder": "Usually same as email address",
-        "token": "SMTP Access Token",
+        "token": "Mail Credential",
         "token_placeholder": "Sensitive information will not be sent to frontend",
         "buttons": {
-          "save": "Save SMTP Settings"
+          "save": "Save Email Settings"
         }
       },
       "github": {
@@ -3175,13 +3188,13 @@
     },
     "operation": {
       "quota": {
-        "title": "Balance Settings",
+        "title": "Rewards & Reserve",
         "new_user_reward": "New User Reward",
         "new_user_reward_description": "Granted after a new user completes registration. Select a topup plan as reward source; leave empty to disable.",
         "reward_plan_placeholder": "Select a topup plan (empty means disabled)",
-        "pre_consume": "Pre-consumed Amount per Request",
-        "pre_consume_placeholder": "Refund or charge difference after request",
-        "pre_consume_description": "Reserve estimated quota at request start, then settle by actual usage with refund/charge delta.",
+        "pre_consume": "Reserved Amount per Request",
+        "pre_consume_placeholder": "Refund or charge the difference after settlement",
+        "pre_consume_description": "Reserve an estimated amount when a request starts, then settle by actual usage after it finishes.",
         "inviter_reward": "Invite Reward",
         "inviter_reward_description": "When a user registers through an invite link, the inviter receives this reward. Select a topup plan as reward source; leave empty to disable.",
         "messages": {
@@ -3193,29 +3206,25 @@
         }
       },
       "log": {
-        "title": "Log Settings",
-        "enable_consume": "Enable Consumption Logging",
-        "target_time": "Target Time",
-        "buttons": {
-          "clean": "Clean Historical Logs"
-        }
+        "title": "Log Recording",
+        "enable_consume": "Record Consumption Logs"
       },
       "monitor": {
-        "title": "Monitor Settings",
-        "max_response_time": "Maximum Response Time",
-        "max_response_time_placeholder": "In seconds, channels exceeding this time during testing will be automatically disabled",
-        "quota_reminder": "Balance Reminder Threshold",
-        "quota_reminder_placeholder": "Users will receive email reminders when balance falls below this value",
+        "title": "Alerts & Thresholds",
+        "max_response_time": "Channel Response Limit",
+        "max_response_time_placeholder": "In seconds. Channels exceeding this during tests will be disabled automatically",
+        "quota_reminder": "Balance Alert Threshold",
+        "quota_reminder_placeholder": "Send a reminder when user balance drops below this value",
         "buttons": {
           "save": "Save Monitor Settings"
         }
       },
       "retry": {
-        "title": "Retry Settings",
-        "description_title": "In-request switch behavior",
-        "description": "This setting controls whether Router should continue trying other candidate channels for the same model in the current group after the first upstream failure within the same request.",
-        "description_effective": "When enabled, as long as the error is retryable, no specific channel is pinned, and there are still unused candidate channels, Router will try all remaining candidates once.",
-        "description_disabled": "When disabled, the first failure is returned immediately. When enabled, channels that already failed in the same request will not be retried again, and Router stops only after all candidates fail or one attempt succeeds.",
+        "title": "Failure Retry",
+        "description_title": "What happens after the first failure",
+        "description": "This controls whether a request should continue trying other available channels for the same model in the current group after the first upstream failure.",
+        "description_effective": "When enabled, if the error is retryable, no specific channel is pinned, and unused candidates remain, the system keeps trying them in order.",
+        "description_disabled": "When disabled, the first failure is returned immediately. When enabled, channels that already failed in the same request are not retried again.",
         "limit": "Retry strategy",
         "limit_placeholder": "Select a retry strategy",
         "options": {
@@ -3227,28 +3236,28 @@
         }
       },
       "general": {
-        "title": "General Settings",
+        "title": "Payments & Pricing",
         "topup_link": "Top-up Link",
         "topup_link_placeholder": "e.g.: Card selling website purchase link",
-        "chat_link": "Chat Page Link",
-        "chat_link_placeholder": "e.g.: Chat Web deployment URL",
+        "chat_link": "Chat Page URL",
+        "chat_link_placeholder": "e.g.: Chat Web access URL",
         "quota_per_unit": "USD -> YYC Conversion Rate",
         "quota_per_unit_placeholder": "How many YYC 1 USD converts to",
         "channel_billing_auto_refresh": {
-          "enabled": "Enable channel billing auto refresh",
+          "enabled": "Auto-refresh channel billing",
           "interval_seconds": "Refresh interval (seconds)",
-          "last_run": "Last run time",
+          "last_run": "Last refresh time",
           "interval_invalid": "Refresh interval must be greater than or equal to 60 seconds"
         },
         "pricing_policy": {
-          "title": "Pricing Policy",
-          "description_title": "Pricing policy",
-          "description": "The pricing layer calculates the official amount from provider prices first, then uses procurement cost, target margin, and risk buffer to decide the final charged amount.",
-          "official_markup": "Official price markup",
+          "title": "Pricing Rules",
+          "description_title": "How charges are calculated",
+          "description": "The system starts from provider official pricing, then combines procurement cost, target margin, and a risk buffer to determine the final charge.",
+          "official_markup": "Official price markup multiplier",
           "official_markup_hint": "Multiplier over provider official price. 1 means no markup, 1.2 means 20% markup.",
           "target_margin": "Target margin",
           "target_margin_hint": "Use decimals. 0.2 means 20% target margin; must be lower than 0.95.",
-          "risk_buffer": "Procurement risk buffer",
+          "risk_buffer": "Cost risk buffer",
           "risk_buffer_hint": "Covers procurement cost fluctuation. 0.1 means applying a 10% cost buffer before calculating the cost floor.",
           "official_markup_invalid": "Official price markup must be greater than 0",
           "target_margin_invalid": "Target margin must be greater than or equal to 0 and lower than 0.95",

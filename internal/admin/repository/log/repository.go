@@ -13,6 +13,7 @@ import (
 )
 
 const userVisibleModelNameExpr = "NULLIF(TRIM(request_model_name), '')"
+const adminVisibleModelNameExpr = "COALESCE(NULLIF(TRIM(request_model_name), ''), NULLIF(TRIM(model_name), ''))"
 
 func hydrateLogsWithChannelNames(logs []*model.Log) error {
 	if len(logs) == 0 {
@@ -205,7 +206,7 @@ func GetAll(logType int, startTimestamp int64, endTimestamp int64, modelName str
 		tx = tx.Where("type = ?", logType)
 	}
 	if modelName != "" {
-		tx = tx.Where("model_name = ?", modelName)
+		tx = tx.Where(adminVisibleModelNameExpr+" = ?", modelName)
 	}
 	if username != "" {
 		tx = tx.Where("username = ?", username)
@@ -336,7 +337,7 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 		tx = tx.Where("created_at <= ?", endTimestamp)
 	}
 	if modelName != "" {
-		tx = tx.Where("model_name = ?", modelName)
+		tx = tx.Where(adminVisibleModelNameExpr+" = ?", modelName)
 	}
 	if strings.TrimSpace(channel) != "" {
 		tx = tx.Where("channel_id = ?", channel)
@@ -361,7 +362,7 @@ func SumUsedToken(logType int, startTimestamp int64, endTimestamp int64, modelNa
 		tx = tx.Where("created_at <= ?", endTimestamp)
 	}
 	if modelName != "" {
-		tx = tx.Where("model_name = ?", modelName)
+		tx = tx.Where(adminVisibleModelNameExpr+" = ?", modelName)
 	}
 	var token int
 	tx.Where("type = ?", logType).Scan(&token)

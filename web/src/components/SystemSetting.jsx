@@ -11,7 +11,6 @@ import {
   AppFormRow,
   AppInput,
   AppSwitch,
-  AppTextarea,
   AppSpin,
 } from '../router-ui';
 
@@ -26,7 +25,6 @@ const SystemSetting = ({ section = '' }) => {
     SMTPAccount: '',
     SMTPFrom: '',
     SMTPToken: '',
-    Footer: '',
     SystemName: '',
     Logo: '',
   });
@@ -106,7 +104,6 @@ const SystemSetting = ({ section = '' }) => {
     setLoading(true);
     await updateOption('SystemName', inputs.SystemName);
     await updateOption('Logo', inputs.Logo);
-    await updateOption('Footer', inputs.Footer);
     setLoading(false);
     showSuccess(t('setting.system.saved', '已保存'));
   };
@@ -140,16 +137,6 @@ const SystemSetting = ({ section = '' }) => {
                   className='router-section-input'
                   name='Logo'
                   value={inputs.Logo}
-                  onChange={handleChange}
-                />
-              </AppField>
-            </AppFormRow>
-            <AppFormRow>
-              <AppField label='Footer HTML'>
-                <AppTextarea
-                  className='router-section-textarea'
-                  name='Footer'
-                  value={inputs.Footer}
                   onChange={handleChange}
                 />
               </AppField>

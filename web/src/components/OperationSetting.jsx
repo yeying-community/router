@@ -93,24 +93,28 @@ const OperationSetting = ({ section = '' }) => {
   const [billingUnits, setBillingUnits] = useState(createBillingUnitState('USD'));
   const [billingDisplayInitialized, setBillingDisplayInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [logCleanupTimestamp, setLogCleanupTimestamp] = useState(
-    timestamp2string(now.getTime() / 1000 - 30 * 24 * 3600)
-  ); // a month ago
   const normalizedSection = (section || '').trim().toLowerCase();
   const showAllSections =
     normalizedSection === '' || normalizedSection === 'all';
   const showConfigSection = normalizedSection === 'config';
+  const showBillingGroup = normalizedSection === 'billing';
+  const showRuntimeGroup = normalizedSection === 'runtime';
   const showBalanceSection =
     showAllSections ||
+    showBillingGroup ||
     showConfigSection ||
     normalizedSection === 'quota' ||
     normalizedSection === 'balance';
   const sectionVisible = {
     balance: showBalanceSection,
-    monitor: showAllSections || normalizedSection === 'monitor',
-    retry: showAllSections || normalizedSection === 'retry',
-    log: showAllSections || normalizedSection === 'log',
-    general: showAllSections || showConfigSection || normalizedSection === 'general',
+    monitor: showAllSections || showRuntimeGroup || normalizedSection === 'monitor',
+    retry: showAllSections || showRuntimeGroup || normalizedSection === 'retry',
+    log: showAllSections || showRuntimeGroup || normalizedSection === 'log',
+    general:
+      showAllSections ||
+      showBillingGroup ||
+      showConfigSection ||
+      normalizedSection === 'general',
   };
   const sectionOrder = ['balance', 'monitor', 'retry', 'log', 'general'];
   const shouldRenderDividerAfter = (key) => {
@@ -529,18 +533,6 @@ const OperationSetting = ({ section = '' }) => {
     </AppField>
   );
 
-  const deleteHistoryLogs = async () => {
-    const res = await API.delete(
-      `/api/v1/admin/log/?target_timestamp=${Date.parse(logCleanupTimestamp) / 1000}`
-    );
-    const { success, message, data } = res.data;
-    if (success) {
-      showSuccess(`${data} 条日志已清理！`);
-      return;
-    }
-    showError('日志清理失败：' + message);
-  };
-
   return (
     <AppSpin spinning={loading}>
       <div>
@@ -716,28 +708,7 @@ const OperationSetting = ({ section = '' }) => {
                 </AppField>
               </AppFormRow>
               <AppFormRow>
-                <AppField label={t('setting.operation.log.target_time')}>
-                  <AppInput
-                    className='router-section-input'
-                    value={logCleanupTimestamp}
-                    type='datetime-local'
-                    name='history_timestamp'
-                    onChange={(e, { value }) => {
-                      setLogCleanupTimestamp(value);
-                    }}
-                  />
-                </AppField>
               </AppFormRow>
-              <AppFormActions align='start'>
-                <AppButton
-                  className='router-section-button'
-                  onClick={() => {
-                    deleteHistoryLogs().then();
-                  }}
-                >
-                  {t('setting.operation.log.buttons.clean')}
-                </AppButton>
-              </AppFormActions>
               {shouldRenderDividerAfter('log') ? <AppDivider /> : null}
             </>
           ) : null}
