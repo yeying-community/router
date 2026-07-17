@@ -526,52 +526,72 @@ const buildProcurementCostDraft = (row) => ({
 });
 
 const toUnixTimestamp = (value) => {
-	const normalized = (value || '').toString().trim();
-	if (normalized === '') {
-		return 0;
-	}
+  const normalized = (value || '').toString().trim();
+  if (normalized === '') {
+    return 0;
+  }
   const parsed = new Date(normalized);
   const millis = parsed.getTime();
   if (!Number.isFinite(millis) || Number.isNaN(millis)) {
     return 0;
   }
-	return Math.floor(millis / 1000);
+  return Math.floor(millis / 1000);
 };
 
 const toDateTimeLocalValueFromTimestamp = (value) => {
-	const timestamp = Number(value || 0);
-	if (timestamp <= 0) {
-		return '';
-	}
-	return toDateTimeLocalValue(new Date(timestamp * 1000));
+  const timestamp = Number(value || 0);
+  if (timestamp <= 0) {
+    return '';
+  }
+  return toDateTimeLocalValue(new Date(timestamp * 1000));
+};
+
+const normalizeManualValidityInput = (value, defaultTime, forceDefaultTime = false) => {
+  const normalized = (value || '').toString().trim();
+  if (normalized === '') {
+    return '';
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return `${normalized}T${defaultTime}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(normalized)) {
+    if (forceDefaultTime) {
+      return `${normalized.slice(0, 10)}T${defaultTime}`;
+    }
+    return normalized.length === 16
+      ? `${normalized}:${defaultTime.slice(-2)}`
+      : normalized;
+  }
+  return normalized;
 };
 
 const buildManualPurchaseRecordFromSnapshot = (row) => ({
-	purchase_at_input:
-		toDateTimeLocalValueFromTimestamp(row?.purchase_at) ||
-		buildManualPurchaseRecord().purchase_at_input,
-	purchase_currency:
-		(row?.purchase_currency || 'CNY').toString().trim().toUpperCase() || 'CNY',
-	purchase_amount: Number(row?.purchase_amount || 0),
-	purchase_fx_rate: Number(row?.purchase_fx_rate || 1) || 1,
-	purchase_cost_amount: Number(row?.purchase_cost_amount || 0),
-	entitlement_name: (row?.entitlement_name || '').toString(),
-	valid_from_input: toDateTimeLocalValueFromTimestamp(row?.valid_from),
-	valid_until_input: toDateTimeLocalValueFromTimestamp(row?.valid_until),
+  purchase_at_input:
+    toDateTimeLocalValueFromTimestamp(row?.purchase_at) ||
+    buildManualPurchaseRecord().purchase_at_input,
+  purchase_currency:
+    (row?.purchase_currency || 'CNY').toString().trim().toUpperCase() || 'CNY',
+  purchase_amount: Number(row?.purchase_amount || 0),
+  purchase_fx_rate: Number(row?.purchase_fx_rate || 1) || 1,
+  purchase_cost_amount: Number(row?.purchase_cost_amount || 0),
+  entitlement_name: (row?.entitlement_name || '').toString(),
+  valid_from_input: toDateTimeLocalValueFromTimestamp(row?.valid_from),
+  valid_until_input: toDateTimeLocalValueFromTimestamp(row?.valid_until),
 });
 
 const buildManualQuotaItemFromSnapshotItem = (item) => ({
-	resource_type: (item?.resource_type || 'quota').toString().trim() || 'quota',
-	quota_type: (item?.quota_type || 'total').toString().trim() || 'total',
-	quota_label: (item?.quota_label || '').toString(),
-	amount: Number(item?.amount || item?.remaining_amount || 0),
-	limit_amount: Number(item?.limit_amount || item?.amount || 0),
-	used_amount: Number(item?.used_amount || 0),
-	remaining_amount: Number(item?.remaining_amount || item?.amount || 0),
-	currency: (item?.currency || 'USD').toString().trim() || 'USD',
-	reset_at_input: toDateTimeLocalValueFromTimestamp(item?.reset_at),
-	expires_at_input: toDateTimeLocalValueFromTimestamp(item?.expires_at),
-	source_ref: (item?.source_ref || 'manual').toString().trim() || 'manual',
+  id: (item?.id || '').toString().trim(),
+  resource_type: (item?.resource_type || 'quota').toString().trim() || 'quota',
+  quota_type: (item?.quota_type || 'total').toString().trim() || 'total',
+  quota_label: (item?.quota_label || '').toString(),
+  amount: Number(item?.amount || item?.remaining_amount || 0),
+  limit_amount: Number(item?.limit_amount || item?.amount || 0),
+  used_amount: Number(item?.used_amount || 0),
+  remaining_amount: Number(item?.remaining_amount || item?.amount || 0),
+  currency: (item?.currency || 'USD').toString().trim() || 'USD',
+  reset_at_input: toDateTimeLocalValueFromTimestamp(item?.reset_at),
+  expires_at_input: toDateTimeLocalValueFromTimestamp(item?.expires_at),
+  source_ref: (item?.source_ref || 'manual').toString().trim() || 'manual',
 });
 
 const isPurchaseCurrencyCNY = (record) =>
@@ -610,6 +630,10 @@ const ChannelDetailBillingTab = ({
   const [consumptionRows, setConsumptionRows] = useState([]);
   const [consumptionLoading, setConsumptionLoading] = useState(false);
   const [viewingProcurementBatch, setViewingProcurementBatch] = useState(null);
+  const [manualValidityTouched, setManualValidityTouched] = useState({
+    valid_from_input: false,
+    valid_until_input: false,
+  });
   const [billingView, setBillingView] = useState('records');
 
   const purchaseRecords = useMemo(
@@ -667,6 +691,19 @@ const ChannelDetailBillingTab = ({
     }));
   };
 
+  const updateManualValidityInput = (field, value, defaultTime) => {
+    const firstTouch = manualValidityTouched[field] !== true;
+    updateManualPurchaseRecord({
+      [field]: normalizeManualValidityInput(value, defaultTime, firstTouch),
+    });
+    if (firstTouch) {
+      setManualValidityTouched((prev) => ({
+        ...prev,
+        [field]: true,
+      }));
+    }
+  };
+
   const closeManualModal = () => {
     if (!billingSubmitting) {
       setManualModalOpen(false);
@@ -677,6 +714,10 @@ const ChannelDetailBillingTab = ({
   const openCreateManualModal = () => {
     setEditingPurchaseRecord(null);
     setManualPurchaseRecord(buildManualPurchaseRecord());
+    setManualValidityTouched({
+      valid_from_input: false,
+      valid_until_input: false,
+    });
     setManualMessage('');
     setManualItems([buildManualQuotaItem()]);
     setManualModalOpen(true);
@@ -685,6 +726,10 @@ const ChannelDetailBillingTab = ({
   const openEditManualModal = (row) => {
     setEditingPurchaseRecord(row);
     setManualPurchaseRecord(buildManualPurchaseRecordFromSnapshot(row));
+    setManualValidityTouched({
+      valid_from_input: true,
+      valid_until_input: true,
+    });
     setManualMessage((row?.message || '').toString());
     const items = Array.isArray(row?.items) ? row.items : [];
     setManualItems(
@@ -761,13 +806,14 @@ const ChannelDetailBillingTab = ({
       items: manualItems.map((manualItem) => {
         const amounts = resolveManualItemAmounts(manualItem);
         return {
+          id: manualItem.id,
           resource_type: manualItem.resource_type,
           quota_type: manualItem.quota_type,
           quota_label: '',
           ...amounts,
           currency: manualItem.currency,
-          reset_at: 0,
-          expires_at: 0,
+          reset_at: toUnixTimestamp(manualItem.reset_at_input),
+          expires_at: toUnixTimestamp(manualItem.expires_at_input),
           source_ref: 'manual',
         };
       }),
@@ -935,16 +981,36 @@ const ChannelDetailBillingTab = ({
             />
           </AppField>
           <AppField label={t('channel.edit.billing.manual_valid_from')}>
-            <AppInput className='router-section-input' type='datetime-local'
+            <AppInput
+              className='router-section-input'
+              type='datetime-local'
+              step={1}
               value={manualPurchaseRecord.valid_from_input}
-              onChange={(e, { value }) => updateManualPurchaseRecord({ valid_from_input: (value || '').toString() })}
-              readOnly={billingReadonly || billingSubmitting} />
+              onChange={(e, { value }) =>
+                updateManualValidityInput(
+                  'valid_from_input',
+                  value,
+                  '00:00:00'
+                )
+              }
+              readOnly={billingReadonly || billingSubmitting}
+            />
           </AppField>
           <AppField label={t('channel.edit.billing.manual_valid_until')}>
-            <AppInput className='router-section-input' type='datetime-local'
+            <AppInput
+              className='router-section-input'
+              type='datetime-local'
+              step={1}
               value={manualPurchaseRecord.valid_until_input}
-              onChange={(e, { value }) => updateManualPurchaseRecord({ valid_until_input: (value || '').toString() })}
-              readOnly={billingReadonly || billingSubmitting} />
+              onChange={(e, { value }) =>
+                updateManualValidityInput(
+                  'valid_until_input',
+                  value,
+                  '23:59:59'
+                )
+              }
+              readOnly={billingReadonly || billingSubmitting}
+            />
           </AppField>
         </AppFormRow>
       </div>
@@ -1417,7 +1483,7 @@ const ChannelDetailBillingTab = ({
               {
                 title: t('channel.edit.billing.snapshot_table.purchase_amount'),
                 key: 'purchase_amount',
-                width: 180,
+                width: 130,
                 render: (_, row) =>
                   row?.purchase_amount
                     ? `${formatNumberText(row.purchase_amount, 6)} ${
@@ -1429,7 +1495,7 @@ const ChannelDetailBillingTab = ({
                 title: t('channel.edit.billing.snapshot_table.purchase_cost_amount'),
                 dataIndex: 'purchase_cost_amount',
                 key: 'purchase_cost_amount',
-                width: 160,
+                width: 130,
                 render: (value) =>
                   Number(value || 0) > 0
                     ? `${formatNumberText(value, 6)} CNY`
@@ -1445,7 +1511,7 @@ const ChannelDetailBillingTab = ({
               {
                 title: t('channel.edit.billing.snapshot_table.validity'),
                 key: 'validity',
-                width: 250,
+                width: 330,
                 render: (_, row) => {
                   const start = Number(row?.valid_from || 0) > 0
                     ? timestamp2string(row.valid_from)
@@ -1483,7 +1549,7 @@ const ChannelDetailBillingTab = ({
                 key: 'actions',
                 width: 110,
                 render: (_, row) => (
-                  <AppCompact>
+                  <div className='router-table-actions-icon-compact'>
                     <AppTableActionButton
                       title={t('channel.edit.billing.edit_purchase_record')}
                       icon='edit'
@@ -1509,7 +1575,7 @@ const ChannelDetailBillingTab = ({
                         />
                       </span>
                     </AppPopconfirm>
-                  </AppCompact>
+                  </div>
                 ),
               },
             ]}
@@ -1605,7 +1671,7 @@ const ChannelDetailBillingTab = ({
                 key: 'actions',
                 width: 150,
                 render: (_, row) => (
-                  <AppCompact>
+                  <div className='router-table-actions-icon-compact'>
                     <AppTableActionButton
                       title={t(
                         'channel.edit.billing.procurement_view_consumptions'
@@ -1656,7 +1722,7 @@ const ChannelDetailBillingTab = ({
                         />
                       </AppPopconfirm>
                     )}
-                  </AppCompact>
+                  </div>
                 ),
               },
             ]}

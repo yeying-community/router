@@ -68,6 +68,7 @@ type channelBillingManualSnapshotRequest struct {
 }
 
 type channelBillingManualQuotaItemRequest struct {
+	Id              string  `json:"id"`
 	ResourceType    string  `json:"resource_type"`
 	QuotaType       string  `json:"quota_type"`
 	QuotaLabel      string  `json:"quota_label"`
@@ -662,6 +663,181 @@ func maskBillingSecret(value string) string {
 	return trimmed[:3] + "***" + trimmed[len(trimmed)-3:]
 }
 
+func nearlyEqualFloat(left float64, right float64) bool {
+	if left > right {
+		return left-right < 0.0000001
+	}
+	return right-left < 0.0000001
+}
+
+func ensureConsumedSnapshotImmutableFields(current model.ChannelBillingSnapshot, next normalizedManualBillingSnapshotRequest) error {
+	if current.PurchaseAt != next.PurchaseAt ||
+		strings.TrimSpace(strings.ToUpper(current.PurchaseCurrency)) != strings.TrimSpace(strings.ToUpper(next.PurchaseCurrency)) ||
+		!nearlyEqualFloat(current.PurchaseAmount, next.PurchaseAmount) ||
+		!nearlyEqualFloat(current.PurchaseFXRate, next.PurchaseFXRate) ||
+		!nearlyEqualFloat(current.PurchaseCostAmount, next.PurchaseCostAmount) {
+		return fmt.Errorf("该采购记录已经被消耗，只能修正权益类型、有效期、名称和备注")
+	}
+	return nil
+}
+
+func sumProcurementConsumedQuantityWithDB(tx *gorm.DB, batchID string) (float64, error) {
+	normalizedBatchID := strings.TrimSpace(batchID)
+	if normalizedBatchID == "" {
+		return 0, nil
+	}
+	var consumed float64
+	err := tx.Model(&model.RequestProcurementConsumption{}).
+		Where("procurement_batch_id = ?", normalizedBatchID).
+		Select("COALESCE(SUM(consumed_quantity), 0)").
+		Scan(&consumed).Error
+	return consumed, err
+}
+
+func updateConsumedManualBillingSnapshotWithDB(tx *gorm.DB, current model.ChannelBillingSnapshot, channelID string, req normalizedManualBillingSnapshotRequest, operatorUserID string) ([]model.ChannelBillingSnapshotItem, error) {
+	if err := ensureConsumedSnapshotImmutableFields(current, req); err != nil {
+		return nil, err
+	}
+	existingItems := model.NormalizeChannelBillingSnapshotItems(current.Items)
+	if len(existingItems) != len(req.Items) {
+		return nil, fmt.Errorf("该采购记录已经被消耗，不能新增或删除权益项")
+	}
+	itemsByID := make(map[string]model.ChannelBillingSnapshotItem, len(existingItems))
+	for _, item := range existingItems {
+		if strings.TrimSpace(item.Id) != "" {
+			itemsByID[strings.TrimSpace(item.Id)] = item
+		}
+	}
+	updatedSnapshot, err := model.UpdateChannelBillingSnapshotPurchaseWithDB(tx, model.ChannelBillingSnapshot{
+		Id:                 current.Id,
+		ChannelId:          channelID,
+		PurchaseAt:         req.PurchaseAt,
+		PurchaseCurrency:   req.PurchaseCurrency,
+		PurchaseAmount:     req.PurchaseAmount,
+		PurchaseFXRate:     req.PurchaseFXRate,
+		PurchaseCostAmount: req.PurchaseCostAmount,
+		EntitlementName:    req.EntitlementName,
+		ValidFrom:          req.ValidFrom,
+		ValidUntil:         req.ValidUntil,
+		Message:            req.Message,
+		OperatorUserId:     operatorUserID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	now := helper.GetTimestamp()
+	updatedItems := make([]model.ChannelBillingSnapshotItem, 0, len(req.Items))
+	for index, nextItem := range req.Items {
+		currentItem := model.ChannelBillingSnapshotItem{}
+		if itemID := strings.TrimSpace(nextItem.Id); itemID != "" {
+			matched, ok := itemsByID[itemID]
+			if !ok {
+				return nil, fmt.Errorf("该采购记录已经被消耗，权益项不存在")
+			}
+			currentItem = matched
+		} else {
+			currentItem = existingItems[index]
+		}
+		if strings.TrimSpace(currentItem.ResourceType) != strings.TrimSpace(nextItem.ResourceType) ||
+			strings.TrimSpace(strings.ToUpper(currentItem.Currency)) != strings.TrimSpace(strings.ToUpper(nextItem.Currency)) ||
+			!nearlyEqualFloat(currentItem.Amount, nextItem.Amount) ||
+			!nearlyEqualFloat(currentItem.LimitAmount, nextItem.LimitAmount) ||
+			!nearlyEqualFloat(currentItem.UsedAmount, nextItem.UsedAmount) ||
+			!nearlyEqualFloat(currentItem.RemainingAmount, nextItem.RemainingAmount) {
+			return nil, fmt.Errorf("该采购记录已经被消耗，不能修改权益容量或币种")
+		}
+		nextItem.Id = currentItem.Id
+		nextItem.SnapshotId = current.Id
+		nextItem.ChannelId = channelID
+		nextItem.CreatedAt = currentItem.CreatedAt
+		nextItem.SortOrder = currentItem.SortOrder
+		if nextItem.SortOrder == 0 {
+			nextItem.SortOrder = index + 1
+		}
+		if err := tx.Model(&model.ChannelBillingSnapshotItem{}).
+			Where("id = ? AND snapshot_id = ?", currentItem.Id, current.Id).
+			Updates(map[string]any{
+				"quota_type":       strings.TrimSpace(strings.ToLower(nextItem.QuotaType)),
+				"quota_label":      strings.TrimSpace(nextItem.QuotaLabel),
+				"reset_at":         nextItem.ResetAt,
+				"expires_at":       nextItem.ExpiresAt,
+				"source_ref":       strings.TrimSpace(nextItem.SourceRef),
+				"sort_order":       nextItem.SortOrder,
+				"resource_type":    strings.TrimSpace(strings.ToLower(nextItem.ResourceType)),
+				"amount":           nextItem.Amount,
+				"limit_amount":     nextItem.LimitAmount,
+				"used_amount":      nextItem.UsedAmount,
+				"remaining_amount": nextItem.RemainingAmount,
+				"currency":         strings.TrimSpace(strings.ToUpper(nextItem.Currency)),
+			}).Error; err != nil {
+			return nil, err
+		}
+		batchTemplate, ok := model.BuildProcurementBatchFromBillingSnapshotItem(updatedSnapshot, nextItem)
+		if !ok {
+			return nil, fmt.Errorf("该采购记录已经被消耗，不能移除可消耗权益项")
+		}
+		batches, err := model.ListChannelProcurementBatchesBySourceSnapshotIDWithDB(tx, current.Id)
+		if err != nil {
+			return nil, err
+		}
+		for _, batch := range batches {
+			if strings.TrimSpace(batch.SourceSnapshotItemId) != strings.TrimSpace(currentItem.Id) {
+				continue
+			}
+			consumed, err := sumProcurementConsumedQuantityWithDB(tx, batch.Id)
+			if err != nil {
+				return nil, err
+			}
+			capacityRemaining := batchTemplate.CapacityEffective - consumed
+			if capacityRemaining < 0 {
+				capacityRemaining = 0
+			}
+			costStatus := batch.CostStatus
+			if costStatus != model.ProcurementCostStatusDisabled && costStatus != model.ProcurementCostStatusCostUnconfigured {
+				if capacityRemaining <= 0 {
+					costStatus = model.ProcurementCostStatusExhausted
+				} else {
+					costStatus = model.ProcurementCostStatusActive
+				}
+			}
+			costPerUnitAmount := batch.CostPerUnitAmount
+			if batch.PurchaseCostAmount > 0 && batchTemplate.CapacityEffective > 0 {
+				costPerUnitAmount = batch.PurchaseCostAmount / batchTemplate.CapacityEffective
+			}
+			windowRemaining := batchTemplate.CapacityTotal - consumed
+			if windowRemaining < 0 {
+				windowRemaining = 0
+			}
+			updates := map[string]any{
+				"resource_type":        batchTemplate.ResourceType,
+				"quota_type":           batchTemplate.QuotaType,
+				"capacity_total":       batchTemplate.CapacityTotal,
+				"capacity_effective":   batchTemplate.CapacityEffective,
+				"capacity_remaining":   capacityRemaining,
+				"cost_per_unit_amount": costPerUnitAmount,
+				"valid_from":           batchTemplate.ValidFrom,
+				"expire_at":            batchTemplate.ExpireAt,
+				"reset_cycle":          batchTemplate.ResetCycle,
+				"window_started_at":    batchTemplate.WindowStartedAt,
+				"window_remaining":     windowRemaining,
+				"source_ref":           batchTemplate.SourceRef,
+				"metadata":             batchTemplate.Metadata,
+				"cost_status":          costStatus,
+				"updated_at":           now,
+			}
+			if batchTemplate.ResetCycle == "none" || batchTemplate.ResetCycle == "" {
+				updates["window_started_at"] = int64(0)
+				updates["window_remaining"] = float64(0)
+			}
+			if err := tx.Model(&model.ChannelProcurementBatch{}).Where("id = ?", batch.Id).Updates(updates).Error; err != nil {
+				return nil, err
+			}
+		}
+		updatedItems = append(updatedItems, nextItem)
+	}
+	return model.NormalizeChannelBillingSnapshotItems(updatedItems), nil
+}
+
 type normalizedManualBillingSnapshotRequest struct {
 	PurchaseAt         int64
 	PurchaseCurrency   string
@@ -772,6 +948,7 @@ func normalizeManualBillingSnapshotRequest(req channelBillingManualSnapshotReque
 			sourceRef = "manual"
 		}
 		quotaItems = append(quotaItems, model.ChannelBillingSnapshotItem{
+			Id:              strings.TrimSpace(item.Id),
 			ResourceType:    resourceType,
 			QuotaType:       quotaType,
 			QuotaLabel:      quotaLabel,
@@ -917,7 +1094,22 @@ func UpdateChannelBillingSnapshot(c *gin.Context) {
 			return err
 		}
 		if count > 0 {
-			return fmt.Errorf("该采购记录已经被消耗，不能修改")
+			updatedItems, err := updateConsumedManualBillingSnapshotWithDB(tx, current, channelRow.Id, normalizedReq, operatorUserID)
+			if err != nil {
+				return err
+			}
+			_, err = model.CreateChannelBillingActionWithDB(tx, model.ChannelBillingAction{
+				ChannelId:      channelRow.Id,
+				ActionType:     model.ChannelBillingActionTypeManualUpdateSnapshot,
+				Status:         model.ChannelBillingActionStatusDone,
+				RequestPayload: marshalLogJSON(req),
+				ResultPayload:  marshalLogJSON(map[string]any{"items": updatedItems, "consumed_metadata_update": true}),
+				Message:        normalizedReq.Message,
+				OperatorUserId: operatorUserID,
+				CreatedAt:      now,
+				UpdatedAt:      now,
+			})
+			return err
 		}
 		updatedSnapshot, err := model.UpdateChannelBillingSnapshotPurchaseWithDB(tx, model.ChannelBillingSnapshot{
 			Id:                 current.Id,
