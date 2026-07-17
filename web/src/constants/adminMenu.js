@@ -28,7 +28,7 @@ export const ADMIN_MENU_GROUPS = [
   },
   {
     key: 'resource',
-    name: 'header.resource',
+    name: 'header.model',
     icon: 'cube',
     items: [
       {

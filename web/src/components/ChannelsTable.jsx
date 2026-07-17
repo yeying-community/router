@@ -579,7 +579,7 @@ const ChannelsTable = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'resource', label: t('header.resource') },
+          { key: 'resource', label: t('header.model') },
           { key: 'channel', label: t('header.channel'), active: true },
         ]}
         title={t('header.channel')}
