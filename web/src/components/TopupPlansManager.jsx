@@ -621,7 +621,7 @@ const TopupPlansManager = ({ headerMeta = null }) => {
         className='router-block-gap-md'
         breadcrumbs={[
           { key: 'workspace', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.business_operation') },
+          { key: 'business', label: t('header.operation') },
           { key: 'topup', label: t('header.topup'), active: true },
         ]}
         title={t('topup.manage.title')}

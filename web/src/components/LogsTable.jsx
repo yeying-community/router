@@ -453,7 +453,7 @@ const LogsTable = () => {
       },
       {
         key: 'section',
-        label: isAdminScope ? t('header.platform_operation') : t('header.mine'),
+        label: isAdminScope ? t('header.operation') : t('header.mine'),
       },
     ];
     if (!isAdminScope && logSource === 'quota') {

@@ -50,7 +50,7 @@ export const ADMIN_MENU_GROUPS = [
   },
   {
     key: 'business',
-    name: 'header.business_operation',
+    name: 'header.operation',
     icon: 'users',
     items: [
       {
@@ -73,13 +73,6 @@ export const ADMIN_MENU_GROUPS = [
         to: '/admin/redemption',
         icon: 'dollar sign',
       },
-    ],
-  },
-  {
-    key: 'operation',
-    name: 'header.platform_operation',
-    icon: 'tasks',
-    items: [
       {
         name: 'header.log',
         to: '/admin/log',

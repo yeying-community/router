@@ -37,7 +37,7 @@ const RecordListPage = ({ kind }) => {
         detailBasePath={config.detailBasePath}
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.business_operation') },
+          { key: 'business', label: t('header.operation') },
           {
             key: `${kind}-parent`,
             label: t(config.parentKey),

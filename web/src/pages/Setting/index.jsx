@@ -158,10 +158,18 @@ const Setting = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'workspace', label: t('header.admin_workspace') },
-          { key: 'section', label: t('header.setting'), active: true },
+          { key: 'section', label: t('header.setting') },
+          ...(activeGroup
+            ? [
+                {
+                  key: 'group',
+                  label: activeGroup.label,
+                  active: true,
+                },
+              ]
+            : []),
         ]}
         title={pageTitle}
-        meta={activeGroup?.label || ''}
       />
       <AppSection className='router-settings-page-section'>
         {menuGroups.length > 0 ? (

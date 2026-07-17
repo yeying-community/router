@@ -1187,7 +1187,7 @@ const UserDetail = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.business_operation') },
+          { key: 'business', label: t('header.operation') },
           {
             key: 'user-list',
             label: t('header.user'),
@@ -1717,7 +1717,7 @@ const UserDetail = () => {
                   title={t('topup.payment_history.title')}
                   breadcrumbs={[
                     { key: 'admin', label: t('header.admin_workspace') },
-                    { key: 'business', label: t('header.business_operation') },
+                    { key: 'business', label: t('header.operation') },
                     { key: 'user', label: t('header.user') },
                     {
                       key: 'current-user-records',

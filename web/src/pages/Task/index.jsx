@@ -848,7 +848,7 @@ const Task = ({ pageKind: pageKindOverride = '' }) => {
     : isAdminPage
       ? [
           { key: 'workspace', label: t('header.admin_workspace') },
-          { key: 'operation', label: t('header.platform_operation') },
+          { key: 'operation', label: t('header.operation') },
           { key: 'task', label: pageTitle, active: true },
         ]
       : [

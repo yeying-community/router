@@ -656,7 +656,7 @@ const UsersTable = () => {
               ? t('header.admin_workspace')
               : t('header.user_workspace'),
           },
-          { key: 'business', label: t('header.business_operation') },
+          { key: 'business', label: t('header.operation') },
           { key: 'user', label: t('header.user'), active: true },
         ]}
         title={t('header.user')}

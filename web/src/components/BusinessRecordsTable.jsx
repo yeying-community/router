@@ -951,7 +951,7 @@ const BusinessRecordsTable = ({
       <AppFilterHeader
         breadcrumbs={breadcrumbs || [
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.business_operation') },
+          { key: 'business', label: t('header.operation') },
           {
             key: kind,
             label: t(DEFAULT_BREADCRUMB_KEY[kind] || BUSINESS_FLOW_HEADER_KEY[kind] || 'common.records'),
