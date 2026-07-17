@@ -840,22 +840,65 @@ body,
 }
 
 .router-settings-page-section.ant-card .ant-card-body {
-    padding: 12px 14px;
+    padding: 10px 12px;
 }
 
 .router-settings-page-content {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
+}
+
+.router-settings-page-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.router-settings-page-nav-item {
+    border: none;
+    background: transparent;
+    color: rgba(15, 23, 42, 0.62);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 4px 8px;
+    margin: 0;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.router-settings-page-nav-item:hover {
+    color: #1f2937;
+    background: rgba(15, 23, 42, 0.04);
+}
+
+.router-settings-page-nav-item.active {
+    color: #1f2937;
+    font-weight: 600;
+    background: rgba(15, 23, 42, 0.06);
+}
+
+.router-settings-page-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.router-settings-page-block-primary {
+    gap: 6px;
 }
 
 .router-settings-page-divider.ant-divider {
-    margin: 2px 0 0;
-    border-color: rgba(15, 23, 42, 0.08);
+    margin: 0;
+    border-color: rgba(15, 23, 42, 0.06);
 }
 
 .router-settings-page-section .router-ui-section-header {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .router-settings-page-section .router-ui-section-title {
@@ -865,16 +908,36 @@ body,
 
 .router-settings-page-section .router-toolbar-compact {
     margin-top: 0;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .router-settings-page-section .router-section-message {
-    padding: 0.7em 0.9em !important;
-    margin-bottom: 10px;
+    padding: 0.6em 0.8em !important;
+    margin-bottom: 8px;
 }
 
 .router-settings-page-section .router-ui-form-actions {
-    margin-top: 10px;
+    margin-top: 8px;
+}
+
+.router-settings-system-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.router-settings-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.router-settings-inline-message.ant-alert {
+    border-radius: 8px;
+}
+
+.router-settings-page-section .router-ui-form-row {
+    row-gap: 10px;
 }
 
 .router-log-cleanup-actions {

@@ -535,7 +535,7 @@ const OperationSetting = ({ section = '' }) => {
 
   return (
     <AppSpin spinning={loading}>
-      <div>
+      <div className='router-settings-system-block'>
           {sectionVisible.balance ? (
             <>
               <AppFilterHeader
@@ -543,36 +543,38 @@ const OperationSetting = ({ section = '' }) => {
                 titleClassName='router-ui-section-title'
                 className='router-toolbar-compact'
               />
-              <AppFormRow>
-                {renderBalanceInputField(
-                  'setting.operation.quota.pre_consume',
-                  BALANCE_OPTION_KEYS.preConsumedAmount,
-                  'setting.operation.quota.pre_consume_placeholder',
-                  'setting.operation.quota.pre_consume_description'
-                )}
-                {renderTopupPlanField(
-                  'setting.operation.quota.new_user_reward',
-                  BALANCE_OPTION_KEYS.newUserRewardPlan,
-                  'setting.operation.quota.reward_plan_placeholder',
-                  'setting.operation.quota.new_user_reward_description'
-                )}
-                {renderTopupPlanField(
-                  'setting.operation.quota.inviter_reward',
-                  BALANCE_OPTION_KEYS.inviterRewardPlan,
-                  'setting.operation.quota.reward_plan_placeholder',
-                  'setting.operation.quota.inviter_reward_description'
-                )}
-              </AppFormRow>
-              <AppFormActions align='start'>
-                <AppButton
-                  className='router-section-button'
-                  onClick={() => {
-                    saveSectionConfig('balance').then();
-                  }}
-                >
-                  {t('setting.operation.quota.buttons.save')}
-                </AppButton>
-              </AppFormActions>
+              <div className='router-settings-section-body'>
+                <AppFormRow>
+                  {renderBalanceInputField(
+                    'setting.operation.quota.pre_consume',
+                    BALANCE_OPTION_KEYS.preConsumedAmount,
+                    'setting.operation.quota.pre_consume_placeholder',
+                    'setting.operation.quota.pre_consume_description'
+                  )}
+                  {renderTopupPlanField(
+                    'setting.operation.quota.new_user_reward',
+                    BALANCE_OPTION_KEYS.newUserRewardPlan,
+                    'setting.operation.quota.reward_plan_placeholder',
+                    'setting.operation.quota.new_user_reward_description'
+                  )}
+                  {renderTopupPlanField(
+                    'setting.operation.quota.inviter_reward',
+                    BALANCE_OPTION_KEYS.inviterRewardPlan,
+                    'setting.operation.quota.reward_plan_placeholder',
+                    'setting.operation.quota.inviter_reward_description'
+                  )}
+                </AppFormRow>
+                <AppFormActions align='start'>
+                  <AppButton
+                    className='router-section-button'
+                    onClick={() => {
+                      saveSectionConfig('balance').then();
+                    }}
+                  >
+                    {t('setting.operation.quota.buttons.save')}
+                  </AppButton>
+                </AppFormActions>
+              </div>
               {shouldRenderDividerAfter('balance') ? <AppDivider /> : null}
             </>
           ) : null}
@@ -584,46 +586,48 @@ const OperationSetting = ({ section = '' }) => {
                 titleClassName='router-ui-section-title'
                 className='router-toolbar-compact'
               />
-              <AppFormRow>
-                <AppField label={t('setting.operation.monitor.max_response_time')}>
-                  <AppInputNumber
-                    className='router-section-input'
-                    name='ChannelDisableThreshold'
-                    onChange={handleInputChange}
-                    value={inputs.ChannelDisableThreshold}
-                    min={0}
-                    precision={0}
-                    fluid
-                    placeholder={t(
-                      'setting.operation.monitor.max_response_time_placeholder'
-                    )}
-                  />
-                </AppField>
-                <AppField label={t('setting.operation.monitor.quota_reminder')}>
-                  <AppInputNumber
-                    className='router-section-input'
-                    name={BALANCE_OPTION_KEYS.balanceReminderThreshold}
-                    onChange={handleInputChange}
-                    value={inputs[BALANCE_OPTION_KEYS.balanceReminderThreshold]}
-                    min={0}
-                    precision={0}
-                    fluid
-                    placeholder={t(
-                      'setting.operation.monitor.quota_reminder_placeholder'
-                    )}
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFormActions align='start'>
-                <AppButton
-                  className='router-section-button'
-                  onClick={() => {
-                    saveSectionConfig('monitor').then();
-                  }}
-                >
-                  {t('setting.operation.monitor.buttons.save')}
-                </AppButton>
-              </AppFormActions>
+              <div className='router-settings-section-body'>
+                <AppFormRow>
+                  <AppField label={t('setting.operation.monitor.max_response_time')}>
+                    <AppInputNumber
+                      className='router-section-input'
+                      name='ChannelDisableThreshold'
+                      onChange={handleInputChange}
+                      value={inputs.ChannelDisableThreshold}
+                      min={0}
+                      precision={0}
+                      fluid
+                      placeholder={t(
+                        'setting.operation.monitor.max_response_time_placeholder'
+                      )}
+                    />
+                  </AppField>
+                  <AppField label={t('setting.operation.monitor.quota_reminder')}>
+                    <AppInputNumber
+                      className='router-section-input'
+                      name={BALANCE_OPTION_KEYS.balanceReminderThreshold}
+                      onChange={handleInputChange}
+                      value={inputs[BALANCE_OPTION_KEYS.balanceReminderThreshold]}
+                      min={0}
+                      precision={0}
+                      fluid
+                      placeholder={t(
+                        'setting.operation.monitor.quota_reminder_placeholder'
+                      )}
+                    />
+                  </AppField>
+                </AppFormRow>
+                <AppFormActions align='start'>
+                  <AppButton
+                    className='router-section-button'
+                    onClick={() => {
+                      saveSectionConfig('monitor').then();
+                    }}
+                  >
+                    {t('setting.operation.monitor.buttons.save')}
+                  </AppButton>
+                </AppFormActions>
+              </div>
               {shouldRenderDividerAfter('monitor') ? <AppDivider /> : null}
             </>
           ) : null}
@@ -635,52 +639,54 @@ const OperationSetting = ({ section = '' }) => {
                 titleClassName='router-ui-section-title'
                 className='router-toolbar-compact'
               />
-              <AppAlert
-                className='router-section-message'
-                type='info'
-                showIcon
-                title={t('setting.operation.retry.description_title')}
-                description={
-                  <>
-                    <p>{t('setting.operation.retry.description')}</p>
-                    <p>{t('setting.operation.retry.description_effective')}</p>
-                    <p>{t('setting.operation.retry.description_disabled')}</p>
-                  </>
-                }
-              />
-              <AppFormRow>
-                <AppField label={t('setting.operation.retry.limit')}>
-                  <AppSelect
-                    className='router-section-input'
-                    name='RetryTimes'
-                    onChange={handleInputChange}
-                    value={inputs.RetryTimes}
-                    placeholder={t('setting.operation.retry.limit_placeholder')}
-                    options={[
-                      {
-                        key: 'disabled',
-                        text: t('setting.operation.retry.options.disabled'),
-                        value: '0',
-                      },
-                      {
-                        key: 'all_candidates',
-                        text: t('setting.operation.retry.options.all_candidates'),
-                        value: '1',
-                      },
-                    ]}
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFormActions align='start'>
-                <AppButton
-                  className='router-section-button'
-                  onClick={() => {
-                    saveSectionConfig('retry').then();
-                  }}
-                >
-                  {t('setting.operation.retry.buttons.save')}
-                </AppButton>
-              </AppFormActions>
+              <div className='router-settings-section-body'>
+                <AppAlert
+                  className='router-section-message router-settings-inline-message'
+                  type='info'
+                  showIcon
+                  title={t('setting.operation.retry.description_title')}
+                  description={
+                    <>
+                      <p>{t('setting.operation.retry.description')}</p>
+                      <p>{t('setting.operation.retry.description_effective')}</p>
+                      <p>{t('setting.operation.retry.description_disabled')}</p>
+                    </>
+                  }
+                />
+                <AppFormRow>
+                  <AppField label={t('setting.operation.retry.limit')}>
+                    <AppSelect
+                      className='router-section-input'
+                      name='RetryTimes'
+                      onChange={handleInputChange}
+                      value={inputs.RetryTimes}
+                      placeholder={t('setting.operation.retry.limit_placeholder')}
+                      options={[
+                        {
+                          key: 'disabled',
+                          text: t('setting.operation.retry.options.disabled'),
+                          value: '0',
+                        },
+                        {
+                          key: 'all_candidates',
+                          text: t('setting.operation.retry.options.all_candidates'),
+                          value: '1',
+                        },
+                      ]}
+                    />
+                  </AppField>
+                </AppFormRow>
+                <AppFormActions align='start'>
+                  <AppButton
+                    className='router-section-button'
+                    onClick={() => {
+                      saveSectionConfig('retry').then();
+                    }}
+                  >
+                    {t('setting.operation.retry.buttons.save')}
+                  </AppButton>
+                </AppFormActions>
+              </div>
               {shouldRenderDividerAfter('retry') ? <AppDivider /> : null}
             </>
           ) : null}
@@ -692,23 +698,23 @@ const OperationSetting = ({ section = '' }) => {
                 titleClassName='router-ui-section-title'
                 className='router-toolbar-compact'
               />
-              <AppFormRow>
-                <AppField label={t('setting.operation.log.enable_consume')}>
-                  <AppSwitch
-                    checked={inputs.LogConsumeEnabled === 'true'}
-                    onChange={() =>
-                      handleInputChange(null, {
-                        name: 'LogConsumeEnabled',
-                        value: inputs.LogConsumeEnabled === 'true'
-                          ? 'false'
-                          : 'true',
-                      })
-                    }
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFormRow>
-              </AppFormRow>
+              <div className='router-settings-section-body'>
+                <AppFormRow>
+                  <AppField label={t('setting.operation.log.enable_consume')}>
+                    <AppSwitch
+                      checked={inputs.LogConsumeEnabled === 'true'}
+                      onChange={() =>
+                        handleInputChange(null, {
+                          name: 'LogConsumeEnabled',
+                          value: inputs.LogConsumeEnabled === 'true'
+                            ? 'false'
+                            : 'true',
+                        })
+                      }
+                    />
+                  </AppField>
+                </AppFormRow>
+              </div>
               {shouldRenderDividerAfter('log') ? <AppDivider /> : null}
             </>
           ) : null}
@@ -720,141 +726,143 @@ const OperationSetting = ({ section = '' }) => {
                 titleClassName='router-ui-section-title'
                 className='router-toolbar-compact'
               />
-              <AppFormRow>
-                <AppField label={t('setting.operation.general.chat_link')}>
-                  <AppInput
-                    className='router-section-input'
-                    name='ChatLink'
-                    value={inputs.ChatLink || ''}
-                    onChange={handleInputChange}
-                    placeholder={t('setting.operation.general.chat_link_placeholder')}
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFormRow>
-                <AppField
-                  label={t(
-                    'setting.operation.general.channel_billing_auto_refresh.enabled'
-                  )}
-                >
-                  <AppSwitch
-                    checked={inputs.ChannelBillingAutoRefreshEnabled === 'true'}
-                    onChange={() =>
-                      handleInputChange(null, {
-                        name: 'ChannelBillingAutoRefreshEnabled',
-                        value:
-                          inputs.ChannelBillingAutoRefreshEnabled === 'true'
-                            ? 'false'
-                            : 'true',
-                      })
-                    }
-                  />
-                </AppField>
-                <AppField
-                  label={t(
-                    'setting.operation.general.channel_billing_auto_refresh.interval_seconds'
-                  )}
-                >
-                  <AppInputNumber
-                    className='router-section-input'
-                    name='ChannelBillingAutoRefreshIntervalSeconds'
-                    onChange={handleInputChange}
-                    value={inputs.ChannelBillingAutoRefreshIntervalSeconds}
-                    min={60}
-                    precision={0}
-                    fluid
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFormRow>
-                <AppField
-                  label={t(
-                    'setting.operation.general.channel_billing_auto_refresh.last_run'
-                  )}
-                >
-                  <AppInput
-                    className='router-section-input'
-                    value={
-                      Number(inputs.ChannelBillingAutoRefreshLastRunAt || 0) > 0
-                        ? timestamp2string(
-                            Number(inputs.ChannelBillingAutoRefreshLastRunAt || 0)
-                          )
-                        : '-'
-                    }
-                    readOnly
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFilterHeader
-                title={t('setting.operation.general.pricing_policy.title')}
-                titleClassName='router-ui-section-title'
-                className='router-toolbar-compact'
-              />
-              <AppAlert
-                className='router-section-message'
-                type='info'
-                showIcon
-                title={t('setting.operation.general.pricing_policy.description_title')}
-                description={t('setting.operation.general.pricing_policy.description')}
-              />
-              <AppFormRow>
-                <AppField
-                  label={t('setting.operation.general.pricing_policy.official_markup')}
-                  hint={t('setting.operation.general.pricing_policy.official_markup_hint')}
-                >
-                  <AppInputNumber
-                    className='router-section-input'
-                    name={PRICING_POLICY_KEYS.officialMarkup}
-                    value={inputs[PRICING_POLICY_KEYS.officialMarkup] ?? 1}
-                    min={0.000001}
-                    precision={6}
-                    step={0.01}
-                    fluid
-                    onChange={handleInputChange}
-                  />
-                </AppField>
-                <AppField
-                  label={t('setting.operation.general.pricing_policy.target_margin')}
-                  hint={t('setting.operation.general.pricing_policy.target_margin_hint')}
-                >
-                  <AppInputNumber
-                    className='router-section-input'
-                    name={PRICING_POLICY_KEYS.targetMargin}
-                    value={inputs[PRICING_POLICY_KEYS.targetMargin] ?? 0}
-                    min={0}
-                    max={0.95}
-                    precision={6}
-                    step={0.01}
-                    fluid
-                    onChange={handleInputChange}
-                  />
-                </AppField>
-                <AppField
-                  label={t('setting.operation.general.pricing_policy.risk_buffer')}
-                  hint={t('setting.operation.general.pricing_policy.risk_buffer_hint')}
-                >
-                  <AppInputNumber
-                    className='router-section-input'
-                    name={PRICING_POLICY_KEYS.riskBuffer}
-                    value={inputs[PRICING_POLICY_KEYS.riskBuffer] ?? 0}
-                    min={0}
-                    precision={6}
-                    step={0.01}
-                    fluid
-                    onChange={handleInputChange}
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFormActions align='start'>
-                <AppButton
-                  className='router-section-button'
-                  onClick={() => {
-                    saveSectionConfig('general').then();
-                  }}
-                >
-                  {t('setting.operation.general.buttons.save')}
-                </AppButton>
-              </AppFormActions>
+              <div className='router-settings-section-body'>
+                <AppFormRow>
+                  <AppField label={t('setting.operation.general.chat_link')}>
+                    <AppInput
+                      className='router-section-input'
+                      name='ChatLink'
+                      value={inputs.ChatLink || ''}
+                      onChange={handleInputChange}
+                      placeholder={t('setting.operation.general.chat_link_placeholder')}
+                    />
+                  </AppField>
+                </AppFormRow>
+                <AppFormRow>
+                  <AppField
+                    label={t(
+                      'setting.operation.general.channel_billing_auto_refresh.enabled'
+                    )}
+                  >
+                    <AppSwitch
+                      checked={inputs.ChannelBillingAutoRefreshEnabled === 'true'}
+                      onChange={() =>
+                        handleInputChange(null, {
+                          name: 'ChannelBillingAutoRefreshEnabled',
+                          value:
+                            inputs.ChannelBillingAutoRefreshEnabled === 'true'
+                              ? 'false'
+                              : 'true',
+                        })
+                      }
+                    />
+                  </AppField>
+                  <AppField
+                    label={t(
+                      'setting.operation.general.channel_billing_auto_refresh.interval_seconds'
+                    )}
+                  >
+                    <AppInputNumber
+                      className='router-section-input'
+                      name='ChannelBillingAutoRefreshIntervalSeconds'
+                      onChange={handleInputChange}
+                      value={inputs.ChannelBillingAutoRefreshIntervalSeconds}
+                      min={60}
+                      precision={0}
+                      fluid
+                    />
+                  </AppField>
+                </AppFormRow>
+                <AppFormRow>
+                  <AppField
+                    label={t(
+                      'setting.operation.general.channel_billing_auto_refresh.last_run'
+                    )}
+                  >
+                    <AppInput
+                      className='router-section-input'
+                      value={
+                        Number(inputs.ChannelBillingAutoRefreshLastRunAt || 0) > 0
+                          ? timestamp2string(
+                              Number(inputs.ChannelBillingAutoRefreshLastRunAt || 0)
+                            )
+                          : '-'
+                      }
+                      readOnly
+                    />
+                  </AppField>
+                </AppFormRow>
+                <AppFilterHeader
+                  title={t('setting.operation.general.pricing_policy.title')}
+                  titleClassName='router-ui-section-title'
+                  className='router-toolbar-compact'
+                />
+                <AppAlert
+                  className='router-section-message router-settings-inline-message'
+                  type='info'
+                  showIcon
+                  title={t('setting.operation.general.pricing_policy.description_title')}
+                  description={t('setting.operation.general.pricing_policy.description')}
+                />
+                <AppFormRow>
+                  <AppField
+                    label={t('setting.operation.general.pricing_policy.official_markup')}
+                    hint={t('setting.operation.general.pricing_policy.official_markup_hint')}
+                  >
+                    <AppInputNumber
+                      className='router-section-input'
+                      name={PRICING_POLICY_KEYS.officialMarkup}
+                      value={inputs[PRICING_POLICY_KEYS.officialMarkup] ?? 1}
+                      min={0.000001}
+                      precision={6}
+                      step={0.01}
+                      fluid
+                      onChange={handleInputChange}
+                    />
+                  </AppField>
+                  <AppField
+                    label={t('setting.operation.general.pricing_policy.target_margin')}
+                    hint={t('setting.operation.general.pricing_policy.target_margin_hint')}
+                  >
+                    <AppInputNumber
+                      className='router-section-input'
+                      name={PRICING_POLICY_KEYS.targetMargin}
+                      value={inputs[PRICING_POLICY_KEYS.targetMargin] ?? 0}
+                      min={0}
+                      max={0.95}
+                      precision={6}
+                      step={0.01}
+                      fluid
+                      onChange={handleInputChange}
+                    />
+                  </AppField>
+                  <AppField
+                    label={t('setting.operation.general.pricing_policy.risk_buffer')}
+                    hint={t('setting.operation.general.pricing_policy.risk_buffer_hint')}
+                  >
+                    <AppInputNumber
+                      className='router-section-input'
+                      name={PRICING_POLICY_KEYS.riskBuffer}
+                      value={inputs[PRICING_POLICY_KEYS.riskBuffer] ?? 0}
+                      min={0}
+                      precision={6}
+                      step={0.01}
+                      fluid
+                      onChange={handleInputChange}
+                    />
+                  </AppField>
+                </AppFormRow>
+                <AppFormActions align='start'>
+                  <AppButton
+                    className='router-section-button'
+                    onClick={() => {
+                      saveSectionConfig('general').then();
+                    }}
+                  >
+                    {t('setting.operation.general.buttons.save')}
+                  </AppButton>
+                </AppFormActions>
+              </div>
             </>
           ) : null}
 

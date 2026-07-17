@@ -114,7 +114,7 @@ const SystemSetting = ({ section = '' }) => {
 
   return (
     <AppSpin spinning={loading}>
-      <div>
+      <div className='router-settings-system-block'>
       {sectionVisible.general ? (
         <>
           <AppFilterHeader
@@ -122,7 +122,7 @@ const SystemSetting = ({ section = '' }) => {
             titleClassName='router-ui-section-title'
             className='router-toolbar-compact'
           />
-          <div>
+          <div className='router-settings-section-body'>
             <AppFormRow>
               <AppField label={t('setting.system.general.system_name')}>
                 <AppInput
@@ -159,12 +159,12 @@ const SystemSetting = ({ section = '' }) => {
             className='router-toolbar-compact'
           />
           <AppAlert
-            className='router-section-message'
+            className='router-section-message router-settings-inline-message'
             type='info'
             showIcon
             title={t('setting.system.smtp.subtitle')}
           />
-          <div>
+          <div className='router-settings-section-body'>
             <AppFormRow>
               <AppField label={t('setting.system.smtp.server')}>
                 <AppInput
@@ -231,7 +231,7 @@ const SystemSetting = ({ section = '' }) => {
             titleClassName='router-ui-section-title'
             className='router-toolbar-compact'
           />
-          <div className='router-page-stack'>
+          <div className='router-settings-section-body router-page-stack'>
             <AppFormRow>
               <AppField label={t('setting.system.login.password_login')}>
                 <AppSwitch
