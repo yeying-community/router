@@ -66,7 +66,6 @@ type ChannelConfig struct {
 	LibraryID         string `json:"library_id,omitempty"`
 	Plugin            string `json:"plugin,omitempty"`
 	APIBaseURL        string `json:"api_base_url,omitempty"`
-	AccountBaseURL    string `json:"account_base_url,omitempty"`
 	VertexAIProjectID string `json:"vertex_ai_project_id,omitempty"`
 	VertexAIADC       string `json:"vertex_ai_adc,omitempty"`
 }
@@ -82,10 +81,6 @@ func baseURLHasVersionSuffix(raw string, suffix string) bool {
 
 func (config ChannelConfig) GetAPIBaseURL() string {
 	return normalizeConfiguredBaseURL(config.APIBaseURL)
-}
-
-func (config ChannelConfig) GetAccountBaseURL() string {
-	return normalizeConfiguredBaseURL(config.AccountBaseURL)
 }
 
 func (channel *Channel) NormalizeProtocol() {
@@ -281,21 +276,6 @@ func (channel *Channel) ResolveAPIBaseURLForModel(requestPath string, modelCandi
 	if cfg, err := channel.LoadConfig(); err == nil {
 		if apiBaseURL := cfg.GetAPIBaseURL(); apiBaseURL != "" {
 			return apiBaseURL
-		}
-	}
-	if baseURL := normalizeConfiguredBaseURL(channel.GetBaseURL()); baseURL != "" {
-		return baseURL
-	}
-	return normalizeConfiguredBaseURL(relaychannel.BaseURLByProtocol(channel.GetProtocol()))
-}
-
-func (channel *Channel) ResolveAccountBaseURL() string {
-	if channel == nil {
-		return ""
-	}
-	if cfg, err := channel.LoadConfig(); err == nil {
-		if accountBaseURL := cfg.GetAccountBaseURL(); accountBaseURL != "" {
-			return accountBaseURL
 		}
 	}
 	if baseURL := normalizeConfiguredBaseURL(channel.GetBaseURL()); baseURL != "" {

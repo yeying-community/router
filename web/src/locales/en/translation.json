@@ -784,7 +784,6 @@
         "profile_title": "Billing Profile",
         "profile_enabled": "Billing Enabled",
         "billing_api_base_url": "Billing API Base URL",
-        "account_base_url": "Account Portal URL",
         "profile_update_success": "Billing profile updated",
         "profile_update_failed": "Failed to update billing profile",
         "refresh_now": "Refresh",
@@ -794,14 +793,7 @@
         "current_quotas_title": "Entitlement Status",
         "billing_mode": "Billing Mode",
         "updated_at": "Updated At",
-        "portal": "Billing Portal",
-        "activate_title": "Activate",
-        "activate_input": "Activation Credential",
         "cdk": "CDK",
-        "cdk_required": "Please enter a CDK first",
-        "open_activate_page": "Open Activate Page",
-        "open_activate_success": "Activate page link generated",
-        "open_activate_failed": "Failed to generate activate page link",
         "manual_update_title": "Add Purchase Record",
         "manual_purchase_title": "Purchase Info",
         "manual_purchase_at": "Purchase Time",
@@ -937,7 +929,6 @@
         },
         "capabilities": {
           "refresh_billing": "Supports billing refresh",
-          "open_activate_page": "Supports activate page",
           "manual_update_snapshot": "Supports manual billing snapshot entry"
         },
         "modes": {

@@ -847,7 +847,6 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 					LibraryID         string            `json:"library_id,omitempty"`
 					Plugin            string            `json:"plugin,omitempty"`
 					APIBaseURL        string            `json:"api_base_url,omitempty"`
-					AccountBaseURL    string            `json:"account_base_url,omitempty"`
 					EndpointBaseURLs  map[string]string `json:"endpoint_base_urls,omitempty"`
 					VertexAIProjectID string            `json:"vertex_ai_project_id,omitempty"`
 					VertexAIADC       string            `json:"vertex_ai_adc,omitempty"`
@@ -1092,41 +1091,8 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 		},
 		{
 			Version:     "202605191430_channel_billing_fetch_config_api_base_url",
-			Description: "backfill billing fetch api base url from legacy account base url config",
+			Description: "retired legacy billing fetch config backfill",
 			Up: func(tx *gorm.DB) error {
-				rows := make([]Channel, 0)
-				if err := tx.Find(&rows).Error; err != nil {
-					return err
-				}
-				for _, row := range rows {
-					profile, err := GetChannelBillingProfileByChannelIDWithDB(tx, row.Id)
-					if err != nil {
-						if errors.Is(err, gorm.ErrRecordNotFound) {
-							continue
-						}
-						return err
-					}
-					if strings.TrimSpace(profile.BillingConfig) != "" {
-						continue
-					}
-					if strings.TrimSpace(profile.BillingMode) == ChannelBillingModeManual {
-						continue
-					}
-					cfg, configErr := row.LoadConfig()
-					if configErr != nil {
-						continue
-					}
-					accountBaseURL := cfg.GetAccountBaseURL()
-					if accountBaseURL == "" || deriveChannelActivateURLTemplate(accountBaseURL) != "" {
-						continue
-					}
-					profile.BillingConfig = marshalJSONString(channelBillingConfig{
-						APIBaseURL: accountBaseURL,
-					})
-					if _, err := SaveChannelBillingProfileWithDB(tx, profile); err != nil {
-						return err
-					}
-				}
 				return nil
 			},
 		},

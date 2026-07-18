@@ -784,7 +784,6 @@
         "profile_title": "账务配置",
         "profile_enabled": "启用账务",
         "billing_api_base_url": "账务 API 地址",
-        "account_base_url": "账户页面地址",
         "profile_update_success": "账务配置保存成功",
         "profile_update_failed": "账务配置保存失败",
         "refresh_now": "刷新",
@@ -794,14 +793,7 @@
         "current_quotas_title": "权益项状态",
         "billing_mode": "账务方式",
         "updated_at": "更新时间",
-        "portal": "账务入口",
-        "activate_title": "激活",
-        "activate_input": "激活凭证",
         "cdk": "CDK",
-        "cdk_required": "请先输入 CDK",
-        "open_activate_page": "打开激活页",
-        "open_activate_success": "已生成激活页链接",
-        "open_activate_failed": "生成激活页链接失败",
         "manual_update_title": "新增采购记录",
         "manual_purchase_title": "采购信息",
         "manual_purchase_at": "采购时间",
@@ -937,7 +929,6 @@
         },
         "capabilities": {
           "refresh_billing": "支持自动刷新账务",
-          "open_activate_page": "支持打开激活页",
           "manual_update_snapshot": "支持人工录入账务快照"
         },
         "modes": {

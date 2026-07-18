@@ -102,251 +102,14 @@ func shouldDisableChannelForBillingEntitlements(collected collectedChannelBillin
 	return false
 }
 
-func collectOpenAIBillingSnapshot(channel *model.Channel, profile model.ChannelBillingProfile, messageText string) (collectedChannelBillingSnapshot, error) {
-	baseURL := resolveChannelBillingAPIBaseURL(channel, profile)
-	if baseURL == "" {
-		return collectedChannelBillingSnapshot{}, fmt.Errorf("渠道账务未配置账务 API 地址")
-	}
-	subscriptionURL := fmt.Sprintf("%s/v1/dashboard/billing/subscription", baseURL)
-	body, err := fetchChannelBillingResponseBody("GET", subscriptionURL, channel, buildBearerAuthHeader(channel.Key))
-	if err != nil {
-		return collectedChannelBillingSnapshot{}, err
-	}
-	subscription := OpenAISubscriptionResponse{}
-	if err := json.Unmarshal(body, &subscription); err != nil {
-		return collectedChannelBillingSnapshot{}, err
-	}
-
-	now := time.Now()
-	startDate := fmt.Sprintf("%s-01", now.Format("2006-01"))
-	endDate := now.Format("2006-01-02")
-	if !subscription.HasPaymentMethod {
-		startDate = now.AddDate(0, 0, -100).Format("2006-01-02")
-	}
-	usageURL := fmt.Sprintf("%s/v1/dashboard/billing/usage?start_date=%s&end_date=%s", baseURL, startDate, endDate)
-	body, err = fetchChannelBillingResponseBody("GET", usageURL, channel, buildBearerAuthHeader(channel.Key))
-	if err != nil {
-		return collectedChannelBillingSnapshot{}, err
-	}
-	usage := OpenAIUsageResponse{}
-	if err := json.Unmarshal(body, &usage); err != nil {
-		return collectedChannelBillingSnapshot{}, err
-	}
-
-	usedAmount := usage.TotalUsage / 100
-	limitAmount := subscription.HardLimitUSD
-	remainingAmount := limitAmount - usedAmount
-	if remainingAmount < 0 {
-		remainingAmount = 0
-	}
-	item := model.ChannelBillingSnapshotItem{
-		ResourceType:    model.ChannelBillingResourceTypeCredit,
-		QuotaType:       "total",
-		QuotaLabel:      "总额度",
-		Amount:          remainingAmount,
-		LimitAmount:     limitAmount,
-		UsedAmount:      usedAmount,
-		RemainingAmount: remainingAmount,
-		Currency:        "USD",
-		ExpiresAt:       subscription.AccessUntil,
-		SourceRef:       "openai_subscription",
-		SortOrder:       1,
-	}
-	return collectedChannelBillingSnapshot{
-		Snapshot: model.ChannelBillingSnapshot{
-			ChannelId:  strings.TrimSpace(channel.Id),
-			SourceType: model.ChannelBillingSnapshotSourceAPI,
-			Balance:    remainingAmount,
-			Currency:   "USD",
-			RawStatus:  "ok",
-			Message:    strings.TrimSpace(messageText),
-			RequestURL: strings.Join([]string{subscriptionURL, usageURL}, "\n"),
-		},
-		Items:         []model.ChannelBillingSnapshotItem{item},
-		PrimaryAmount: remainingAmount,
-	}, nil
-}
-
-func collectCDKBillingSnapshot(channel *model.Channel, profile model.ChannelBillingProfile, messageText string) (collectedChannelBillingSnapshot, error) {
-	stats, err := fetchChannelCDKBillingStats(channel, profile)
-	if err != nil {
-		return collectedChannelBillingSnapshot{}, err
-	}
-	cardInfo, err := fetchChannelCDKCardInfo(channel, profile)
-	if err != nil {
-		return collectedChannelBillingSnapshot{}, err
-	}
-	currency := resolveChannelCDKBillingCurrency(profile)
-	data := stats.Data
-	cardInfoData := cardInfo.Data
-	dailyResetAt := int64(0)
-	if t, err := time.Parse(time.RFC3339Nano, data.ResetAt); err == nil {
-		dailyResetAt = t.Unix()
-	}
-	weeklyResetAt := int64(0)
-	if t, err := time.Parse(time.RFC3339Nano, data.WeeklyResetAt); err == nil {
-		weeklyResetAt = t.Unix()
-	}
-	expiresAt := int64(0)
-	for _, rawValue := range []string{cardInfoData.ExpiresAt, cardInfoData.ExpireTime} {
-		if t, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(rawValue)); err == nil {
-			expiresAt = t.Unix()
-			break
-		}
-	}
-	dailyLimit := data.Consumed + data.Remaining
-	if cardInfoData.DailyQuota > 0 {
-		dailyLimit = cardInfoData.DailyQuota
-	}
-	planMetadataBody, _ := json.Marshal(map[string]any{
-		"status":                    strings.TrimSpace(cardInfoData.Status),
-		"masked_cdk":                strings.TrimSpace(cardInfoData.MaskedCDK),
-		"product_name":              strings.TrimSpace(cardInfoData.ProductName),
-		"category_name":             strings.TrimSpace(cardInfoData.CategoryName),
-		"category_pool":             strings.TrimSpace(cardInfoData.CategoryPool),
-		"billing_mode":              strings.TrimSpace(cardInfoData.BillingMode),
-		"can_renew":                 cardInfoData.CanRenew,
-		"allow_refund_request":      cardInfoData.AllowRefundRequest,
-		"allow_daily_limit_reset":   cardInfoData.AllowDailyLimitReset,
-		"can_reset_daily_limit":     cardInfoData.CanResetDailyLimit,
-		"allow_weekly_limit_reset":  cardInfoData.AllowWeeklyLimitReset,
-		"can_reset_weekly_limit":    cardInfoData.CanResetWeeklyLimit,
-		"limit_concurrent_sessions": cardInfoData.LimitConcurrentSessions,
-		"nickname":                  strings.TrimSpace(cardInfoData.Nickname),
-		"upstream_user_name":        strings.TrimSpace(cardInfoData.UpstreamUserName),
-	})
-	items := []model.ChannelBillingSnapshotItem{
-		{
-			ResourceType:    model.ChannelBillingResourceTypeQuota,
-			QuotaType:       "daily",
-			QuotaLabel:      "日额度",
-			Amount:          data.Remaining,
-			LimitAmount:     dailyLimit,
-			UsedAmount:      data.Consumed,
-			RemainingAmount: data.Remaining,
-			Currency:        currency,
-			ResetAt:         dailyResetAt,
-			SourceRef:       "cdk_daily",
-			SortOrder:       1,
-		},
-		{
-			ResourceType:    model.ChannelBillingResourceTypeQuota,
-			QuotaType:       "weekly",
-			QuotaLabel:      "周额度",
-			Amount:          data.WeeklyRemaining,
-			LimitAmount:     data.WeeklyLimit,
-			UsedAmount:      data.WeeklyConsumed,
-			RemainingAmount: data.WeeklyRemaining,
-			Currency:        currency,
-			ResetAt:         weeklyResetAt,
-			SourceRef:       "cdk_weekly",
-			SortOrder:       2,
-		},
-		{
-			ResourceType:    model.ChannelBillingResourceTypeCredit,
-			QuotaType:       "total",
-			QuotaLabel:      "总额度",
-			Amount:          data.TotalRemaining,
-			LimitAmount:     data.TotalLimit,
-			UsedAmount:      data.TotalConsumed,
-			RemainingAmount: data.TotalRemaining,
-			Currency:        currency,
-			SourceRef:       "cdk_total",
-			SortOrder:       3,
-		},
-		{
-			ResourceType:    model.ChannelBillingResourceTypePlan,
-			QuotaType:       "custom",
-			QuotaLabel:      "套餐有效期",
-			Amount:          1,
-			LimitAmount:     1,
-			UsedAmount:      0,
-			RemainingAmount: 1,
-			Currency:        currency,
-			ExpiresAt:       expiresAt,
-			SourceRef:       "cdk_plan",
-			Metadata:        string(planMetadataBody),
-			SortOrder:       4,
-		},
-	}
-	snapshotMessageParts := make([]string, 0, 3)
-	if message := strings.TrimSpace(messageText); message != "" {
-		snapshotMessageParts = append(snapshotMessageParts, message)
-	}
-	if productName := strings.TrimSpace(cardInfoData.ProductName); productName != "" {
-		snapshotMessageParts = append(snapshotMessageParts, fmt.Sprintf("套餐=%s", productName))
-	}
-	if categoryName := strings.TrimSpace(cardInfoData.CategoryName); categoryName != "" {
-		snapshotMessageParts = append(snapshotMessageParts, fmt.Sprintf("分类=%s", categoryName))
-	}
-	return collectedChannelBillingSnapshot{
-		Snapshot: model.ChannelBillingSnapshot{
-			ChannelId:  strings.TrimSpace(channel.Id),
-			SourceType: model.ChannelBillingSnapshotSourceAPI,
-			Balance:    data.TotalRemaining,
-			Currency:   currency,
-			RawStatus:  "ok",
-			Message:    strings.Join(snapshotMessageParts, " | "),
-			RequestURL: strings.Join([]string{
-				resolveChannelCDKBillingRequestURL(channel, profile),
-				resolveChannelCDKCardInfoRequestURL(channel, profile),
-			}, "\n"),
-		},
-		Items:         items,
-		PrimaryAmount: data.TotalRemaining,
-	}, nil
-}
-
-func collectLegacyTotalBillingSnapshot(channel *model.Channel, profile model.ChannelBillingProfile, messageText string) (collectedChannelBillingSnapshot, error) {
-	amount, err := refreshChannelBillingAmount(channel)
-	if err != nil {
-		return collectedChannelBillingSnapshot{}, err
-	}
-	currency := resolveChannelBillingSnapshotCurrency(channel)
-	item := model.ChannelBillingSnapshotItem{
-		ResourceType:    model.ChannelBillingResourceTypeCredit,
-		QuotaType:       "total",
-		QuotaLabel:      "总额度",
-		Amount:          amount,
-		RemainingAmount: amount,
-		Currency:        currency,
-		SourceRef:       "legacy_total",
-		SortOrder:       1,
-	}
-	return collectedChannelBillingSnapshot{
-		Snapshot: model.ChannelBillingSnapshot{
-			ChannelId:  strings.TrimSpace(channel.Id),
-			SourceType: model.ChannelBillingSnapshotSourceAPI,
-			Balance:    amount,
-			Currency:   currency,
-			RawStatus:  "ok",
-			Message:    strings.TrimSpace(messageText),
-			RequestURL: strings.Join(resolveChannelBillingRequestURLs(channel), "\n"),
-		},
-		Items:          []model.ChannelBillingSnapshotItem{item},
-		PrimaryAmount:  amount,
-		ShouldHardStop: amount <= 0,
-	}, nil
-}
-
 func collectChannelBillingSnapshot(channel *model.Channel, profile model.ChannelBillingProfile, messageText string) (collectedChannelBillingSnapshot, error) {
-	switch strings.TrimSpace(profile.BillingMode) {
-	case model.ChannelBillingModeBuiltinCDK:
-		return collectCDKBillingSnapshot(channel, profile, messageText)
-	case model.ChannelBillingModeBuiltinOpenAI:
-		return collectOpenAIBillingSnapshot(channel, profile, messageText)
-	case model.ChannelBillingModeBuiltinCloseAI,
-		model.ChannelBillingModeBuiltinOpenAISB,
-		model.ChannelBillingModeBuiltinAIProxy,
-		model.ChannelBillingModeBuiltinAPI2GPT,
-		model.ChannelBillingModeBuiltinAIGC2D,
-		model.ChannelBillingModeBuiltinSiliconFlow,
-		model.ChannelBillingModeBuiltinDeepSeek,
-		model.ChannelBillingModeBuiltinOpenRouter:
-		return collectLegacyTotalBillingSnapshot(channel, profile, messageText)
-	default:
-		return collectedChannelBillingSnapshot{}, fmt.Errorf("当前渠道不支持自动刷新账务")
+	if !billingServiceConfigured() {
+		return collectedChannelBillingSnapshot{}, fmt.Errorf("渠道账务未配置 Billing 服务")
 	}
+	if resolveBillingServiceAdapter(profile) == "" {
+		return collectedChannelBillingSnapshot{}, fmt.Errorf("当前渠道不支持 Billing 服务刷新账务")
+	}
+	return collectBillingServiceSnapshot(channel, profile, messageText)
 }
 
 func buildChannelBillingAlertKey(item model.ChannelBillingSnapshotItem) string {
@@ -427,13 +190,7 @@ func copyBillingSnapshotItemsForSnapshot(items []model.ChannelBillingSnapshotIte
 }
 
 func resolveChannelBillingFailureRequestURLs(channel *model.Channel, profile model.ChannelBillingProfile) []string {
-	if strings.TrimSpace(profile.BillingMode) == model.ChannelBillingModeBuiltinCDK {
-		return []string{
-			resolveChannelCDKBillingRequestURL(channel, profile),
-			resolveChannelCDKCardInfoRequestURL(channel, profile),
-		}
-	}
-	return resolveChannelBillingRequestURLs(channel)
+	return resolveBillingServiceRequestURLs()
 }
 
 func isPlanBillingAlertItem(item model.ChannelBillingSnapshotItem) bool {
@@ -809,24 +566,36 @@ func persistChannelBillingRefreshFailure(channel *model.Channel, profile model.C
 	return maybeNotifyChannelBillingRefreshFailure(channel, profile, savedSnapshot.Id, cause)
 }
 
-func refreshAndPersistChannelBillingEntitlements(channel *model.Channel, profile model.ChannelBillingProfile, messageText string) (float64, error) {
+func splitChannelBillingRequestURLs(raw string) []string {
+	lines := strings.Split(strings.TrimSpace(raw), "\n")
+	urls := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			urls = append(urls, trimmed)
+		}
+	}
+	return urls
+}
+
+func refreshAndPersistChannelBillingEntitlements(channel *model.Channel, profile model.ChannelBillingProfile, messageText string) (float64, []string, error) {
 	collected, err := collectChannelBillingSnapshot(channel, profile, messageText)
 	if err != nil {
 		if persistErr := persistChannelBillingRefreshFailure(channel, profile, messageText, err); persistErr != nil {
-			return 0, persistErr
+			return 0, nil, persistErr
 		}
-		return 0, err
+		return 0, nil, err
 	}
-	_, items, err := persistCollectedChannelBillingSnapshot(channel, profile, collected)
+	snapshot, items, err := persistCollectedChannelBillingSnapshot(channel, profile, collected)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
+	requestURLs := splitChannelBillingRequestURLs(snapshot.RequestURL)
 	now := time.Now().Unix()
 	if shouldDisableChannelForBillingEntitlements(collected, items, now) {
 		if err := monitor.DisableChannelForInsufficientBalance(channel.Id, channel.DisplayName(), collected.PrimaryAmount); err != nil {
-			return collected.PrimaryAmount, err
+			return collected.PrimaryAmount, requestURLs, err
 		}
-		return collected.PrimaryAmount, nil
+		return collected.PrimaryAmount, requestURLs, nil
 	}
-	return collected.PrimaryAmount, nil
+	return collected.PrimaryAmount, requestURLs, nil
 }

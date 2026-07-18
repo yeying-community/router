@@ -589,7 +589,7 @@ func executeChannelRefreshBillingTask(task *model.AsyncTask) (string, error) {
 		}
 		return "", err
 	}
-	primaryAmount, err := refreshAndPersistChannelBillingEntitlements(channelRow, profile, "自动刷新账务")
+	primaryAmount, billingRequestURLs, err := refreshAndPersistChannelBillingEntitlements(channelRow, profile, "自动刷新账务")
 	if err != nil {
 		return "", err
 	}
@@ -597,8 +597,7 @@ func executeChannelRefreshBillingTask(task *model.AsyncTask) (string, error) {
 		"channel_id":           channelID,
 		"billing_mode":         strings.TrimSpace(profile.BillingMode),
 		"billing_api_base_url": resolveChannelBillingAPIBaseURL(channelRow, profile),
-		"account_portal_url":   channelRow.ResolveAccountBaseURL(),
-		"billing_request_urls": resolveChannelBillingRequestURLs(channelRow),
+		"billing_request_urls": billingRequestURLs,
 		"primary_amount":       primaryAmount,
 	}), nil
 }

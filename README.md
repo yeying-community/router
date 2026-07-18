@@ -66,6 +66,7 @@ VITE_SERVER=http://localhost:3011 npm run dev
 - `server.address`：用于密码重置链接、支付回调与跳转 URL 组装；对外部署时应填写可访问地址。
 - `cache.type`：缓存后端类型，只支持 `local` 或 `redis`；留空时按旧配置兼容推断。
 - `redis.conn_string`：当 `cache.type: redis` 时必填，例如 `redis://:password@127.0.0.1:6379/0`。
+- `billing_service.base_url`：渠道账务自动刷新调用独立 Billing 服务的 `/api/v1/internal/billing:query`；Router 不再直接接入各渠道账务接口。
 - `ucan.aud`：对外部署或服务端口不是默认 `3011` 时，建议显式设置为 `did:web:<公网域名>`。
 - `bootstrap.root_wallet_address`：可选；用于开启“管理员管理管理员”的额外权限，多个地址使用英文逗号分隔。
 

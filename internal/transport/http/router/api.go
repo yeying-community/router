@@ -303,7 +303,6 @@ func SetApiRouter(engine *gin.Engine) {
 			adminChannelRoute.GET("/:id/tests", channel.GetChannelTests)
 			adminChannelRoute.GET("/:id/tests/artifact", channel.DownloadChannelTestArtifact)
 			adminChannelRoute.POST("/:id/refresh", channel.RefreshChannel)
-			adminChannelRoute.POST("/:id/billing/open-activate-page", channel.OpenChannelBillingActivatePage)
 			adminChannelRoute.PUT("/:id/endpoints", channel.UpdateChannelEndpoint)
 			adminChannelRoute.PUT("/:id/policies", channel.UpdateChannelEndpointPolicy)
 			adminChannelRoute.DELETE("/:id/policies/:policy_id", channel.DeleteChannelEndpointPolicy)
