@@ -47,7 +47,7 @@ const formatActorTimestampLabel = (timestamp) =>
     ? new Date(timestamp * 1000).toLocaleString('zh-CN', { hour12: false })
     : '-';
 
-function AdminChannelAlertsPanel({ embedded = false }) {
+function AdminChannelAlertsPanel() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [alertItems, setAlertItems] = useState([]);
@@ -62,7 +62,7 @@ function AdminChannelAlertsPanel({ embedded = false }) {
     note: '',
   });
   const [detailAlert, setDetailAlert] = useState(null);
-  const [statusFilter, setStatusFilter] = useState(embedded ? 'active' : 'all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
@@ -73,21 +73,21 @@ function AdminChannelAlertsPanel({ embedded = false }) {
     columnKey: 'createdAt',
     order: 'descend',
   });
-  const pageSize = embedded ? 20 : 20;
+  const pageSize = 20;
 
   const loadAlertItems = useCallback(async () => {
     setLoading(true);
     try {
       const response = await API.get('/api/v1/admin/channel/alerts', {
         params: {
-          limit: embedded ? 20 : Math.max(page * pageSize, 100),
-          page: embedded ? undefined : page,
-          page_size: embedded ? undefined : pageSize,
+          limit: Math.max(page * pageSize, 100),
+          page,
+          page_size: pageSize,
           status: statusFilter,
-          type: embedded || typeFilter === 'all' ? undefined : typeFilter,
-          level: embedded || levelFilter === 'all' ? undefined : levelFilter,
-          keyword: embedded || keyword === '' ? undefined : keyword,
-          time: embedded || timeFilter === 'all' ? undefined : timeFilter,
+          type: typeFilter === 'all' ? undefined : typeFilter,
+          level: levelFilter === 'all' ? undefined : levelFilter,
+          keyword: keyword === '' ? undefined : keyword,
+          time: timeFilter === 'all' ? undefined : timeFilter,
         },
       });
       const nextItems =
@@ -103,29 +103,15 @@ function AdminChannelAlertsPanel({ embedded = false }) {
     } finally {
       setLoading(false);
     }
-  }, [embedded, keyword, levelFilter, page, pageSize, statusFilter, timeFilter, typeFilter]);
+  }, [keyword, levelFilter, page, pageSize, statusFilter, timeFilter, typeFilter]);
 
   useEffect(() => {
     loadAlertItems();
   }, [loadAlertItems]);
 
   useEffect(() => {
-    if (embedded) {
-      setStatusFilter('active');
-      setTypeFilter('all');
-      setLevelFilter('all');
-      setTimeFilter('all');
-      setKeywordInput('');
-      setKeyword('');
-      setPage(1);
-    }
-  }, [embedded]);
-
-  useEffect(() => {
-    if (!embedded) {
-      setPage(1);
-    }
-  }, [embedded, keyword, levelFilter, statusFilter, timeFilter, typeFilter]);
+    setPage(1);
+  }, [keyword, levelFilter, statusFilter, timeFilter, typeFilter]);
 
   const openNoteModal = useCallback((action, alert) => {
     setNoteModal({
@@ -342,19 +328,15 @@ function AdminChannelAlertsPanel({ embedded = false }) {
   }, []);
 
   const totalPages = useMemo(() => {
-    if (embedded) return 1;
     const normalizedTotal = Number(total || 0);
     return Math.max(1, Math.ceil(normalizedTotal / pageSize));
-  }, [embedded, pageSize, total]);
+  }, [pageSize, total]);
 
   useEffect(() => {
-    if (embedded) {
-      return;
-    }
     if (page > totalPages) {
       setPage(totalPages);
     }
-  }, [embedded, page, totalPages]);
+  }, [page, totalPages]);
 
   const statusOptions = useMemo(
     () => [
@@ -577,7 +559,7 @@ function AdminChannelAlertsPanel({ embedded = false }) {
     ],
   );
 
-  const selectorControls = !embedded ? (
+  const selectorControls = (
     <div className='admin-dashboard-alert-filter-selects admin-dashboard-alert-filter-selects-left'>
       <AppSelect
         className='router-section-dropdown'
@@ -608,9 +590,9 @@ function AdminChannelAlertsPanel({ embedded = false }) {
         onChange={(e, { value }) => setLevelFilter(value)}
       />
     </div>
-  ) : null;
+  );
 
-  const searchControls = !embedded ? (
+  const searchControls = (
     <div className='admin-dashboard-alert-search-controls'>
       <AppInput
         className='admin-dashboard-alert-search'
@@ -644,38 +626,22 @@ function AdminChannelAlertsPanel({ embedded = false }) {
         </AppButton>
       ) : null}
     </div>
-  ) : null;
+  );
 
-  const countLabel = embedded
-    ? t('dashboard.admin.alerts.active_count', { count: displayAlertItems.length })
-    : t('dashboard.admin.alerts.page_count', {
-        page_count: displayAlertItems.length,
-        total_count: total,
-      });
+  const countLabel = t('dashboard.admin.alerts.page_count', {
+    page_count: displayAlertItems.length,
+    total_count: total,
+  });
 
   const content = (
-    <div className={embedded ? 'admin-dashboard-alerts-block' : 'admin-dashboard-alerts-list'}>
-      {embedded ? (
-        <div className='admin-dashboard-subsection-header admin-dashboard-alerts-header'>
-          <div className='admin-dashboard-subsection-header-main'>
-            <div className='admin-dashboard-subsection-title admin-dashboard-subsection-title-strong'>
-              {t('dashboard.admin.alerts.title')}
-            </div>
-            <div className='admin-dashboard-subsection-description'>
-              {t('dashboard.admin.alerts.description')}
-            </div>
-          </div>
-          <div className='admin-dashboard-alerts-count'>{countLabel}</div>
-        </div>
-      ) : (
-        <AppFilterHeader
-          className='admin-dashboard-alert-list-toolbar'
-          title={t('dashboard.admin.alerts.title')}
-          meta={countLabel}
-          picker={selectorControls}
-          end={searchControls}
-        />
-      )}
+    <div className='admin-dashboard-alerts-list'>
+      <AppFilterHeader
+        className='admin-dashboard-alert-list-toolbar'
+        title={t('dashboard.admin.alerts.title')}
+        meta={countLabel}
+        picker={selectorControls}
+        end={searchControls}
+      />
       {loading ? (
         <div className='admin-dashboard-empty'>{t('common.loading')}</div>
       ) : displayAlertItems.length === 0 ? (
@@ -685,11 +651,7 @@ function AdminChannelAlertsPanel({ embedded = false }) {
       ) : (
         <div className='router-table-scroll-x'>
           <AppTable
-            className={
-              embedded
-                ? 'admin-dashboard-alert-table'
-                : 'router-hover-table router-list-table router-table-fit-page admin-dashboard-alert-table'
-            }
+            className='router-hover-table router-list-table router-table-fit-page admin-dashboard-alert-table'
             columns={alertColumns}
             dataSource={sortedAlertItems}
             pagination={false}
@@ -703,7 +665,7 @@ function AdminChannelAlertsPanel({ embedded = false }) {
           />
         </div>
       )}
-      {!embedded && totalPages > 1 ? (
+      {totalPages > 1 ? (
         <div className='router-pagination-wrap'>
           <AppPagination
             className='router-page-pagination'
@@ -882,60 +844,6 @@ function AdminChannelAlertsPanel({ embedded = false }) {
       </div>
     </AppDrawer>
   );
-
-  if (embedded) {
-    return (
-      <>
-        {content}
-        {detailDrawer}
-        <AppModal
-          open={noteModal.open}
-          onClose={closeNoteModal}
-          size='small'
-          title={
-            noteModal.action === 'resolve'
-              ? t('dashboard.admin.alerts.dialog.resolve_title')
-              : t('dashboard.admin.alerts.dialog.acknowledge_title')
-          }
-          footer={null}
-        >
-          <div className='router-page-stack'>
-            <div className='admin-dashboard-alert-dialog-hint'>
-              {noteModal?.alert?.title || '-'}
-            </div>
-            <AppTextarea
-              className='router-section-input'
-              rows={4}
-              value={noteModal.note}
-              placeholder={t('dashboard.admin.alerts.dialog.note_placeholder')}
-              onChange={(e) =>
-                setNoteModal((current) => ({
-                  ...current,
-                  note: e?.target?.value || '',
-                }))
-              }
-            />
-            <div className='admin-dashboard-alert-dialog-actions'>
-              <AppButton type='button' onClick={closeNoteModal}>
-                {t('common.cancel')}
-              </AppButton>
-              <AppButton
-                color='blue'
-                type='button'
-                loading={
-                  (noteModal.action === 'acknowledge' && acknowledgingAlertID !== '') ||
-                  (noteModal.action === 'resolve' && resolvingAlertID !== '')
-                }
-                onClick={submitNoteAction}
-              >
-                {t('common.confirm')}
-              </AppButton>
-            </div>
-          </div>
-        </AppModal>
-      </>
-    );
-  }
 
   return (
     <>

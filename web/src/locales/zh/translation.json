@@ -2689,10 +2689,9 @@
         }
       },
       "alerts": {
-        "title": "活跃告警",
+        "title": "告警",
         "description": "汇总渠道账务异常、熔断事件以及模型/端点运行时禁用，集中进入处理流程。",
-        "empty": "当前没有活跃告警",
-        "active_count": "当前 {{count}} 条",
+        "empty": "当前没有告警",
         "page_count": "当前页 {{page_count}} 条 / 共 {{total_count}} 条",
         "dialog": {
           "acknowledge_title": "确认告警",

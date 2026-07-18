@@ -550,12 +550,6 @@
   padding-top: 14px;
 }
 
-.admin-dashboard-alerts-block {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(148, 163, 184, 0.18);
-}
-
 .admin-dashboard-alerts-list {
   display: flex;
   flex-direction: column;
@@ -578,10 +572,6 @@
 .admin-dashboard-alert-list-toolbar .router-filter-toolbar-actions {
   flex: 0 0 auto;
   flex-wrap: nowrap;
-}
-
-.admin-dashboard-alerts-header {
-  margin-bottom: 10px;
 }
 
 .admin-dashboard-alert-filters {

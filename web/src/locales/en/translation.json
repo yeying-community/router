@@ -2689,10 +2689,9 @@
         }
       },
       "alerts": {
-        "title": "Active Alerts",
+        "title": "Alerts",
         "description": "Aggregate billing anomalies, circuit breaker events, and model or endpoint disablements into one handling queue.",
-        "empty": "There are no active alerts right now",
-        "active_count": "{{count}} active",
+        "empty": "There are no alerts right now",
         "page_count": "{{page_count}} on this page / {{total_count}} total",
         "dialog": {
           "acknowledge_title": "Acknowledge Alert",

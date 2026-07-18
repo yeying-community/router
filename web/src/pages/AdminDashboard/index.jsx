@@ -32,7 +32,6 @@ import {
   AppTooltip,
   AppToolbar,
 } from '../../router-ui';
-import AdminChannelAlertsPanel from '../../components/AdminChannelAlertsPanel';
 import '../Dashboard/Dashboard.css';
 import './AdminDashboard.css';
 
@@ -1440,8 +1439,7 @@ const AdminDashboard = () => {
             {t('dashboard.admin.empty.channels')}
           </div>
         ) : (
-          <>
-            <div className='admin-dashboard-channel-health-list'>
+          <div className='admin-dashboard-channel-health-list'>
               <div className='admin-dashboard-channel-health-list-header'>
                 <div className='admin-dashboard-channel-health-list-title'>
                   <div className='admin-dashboard-card-title'>
@@ -1585,9 +1583,7 @@ const AdminDashboard = () => {
                   </div>
                 );
               })}
-            </div>
-            <AdminChannelAlertsPanel embedded />
-          </>
+          </div>
         )}
       </div>
     </AppSection>
