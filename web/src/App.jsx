@@ -48,7 +48,6 @@ import WorkspaceTaskDetailPage from './pages/Task/WorkspaceTaskDetailPage';
 import RecordListPage from './pages/Records/RecordListPage';
 import PaymentRecordDetail from './pages/Records/PaymentRecordDetail';
 import TopupRecordDetail from './pages/Records/TopupRecordDetail';
-import PackageRecordDetail from './pages/Records/PackageRecordDetail';
 import RedemptionRecordDetail from './pages/Records/RedemptionRecordDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminAlerts from './pages/AdminAlerts';
@@ -786,7 +785,7 @@ function App() {
         />
         <Route
           path='/admin/entitlement/package/records/:id'
-          element={<PackageRecordDetail />}
+          element={<PaymentRecordDetail />}
         />
         <Route
           path='/admin/redemption/records'

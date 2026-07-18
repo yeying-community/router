@@ -13,10 +13,11 @@ const RECORD_CONFIG = {
   },
   package: {
     title: '购买记录',
-    parentKey: 'header.package',
-    parentPath: '/admin/entitlement?tab=package',
+    parentPath: '/admin/entitlement',
     detailBasePath: '/admin/entitlement/package/records',
+    tableKind: 'topup-reconcile',
     scope: 'entitlement',
+    hideParentBreadcrumb: true,
   },
   redemption: {
     title: '兑换记录',
@@ -47,17 +48,19 @@ const RecordListPage = ({ kind }) => {
   return (
     <div className='dashboard-container'>
       <BusinessRecordsTable
-        kind={kind}
+        kind={config.tableKind || kind}
         title={config.title}
         detailBasePath={config.detailBasePath}
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
           ...parentBreadcrumbs,
-          {
-            key: `${kind}-parent`,
-            label: t(config.parentKey),
-            onClick: () => navigate(config.parentPath),
-          },
+          ...(config.hideParentBreadcrumb
+            ? []
+            : [{
+                key: `${kind}-parent`,
+                label: t(config.parentKey),
+                onClick: () => navigate(config.parentPath),
+              }]),
           {
             key: `${kind}-records`,
             label: config.title,

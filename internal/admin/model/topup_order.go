@@ -839,7 +839,7 @@ func CreateTopupOrderWithDB(db *gorm.DB, userID string, username string, input C
 	case TopupOrderBusinessBalance:
 		planID := normalizedPlanID
 		if planID != "" {
-			resolvedPlan, err := ResolveTopupPlan(planID)
+			resolvedPlan, err := ResolveTopupPlanForUser(planID, order.UserID)
 			if err != nil {
 				return TopupOrder{}, err
 			}

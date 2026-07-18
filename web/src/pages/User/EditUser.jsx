@@ -275,11 +275,11 @@ const toTopupPlanOptions = (rows, t) =>
     .filter((item) => Boolean(item?.enabled))
     .map((item) => {
       const id = (item?.id || '').toString().trim();
-      const amount = formatPlanNumber(item?.amount || 0);
-      const amountCurrency = (item?.amount_currency || '').toString().trim().toUpperCase();
+      const amount = formatPlanNumber(item?.amount ?? item?.sale_price ?? 0);
+      const amountCurrency = (item?.amount_currency || item?.sale_currency || '').toString().trim().toUpperCase();
       const quotaAmount = formatPlanNumber(item?.quota_amount || 0);
       const quotaCurrency = (item?.quota_currency || '').toString().trim().toUpperCase();
-      const validityDays = Number(item?.validity_days || 0);
+      const validityDays = Number(item?.validity_days || item?.duration_days || 0);
       const labelParts = [`${amount} ${amountCurrency}`, `${quotaAmount} ${quotaCurrency}`];
       if (validityDays > 0) {
         labelParts.push(`${validityDays}${t('common.day')}`);
@@ -293,6 +293,32 @@ const toTopupPlanOptions = (rows, t) =>
       };
     })
     .filter((option) => option.value);
+
+const loadAllEntitlementProducts = async (kind) => {
+  const items = [];
+  let page = 1;
+  while (page <= 50) {
+    const res = await API.get('/api/v1/admin/entitlement/products', {
+      params: {
+        kind,
+        page,
+        page_size: 100,
+      },
+    });
+    const { success, message, data } = res.data || {};
+    if (!success) {
+      throw new Error(message || '权益商品加载失败');
+    }
+    const pageItems = Array.isArray(data?.items) ? data.items : [];
+    items.push(...pageItems);
+    const total = Number(data?.total || pageItems.length || 0);
+    if (pageItems.length === 0 || items.length >= total || pageItems.length < 100) {
+      break;
+    }
+    page += 1;
+  }
+  return items;
+};
 
 const UserDetail = () => {
   const { t } = useTranslation();
@@ -497,32 +523,7 @@ const UserDetail = () => {
     }
     setPackageOptionsLoading(true);
     try {
-      const items = [];
-      let page = 1;
-      while (page <= 50) {
-        const res = await API.get('/api/v1/admin/packages', {
-          params: {
-            page,
-            page_size: 100,
-          },
-        });
-        const { success, message, data } = res.data || {};
-        if (!success) {
-          showError(message || t('package_manage.messages.load_failed'));
-          return;
-        }
-        const pageItems = Array.isArray(data?.items) ? data.items : [];
-        items.push(...pageItems);
-        const total = Number(data?.total || pageItems.length || 0);
-        if (
-          pageItems.length === 0 ||
-          items.length >= total ||
-          pageItems.length < 100
-        ) {
-          break;
-        }
-        page += 1;
-      }
+      const items = await loadAllEntitlementProducts('subscription');
       setPackageOptions(toPackageOptions(items));
     } catch (error) {
       showError(error?.message || error);
@@ -537,13 +538,8 @@ const UserDetail = () => {
     }
     setTopupPlanOptionsLoading(true);
     try {
-      const res = await API.get('/api/v1/admin/topup/plans');
-      const { success, message, data } = res.data || {};
-      if (!success) {
-        showError(message || t('topup.manage.load_failed'));
-        return;
-      }
-      setTopupPlanOptions(toTopupPlanOptions(data, t));
+      const items = await loadAllEntitlementProducts('balance');
+      setTopupPlanOptions(toTopupPlanOptions(items, t));
     } catch (error) {
       showError(error?.message || error);
     } finally {

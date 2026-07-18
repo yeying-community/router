@@ -180,19 +180,36 @@ const OperationSetting = ({ section = '', showSectionTitle = true }) => {
 
   const loadTopupPlans = async () => {
     try {
-      const res = await API.get('/api/v1/admin/topup/plans');
-      const { success, message, data } = res.data || {};
-      if (!success) {
-        showError(message);
-        return;
+      const items = [];
+      let page = 1;
+      while (page <= 50) {
+        const res = await API.get('/api/v1/admin/entitlement/products', {
+          params: {
+            kind: 'balance',
+            page,
+            page_size: 100,
+          },
+        });
+        const { success, message, data } = res.data || {};
+        if (!success) {
+          showError(message);
+          return;
+        }
+        const pageItems = Array.isArray(data?.items) ? data.items : [];
+        items.push(...pageItems);
+        const total = Number(data?.total || pageItems.length || 0);
+        if (pageItems.length === 0 || items.length >= total || pageItems.length < 100) {
+          break;
+        }
+        page += 1;
       }
-      const rows = (Array.isArray(data) ? data : [])
+      const rows = items
         .filter((item) => Boolean(item?.enabled))
         .map((item) => ({
           id: (item?.id || '').toString().trim(),
           name: (item?.name || '').toString().trim(),
-          amount: Number(item?.amount || 0),
-          amount_currency: (item?.amount_currency || '').toString().trim().toUpperCase(),
+          amount: Number(item?.amount ?? item?.sale_price ?? 0),
+          amount_currency: (item?.amount_currency || item?.sale_currency || '').toString().trim().toUpperCase(),
           quota_amount: Number(item?.quota_amount || 0),
           quota_currency: (item?.quota_currency || '').toString().trim().toUpperCase(),
         }))

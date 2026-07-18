@@ -40,7 +40,7 @@ func TestListTopupPlansIncludesSupportedModels(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&GroupCatalog{}, &GroupModel{}, &TopupPlan{}); err != nil {
+	if err := db.AutoMigrate(&User{}, &GroupCatalog{}, &GroupModel{}, &TopupPlan{}, &TopupPlanVisibleUser{}); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
 	if err := db.Create(&GroupCatalog{Id: "group-1", Name: "default", Enabled: true}).Error; err != nil {
@@ -66,7 +66,7 @@ func TestListTopupPlansIncludesSupportedModels(t *testing.T) {
 		t.Fatalf("createTopupPlanWithDB returned error: %v", err)
 	}
 
-	rows, err := listTopupPlansWithDB(db, true)
+	rows, err := listTopupPlansWithDB(db, true, "")
 	if err != nil {
 		t.Fatalf("listTopupPlansWithDB returned error: %v", err)
 	}
@@ -81,5 +81,64 @@ func TestListTopupPlansIncludesSupportedModels(t *testing.T) {
 		if rows[0].SupportedModels[i] != want[i] {
 			t.Fatalf("supported_models=%#v, want %#v", rows[0].SupportedModels, want)
 		}
+	}
+}
+
+func TestTopupPlanPartialUserVisibility(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(
+		&User{},
+		&GroupCatalog{},
+		&GroupModel{},
+		&TopupPlan{},
+		&TopupPlanVisibleUser{},
+		&EntitlementProduct{},
+		&EntitlementProductVisibleUser{},
+	); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	if err := db.Create(&GroupCatalog{Id: "group-1", Name: "default", Enabled: true}).Error; err != nil {
+		t.Fatalf("seed group: %v", err)
+	}
+	if err := db.Create(&User{Id: "user-1", Username: "alice", Status: UserStatusEnabled}).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	if _, err := createTopupPlanWithDB(db, TopupPlan{
+		Name:            "private balance",
+		GroupID:         "group-1",
+		Amount:          10,
+		AmountCurrency:  BillingCurrencyCodeCNY,
+		QuotaAmount:     20,
+		QuotaCurrency:   BillingCurrencyCodeUSD,
+		VisibilityScope: ServicePackageVisibilityScopeUser,
+		VisibleUserIDs:  []string{"user-1"},
+		Enabled:         true,
+	}); err != nil {
+		t.Fatalf("createTopupPlanWithDB: %v", err)
+	}
+
+	publicRows, err := listTopupPlansWithDB(db, true, "")
+	if err != nil {
+		t.Fatalf("list public topup plans: %v", err)
+	}
+	if len(publicRows) != 0 {
+		t.Fatalf("len(publicRows)=%d, want 0", len(publicRows))
+	}
+	visibleRows, err := listTopupPlansWithDB(db, true, "user-1")
+	if err != nil {
+		t.Fatalf("list visible topup plans: %v", err)
+	}
+	if len(visibleRows) != 1 || visibleRows[0].VisibilityScope != ServicePackageVisibilityScopeUser {
+		t.Fatalf("visibleRows=%#v", visibleRows)
+	}
+	hiddenRows, err := listTopupPlansWithDB(db, true, "user-2")
+	if err != nil {
+		t.Fatalf("list hidden topup plans: %v", err)
+	}
+	if len(hiddenRows) != 0 {
+		t.Fatalf("len(hiddenRows)=%d, want 0", len(hiddenRows))
 	}
 }

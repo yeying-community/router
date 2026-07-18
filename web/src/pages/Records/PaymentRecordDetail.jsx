@@ -134,8 +134,12 @@ const formatAmount = (row) =>
     ? `${readOnlyText(row?.currency || 'CNY')} ${Number(row?.amount || 0).toFixed(2)}`
     : '-';
 
-const resolveListPath = (stateFrom) => {
+const resolveListPath = (stateFrom, currentPath = '') => {
+  const normalizedCurrentPath = (currentPath || '').toString().trim();
   if (typeof stateFrom !== 'string') {
+    if (normalizedCurrentPath.startsWith('/admin/entitlement/package/records/')) {
+      return '/admin/entitlement/package/records';
+    }
     return '/admin/user';
   }
   const normalized = stateFrom.trim();
@@ -149,8 +153,14 @@ const resolveListPath = (stateFrom) => {
       return `/admin/user/detail/${segments[3]}`;
     }
   }
+  if (normalized.startsWith('/admin/entitlement/package/records/')) {
+    return '/admin/entitlement/package/records';
+  }
   if (normalized.startsWith('/admin/entitlement/topup/payment/')) {
     return '/admin/user';
+  }
+  if (normalized === '/admin/entitlement/package/records') {
+    return normalized;
   }
   return normalized || '/admin/user';
 };
@@ -166,13 +176,16 @@ const PaymentRecordDetail = () => {
   const [order, setOrder] = useState(null);
 
   const listPath = useMemo(
-    () => resolveListPath(location.state?.from),
-    [location.state?.from],
+    () => resolveListPath(location.state?.from, location.pathname),
+    [location.pathname, location.state?.from],
   );
   const fromUserDetail = listPath.startsWith('/admin/user/detail/');
   const listLabel = useMemo(() => {
     if (fromUserDetail) {
       return t('topup.payment_history.title');
+    }
+    if (listPath.startsWith('/admin/entitlement/package/records')) {
+      return '购买记录';
     }
     return t('flow.topup_reconcile.title');
   }, [fromUserDetail, listPath, t]);

@@ -223,18 +223,26 @@ const ensureUnitOption = (options, value) => {
   return [...items, { value: normalized, label: normalized }];
 };
 
+const normalizeModels = (models) =>
+  Array.isArray(models)
+    ? models
+      .map((item) => (item?.model || item?.name || item || '').toString().trim())
+      .filter(Boolean)
+    : [];
+
 const PackageDetail = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState(null);
+  const [product, setProduct] = useState(null);
   const [dailyDisplayUnit, setDailyDisplayUnit] = useState('USD');
   const [emergencyDisplayUnit, setEmergencyDisplayUnit] = useState('USD');
   const [currencyIndex, setCurrencyIndex] = useState(
     buildBillingCurrencyIndex([], { activeOnly: true }),
   );
-  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [visibilitySubmitting, setVisibilitySubmitting] = useState(false);
   const [form, setForm] = useState(createEmptyForm('USD'));
@@ -249,6 +257,10 @@ const PackageDetail = () => {
   const [visibilityPickerValue, setVisibilityPickerValue] = useState([]);
 
   const normalizedId = useMemo(() => (id || '').toString().trim(), [id]);
+  const supportedModels = useMemo(
+    () => normalizeModels(product?.supported_models),
+    [product?.supported_models],
+  );
 
   const displayUnitOptions = useMemo(
     () => buildDisplayUnitOptions(currencyIndex, { order: 'charge-first' }),
@@ -436,12 +448,27 @@ const PackageDetail = () => {
     }
     setLoading(true);
     try {
-      const res = await API.get(`/api/v1/admin/package/${encodeURIComponent(normalizedId)}`);
+      const productRes = await API.get(
+        `/api/v1/admin/entitlement/products/${encodeURIComponent(normalizedId)}`,
+      );
+      const productPayload = productRes.data || {};
+      if (!productPayload.success || productPayload.data?.kind !== 'subscription') {
+        showError(productPayload.message || t('package_manage.messages.load_failed'));
+        return;
+      }
+      const productDetail = productPayload.data;
+      const packageID = (productDetail?.id || '').toString().trim();
+      if (!packageID) {
+        showError(t('package_manage.messages.load_failed'));
+        return;
+      }
+      const res = await API.get(`/api/v1/admin/package/${encodeURIComponent(packageID)}`);
       const { success, message, data } = res.data || {};
       if (!success) {
         showError(message || t('package_manage.messages.load_failed'));
         return;
       }
+      setProduct(productDetail);
       setDetail(data || null);
     } catch (error) {
       showError(error?.message || error);
@@ -462,9 +489,9 @@ const PackageDetail = () => {
     loadDetail().then();
   }, [loadDetail]);
 
-  const closeEditModal = () => {
+  const cancelEditing = () => {
     if (submitting) return;
-    setEditOpen(false);
+    setEditing(false);
   };
 
   const updateFormPackageType = (value) => {
@@ -497,7 +524,7 @@ const PackageDetail = () => {
     });
   };
 
-  const openEditModal = () => {
+  const startEditing = () => {
     if (!detail || submitting) return;
     const defaultBillingUnit = resolveDefaultBillingUnit(currencyIndex);
     const resolvedGroupID = (detail?.group_id || '').toString().trim();
@@ -544,7 +571,7 @@ const PackageDetail = () => {
       appendUserOptionsIfMissing(current, detail?.visible_users),
     );
     loadInitialUsers().then();
-    setEditOpen(true);
+    setEditing(true);
   };
 
   const buildPayloadFromForm = () => {
@@ -660,7 +687,7 @@ const PackageDetail = () => {
       }
       showSuccess(t('package_manage.messages.update_success'));
       setDetail(data || null);
-      setEditOpen(false);
+      setEditing(false);
       loadDetail().then();
     } catch (error) {
       showError(error?.message || error);
@@ -768,8 +795,16 @@ const PackageDetail = () => {
   };
 
   const renderEditForm = () => (
-    <div>
+    <div className='router-page-stack'>
       <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('package_manage.form.id')} readOnly>
+          <AppInput
+            className='router-section-input router-monospace-value'
+            value={form.id || detail?.id || '-'}
+            readOnly
+            disabled
+          />
+        </AppField>
         <AppField label={t('package_manage.form.name')} required>
           <AppInput
             className='router-section-input'
@@ -814,10 +849,6 @@ const PackageDetail = () => {
             onChange={(e, { value }) => updateFormPackageType(value)}
           />
         </AppField>
-        <AppField />
-      </AppFormRow>
-
-      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.sale_price')}>
           <AppCompact className='router-section-input-with-unit' block>
             <AppInputNumber
@@ -845,7 +876,6 @@ const PackageDetail = () => {
             />
           </AppCompact>
         </AppField>
-        <AppField />
       </AppFormRow>
 
       {requestQuotaForm ? (
@@ -1051,6 +1081,25 @@ const PackageDetail = () => {
           />
         </AppField>
       </AppFormRow>
+
+      <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('package_manage.table.created_at')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={detail?.created_at ? timestamp2string(detail.created_at) : '-'}
+            readOnly
+            disabled
+          />
+        </AppField>
+        <AppField label={t('package_manage.table.updated_at')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={detail?.updated_at ? timestamp2string(detail.updated_at) : '-'}
+            readOnly
+            disabled
+          />
+        </AppField>
+      </AppFormRow>
     </div>
   );
 
@@ -1063,14 +1112,9 @@ const PackageDetail = () => {
           {
             key: 'entitlement',
             label: t('header.entitlement'),
-            onClick: () => navigate('/admin/entitlement?tab=package'),
+            onClick: () => navigate('/admin/entitlement'),
           },
-          {
-            key: 'package-list',
-            label: t('header.package'),
-            onClick: () => navigate('/admin/entitlement?tab=package'),
-          },
-          { key: 'package-current', label: normalizedId || '-', active: true },
+          { key: 'package-current', label: product?.id || normalizedId || '-', active: true },
         ]}
         title={t('package_manage.dialog.detail_title')}
       />
@@ -1093,19 +1137,44 @@ const PackageDetail = () => {
                     title={t('common.basic_info')}
                     bodyClassName='router-page-stack'
                     headerEnd={
-                      <AppButton
-                        type='button'
-                        className='router-page-button'
-                        color='blue'
-                        disabled={loading || !detail}
-                        onClick={openEditModal}
-                      >
-                        {t('package_manage.buttons.edit')}
-                      </AppButton>
+                      editing ? (
+                        <>
+                          <AppButton
+                            type='button'
+                            className='router-page-button'
+                            onClick={cancelEditing}
+                            disabled={submitting}
+                          >
+                            {t('common.cancel')}
+                          </AppButton>
+                          <AppButton
+                            type='button'
+                            className='router-page-button'
+                            color='blue'
+                            loading={submitting}
+                            disabled={submitting}
+                            onClick={submitEdit}
+                          >
+                            {t('common.confirm')}
+                          </AppButton>
+                        </>
+                      ) : (
+                        <AppButton
+                          type='button'
+                          className='router-page-button'
+                          color='blue'
+                          disabled={loading || !detail}
+                          onClick={startEditing}
+                        >
+                          {t('package_manage.buttons.edit')}
+                        </AppButton>
+                      )
                     }
                   >
                     {loading ? (
                       <div className='router-empty-cell'>{t('common.loading')}</div>
+                    ) : editing ? (
+                      renderEditForm()
                     ) : (
                       <>
                         <AppFormRow>
@@ -1295,6 +1364,29 @@ const PackageDetail = () => {
                 ),
               },
               {
+                key: 'models',
+                label: t('topup.manage.columns.applicable_models'),
+                children: (
+                  <AppDetailSection title={t('topup.manage.columns.applicable_models')} titleTag='div'>
+                    {loading ? (
+                      <div className='router-empty-cell'>{t('common.loading')}</div>
+                    ) : supportedModels.length > 0 ? (
+                      <div className='router-entity-list'>
+                        {supportedModels.map((model, index) => (
+                          <div key={`${model}-${index}`} className='router-entity-list-item'>
+                            <div className='router-entity-list-title router-monospace-value'>
+                              {model}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className='router-text-muted'>-</div>
+                    )}
+                  </AppDetailSection>
+                ),
+              },
+              {
                 key: 'visibility',
                 label: t('package_manage.form.visibility_scope'),
                 children: (
@@ -1442,25 +1534,6 @@ const PackageDetail = () => {
               {t('common.cancel')}
             </AppButton>
             <AppButton type='button' color='blue' onClick={confirmVisibilityPicker}>
-              {t('common.confirm')}
-            </AppButton>
-          </AppFormActions>
-        </div>
-      </AppModal>
-      <AppModal
-        open={editOpen}
-        onClose={closeEditModal}
-        size='small'
-        title={t('package_manage.dialog.edit_title')}
-        footer={null}
-      >
-        <div className='router-page-stack'>
-          {renderEditForm()}
-          <AppFormActions>
-            <AppButton type='button' onClick={closeEditModal} disabled={submitting}>
-              {t('common.cancel')}
-            </AppButton>
-            <AppButton type='button' color='blue' loading={submitting} onClick={submitEdit}>
               {t('common.confirm')}
             </AppButton>
           </AppFormActions>
