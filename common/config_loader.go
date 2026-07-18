@@ -42,6 +42,7 @@ type AppConfig struct {
 	Feature   FeatureConfig   `yaml:"feature"`
 	Operation OperationConfig `yaml:"operation"`
 	Notify    NotifyConfig    `yaml:"notify"`
+	Billing   BillingConfig   `yaml:"billing_service"`
 	Relay     RelayConfig     `yaml:"relay"`
 	RateLimit RateLimitConfig `yaml:"rate_limit"`
 	Metrics   MetricsConfig   `yaml:"metrics"`
@@ -135,6 +136,12 @@ type NotifyConfig struct {
 	WebhookURL string `yaml:"webhook_url"`
 	Secret     string `yaml:"secret"`
 	Token      string `yaml:"token"`
+}
+
+type BillingConfig struct {
+	BaseURL        string `yaml:"base_url"`
+	APIKey         string `yaml:"api_key"`
+	TimeoutSeconds int    `yaml:"timeout_seconds"`
 }
 
 type RelayConfig struct {
@@ -256,6 +263,11 @@ func defaultAppConfig() AppConfig {
 			Secret:     "",
 			Token:      "",
 		},
+		Billing: BillingConfig{
+			BaseURL:        "",
+			APIKey:         "",
+			TimeoutSeconds: 20,
+		},
 		Relay: RelayConfig{
 			TimeoutSeconds:                         0,
 			Proxy:                                  "",
@@ -352,7 +364,13 @@ func ApplyAppConfig(cfg *AppConfig, portFlagSet bool, logDirFlagSet bool) error 
 	config.NotifyWebhookURL = strings.TrimSpace(cfg.Notify.WebhookURL)
 	config.NotifySecret = strings.TrimSpace(cfg.Notify.Secret)
 	config.NotifyToken = strings.TrimSpace(cfg.Notify.Token)
-
+	config.BillingServiceBaseURL = strings.TrimRight(strings.TrimSpace(cfg.Billing.BaseURL), "/")
+	config.BillingServiceAPIKey = strings.TrimSpace(cfg.Billing.APIKey)
+	if cfg.Billing.TimeoutSeconds > 0 {
+		config.BillingServiceTimeoutSeconds = cfg.Billing.TimeoutSeconds
+	} else {
+		config.BillingServiceTimeoutSeconds = 20
+	}
 	SQLDSN = strings.TrimSpace(cfg.Database.SQLDSN)
 	LogSQLDSN = strings.TrimSpace(cfg.Database.LogSQLDSN)
 	SQLMaxIdleConns = cfg.Database.MaxIdleConns

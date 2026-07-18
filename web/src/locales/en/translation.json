@@ -793,14 +793,7 @@
         "current_quotas_title": "Entitlement Status",
         "billing_mode": "Billing Mode",
         "updated_at": "Updated At",
-        "portal": "Billing Portal",
-        "activate_title": "Activate",
-        "activate_input": "Activation Credential",
         "cdk": "CDK",
-        "cdk_required": "Please enter a CDK first",
-        "open_activate_page": "Open Activate Page",
-        "open_activate_success": "Activate page link generated",
-        "open_activate_failed": "Failed to generate activate page link",
         "manual_update_title": "Add Purchase Record",
         "manual_purchase_title": "Purchase Info",
         "manual_purchase_at": "Purchase Time",
@@ -936,9 +929,7 @@
         },
         "capabilities": {
           "refresh_billing": "Supports billing refresh",
-          "open_activate_page": "Supports activate page",
-          "manual_update_snapshot": "Supports manual billing snapshot entry",
-          "open_billing_portal": "Supports billing portal"
+          "manual_update_snapshot": "Supports manual billing snapshot entry"
         },
         "modes": {
           "unsupported": "Unsupported",
@@ -952,7 +943,7 @@
           "builtin_siliconflow": "Built-in SiliconFlow billing API",
           "builtin_deepseek": "Built-in DeepSeek billing API",
           "builtin_openrouter": "Built-in OpenRouter billing API",
-          "builtin_cdk": "Built-in CDK billing API"
+          "builtin_cdk": "Built-in Aixhan billing API"
         },
         "quota_types": {
           "daily": "Daily Quota Rule",
@@ -1172,9 +1163,7 @@
       "api_base_url": "API Base URL",
       "api_base_url_placeholder": "Leave empty to use the protocol address",
       "billing_api_base_url": "Billing API Base URL",
-      "account_base_url": "Account Portal URL",
-      "account_base_url_placeholder": "Used for billing portals, recharge pages, activate pages, and other account-side pages",
-      "address_routing_hint": "Request forwarding uses API Base URL by default. If a channel endpoint has its own address configured, that endpoint address takes precedence. Account-side page entry uses Account Portal URL.",
+      "address_routing_hint": "Request forwarding uses API Base URL by default. If a channel endpoint has its own address configured, that endpoint address takes precedence.",
       "key": "Secret Key",
       "key_placeholder": "Please enter key",
       "buttons": {
@@ -2661,10 +2650,17 @@
         },
         "history": {
           "title": "Recent Call Health",
-          "hint": "Prioritizes circuit, risky, retest-needed, and high-usage channels. Each cell is one recent model call result; gray means there is no monitoring sample in the current process.",
+          "hint": "Prioritizes circuit, risky, retest-needed, and high-usage channels. Each cell is a 5-minute call window; gray means that window has no call sample.",
           "no_data": "No call sample",
+          "window": "Time Window",
+          "success_count": "Successes",
+          "failure_count": "Failures",
+          "total_count": "Calls",
+          "pass_rate": "Success Rate",
+          "avg_latency": "Average Latency",
           "state": {
             "success": "Success",
+            "warning": "Partial Failure",
             "failure": "Failure",
             "unknown": "No Data"
           }
@@ -2684,10 +2680,9 @@
         }
       },
       "alerts": {
-        "title": "Active Alerts",
+        "title": "Alerts",
         "description": "Aggregate billing anomalies, circuit breaker events, and model or endpoint disablements into one handling queue.",
-        "empty": "There are no active alerts right now",
-        "active_count": "{{count}} active",
+        "empty": "There are no alerts right now",
         "page_count": "{{page_count}} on this page / {{total_count}} total",
         "dialog": {
           "acknowledge_title": "Acknowledge Alert",
@@ -3578,19 +3573,14 @@
       "now": "Now"
     },
     "tooltip": {
-      "response_time": "Response time",
-      "endpoint": "Test endpoint",
-      "source": "Data source",
-      "sources": {
-        "traffic": "Live traffic",
-        "manual_test": "Manual check",
-        "automatic_probe": "Automatic check"
-      },
-      "no_sample": "No health check recorded",
+      "success_count": "Successes",
+      "failure_count": "Failures",
+      "total_count": "Calls",
+      "pass_rate": "Success Rate",
+      "avg_latency": "Average Latency",
+      "no_sample": "No call sample in this time window",
       "summary": {
-        "success": "Model responded normally ({{latency}} ms)",
-        "warning": "This check was skipped",
-        "failure": "Model is temporarily unavailable"
+        "bucket": "Each cell summarizes real request successes, failures, and average latency within 5 minutes."
       }
     },
     "card": {

@@ -607,7 +607,6 @@ const ChannelDetailBillingTab = ({
   billingReadonly,
   billingSubmitting,
   onRefreshBilling,
-  onOpenActivatePage,
   onManualSnapshotUpdate,
   onManualSnapshotDelete,
   onProcurementBatchCostUpdate,
@@ -615,7 +614,6 @@ const ChannelDetailBillingTab = ({
   onProcurementBatchConsumptionsLoad,
   timestamp2string,
 }) => {
-  const [activateCredential, setActivateCredential] = useState('');
   const [manualPurchaseRecord, setManualPurchaseRecord] = useState(
     buildManualPurchaseRecord()
   );
@@ -1417,40 +1415,6 @@ const ChannelDetailBillingTab = ({
             }}
           />
         </AppDetailSection>
-        {billingSummary?.activate_supported && (
-          <AppDetailSection
-            title={t('channel.edit.billing.activate_title')}
-            titleTag='span'
-          >
-            <AppFormRow>
-              <AppField
-                label={t('channel.edit.billing.activate_input')}
-                required
-              >
-                <AppInput
-                  className='router-section-input'
-                  type='password'
-                  value={activateCredential}
-                  onChange={(e, { value }) =>
-                    setActivateCredential((value || '').toString())
-                  }
-                  readOnly={billingReadonly || billingSubmitting}
-                  autoComplete='new-password'
-                />
-              </AppField>
-            </AppFormRow>
-            <AppButton
-              type='button'
-              className='router-page-button'
-              color='blue'
-              loading={billingSubmitting}
-              disabled={billingReadonly || billingSubmitting}
-              onClick={() => onOpenActivatePage(activateCredential)}
-            >
-              {t('channel.edit.billing.open_activate_page')}
-            </AppButton>
-          </AppDetailSection>
-        )}
       </div>
       </div>}
       {billingView === 'records' && (

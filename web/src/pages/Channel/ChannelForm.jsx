@@ -613,8 +613,6 @@ const normalizeChannelBillingSummary = (item) => {
     action_capabilities: Array.isArray(item.action_capabilities)
       ? item.action_capabilities
       : [],
-    billing_portal_url: (item.billing_portal_url || '').toString().trim(),
-    activate_supported: item.activate_supported === true,
     refresh_supported: item.refresh_supported === true,
     latest_snapshot_at: Number(item.latest_snapshot_at || 0),
     latest_snapshot_status: (item.latest_snapshot_status || '')
@@ -656,7 +654,6 @@ const normalizeChannelBillingProfile = (item) => {
     action_capabilities: Array.isArray(item.action_capabilities)
       ? item.action_capabilities
       : [],
-    billing_portal_url: (item.billing_portal_url || '').toString().trim(),
   };
 };
 
@@ -1983,7 +1980,6 @@ const CHANNEL_DEFAULT_CONFIG = {
   user_id: '',
   resource_id: '',
   api_base_url: '',
-  account_base_url: '',
   vertex_ai_project_id: '',
   vertex_ai_adc: '',
 };
@@ -3013,7 +3009,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const submitConfig = {
         ...baseConfig,
         api_base_url: normalizeBaseURL(baseConfig.api_base_url),
-        account_base_url: normalizeBaseURL(baseConfig.account_base_url),
       };
       localInputs.config = JSON.stringify(submitConfig);
       return localInputs;
@@ -3561,41 +3556,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     [detailPublishReadonly, visibleChannelModels]
   );
 
-  const openChannelBillingActivatePage = useCallback(
-    async (cdk) => {
-      const targetChannelId = (channelId || '').toString().trim();
-      const normalizedCDK = (cdk || '').toString().trim();
-      if (targetChannelId === '' || normalizedCDK === '') {
-        showInfo(t('channel.edit.billing.cdk_required'));
-        return;
-      }
-      setChannelBillingSubmitting(true);
-      try {
-        const res = await API.post(
-          `/api/v1/admin/channel/${targetChannelId}/billing/open-activate-page`,
-          { cdk: normalizedCDK }
-        );
-        const { success, message, data } = res.data || {};
-        if (!success) {
-          showError(message || t('channel.edit.billing.open_activate_failed'));
-          return;
-        }
-        if ((data?.open_url || '').toString().trim() !== '') {
-          window.open(data.open_url, '_blank', 'noopener,noreferrer');
-        }
-        await refreshChannelBillingState(targetChannelId);
-        showSuccess(t('channel.edit.billing.open_activate_success'));
-      } catch (error) {
-        showError(
-          error?.message || t('channel.edit.billing.open_activate_failed')
-        );
-      } finally {
-        setChannelBillingSubmitting(false);
-      }
-    },
-    [channelId, refreshChannelBillingState, t]
-  );
-
   const submitChannelBillingRefresh = useCallback(
     async (targetChannelId, options = {}) => {
       const normalizedChannelId = (targetChannelId || '').toString().trim();
@@ -3909,7 +3869,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           cdk: '',
           currency: 'USD',
           action_capabilities: [],
-          billing_portal_url: '',
         }),
         ...(patch || {}),
       }));
@@ -4067,7 +4026,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             ...CHANNEL_DEFAULT_CONFIG,
             ...parsedConfig,
             api_base_url: normalizeBaseURL(parsedConfig.api_base_url),
-            account_base_url: normalizeBaseURL(parsedConfig.account_base_url),
           });
           if (hasChannelID) {
             setChannelKeySet(!!data.key_set);
@@ -5577,17 +5535,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               {...inputReadonlyProps}
             />
           </AppField>
-          <AppField label={t('channel.edit.account_base_url')}>
-            <AppInput
-              className='router-section-input'
-              name='account_base_url'
-              placeholder={t('channel.edit.account_base_url_placeholder')}
-              onChange={handleConfigChange}
-              value={config.account_base_url || ''}
-              autoComplete='new-password'
-              {...inputReadonlyProps}
-            />
-          </AppField>
         </AppFormRow>
         <div className='router-form-hint router-form-hint-tight'>
           {t('channel.edit.address_routing_hint')}
@@ -6185,7 +6132,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 billingReadonly={detailBillingReadonly}
                 billingSubmitting={channelBillingSubmitting}
                 onRefreshBilling={refreshChannelBillingNow}
-                onOpenActivatePage={openChannelBillingActivatePage}
                 onManualSnapshotUpdate={updateChannelManualBillingSnapshot}
                 onManualSnapshotDelete={deleteChannelManualBillingSnapshot}
                 onProcurementBatchCostUpdate={updateChannelProcurementBatchCost}

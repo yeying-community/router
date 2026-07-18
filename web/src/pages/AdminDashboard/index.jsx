@@ -32,7 +32,6 @@ import {
   AppTooltip,
   AppToolbar,
 } from '../../router-ui';
-import AdminChannelAlertsPanel from '../../components/AdminChannelAlertsPanel';
 import '../Dashboard/Dashboard.css';
 import './AdminDashboard.css';
 
@@ -184,6 +183,7 @@ const CHANNEL_HEALTH_HISTORY_SIZE = 60;
 
 const CHANNEL_HEALTH_POINT_COLORS = {
   success: '#16a34a',
+  warning: '#f59e0b',
   failure: '#dc2626',
   unknown: '#cbd5e1',
 };
@@ -242,7 +242,15 @@ const normalizeAdminDashboardPayload = (payload) => {
           : null,
       health_points: Array.isArray(item?.health_points)
         ? item.health_points.map((point) => ({
+            ...point,
             state: normalizeChannelHealthPointState(point),
+            bucket_start: Number(point?.bucket_start || 0),
+            bucket_end: Number(point?.bucket_end || 0),
+            success_count: Number(point?.success_count || 0),
+            failure_count: Number(point?.failure_count || 0),
+            total_count: Number(point?.total_count || 0),
+            avg_latency_ms: Number(point?.avg_latency_ms || 0),
+            pass_rate: Number(point?.pass_rate || 0),
           }))
         : [],
     })),
@@ -387,6 +395,7 @@ const normalizeChannelHealthPointState = (point) => {
   const raw = typeof point === 'string' ? point : point?.state;
   const normalized = String(raw || '').trim().toLowerCase();
   if (normalized === 'success' || normalized === 'ok') return 'success';
+  if (normalized === 'warning') return 'warning';
   if (normalized === 'failure' || normalized === 'failed' || normalized === 'error') {
     return 'failure';
   }
@@ -395,20 +404,26 @@ const normalizeChannelHealthPointState = (point) => {
 
 const buildChannelHealthHistory = (points) => {
   const normalized = Array.isArray(points)
-    ? points.map(normalizeChannelHealthPointState).slice(-CHANNEL_HEALTH_HISTORY_SIZE)
+    ? points.slice(-CHANNEL_HEALTH_HISTORY_SIZE).map((point) => ({
+        ...point,
+        state: normalizeChannelHealthPointState(point),
+        observed: Number(point?.total_count || 0) > 0,
+      }))
     : [];
   const paddingCount = Math.max(
     0,
     CHANNEL_HEALTH_HISTORY_SIZE - normalized.length,
   );
-  const states = [
-    ...Array.from({ length: paddingCount }, () => 'unknown'),
+  const history = [
+    ...Array.from({ length: paddingCount }, () => ({
+      state: 'unknown',
+      observed: false,
+    })),
     ...normalized,
   ];
-  return states.map((state, index) => ({
-    key: `${index}-${state}`,
-    state,
-    observed: index >= paddingCount,
+  return history.map((point, index) => ({
+    ...point,
+    key: `${index}-${point.state}-${point.bucket_start || 0}`,
   }));
 };
 
@@ -581,6 +596,13 @@ const AdminDashboard = () => {
     return new Date(Number(value) * 1000).toLocaleString('zh-CN', {
       hour12: false,
     });
+  };
+
+  const formatTimeRange = (start, end) => {
+    const startTs = Number(start || 0);
+    const endTs = Number(end || 0);
+    if (!startTs || !endTs) return '-';
+    return `${formatUpdatedAt(startTs)} - ${formatUpdatedAt(endTs)}`;
   };
 
   const renderCapabilities = useCallback(
@@ -1417,8 +1439,7 @@ const AdminDashboard = () => {
             {t('dashboard.admin.empty.channels')}
           </div>
         ) : (
-          <>
-            <div className='admin-dashboard-channel-health-list'>
+          <div className='admin-dashboard-channel-health-list'>
               <div className='admin-dashboard-channel-health-list-header'>
                 <div className='admin-dashboard-channel-health-list-title'>
                   <div className='admin-dashboard-card-title'>
@@ -1429,7 +1450,7 @@ const AdminDashboard = () => {
                   </div>
                 </div>
                 <div className='admin-dashboard-health-strip-legend'>
-                  {['success', 'failure', 'unknown'].map((state) => (
+                  {['success', 'warning', 'failure', 'unknown'].map((state) => (
                     <span
                       key={state}
                       className='admin-dashboard-health-strip-legend-item'
@@ -1505,12 +1526,26 @@ const AdminDashboard = () => {
                           'dashboard.admin.channels.history.title',
                         )}`}
                       >
-                        {item.health_history.map((point, index) => {
+                        {item.health_history.map((point) => {
                           const stateLabel = t(
                             `dashboard.admin.channels.history.state.${point.state}`,
                           );
                           const title = point.observed
-                            ? `${item.name} #${index + 1}: ${stateLabel}`
+                            ? (
+                                <div>
+                                  <div>{`${item.name}: ${stateLabel}`}</div>
+                                  <div>{`${t('dashboard.admin.channels.history.window')}: ${formatTimeRange(point.bucket_start, point.bucket_end)}`}</div>
+                                  <div>{`${t('dashboard.admin.channels.history.success_count')}: ${formatCount(point.success_count)}`}</div>
+                                  <div>{`${t('dashboard.admin.channels.history.failure_count')}: ${formatCount(point.failure_count)}`}</div>
+                                  <div>{`${t('dashboard.admin.channels.history.total_count')}: ${formatCount(point.total_count)}`}</div>
+                                  <div>{`${t('dashboard.admin.channels.history.pass_rate')}: ${formatPercent(point.pass_rate)}`}</div>
+                                  <div>{`${t('dashboard.admin.channels.history.avg_latency')}: ${
+                                    point.avg_latency_ms > 0
+                                      ? `${formatCount(point.avg_latency_ms)} ms`
+                                      : '-'
+                                  }`}</div>
+                                </div>
+                              )
                             : `${item.name}: ${t('dashboard.admin.channels.history.no_data')}`;
                           return (
                             <AppTooltip key={point.key} title={title}>
@@ -1548,9 +1583,7 @@ const AdminDashboard = () => {
                   </div>
                 );
               })}
-            </div>
-            <AdminChannelAlertsPanel embedded />
-          </>
+          </div>
         )}
       </div>
     </AppSection>

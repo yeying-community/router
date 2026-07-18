@@ -10,6 +10,7 @@ import (
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/ctxkey"
 	"github.com/yeying-community/router/common/helper"
+	"github.com/yeying-community/router/internal/admin/healthtrend"
 	"github.com/yeying-community/router/internal/admin/model"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 	"gorm.io/driver/sqlite"
@@ -744,15 +745,15 @@ func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
 	if gpt.SupportedCount != 1 || gpt.UnsupportedCount != 1 {
 		t.Fatalf("gpt supported/unsupported = %d/%d, want 1/1", gpt.SupportedCount, gpt.UnsupportedCount)
 	}
-	if len(gpt.HealthPoints) != 2 {
-		t.Fatalf("gpt health points = %d, want 2", len(gpt.HealthPoints))
+	if len(gpt.HealthPoints) != healthtrend.BucketCount {
+		t.Fatalf("gpt health points = %d, want %d", len(gpt.HealthPoints), healthtrend.BucketCount)
 	}
-	if gpt.HealthPoints[0].State != userModelStatusPointFailure || gpt.HealthPoints[1].State != userModelStatusPointSuccess {
-		t.Fatalf("gpt point states = %#v, want failure then success", gpt.HealthPoints)
+	if gpt.HealthPoints[len(gpt.HealthPoints)-1].State != healthtrend.StateUnknown {
+		t.Fatalf("gpt latest point state = %q, want unknown without traffic", gpt.HealthPoints[len(gpt.HealthPoints)-1].State)
 	}
 	claude := byModel["claude-sonnet-4-6"]
-	if claude.HealthPoints[0].State != userModelStatusPointWarning {
-		t.Fatalf("claude point state = %q, want warning", claude.HealthPoints[0].State)
+	if len(claude.HealthPoints) != healthtrend.BucketCount {
+		t.Fatalf("claude health points = %d, want %d", len(claude.HealthPoints), healthtrend.BucketCount)
 	}
 	if len(claude.SupportedEndpoints) != 1 || claude.SupportedEndpoints[0] != model.ChannelModelEndpointMessages {
 		t.Fatalf("claude endpoints = %#v, want messages", claude.SupportedEndpoints)
@@ -783,7 +784,13 @@ func TestLoadUserModelStatusTrafficRowsFiltersClientAbort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load traffic rows: %v", err)
 	}
-	if len(got) != 2 {
-		t.Fatalf("traffic rows=%d, want 2", len(got))
+	if len(got) != 1 {
+		t.Fatalf("traffic rows=%d, want 1 bucket", len(got))
+	}
+	if got[0].SuccessCount != 1 || got[0].FailureCount != 1 {
+		t.Fatalf("bucket success/failure=%d/%d, want 1/1", got[0].SuccessCount, got[0].FailureCount)
+	}
+	if got[0].LatencyTotal != 1200 || got[0].LatencyCount != 1 {
+		t.Fatalf("bucket latency total/count=%d/%d, want 1200/1", got[0].LatencyTotal, got[0].LatencyCount)
 	}
 }

@@ -185,6 +185,15 @@ notify:
   # 仅 message_pusher 使用的鉴权 token。
   token: ""
 
+billing_service:
+  # 上游渠道账务适配服务地址；渠道账务自动刷新通过该服务统一查询。
+  # 示例：http://127.0.0.1:8088
+  base_url: ""
+  # Billing 服务 Bearer Token；需与 billing 项目的 BILLING_API_KEY 一致。
+  api_key: ""
+  # Router 调用 Billing 服务超时（秒）。
+  timeout_seconds: 20
+
 relay:
   # 上游请求总超时（秒）；0 表示使用默认策略。
   timeout_seconds: 0

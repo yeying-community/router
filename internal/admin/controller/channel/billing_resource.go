@@ -20,8 +20,6 @@ type channelBillingSummaryData struct {
 	ProfileEnabled        bool                               `json:"profile_enabled"`
 	BillingMode           string                             `json:"billing_mode"`
 	ActionCapabilities    []string                           `json:"action_capabilities"`
-	BillingPortalURL      string                             `json:"billing_portal_url,omitempty"`
-	ActivateSupported     bool                               `json:"activate_supported"`
 	RefreshSupported      bool                               `json:"refresh_supported"`
 	LatestSnapshotAt      int64                              `json:"latest_snapshot_at"`
 	LatestSnapshotStatus  string                             `json:"latest_snapshot_status"`
@@ -37,7 +35,6 @@ type channelBillingProfileData struct {
 	CDK                string   `json:"cdk"`
 	Currency           string   `json:"currency"`
 	ActionCapabilities []string `json:"action_capabilities"`
-	BillingPortalURL   string   `json:"billing_portal_url,omitempty"`
 }
 
 type channelBillingListData[T any] struct {
@@ -48,10 +45,6 @@ type channelBillingListData[T any] struct {
 type channelBillingAlertFeedItem struct {
 	model.ChannelBillingAlertEvent
 	ChannelName string `json:"channel_name"`
-}
-
-type channelBillingOpenActivateRequest struct {
-	CDK string `json:"cdk"`
 }
 
 type channelBillingManualSnapshotRequest struct {
@@ -117,16 +110,6 @@ type channelBillingProfileUpdateRequest struct {
 	Currency          string `json:"currency"`
 }
 
-func extractBillingPortalURL(profile model.ChannelBillingProfile) string {
-	actionConfig := profile.ParseActionConfig()
-	if value, ok := actionConfig["billing_portal"]; ok {
-		if portal, ok := value.(map[string]any); ok {
-			return strings.TrimSpace(fmt.Sprintf("%v", portal["url"]))
-		}
-	}
-	return ""
-}
-
 func buildChannelBillingSummary(channelRow *model.Channel, profile model.ChannelBillingProfile, snapshot model.ChannelBillingSnapshot) channelBillingSummaryData {
 	capabilities := profile.ParseActionCapabilities()
 	summary := channelBillingSummaryData{
@@ -134,8 +117,6 @@ func buildChannelBillingSummary(channelRow *model.Channel, profile model.Channel
 		ProfileEnabled:        profile.Enabled,
 		BillingMode:           strings.TrimSpace(profile.BillingMode),
 		ActionCapabilities:    capabilities,
-		BillingPortalURL:      extractBillingPortalURL(profile),
-		ActivateSupported:     profile.HasCapability(model.ChannelBillingCapabilityOpenActivatePage),
 		RefreshSupported:      profile.HasCapability(model.ChannelBillingCapabilityRefreshBilling),
 		LatestSnapshotAt:      snapshot.CreatedAt,
 		LatestSnapshotStatus:  strings.TrimSpace(snapshot.RawStatus),
@@ -158,7 +139,6 @@ func buildChannelBillingProfileData(channelRow *model.Channel, profile model.Cha
 		CDK:                strings.TrimSpace(fetchConfig.CDK),
 		Currency:           strings.TrimSpace(fetchConfig.Currency),
 		ActionCapabilities: profile.ParseActionCapabilities(),
-		BillingPortalURL:   extractBillingPortalURL(profile),
 	}
 }
 
@@ -573,6 +553,11 @@ func UpdateChannelBillingProfile(c *gin.Context) {
 		"currency":     strings.TrimSpace(strings.ToUpper(req.Currency)),
 	}
 	profileRow.BillingConfig = marshalLogJSON(nextConfig)
+	capabilities := []string{model.ChannelBillingCapabilityManualUpdateSnapshot}
+	if nextMode != model.ChannelBillingModeUnsupported && nextMode != model.ChannelBillingModeManual {
+		capabilities = append(capabilities, model.ChannelBillingCapabilityRefreshBilling)
+	}
+	profileRow.ActionCapabilities = marshalLogJSON(capabilities)
 	savedRow, err := model.SaveChannelBillingProfileWithDB(model.DB, profileRow)
 	if err != nil {
 		logChannelAdminWarn(c, "update_billing_profile", stringField("channel_id", channelID), stringField("reason", err.Error()))
@@ -584,63 +569,6 @@ func UpdateChannelBillingProfile(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data":    buildChannelBillingProfileData(channelRow, savedRow),
-	})
-}
-
-func OpenChannelBillingActivatePage(c *gin.Context) {
-	channelID := strings.TrimSpace(c.Param("id"))
-	if channelID == "" {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "渠道 ID 无效"})
-		return
-	}
-	req := channelBillingOpenActivateRequest{}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	channelRow, profile, err := getEffectiveChannelBillingProfile(channelID)
-	if err != nil {
-		logChannelAdminWarn(c, "open_billing_activate_page", stringField("channel_id", channelID), stringField("reason", err.Error()))
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	if !profile.HasCapability(model.ChannelBillingCapabilityOpenActivatePage) {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "当前渠道不支持激活页操作"})
-		return
-	}
-	openURL, err := model.RenderChannelBillingActivateOpenURL(profile, req.CDK)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	requestPayload := map[string]any{
-		"cdk_masked": maskBillingSecret(req.CDK),
-	}
-	resultPayload := map[string]any{
-		"open_url_masked": maskBillingSecret(openURL),
-	}
-	actionRow, err := model.CreateChannelBillingActionWithDB(model.DB, model.ChannelBillingAction{
-		ChannelId:      channelRow.Id,
-		ActionType:     model.ChannelBillingActionTypeOpenActivatePage,
-		Status:         model.ChannelBillingActionStatusDone,
-		RequestPayload: marshalLogJSON(requestPayload),
-		ResultPayload:  marshalLogJSON(resultPayload),
-		Message:        "已生成激活页链接",
-		OperatorUserId: strings.TrimSpace(c.GetString(ctxkey.Id)),
-	})
-	if err != nil {
-		logChannelAdminWarn(c, "open_billing_activate_page", stringField("channel_id", channelID), stringField("reason", err.Error()))
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-	logChannelAdminInfo(c, "open_billing_activate_page", stringField("channel_id", channelID), stringField("action_id", actionRow.Id))
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data": gin.H{
-			"action_id": actionRow.Id,
-			"open_url":  openURL,
-		},
 	})
 }
 

@@ -70,6 +70,13 @@ const formatUpdatedAt = (value) => {
   });
 };
 
+const formatTimeRange = (start, end) => {
+  const startTs = toNumber(start);
+  const endTs = toNumber(end);
+  if (!startTs || !endTs) return '-';
+  return `${formatUpdatedAt(startTs)} - ${formatUpdatedAt(endTs)}`;
+};
+
 const normalizePointState = (point) => {
   const state = String(
     typeof point === 'string' ? point : point?.state || '',
@@ -123,8 +130,13 @@ const normalizePayload = (payload) => {
         ? item.health_points.map((point) => ({
             ...point,
             state: normalizePointState(point),
-            tested_at: toNumber(point?.tested_at),
-            latency_ms: toNumber(point?.latency_ms),
+            bucket_start: toNumber(point?.bucket_start),
+            bucket_end: toNumber(point?.bucket_end),
+            success_count: toNumber(point?.success_count),
+            failure_count: toNumber(point?.failure_count),
+            total_count: toNumber(point?.total_count),
+            avg_latency_ms: toNumber(point?.avg_latency_ms),
+            pass_rate: toNumber(point?.pass_rate),
           }))
         : [],
     })),
@@ -146,27 +158,22 @@ const buildHealthHistory = (points) => {
     })),
     ...normalized
       .slice(0, MODEL_HEALTH_HISTORY_SIZE)
-      .reverse()
       .map((point) => ({
         ...point,
         state: normalizePointState(point),
-        observed: true,
+        observed: toNumber(point?.total_count) > 0,
       })),
   ].map((point, index) => ({
     ...point,
-    key: `${index}-${point.state}-${point.tested_at || 0}`,
+    key: `${index}-${point.state}-${point.bucket_start || 0}`,
   }));
 };
 
-const renderHealthPointTooltip = (point, stateLabel, t, formatUpdatedAt) => {
-  const endpoint = String(point?.endpoint || '').trim();
-  const latency = toNumber(point?.latency_ms);
-  const source = String(point?.source || 'manual_test').trim();
-  const summaryKey = point?.state === 'success'
-    ? 'success'
-    : point?.state === 'warning'
-      ? 'warning'
-      : 'failure';
+const renderHealthPointTooltip = (point, stateLabel, t) => {
+  const latency = toNumber(point?.avg_latency_ms);
+  const successCount = toNumber(point?.success_count);
+  const failureCount = toNumber(point?.failure_count);
+  const totalCount = toNumber(point?.total_count);
   return (
     <div className='workspace-model-health-tooltip'>
       <div className='workspace-model-health-tooltip-header'>
@@ -174,28 +181,32 @@ const renderHealthPointTooltip = (point, stateLabel, t, formatUpdatedAt) => {
           {stateLabel}
         </span>
         <span className='workspace-model-health-tooltip-time'>
-          {formatUpdatedAt(point?.tested_at)}
+          {formatTimeRange(point?.bucket_start, point?.bucket_end)}
         </span>
       </div>
       <div className='workspace-model-health-tooltip-divider' />
       <div className='workspace-model-health-tooltip-row'>
-        <span>{t('workspace_models.tooltip.response_time')}</span>
+        <span>{t('workspace_models.tooltip.success_count')}</span>
+        <strong>{formatCount(successCount)}</strong>
+      </div>
+      <div className='workspace-model-health-tooltip-row'>
+        <span>{t('workspace_models.tooltip.failure_count')}</span>
+        <strong>{formatCount(failureCount)}</strong>
+      </div>
+      <div className='workspace-model-health-tooltip-row'>
+        <span>{t('workspace_models.tooltip.total_count')}</span>
+        <strong>{formatCount(totalCount)}</strong>
+      </div>
+      <div className='workspace-model-health-tooltip-row'>
+        <span>{t('workspace_models.tooltip.pass_rate')}</span>
+        <strong>{totalCount > 0 ? formatPercent(point?.pass_rate) : '-'}</strong>
+      </div>
+      <div className='workspace-model-health-tooltip-row'>
+        <span>{t('workspace_models.tooltip.avg_latency')}</span>
         <strong>{latency > 0 ? `${latency} ms` : '-'}</strong>
       </div>
-      <div className='workspace-model-health-tooltip-row'>
-        <span>{t('workspace_models.tooltip.endpoint')}</span>
-        <strong>{endpoint || '-'}</strong>
-      </div>
-      <div className='workspace-model-health-tooltip-row'>
-        <span>{t('workspace_models.tooltip.source')}</span>
-        <strong>{t(`workspace_models.tooltip.sources.${source}`, {
-          defaultValue: source,
-        })}</strong>
-      </div>
       <div className='workspace-model-health-tooltip-summary'>
-        {t(`workspace_models.tooltip.summary.${summaryKey}`, {
-          latency: latency > 0 ? latency : '-',
-        })}
+        {t('workspace_models.tooltip.summary.bucket')}
       </div>
     </div>
   );
@@ -457,7 +468,6 @@ const WorkspaceModels = () => {
                                 point,
                                 stateLabel,
                                 t,
-                                formatUpdatedAt,
                               )
                             : t('workspace_models.tooltip.no_sample');
                           return (

@@ -117,9 +117,22 @@
 
 ## 采集器
 
+Router 支持通过 `billing_service.base_url` 接入独立 Billing 服务。
+
+- 已配置 Billing 服务时，自动刷新优先调用 `/api/v1/internal/billing:query`
+- 请求使用新版 `adapter` 字段，不再使用旧 `provider` 字段
+- Billing 服务返回的标准 `items` 会转换并保存到 `channel_billing_snapshot_items`
+- Router 仍负责快照持久化、失败快照、告警、自动禁用和采购记录
+
+配置边界：
+
+- 渠道 `config.api_base_url` 只用于模型请求转发
+- 账务 API 地址统一使用 Billing Profile 的 `billing_api_base_url`
+
 当前已接入：
 
 - `builtin_cdk`
+  - 远端 Billing 服务使用 `aixhan` adaptor；`cdk` 只是 Aixhan 渠道的卡密 / 凭据字段
   - `usage/stats` 输出日 / 周 / 总额度
   - `card-info` 输出套餐有效期与套餐元信息
   - 日 / 周额度带 `reset_at`
@@ -134,7 +147,7 @@
 
 ## CDK 字段映射
 
-当前 `builtin_cdk` 采集按如下方式落库：
+当前 `builtin_cdk` 是 Router 历史模式名；下沉到 Billing 服务后由 `aixhan` adaptor 采集并按如下方式落库：
 
 - `usage/stats`
   - `remaining / consumed / resetAt` -> `daily`

@@ -12,6 +12,7 @@ import (
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
 	commonutils "github.com/yeying-community/router/common/utils"
+	"github.com/yeying-community/router/internal/admin/healthtrend"
 	"github.com/yeying-community/router/internal/admin/model"
 	relay "github.com/yeying-community/router/internal/relay"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
@@ -86,15 +87,7 @@ type OpenAIModels struct {
 	Parent             *string                           `json:"parent"`
 }
 
-type UserModelStatusPoint struct {
-	State     string `json:"state"`
-	Source    string `json:"source,omitempty"`
-	ChannelID string `json:"channel_id,omitempty"`
-	Endpoint  string `json:"endpoint,omitempty"`
-	TestedAt  int64  `json:"tested_at,omitempty"`
-	LatencyMs int64  `json:"latency_ms,omitempty"`
-	Message   string `json:"message,omitempty"`
-}
+type UserModelStatusPoint = healthtrend.Point
 
 const userModelStatusFreshnessSeconds int64 = 2 * 60 * 60
 
@@ -182,10 +175,6 @@ const (
 	userModelStatusWarning       = "warning"
 	userModelStatusUnsupported   = "unsupported"
 	userModelStatusUnknown       = "unknown"
-	userModelStatusPointSuccess  = "success"
-	userModelStatusPointWarning  = "warning"
-	userModelStatusPointFailure  = "failure"
-	userModelStatusPointUnknown  = "unknown"
 )
 
 var endpointSortOrder = map[string]int{
@@ -610,87 +599,63 @@ func calcUserModelStatus(item *UserModelStatusItem) {
 	}
 }
 
-func normalizeUserModelStatusPoint(row model.ChannelTest) UserModelStatusPoint {
-	state := userModelStatusPointFailure
-	switch model.NormalizeChannelTestStatus(row.Status) {
-	case model.ChannelTestStatusSupported:
-		if row.Supported {
-			state = userModelStatusPointSuccess
-		}
-	case model.ChannelTestStatusSkipped:
-		state = userModelStatusPointWarning
-	default:
-		state = userModelStatusPointFailure
-	}
-	return UserModelStatusPoint{
-		State:     state,
-		Source:    strings.TrimSpace(row.Source),
-		ChannelID: strings.TrimSpace(row.ChannelId),
-		Endpoint:  model.NormalizeRequestedChannelModelEndpoint(row.Endpoint),
-		TestedAt:  row.TestedAt,
-		LatencyMs: row.LatencyMs,
-		Message:   strings.TrimSpace(row.Message),
+type userModelTrafficBucketRow struct {
+	ChannelID        string `gorm:"column:channel_id"`
+	RequestModelName string `gorm:"column:request_model_name"`
+	ActualModelName  string `gorm:"column:actual_model_name"`
+	ModelName        string `gorm:"column:model_name"`
+	BucketStart      int64  `gorm:"column:bucket_start"`
+	SuccessCount     int64  `gorm:"column:success_count"`
+	FailureCount     int64  `gorm:"column:failure_count"`
+	LatencyTotal     int64  `gorm:"column:latency_total"`
+	LatencyCount     int64  `gorm:"column:latency_count"`
+}
+
+func (row userModelTrafficBucketRow) aggregate() healthtrend.Aggregate {
+	return healthtrend.Aggregate{
+		BucketStart:  row.BucketStart,
+		SuccessCount: row.SuccessCount,
+		FailureCount: row.FailureCount,
+		LatencyTotal: row.LatencyTotal,
+		LatencyCount: row.LatencyCount,
 	}
 }
 
-func isUserModelUpstreamFailureLog(row model.Log) bool {
-	if row.Type != model.LogTypeRelayFailure {
-		return false
-	}
-	errorType := strings.TrimSpace(strings.ToLower(row.RelayErrorType))
-	errorCode := strings.TrimSpace(strings.ToLower(row.RelayErrorCode))
-	if errorType == "client_abort" || errorCode == "request_aborted" {
-		return false
-	}
-	return strings.TrimSpace(row.ChannelId) != ""
-}
-
-func normalizeUserModelTrafficPoint(row model.Log) UserModelStatusPoint {
-	state := userModelStatusPointSuccess
-	message := ""
-	if row.Type == model.LogTypeRelayFailure {
-		state = userModelStatusPointFailure
-		message = strings.TrimSpace(row.RelayErrorMessage)
-	}
-	return UserModelStatusPoint{
-		State:     state,
-		Source:    "traffic",
-		ChannelID: strings.TrimSpace(row.ChannelId),
-		Endpoint:  model.NormalizeRequestedChannelModelEndpoint(row.UpstreamEndpoint),
-		TestedAt:  row.CreatedAt,
-		LatencyMs: row.ElapsedTime,
-		Message:   message,
-	}
-}
-
-func loadUserModelStatusTrafficRows(channelIDs []string, modelNames []string, since int64) ([]model.Log, error) {
+func loadUserModelStatusTrafficRows(channelIDs []string, modelNames []string, since int64) ([]userModelTrafficBucketRow, error) {
 	if model.LOG_DB == nil {
-		return []model.Log{}, nil
+		return []userModelTrafficBucketRow{}, nil
 	}
 	normalizedChannelIDs := model.NormalizeChannelModelIDsPreserveOrder(channelIDs)
 	normalizedModels := model.NormalizeChannelModelIDsPreserveOrder(modelNames)
 	if len(normalizedChannelIDs) == 0 || len(normalizedModels) == 0 {
-		return []model.Log{}, nil
+		return []userModelTrafficBucketRow{}, nil
 	}
-	rows := make([]model.Log, 0)
-	err := model.LOG_DB.Model(&model.Log{}).
+	rows := make([]userModelTrafficBucketRow, 0)
+	bucketExpr := healthtrend.SQLBucketExpression(model.LOG_DB, "created_at")
+	err := model.LOG_DB.Table(model.EventLogsTableName).
+		Select(fmt.Sprintf(`
+			channel_id,
+			request_model_name,
+			actual_model_name,
+			model_name,
+			%s AS bucket_start,
+			SUM(CASE WHEN type = ? THEN 1 ELSE 0 END) AS success_count,
+			SUM(CASE WHEN type = ? THEN 1 ELSE 0 END) AS failure_count,
+			SUM(CASE WHEN elapsed_time > 0 THEN elapsed_time ELSE 0 END) AS latency_total,
+			SUM(CASE WHEN elapsed_time > 0 THEN 1 ELSE 0 END) AS latency_count
+		`, bucketExpr), model.LogTypeConsume, model.LogTypeRelayFailure).
 		Where("channel_id IN ?", normalizedChannelIDs).
 		Where("type IN ?", []int{model.LogTypeConsume, model.LogTypeRelayFailure}).
 		Where("created_at >= ?", since).
-		Where("request_model_name IN ? OR actual_model_name IN ? OR model_name IN ?", normalizedModels, normalizedModels, normalizedModels).
-		Order("created_at desc").
-		Limit(5000).
-		Find(&rows).Error
+		Where("(request_model_name IN ? OR actual_model_name IN ? OR model_name IN ?)", normalizedModels, normalizedModels, normalizedModels).
+		Where("(type <> ? OR ((relay_error_type IS NULL OR LOWER(TRIM(relay_error_type)) <> ?) AND (relay_error_code IS NULL OR LOWER(TRIM(relay_error_code)) <> ?)))", model.LogTypeRelayFailure, "client_abort", "request_aborted").
+		Group("channel_id, request_model_name, actual_model_name, model_name, bucket_start").
+		Order("bucket_start asc").
+		Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
-	result := make([]model.Log, 0, len(rows))
-	for _, row := range rows {
-		if row.Type == model.LogTypeConsume || isUserModelUpstreamFailureLog(row) {
-			result = append(result, row)
-		}
-	}
-	return result, nil
+	return rows, nil
 }
 
 func loadUserModelStatusTestRows(channelIDs []string, modelNames []string) (map[string][]model.ChannelTest, error) {
@@ -794,10 +759,11 @@ func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error)
 	if err != nil {
 		return UserModelStatusPayload{}, err
 	}
+	nowTs := helper.GetTimestamp()
 	trafficRows, err := loadUserModelStatusTrafficRows(
 		channelIDs,
 		testModelNames,
-		helper.GetTimestamp()-userModelStatusFreshnessSeconds,
+		healthtrend.WindowStart(nowTs),
 	)
 	if err != nil {
 		return UserModelStatusPayload{}, err
@@ -823,9 +789,10 @@ func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error)
 		for _, candidate := range model.NormalizeChannelModelIDsPreserveOrder(testModelCandidatesByModel[modelName]) {
 			candidateSet[candidate] = struct{}{}
 		}
-		trafficPoints := make([]UserModelStatusPoint, 0)
+		trafficAggregates := make([]healthtrend.Aggregate, 0)
 		for _, row := range trafficRows {
-			if _, ok := channelIDSetByModel[modelName][strings.TrimSpace(row.ChannelId)]; !ok {
+			channelID := strings.TrimSpace(row.ChannelID)
+			if _, ok := channelIDSetByModel[modelName][channelID]; !ok {
 				continue
 			}
 			matched := false
@@ -838,33 +805,18 @@ func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error)
 			if !matched {
 				continue
 			}
-			trafficPoints = append(trafficPoints, normalizeUserModelTrafficPoint(row))
-			if len(trafficPoints) >= 60 {
-				break
+			if channelID != "" && row.SuccessCount+row.FailureCount > 0 {
+				testedChannels[channelID] = struct{}{}
 			}
+			trafficAggregates = append(trafficAggregates, row.aggregate())
 		}
-		if len(trafficPoints) > 0 {
-			for _, point := range trafficPoints {
-				if point.ChannelID != "" {
-					testedChannels[point.ChannelID] = struct{}{}
-				}
-				if point.Endpoint != "" {
-					testedEndpoints[point.Endpoint] = struct{}{}
-				}
-				if point.State == userModelStatusPointSuccess {
-					item.SupportedCount++
-				} else if point.State == userModelStatusPointFailure {
-					item.UnsupportedCount++
-				}
-				if point.LatencyMs > 0 {
-					latencyTotal += point.LatencyMs
-					latencyCount++
-				}
-				if point.TestedAt > item.LastTestedAt {
-					item.LastTestedAt = point.TestedAt
-				}
-			}
-			item.HealthPoints = trafficPoints
+		item.HealthPoints = healthtrend.BuildPoints(nowTs, trafficAggregates)
+		trafficSummary := healthtrend.Summarize(item.HealthPoints)
+		if trafficSummary.TotalCount > 0 {
+			item.SupportedCount = int(trafficSummary.SuccessCount)
+			item.UnsupportedCount = int(trafficSummary.FailureCount)
+			item.AvgLatencyMs = trafficSummary.AvgLatencyMs
+			item.LastTestedAt = trafficSummary.LastObservedAt
 		}
 		modelTestRows := make([]model.ChannelTest, 0)
 		for _, testModelName := range model.NormalizeChannelModelIDsPreserveOrder(testModelCandidatesByModel[modelName]) {
@@ -884,20 +836,21 @@ func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error)
 			}
 			return modelTestRows[i].Endpoint < modelTestRows[j].Endpoint
 		})
-		if len(trafficPoints) == 0 {
+		for _, row := range modelTestRows {
+			channelID := strings.TrimSpace(row.ChannelId)
+			if channelID != "" {
+				testedChannels[channelID] = struct{}{}
+			}
+			endpoint := model.NormalizeRequestedChannelModelEndpoint(row.Endpoint)
+			if endpoint != "" {
+				testedEndpoints[endpoint] = struct{}{}
+			}
+		}
+		if trafficSummary.TotalCount == 0 {
 			for _, row := range modelTestRows {
-				if row.TestedAt < helper.GetTimestamp()-userModelStatusFreshnessSeconds {
+				if row.TestedAt < nowTs-userModelStatusFreshnessSeconds {
 					continue
 				}
-				channelID := strings.TrimSpace(row.ChannelId)
-				if channelID != "" {
-					testedChannels[channelID] = struct{}{}
-				}
-				endpoint := model.NormalizeRequestedChannelModelEndpoint(row.Endpoint)
-				if endpoint != "" {
-					testedEndpoints[endpoint] = struct{}{}
-				}
-				item.TestedEndpointCount++
 				if row.TestedAt > item.LastTestedAt {
 					item.LastTestedAt = row.TestedAt
 				}
@@ -918,17 +871,13 @@ func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error)
 					latencyTotal += row.LatencyMs
 					latencyCount++
 				}
-				item.HealthPoints = append(item.HealthPoints, normalizeUserModelStatusPoint(row))
 			}
 		}
-		if latencyCount > 0 {
+		if trafficSummary.TotalCount == 0 && latencyCount > 0 {
 			item.AvgLatencyMs = latencyTotal / latencyCount
 		}
 		item.TestedChannelCount = len(testedChannels)
 		item.TestedEndpointCount = len(testedEndpoints)
-		if len(item.HealthPoints) > 60 {
-			item.HealthPoints = item.HealthPoints[:60]
-		}
 		calcUserModelStatus(&item)
 		items = append(items, item)
 	}
