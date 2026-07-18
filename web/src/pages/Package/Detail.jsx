@@ -223,6 +223,13 @@ const ensureUnitOption = (options, value) => {
   return [...items, { value: normalized, label: normalized }];
 };
 
+const normalizeModels = (models) =>
+  Array.isArray(models)
+    ? models
+      .map((item) => (item?.model || item?.name || item || '').toString().trim())
+      .filter(Boolean)
+    : [];
+
 const PackageDetail = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -250,6 +257,10 @@ const PackageDetail = () => {
   const [visibilityPickerValue, setVisibilityPickerValue] = useState([]);
 
   const normalizedId = useMemo(() => (id || '').toString().trim(), [id]);
+  const supportedModels = useMemo(
+    () => normalizeModels(product?.supported_models),
+    [product?.supported_models],
+  );
 
   const displayUnitOptions = useMemo(
     () => buildDisplayUnitOptions(currencyIndex, { order: 'charge-first' }),
@@ -1081,11 +1092,6 @@ const PackageDetail = () => {
             label: t('header.entitlement'),
             onClick: () => navigate('/admin/entitlement'),
           },
-          {
-            key: 'package-list',
-            label: t('header.package'),
-            onClick: () => navigate('/admin/entitlement'),
-          },
           { key: 'package-current', label: product?.id || normalizedId || '-', active: true },
         ]}
         title={t('package_manage.dialog.detail_title')}
@@ -1306,6 +1312,29 @@ const PackageDetail = () => {
                           </AppField>
                         </AppFormRow>
                       </>
+                    )}
+                  </AppDetailSection>
+                ),
+              },
+              {
+                key: 'models',
+                label: t('topup.manage.columns.applicable_models'),
+                children: (
+                  <AppDetailSection title={t('topup.manage.columns.applicable_models')} titleTag='div'>
+                    {loading ? (
+                      <div className='router-empty-cell'>{t('common.loading')}</div>
+                    ) : supportedModels.length > 0 ? (
+                      <div className='router-entity-list'>
+                        {supportedModels.map((model, index) => (
+                          <div key={`${model}-${index}`} className='router-entity-list-item'>
+                            <div className='router-entity-list-title router-monospace-value'>
+                              {model}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className='router-text-muted'>-</div>
                     )}
                   </AppDetailSection>
                 ),

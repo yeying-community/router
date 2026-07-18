@@ -11,7 +11,6 @@ import {
   SERVICE_PACKAGE_PERIOD_WEEKLY,
   SERVICE_PACKAGE_QUOTA_METRIC_REQUEST_COUNT,
   SERVICE_PACKAGE_QUOTA_METRIC_YYC,
-  getServicePackagePeriodLabel,
 } from '../../helpers/package';
 import {
   AppButton,
@@ -41,7 +40,7 @@ const PRODUCT_KIND_OPTIONS = [
   { key: PRODUCT_KIND_SUBSCRIPTION, value: PRODUCT_KIND_SUBSCRIPTION, text: '订阅' },
 ];
 
-const PRODUCT_LIST_TABLE_MIN_WIDTH = 1180;
+const PRODUCT_LIST_TABLE_MIN_WIDTH = 1000;
 const PRODUCT_FORM_KIND_OPTIONS = PRODUCT_KIND_OPTIONS.filter((item) => item.value);
 const QUOTA_METRIC_OPTIONS = [
   { key: SERVICE_PACKAGE_QUOTA_METRIC_YYC, value: SERVICE_PACKAGE_QUOTA_METRIC_YYC, text: 'YYC 额度' },
@@ -78,7 +77,6 @@ const createEmptyForm = () => ({
   allow_balance_fallback: false,
   visibility_scope: 'all',
   visible_user_ids: [],
-  public_visible: true,
   enabled: true,
   sort_order: 0,
   source: 'manual',
@@ -101,31 +99,29 @@ const formatDuration = (row, t) => {
   return `${days} ${t('common.day')}`;
 };
 
-const formatEntitlementValue = (row, t) => {
-  if (!row) {
-    return '-';
-  }
-  if (row.kind === PRODUCT_KIND_BALANCE) {
-    return formatAmount(row.quota_amount, row.quota_currency || 'YYC');
-  }
-  const periodLabel = getServicePackagePeriodLabel(row.period_type, t);
-  const limit =
-    Number(row.period_limit || 0) > 0 ? row.period_limit : row.quota_amount;
-  if (row.quota_metric === SERVICE_PACKAGE_QUOTA_METRIC_REQUEST_COUNT) {
-    return `${formatDecimalNumber(limit || 0, 0)} 次 / ${periodLabel}`;
-  }
-  return `${formatAmount(limit || 0, row.quota_currency || 'YYC')} / ${periodLabel}`;
-};
-
 const formatVisibility = (row) =>
   row?.visibility_scope === 'partial_users' ? '部分用户' : '全部用户';
 
-const SupportedModelsCount = ({ models }) => {
+const SupportedModelsCount = ({ models, onOpen }) => {
   const normalizedModels = useMemo(
     () => normalizeSupportedModels(models),
     [models],
   );
-  return normalizedModels.length;
+  if (normalizedModels.length === 0) {
+    return 0;
+  }
+  return (
+    <button
+      type='button'
+      className='router-link-button router-link-inline'
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen?.(normalizedModels);
+      }}
+    >
+      {normalizedModels.length}
+    </button>
+  );
 };
 
 const toGroupOptions = (items) =>
@@ -174,33 +170,6 @@ const appendUserOptionsIfMissing = (options, users) => {
   return nextOptions;
 };
 
-const productToForm = (row) => ({
-  ...createEmptyForm(),
-  id: (row?.id || '').toString(),
-  kind: row?.kind === PRODUCT_KIND_SUBSCRIPTION ? PRODUCT_KIND_SUBSCRIPTION : PRODUCT_KIND_BALANCE,
-  name: row?.name || '',
-  description: row?.description || '',
-  group_id: row?.group_id || '',
-  sale_price: Number(row?.sale_price || 0) || 0,
-  sale_currency: row?.sale_currency || 'CNY',
-  quota_metric: row?.quota_metric || SERVICE_PACKAGE_QUOTA_METRIC_YYC,
-  quota_amount: Number(row?.quota_amount || 0) || 0,
-  quota_currency: row?.quota_currency || 'YYC',
-  period_type: row?.period_type || SERVICE_PACKAGE_PERIOD_MONTHLY,
-  period_limit: Number(row?.period_limit || 0) || 0,
-  duration_days: Number(row?.duration_days || 0) || 30,
-  validity_days: Number(row?.validity_days || 0) || 0,
-  max_concurrency_per_user: Number(row?.max_concurrency_per_user || 0) || 0,
-  max_concurrency_per_package: Number(row?.max_concurrency_per_package || 0) || 0,
-  allow_balance_fallback: Boolean(row?.allow_balance_fallback),
-  visibility_scope: row?.visibility_scope === 'partial_users' ? 'partial_users' : 'all',
-  visible_user_ids: Array.isArray(row?.visible_user_ids) ? row.visible_user_ids : [],
-  public_visible: row?.public_visible !== false,
-  enabled: row?.enabled !== false,
-  sort_order: Number(row?.sort_order || 0) || 0,
-  source: row?.source || 'manual',
-});
-
 const buildProductPayload = (form) => {
   const kind = form.kind === PRODUCT_KIND_SUBSCRIPTION ? PRODUCT_KIND_SUBSCRIPTION : PRODUCT_KIND_BALANCE;
   const quotaAmount = Number(form.quota_amount || 0) || 0;
@@ -235,7 +204,6 @@ const buildProductPayload = (form) => {
       : false,
     visibility_scope: form.visibility_scope || 'all',
     visible_user_ids: Array.isArray(form.visible_user_ids) ? form.visible_user_ids : [],
-    public_visible: form.visibility_scope !== 'partial_users',
     enabled: form.enabled !== false,
     sort_order: Number(form.sort_order || 0) || 0,
     source: form.source || 'manual',
@@ -259,6 +227,12 @@ const Entitlement = () => {
   const [form, setForm] = useState(createEmptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
+  const [modelsDialog, setModelsDialog] = useState({
+    open: false,
+    title: '',
+    models: [],
+    keyword: '',
+  });
 
   const normalizedKeyword = searchKeyword.trim();
   const totalPages = Math.max(
@@ -379,14 +353,37 @@ const Entitlement = () => {
     loadInitialUsers();
   }, [loadInitialUsers]);
 
-  const openCreate = useCallback(() => {
-    setForm(createEmptyForm());
-    setFormOpen(true);
+  const openModelsDialog = useCallback((row, models) => {
+    setModelsDialog({
+      open: true,
+      title: row?.name || '-',
+      models: Array.isArray(models) ? models : [],
+      keyword: '',
+    });
   }, []);
 
-  const openEdit = useCallback((row) => {
-    setUserOptions((current) => appendUserOptionsIfMissing(current, row?.visible_users));
-    setForm(productToForm(row));
+  const closeModelsDialog = useCallback(() => {
+    setModelsDialog({
+      open: false,
+      title: '',
+      models: [],
+      keyword: '',
+    });
+  }, []);
+
+  const filteredDialogModels = useMemo(() => {
+    const dialogModels = Array.isArray(modelsDialog.models) ? modelsDialog.models : [];
+    const keywordText = (modelsDialog.keyword || '').toString().trim().toLowerCase();
+    if (!keywordText) {
+      return dialogModels;
+    }
+    return dialogModels.filter((modelName) =>
+      modelName.toLowerCase().includes(keywordText),
+    );
+  }, [modelsDialog.keyword, modelsDialog.models]);
+
+  const openCreate = useCallback(() => {
+    setForm(createEmptyForm());
     setFormOpen(true);
   }, []);
 
@@ -484,19 +481,18 @@ const Entitlement = () => {
         title: '适用模型',
         key: 'supported_models',
         width: 92,
-        render: (_, row) => <SupportedModelsCount models={row.supported_models} />,
+        render: (_, row) => (
+          <SupportedModelsCount
+            models={row.supported_models}
+            onOpen={(models) => openModelsDialog(row, models)}
+          />
+        ),
       },
       {
         title: '售价',
         key: 'sale_price',
         width: 130,
         render: (_, row) => formatAmount(row.sale_price, row.sale_currency || 'CNY'),
-      },
-      {
-        title: '权益内容',
-        key: 'entitlement_value',
-        width: 180,
-        render: (_, row) => formatEntitlementValue(row, t),
       },
       {
         title: '有效期',
@@ -533,7 +529,7 @@ const Entitlement = () => {
         title: t('common.operation'),
         key: 'action',
         className: 'router-table-col-actions-icon',
-        width: 76,
+        width: 52,
         render: (_, row) => (
           <div
             className='router-action-group-tight router-table-actions-icon-compact'
@@ -541,12 +537,6 @@ const Entitlement = () => {
               event.stopPropagation();
             }}
           >
-            <AppTableActionButton
-              icon='edit'
-              title={t('common.edit')}
-              disabled={submitting}
-              onClick={() => openEdit(row)}
-            />
             <AppTableActionButton
               icon='trash'
               title={t('common.delete')}
@@ -558,7 +548,7 @@ const Entitlement = () => {
         ),
       },
     ],
-    [openEdit, submitting, t],
+    [openModelsDialog, submitting, t],
   );
 
   const renderForm = () => {
@@ -761,7 +751,7 @@ const Entitlement = () => {
 
         {form.visibility_scope === 'partial_users' ? (
           <AppFormRow className='router-modal-form-row'>
-            <AppField label='可见用户' required>
+            <AppField label='可见用户'>
               <AppSelect
                 className='router-section-input'
                 options={userOptions}
@@ -856,7 +846,7 @@ const Entitlement = () => {
             onClick={submitForm}
             loading={submitting}
           >
-            {t('common.submit')}
+            {t('common.confirm')}
           </AppButton>
         </AppFormActions>
       </div>
@@ -873,22 +863,13 @@ const Entitlement = () => {
           { key: 'entitlement', label: t('header.entitlement'), active: true },
         ]}
         meta={
-          <>
-            <button
-              type='button'
-              className='router-breadcrumb-link router-page-header-link'
-              onClick={() => navigate('/admin/entitlement/topup/records')}
-            >
-              充值记录
-            </button>
-            <button
-              type='button'
-              className='router-breadcrumb-link router-page-header-link'
-              onClick={() => navigate('/admin/entitlement/package/records')}
-            >
-              购买记录
-            </button>
-          </>
+          <button
+            type='button'
+            className='router-breadcrumb-link router-page-header-link'
+            onClick={() => navigate('/admin/entitlement/package/records')}
+          >
+            购买记录
+          </button>
         }
         metaClassName='router-page-header-meta-links'
         query={
@@ -972,7 +953,7 @@ const Entitlement = () => {
       <AppModal
         open={formOpen}
         size='large'
-        title={form.id ? '编辑权益' : '新增权益'}
+        title='新增权益'
         onClose={() => setFormOpen(false)}
         footer={null}
       >
@@ -1007,6 +988,53 @@ const Entitlement = () => {
               {t('common.delete')}
             </AppButton>
           </AppFormActions>
+        </div>
+      </AppModal>
+
+      <AppModal
+        open={modelsDialog.open}
+        size='small'
+        title={t('topup.manage.columns.applicable_models')}
+        onClose={closeModelsDialog}
+        footer={[
+          <AppButton key='close' onClick={closeModelsDialog}>
+            {t('common.close')}
+          </AppButton>,
+        ]}
+      >
+        <div className='router-supported-models-dialog'>
+          <div className='router-detail-value'>{modelsDialog.title}</div>
+          <AppInput
+            className='router-supported-models-search'
+            type='search'
+            value={modelsDialog.keyword}
+            placeholder={t('topup.pricing.supported_models_search_placeholder')}
+            onChange={(_, { value }) =>
+              setModelsDialog((current) => ({ ...current, keyword: value || '' }))
+            }
+          />
+          <div className='router-supported-models-dialog-meta'>
+            {t('topup.pricing.supported_models_dialog_count', {
+              count: filteredDialogModels.length,
+              total: modelsDialog.models.length,
+            })}
+          </div>
+          {filteredDialogModels.length === 0 ? (
+            <div className='router-text-muted router-supported-models-empty'>
+              {t('topup.pricing.supported_models_search_empty')}
+            </div>
+          ) : (
+            <div className='router-supported-models-dialog-list'>
+              {filteredDialogModels.map((modelName, index) => (
+                <div
+                  key={`${modelName}-${index}`}
+                  className='router-supported-models-dialog-item'
+                >
+                  {modelName}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </AppModal>
     </div>
