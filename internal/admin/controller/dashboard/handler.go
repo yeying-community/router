@@ -10,14 +10,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common/helper"
+	"github.com/yeying-community/router/internal/admin/healthtrend"
 	"github.com/yeying-community/router/internal/admin/model"
-	"github.com/yeying-community/router/internal/admin/monitor"
 	"gorm.io/gorm"
 )
 
 const (
 	channelDashboardListLimit = 12
-	channelHealthHistoryLimit = 60
 	taskRecentLimit           = 8
 	modelTopLimit             = 12
 	sectionAll                = "all"
@@ -45,8 +44,6 @@ const (
 	channelHealthLevelWarning  = "warning"
 	channelHealthLevelCritical = "critical"
 	channelHealthLevelUnknown  = "unknown"
-	channelHealthPointSuccess  = "success"
-	channelHealthPointFailure  = "failure"
 )
 
 type summaryData struct {
@@ -127,9 +124,7 @@ type channelCircuitBreakerDashboardItem struct {
 	UpdatedAt    int64   `json:"updated_at"`
 }
 
-type channelHealthPoint struct {
-	State string `json:"state"`
-}
+type channelHealthPoint = healthtrend.Point
 
 type usageRankingItem struct {
 	UserID        string  `json:"user_id"`
@@ -758,22 +753,63 @@ func buildChannelCircuitBreakerDashboardItem(row model.ChannelCircuitBreakerStat
 	}
 }
 
-func buildChannelHealthPoints(history []bool) []channelHealthPoint {
-	if len(history) == 0 {
-		return []channelHealthPoint{}
+type dashboardChannelHealthBucketRow struct {
+	ChannelID    string `gorm:"column:channel_id"`
+	BucketStart  int64  `gorm:"column:bucket_start"`
+	SuccessCount int64  `gorm:"column:success_count"`
+	FailureCount int64  `gorm:"column:failure_count"`
+	LatencyTotal int64  `gorm:"column:latency_total"`
+	LatencyCount int64  `gorm:"column:latency_count"`
+}
+
+func (row dashboardChannelHealthBucketRow) aggregate() healthtrend.Aggregate {
+	return healthtrend.Aggregate{
+		BucketStart:  row.BucketStart,
+		SuccessCount: row.SuccessCount,
+		FailureCount: row.FailureCount,
+		LatencyTotal: row.LatencyTotal,
+		LatencyCount: row.LatencyCount,
 	}
-	if len(history) > channelHealthHistoryLimit {
-		history = history[len(history)-channelHealthHistoryLimit:]
+}
+
+func loadDashboardChannelHealthBuckets(channelIDs []string, since int64) (map[string][]healthtrend.Aggregate, error) {
+	result := make(map[string][]healthtrend.Aggregate)
+	if model.LOG_DB == nil {
+		return result, nil
 	}
-	result := make([]channelHealthPoint, 0, len(history))
-	for _, success := range history {
-		state := channelHealthPointFailure
-		if success {
-			state = channelHealthPointSuccess
+	normalizedChannelIDs := model.NormalizeChannelModelIDsPreserveOrder(channelIDs)
+	if len(normalizedChannelIDs) == 0 {
+		return result, nil
+	}
+	rows := make([]dashboardChannelHealthBucketRow, 0)
+	bucketExpr := healthtrend.SQLBucketExpression(model.LOG_DB, "created_at")
+	err := model.LOG_DB.Table(model.EventLogsTableName).
+		Select(fmt.Sprintf(`
+			channel_id,
+			%s AS bucket_start,
+			SUM(CASE WHEN type = ? THEN 1 ELSE 0 END) AS success_count,
+			SUM(CASE WHEN type = ? THEN 1 ELSE 0 END) AS failure_count,
+			SUM(CASE WHEN elapsed_time > 0 THEN elapsed_time ELSE 0 END) AS latency_total,
+			SUM(CASE WHEN elapsed_time > 0 THEN 1 ELSE 0 END) AS latency_count
+		`, bucketExpr), model.LogTypeConsume, model.LogTypeRelayFailure).
+		Where("channel_id IN ?", normalizedChannelIDs).
+		Where("type IN ?", []int{model.LogTypeConsume, model.LogTypeRelayFailure}).
+		Where("created_at >= ?", since).
+		Where("(type <> ? OR ((relay_error_type IS NULL OR LOWER(TRIM(relay_error_type)) <> ?) AND (relay_error_code IS NULL OR LOWER(TRIM(relay_error_code)) <> ?)))", model.LogTypeRelayFailure, "client_abort", "request_aborted").
+		Group("channel_id, bucket_start").
+		Order("bucket_start asc").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		channelID := strings.TrimSpace(row.ChannelID)
+		if channelID == "" {
+			continue
 		}
-		result = append(result, channelHealthPoint{State: state})
+		result[channelID] = append(result[channelID], row.aggregate())
 	}
-	return result
+	return result, nil
 }
 
 func isActiveDashboardCircuitBreaker(circuitBreaker *channelCircuitBreakerDashboardItem) bool {
@@ -894,8 +930,11 @@ func listDashboardChannels() ([]channelHealthItem, channelHealthSummaryData, err
 	for _, row := range circuitRows {
 		circuitByChannelID[strings.TrimSpace(row.ChannelId)] = row
 	}
-	metricHistoryByChannelID := monitor.SnapshotChannelMetricHistory(channelIDs, channelHealthHistoryLimit)
 	nowTs := helper.GetTimestamp()
+	healthBucketsByChannelID, err := loadDashboardChannelHealthBuckets(channelIDs, healthtrend.WindowStart(nowTs))
+	if err != nil {
+		return nil, channelHealthSummaryData{}, err
+	}
 	items := make([]channelHealthItem, 0, len(rows))
 	for _, row := range rows {
 		if row == nil {
@@ -930,7 +969,7 @@ func listDashboardChannels() ([]channelHealthItem, channelHealthSummaryData, err
 			HealthScore:        health.HealthScore,
 			HealthLevel:        health.HealthLevel,
 			CircuitBreaker:     circuitBreaker,
-			HealthPoints:       buildChannelHealthPoints(metricHistoryByChannelID[channelID]),
+			HealthPoints:       healthtrend.BuildPoints(nowTs, healthBucketsByChannelID[channelID]),
 		})
 	}
 	healthSummary := summarizeChannelHealthItems(items)
