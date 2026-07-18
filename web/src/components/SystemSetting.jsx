@@ -11,11 +11,10 @@ import {
   AppFormRow,
   AppInput,
   AppSwitch,
-  AppTextarea,
   AppSpin,
 } from '../router-ui';
 
-const SystemSetting = ({ section = '' }) => {
+const SystemSetting = ({ section = '', showSectionTitle = true }) => {
   const { t } = useTranslation();
   const [inputs, setInputs] = useState({
     PasswordLoginEnabled: 'true',
@@ -26,7 +25,6 @@ const SystemSetting = ({ section = '' }) => {
     SMTPAccount: '',
     SMTPFrom: '',
     SMTPToken: '',
-    Footer: '',
     SystemName: '',
     Logo: '',
   });
@@ -106,7 +104,6 @@ const SystemSetting = ({ section = '' }) => {
     setLoading(true);
     await updateOption('SystemName', inputs.SystemName);
     await updateOption('Logo', inputs.Logo);
-    await updateOption('Footer', inputs.Footer);
     setLoading(false);
     showSuccess(t('setting.system.saved', '已保存'));
   };
@@ -117,15 +114,17 @@ const SystemSetting = ({ section = '' }) => {
 
   return (
     <AppSpin spinning={loading}>
-      <div>
+      <div className='router-settings-system-block'>
       {sectionVisible.general ? (
         <>
-          <AppFilterHeader
-            title={t('setting.system.general.title')}
-            titleClassName='router-ui-section-title'
-            className='router-toolbar-compact'
-          />
-          <div>
+          {showSectionTitle ? (
+            <AppFilterHeader
+              title={t('setting.system.general.title')}
+              titleClassName='router-ui-section-title'
+              className='router-toolbar-compact'
+            />
+          ) : null}
+          <div className='router-settings-section-body'>
             <AppFormRow>
               <AppField label={t('setting.system.general.system_name')}>
                 <AppInput
@@ -144,16 +143,6 @@ const SystemSetting = ({ section = '' }) => {
                 />
               </AppField>
             </AppFormRow>
-            <AppFormRow>
-              <AppField label='Footer HTML'>
-                <AppTextarea
-                  className='router-section-textarea'
-                  name='Footer'
-                  value={inputs.Footer}
-                  onChange={handleChange}
-                />
-              </AppField>
-            </AppFormRow>
             <AppFormActions align='start'>
               <AppButton className='router-section-button' color='blue' onClick={submitGeneral}>
                 {t('setting.system.buttons.save')}
@@ -166,18 +155,14 @@ const SystemSetting = ({ section = '' }) => {
 
       {sectionVisible.smtp ? (
         <>
-          <AppFilterHeader
-            title={t('setting.system.smtp.title')}
-            titleClassName='router-ui-section-title'
-            className='router-toolbar-compact'
-          />
-          <AppAlert
-            className='router-section-message'
-            type='info'
-            showIcon
-            title={t('setting.system.smtp.subtitle')}
-          />
-          <div>
+          {showSectionTitle ? (
+            <AppFilterHeader
+              title={t('setting.system.smtp.title')}
+              titleClassName='router-ui-section-title'
+              className='router-toolbar-compact'
+            />
+          ) : null}
+          <div className='router-settings-section-body'>
             <AppFormRow>
               <AppField label={t('setting.system.smtp.server')}>
                 <AppInput
@@ -239,12 +224,14 @@ const SystemSetting = ({ section = '' }) => {
 
       {sectionVisible.login ? (
         <>
-          <AppFilterHeader
-            title={t('setting.system.login.title')}
-            titleClassName='router-ui-section-title'
-            className='router-toolbar-compact'
-          />
-          <div className='router-page-stack'>
+          {showSectionTitle ? (
+            <AppFilterHeader
+              title={t('setting.system.login.title')}
+              titleClassName='router-ui-section-title'
+              className='router-toolbar-compact'
+            />
+          ) : null}
+          <div className='router-settings-section-body router-page-stack'>
             <AppFormRow>
               <AppField label={t('setting.system.login.password_login')}>
                 <AppSwitch

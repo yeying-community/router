@@ -5958,7 +5958,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         <AppFilterHeader
           breadcrumbs={[
             { key: 'admin', label: t('header.admin_workspace') },
-            { key: 'resource', label: t('header.resource') },
+            { key: 'resource', label: t('header.model') },
             {
               key: 'channel-list',
               label: t('header.channel'),

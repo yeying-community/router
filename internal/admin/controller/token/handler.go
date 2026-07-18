@@ -80,6 +80,28 @@ func SearchTokens(c *gin.Context) {
 	return
 }
 
+func SearchAdminTokens(c *gin.Context) {
+	keyword := strings.TrimSpace(c.Query("keyword"))
+	query := model.DB.Model(&model.Token{}).Order("updated_time desc")
+	if keyword != "" {
+		likeKeyword := "%" + keyword + "%"
+		query = query.Where("name LIKE ? OR id LIKE ?", likeKeyword, likeKeyword)
+	}
+	rows := make([]*model.Token, 0)
+	if err := query.Limit(50).Find(&rows).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    presenter.NewTokens(rows),
+	})
+}
+
 func GetToken(c *gin.Context) {
 	id := c.Param("id")
 	userId := c.GetString(ctxkey.Id)

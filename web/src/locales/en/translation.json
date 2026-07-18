@@ -4,6 +4,7 @@
     "channel": "Channel",
     "providers": "Providers",
     "group": "Group",
+    "entitlement": "Entitlements",
     "token": "Token",
     "account": "Account",
     "redemption": "Redemption",
@@ -15,18 +16,16 @@
     "records": "Records",
     "user": "User",
     "dashboard": "Dashboard",
-    "system_overview": "System Overview",
-    "resource": "Resource Management",
+    "system_overview": "Overview",
+    "model": "Models",
     "operation": "Operations",
-    "business_operation": "Business Operations",
-    "platform_operation": "Platform Operations",
     "billing": "Billing",
     "config": "Config",
     "package": "Subscription",
     "log": "Log",
     "task": "Tasks",
     "setting": "Settings",
-    "setting_center": "System Settings",
+    "setting_center": "Settings",
     "sidebar_expand": "Expand Sidebar",
     "sidebar_compact": "Collapse Sidebar",
     "chat": "Chat",
@@ -158,11 +157,11 @@
       "status_title": "Payment Status",
       "user_search_placeholder": "Search payment ID, transaction ID, status, or product name...",
       "user_empty": "This user has no payment records",
-      "back_to_pricing": "Back to Subscription"
+      "back_to_pricing": "Back to Purchase"
     },
     "nav": {
       "balance": "Balance Top-up",
-      "package": "Buy Package",
+      "package": "Package Subscription",
       "redeem": "Redeem Code",
       "records": "Top-up Records"
     },
@@ -186,7 +185,7 @@
     },
     "business_type": {
       "balance_topup": "Balance Top-up",
-      "package_purchase": "Package Purchase"
+      "package_purchase": "Package Subscription"
     },
     "external_topup": {
       "title": "Quota Top-up",
@@ -196,16 +195,16 @@
       "redeem_balance": "Redeem Balance",
       "gift_balance": "Gift Balance",
       "button": "Top Up Now",
-      "package_button": "Buy Package",
+      "package_button": "Package Subscription",
       "creating": "Creating order...",
       "description": "Router creates the order first, then redirects to the hosted payment cashier.",
       "amount": "Top-up Amount (CNY)",
       "amount_placeholder": "Enter amount",
       "credited_yyc": "Estimated YYC",
-      "package_title": "Package Purchase",
+      "package_title": "Package Subscription",
       "package_empty": "No purchasable packages",
       "package_select_required": "Please select a package",
-      "package_preview_title": "Package Purchase",
+      "package_preview_title": "Package Subscription",
       "package_preview_desc": "Please confirm the package action and payable amount.",
       "package_preview_operation": "Operation",
       "package_preview_slot_active_package": "Active Package in Same Slot",
@@ -303,8 +302,8 @@
       }
     },
     "pricing": {
-      "title": "Subscriptions",
-      "page_title": "Subscriptions",
+      "title": "Purchase",
+      "page_title": "Purchase",
       "subtitle": "Purchase or adjust a package, or top up balance for on-demand usage.",
       "package_mode_title": "Package Plans",
       "package_hint": "Best for stable usage. You get a daily allowance plus emergency capacity with clearer cost boundaries. Image models count by generated image count, for example n=4 uses 4 package units.",
@@ -321,7 +320,7 @@
       "supported_models_search_empty": "No matching models"
     },
     "package_status": {
-      "view_pricing": "View Subscriptions",
+      "view_pricing": "View Purchase",
       "no_active_package": "There is no active package",
       "no_upgrade_target": "No upgrade target package is available",
       "no_downgrade_target": "No downgrade target package is available",
@@ -335,7 +334,7 @@
       "select_convert_target": "Select Conversion Target Package",
       "select_convert_target_hint": "Choose a target package of a different type.",
       "convert_next_cycle": "Next",
-      "empty_description": "There is no active package right now. You can buy one from Subscriptions or use balance on demand.",
+      "empty_description": "There is no active package right now. You can subscribe to one from Purchase or use balance on demand.",
       "daily_title": "Today's Package Quota",
       "emergency_title": "Monthly Emergency Quota",
       "period": "Period",
@@ -1935,6 +1934,13 @@
     }
   },
   "log": {
+    "cleanup": {
+      "label": "Clean up to",
+      "button": "Clean Historical Logs",
+      "invalid_time": "Please choose a valid cleanup time",
+      "failed": "Failed to clean logs",
+      "success": "Cleaned {{count}} log entries"
+    },
     "title": "Operation Log",
     "search": "Search logs...",
     "filters": {
@@ -2976,14 +2982,13 @@
   },
   "setting": {
     "empty_admin": "No configurable items",
-    "title": "System Settings",
-    "tabs": {
-      "personal": "Personal Settings",
-      "operation": "Operation Settings",
-      "currency": "Currency",
-      "system": "System Settings",
-      "other": "Other Settings",
-      "exchange": "Exchange"
+    "title": "Settings",
+    "groups": {
+      "basic": "Basic Info",
+      "payment": "Payment Settings",
+      "billing": "Billing Settings",
+      "content": "Content Settings",
+      "runtime": "System Runtime"
     },
     "personal": {
       "tokens": {
@@ -2997,7 +3002,7 @@
         "confirm": "Confirm Delete"
       },
       "general": {
-        "title": "General Settings",
+        "title": "Site Information",
         "system_token_notice": "Note: The token generated here is for system management, not for requesting OpenAI related services.",
         "buttons": {
           "update_profile": "Update Profile",
@@ -3041,17 +3046,9 @@
       }
     },
     "system": {
-      "basic": {
-        "title": "Basic Settings"
-      },
-      "content": {
-        "title": "Content Settings"
-      },
-      "runtime": {
-        "title": "Runtime Settings"
-      },
       "general": {
-        "title": "General Settings",
+        "title": "Site Information",
+        "description": "Configure the site name and brand-facing identity used across the workspace.",
         "server_address": "Server Address",
         "server_address_placeholder": "e.g.: https://yourdomain.com",
         "system_name": "System Name",
@@ -3061,13 +3058,15 @@
         }
       },
       "notice": "Site Announcement",
+      "notice_description": "Publish site-wide notices and operational messages for users. Markdown is supported.",
       "notice_placeholder": "Supports Markdown",
       "buttons": {
         "save": "Save"
       },
       "saved": "Saved",
       "login": {
-        "title": "Login Settings",
+        "title": "Login & Registration",
+        "description": "Control core account entry policies including registration and password-based access.",
         "password_login": "Allow Password Login",
         "password_register": "Allow Password Registration",
         "email_verification": "Require Email Verification for Password Registration",
@@ -3089,20 +3088,21 @@
         }
       },
       "smtp": {
-        "title": "Email Settings",
-        "subtitle": "Used to support system email sending",
-        "server": "SMTP Server Address",
+        "title": "Email Delivery",
+        "description": "Configure outbound email service for verification codes, notifications, and other mail delivery.",
+        "subtitle": "Configure the information required for system emails",
+        "server": "Mail Server Address",
         "server_placeholder": "e.g.: smtp.gmail.com",
-        "port": "SMTP Port",
+        "port": "Server Port",
         "port_placeholder": "Default: 587",
-        "account": "SMTP Account",
+        "account": "Sender Email Account",
         "account_placeholder": "Usually your email address",
-        "from": "SMTP Sender Email",
+        "from": "Sender Email",
         "from_placeholder": "Usually same as email address",
-        "token": "SMTP Access Token",
+        "token": "Email Authorization Code",
         "token_placeholder": "Sensitive information will not be sent to frontend",
         "buttons": {
-          "save": "Save SMTP Settings"
+          "save": "Save Email Settings"
         }
       },
       "github": {
@@ -3175,13 +3175,14 @@
     },
     "operation": {
       "quota": {
-        "title": "Balance Settings",
+        "title": "Rewards & Reserve",
+        "description": "Configure reward grants and pre-charge rules.",
         "new_user_reward": "New User Reward",
         "new_user_reward_description": "Granted after a new user completes registration. Select a topup plan as reward source; leave empty to disable.",
         "reward_plan_placeholder": "Select a topup plan (empty means disabled)",
-        "pre_consume": "Pre-consumed Amount per Request",
-        "pre_consume_placeholder": "Refund or charge difference after request",
-        "pre_consume_description": "Reserve estimated quota at request start, then settle by actual usage with refund/charge delta.",
+        "pre_consume": "Pre-authorized Amount",
+        "pre_consume_placeholder": "Refund or charge the difference after settlement",
+        "pre_consume_description": "Reserve an estimated amount when a request starts, then settle by actual usage after it finishes.",
         "inviter_reward": "Invite Reward",
         "inviter_reward_description": "When a user registers through an invite link, the inviter receives this reward. Select a topup plan as reward source; leave empty to disable.",
         "messages": {
@@ -3189,33 +3190,32 @@
           "plan_invalid": "Invalid topup plan, please refresh and try again"
         },
         "buttons": {
-          "save": "Save Balance Settings"
+          "save": "Save Settings"
         }
       },
       "log": {
-        "title": "Log Settings",
-        "enable_consume": "Enable Consumption Logging",
-        "target_time": "Target Time",
-        "buttons": {
-          "clean": "Clean Historical Logs"
-        }
+        "title": "Log Recording",
+        "description": "Control whether consumption logs are retained.",
+        "enable_consume": "Record Consumption Logs"
       },
       "monitor": {
-        "title": "Monitor Settings",
-        "max_response_time": "Maximum Response Time",
-        "max_response_time_placeholder": "In seconds, channels exceeding this time during testing will be automatically disabled",
-        "quota_reminder": "Balance Reminder Threshold",
-        "quota_reminder_placeholder": "Users will receive email reminders when balance falls below this value",
+        "title": "Alerts & Thresholds",
+        "description": "Configure balance reminders and channel timeout thresholds.",
+        "max_response_time": "Channel Timeout Threshold",
+        "max_response_time_placeholder": "In seconds. Channels exceeding this during tests will be disabled automatically",
+        "quota_reminder": "Balance Alert Threshold",
+        "quota_reminder_placeholder": "Send a reminder when user balance drops below this value",
         "buttons": {
           "save": "Save Monitor Settings"
         }
       },
       "retry": {
-        "title": "Retry Settings",
-        "description_title": "In-request switch behavior",
-        "description": "This setting controls whether Router should continue trying other candidate channels for the same model in the current group after the first upstream failure within the same request.",
-        "description_effective": "When enabled, as long as the error is retryable, no specific channel is pinned, and there are still unused candidate channels, Router will try all remaining candidates once.",
-        "description_disabled": "When disabled, the first failure is returned immediately. When enabled, channels that already failed in the same request will not be retried again, and Router stops only after all candidates fail or one attempt succeeds.",
+        "title": "Failure Retry",
+        "description": "Configure retry behavior after request failure.",
+        "description_title": "What happens after the first failure",
+        "description": "Control whether a failed request should continue trying other available channels.",
+        "description_effective": "When enabled, if the error is retryable, no specific channel is pinned, and unused candidates remain, the system keeps trying them in order.",
+        "description_disabled": "When disabled, the first failure is returned immediately. When enabled, channels that already failed in the same request are not retried again.",
         "limit": "Retry strategy",
         "limit_placeholder": "Select a retry strategy",
         "options": {
@@ -3226,36 +3226,43 @@
           "save": "Save Retry Settings"
         }
       },
-      "general": {
-        "title": "General Settings",
-        "topup_link": "Top-up Link",
-        "topup_link_placeholder": "e.g.: Card selling website purchase link",
-        "chat_link": "Chat Page Link",
-        "chat_link_placeholder": "e.g.: Chat Web deployment URL",
-        "quota_per_unit": "USD -> YYC Conversion Rate",
-        "quota_per_unit_placeholder": "How many YYC 1 USD converts to",
+      "payment": {
+        "title": "Access Entry",
+        "description": "Configure the destination users return to after payment.",
+        "chat_link": "User Workspace URL",
+        "chat_link_placeholder": "e.g.: the user chat page or workspace URL",
+        "buttons": {
+          "save": "Save Settings"
+        }
+      },
+      "automation": {
+        "title": "Channel Billing Sync",
+        "description": "Configure how often channel billing sync runs.",
         "channel_billing_auto_refresh": {
-          "enabled": "Enable channel billing auto refresh",
+          "enabled": "Auto-refresh channel billing",
           "interval_seconds": "Refresh interval (seconds)",
-          "last_run": "Last run time",
+          "last_run": "Last refresh time",
           "interval_invalid": "Refresh interval must be greater than or equal to 60 seconds"
         },
-        "pricing_policy": {
-          "title": "Pricing Policy",
-          "description_title": "Pricing policy",
-          "description": "The pricing layer calculates the official amount from provider prices first, then uses procurement cost, target margin, and risk buffer to decide the final charged amount.",
-          "official_markup": "Official price markup",
-          "official_markup_hint": "Multiplier over provider official price. 1 means no markup, 1.2 means 20% markup.",
-          "target_margin": "Target margin",
-          "target_margin_hint": "Use decimals. 0.2 means 20% target margin; must be lower than 0.95.",
-          "risk_buffer": "Procurement risk buffer",
-          "risk_buffer_hint": "Covers procurement cost fluctuation. 0.1 means applying a 10% cost buffer before calculating the cost floor.",
-          "official_markup_invalid": "Official price markup must be greater than 0",
-          "target_margin_invalid": "Target margin must be greater than or equal to 0 and lower than 0.95",
-          "risk_buffer_invalid": "Procurement risk buffer must be greater than or equal to 0"
-        },
         "buttons": {
-          "save": "Save General Settings"
+          "save": "Save Settings"
+        }
+      },
+      "pricing": {
+        "title": "Pricing Rules",
+        "description": "Configure selling-price rules and profit targets.",
+        "description_title": "How charges are calculated",
+        "official_markup": "Official Price Multiplier",
+        "official_markup_hint": "Used to calculate the selling price from provider list pricing. 1 means list price, 1.2 means a 20% uplift.",
+        "target_margin": "Target margin",
+        "target_margin_hint": "Use decimals. 0.2 means 20% target margin; must be lower than 0.95.",
+        "risk_buffer": "Cost Buffer Ratio",
+        "risk_buffer_hint": "Used to absorb procurement cost fluctuation. 0.1 means adding a 10% buffer before calculating the floor price.",
+        "official_markup_invalid": "Official price multiplier must be greater than 0",
+        "target_margin_invalid": "Target margin must be greater than or equal to 0 and lower than 0.95",
+        "risk_buffer_invalid": "Cost buffer ratio must be greater than or equal to 0",
+        "buttons": {
+          "save": "Save Settings"
         }
       },
       "billing": {
@@ -3313,6 +3320,7 @@
     "currency": {
       "catalog": {
         "title": "Currency Catalog",
+        "description": "Manage the currency metadata used by payment and settlement flows, including code, name, precision, and status.",
         "subtitle": "Manage currency metadata. Rates are maintained in exchange management.",
         "empty": "No currencies",
         "columns": {
@@ -3352,33 +3360,9 @@
       }
     },
     "other": {
-      "notice": {
-        "title": "Notice Settings",
-        "content": "Notice Content",
-        "content_placeholder": "Enter new notice content here, supports Markdown & HTML code",
-        "buttons": {
-          "save": "Save Notice"
-        }
-      },
-      "system": {
-        "title": "System Settings",
-        "name": "System Name",
-        "name_placeholder": "Please enter system name",
-        "logo": "Logo Image URL",
-        "logo_placeholder": "Enter Logo image URL here",
-        "theme": {
-          "title": "Theme Name",
-          "link": "Available Themes",
-          "placeholder": "Please enter theme name"
-        },
-        "buttons": {
-          "save_name": "Set System Name",
-          "save_logo": "Set Logo",
-          "save_theme": "Set Theme (Restart Required)"
-        }
-      },
       "content": {
         "title": "Content Settings",
+        "description": "Maintain homepage, about page, and footer content for consistent site messaging.",
         "homepage": {
           "title": "Homepage Content",
           "placeholder": "Enter homepage content here, supports Markdown & HTML code. Status information will not be shown after setting. If a link is entered, it will be used as the src attribute of an iframe, allowing you to set any webpage as homepage."
@@ -3395,9 +3379,7 @@
           "placeholder": "Enter new footer here, leave empty to use default footer, supports HTML code"
         },
         "buttons": {
-          "save_homepage": "Save Homepage Content",
-          "save_about": "Save About",
-          "save_footer": "Set Footer"
+          "save": "Save Settings"
         }
       },
       "copyright": {
@@ -3406,6 +3388,7 @@
     },
     "exchange": {
       "title": "Exchange Management",
+      "description": "Maintain currency conversion relationships and manual rates for consistent billing settlement.",
       "subtitle": "Show both manually maintained */charge rates and synced fiat currency-pair rates.",
       "empty": "No rates",
       "columns": {

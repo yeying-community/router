@@ -7,14 +7,16 @@ const RECORD_CONFIG = {
   topup: {
     title: '充值记录',
     parentKey: 'header.topup',
-    parentPath: '/admin/topup',
-    detailBasePath: '/admin/topup/records',
+    parentPath: '/admin/entitlement',
+    detailBasePath: '/admin/entitlement/topup/records',
+    scope: 'entitlement',
   },
   package: {
     title: '购买记录',
     parentKey: 'header.package',
-    parentPath: '/admin/package',
-    detailBasePath: '/admin/package/records',
+    parentPath: '/admin/entitlement?tab=package',
+    detailBasePath: '/admin/entitlement/package/records',
+    scope: 'entitlement',
   },
   redemption: {
     title: '兑换记录',
@@ -28,6 +30,19 @@ const RecordListPage = ({ kind }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const config = RECORD_CONFIG[kind] || RECORD_CONFIG.topup;
+  const parentBreadcrumbs =
+    config.scope === 'entitlement'
+      ? [
+          { key: 'model', label: t('header.model') },
+          {
+            key: 'entitlement',
+            label: t('header.entitlement'),
+            onClick: () => navigate('/admin/entitlement'),
+          },
+        ]
+      : [
+          { key: 'business', label: t('header.operation') },
+        ];
 
   return (
     <div className='dashboard-container'>
@@ -37,7 +52,7 @@ const RecordListPage = ({ kind }) => {
         detailBasePath={config.detailBasePath}
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.business_operation') },
+          ...parentBreadcrumbs,
           {
             key: `${kind}-parent`,
             label: t(config.parentKey),

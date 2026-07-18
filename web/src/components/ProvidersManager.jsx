@@ -3029,7 +3029,7 @@ const ProvidersManager = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'resource', label: t('header.resource') },
+          { key: 'resource', label: t('header.model') },
           { key: 'providers', label: t('header.providers'), active: true },
         ]}
         title={t('header.providers')}
@@ -3198,7 +3198,7 @@ const ProvidersManager = () => {
         <AppFilterHeader
           breadcrumbs={[
             { key: 'admin', label: t('header.admin_workspace') },
-            { key: 'resource', label: t('header.resource') },
+            { key: 'resource', label: t('header.model') },
             {
               key: 'provider-list',
               label: t('header.providers'),

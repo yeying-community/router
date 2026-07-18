@@ -1187,7 +1187,7 @@ const UserDetail = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.business_operation') },
+          { key: 'business', label: t('header.operation') },
           {
             key: 'user-list',
             label: t('header.user'),
@@ -1714,17 +1714,8 @@ const UserDetail = () => {
                 <BusinessRecordsTable
                   kind='topup-reconcile'
                   embedded
-                  title={t('topup.payment_history.title')}
-                  breadcrumbs={[
-                    { key: 'admin', label: t('header.admin_workspace') },
-                    { key: 'business', label: t('header.business_operation') },
-                    { key: 'user', label: t('header.user') },
-                    {
-                      key: 'current-user-records',
-                      label: t('topup.payment_history.title'),
-                      active: true,
-                    },
-                  ]}
+                  title=''
+                  breadcrumbs={[]}
                   requestParams={{ user_id: userId }}
                   searchPlaceholder={t('topup.payment_history.user_search_placeholder')}
                   emptyText={t('topup.payment_history.user_empty')}

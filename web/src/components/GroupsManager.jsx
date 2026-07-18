@@ -1244,7 +1244,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'resource', label: t('header.resource') },
+          { key: 'resource', label: t('header.model') },
           { key: 'group', label: t('header.group'), active: true },
         ]}
         title={t('header.group')}
@@ -2273,7 +2273,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'resource', label: t('header.resource') },
+          { key: 'resource', label: t('header.model') },
           {
             key: 'group-list',
             label: t('header.group'),

@@ -1059,11 +1059,16 @@ const PackageDetail = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.business_operation') },
+          { key: 'model', label: t('header.model') },
+          {
+            key: 'entitlement',
+            label: t('header.entitlement'),
+            onClick: () => navigate('/admin/entitlement?tab=package'),
+          },
           {
             key: 'package-list',
             label: t('header.package'),
-            onClick: () => navigate('/admin/package'),
+            onClick: () => navigate('/admin/entitlement?tab=package'),
           },
           { key: 'package-current', label: normalizedId || '-', active: true },
         ]}

@@ -1,3 +1,5 @@
+import { resolveAdminSettingLocation } from '../helpers/adminSetting';
+
 export const ADMIN_MENU_GROUPS = [
   {
     key: 'dashboard',
@@ -28,7 +30,7 @@ export const ADMIN_MENU_GROUPS = [
   },
   {
     key: 'resource',
-    name: 'header.resource',
+    name: 'header.model',
     icon: 'cube',
     items: [
       {
@@ -46,23 +48,18 @@ export const ADMIN_MENU_GROUPS = [
         to: '/admin/group',
         icon: 'group',
       },
+      {
+        name: 'header.entitlement',
+        to: '/admin/entitlement',
+        icon: 'ticket',
+      },
     ],
   },
   {
     key: 'business',
-    name: 'header.business_operation',
+    name: 'header.operation',
     icon: 'users',
     items: [
-      {
-        name: 'header.topup',
-        to: '/admin/topup',
-        icon: 'credit card',
-      },
-      {
-        name: 'header.package',
-        to: '/admin/package',
-        icon: 'gift',
-      },
       {
         name: 'header.user',
         to: '/admin/user',
@@ -72,28 +69,6 @@ export const ADMIN_MENU_GROUPS = [
         name: 'header.redemption',
         to: '/admin/redemption',
         icon: 'dollar sign',
-      },
-    ],
-  },
-  {
-    key: 'operation',
-    name: 'header.platform_operation',
-    icon: 'tasks',
-    items: [
-      {
-        name: 'setting.tabs.currency',
-        to: '/admin/setting?tab=currency&section=catalog',
-        icon: 'money bill alternate outline',
-      },
-      {
-        name: 'setting.tabs.exchange',
-        to: '/admin/setting?tab=exchange&section=rates',
-        icon: 'exchange',
-      },
-      {
-        name: 'header.config',
-        to: '/admin/setting?tab=operation&section=config',
-        icon: 'sliders horizontal',
       },
       {
         name: 'header.log',
@@ -136,21 +111,31 @@ export const ADMIN_MENU_GROUPS = [
   },
   {
     key: 'setting',
-    name: 'header.setting_center',
+    name: 'header.setting',
     icon: 'setting',
     items: [
       {
-        name: 'setting.system.basic.title',
+        name: 'setting.groups.basic',
         to: '/admin/setting?tab=basic&section=general',
         icon: 'sliders horizontal',
       },
       {
-        name: 'setting.system.content.title',
+        name: 'setting.groups.payment',
+        to: '/admin/setting?tab=payment&section=currency',
+        icon: 'credit card outline',
+      },
+      {
+        name: 'setting.groups.billing',
+        to: '/admin/setting?tab=billing&section=balance',
+        icon: 'money bill alternate outline',
+      },
+      {
+        name: 'setting.groups.content',
         to: '/admin/setting?tab=content&section=notice',
         icon: 'file alternate outline',
       },
       {
-        name: 'setting.system.runtime.title',
+        name: 'setting.groups.runtime',
         to: '/admin/setting?tab=runtime&section=monitor',
         icon: 'heartbeat',
       },
@@ -176,43 +161,19 @@ export const isAdminRouteActive = (location, to) => {
   const currentParams = new URLSearchParams(location.search || '');
   const targetTab = (targetParams.get('tab') || '').trim().toLowerCase();
   if (path === '/admin/setting' && targetTab !== '') {
-    const rawCurrentTab = (currentParams.get('tab') || 'general')
+    const { tab: currentTab } = resolveAdminSettingLocation(
+      currentParams.get('tab') || 'basic',
+      currentParams.get('section') || 'general',
+    );
+    if (currentTab !== targetTab) {
+      return false;
+    }
+    return true;
+  }
+  if (path === '/admin/entitlement' && targetTab !== '') {
+    const currentTab = (currentParams.get('tab') || 'topup')
       .trim()
       .toLowerCase();
-    const currentSection = (currentParams.get('section') || '')
-      .trim()
-      .toLowerCase();
-    const currentTab =
-      rawCurrentTab === 'system'
-        ? currentSection === 'smtp'
-          ? 'smtp'
-          : currentSection === 'login'
-            ? 'login'
-            : currentSection === 'monitor'
-              ? 'monitor'
-              : currentSection === 'log'
-                ? 'log_setting'
-                : 'general'
-        : rawCurrentTab === 'operation'
-          ? currentSection === 'monitor'
-            ? 'monitor'
-            : currentSection === 'log'
-              ? 'log_setting'
-              : 'operation'
-          : rawCurrentTab === 'other'
-            ? currentSection === 'content'
-              ? 'content'
-              : 'notice'
-            : rawCurrentTab === 'general' ||
-                rawCurrentTab === 'smtp' ||
-                rawCurrentTab === 'login'
-              ? 'basic'
-              : rawCurrentTab === 'notice'
-                ? 'content'
-                : rawCurrentTab === 'monitor' ||
-                    rawCurrentTab === 'log_setting'
-                  ? 'runtime'
-                  : rawCurrentTab;
     if (currentTab !== targetTab) {
       return false;
     }

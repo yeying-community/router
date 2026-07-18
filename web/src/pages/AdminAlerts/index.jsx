@@ -13,9 +13,11 @@ function AdminAlerts() {
       <AppFilterHeader
         className='admin-dashboard-toolbar'
         breadcrumbs={[
+          { key: 'admin', label: t('header.admin_workspace') },
           { key: 'dashboard', label: t('header.system_overview') },
           { key: 'alerts', label: t('dashboard.admin.nav.alerts'), active: true },
         ]}
+        title={t('dashboard.admin.nav.alerts')}
       />
       <AdminChannelAlertsPanel />
     </div>

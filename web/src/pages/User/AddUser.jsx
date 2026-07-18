@@ -48,7 +48,7 @@ const AddUser = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'workspace', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.business_operation') },
+          { key: 'business', label: t('header.operation') },
           { key: 'user', label: t('header.user') },
           { key: 'user-add', label: t('user.add.title'), active: true },
         ]}

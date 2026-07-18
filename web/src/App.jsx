@@ -32,14 +32,13 @@ import AddUser from './pages/User/AddUser';
 import Log from './pages/Log';
 import LogDetail from './pages/Log/Detail';
 import Group from './pages/Group';
-import Package from './pages/Package';
 import PackageDetail from './pages/Package/Detail';
 import Setting from './pages/Setting';
 import Redemption from './pages/Redemption';
 import EditRedemption from './pages/Redemption/EditRedemption';
 import RedemptionDetail from './pages/Redemption/RedemptionDetail';
-import AdminTopup from './pages/AdminTopup';
 import TopupPlanDetail from './pages/AdminTopup/Detail';
+import Entitlement from './pages/Entitlement';
 import AdminChannelTaskPage from './pages/Task/AdminChannelTaskPage';
 import AdminChannelTaskDetailPage from './pages/Task/AdminChannelTaskDetailPage';
 import AdminUserTaskPage from './pages/Task/AdminUserTaskPage';
@@ -160,7 +159,7 @@ function SettingRedirect() {
     <Navigate
       to={
         isAdmin()
-          ? '/admin/setting?tab=general&section=general'
+          ? '/admin/setting?tab=basic&section=general'
           : '/workspace/setting'
       }
       replace
@@ -758,39 +757,35 @@ function App() {
           element={<Group />}
         />
         <Route
-          path='/admin/package'
-          element={<Package />}
+          path='/admin/entitlement'
+          element={<Entitlement />}
         />
         <Route
-          path='/admin/package/detail/:id'
+          path='/admin/entitlement/package/detail/:id'
           element={<PackageDetail />}
         />
         <Route
-          path='/admin/topup'
-          element={<AdminTopup />}
-        />
-        <Route
-          path='/admin/topup/detail/:id'
+          path='/admin/entitlement/topup/detail/:id'
           element={<TopupPlanDetail />}
         />
         <Route
-          path='/admin/topup/records'
+          path='/admin/entitlement/topup/records'
           element={<RecordListPage kind='topup' />}
         />
         <Route
-          path='/admin/topup/records/:id'
+          path='/admin/entitlement/topup/records/:id'
           element={<TopupRecordDetail />}
         />
         <Route
-          path='/admin/topup/payment/:id'
+          path='/admin/entitlement/topup/payment/:id'
           element={<PaymentRecordDetail />}
         />
         <Route
-          path='/admin/package/records'
+          path='/admin/entitlement/package/records'
           element={<RecordListPage kind='package' />}
         />
         <Route
-          path='/admin/package/records/:id'
+          path='/admin/entitlement/package/records/:id'
           element={<PackageRecordDetail />}
         />
         <Route
@@ -906,10 +901,6 @@ function App() {
       <Route
         path='/group/*'
         element={<PrefixRedirect from='/group' to='/admin/group' />}
-      />
-      <Route
-        path='/package/*'
-        element={<PrefixRedirect from='/package' to='/admin/package' />}
       />
       <Route
         path='/redemption/*'

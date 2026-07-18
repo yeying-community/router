@@ -839,6 +839,143 @@ body,
     margin-bottom: 8px;
 }
 
+.router-settings-page-section.ant-card .ant-card-body {
+    padding: 10px 12px;
+}
+
+.router-settings-page-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.router-settings-card .router-ui-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.router-settings-card-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.router-settings-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.92);
+}
+
+.router-settings-card-description {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #6b7280;
+}
+
+.router-settings-page-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.router-settings-page-block-primary {
+    gap: 6px;
+}
+
+.router-settings-page-divider.ant-divider {
+    margin: 0;
+    border-color: rgba(15, 23, 42, 0.06);
+}
+
+.router-settings-page-section .router-ui-section-header {
+    margin-bottom: 6px;
+}
+
+.router-settings-page-section .router-ui-section-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.router-settings-page-section .router-toolbar-compact {
+    margin-top: 0;
+    margin-bottom: 2px;
+}
+
+.router-settings-page-section .router-section-message {
+    padding: 0.6em 0.8em !important;
+    margin-bottom: 8px;
+}
+
+.router-settings-page-section .router-ui-form-actions {
+    margin-top: 8px;
+}
+
+.router-settings-system-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.router-settings-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.router-settings-content-list {
+    gap: 12px;
+}
+
+.router-settings-content-block {
+    padding: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    background: rgba(248, 250, 252, 0.72);
+}
+
+.router-settings-inline-message.ant-alert {
+    border-radius: 8px;
+}
+
+.router-settings-page-section .router-ui-form-row {
+    row-gap: 10px;
+}
+
+.router-log-cleanup-actions {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.router-log-cleanup-label {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.router-log-cleanup-input {
+    min-width: 220px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 8px;
+    background: #fff;
+    color: #1f2937;
+    font: inherit;
+}
+
+.router-log-cleanup-input:focus {
+    outline: none;
+    border-color: #1677ff;
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
 .router-settings-layout {
     margin-top: 8px !important;
     display: grid;

@@ -74,16 +74,16 @@ const renderPackageStatus = (status, t) => {
 
 const resolveListPath = (stateFrom) => {
   if (typeof stateFrom !== 'string') {
-    return '/admin/package/records';
+    return '/admin/entitlement/package/records';
   }
   const normalized = stateFrom.trim();
   if (!normalized.startsWith('/')) {
-    return '/admin/package/records';
+    return '/admin/entitlement/package/records';
   }
-  if (normalized.startsWith('/admin/package/records/')) {
-    return '/admin/package/records';
+  if (normalized.startsWith('/admin/entitlement/package/records/')) {
+    return '/admin/entitlement/package/records';
   }
-  return normalized || '/admin/package/records';
+  return normalized || '/admin/entitlement/package/records';
 };
 
 const PackageRecordDetail = () => {
@@ -127,11 +127,16 @@ const PackageRecordDetail = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.business_operation') },
+          { key: 'model', label: t('header.model') },
+          {
+            key: 'entitlement',
+            label: t('header.entitlement'),
+            onClick: () => navigate('/admin/entitlement?tab=package'),
+          },
           {
             key: 'package-root',
             label: t('header.package'),
-            onClick: () => navigate('/admin/package'),
+            onClick: () => navigate('/admin/entitlement?tab=package'),
           },
           {
             key: 'flow-package-list',

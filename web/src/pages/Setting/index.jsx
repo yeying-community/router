@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useSearchParams } from 'react-router-dom';
+import { AppFilterHeader, AppSection } from '../../router-ui';
 import SystemSetting from '../../components/SystemSetting';
 import { isRoot } from '../../helpers';
 import OtherSetting from '../../components/OtherSetting';
@@ -8,12 +9,28 @@ import PersonalSetting from '../../components/PersonalSetting';
 import OperationSetting from '../../components/OperationSetting';
 import ExchangeRateSetting from '../../components/ExchangeRateSetting';
 import CurrencySetting from '../../components/CurrencySetting';
-import { AppFilterHeader, AppNavMenu, AppSection } from '../../router-ui';
+import { resolveAdminSettingLocation } from '../../helpers/adminSetting';
+
+const SettingCard = ({ title, description, children }) => (
+  <AppSection
+    className='router-settings-card'
+    title={
+      <div className='router-settings-card-heading'>
+        <div className='router-settings-card-title'>{title}</div>
+        {description ? (
+          <div className='router-settings-card-description'>{description}</div>
+        ) : null}
+      </div>
+    }
+  >
+    {children}
+  </AppSection>
+);
 
 const Setting = () => {
   const { t } = useTranslation();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const isAdminWorkspace = location.pathname.startsWith('/admin/');
 
   if (!isAdminWorkspace) {
@@ -35,163 +52,156 @@ const Setting = () => {
 
   if (isRoot()) {
     menuGroups.push({
-      key: 'operation',
-      label: t('header.config'),
-      sections: [
-        { key: 'config', label: t('header.config') },
-      ],
-    });
-    menuGroups.push({
-      key: 'currency',
-      label: t('setting.tabs.currency'),
-      sections: [
-        { key: 'catalog', label: t('setting.tabs.currency') },
-      ],
-    });
-    menuGroups.push({
-      key: 'exchange',
-      label: t('setting.tabs.exchange'),
-      sections: [
-        { key: 'rates', label: t('setting.tabs.exchange') },
-      ],
-    });
-    menuGroups.push({
       key: 'basic',
-      label: t('setting.system.basic.title'),
-      sections: [
-        { key: 'general', label: t('setting.system.general.title') },
-        { key: 'smtp', label: t('setting.system.smtp.title') },
-        { key: 'login', label: t('setting.system.login.title') },
-      ],
+      label: t('setting.groups.basic'),
+    });
+    menuGroups.push({
+      key: 'payment',
+      label: t('setting.groups.payment'),
+    });
+    menuGroups.push({
+      key: 'billing',
+      label: t('setting.groups.billing'),
     });
     menuGroups.push({
       key: 'content',
-      label: t('setting.system.content.title'),
-      sections: [
-        { key: 'notice', label: t('setting.system.notice', '站点公告') },
-        { key: 'content', label: t('setting.other.content.title') },
-      ],
+      label: t('setting.groups.content'),
     });
     menuGroups.push({
       key: 'runtime',
-      label: t('setting.system.runtime.title'),
-      sections: [
-        { key: 'monitor', label: t('setting.operation.monitor.title') },
-        { key: 'retry', label: t('setting.operation.retry.title') },
-        { key: 'log', label: t('setting.operation.log.title') },
-      ],
+      label: t('setting.groups.runtime'),
     });
   }
 
-  const tabKeys = menuGroups.map((item) => item.key);
   const rawRequestedTab = (searchParams.get('tab') || '').trim().toLowerCase();
   const rawRequestedSection = (searchParams.get('section') || '')
     .trim()
     .toLowerCase();
-  const requestedTab =
-    rawRequestedTab === 'system'
-      ? rawRequestedSection === 'smtp'
-        ? 'basic'
-        : rawRequestedSection === 'login'
-          ? 'basic'
-          : rawRequestedSection === 'monitor'
-            ? 'runtime'
-            : rawRequestedSection === 'log'
-              ? 'runtime'
-              : 'basic'
-      : rawRequestedTab === 'operation'
-        ? rawRequestedSection === 'monitor'
-          ? 'runtime'
-          : rawRequestedSection === 'log'
-            ? 'runtime'
-            : rawRequestedSection === 'retry'
-              ? 'runtime'
-            : 'operation'
-        : rawRequestedTab === 'other'
-          ? 'content'
-          : rawRequestedTab === 'general' ||
-              rawRequestedTab === 'smtp' ||
-              rawRequestedTab === 'login'
-            ? 'basic'
-            : rawRequestedTab === 'notice'
-              ? 'content'
-              : rawRequestedTab === 'monitor' ||
-                  rawRequestedTab === 'retry' ||
-                  rawRequestedTab === 'log_setting'
-                ? 'runtime'
-                : rawRequestedTab;
-  const visibleMenuGroups =
-    tabKeys.includes(requestedTab) && requestedTab !== ''
-      ? menuGroups.filter((item) => item.key === requestedTab)
-      : menuGroups;
-  const visibleTabKeys = visibleMenuGroups.map((item) => item.key);
+  const { tab: requestedTab } = resolveAdminSettingLocation(
+    rawRequestedTab,
+    rawRequestedSection,
+  );
+  const tabKeys = menuGroups.map((item) => item.key);
   const activeTab =
-    visibleTabKeys.includes(requestedTab) && requestedTab !== ''
+    tabKeys.includes(requestedTab) && requestedTab !== ''
       ? requestedTab
-      : visibleTabKeys[0] || '';
-  const activeGroup = visibleMenuGroups.find((item) => item.key === activeTab);
-  const sectionKeys = (activeGroup?.sections || []).map((item) => item.key);
-  const requestedSection =
-    activeTab === 'operation' &&
-    (rawRequestedSection === 'quota' ||
-      rawRequestedSection === 'balance' ||
-      rawRequestedSection === 'general' ||
-      rawRequestedSection === 'config')
-      ? 'config'
-      : activeTab === 'basic' && rawRequestedSection === ''
-        ? 'general'
-        : activeTab === 'content' && rawRequestedSection === ''
-          ? 'notice'
-          : activeTab === 'runtime' && rawRequestedSection === ''
-            ? 'monitor'
-            : rawRequestedSection;
-  const activeSection =
-    sectionKeys.includes(requestedSection) && requestedSection !== ''
-      ? requestedSection
-      : sectionKeys[0] || '';
-  const pageTitle = activeGroup?.label || t('setting.title');
-  const activeSectionLabel =
-    activeGroup?.sections?.find((item) => item.key === activeSection)?.label || '';
-  const singleGroupMode = visibleMenuGroups.length === 1;
-  const hideSettingsMenu =
-    singleGroupMode &&
-    Number(activeGroup?.sections?.length || 0) <= 1;
-
-  const goToSection = (tab, section) => {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('tab', tab);
-    nextParams.set('section', section);
-    setSearchParams(nextParams);
-  };
-
-  const settingsMenuItems = visibleMenuGroups.map((group) => ({
-    key: group.key,
-    type: singleGroupMode ? undefined : 'group',
-    label: singleGroupMode ? undefined : group.label,
-    children: group.sections.map((section) => ({
-      key: `${group.key}:${section.key}`,
-      label: section.label,
-    })),
-  }));
+      : tabKeys[0] || '';
+  const activeGroup = menuGroups.find((item) => item.key === activeTab);
+  const pageTitle = t('setting.title');
 
   const renderContent = () => {
-    if (activeTab === 'operation') {
-      return <OperationSetting section={activeSection} />;
-    }
-    if (activeTab === 'currency') {
-      return <CurrencySetting section={activeSection} />;
-    }
-    if (activeTab === 'exchange') {
-      return <ExchangeRateSetting section={activeSection} />;
-    }
     if (activeTab === 'basic') {
-      return <SystemSetting section={activeSection} />;
+      return (
+        <div className='router-settings-page-content'>
+          <SettingCard
+            title={t('setting.system.general.title')}
+            description={t('setting.system.general.description')}
+          >
+            <SystemSetting section='general' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.system.smtp.title')}
+            description={t('setting.system.smtp.description')}
+          >
+            <SystemSetting section='smtp' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.system.login.title')}
+            description={t('setting.system.login.description')}
+          >
+            <SystemSetting section='login' showSectionTitle={false} />
+          </SettingCard>
+        </div>
+      );
     }
-    if (activeTab === 'runtime') {
-      return <OperationSetting section={activeSection} />;
+    if (activeTab === 'payment') {
+      return (
+        <div className='router-settings-page-content'>
+          <SettingCard
+            title={t('setting.operation.payment.title')}
+            description={t('setting.operation.payment.description')}
+          >
+            <OperationSetting section='payment' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.currency.catalog.title')}
+            description={t('setting.currency.catalog.description')}
+          >
+            <CurrencySetting section='catalog' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.exchange.title')}
+            description={t('setting.exchange.description')}
+          >
+            <ExchangeRateSetting section='rates' showSectionTitle={false} />
+          </SettingCard>
+        </div>
+      );
+    }
+    if (activeTab === 'billing') {
+      return (
+        <div className='router-settings-page-content'>
+          <SettingCard
+            title={t('setting.operation.quota.title')}
+            description={t('setting.operation.quota.description')}
+          >
+            <OperationSetting section='balance' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.operation.automation.title')}
+            description={t('setting.operation.automation.description')}
+          >
+            <OperationSetting section='automation' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.operation.pricing.title')}
+          >
+            <OperationSetting section='pricing' showSectionTitle={false} />
+          </SettingCard>
+        </div>
+      );
     }
     if (activeTab === 'content') {
-      return <OtherSetting section={activeSection} />;
+      return (
+        <div className='router-settings-page-content'>
+          <SettingCard
+            title={t('setting.system.notice')}
+            description={t('setting.system.notice_description')}
+          >
+            <OtherSetting section='notice' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.other.content.title')}
+            description={t('setting.other.content.description')}
+          >
+            <OtherSetting section='content' showSectionTitle={false} />
+          </SettingCard>
+        </div>
+      );
+    }
+    if (activeTab === 'runtime') {
+      return (
+        <div className='router-settings-page-content'>
+          <SettingCard
+            title={t('setting.operation.monitor.title')}
+            description={t('setting.operation.monitor.description')}
+          >
+            <OperationSetting section='monitor' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.operation.retry.title')}
+            description={t('setting.operation.retry.description')}
+          >
+            <OperationSetting section='retry' showSectionTitle={false} />
+          </SettingCard>
+          <SettingCard
+            title={t('setting.operation.log.title')}
+            description={t('setting.operation.log.description')}
+          >
+            <OperationSetting section='log' showSectionTitle={false} />
+          </SettingCard>
+        </div>
+      );
     }
     return <div className='router-empty-cell'>{t('setting.empty_admin', '暂无可配置项')}</div>;
   };
@@ -201,29 +211,12 @@ const Setting = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'workspace', label: t('header.admin_workspace') },
-          {
-            key: 'section',
-            label:
-              activeTab === 'operation' ||
-              activeTab === 'currency' ||
-              activeTab === 'exchange'
-                ? t('header.platform_operation')
-                : t('header.setting_center'),
-          },
+          { key: 'section', label: t('header.setting') },
           ...(activeGroup
             ? [
                 {
                   key: 'group',
                   label: activeGroup.label,
-                  active: activeSectionLabel === '' || activeSectionLabel === activeGroup.label,
-                },
-              ]
-            : []),
-          ...(activeSectionLabel !== '' && activeSectionLabel !== activeGroup?.label
-            ? [
-                {
-                  key: 'section-current',
-                  label: activeSectionLabel,
                   active: true,
                 },
               ]
@@ -231,32 +224,9 @@ const Setting = () => {
         ]}
         title={pageTitle}
       />
-      <AppSection>
-        {visibleMenuGroups.length > 0 ? (
-          hideSettingsMenu ? (
-            renderContent()
-          ) : (
-            <div className='router-settings-layout'>
-              <div className='router-settings-menu-column'>
-                <AppNavMenu
-                  className='router-settings-nav-menu'
-                  mode='inline'
-                  selectable
-                  items={settingsMenuItems}
-                  selectedKeys={[`${activeTab}:${activeSection}`]}
-                  onClick={({ key }) => {
-                    const [tab, section] = String(key || '').split(':');
-                    if (tab && section) {
-                      goToSection(tab, section);
-                    }
-                  }}
-                />
-              </div>
-              <div className='router-settings-content-column'>
-                {renderContent()}
-              </div>
-            </div>
-          )
+      <AppSection className='router-settings-page-section'>
+        {menuGroups.length > 0 ? (
+          renderContent()
         ) : (
           <div className='router-empty-cell'>
             {t('setting.empty_admin', '暂无可配置项')}

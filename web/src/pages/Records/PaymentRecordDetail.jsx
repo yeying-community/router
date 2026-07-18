@@ -149,7 +149,7 @@ const resolveListPath = (stateFrom) => {
       return `/admin/user/detail/${segments[3]}`;
     }
   }
-  if (normalized.startsWith('/admin/topup/payment/')) {
+  if (normalized.startsWith('/admin/entitlement/topup/payment/')) {
     return '/admin/user';
   }
   return normalized || '/admin/user';
@@ -194,7 +194,12 @@ const PaymentRecordDetail = () => {
     }
     return [
       { key: 'admin', label: t('header.admin_workspace') },
-      { key: 'business', label: t('header.business_operation') },
+      { key: 'model', label: t('header.model') },
+      {
+        key: 'entitlement',
+        label: t('header.entitlement'),
+        onClick: () => navigate('/admin/entitlement'),
+      },
       {
         key: 'flow-topup-reconcile-list',
         label: listLabel,

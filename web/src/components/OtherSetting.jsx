@@ -16,15 +16,17 @@ import {
 const optionKeys = [
   'Notice',
   'About',
-  'HomePageContent'
+  'HomePageContent',
+  'Footer',
 ];
 
-const OtherSetting = ({ section = '' }) => {
+const OtherSetting = ({ section = '', showSectionTitle = true }) => {
   const { t } = useTranslation();
   let [inputs, setInputs] = useState({
     Notice: '',
     About: '',
     HomePageContent: '',
+    Footer: '',
   });
   let [loading, setLoading] = useState(false);
   const normalizedSection = (section || '').trim().toLowerCase();
@@ -88,44 +90,40 @@ const OtherSetting = ({ section = '' }) => {
 
   return (
     <AppSpin spinning={loading}>
-      <div>
+      <div className='router-settings-system-block'>
           {sectionVisible.notice ? (
             <>
               <AppFilterHeader
-                title={t('setting.system.notice', '站点公告')}
+                title={showSectionTitle ? t('setting.system.notice', '站点公告') : null}
                 titleClassName='router-ui-section-title'
                 className='router-toolbar-compact'
               />
-              <AppFormRow>
-                <AppField>
-                  <AppTextarea
-                    className='router-section-textarea router-code-textarea router-code-textarea-sm'
-                    name='Notice'
-                    value={inputs.Notice}
-                    onChange={handleInputChange}
-                    placeholder={t(
-                      'setting.system.notice_placeholder',
-                      '支持 Markdown',
-                    )}
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFormActions align='start'>
-                <AppButton
-                  type='button'
-                  className='router-section-button'
-                  onClick={submitNotice}
-                >
-                  {t('setting.system.buttons.save')}
-                </AppButton>
-              </AppFormActions>
+              <div className='router-settings-section-body'>
+                <AppFormRow>
+                  <AppField>
+                    <AppTextarea
+                      className='router-section-textarea router-code-textarea router-code-textarea-sm'
+                      name='Notice'
+                      value={inputs.Notice}
+                      onChange={handleInputChange}
+                      placeholder={t(
+                        'setting.system.notice_placeholder',
+                        '支持 Markdown',
+                      )}
+                    />
+                  </AppField>
+                </AppFormRow>
+                <AppFormActions align='start'>
+                  <AppButton
+                    type='button'
+                    className='router-section-button'
+                    onClick={submitNotice}
+                  >
+                    {t('setting.system.buttons.save')}
+                  </AppButton>
+                </AppFormActions>
 
-              <AppAlert
-                className='router-section-message'
-                type='info'
-                showIcon
-                title={t('setting.other.copyright.notice')}
-              />
+              </div>
               {showAllSections && sectionVisible.content ? <AppDivider /> : null}
             </>
           ) : null}
@@ -133,50 +131,78 @@ const OtherSetting = ({ section = '' }) => {
           {sectionVisible.content ? (
             <>
               <AppFilterHeader
-                title={t('setting.other.content.title')}
+                title={showSectionTitle ? t('setting.other.content.title') : null}
                 titleClassName='router-ui-section-title'
                 className='router-toolbar-compact'
               />
-              <AppFormRow>
-                <AppField label={t('setting.other.content.homepage.title')}>
-                  <AppTextarea
-                    className='router-section-textarea router-code-textarea router-code-textarea-md'
-                    placeholder={t('setting.other.content.homepage.placeholder')}
-                    value={inputs.HomePageContent}
-                    name='HomePageContent'
-                    onChange={handleInputChange}
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFormActions align='start'>
-                <AppButton
-                  type='button'
-                  className='router-section-button'
-                  onClick={() => submitOption('HomePageContent')}
-                >
-                  {t('setting.other.content.buttons.save_homepage')}
-                </AppButton>
-              </AppFormActions>
-              <AppFormRow>
-                <AppField label={t('setting.other.content.about.title')}>
-                  <AppTextarea
-                    className='router-section-textarea router-code-textarea router-code-textarea-md'
-                    placeholder={t('setting.other.content.about.placeholder')}
-                    value={inputs.About}
-                    name='About'
-                    onChange={handleInputChange}
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFormActions align='start'>
-                <AppButton
-                  type='button'
-                  className='router-section-button'
-                  onClick={submitAbout}
-                >
-                  {t('setting.other.content.buttons.save_about')}
-                </AppButton>
-              </AppFormActions>
+              <div className='router-settings-section-body router-settings-content-list'>
+                <div className='router-settings-page-block router-settings-content-block'>
+                  <AppFormRow>
+                    <AppField label={t('setting.other.content.homepage.title')}>
+                      <AppTextarea
+                        className='router-section-textarea router-code-textarea router-code-textarea-md'
+                        placeholder={t('setting.other.content.homepage.placeholder')}
+                        value={inputs.HomePageContent}
+                        name='HomePageContent'
+                        onChange={handleInputChange}
+                      />
+                    </AppField>
+                  </AppFormRow>
+                  <AppFormActions align='start'>
+                    <AppButton
+                      type='button'
+                      className='router-section-button'
+                      onClick={() => submitOption('HomePageContent')}
+                    >
+                      {t('setting.other.content.buttons.save')}
+                    </AppButton>
+                  </AppFormActions>
+                </div>
+                <div className='router-settings-page-block router-settings-content-block'>
+                  <AppFormRow>
+                    <AppField label={t('setting.other.content.about.title')}>
+                      <AppTextarea
+                        className='router-section-textarea router-code-textarea router-code-textarea-md'
+                        placeholder={t('setting.other.content.about.placeholder')}
+                        value={inputs.About}
+                        name='About'
+                        onChange={handleInputChange}
+                      />
+                    </AppField>
+                  </AppFormRow>
+                  <AppFormActions align='start'>
+                    <AppButton
+                      type='button'
+                      className='router-section-button'
+                      onClick={submitAbout}
+                    >
+                      {t('setting.other.content.buttons.save')}
+                    </AppButton>
+                  </AppFormActions>
+                </div>
+                <div className='router-settings-page-block router-settings-content-block'>
+                  <AppFormRow>
+                    <AppField label={t('setting.other.content.footer.title')}>
+                      <AppTextarea
+                        className='router-section-textarea router-code-textarea router-code-textarea-sm'
+                        placeholder={t('setting.other.content.footer.placeholder')}
+                        value={inputs.Footer}
+                        name='Footer'
+                        onChange={handleInputChange}
+                      />
+                    </AppField>
+                  </AppFormRow>
+                  <AppFormActions align='start'>
+                    <AppButton
+                      type='button'
+                      className='router-section-button'
+                      onClick={() => submitOption('Footer')}
+                    >
+                      {t('setting.other.content.buttons.save')}
+                    </AppButton>
+                  </AppFormActions>
+                </div>
+              </div>
             </>
           ) : null}
       </div>
