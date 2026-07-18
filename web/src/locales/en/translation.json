@@ -268,6 +268,7 @@
         "applicable_models": "Models",
         "pay_amount": "Pay Amount",
         "credited_amount": "Credited Amount",
+        "credited_unit": "Credited Unit",
         "concurrency_limit": "Concurrency Limit",
         "enabled": "Status",
         "validity_days": "Validity (Days)",

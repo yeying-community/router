@@ -242,7 +242,7 @@ const PackageDetail = () => {
   const [currencyIndex, setCurrencyIndex] = useState(
     buildBillingCurrencyIndex([], { activeOnly: true }),
   );
-  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [visibilitySubmitting, setVisibilitySubmitting] = useState(false);
   const [form, setForm] = useState(createEmptyForm('USD'));
@@ -489,9 +489,9 @@ const PackageDetail = () => {
     loadDetail().then();
   }, [loadDetail]);
 
-  const closeEditModal = () => {
+  const cancelEditing = () => {
     if (submitting) return;
-    setEditOpen(false);
+    setEditing(false);
   };
 
   const updateFormPackageType = (value) => {
@@ -524,7 +524,7 @@ const PackageDetail = () => {
     });
   };
 
-  const openEditModal = () => {
+  const startEditing = () => {
     if (!detail || submitting) return;
     const defaultBillingUnit = resolveDefaultBillingUnit(currencyIndex);
     const resolvedGroupID = (detail?.group_id || '').toString().trim();
@@ -571,7 +571,7 @@ const PackageDetail = () => {
       appendUserOptionsIfMissing(current, detail?.visible_users),
     );
     loadInitialUsers().then();
-    setEditOpen(true);
+    setEditing(true);
   };
 
   const buildPayloadFromForm = () => {
@@ -687,7 +687,7 @@ const PackageDetail = () => {
       }
       showSuccess(t('package_manage.messages.update_success'));
       setDetail(data || null);
-      setEditOpen(false);
+      setEditing(false);
       loadDetail().then();
     } catch (error) {
       showError(error?.message || error);
@@ -795,8 +795,16 @@ const PackageDetail = () => {
   };
 
   const renderEditForm = () => (
-    <div>
+    <div className='router-page-stack'>
       <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('package_manage.form.id')} readOnly>
+          <AppInput
+            className='router-section-input router-monospace-value'
+            value={form.id || detail?.id || '-'}
+            readOnly
+            disabled
+          />
+        </AppField>
         <AppField label={t('package_manage.form.name')} required>
           <AppInput
             className='router-section-input'
@@ -841,10 +849,6 @@ const PackageDetail = () => {
             onChange={(e, { value }) => updateFormPackageType(value)}
           />
         </AppField>
-        <AppField />
-      </AppFormRow>
-
-      <AppFormRow className='router-modal-form-row'>
         <AppField label={t('package_manage.form.sale_price')}>
           <AppCompact className='router-section-input-with-unit' block>
             <AppInputNumber
@@ -872,7 +876,6 @@ const PackageDetail = () => {
             />
           </AppCompact>
         </AppField>
-        <AppField />
       </AppFormRow>
 
       {requestQuotaForm ? (
@@ -1078,6 +1081,25 @@ const PackageDetail = () => {
           />
         </AppField>
       </AppFormRow>
+
+      <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('package_manage.table.created_at')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={detail?.created_at ? timestamp2string(detail.created_at) : '-'}
+            readOnly
+            disabled
+          />
+        </AppField>
+        <AppField label={t('package_manage.table.updated_at')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={detail?.updated_at ? timestamp2string(detail.updated_at) : '-'}
+            readOnly
+            disabled
+          />
+        </AppField>
+      </AppFormRow>
     </div>
   );
 
@@ -1115,19 +1137,44 @@ const PackageDetail = () => {
                     title={t('common.basic_info')}
                     bodyClassName='router-page-stack'
                     headerEnd={
-                      <AppButton
-                        type='button'
-                        className='router-page-button'
-                        color='blue'
-                        disabled={loading || !detail}
-                        onClick={openEditModal}
-                      >
-                        {t('package_manage.buttons.edit')}
-                      </AppButton>
+                      editing ? (
+                        <>
+                          <AppButton
+                            type='button'
+                            className='router-page-button'
+                            onClick={cancelEditing}
+                            disabled={submitting}
+                          >
+                            {t('common.cancel')}
+                          </AppButton>
+                          <AppButton
+                            type='button'
+                            className='router-page-button'
+                            color='blue'
+                            loading={submitting}
+                            disabled={submitting}
+                            onClick={submitEdit}
+                          >
+                            {t('common.confirm')}
+                          </AppButton>
+                        </>
+                      ) : (
+                        <AppButton
+                          type='button'
+                          className='router-page-button'
+                          color='blue'
+                          disabled={loading || !detail}
+                          onClick={startEditing}
+                        >
+                          {t('package_manage.buttons.edit')}
+                        </AppButton>
+                      )
                     }
                   >
                     {loading ? (
                       <div className='router-empty-cell'>{t('common.loading')}</div>
+                    ) : editing ? (
+                      renderEditForm()
                     ) : (
                       <>
                         <AppFormRow>
@@ -1487,25 +1534,6 @@ const PackageDetail = () => {
               {t('common.cancel')}
             </AppButton>
             <AppButton type='button' color='blue' onClick={confirmVisibilityPicker}>
-              {t('common.confirm')}
-            </AppButton>
-          </AppFormActions>
-        </div>
-      </AppModal>
-      <AppModal
-        open={editOpen}
-        onClose={closeEditModal}
-        size='small'
-        title={t('package_manage.dialog.edit_title')}
-        footer={null}
-      >
-        <div className='router-page-stack'>
-          {renderEditForm()}
-          <AppFormActions>
-            <AppButton type='button' onClick={closeEditModal} disabled={submitting}>
-              {t('common.cancel')}
-            </AppButton>
-            <AppButton type='button' color='blue' loading={submitting} onClick={submitEdit}>
               {t('common.confirm')}
             </AppButton>
           </AppFormActions>

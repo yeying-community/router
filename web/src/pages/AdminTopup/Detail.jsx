@@ -19,7 +19,6 @@ import {
   AppTable,
   AppTableActionButton,
   AppTabs,
-  AppTag,
   AppTextarea,
 } from '../../router-ui';
 
@@ -35,17 +34,6 @@ const formatDateTime = (value) => {
   }
   return timestamp2string(normalized);
 };
-
-const renderEnabledStatus = (enabled, t) =>
-  enabled ? (
-    <AppTag color='green' className='router-tag'>
-      {t('package_manage.status.enabled')}
-    </AppTag>
-  ) : (
-    <AppTag color='grey' className='router-tag'>
-      {t('package_manage.status.disabled')}
-    </AppTag>
-  );
 
 const normalizeModels = (models) =>
   Array.isArray(models)
@@ -207,7 +195,7 @@ const TopupPlanDetail = () => {
   const [userLoading, setUserLoading] = useState(false);
   const [visibilityPickerOpen, setVisibilityPickerOpen] = useState(false);
   const [visibilityPickerValue, setVisibilityPickerValue] = useState([]);
-  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(createTopupEditForm);
   const [groupOptions, setGroupOptions] = useState([]);
@@ -461,7 +449,7 @@ const TopupPlanDetail = () => {
     persistVisibility(visibilityScope, nextUserIDs).then();
   };
 
-  const openEditModal = () => {
+  const startEditing = () => {
     if (!plan || submitting) {
       return;
     }
@@ -489,14 +477,14 @@ const TopupPlanDetail = () => {
       sort_order: Number(plan.sort_order || 0) || 0,
       source: plan.source || 'manual',
     });
-    setEditOpen(true);
+    setEditing(true);
   };
 
-  const closeEditModal = () => {
+  const cancelEditing = () => {
     if (submitting) {
       return;
     }
-    setEditOpen(false);
+    setEditing(false);
   };
 
   const submitEdit = async () => {
@@ -574,7 +562,7 @@ const TopupPlanDetail = () => {
           : [],
       );
       setUserOptions((current) => appendUserOptionsIfMissing(current, nextPlan.visible_users));
-      setEditOpen(false);
+      setEditing(false);
       showSuccess(t('package_manage.messages.update_success'));
     } catch (error) {
       showError(error?.message || t('package_manage.messages.update_failed'));
@@ -582,6 +570,285 @@ const TopupPlanDetail = () => {
       setSubmitting(false);
     }
   };
+
+  const renderBasicInfo = () => (
+    <div className='router-page-stack'>
+      <AppFormRow>
+        <AppField label={t('redemption.table.id')} readOnly>
+          <AppInput
+            className='router-section-input router-monospace-value'
+            value={readOnlyText(plan?.id || id)}
+            readOnly
+          />
+        </AppField>
+        <AppField label={t('topup.manage.columns.name')} readOnly>
+          <AppInput className='router-section-input' value={readOnlyText(plan?.name)} readOnly />
+        </AppField>
+        <AppField label={t('topup.manage.columns.group')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={readOnlyText(plan?.group_name || plan?.group_id)}
+            readOnly
+          />
+        </AppField>
+      </AppFormRow>
+      <AppFormRow>
+        <AppField label={t('package_manage.form.description')} readOnly>
+          <AppTextarea
+            className='router-section-input'
+            value={readOnlyText(plan?.description)}
+            rows={3}
+            readOnly
+          />
+        </AppField>
+      </AppFormRow>
+      <AppFormRow>
+        <AppField label={t('topup.manage.columns.pay_amount')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={formatAmountWithUnit(plan?.amount || 0, plan?.amount_currency || '', 6)}
+            readOnly
+          />
+        </AppField>
+        <AppField label={t('topup.manage.columns.credited_amount')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={formatAmountWithUnit(plan?.quota_amount || 0, plan?.quota_currency || 'YYC', 6)}
+            readOnly
+          />
+        </AppField>
+      </AppFormRow>
+      <AppFormRow>
+        <AppField label={t('topup.manage.columns.concurrency_limit')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={formatPackageConcurrencyLimit(plan, t, t('common.unlimited'))}
+            readOnly
+          />
+        </AppField>
+        <AppField label={t('topup.manage.columns.validity_days')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={
+              Number(plan?.validity_days || 0) > 0
+                ? `${Number(plan?.validity_days || 0)} ${t('common.day')}`
+                : t('common.never')
+            }
+            readOnly
+          />
+        </AppField>
+        <AppField label={t('topup.manage.columns.enabled')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={
+              Boolean(plan?.enabled)
+                ? t('package_manage.status.enabled')
+                : t('package_manage.status.disabled')
+            }
+            readOnly
+          />
+        </AppField>
+      </AppFormRow>
+      <AppFormRow>
+        <AppField label={t('topup.manage.columns.created_at')} readOnly>
+          <AppInput className='router-section-input' value={formatDateTime(plan?.created_at)} readOnly />
+        </AppField>
+        <AppField label={t('topup.manage.columns.updated_at')} readOnly>
+          <AppInput className='router-section-input' value={formatDateTime(plan?.updated_at)} readOnly />
+        </AppField>
+      </AppFormRow>
+    </div>
+  );
+
+  const renderEditForm = () => (
+    <div className='router-page-stack'>
+      <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('redemption.table.id')} readOnly>
+          <AppInput
+            className='router-section-input router-monospace-value'
+            value={readOnlyText(plan?.id || id)}
+            readOnly
+            disabled
+          />
+        </AppField>
+        <AppField label={t('topup.manage.columns.name')} required>
+          <AppInput
+            className='router-section-input'
+            value={form.name}
+            onChange={(_, { value }) =>
+              setForm((current) => ({ ...current, name: value || '' }))
+            }
+          />
+        </AppField>
+        <AppField label={t('topup.manage.columns.group')} required>
+          <AppSelect
+            className='router-section-dropdown'
+            options={groupOptions}
+            value={form.group_id}
+            loading={groupLoading}
+            search
+            onChange={(_, { value }) =>
+              setForm((current) => ({ ...current, group_id: (value || '').toString() }))
+            }
+          />
+        </AppField>
+      </AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('package_manage.form.description')}>
+          <AppTextarea
+            className='router-section-input'
+            value={form.description}
+            rows={3}
+            onChange={(_, { value }) =>
+              setForm((current) => ({ ...current, description: value || '' }))
+            }
+          />
+        </AppField>
+      </AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('topup.manage.columns.pay_amount')} required>
+          <AppInputNumber
+            className='router-section-input'
+            min={0}
+            precision={2}
+            step={0.01}
+            fluid
+            value={form.sale_price}
+            onChange={(_, { value }) =>
+              setForm((current) => ({ ...current, sale_price: Number(value || 0) }))
+            }
+          />
+        </AppField>
+        <AppField label={t('package_manage.form.sale_currency')} required>
+          <AppInput
+            className='router-section-input'
+            value={form.sale_currency}
+            onChange={(_, { value }) =>
+              setForm((current) => ({
+                ...current,
+                sale_currency: (value || '').toString().toUpperCase(),
+              }))
+            }
+          />
+        </AppField>
+      </AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('topup.manage.columns.credited_amount')} required>
+          <AppInputNumber
+            className='router-section-input'
+            min={0}
+            precision={6}
+            step={0.01}
+            fluid
+            value={form.quota_amount}
+            onChange={(_, { value }) =>
+              setForm((current) => ({ ...current, quota_amount: Number(value || 0) }))
+            }
+          />
+        </AppField>
+        <AppField label={t('topup.manage.columns.credited_unit')}>
+          <AppInput
+            className='router-section-input'
+            value={form.quota_currency}
+            onChange={(_, { value }) =>
+              setForm((current) => ({
+                ...current,
+                quota_currency: (value || '').toString().toUpperCase(),
+              }))
+            }
+          />
+        </AppField>
+      </AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('topup.manage.columns.validity_days')}>
+          <AppInputNumber
+            className='router-section-input'
+            min={0}
+            precision={0}
+            step={1}
+            fluid
+            value={form.validity_days}
+            onChange={(_, { value }) =>
+              setForm((current) => ({ ...current, validity_days: Number(value || 0) }))
+            }
+          />
+        </AppField>
+        <AppField label={t('package_manage.form.max_concurrency_per_user')}>
+          <AppInputNumber
+            className='router-section-input'
+            min={0}
+            precision={0}
+            step={1}
+            fluid
+            value={form.max_concurrency_per_user}
+            onChange={(_, { value }) =>
+              setForm((current) => ({
+                ...current,
+                max_concurrency_per_user: Number(value || 0),
+              }))
+            }
+          />
+        </AppField>
+        <AppField label={t('package_manage.form.max_concurrency_per_package')}>
+          <AppInputNumber
+            className='router-section-input'
+            min={0}
+            precision={0}
+            step={1}
+            fluid
+            value={form.max_concurrency_per_package}
+            onChange={(_, { value }) =>
+              setForm((current) => ({
+                ...current,
+                max_concurrency_per_package: Number(value || 0),
+              }))
+            }
+          />
+        </AppField>
+      </AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('topup.manage.columns.enabled')}>
+          <AppSwitch
+            checked={form.enabled !== false}
+            onChange={(_, { checked }) =>
+              setForm((current) => ({ ...current, enabled: Boolean(checked) }))
+            }
+          />
+        </AppField>
+        <AppField label={t('package_manage.form.sort_order')}>
+          <AppInputNumber
+            className='router-section-input'
+            min={0}
+            precision={0}
+            step={1}
+            fluid
+            value={form.sort_order}
+            onChange={(_, { value }) =>
+              setForm((current) => ({ ...current, sort_order: Number(value || 0) }))
+            }
+          />
+        </AppField>
+      </AppFormRow>
+      <AppFormRow className='router-modal-form-row'>
+        <AppField label={t('topup.manage.columns.created_at')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={formatDateTime(plan?.created_at)}
+            readOnly
+            disabled
+          />
+        </AppField>
+        <AppField label={t('topup.manage.columns.updated_at')} readOnly>
+          <AppInput
+            className='router-section-input'
+            value={formatDateTime(plan?.updated_at)}
+            readOnly
+            disabled
+          />
+        </AppField>
+      </AppFormRow>
+    </div>
+  );
 
   return (
     <div className='dashboard-container'>
@@ -616,92 +883,46 @@ const TopupPlanDetail = () => {
                     title={t('common.basic_info')}
                     titleTag='div'
                     headerEnd={
-                      <AppButton
-                        type='button'
-                        className='router-page-button'
-                        color='blue'
-                        disabled={loading || !plan}
-                        onClick={openEditModal}
-                      >
-                        {t('package_manage.buttons.edit')}
-                      </AppButton>
+                      editing ? (
+                        <>
+                          <AppButton
+                            type='button'
+                            className='router-page-button'
+                            onClick={cancelEditing}
+                            disabled={submitting}
+                          >
+                            {t('common.cancel')}
+                          </AppButton>
+                          <AppButton
+                            type='button'
+                            className='router-page-button'
+                            color='blue'
+                            loading={submitting}
+                            disabled={submitting}
+                            onClick={submitEdit}
+                          >
+                            {t('common.confirm')}
+                          </AppButton>
+                        </>
+                      ) : (
+                        <AppButton
+                          type='button'
+                          className='router-page-button'
+                          color='blue'
+                          disabled={loading || !plan}
+                          onClick={startEditing}
+                        >
+                          {t('package_manage.buttons.edit')}
+                        </AppButton>
+                      )
                     }
                   >
                     {loading ? (
                       <div className='router-empty-cell'>{t('common.loading')}</div>
+                    ) : editing ? (
+                      renderEditForm()
                     ) : (
-                      <div className='router-detail-grid'>
-                        <div className='router-detail-item'>
-                          <div className='router-detail-label'>{t('redemption.table.id')}</div>
-                          <pre className='router-detail-value router-monospace-value'>
-                            {readOnlyText(plan?.id || id)}
-                          </pre>
-                        </div>
-                        <div className='router-detail-item'>
-                          <div className='router-detail-label'>{t('topup.manage.columns.name')}</div>
-                          <pre className='router-detail-value'>{readOnlyText(plan?.name)}</pre>
-                        </div>
-                        <div className='router-detail-item'>
-                          <div className='router-detail-label'>{t('topup.manage.columns.group')}</div>
-                          <pre className='router-detail-value'>
-                            {readOnlyText(plan?.group_name || plan?.group_id)}
-                          </pre>
-                        </div>
-                        <div className='router-detail-item'>
-                          <div className='router-detail-label'>{t('topup.manage.columns.pay_amount')}</div>
-                          <pre className='router-detail-value'>
-                            {formatAmountWithUnit(plan?.amount || 0, plan?.amount_currency || '', 6)}
-                          </pre>
-                        </div>
-                        <div className='router-detail-item'>
-                          <div className='router-detail-label'>
-                            {t('topup.manage.columns.credited_amount')}
-                          </div>
-                          <pre className='router-detail-value'>
-                            {formatAmountWithUnit(
-                              plan?.quota_amount || 0,
-                              plan?.quota_currency || 'YYC',
-                              6,
-                            )}
-                          </pre>
-                        </div>
-                        <div className='router-detail-item'>
-                          <div className='router-detail-label'>
-                            {t('topup.manage.columns.concurrency_limit')}
-                          </div>
-                          <pre className='router-detail-value'>
-                            {formatPackageConcurrencyLimit(plan, t, t('common.unlimited'))}
-                          </pre>
-                        </div>
-                        <div className='router-detail-item'>
-                          <div className='router-detail-label'>
-                            {t('topup.manage.columns.validity_days')}
-                          </div>
-                          <pre className='router-detail-value'>
-                            {Number(plan?.validity_days || 0) > 0
-                              ? `${Number(plan?.validity_days || 0)} ${t('common.day')}`
-                              : t('common.never')}
-                          </pre>
-                        </div>
-                        <div className='router-detail-item'>
-                          <div className='router-detail-label'>{t('topup.manage.columns.enabled')}</div>
-                          <div className='router-detail-value'>
-                            {renderEnabledStatus(Boolean(plan?.enabled), t)}
-                          </div>
-                        </div>
-                        <div className='router-detail-item'>
-                          <div className='router-detail-label'>{t('topup.manage.columns.created_at')}</div>
-                          <pre className='router-detail-value'>
-                            {formatDateTime(plan?.created_at)}
-                          </pre>
-                        </div>
-                        <div className='router-detail-item'>
-                          <div className='router-detail-label'>{t('topup.manage.columns.updated_at')}</div>
-                          <pre className='router-detail-value'>
-                            {formatDateTime(plan?.updated_at)}
-                          </pre>
-                        </div>
-                      </div>
+                      renderBasicInfo()
                     )}
                   </AppDetailSection>
                 ),
@@ -864,185 +1085,6 @@ const TopupPlanDetail = () => {
               {t('common.cancel')}
             </AppButton>
             <AppButton type='button' color='blue' onClick={confirmVisibilityPicker}>
-              {t('common.confirm')}
-            </AppButton>
-          </AppFormActions>
-        </div>
-      </AppModal>
-      <AppModal
-        open={editOpen}
-        onClose={closeEditModal}
-        size='small'
-        title={t('topup.manage.edit_title')}
-        footer={null}
-      >
-        <div className='router-page-stack'>
-          <AppFormRow className='router-modal-form-row'>
-            <AppField label={t('topup.manage.columns.name')} required>
-              <AppInput
-                className='router-section-input'
-                value={form.name}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({ ...current, name: value || '' }))
-                }
-              />
-            </AppField>
-            <AppField label={t('topup.manage.columns.group')} required>
-              <AppSelect
-                className='router-section-dropdown'
-                options={groupOptions}
-                value={form.group_id}
-                loading={groupLoading}
-                search
-                onChange={(_, { value }) =>
-                  setForm((current) => ({ ...current, group_id: (value || '').toString() }))
-                }
-              />
-            </AppField>
-          </AppFormRow>
-          <AppFormRow className='router-modal-form-row'>
-            <AppField label={t('package_manage.form.description')}>
-              <AppTextarea
-                className='router-section-input'
-                value={form.description}
-                rows={3}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({ ...current, description: value || '' }))
-                }
-              />
-            </AppField>
-          </AppFormRow>
-          <AppFormRow className='router-modal-form-row'>
-            <AppField label={t('topup.manage.columns.pay_amount')} required>
-              <AppInputNumber
-                className='router-section-input'
-                min={0}
-                precision={2}
-                step={0.01}
-                fluid
-                value={form.sale_price}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({ ...current, sale_price: Number(value || 0) }))
-                }
-              />
-            </AppField>
-            <AppField label={t('package_manage.form.sale_currency')} required>
-              <AppInput
-                className='router-section-input'
-                value={form.sale_currency}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({
-                    ...current,
-                    sale_currency: (value || '').toString().toUpperCase(),
-                  }))
-                }
-              />
-            </AppField>
-          </AppFormRow>
-          <AppFormRow className='router-modal-form-row'>
-            <AppField label={t('topup.manage.columns.credited_amount')} required>
-              <AppInputNumber
-                className='router-section-input'
-                min={0}
-                precision={6}
-                step={0.01}
-                fluid
-                value={form.quota_amount}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({ ...current, quota_amount: Number(value || 0) }))
-                }
-              />
-            </AppField>
-            <AppField label={t('redemption.table.face_value_unit')}>
-              <AppInput
-                className='router-section-input'
-                value={form.quota_currency}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({
-                    ...current,
-                    quota_currency: (value || '').toString().toUpperCase(),
-                  }))
-                }
-              />
-            </AppField>
-          </AppFormRow>
-          <AppFormRow className='router-modal-form-row'>
-            <AppField label={t('topup.manage.columns.validity_days')}>
-              <AppInputNumber
-                className='router-section-input'
-                min={0}
-                precision={0}
-                step={1}
-                fluid
-                value={form.validity_days}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({ ...current, validity_days: Number(value || 0) }))
-                }
-              />
-            </AppField>
-            <AppField label={t('package_manage.form.sort_order')}>
-              <AppInputNumber
-                className='router-section-input'
-                min={0}
-                precision={0}
-                step={1}
-                fluid
-                value={form.sort_order}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({ ...current, sort_order: Number(value || 0) }))
-                }
-              />
-            </AppField>
-          </AppFormRow>
-          <AppFormRow className='router-modal-form-row'>
-            <AppField label={t('package_manage.form.max_concurrency_per_user')}>
-              <AppInputNumber
-                className='router-section-input'
-                min={0}
-                precision={0}
-                step={1}
-                fluid
-                value={form.max_concurrency_per_user}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({
-                    ...current,
-                    max_concurrency_per_user: Number(value || 0),
-                  }))
-                }
-              />
-            </AppField>
-            <AppField label={t('package_manage.form.max_concurrency_per_package')}>
-              <AppInputNumber
-                className='router-section-input'
-                min={0}
-                precision={0}
-                step={1}
-                fluid
-                value={form.max_concurrency_per_package}
-                onChange={(_, { value }) =>
-                  setForm((current) => ({
-                    ...current,
-                    max_concurrency_per_package: Number(value || 0),
-                  }))
-                }
-              />
-            </AppField>
-          </AppFormRow>
-          <AppFormRow className='router-modal-form-row'>
-            <AppField label={t('topup.manage.columns.enabled')}>
-              <AppSwitch
-                checked={form.enabled !== false}
-                onChange={(_, { checked }) =>
-                  setForm((current) => ({ ...current, enabled: Boolean(checked) }))
-                }
-              />
-            </AppField>
-          </AppFormRow>
-          <AppFormActions>
-            <AppButton type='button' onClick={closeEditModal} disabled={submitting}>
-              {t('common.cancel')}
-            </AppButton>
-            <AppButton type='button' color='blue' loading={submitting} onClick={submitEdit}>
               {t('common.confirm')}
             </AppButton>
           </AppFormActions>
