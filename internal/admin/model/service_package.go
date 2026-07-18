@@ -736,7 +736,21 @@ func createServicePackageWithDB(db *gorm.DB, item ServicePackage) (ServicePackag
 		if err := tx.Create(&row).Error; err != nil {
 			return err
 		}
-		return syncServicePackageVisibleUsersWithDB(tx, row.Id, visibleUserIDs)
+		if err := syncServicePackageVisibleUsersWithDB(tx, row.Id, visibleUserIDs); err != nil {
+			return err
+		}
+		product, err := entitlementProductFromServicePackage(row)
+		if err != nil {
+			return err
+		}
+		stored, err := upsertEntitlementProductWithDB(tx, product)
+		if err != nil {
+			return err
+		}
+		if visibilityScope == ServicePackageVisibilityScopeUser {
+			return syncEntitlementProductVisibleUsersWithDB(tx, stored.Id, visibleUserIDs)
+		}
+		return syncEntitlementProductVisibleUsersWithDB(tx, stored.Id, nil)
 	}); err != nil {
 		return ServicePackage{}, err
 	}
@@ -827,7 +841,21 @@ func updateServicePackageWithDB(db *gorm.DB, item ServicePackage) (ServicePackag
 		if err := tx.Save(&row).Error; err != nil {
 			return err
 		}
-		return syncServicePackageVisibleUsersWithDB(tx, row.Id, visibleUserIDs)
+		if err := syncServicePackageVisibleUsersWithDB(tx, row.Id, visibleUserIDs); err != nil {
+			return err
+		}
+		product, err := entitlementProductFromServicePackage(row)
+		if err != nil {
+			return err
+		}
+		stored, err := upsertEntitlementProductWithDB(tx, product)
+		if err != nil {
+			return err
+		}
+		if visibilityScope == ServicePackageVisibilityScopeUser {
+			return syncEntitlementProductVisibleUsersWithDB(tx, stored.Id, visibleUserIDs)
+		}
+		return syncEntitlementProductVisibleUsersWithDB(tx, stored.Id, nil)
 	}); err != nil {
 		return ServicePackage{}, err
 	}
@@ -862,14 +890,19 @@ func deleteServicePackageWithDB(db *gorm.DB, id string) error {
 	if activeCount > 0 {
 		return fmt.Errorf("套餐仍有生效订阅，无法删除")
 	}
-	result := db.Where("id = ?", normalizedID).Delete(&ServicePackage{})
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("package_id = ?", normalizedID).Delete(&ServicePackageVisibleUser{}).Error; err != nil {
+			return err
+		}
+		result := tx.Where("id = ?", normalizedID).Delete(&ServicePackage{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		return deleteEntitlementProductByIDWithDB(tx, normalizedID)
+	})
 }
 
 func ListServicePackagesPage(page int, pageSize int, keyword string) ([]ServicePackage, int64, error) {

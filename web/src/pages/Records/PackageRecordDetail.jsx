@@ -131,12 +131,12 @@ const PackageRecordDetail = () => {
           {
             key: 'entitlement',
             label: t('header.entitlement'),
-            onClick: () => navigate('/admin/entitlement?tab=package'),
+            onClick: () => navigate('/admin/entitlement'),
           },
           {
             key: 'package-root',
             label: t('header.package'),
-            onClick: () => navigate('/admin/entitlement?tab=package'),
+            onClick: () => navigate('/admin/entitlement'),
           },
           {
             key: 'flow-package-list',

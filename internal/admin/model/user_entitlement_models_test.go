@@ -21,6 +21,7 @@ func newUserEntitlementModelsTestDB(t *testing.T) *gorm.DB {
 		&UserPackageSubscription{},
 		&TopupOrder{},
 		&TopupPlan{},
+		&TopupPlanVisibleUser{},
 		&Redemption{},
 		&UserBalanceLot{},
 		&UserBalanceLotTransaction{},

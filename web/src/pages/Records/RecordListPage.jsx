@@ -14,7 +14,7 @@ const RECORD_CONFIG = {
   package: {
     title: '购买记录',
     parentKey: 'header.package',
-    parentPath: '/admin/entitlement?tab=package',
+    parentPath: '/admin/entitlement',
     detailBasePath: '/admin/entitlement/package/records',
     scope: 'entitlement',
   },

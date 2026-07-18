@@ -9,6 +9,7 @@ import (
 	adminbilling "github.com/yeying-community/router/internal/admin/controller/billing"
 	channel "github.com/yeying-community/router/internal/admin/controller/channel"
 	dashboard "github.com/yeying-community/router/internal/admin/controller/dashboard"
+	entitlement "github.com/yeying-community/router/internal/admin/controller/entitlement"
 	flow "github.com/yeying-community/router/internal/admin/controller/flow"
 	group "github.com/yeying-community/router/internal/admin/controller/group"
 	log "github.com/yeying-community/router/internal/admin/controller/log"
@@ -95,6 +96,7 @@ func SetApiRouter(engine *gin.Engine) {
 				publicSelfRoute.GET("/token", user.GenerateAccessToken)
 				publicSelfRoute.GET("/aff", user.GetAffCode)
 				publicSelfRoute.GET("/packages", plan.GetPublicPackages)
+				publicSelfRoute.GET("/topup/plans", topup.GetPublicTopupPlans)
 				publicSelfRoute.GET("/topup/orders", user.GetTopUpOrders)
 				publicSelfRoute.GET("/topup/redemptions", user.GetCurrentUserTopupRedemptions)
 				publicSelfRoute.GET("/topup/balance/summary", user.GetCurrentUserTopUpBalanceSummary)
@@ -353,6 +355,15 @@ func SetApiRouter(engine *gin.Engine) {
 		adminPackagesRoute.Use(middleware.AdminAuth())
 		{
 			adminPackagesRoute.GET("/", plan.GetPackages)
+		}
+		adminEntitlementRoute := adminRouter.Group("/entitlement")
+		adminEntitlementRoute.Use(middleware.AdminAuth())
+		{
+			adminEntitlementRoute.GET("/products", entitlement.GetProducts)
+			adminEntitlementRoute.GET("/products/:id", entitlement.GetProduct)
+			adminEntitlementRoute.POST("/products", entitlement.CreateProduct)
+			adminEntitlementRoute.PUT("/products/:id", entitlement.UpdateProduct)
+			adminEntitlementRoute.DELETE("/products/:id", entitlement.DeleteProduct)
 		}
 		adminTokenRoute := adminRouter.Group("/token")
 		adminTokenRoute.Use(middleware.AdminAuth())

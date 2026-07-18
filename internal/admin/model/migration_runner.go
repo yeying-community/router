@@ -1792,6 +1792,40 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&ChannelTest{})
 			},
 		},
+		{
+			Version:     "202607181930_entitlement_products",
+			Description: "add unified entitlement product catalog and backfill topup plans and service packages",
+			Up: func(tx *gorm.DB) error {
+				return syncEntitlementProductsFromLegacyWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607181945_drop_entitlement_product_legacy_source",
+			Description: "use entitlement product IDs as source IDs and drop legacy source columns",
+			Up: func(tx *gorm.DB) error {
+				return cleanupEntitlementProductLegacySourceColumnsWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607182030_topup_plan_visibility_scope",
+			Description: "align topup plan visibility with entitlement products and service packages",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&TopupPlan{}, &TopupPlanVisibleUser{}); err != nil {
+					return err
+				}
+				if err := tx.Exec(`
+					UPDATE topup_plans
+					SET visibility_scope = CASE
+						WHEN public_visible = TRUE THEN ?
+						ELSE ?
+					END
+					WHERE COALESCE(TRIM(visibility_scope), '') = ''
+				`, ServicePackageVisibilityScopeAll, ServicePackageVisibilityScopeUser).Error; err != nil {
+					return err
+				}
+				return syncEntitlementProductsFromLegacyWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

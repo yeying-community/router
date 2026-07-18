@@ -107,7 +107,7 @@ const TopUpWorkspaceProvider = ({ children }) => {
 
   const loadTopupPlans = useCallback(async () => {
     try {
-      const res = await API.get('/api/v1/public/topup/plans');
+      const res = await API.get('/api/v1/public/user/topup/plans');
       const { success, message, data } = res?.data || {};
       if (!success) {
         showError(message || t('topup.external_topup.request_failed'));

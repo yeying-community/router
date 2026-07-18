@@ -13,27 +13,31 @@ import (
 )
 
 const (
-	TopupPlansTableName = "topup_plans"
+	TopupPlansTableName            = "topup_plans"
+	TopupPlanVisibleUsersTableName = "topup_plan_visible_users"
 )
 
 type TopupPlan struct {
-	Id                       string   `json:"id" gorm:"primaryKey;type:char(36)"`
-	Name                     string   `json:"name" gorm:"type:varchar(64);not null"`
-	GroupID                  string   `json:"group_id" gorm:"type:char(36);not null;index"`
-	Amount                   float64  `json:"amount" gorm:"type:decimal(10,2);not null;default:0"`
-	AmountCurrency           string   `json:"amount_currency" gorm:"type:varchar(16);not null;default:'CNY'"`
-	QuotaAmount              float64  `json:"quota_amount" gorm:"type:numeric(18,6);not null;default:0"`
-	QuotaCurrency            string   `json:"quota_currency" gorm:"type:varchar(16);not null;default:'USD'"`
-	ValidityDays             int      `json:"validity_days" gorm:"type:int;not null;default:0"`
-	MaxConcurrencyPerUser    int      `json:"max_concurrency_per_user" gorm:"type:int;not null;default:0"`
-	MaxConcurrencyPerPackage int      `json:"max_concurrency_per_package" gorm:"type:int;not null;default:0"`
-	Enabled                  bool     `json:"enabled" gorm:"index"`
-	PublicVisible            bool     `json:"public_visible" gorm:"not null;index"`
-	SortOrder                int      `json:"sort_order" gorm:"default:0;index"`
-	CreatedAt                int64    `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt                int64    `json:"updated_at" gorm:"bigint;index"`
-	GroupName                string   `json:"group_name,omitempty" gorm:"-"`
-	SupportedModels          []string `json:"supported_models,omitempty" gorm:"-"`
+	Id                       string                             `json:"id" gorm:"primaryKey;type:char(36)"`
+	Name                     string                             `json:"name" gorm:"type:varchar(64);not null"`
+	GroupID                  string                             `json:"group_id" gorm:"type:char(36);not null;index"`
+	Amount                   float64                            `json:"amount" gorm:"type:decimal(10,2);not null;default:0"`
+	AmountCurrency           string                             `json:"amount_currency" gorm:"type:varchar(16);not null;default:'CNY'"`
+	QuotaAmount              float64                            `json:"quota_amount" gorm:"type:numeric(18,6);not null;default:0"`
+	QuotaCurrency            string                             `json:"quota_currency" gorm:"type:varchar(16);not null;default:'USD'"`
+	ValidityDays             int                                `json:"validity_days" gorm:"type:int;not null;default:0"`
+	MaxConcurrencyPerUser    int                                `json:"max_concurrency_per_user" gorm:"type:int;not null;default:0"`
+	MaxConcurrencyPerPackage int                                `json:"max_concurrency_per_package" gorm:"type:int;not null;default:0"`
+	VisibilityScope          string                             `json:"visibility_scope" gorm:"type:varchar(32);not null;default:'all';index"`
+	Enabled                  bool                               `json:"enabled" gorm:"index"`
+	PublicVisible            bool                               `json:"public_visible" gorm:"not null;index"`
+	SortOrder                int                                `json:"sort_order" gorm:"default:0;index"`
+	CreatedAt                int64                              `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt                int64                              `json:"updated_at" gorm:"bigint;index"`
+	GroupName                string                             `json:"group_name,omitempty" gorm:"-"`
+	SupportedModels          []string                           `json:"supported_models,omitempty" gorm:"-"`
+	VisibleUserIDs           []string                           `json:"visible_user_ids,omitempty" gorm:"-"`
+	VisibleUsers             []ServicePackageVisibleUserSummary `json:"visible_users,omitempty" gorm:"-"`
 }
 
 type ResolvedTopupPlan struct {
@@ -43,6 +47,16 @@ type ResolvedTopupPlan struct {
 
 func (TopupPlan) TableName() string {
 	return TopupPlansTableName
+}
+
+type TopupPlanVisibleUser struct {
+	PlanID    string `json:"plan_id" gorm:"primaryKey;type:char(36)"`
+	UserID    string `json:"user_id" gorm:"primaryKey;type:char(36);index"`
+	CreatedAt int64  `json:"created_at" gorm:"bigint;index"`
+}
+
+func (TopupPlanVisibleUser) TableName() string {
+	return TopupPlanVisibleUsersTableName
 }
 
 func (item *TopupPlan) EnsureID() {
@@ -193,6 +207,8 @@ func normalizeTopupPlanRowWithDB(db *gorm.DB, row *TopupPlan) error {
 	row.ValidityDays = normalizeTopupPlanValidityDays(row.ValidityDays)
 	row.MaxConcurrencyPerUser = normalizeServicePackageConcurrencyLimit(row.MaxConcurrencyPerUser)
 	row.MaxConcurrencyPerPackage = normalizeServicePackageConcurrencyLimit(row.MaxConcurrencyPerPackage)
+	row.VisibilityScope = normalizeServicePackageVisibilityScope(row.VisibilityScope)
+	row.PublicVisible = row.VisibilityScope == ServicePackageVisibilityScopeAll
 	row.SortOrder = max(row.SortOrder, 0)
 	groupID, err := resolveTopupPlanGroupWithDB(db, row.GroupID)
 	if err != nil {
@@ -209,6 +225,40 @@ func normalizeTopupPlanRowWithDB(db *gorm.DB, row *TopupPlan) error {
 		return fmt.Errorf("到账额度必须大于 0")
 	}
 	return nil
+}
+
+func ensureTopupPlanVisibleUsersTableWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	return db.AutoMigrate(&TopupPlanVisibleUser{})
+}
+
+func syncTopupPlanVisibleUsersWithDB(tx *gorm.DB, planID string, userIDs []string) error {
+	normalizedPlanID := strings.TrimSpace(planID)
+	if normalizedPlanID == "" {
+		return fmt.Errorf("充值权益 ID 不能为空")
+	}
+	if err := ensureTopupPlanVisibleUsersTableWithDB(tx); err != nil {
+		return err
+	}
+	if err := tx.Where("plan_id = ?", normalizedPlanID).Delete(&TopupPlanVisibleUser{}).Error; err != nil {
+		return err
+	}
+	normalizedUserIDs := normalizeServicePackageVisibleUserIDs(userIDs)
+	if len(normalizedUserIDs) == 0 {
+		return nil
+	}
+	now := helper.GetTimestamp()
+	rows := make([]TopupPlanVisibleUser, 0, len(normalizedUserIDs))
+	for _, userID := range normalizedUserIDs {
+		rows = append(rows, TopupPlanVisibleUser{
+			PlanID:    normalizedPlanID,
+			UserID:    userID,
+			CreatedAt: now,
+		})
+	}
+	return tx.Create(&rows).Error
 }
 
 func hydrateTopupPlanGroupNamesWithDB(db *gorm.DB, rows []TopupPlan) error {
@@ -277,6 +327,71 @@ func hydrateTopupPlanSupportedModelsWithDB(db *gorm.DB, rows []TopupPlan) error 
 	return nil
 }
 
+func hydrateTopupPlanVisibilityWithDB(db *gorm.DB, rows []TopupPlan) error {
+	if len(rows) == 0 || db == nil {
+		return nil
+	}
+	planIDs := make([]string, 0, len(rows))
+	seen := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		planID := strings.TrimSpace(row.Id)
+		if planID == "" {
+			continue
+		}
+		if _, ok := seen[planID]; ok {
+			continue
+		}
+		seen[planID] = struct{}{}
+		planIDs = append(planIDs, planID)
+	}
+	if len(planIDs) == 0 {
+		return nil
+	}
+	if err := ensureTopupPlanVisibleUsersTableWithDB(db); err != nil {
+		return err
+	}
+	type visibleUserRow struct {
+		PlanID        string
+		UserID        string
+		Username      string
+		DisplayName   string
+		WalletAddress string
+	}
+	visibleRows := make([]visibleUserRow, 0)
+	if err := db.Table(TopupPlanVisibleUsersTableName+" AS tpu").
+		Select("tpu.plan_id", "tpu.user_id", "u.username", "u.display_name", "u.wallet_address").
+		Joins("LEFT JOIN users u ON u.id = tpu.user_id").
+		Where("tpu.plan_id IN ?", planIDs).
+		Order("tpu.created_at ASC, tpu.user_id ASC").
+		Scan(&visibleRows).Error; err != nil {
+		return err
+	}
+	idsByPlan := make(map[string][]string, len(planIDs))
+	usersByPlan := make(map[string][]ServicePackageVisibleUserSummary, len(planIDs))
+	for _, row := range visibleRows {
+		planID := strings.TrimSpace(row.PlanID)
+		userID := strings.TrimSpace(row.UserID)
+		if planID == "" || userID == "" {
+			continue
+		}
+		idsByPlan[planID] = append(idsByPlan[planID], userID)
+		usersByPlan[planID] = append(usersByPlan[planID], ServicePackageVisibleUserSummary{
+			ID:            userID,
+			Username:      strings.TrimSpace(row.Username),
+			DisplayName:   strings.TrimSpace(row.DisplayName),
+			WalletAddress: strings.TrimSpace(row.WalletAddress),
+		})
+	}
+	for index := range rows {
+		planID := strings.TrimSpace(rows[index].Id)
+		rows[index].VisibilityScope = normalizeServicePackageVisibilityScope(rows[index].VisibilityScope)
+		rows[index].VisibleUserIDs = idsByPlan[planID]
+		rows[index].VisibleUsers = usersByPlan[planID]
+		rows[index].PublicVisible = rows[index].VisibilityScope == ServicePackageVisibilityScopeAll
+	}
+	return nil
+}
+
 func NormalizeTopupPlans(items []TopupPlan) []TopupPlan {
 	normalized := make([]TopupPlan, 0, len(items))
 	for index, item := range items {
@@ -308,11 +423,15 @@ func NormalizeTopupPlans(items []TopupPlan) []TopupPlan {
 }
 
 func ListTopupPlans() ([]TopupPlan, error) {
-	return listTopupPlansWithDB(DB, false)
+	return listTopupPlansWithDB(DB, false, "")
 }
 
 func ListPublicTopupPlans() ([]TopupPlan, error) {
-	return listTopupPlansWithDB(DB, true)
+	return listTopupPlansWithDB(DB, true, "")
+}
+
+func ListPublicTopupPlansForUser(userID string) ([]TopupPlan, error) {
+	return listTopupPlansWithDB(DB, true, userID)
 }
 
 func GetTopupPlanByID(id string) (TopupPlan, error) {
@@ -331,14 +450,32 @@ func DeleteTopupPlan(id string) error {
 	return deleteTopupPlanWithDB(DB, id)
 }
 
-func listTopupPlansWithDB(db *gorm.DB, enabledOnly bool) ([]TopupPlan, error) {
+func listTopupPlansWithDB(db *gorm.DB, enabledOnly bool, userID string) ([]TopupPlan, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database handle is nil")
 	}
 	rows := make([]TopupPlan, 0)
 	query := db.Model(&TopupPlan{})
 	if enabledOnly {
-		query = query.Where("enabled = ? AND public_visible = ?", true, true)
+		query = query.Where("enabled = ?", true)
+		normalizedUserID := strings.TrimSpace(userID)
+		if normalizedUserID == "" {
+			query = query.Where("COALESCE(visibility_scope, '') = '' OR visibility_scope = ?", ServicePackageVisibilityScopeAll)
+		} else {
+			query = query.Where(
+				`(
+					COALESCE(visibility_scope, '') = ''
+					OR visibility_scope = ?
+					OR EXISTS (
+						SELECT 1
+						FROM `+TopupPlanVisibleUsersTableName+` tpu
+						WHERE tpu.plan_id = topup_plans.id AND tpu.user_id = ?
+					)
+				)`,
+				ServicePackageVisibilityScopeAll,
+				normalizedUserID,
+			)
+		}
 	}
 	if err := query.Order("sort_order asc, created_at asc, name asc").Find(&rows).Error; err != nil {
 		return nil, err
@@ -347,6 +484,9 @@ func listTopupPlansWithDB(db *gorm.DB, enabledOnly bool) ([]TopupPlan, error) {
 		return nil, err
 	}
 	if err := hydrateTopupPlanSupportedModelsWithDB(db, rows); err != nil {
+		return nil, err
+	}
+	if err := hydrateTopupPlanVisibilityWithDB(db, rows); err != nil {
 		return nil, err
 	}
 	return rows, nil
@@ -368,6 +508,12 @@ func getTopupPlanByIDWithDB(db *gorm.DB, id string) (TopupPlan, error) {
 	if err := hydrateTopupPlanSupportedModelsWithDB(db, rows); err == nil && len(rows) > 0 {
 		row.SupportedModels = rows[0].SupportedModels
 	}
+	if err := hydrateTopupPlanVisibilityWithDB(db, rows); err == nil && len(rows) > 0 {
+		row.VisibleUserIDs = rows[0].VisibleUserIDs
+		row.VisibleUsers = rows[0].VisibleUsers
+		row.VisibilityScope = rows[0].VisibilityScope
+		row.PublicVisible = rows[0].PublicVisible
+	}
 	return row, nil
 }
 
@@ -376,6 +522,13 @@ func createTopupPlanWithDB(db *gorm.DB, item TopupPlan) (TopupPlan, error) {
 		return TopupPlan{}, fmt.Errorf("database handle is nil")
 	}
 	row := item
+	row.VisibilityScope = normalizeServicePackageVisibilityScope(row.VisibilityScope)
+	visibleUserIDs := normalizeServicePackageVisibleUserIDs(row.VisibleUserIDs)
+	if row.VisibilityScope == ServicePackageVisibilityScopeUser && len(visibleUserIDs) > 0 {
+		if _, err := resolveServicePackageVisibleUsersWithDB(db, visibleUserIDs); err != nil {
+			return TopupPlan{}, err
+		}
+	}
 	if err := normalizeTopupPlanRowWithDB(db, &row); err != nil {
 		return TopupPlan{}, err
 	}
@@ -384,11 +537,39 @@ func createTopupPlanWithDB(db *gorm.DB, item TopupPlan) (TopupPlan, error) {
 		row.CreatedAt = now
 	}
 	row.UpdatedAt = now
-	if err := db.Create(&row).Error; err != nil {
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&row).Error; err != nil {
+			return err
+		}
+		if row.VisibilityScope == ServicePackageVisibilityScopeUser {
+			if err := syncTopupPlanVisibleUsersWithDB(tx, row.Id, visibleUserIDs); err != nil {
+				return err
+			}
+		} else if err := syncTopupPlanVisibleUsersWithDB(tx, row.Id, nil); err != nil {
+			return err
+		}
+		product, err := entitlementProductFromTopupPlan(row)
+		if err != nil {
+			return err
+		}
+		product.VisibleUserIDs = visibleUserIDs
+		stored, err := upsertEntitlementProductWithDB(tx, product)
+		if err != nil {
+			return err
+		}
+		if row.VisibilityScope == ServicePackageVisibilityScopeUser {
+			return syncEntitlementProductVisibleUsersWithDB(tx, stored.Id, visibleUserIDs)
+		}
+		return syncEntitlementProductVisibleUsersWithDB(tx, stored.Id, nil)
+	}); err != nil {
 		return TopupPlan{}, err
 	}
 	if groupCatalog, err := getGroupCatalogByIDWithDB(db, row.GroupID); err == nil {
 		row.GroupName = strings.TrimSpace(groupCatalog.Name)
+	}
+	row.VisibleUserIDs = visibleUserIDs
+	if row.VisibilityScope == ServicePackageVisibilityScopeUser {
+		row.VisibleUsers, _ = resolveServicePackageVisibleUsersWithDB(db, visibleUserIDs)
 	}
 	return row, nil
 }
@@ -418,15 +599,50 @@ func updateTopupPlanWithDB(db *gorm.DB, item TopupPlan) (TopupPlan, error) {
 	row.Enabled = item.Enabled
 	row.PublicVisible = item.PublicVisible
 	row.SortOrder = item.SortOrder
+	row.VisibilityScope = normalizeServicePackageVisibilityScope(item.VisibilityScope)
+	visibleUserIDs := normalizeServicePackageVisibleUserIDs(item.VisibleUserIDs)
+	if row.VisibilityScope == ServicePackageVisibilityScopeUser && len(visibleUserIDs) > 0 {
+		if _, err := resolveServicePackageVisibleUsersWithDB(db, visibleUserIDs); err != nil {
+			return TopupPlan{}, err
+		}
+	}
 	if err := normalizeTopupPlanRowWithDB(db, &row); err != nil {
 		return TopupPlan{}, err
 	}
 	row.UpdatedAt = helper.GetTimestamp()
-	if err := db.Save(&row).Error; err != nil {
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&row).Error; err != nil {
+			return err
+		}
+		if row.VisibilityScope == ServicePackageVisibilityScopeUser {
+			if err := syncTopupPlanVisibleUsersWithDB(tx, row.Id, visibleUserIDs); err != nil {
+				return err
+			}
+		} else if err := syncTopupPlanVisibleUsersWithDB(tx, row.Id, nil); err != nil {
+			return err
+		}
+		product, err := entitlementProductFromTopupPlan(row)
+		if err != nil {
+			return err
+		}
+		product.VisibleUserIDs = visibleUserIDs
+		stored, err := upsertEntitlementProductWithDB(tx, product)
+		if err != nil {
+			return err
+		}
+		if row.VisibilityScope == ServicePackageVisibilityScopeUser {
+			return syncEntitlementProductVisibleUsersWithDB(tx, stored.Id, visibleUserIDs)
+		}
+		return syncEntitlementProductVisibleUsersWithDB(tx, stored.Id, nil)
+	}); err != nil {
 		return TopupPlan{}, err
 	}
 	if groupCatalog, err := getGroupCatalogByIDWithDB(db, row.GroupID); err == nil {
 		row.GroupName = strings.TrimSpace(groupCatalog.Name)
+	}
+	row.VisibleUserIDs = visibleUserIDs
+	if row.VisibilityScope == ServicePackageVisibilityScopeUser {
+		row.VisibleUsers, _ = resolveServicePackageVisibleUsersWithDB(db, visibleUserIDs)
 	}
 	return row, nil
 }
@@ -439,14 +655,22 @@ func deleteTopupPlanWithDB(db *gorm.DB, id string) error {
 	if normalizedID == "" {
 		return fmt.Errorf("充值额度 ID 不能为空")
 	}
-	result := db.Delete(&TopupPlan{}, "id = ?", normalizedID)
-	if result.Error != nil {
-		return result.Error
+	if err := ensureTopupPlanVisibleUsersTableWithDB(db); err != nil {
+		return err
 	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("充值额度不存在")
-	}
-	return nil
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("plan_id = ?", normalizedID).Delete(&TopupPlanVisibleUser{}).Error; err != nil {
+			return err
+		}
+		result := tx.Delete(&TopupPlan{}, "id = ?", normalizedID)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return fmt.Errorf("充值额度不存在")
+		}
+		return deleteEntitlementProductByIDWithDB(tx, normalizedID)
+	})
 }
 
 func seedDefaultTopupPlansWithDB(db *gorm.DB) error {
@@ -476,11 +700,19 @@ func seedDefaultTopupPlansWithDB(db *gorm.DB) error {
 }
 
 func ResolveTopupPlan(planID string) (ResolvedTopupPlan, error) {
+	return resolveTopupPlanForUserWithDB(DB, planID, "", false)
+}
+
+func ResolveTopupPlanForUser(planID string, userID string) (ResolvedTopupPlan, error) {
+	return resolveTopupPlanForUserWithDB(DB, planID, userID, true)
+}
+
+func resolveTopupPlanForUserWithDB(db *gorm.DB, planID string, userID string, enforceVisibility bool) (ResolvedTopupPlan, error) {
 	normalizedPlanID := strings.TrimSpace(planID)
 	if normalizedPlanID == "" {
 		return ResolvedTopupPlan{}, fmt.Errorf("充值额度不能为空")
 	}
-	item, err := getTopupPlanByIDWithDB(DB, normalizedPlanID)
+	item, err := getTopupPlanByIDWithDB(db, normalizedPlanID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ResolvedTopupPlan{}, fmt.Errorf("充值额度不存在")
@@ -489,6 +721,22 @@ func ResolveTopupPlan(planID string) (ResolvedTopupPlan, error) {
 	}
 	if !item.Enabled {
 		return ResolvedTopupPlan{}, fmt.Errorf("充值额度已禁用")
+	}
+	if enforceVisibility && normalizeServicePackageVisibilityScope(item.VisibilityScope) == ServicePackageVisibilityScopeUser {
+		normalizedUserID := strings.TrimSpace(userID)
+		if normalizedUserID == "" {
+			return ResolvedTopupPlan{}, fmt.Errorf("充值额度不可用")
+		}
+		visible := false
+		for _, visibleUserID := range item.VisibleUserIDs {
+			if strings.TrimSpace(visibleUserID) == normalizedUserID {
+				visible = true
+				break
+			}
+		}
+		if !visible {
+			return ResolvedTopupPlan{}, fmt.Errorf("充值额度不可用")
+		}
 	}
 	chargeRate, err := GetBillingCurrencyChargeRate(item.QuotaCurrency)
 	if err != nil {

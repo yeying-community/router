@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { API, showError, timestamp2string } from '../../helpers';
 import { formatAmountWithUnit } from '../../helpers/render';
 import { formatPackageConcurrencyLimit } from '../../helpers/package';
@@ -52,51 +52,37 @@ const normalizeModels = (models) =>
       .filter(Boolean)
     : [];
 
-const resolveListPath = (stateFrom) => {
-  if (typeof stateFrom !== 'string') {
-    return '/admin/entitlement';
-  }
-  const normalized = stateFrom.trim();
-  if (!normalized.startsWith('/')) {
-    return '/admin/entitlement';
-  }
-  if (normalized.startsWith('/admin/entitlement/topup/detail/')) {
-    return '/admin/entitlement';
-  }
-  return normalized || '/admin/entitlement';
-};
+const productToTopupPlan = (item) => ({
+  ...item,
+  id: (item?.id || '').toString().trim(),
+  amount: Number(item?.amount ?? item?.sale_price ?? 0) || 0,
+  amount_currency: item?.amount_currency || item?.sale_currency || 'CNY',
+  quota_amount: Number(item?.quota_amount || 0) || 0,
+  quota_currency: item?.quota_currency || 'YYC',
+  validity_days: Number(item?.validity_days || item?.duration_days || 0) || 0,
+  public_visible: item?.visibility_scope !== 'partial_users',
+});
 
 const TopupPlanDetail = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState(null);
 
-  const listPath = useMemo(
-    () => resolveListPath(location.state?.from),
-    [location.state?.from],
-  );
-
   const loadDetail = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await API.get('/api/v1/admin/topup/plans');
+      const normalizedID = (id || '').toString().trim();
+      const res = await API.get(
+        `/api/v1/admin/entitlement/products/${encodeURIComponent(normalizedID)}`,
+      );
       const { success, message, data } = res?.data || {};
-      if (!success) {
+      if (!success || data?.kind !== 'balance') {
         showError(message || t('topup.manage.load_failed'));
         return;
       }
-      const rows = Array.isArray(data) ? data : [];
-      const matched = rows.find(
-        (item) => (item?.id || '').toString().trim() === (id || '').toString().trim(),
-      );
-      if (!matched) {
-        showError(t('topup.manage.load_failed'));
-        return;
-      }
-      setPlan(matched);
+      setPlan(productToTopupPlan(data));
     } catch (error) {
       showError(error?.message || t('topup.manage.load_failed'));
     } finally {
@@ -123,11 +109,6 @@ const TopupPlanDetail = () => {
             key: 'entitlement',
             label: t('header.entitlement'),
             onClick: () => navigate('/admin/entitlement'),
-          },
-          {
-            key: 'topup-list',
-            label: t('header.topup'),
-            onClick: () => navigate(listPath),
           },
           {
             key: 'topup-current',

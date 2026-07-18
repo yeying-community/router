@@ -229,6 +229,7 @@ const PackageDetail = () => {
   const { id } = useParams();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState(null);
+  const [product, setProduct] = useState(null);
   const [dailyDisplayUnit, setDailyDisplayUnit] = useState('USD');
   const [emergencyDisplayUnit, setEmergencyDisplayUnit] = useState('USD');
   const [currencyIndex, setCurrencyIndex] = useState(
@@ -436,12 +437,27 @@ const PackageDetail = () => {
     }
     setLoading(true);
     try {
-      const res = await API.get(`/api/v1/admin/package/${encodeURIComponent(normalizedId)}`);
+      const productRes = await API.get(
+        `/api/v1/admin/entitlement/products/${encodeURIComponent(normalizedId)}`,
+      );
+      const productPayload = productRes.data || {};
+      if (!productPayload.success || productPayload.data?.kind !== 'subscription') {
+        showError(productPayload.message || t('package_manage.messages.load_failed'));
+        return;
+      }
+      const productDetail = productPayload.data;
+      const packageID = (productDetail?.id || '').toString().trim();
+      if (!packageID) {
+        showError(t('package_manage.messages.load_failed'));
+        return;
+      }
+      const res = await API.get(`/api/v1/admin/package/${encodeURIComponent(packageID)}`);
       const { success, message, data } = res.data || {};
       if (!success) {
         showError(message || t('package_manage.messages.load_failed'));
         return;
       }
+      setProduct(productDetail);
       setDetail(data || null);
     } catch (error) {
       showError(error?.message || error);
@@ -1063,14 +1079,14 @@ const PackageDetail = () => {
           {
             key: 'entitlement',
             label: t('header.entitlement'),
-            onClick: () => navigate('/admin/entitlement?tab=package'),
+            onClick: () => navigate('/admin/entitlement'),
           },
           {
             key: 'package-list',
             label: t('header.package'),
-            onClick: () => navigate('/admin/entitlement?tab=package'),
+            onClick: () => navigate('/admin/entitlement'),
           },
-          { key: 'package-current', label: normalizedId || '-', active: true },
+          { key: 'package-current', label: product?.id || normalizedId || '-', active: true },
         ]}
         title={t('package_manage.dialog.detail_title')}
       />
