@@ -48,6 +48,11 @@ export const ADMIN_MENU_GROUPS = [
         to: '/admin/group',
         icon: 'group',
       },
+      {
+        name: 'header.entitlement',
+        to: '/admin/entitlement',
+        icon: 'ticket',
+      },
     ],
   },
   {
@@ -55,16 +60,6 @@ export const ADMIN_MENU_GROUPS = [
     name: 'header.operation',
     icon: 'users',
     items: [
-      {
-        name: 'header.topup',
-        to: '/admin/topup',
-        icon: 'credit card',
-      },
-      {
-        name: 'header.package',
-        to: '/admin/package',
-        icon: 'gift',
-      },
       {
         name: 'header.user',
         to: '/admin/user',
@@ -170,6 +165,15 @@ export const isAdminRouteActive = (location, to) => {
       currentParams.get('tab') || 'basic',
       currentParams.get('section') || 'general',
     );
+    if (currentTab !== targetTab) {
+      return false;
+    }
+    return true;
+  }
+  if (path === '/admin/entitlement' && targetTab !== '') {
+    const currentTab = (currentParams.get('tab') || 'topup')
+      .trim()
+      .toLowerCase();
     if (currentTab !== targetTab) {
       return false;
     }

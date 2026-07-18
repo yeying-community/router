@@ -261,7 +261,7 @@ const BusinessRecordsTable = ({
           }
           navigateToDetail(
             row,
-            `/admin/topup/records/${encodeURIComponent(rowID)}`,
+            `/admin/entitlement/topup/records/${encodeURIComponent(rowID)}`,
           );
         },
         statusOptions: [
@@ -375,7 +375,7 @@ const BusinessRecordsTable = ({
           }
           navigateToDetail(
             row,
-            `/admin/topup/payment/${encodeURIComponent(rowID)}`,
+            `/admin/entitlement/topup/payment/${encodeURIComponent(rowID)}`,
           );
         },
         statusOptions: [
@@ -523,7 +523,7 @@ const BusinessRecordsTable = ({
           }
           navigateToDetail(
             row,
-            `/admin/package/records/${encodeURIComponent(rowID)}`,
+            `/admin/entitlement/package/records/${encodeURIComponent(rowID)}`,
           );
         },
         statusOptions: [

@@ -54,16 +54,16 @@ const normalizeModels = (models) =>
 
 const resolveListPath = (stateFrom) => {
   if (typeof stateFrom !== 'string') {
-    return '/admin/topup';
+    return '/admin/entitlement';
   }
   const normalized = stateFrom.trim();
   if (!normalized.startsWith('/')) {
-    return '/admin/topup';
+    return '/admin/entitlement';
   }
-  if (normalized.startsWith('/admin/topup/detail/')) {
-    return '/admin/topup';
+  if (normalized.startsWith('/admin/entitlement/topup/detail/')) {
+    return '/admin/entitlement';
   }
-  return normalized || '/admin/topup';
+  return normalized || '/admin/entitlement';
 };
 
 const TopupPlanDetail = () => {
@@ -118,7 +118,12 @@ const TopupPlanDetail = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.operation') },
+          { key: 'model', label: t('header.model') },
+          {
+            key: 'entitlement',
+            label: t('header.entitlement'),
+            onClick: () => navigate('/admin/entitlement'),
+          },
           {
             key: 'topup-list',
             label: t('header.topup'),

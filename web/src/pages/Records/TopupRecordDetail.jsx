@@ -87,16 +87,16 @@ const renderTopupStatus = (status, t) => {
 
 const resolveListPath = (stateFrom) => {
   if (typeof stateFrom !== 'string') {
-    return '/admin/topup/records';
+    return '/admin/entitlement/topup/records';
   }
   const normalized = stateFrom.trim();
   if (!normalized.startsWith('/')) {
-    return '/admin/topup/records';
+    return '/admin/entitlement/topup/records';
   }
-  if (normalized.startsWith('/admin/topup/records/')) {
-    return '/admin/topup/records';
+  if (normalized.startsWith('/admin/entitlement/topup/records/')) {
+    return '/admin/entitlement/topup/records';
   }
-  return normalized || '/admin/topup/records';
+  return normalized || '/admin/entitlement/topup/records';
 };
 
 const TopupRecordDetail = () => {
@@ -140,11 +140,16 @@ const TopupRecordDetail = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.operation') },
+          { key: 'model', label: t('header.model') },
+          {
+            key: 'entitlement',
+            label: t('header.entitlement'),
+            onClick: () => navigate('/admin/entitlement'),
+          },
           {
             key: 'topup-root',
             label: t('header.topup'),
-            onClick: () => navigate('/admin/topup'),
+            onClick: () => navigate('/admin/entitlement'),
           },
           {
             key: 'flow-topup-list',

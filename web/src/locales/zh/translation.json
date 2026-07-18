@@ -2,8 +2,9 @@
   "header": {
     "home": "首页",
     "channel": "渠道",
-    "providers": "供应商",
+    "providers": "厂家",
     "group": "分组",
+    "entitlement": "权益",
     "token": "令牌",
     "account": "账户",
     "redemption": "兑换",
@@ -505,7 +506,7 @@
     "title": "管理渠道",
     "tabs": {
       "channels": "渠道管理",
-      "providers": "供应商"
+      "providers": "厂家"
     },
     "search": "搜索渠道标识...",
     "table": {
@@ -593,25 +594,25 @@
       "embedding": "向量"
     },
     "providers": {
-      "title": "供应商管理",
-      "search": "搜索供应商、名称、模型...",
+      "title": "厂家管理",
+      "search": "搜索厂家、名称、模型...",
       "fetch": {
-        "provider": "供应商",
+        "provider": "厂家",
         "base_url": "Base URL",
         "base_url_placeholder": "默认自动填充官方地址，可按需覆盖",
         "key": "API Key",
-        "key_placeholder": "可留空，若已保存供应商 Key 则自动使用"
+        "key_placeholder": "可留空，若已保存厂家 Key 则自动使用"
       },
       "buttons": {
-        "fetch_from_api": "从供应商 API 拉取模型",
+        "fetch_from_api": "从厂家 API 拉取模型",
         "reload": "加载已保存配置",
         "load_defaults": "载入系统默认模型列表",
-        "add_provider": "新增供应商",
+        "add_provider": "新增厂家",
         "refresh": "刷新",
         "save": "保存配置"
       },
       "table": {
-        "provider": "供应商标识",
+        "provider": "厂家标识",
         "name": "展示名称",
         "key": "API Key",
         "key_set": "已配置",
@@ -622,7 +623,7 @@
         "created_at": "创建时间",
         "updated_at": "更新时间",
         "actions": "操作",
-        "empty": "暂无供应商配置",
+        "empty": "暂无厂家配置",
         "model_count": "共 {{count}} 个模型"
       },
       "model_detail_table": {
@@ -676,24 +677,24 @@
         }
       },
       "dialog": {
-        "title_create": "新增供应商",
-        "title_edit": "编辑供应商",
-        "title_detail": "供应商详情",
+        "title_create": "新增厂家",
+        "title_edit": "编辑厂家",
+        "title_detail": "厂家详情",
         "detail_basic_title": "基础信息",
-        "delete_title": "确认删除供应商",
-        "delete_content": "确定要删除供应商 {{provider}} 吗？",
+        "delete_title": "确认删除厂家",
+        "delete_content": "确定要删除厂家 {{provider}} 吗？",
         "delete_confirm": "确认删除",
         "edit": "编辑",
-        "provider": "供应商标识",
+        "provider": "厂家标识",
         "provider_placeholder": "例如 openai / google / anthropic",
         "name": "展示名称",
-        "name_placeholder": "可选，默认等于供应商标识",
+        "name_placeholder": "可选，默认等于厂家标识",
         "base_url": "Base URL",
         "base_url_placeholder": "留空时自动使用官方默认地址",
         "official_url": "官网地址",
         "official_url_placeholder": "用于记录模型和价格的官方来源页面",
         "key": "API Key",
-        "key_placeholder": "用于从供应商 API 拉取模型",
+        "key_placeholder": "用于从厂家 API 拉取模型",
         "models": "模型列表（每行一个，或逗号分隔）",
         "models_placeholder": "例如：gpt-4o-mini",
         "model_details": "模型明细",
@@ -704,22 +705,22 @@
         "confirm": "确认"
       },
       "messages": {
-        "load_failed": "加载供应商配置失败",
+        "load_failed": "加载厂家配置失败",
         "load_defaults_failed": "加载默认模型列表失败",
         "defaults_loaded": "已载入系统默认模型列表",
-        "provider_required": "供应商标识不能为空",
-        "provider_exists": "该供应商已存在，请直接编辑",
-        "save_failed": "保存供应商配置失败",
-        "save_success": "供应商配置已保存",
+        "provider_required": "厂家标识不能为空",
+        "provider_exists": "该厂家已存在，请直接编辑",
+        "save_failed": "保存厂家配置失败",
+        "save_success": "厂家配置已保存",
         "model_in_use": "该模型仍在被使用，无法删除",
         "model_usage_channels": "渠道",
         "model_usage_group_models": "分组模型",
         "model_usage_group_model_channels": "分组模型渠道",
         "model_details_invalid": "模型明细 JSON 格式不合法，请检查后重试",
-        "fetch_provider_required": "请先选择供应商",
-        "fetch_key_required": "请先填写 API Key，或在供应商配置中保存 Key",
-        "fetch_failed": "从供应商 API 拉取模型失败",
-        "fetch_success": "已完成模型拉取并回填到供应商配置",
+        "fetch_provider_required": "请先选择厂家",
+        "fetch_key_required": "请先填写 API Key，或在厂家配置中保存 Key",
+        "fetch_failed": "从厂家 API 拉取模型失败",
+        "fetch_success": "已完成模型拉取并回填到厂家配置",
         "model_required": "请填写模型名称"
       }
     },
@@ -1039,7 +1040,7 @@
       "endpoint_capabilities": {
         "title": "端点",
         "summary": "共 {{total}} 条，已启用 {{capability_enabled}} 条",
-        "hint": "这里按模型 + 端点展示当前渠道的端点信息。端点列表来自供应商模型支持的默认候选端点，启用状态以当前渠道已保存的配置为准，可直接在这里启用端点并配置对应策略。",
+        "hint": "这里按模型 + 端点展示当前渠道的端点信息。端点列表来自厂家模型支持的默认候选端点，启用状态以当前渠道已保存的配置为准，可直接在这里启用端点并配置对应策略。",
         "loading": "加载端点能力中...",
         "empty": "当前没有端点配置数据，请先到“选择”页同步并启用模型。",
         "filtered_empty": "当前筛选条件下没有端点记录。",
@@ -1206,7 +1207,7 @@
           "name": "名称",
           "alias": "别名",
           "type": "类型",
-          "providers": "供应商",
+          "providers": "厂家",
           "status": "状态",
           "upstream_status": "上游状态",
           "publish_status": "发布状态",
@@ -1224,13 +1225,13 @@
           "enabled": "已启用的",
           "disabled": "未启用的",
           "upstream_status_all": "全部上游状态",
-          "provider_all": "全部供应商"
+          "provider_all": "全部厂家"
         },
-        "enable_hint": "只有已录入供应商模型目录的模型，才可勾选启用。未录入的模型不可勾选，请先补充后再同步启用。",
+        "enable_hint": "只有已录入厂家模型目录的模型，才可勾选启用。未录入的模型不可勾选，请先补充后再同步启用。",
         "auto_assign": "一键录入",
         "auto_assign_empty": "当前没有可一键录入的模型",
         "auto_assign_success": "已一键录入 {{success}} 个模型，失败 {{failed}} 个",
-        "provider_loading": "加载供应商中...",
+        "provider_loading": "加载厂家中...",
         "provider_unassigned": "待配置",
         "runtime_disabled": "运行禁用",
         "publish_status": {
@@ -1242,11 +1243,11 @@
           "disabled": "已停用"
         },
         "provider_add": "添加",
-        "provider_no_options": "请先新增供应商",
-        "provider_load_failed": "加载供应商列表失败",
-        "provider_append_invalid": "请选择供应商并填写模型名称",
-        "provider_append_success": "模型已添加到供应商目录",
-        "provider_append_failed": "添加供应商模型失败",
+        "provider_no_options": "请先新增厂家",
+        "provider_load_failed": "加载厂家列表失败",
+        "provider_append_invalid": "请选择厂家并填写模型名称",
+        "provider_append_success": "模型已添加到厂家目录",
+        "provider_append_failed": "添加厂家模型失败",
         "delete_confirm": "确认删除该模型吗？",
         "delete_success": "模型已删除",
         "delete_failed": "删除模型失败",
@@ -1259,8 +1260,8 @@
         "batch_delete_confirm": "确认删除所选 {{count}} 个模型吗？",
         "batch_delete_select_required": "请先选择至少一个待删除模型。",
         "batch_delete_done": "批量删除完成：成功 {{success}}，失败 {{failed}}。",
-        "selection_disabled_unassigned": "该模型未录入供应商模型目录，不能启用。",
-        "selection_skipped_unassigned": "已跳过当前页 {{count}} 个未录入供应商模型目录的模型。",
+        "selection_disabled_unassigned": "该模型未录入厂家模型目录，不能启用。",
+        "selection_skipped_unassigned": "已跳过当前页 {{count}} 个未录入厂家模型目录的模型。",
         "realtime_enabled": "已启用实时模型同步：修改地址或密钥后会自动刷新模型列表，但不会默认全选。",
         "realtime_hint": "填写地址和密钥后会自动获取该渠道支持的模型。",
         "flow_title": "新建渠道流程",
@@ -1270,9 +1271,9 @@
         "protocol_support_no": "当前协议暂不支持连接验证，使用系统模型列表进行选择。",
         "manual_mode_hint": "当前协议使用系统模型列表，不执行在线连接验证。",
         "append_dialog": {
-          "title": "添加供应商模型",
-          "provider": "目标供应商",
-          "provider_placeholder": "请选择供应商",
+          "title": "添加厂家模型",
+          "provider": "目标厂家",
+          "provider_placeholder": "请选择厂家",
           "model": "模型",
           "type": "类型",
           "tags": "标签",
@@ -1284,7 +1285,7 @@
         "verify_in_progress": "正在验证连接并同步模型...",
         "verify_ready": "连接已验证，可以提交。",
         "verify_stale": "连接参数已变更，请重新验证并获取模型。",
-        "search_placeholder": "搜索模型、类型、供应商...",
+        "search_placeholder": "搜索模型、类型、厂家...",
         "empty": "暂无可选模型，请先点击“获取模型”或检查配置。",
         "empty_filtered": "当前筛选条件下暂无模型",
         "empty_search": "没有匹配的模型",
@@ -1300,8 +1301,8 @@
           "status_hint": "关闭后，该模型不会参与当前渠道的可用模型集合。",
           "upstream_return_title": "最近一次上游返回",
           "enable_block_reason_title": "不能启用原因",
-          "provider_placeholder": "请选择供应商",
-          "provider_empty": "该模型未录入供应商模型目录"
+          "provider_placeholder": "请选择厂家",
+          "provider_empty": "该模型未录入厂家模型目录"
         },
         "upstream_return_status": {
           "returned": "已返回",
@@ -1348,9 +1349,9 @@
         "group_type": "类型：{{type}}",
         "history_tasks": "历史测试",
         "filters": {
-          "all_provider": "全部供应商",
+          "all_provider": "全部厂家",
           "all_type": "全部类型",
-          "provider": "供应商",
+          "provider": "厂家",
           "type": "模型类型"
         },
         "review_hint": "请在此确认已启用模型的最终配置。若修改模型端点，需要重新回到步骤 3 测试通过后再继续。",
@@ -1764,7 +1765,7 @@
       "models_search_placeholder": "搜索模型名称",
       "models_search_empty": "没有匹配的模型",
       "filters": {
-        "all_providers": "全部供应商",
+        "all_providers": "全部厂家",
         "all_sources": "全部来源"
       },
       "ip_limit": "IP 限制",
@@ -2169,7 +2170,7 @@
         "channel": "查看渠道"
       },
       "endpoint": "端点",
-      "provider": "供应商",
+      "provider": "厂家",
       "request_id": "请求 ID",
       "result_url": "结果地址",
       "source": "来源",
@@ -2422,7 +2423,7 @@
         "time": "时间范围",
         "models": "模型"
       },
-      "providers": "供应商",
+      "providers": "厂家",
       "no_providers": "暂无模型",
       "granularity_options": {
         "hour": "小时",
@@ -2640,7 +2641,7 @@
         "channels": "可用渠道 / 总渠道",
         "channel_disabled": "停用渠道数",
         "groups": "分组数量",
-        "providers": "供应商数量",
+        "providers": "厂家数量",
         "tasks_active": "运行中任务",
         "tasks_failed": "失败任务"
       },
@@ -3250,7 +3251,7 @@
         "description": "配置对外计价和利润目标。",
         "description_title": "扣费如何计算",
         "official_markup": "官方价倍率",
-        "official_markup_hint": "基于供应商官方价格计算对外售价，1 表示按官方价，1.2 表示上浮 20%。",
+        "official_markup_hint": "基于厂家官方价格计算对外售价，1 表示按官方价，1.2 表示上浮 20%。",
         "target_margin": "目标毛利率",
         "target_margin_hint": "小数填写，0.2 表示目标毛利 20%；必须小于 0.95。",
         "risk_buffer": "成本缓冲比例",
@@ -3264,7 +3265,7 @@
       },
       "billing": {
         "title": "计费币种",
-        "subtitle": "维护上游计费币种与 YYC 的兑换比率。供应商价格会先按原币种计算，再折算为 YYC 入账。",
+        "subtitle": "维护上游计费币种与 YYC 的兑换比率。厂家价格会先按原币种计算，再折算为 YYC 入账。",
         "empty": "暂无计费币种",
         "columns": {
           "code": "代码",
@@ -3532,7 +3533,7 @@
   "workspace_models": {
     "title": "模型",
     "refresh": "刷新模型状态",
-    "search_placeholder": "搜索模型、供应商、端点或能力",
+    "search_placeholder": "搜索模型、厂家、端点或能力",
     "generated_at": "更新时间：{{time}}",
     "empty": "暂无可用模型状态",
     "history_label": "{{model}} 最近模型状态",

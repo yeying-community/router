@@ -335,7 +335,11 @@ const renderPackageAmountFieldValue = (row, type, displayUnit, currencyIndex) =>
   return renderPackageAmountValue(normalizedChargeAmount, displayUnit, currencyIndex);
 };
 
-const PackagesManager = ({ headerMeta = null }) => {
+const PackagesManager = ({
+  headerMeta = null,
+  headerBreadcrumbs = null,
+  headerTitle = '',
+}) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -712,7 +716,7 @@ const PackagesManager = ({ headerMeta = null }) => {
     if (!row || submitting) return;
     const id = (row.id || '').toString().trim();
     if (id === '') return;
-    navigate(`/admin/package/detail/${encodeURIComponent(id)}`);
+    navigate(`/admin/entitlement/package/detail/${encodeURIComponent(id)}`);
   };
 
   const openEditModal = async (row) => {
@@ -1029,12 +1033,13 @@ const PackagesManager = ({ headerMeta = null }) => {
   const renderTable = () => (
     <>
       <AppFilterHeader
-        breadcrumbs={[
+        breadcrumbs={headerBreadcrumbs || [
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.operation') },
+          { key: 'model', label: t('header.model') },
+          { key: 'entitlement', label: t('header.entitlement') },
           { key: 'package', label: t('header.package'), active: true },
         ]}
-        title={t('header.package')}
+        title={headerTitle || t('header.package')}
         meta={headerMeta}
         metaClassName='router-page-header-meta-links'
         actions={

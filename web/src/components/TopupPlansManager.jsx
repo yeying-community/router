@@ -228,7 +228,11 @@ const SupportedModelsCountButton = ({ models, t }) => {
   );
 };
 
-const TopupPlansManager = ({ headerMeta = null }) => {
+const TopupPlansManager = ({
+  headerMeta = null,
+  headerBreadcrumbs = null,
+  headerTitle = '',
+}) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -608,7 +612,7 @@ const TopupPlansManager = ({ headerMeta = null }) => {
       if (id === '') {
         return;
       }
-      navigate(`/admin/topup/detail/${encodeURIComponent(id)}`, {
+      navigate(`/admin/entitlement/topup/detail/${encodeURIComponent(id)}`, {
         state: { from: `${location.pathname}${location.search}${location.hash}` },
       });
     },
@@ -619,12 +623,13 @@ const TopupPlansManager = ({ headerMeta = null }) => {
     <>
       <AppFilterHeader
         className='router-block-gap-md'
-        breadcrumbs={[
+        breadcrumbs={headerBreadcrumbs || [
           { key: 'workspace', label: t('header.admin_workspace') },
-          { key: 'business', label: t('header.operation') },
+          { key: 'model', label: t('header.model') },
+          { key: 'entitlement', label: t('header.entitlement') },
           { key: 'topup', label: t('header.topup'), active: true },
         ]}
-        title={t('topup.manage.title')}
+        title={headerTitle || t('topup.manage.title')}
         titleClassName='router-ui-section-title'
         meta={headerMeta}
         metaClassName='router-page-header-meta-links'

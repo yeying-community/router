@@ -4,6 +4,7 @@
     "channel": "Channel",
     "providers": "Providers",
     "group": "Group",
+    "entitlement": "Entitlements",
     "token": "Token",
     "account": "Account",
     "redemption": "Redemption",
