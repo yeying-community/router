@@ -9,7 +9,6 @@ import (
 
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/random"
-	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 	"gorm.io/gorm"
 )
 
@@ -20,18 +19,8 @@ const (
 	ChannelBillingActionsTableName       = "channel_billing_actions"
 	ChannelBillingAlertEventsTableName   = "channel_billing_alert_events"
 
-	ChannelBillingModeUnsupported        = "unsupported"
-	ChannelBillingModeManual             = "manual"
-	ChannelBillingModeBuiltinOpenAI      = "builtin_openai"
-	ChannelBillingModeBuiltinCloseAI     = "builtin_closeai"
-	ChannelBillingModeBuiltinOpenAISB    = "builtin_openai_sb"
-	ChannelBillingModeBuiltinAIProxy     = "builtin_aiproxy"
-	ChannelBillingModeBuiltinAPI2GPT     = "builtin_api2gpt"
-	ChannelBillingModeBuiltinAIGC2D      = "builtin_aigc2d"
-	ChannelBillingModeBuiltinSiliconFlow = "builtin_siliconflow"
-	ChannelBillingModeBuiltinDeepSeek    = "builtin_deepseek"
-	ChannelBillingModeBuiltinOpenRouter  = "builtin_openrouter"
-	ChannelBillingModeBuiltinCDK         = "builtin_cdk"
+	ChannelBillingModeUnsupported = "unsupported"
+	ChannelBillingModeManual      = "manual"
 
 	ChannelBillingCapabilityRefreshBilling       = "refresh_billing"
 	ChannelBillingCapabilityManualUpdateSnapshot = "manual_update_snapshot"
@@ -940,34 +929,6 @@ type ChannelBillingNotifyConfig struct {
 	LowRemainingRatio float64 `json:"low_remaining_ratio,omitempty"`
 }
 
-func inferBuiltinChannelBillingMode(channel *Channel) string {
-	if channel == nil {
-		return ChannelBillingModeUnsupported
-	}
-	switch channel.GetChannelProtocol() {
-	case relaychannel.OpenAI:
-		return ChannelBillingModeBuiltinOpenAI
-	case relaychannel.CloseAI:
-		return ChannelBillingModeBuiltinCloseAI
-	case relaychannel.OpenAISB:
-		return ChannelBillingModeBuiltinOpenAISB
-	case relaychannel.AIProxy:
-		return ChannelBillingModeBuiltinAIProxy
-	case relaychannel.API2GPT:
-		return ChannelBillingModeBuiltinAPI2GPT
-	case relaychannel.AIGC2D:
-		return ChannelBillingModeBuiltinAIGC2D
-	case relaychannel.SiliconFlow:
-		return ChannelBillingModeBuiltinSiliconFlow
-	case relaychannel.DeepSeek:
-		return ChannelBillingModeBuiltinDeepSeek
-	case relaychannel.OpenRouter:
-		return ChannelBillingModeBuiltinOpenRouter
-	default:
-		return ChannelBillingModeUnsupported
-	}
-}
-
 func (row ChannelBillingProfile) ParseBillingConfig() channelBillingConfig {
 	configMap := parseJSONObjectString(row.BillingConfig)
 	return channelBillingConfig{
@@ -1017,28 +978,16 @@ func BuildChannelBillingProfileFromChannelConfig(channel *Channel) (ChannelBilli
 	if apiBaseURL == "" {
 		apiBaseURL = normalizeConfiguredBaseURL(channel.GetBaseURL())
 	}
-	mode := inferBuiltinChannelBillingMode(channel)
-	if mode == ChannelBillingModeUnsupported {
-		return ChannelBillingProfile{
-			ChannelId:          strings.TrimSpace(channel.Id),
-			Enabled:            true,
-			BillingMode:        ChannelBillingModeUnsupported,
-			ActionCapabilities: marshalJSONString([]string{ChannelBillingCapabilityManualUpdateSnapshot}),
-		}, true
-	}
 	fetchConfig := channelBillingConfig{}
 	if apiBaseURL != "" {
 		fetchConfig.APIBaseURL = apiBaseURL
 	}
 	return ChannelBillingProfile{
-		ChannelId:     strings.TrimSpace(channel.Id),
-		Enabled:       true,
-		BillingMode:   mode,
-		BillingConfig: marshalJSONString(fetchConfig),
-		ActionCapabilities: marshalJSONString([]string{
-			ChannelBillingCapabilityRefreshBilling,
-			ChannelBillingCapabilityManualUpdateSnapshot,
-		}),
+		ChannelId:          strings.TrimSpace(channel.Id),
+		Enabled:            true,
+		BillingMode:        ChannelBillingModeUnsupported,
+		BillingConfig:      marshalJSONString(fetchConfig),
+		ActionCapabilities: marshalJSONString([]string{ChannelBillingCapabilityManualUpdateSnapshot}),
 	}, true
 }
 

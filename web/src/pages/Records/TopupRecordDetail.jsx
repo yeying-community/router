@@ -87,16 +87,16 @@ const renderTopupStatus = (status, t) => {
 
 const resolveListPath = (stateFrom) => {
   if (typeof stateFrom !== 'string') {
-    return '/admin/entitlement/topup/records';
+    return '/admin/entitlement/purchase-records';
   }
   const normalized = stateFrom.trim();
   if (!normalized.startsWith('/')) {
-    return '/admin/entitlement/topup/records';
+    return '/admin/entitlement/purchase-records';
   }
   if (normalized.startsWith('/admin/entitlement/topup/records/')) {
-    return '/admin/entitlement/topup/records';
+    return '/admin/entitlement/purchase-records';
   }
-  return normalized || '/admin/entitlement/topup/records';
+    return normalized || '/admin/entitlement/purchase-records';
 };
 
 const TopupRecordDetail = () => {

@@ -134,11 +134,22 @@ const formatAmount = (row) =>
     ? `${readOnlyText(row?.currency || 'CNY')} ${Number(row?.amount || 0).toFixed(2)}`
     : '-';
 
+const renderSubscriptionStatus = (status) => {
+  const labels = {
+    1: '生效',
+    2: '已过期',
+    3: '已替换',
+    4: '已取消',
+    5: '待生效',
+  };
+  return labels[Number(status)] || '-';
+};
+
 const resolveListPath = (stateFrom, currentPath = '') => {
   const normalizedCurrentPath = (currentPath || '').toString().trim();
   if (typeof stateFrom !== 'string') {
-    if (normalizedCurrentPath.startsWith('/admin/entitlement/package/records/')) {
-      return '/admin/entitlement/package/records';
+    if (normalizedCurrentPath.startsWith('/admin/entitlement/purchase-records/')) {
+      return '/admin/entitlement/purchase-records';
     }
     return '/admin/user';
   }
@@ -153,13 +164,13 @@ const resolveListPath = (stateFrom, currentPath = '') => {
       return `/admin/user/detail/${segments[3]}`;
     }
   }
-  if (normalized.startsWith('/admin/entitlement/package/records/')) {
-    return '/admin/entitlement/package/records';
+  if (normalized.startsWith('/admin/entitlement/purchase-records/')) {
+    return '/admin/entitlement/purchase-records';
   }
   if (normalized.startsWith('/admin/entitlement/topup/payment/')) {
     return '/admin/user';
   }
-  if (normalized === '/admin/entitlement/package/records') {
+  if (normalized === '/admin/entitlement/purchase-records') {
     return normalized;
   }
   return normalized || '/admin/user';
@@ -171,6 +182,7 @@ const PaymentRecordDetail = () => {
   const location = useLocation();
   const { id, paymentId } = useParams();
   const orderID = (paymentId || id || '').toString().trim();
+  const isSubscriptionDetail = location.pathname.startsWith('/admin/entitlement/purchase-records/');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [order, setOrder] = useState(null);
@@ -184,7 +196,7 @@ const PaymentRecordDetail = () => {
     if (fromUserDetail) {
       return t('topup.payment_history.title');
     }
-    if (listPath.startsWith('/admin/entitlement/package/records')) {
+    if (listPath.startsWith('/admin/entitlement/purchase-records')) {
       return '购买记录';
     }
     return t('flow.topup_reconcile.title');
@@ -194,12 +206,23 @@ const PaymentRecordDetail = () => {
       return [
         { key: 'admin', label: t('header.admin_workspace') },
         {
+          key: 'operation',
+          label: t('header.operation'),
+        },
+        {
+          key: 'user-list',
+          label: t('header.user'),
+          onClick: () => navigate('/admin/user'),
+        },
+        {
           key: 'user-current',
-          label: readOnlyText(order?.username || order?.user_id),
+          label: readOnlyText(
+            listPath.split('/').filter(Boolean).pop() || order?.user_id,
+          ),
           onClick: () => navigate(listPath),
         },
         {
-          key: 'payment-record-current',
+          key: 'payment-detail-current',
           label: readOnlyText(order?.id || id),
           active: true,
         },
@@ -227,14 +250,15 @@ const PaymentRecordDetail = () => {
   }, [fromUserDetail, id, listLabel, listPath, navigate, order?.id, order?.user_id, order?.username, t]);
   const canSyncPaymentStatus = SYNCABLE_TOPUP_RECONCILE_STATUSES.has(
     normalizeTopupStatus(order?.status),
-  );
+  ) && !isSubscriptionDetail;
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await API.get(
-        `/api/v1/admin/flow/topup-reconcile-records/${encodeURIComponent(orderID)}`,
-      );
+      const endpoint = isSubscriptionDetail
+        ? `/api/v1/admin/flow/package-records/${encodeURIComponent(orderID)}`
+        : `/api/v1/admin/flow/topup-reconcile-records/${encodeURIComponent(orderID)}`;
+      const res = await API.get(endpoint);
       const { success, message, data } = res.data || {};
       if (!success) {
         showError(message || t('flow.topup_reconcile.detail.messages.load_failed'));
@@ -246,7 +270,7 @@ const PaymentRecordDetail = () => {
     } finally {
       setLoading(false);
     }
-  }, [orderID, t]);
+  }, [isSubscriptionDetail, orderID, t]);
 
   const handleRefresh = useCallback(async () => {
     if (!orderID) {
@@ -321,7 +345,7 @@ const PaymentRecordDetail = () => {
                       {t('flow.topup_reconcile.detail.fields.business_type')}
                     </div>
                     <pre className='router-detail-value'>
-                      {formatTopupBusinessType(order?.business_type, t)}
+                      {isSubscriptionDetail ? '订阅' : formatTopupBusinessType(order?.business_type, t)}
                     </pre>
                   </div>
                   <div className='router-detail-item'>
@@ -335,7 +359,7 @@ const PaymentRecordDetail = () => {
                       {t('flow.topup_reconcile.detail.fields.stage')}
                     </div>
                     <div className='router-detail-value'>
-                      {renderReconcileStage(order, t)}
+                      {isSubscriptionDetail ? renderSubscriptionStatus(order?.status) : renderReconcileStage(order, t)}
                     </div>
                   </div>
                   <div className='router-detail-item'>
@@ -343,7 +367,7 @@ const PaymentRecordDetail = () => {
                       {t('flow.topup_reconcile.detail.fields.status')}
                     </div>
                     <div className='router-detail-value router-action-group-tight'>
-                      {renderTopupStatus(order?.status, t)}
+                      {isSubscriptionDetail ? renderSubscriptionStatus(order?.status) : renderTopupStatus(order?.status, t)}
                       {canSyncPaymentStatus ? (
                         <AppButton
                           className='router-inline-button'
@@ -361,7 +385,7 @@ const PaymentRecordDetail = () => {
                       {t('flow.topup_reconcile.detail.fields.title')}
                     </div>
                     <pre className='router-detail-value'>
-                      {readOnlyText(order?.title)}
+                      {readOnlyText(order?.title || order?.package_name)}
                     </pre>
                   </div>
                   <div className='router-detail-item'>

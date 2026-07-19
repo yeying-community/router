@@ -73,6 +73,16 @@ func GetTopupOrderRecords(c *gin.Context) {
 	writeFlowList(c, rows, total, page, pageSize)
 }
 
+func GetPurchaseRecords(c *gin.Context) {
+	page, pageSize, keyword, status, userID := parseFlowPageParams(c)
+	rows, total, err := model.ListAdminPurchaseRecordsPageWithDB(model.DB, page, pageSize, keyword, status, userID)
+	if err != nil {
+		writeFlowError(c, err)
+		return
+	}
+	writeFlowList(c, rows, total, page, pageSize)
+}
+
 func GetTopupOrderRecord(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	row, err := model.GetAdminTopupOrderRecordByIDWithDB(model.DB, id)

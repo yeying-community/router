@@ -4,18 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import BusinessRecordsTable from '../../components/BusinessRecordsTable';
 
 const RECORD_CONFIG = {
-  topup: {
-    title: '充值记录',
-    parentKey: 'header.topup',
-    parentPath: '/admin/entitlement',
-    detailBasePath: '/admin/entitlement/topup/records',
-    scope: 'entitlement',
-  },
-  package: {
+  purchase: {
     title: '购买记录',
     parentPath: '/admin/entitlement',
-    detailBasePath: '/admin/entitlement/package/records',
-    tableKind: 'topup-reconcile',
+    detailBasePath: '/admin/entitlement/purchase-records',
+    tableKind: 'purchase',
     scope: 'entitlement',
     hideParentBreadcrumb: true,
   },
@@ -30,7 +23,7 @@ const RECORD_CONFIG = {
 const RecordListPage = ({ kind }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const config = RECORD_CONFIG[kind] || RECORD_CONFIG.topup;
+  const config = RECORD_CONFIG[kind] || RECORD_CONFIG.purchase;
   const parentBreadcrumbs =
     config.scope === 'entitlement'
       ? [

@@ -2370,7 +2370,7 @@ func loadTopupBalanceLotTopupSourceDetails(db *gorm.DB, ids []string) (map[strin
 			Currency:     strings.TrimSpace(order.Currency),
 			CreditAmount: order.Quota,
 			OccurredAt:   occurredAt,
-			DetailPath:   "/admin/flow/topup/" + id,
+			DetailPath:   "/admin/entitlement/topup/records/" + id,
 		}
 	}
 	return details, nil
@@ -2405,7 +2405,7 @@ func loadTopupBalanceLotRedemptionSourceDetails(db *gorm.DB, ids []string) (map[
 			Currency:     strings.TrimSpace(redemption.FaceValueUnit),
 			CreditAmount: redemption.Quota,
 			OccurredAt:   occurredAt,
-			DetailPath:   "/admin/flow/redemption/" + id,
+			DetailPath:   "/admin/redemption/records/" + id,
 		}
 	}
 	return details, nil

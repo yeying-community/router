@@ -179,7 +179,7 @@ func TestBuildAdminTopUpBalanceLotListItemsWithSources(t *testing.T) {
 	if items[0].SourceDetail == nil {
 		t.Fatalf("topup source detail missing")
 	}
-	if items[0].SourceDetail.DetailPath != "/admin/flow/topup/order-1" {
+	if items[0].SourceDetail.DetailPath != "/admin/entitlement/topup/records/order-1" {
 		t.Fatalf("topup detail path=%q", items[0].SourceDetail.DetailPath)
 	}
 	if items[0].SourceDetail.Title != "Starter credits" {
@@ -188,7 +188,7 @@ func TestBuildAdminTopUpBalanceLotListItemsWithSources(t *testing.T) {
 	if items[1].SourceDetail == nil {
 		t.Fatalf("redemption source detail missing")
 	}
-	if items[1].SourceDetail.DetailPath != "/admin/flow/redemption/redemption-1" {
+	if items[1].SourceDetail.DetailPath != "/admin/redemption/records/redemption-1" {
 		t.Fatalf("redemption detail path=%q", items[1].SourceDetail.DetailPath)
 	}
 	if items[1].SourceDetail.Title != "Gift code" {

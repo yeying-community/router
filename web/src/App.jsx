@@ -764,12 +764,12 @@ function App() {
           element={<PackageDetail />}
         />
         <Route
-          path='/admin/entitlement/topup/detail/:id'
-          element={<TopupPlanDetail />}
+          path='/admin/entitlement/purchase-records'
+          element={<RecordListPage kind='purchase' />}
         />
         <Route
-          path='/admin/entitlement/topup/records'
-          element={<RecordListPage kind='topup' />}
+          path='/admin/entitlement/topup/detail/:id'
+          element={<TopupPlanDetail />}
         />
         <Route
           path='/admin/entitlement/topup/records/:id'
@@ -780,11 +780,7 @@ function App() {
           element={<PaymentRecordDetail />}
         />
         <Route
-          path='/admin/entitlement/package/records'
-          element={<RecordListPage kind='package' />}
-        />
-        <Route
-          path='/admin/entitlement/package/records/:id'
+          path='/admin/entitlement/purchase-records/:id'
           element={<PaymentRecordDetail />}
         />
         <Route

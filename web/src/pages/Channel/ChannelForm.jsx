@@ -657,6 +657,26 @@ const normalizeChannelBillingProfile = (item) => {
   };
 };
 
+const normalizeChannelBillingAdapters = (items) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  const seen = new Set();
+  return items
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      name: (item.name || '').toString().trim(),
+      capabilities: Array.isArray(item.capabilities) ? item.capabilities : [],
+    }))
+    .filter((item) => {
+      if (item.name === '' || seen.has(item.name)) {
+        return false;
+      }
+      seen.add(item.name);
+      return true;
+    });
+};
+
 const normalizeChannelBillingSnapshots = (items) => {
   if (!Array.isArray(items)) {
     return [];
@@ -1679,6 +1699,15 @@ const fetchActiveChannelTasks = async (channelId) => {
   return normalizeAsyncTasks(data?.items);
 };
 
+const fetchChannelBillingAdapters = async () => {
+  const res = await API.get('/api/v1/admin/channel/billing/adapters');
+  const { success, message, data } = res.data || {};
+  if (!success) {
+    throw new Error(message || 'fetch billing adapters failed');
+  }
+  return normalizeChannelBillingAdapters(data?.items);
+};
+
 const fetchChannelBillingSummary = async (channelId) => {
   const normalizedChannelId = (channelId || '').toString().trim();
   if (normalizedChannelId === '') {
@@ -2136,6 +2165,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const [modelTesting, setModelTesting] = useState(false);
   const [channelBillingSummary, setChannelBillingSummary] = useState(null);
   const [channelBillingProfile, setChannelBillingProfile] = useState(null);
+  const [channelBillingAdapters, setChannelBillingAdapters] = useState([]);
   const [channelBillingSnapshots, setChannelBillingSnapshots] = useState([]);
   const [channelBillingActions, setChannelBillingActions] = useState([]);
   const [channelProcurementBatches, setChannelProcurementBatches] = useState(
@@ -3273,6 +3303,16 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     }
   }, []);
 
+  const loadChannelBillingAdaptersFromServer = useCallback(async () => {
+    try {
+      return await fetchChannelBillingAdapters();
+    } catch (error) {
+      throw new Error(
+        error?.message || t('channel.edit.billing.adapters_load_failed')
+      );
+    }
+  }, [t]);
+
   const loadChannelBillingSummaryFromServer = useCallback(
     async (targetChannelId) => {
       try {
@@ -3346,14 +3386,16 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       setChannelBillingLoading(true);
       try {
-        const [summary, profile, snapshots, actions, procurementBatches] =
+        const [summary, profile, snapshots, actions, procurementBatches, adapters] =
           await Promise.all([
             loadChannelBillingSummaryFromServer(normalizedChannelId),
             loadChannelBillingProfileFromServer(normalizedChannelId),
             loadChannelBillingSnapshotsFromServer(normalizedChannelId),
             loadChannelBillingActionsFromServer(normalizedChannelId),
             loadChannelProcurementBatchesFromServer(normalizedChannelId),
+            loadChannelBillingAdaptersFromServer(),
           ]);
+        setChannelBillingAdapters(adapters);
         setChannelBillingSummary(summary);
         setChannelBillingProfile(profile);
         setDetailBillingDraft(profile);
@@ -3371,6 +3413,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     },
     [
       loadChannelBillingActionsFromServer,
+      loadChannelBillingAdaptersFromServer,
       loadChannelBillingProfileFromServer,
       loadChannelBillingSnapshotsFromServer,
       loadChannelBillingSummaryFromServer,
@@ -3948,6 +3991,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             billingSnapshotsData,
             billingActionsData,
             procurementBatchesData,
+            billingAdaptersData,
           ] = await Promise.all([
             loadChannelModelsFromServer(
               data.id || targetId,
@@ -3960,6 +4004,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             loadChannelBillingSnapshotsFromServer(data.id || targetId),
             loadChannelBillingActionsFromServer(data.id || targetId),
             loadChannelProcurementBatchesFromServer(data.id || targetId),
+            loadChannelBillingAdaptersFromServer(),
           ]);
           const storedModelTestResults = normalizeModelTestResults(
             channelTestsData.items
@@ -4021,6 +4066,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           setChannelBillingSnapshots(billingSnapshotsData);
           setChannelBillingActions(billingActionsData);
           setChannelProcurementBatches(procurementBatchesData);
+          setChannelBillingAdapters(billingAdaptersData);
           setChannelBillingError('');
           setConfig({
             ...CHANNEL_DEFAULT_CONFIG,
@@ -5982,6 +6028,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 protocolSpecificFields={renderProtocolSpecificFields()}
                 timestamp2string={timestamp2string}
                 billingProfile={channelBillingProfile}
+                billingAdapters={channelBillingAdapters}
                 detailBillingEditing={detailBillingEditing}
                 detailBillingDraft={detailBillingDraft}
                 billingSubmitting={channelBillingSubmitting}

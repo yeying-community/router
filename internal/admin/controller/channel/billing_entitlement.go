@@ -227,7 +227,7 @@ func isCDKAuthExpiredBillingError(profile model.ChannelBillingProfile, err error
 	if err == nil {
 		return false
 	}
-	if strings.TrimSpace(profile.BillingMode) != model.ChannelBillingModeBuiltinCDK {
+	if resolveBillingServiceAdapter(profile) != "aixhan" {
 		return false
 	}
 	reason := strings.ToLower(strings.TrimSpace(err.Error()))

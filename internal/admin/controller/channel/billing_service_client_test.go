@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,9 +12,72 @@ import (
 	"github.com/yeying-community/router/internal/admin/model"
 )
 
+func TestResolveBillingServiceAdapterUsesAdapterName(t *testing.T) {
+	if got := resolveBillingServiceAdapter(model.ChannelBillingProfile{BillingMode: "openai"}); got != "openai" {
+		t.Fatalf("openai adapter = %q", got)
+	}
+	if got := resolveBillingServiceAdapter(model.ChannelBillingProfile{BillingMode: " OpenAI-SB "}); got != "openai-sb" {
+		t.Fatalf("openai-sb adapter = %q", got)
+	}
+	if got := resolveBillingServiceAdapter(model.ChannelBillingProfile{BillingMode: model.ChannelBillingModeManual}); got != "" {
+		t.Fatalf("manual adapter = %q", got)
+	}
+}
+
+func TestListBillingServiceAdaptersNormalizesServiceResponse(t *testing.T) {
+	oldBaseURL := config.BillingServiceBaseURL
+	oldAPIKey := config.BillingServiceAPIKey
+	oldTimeout := config.BillingServiceTimeoutSeconds
+	defer func() {
+		config.BillingServiceBaseURL = oldBaseURL
+		config.BillingServiceAPIKey = oldAPIKey
+		config.BillingServiceTimeoutSeconds = oldTimeout
+	}()
+
+	service := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != billingServiceAdaptersPath {
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer service-key" {
+			http.Error(w, "missing auth", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"name":" OpenAI ","capabilities":["refresh_billing"]},{"name":"openai"},{"name":"aixhan"},{"name":""}]}`))
+	}))
+	defer service.Close()
+
+	config.BillingServiceBaseURL = service.URL
+	config.BillingServiceAPIKey = "service-key"
+	config.BillingServiceTimeoutSeconds = 5
+
+	items, err := listBillingServiceAdapters(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 || items[0].Name != "aixhan" || items[1].Name != "openai" {
+		t.Fatalf("unexpected adapters: %+v", items)
+	}
+	exists, err := billingServiceAdapterExists(context.Background(), " OpenAI ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Fatal("expected openai adapter to exist")
+	}
+	exists, err = billingServiceAdapterExists(context.Background(), "missing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Fatal("missing adapter should not exist")
+	}
+}
+
 func TestBuildBillingServiceQueryUsesAdapterProtocol(t *testing.T) {
 	profile := model.ChannelBillingProfile{
-		BillingMode:   model.ChannelBillingModeBuiltinCDK,
+		BillingMode:   "aixhan",
 		BillingConfig: `{"api_base_url":"https://billing.example.com","cdk":"profile-cdk","currency":"CNY"}`,
 	}
 	query, err := buildBillingServiceQuery(&model.Channel{
@@ -85,7 +149,7 @@ func TestCollectBillingServiceSnapshotConvertsResponse(t *testing.T) {
 	}
 	profile := model.ChannelBillingProfile{
 		ChannelId:   "channel-1",
-		BillingMode: model.ChannelBillingModeBuiltinOpenRouter,
+		BillingMode: "openrouter",
 	}
 	collected, err := collectBillingServiceSnapshot(channelRow, profile, "自动刷新账务")
 	if err != nil {
@@ -144,7 +208,7 @@ func TestCollectChannelBillingSnapshotPrefersBillingService(t *testing.T) {
 		Key:      "channel-key",
 	}, model.ChannelBillingProfile{
 		ChannelId:     "channel-1",
-		BillingMode:   model.ChannelBillingModeBuiltinCDK,
+		BillingMode:   "aixhan",
 		BillingConfig: `{"api_base_url":"https://billing.example.com","cdk":"profile-cdk","currency":"CNY"}`,
 	}, "自动刷新账务")
 	if err != nil {
