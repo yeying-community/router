@@ -106,6 +106,23 @@ func TestBuildBillingServiceQueryUsesAdapterProtocol(t *testing.T) {
 	}
 }
 
+func TestBuildBillingServiceQueryFallsBackToChannelKey(t *testing.T) {
+	profile := model.ChannelBillingProfile{
+		BillingSource: "vendor-a",
+		BillingConfig: `{}`,
+	}
+	query, err := buildBillingServiceQuery(&model.Channel{
+		Id:  "channel-1",
+		Key: "model-secret",
+	}, profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if query.Credential != "model-secret" {
+		t.Fatalf("credential = %q", query.Credential)
+	}
+}
+
 func TestCollectBillingServiceSnapshotConvertsResponse(t *testing.T) {
 	oldBaseURL := config.BillingServiceBaseURL
 	oldAPIKey := config.BillingServiceAPIKey

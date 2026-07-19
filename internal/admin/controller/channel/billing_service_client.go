@@ -185,6 +185,16 @@ func billingServiceAdapterExists(ctx context.Context, name string) (bool, error)
 	return false, nil
 }
 
+func resolveChannelBillingCredential(channel *model.Channel, profile model.ChannelBillingProfile) string {
+	if credential := strings.TrimSpace(profile.ParseBillingConfig().BillingKey); credential != "" {
+		return credential
+	}
+	if channel == nil {
+		return ""
+	}
+	return strings.TrimSpace(channel.Key)
+}
+
 func buildBillingServiceQuery(channel *model.Channel, profile model.ChannelBillingProfile) (billingServiceQueryRequest, error) {
 	if channel == nil {
 		return billingServiceQueryRequest{}, fmt.Errorf("渠道不存在")
@@ -196,7 +206,7 @@ func buildBillingServiceQuery(channel *model.Channel, profile model.ChannelBilli
 	request := billingServiceQueryRequest{
 		ChannelID:  strings.TrimSpace(channel.Id),
 		Adapter:    adapter,
-		Credential: strings.TrimSpace(profile.ParseBillingConfig().BillingKey),
+		Credential: resolveChannelBillingCredential(channel, profile),
 	}
 	return request, nil
 }

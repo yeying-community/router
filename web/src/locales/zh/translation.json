@@ -884,7 +884,7 @@
         "no_procurement_batches": "暂无采购批次",
         "no_procurement_consumptions": "暂无消费明细",
         "no_expire": "无截止时间",
-        "credential_hint": "Billing 服务使用账务 Key 作为 credential；模型请求仍使用渠道基础配置里的 API Key。",
+        "credential_hint": "Billing 服务优先使用账务 Key 作为 credential；未配置账务 Key 时回退使用渠道基础配置里的 API Key。模型请求始终使用渠道基础配置里的 API Key。",
         "adapters_load_failed": "加载 Billing adapter 列表失败",
         "procurement_status": {
           "active": "可分摊",

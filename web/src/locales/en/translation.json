@@ -884,7 +884,7 @@
         "no_procurement_batches": "No procurement batches",
         "no_procurement_consumptions": "No procurement consumptions",
         "no_expire": "No expiration",
-        "credential_hint": "Billing service uses Billing Key as credential; model requests still use the API Key from channel basic settings.",
+        "credential_hint": "Billing service uses Billing Key as credential first; if Billing Key is empty, it falls back to the API Key from channel basic settings. Model requests always use the API Key from channel basic settings.",
         "adapters_load_failed": "Failed to load Billing adapters",
         "procurement_status": {
           "active": "Allocatable",

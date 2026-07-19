@@ -128,7 +128,7 @@ Router 支持通过 `billing_service.base_url` 接入独立 Billing 服务。
 
 - 渠道 `config.api_base_url` 只用于模型请求转发
 - 账务 API 地址、厂商默认地址和地址覆盖由 Billing 服务维护
-- 刷新时 Router 使用 Billing Profile 的 `billing_key` 作为 Billing 请求的 `credential`
+- 刷新时 Router 优先使用 Billing Profile 的 `billing_key` 作为 Billing 请求的 `credential`；未配置时回退使用渠道基础配置里的 API Key
 - `billing_source` 直接保存 Billing 服务返回的 adapter 名；默认值为 `manual`
 - adapter 列表、厂商差异、私有凭据含义和账务字段映射全部由 Billing 服务维护
 
