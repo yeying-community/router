@@ -101,6 +101,18 @@ const QuotaCardDetailPageInner = () => {
   const packageDetail = card?.package || null;
   const balanceDetail = card?.balance_lot || null;
   const sourceDetail = balanceDetail?.source_detail || null;
+  const supportedModels = useMemo(
+    () => {
+      const candidates = [
+        packageDetail?.supported_models,
+        balanceDetail?.supported_models,
+        sourceDetail?.supported_models,
+        card?.supported_models,
+      ];
+      return candidates.find((models) => Array.isArray(models) && models.length > 0) || [];
+    },
+    [balanceDetail?.supported_models, card?.supported_models, packageDetail?.supported_models, sourceDetail?.supported_models],
+  );
   const detailRows = useMemo(() => {
     if (packageDetail) {
       return [
@@ -220,13 +232,13 @@ const QuotaCardDetailPageInner = () => {
                 </div>
               ))}
             </div>
-            {packageDetail ? (
+            <div className='router-quota-detail-card'>
               <SupportedModelsSummary
-                models={packageDetail.supported_models}
+                models={supportedModels}
                 t={t}
                 label={t('user.detail.package_supported_models')}
               />
-            ) : null}
+            </div>
           </>
         ) : loading ? null : (
           <div className='router-empty'>
