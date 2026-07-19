@@ -1911,9 +1911,11 @@
   },
   "log": {
     "cleanup": {
-      "label": "Clean up to",
-      "button": "Clean Historical Logs",
-      "invalid_time": "Please choose a valid cleanup time",
+      "label": "Delete logs before",
+      "button": "Delete Historical Logs",
+      "invalid_time": "Please choose a valid cutoff time",
+      "confirm_title": "Delete historical logs?",
+      "confirm_description": "All logs before this time will be permanently deleted.",
       "failed": "Failed to clean logs",
       "success": "Cleaned {{count}} log entries"
     },

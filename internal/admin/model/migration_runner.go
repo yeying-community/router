@@ -1805,6 +1805,67 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return tx.AutoMigrate(&ChannelBillingProfile{})
 			},
 		},
+		{
+			Version:     "202607191700_redemption_entitlement_snapshots",
+			Description: "add entitlement binding and snapshot fields to redemption codes and issue audits",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&Redemption{}, &RedemptionIssueAuditLog{}); err != nil {
+					return err
+				}
+				return nil
+			},
+		},
+		{
+			Version:     "202607191710_repair_redemption_entitlement_columns",
+			Description: "repair missing redemption entitlement binding and snapshot columns",
+			Up: func(tx *gorm.DB) error {
+				statements := []string{
+					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS entitlement_product_id varchar(36) NOT NULL DEFAULT ''`,
+					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS product_kind varchar(32) NOT NULL DEFAULT ''`,
+					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS product_name_snapshot varchar(64) NOT NULL DEFAULT ''`,
+					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS quota_amount_snapshot numeric(18,6) NOT NULL DEFAULT 0`,
+					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS quota_currency_snapshot varchar(16) NOT NULL DEFAULT 'YYC'`,
+					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS validity_days_snapshot integer NOT NULL DEFAULT 0`,
+					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS group_id_snapshot varchar(36) NOT NULL DEFAULT ''`,
+					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS entitlement_product_id varchar(36) NOT NULL DEFAULT ''`,
+					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS product_name_snapshot varchar(64) NOT NULL DEFAULT ''`,
+					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS quota_amount_snapshot numeric(18,6) NOT NULL DEFAULT 0`,
+					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS quota_currency_snapshot varchar(16) NOT NULL DEFAULT 'YYC'`,
+					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS validity_days_snapshot integer NOT NULL DEFAULT 0`,
+				}
+				for _, statement := range statements {
+					if err := tx.Exec(statement).Error; err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+		},
+		{
+			Version:     "202607191720_cleanup_legacy_redemptions",
+			Description: "archive redeemed legacy codes and remove unused codes without entitlement bindings",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.Exec(`
+					UPDATE redemptions
+					SET product_kind = 'balance',
+						product_name_snapshot = CASE WHEN COALESCE(TRIM(name), '') = '' THEN '历史充值' ELSE name END,
+						quota_amount_snapshot = COALESCE(quota, 0),
+						quota_currency_snapshot = 'YYC',
+						validity_days_snapshot = COALESCE(credit_validity_days, 0),
+						group_id_snapshot = COALESCE(group_id, '')
+					WHERE status = ? AND COALESCE(TRIM(entitlement_product_id), '') = ''
+				`, RedemptionCodeStatusUsed).Error; err != nil {
+					return err
+				}
+				if err := tx.Exec(`
+					DELETE FROM redemptions
+					WHERE status <> ? AND COALESCE(TRIM(entitlement_product_id), '') = ''
+				`, RedemptionCodeStatusUsed).Error; err != nil {
+					return err
+				}
+				return nil
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

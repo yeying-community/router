@@ -1911,9 +1911,11 @@
   },
   "log": {
     "cleanup": {
-      "label": "清理到",
-      "button": "清理历史日志",
-      "invalid_time": "请选择有效的清理时间",
+      "label": "删除此时间之前的日志",
+      "button": "删除历史日志",
+      "invalid_time": "请选择有效的截止时间",
+      "confirm_title": "确认删除历史日志？",
+      "confirm_description": "此操作将删除该时间之前的所有日志，且不可恢复。",
       "failed": "日志清理失败",
       "success": "已清理 {{count}} 条日志"
     },

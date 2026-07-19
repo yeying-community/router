@@ -333,15 +333,6 @@ const RedemptionDetail = () => {
           bodyClassName='router-page-stack'
         >
                 <AppFormRow>
-                  {redemption?.entitlement_product_id ? (
-                    <AppField label='绑定充值权益' readOnly>
-                      <AppInput
-                        className='router-section-input router-machine-input'
-                        value={redemption.product_name_snapshot || redemption.entitlement_product_id}
-                        readOnly
-                      />
-                    </AppField>
-                  ) : null}
                   {isEditing && false ? (
                     <AppField label={t('redemption.edit.name')}>
                       <AppInput
@@ -370,27 +361,18 @@ const RedemptionDetail = () => {
                   </AppField>
                 </AppFormRow>
                 <AppFormRow>
-                  {isEditing && false ? (
-                    <AppField label={t('redemption.edit.group')}>
-                      <AppSelect
-                        className='router-section-input'
-                        name='group_id'
-                        placeholder={t('redemption.edit.group_placeholder')}
-                        options={groupOptions}
-                        value={inputs.group_id}
-                        onChange={handleInputChange}
-                        search
-                      />
-                    </AppField>
-                  ) : (
-                    <AppField label={t('redemption.table.group')} readOnly>
-                      <AppInput
-                        className='router-section-input'
-                        value={formatGroupLabel(redemption)}
-                        readOnly
-                      />
-                    </AppField>
-                  )}
+                  <AppField label='权益名称' readOnly>
+                    <button
+                      type='button'
+                      className='router-link-button router-link-inline'
+                      onClick={() => navigate(
+                        `/admin/entitlement/topup/detail/${encodeURIComponent(redemption?.entitlement_product_id || '')}`,
+                        { state: { from: `${location.pathname}${location.search}` } },
+                      )}
+                    >
+                      {redemption?.product_name_snapshot || redemption?.entitlement_product_id || '-'}
+                    </button>
+                  </AppField>
                   <AppField label={t('redemption.detail.redeemed_by')} readOnly>
                     <AppInput
                       className='router-section-input'
@@ -399,7 +381,7 @@ const RedemptionDetail = () => {
                     />
                   </AppField>
                 </AppFormRow>
-	                <AppFormRow>
+	                {false && <AppFormRow>
 	                  {isEditing && false ? (
 	                    <AppField label={t('redemption.edit.face_value_amount')}>
 	                      <AppCompact className='router-section-input-with-unit' block>
@@ -424,7 +406,7 @@ const RedemptionDetail = () => {
 	                      </AppCompact>
 	                    </AppField>
 	                  ) : (
-	                    <AppField label={t('redemption.table.face_value')} readOnly>
+                    <AppField label='权益额度' readOnly>
                       <AppInput
                         className='router-section-input'
                         value={formatAmountWithUnit(
@@ -452,7 +434,7 @@ const RedemptionDetail = () => {
                       />
                     </AppField>
                   )}
-                </AppFormRow>
+	                </AppFormRow>}
 	                <AppFormRow>
                   {isEditing && false ? (
                     <AppField label={t('redemption.edit.code_validity_days')}>
@@ -526,7 +508,7 @@ const RedemptionDetail = () => {
                   </AppField>
                 </AppFormRow>
                 <AppFormRow>
-                  <AppField label={t('redemption.detail.code_expires_at')} readOnly>
+                  <AppField label='过期时间' readOnly>
                     <AppInput
                       className='router-section-input'
                       value={

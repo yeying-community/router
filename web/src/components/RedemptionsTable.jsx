@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   API,
   copy,
@@ -394,18 +394,6 @@ const RedemptionsTable = ({ headerMeta = null }) => {
             render: (value) => value || t('redemption.table.no_name'),
           },
           {
-            title: t('redemption.table.group'),
-            dataIndex: 'groupLabel',
-            key: 'groupLabel',
-            width: REDEMPTION_LIST_COLUMN_WIDTHS.group,
-            ellipsis: true,
-            sorter: (a, b) => compareTextValue(a.groupLabel, b.groupLabel),
-            sortDirections: ['ascend', 'descend'],
-            sortOrder:
-              tableSorter.columnKey === 'groupLabel' ? tableSorter.order : null,
-            render: (value) => value || '-',
-          },
-          {
             title: t('redemption.table.status'),
             dataIndex: 'status',
             key: 'status',
@@ -417,31 +405,10 @@ const RedemptionsTable = ({ headerMeta = null }) => {
             render: (value) => renderStatus(value, t),
           },
           {
-            title: (
-              <div className='router-table-header-with-control router-redemption-face-value-header'>
-                <span>{t('redemption.table.face_value')}</span>
-                <UnitDropdown
-                  variant='header'
-                  compact
-                  options={displayUnitOptions}
-                  value={displayUnit}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onChange={(_, { value }) => {
-                    setDisplayUnit((value || '').toString());
-                  }}
-                />
-              </div>
-            ),
-            key: 'face_value',
+            title: '权益名称',
+            key: 'product_name_snapshot',
             width: REDEMPTION_LIST_COLUMN_WIDTHS.faceValue,
-            sorter: (a, b) => compareNumberValue(a.creditedChargeAmount, b.creditedChargeAmount),
-            sortDirections: ['ascend', 'descend'],
-            sortOrder:
-              tableSorter.columnKey === 'face_value' ? tableSorter.order : null,
-            render: (_, redemption) =>
-              renderDisplayFaceValue(redemption, displayUnit, currencyIndex),
+            render: (_, redemption) => redemption?.product_name_snapshot || redemption?.entitlement_product_id || '-',
           },
           {
             title: t('redemption.table.created_time'),
@@ -456,7 +423,7 @@ const RedemptionsTable = ({ headerMeta = null }) => {
               renderTimestamp(redemption.createdTime || redemption.created_time),
           },
           {
-            title: t('redemption.table.code_expires_at'),
+            title: '过期时间',
             dataIndex: 'code_expires_at',
             key: 'code_expires_at',
             className: 'router-table-col-datetime',

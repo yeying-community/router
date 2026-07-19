@@ -32,8 +32,10 @@ import {
   AppButton,
   AppFilterHeader,
   AppFormActions,
+  AppModal,
   AppPagination,
   AppPopover,
+  AppPopconfirm,
   resolvePopupContainer,
   AppSelect,
   AppTable,
@@ -524,6 +526,7 @@ const LogsTable = () => {
   const [cleanupTimestamp, setCleanupTimestamp] = useState(
     cleanupDatetimeLocalValue(),
   );
+  const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
   const [cleaningLogs, setCleaningLogs] = useState(false);
   const draggingColumnKeyRef = useRef('');
 
@@ -1344,20 +1347,10 @@ const LogsTable = () => {
         actions={
           isAdminScope ? (
             <div className='router-log-cleanup-actions'>
-              <label className='router-log-cleanup-label'>
-                <span>{t('log.cleanup.label')}</span>
-                <input
-                  className='router-log-cleanup-input'
-                  type='datetime-local'
-                  value={cleanupTimestamp}
-                  onChange={(e) => setCleanupTimestamp(e.target.value)}
-                />
-              </label>
               <AppButton
                 type='button'
-                className='router-section-button'
-                onClick={deleteHistoryLogs}
-                loading={cleaningLogs}
+                className='router-section-button router-danger-button'
+                onClick={() => setCleanupModalOpen(true)}
                 disabled={loading}
               >
                 {t('log.cleanup.button')}
@@ -1570,6 +1563,44 @@ const LogsTable = () => {
         }
         endClassName='router-log-query-wrap'
       />
+
+      <AppModal
+        open={cleanupModalOpen}
+        title={t('log.cleanup.confirm_title')}
+        onCancel={() => setCleanupModalOpen(false)}
+        onClose={() => setCleanupModalOpen(false)}
+        footer={
+          <AppFormActions>
+            <AppButton type='button' onClick={() => setCleanupModalOpen(false)}>
+              {t('common.cancel')}
+            </AppButton>
+            <AppButton
+              type='button'
+              className='router-danger-button'
+              loading={cleaningLogs}
+              onClick={async () => {
+                await deleteHistoryLogs();
+                setCleanupModalOpen(false);
+              }}
+            >
+              {t('common.confirm')}
+            </AppButton>
+          </AppFormActions>
+        }
+      >
+        <div className='router-settings-page-block'>
+          <label className='router-log-cleanup-label'>
+            <span>{t('log.cleanup.label')}</span>
+            <input
+              className='router-log-cleanup-input'
+              type='datetime-local'
+              value={cleanupTimestamp}
+              onChange={(e) => setCleanupTimestamp(e.target.value)}
+            />
+          </label>
+          <div className='router-text-muted'>{t('log.cleanup.confirm_description')}</div>
+        </div>
+      </AppModal>
       <div className='router-table-scroll-x'>
         <AppTable
           className='router-list-table router-table-fit-page router-log-table'

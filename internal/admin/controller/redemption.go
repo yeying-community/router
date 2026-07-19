@@ -149,10 +149,10 @@ func AddRedemption(c *gin.Context) {
 		})
 		return
 	}
-	if redemption.Count > 100 {
+	if redemption.Count > 99 {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "一次兑换码批量生成的个数不能大于 100",
+			"message": "一次兑换码批量生成的个数不能大于 99",
 		})
 		return
 	}
@@ -231,6 +231,9 @@ func createRedemptionsWithDB(tx *gorm.DB, template model.Redemption, creatorID s
 			CreatedTime:           createdAt,
 			CodeValidityDays:      template.CodeValidityDays,
 			CodeExpiresAt:         model.ResolveBalanceCreditExpiresAt(createdAt, template.CodeValidityDays),
+		}
+		if template.Count > 1 {
+			cleanRedemption.Name = fmt.Sprintf("%s-%02d", template.Name, i+1)
 		}
 		if err := tx.Create(&cleanRedemption).Error; err != nil {
 			return nil, err

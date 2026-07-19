@@ -225,6 +225,7 @@ const EditRedemption = () => {
                   onChange={handleInputChange}
                   value={count}
                   min={1}
+                  max={99}
                   precision={0}
                   fluid
                 />
