@@ -29,7 +29,7 @@ export const ADMIN_MENU_GROUPS = [
     ],
   },
   {
-    key: 'resource',
+    key: 'model',
     name: 'header.model',
     icon: 'cube',
     items: [

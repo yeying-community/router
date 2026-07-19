@@ -26,7 +26,6 @@ const EMPTY_ARRAY = Object.freeze([]);
 const BUSINESS_FLOW_HEADER_KEY = {
   topup: 'header.topup',
   'topup-reconcile': 'flow.topup_reconcile.title',
-  package: 'header.package',
   redemption: 'flow.redemption.title',
 };
 
@@ -118,7 +117,6 @@ const renderReconcileStage = (row, t) => {
 const DEFAULT_BREADCRUMB_KEY = {
   topup: 'header.topup',
   'topup-reconcile': 'flow.topup_reconcile.title',
-  package: 'header.package',
   redemption: 'header.redemption',
 };
 
@@ -363,6 +361,60 @@ const BusinessRecordsTable = ({
       };
     }
 
+    if (kind === 'purchase') {
+      return {
+        endpoint: '/api/v1/admin/flow/purchase-records',
+        searchPlaceholder: searchPlaceholder || '搜索用户、商品或记录 ID',
+        emptyText: emptyText || '暂无购买记录',
+        onRowClick: (row) => {
+          const rowID = readOnlyText(row?.id);
+          if (rowID === '-') return;
+          const detailPath = row?.product_kind === 'subscription'
+            ? `/admin/entitlement/purchase-records/${encodeURIComponent(rowID)}`
+            : `/admin/entitlement/topup/records/${encodeURIComponent(rowID)}`;
+          navigateToDetail(row, detailPath);
+        },
+        columns: [
+          compactUserColumn,
+          {
+            key: 'product_kind',
+            label: '类型',
+            width: BUSINESS_FLOW_COLUMN_WIDTHS.type,
+            render: (row) => row?.product_kind === 'subscription' ? '订阅' : '充值',
+          },
+          {
+            key: 'product_name',
+            label: '权益',
+            width: BUSINESS_FLOW_COLUMN_WIDTHS.packageName,
+            render: (row) => renderText(readOnlyText(row?.product_name), 28),
+          },
+          {
+            key: 'status',
+            label: '状态',
+            width: BUSINESS_FLOW_COLUMN_WIDTHS.status,
+            render: (row) => row?.product_kind === 'subscription'
+              ? renderPackageStatus(row?.status, t)
+              : renderTopupStatus(row?.status, t),
+          },
+          {
+            key: 'amount',
+            label: '金额',
+            width: BUSINESS_FLOW_COLUMN_WIDTHS.amount,
+            render: (row) => Number(row?.amount || 0) > 0
+              ? `${row.currency || 'CNY'} ${Number(row.amount).toFixed(2)}`
+              : '-',
+          },
+          {
+            key: 'created_at',
+            label: t('user.table.created_at'),
+            width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
+            render: (row) => formatDateTime(row?.created_at),
+          },
+        ],
+        defaultSorter: { columnKey: 'created_at', order: 'descend' },
+      };
+    }
+
     if (kind === 'topup-reconcile') {
       return {
         endpoint: '/api/v1/admin/flow/topup-reconcile-records',
@@ -501,155 +553,6 @@ const BusinessRecordsTable = ({
                 </span>
               );
             },
-          },
-        ],
-        defaultSorter: {
-          columnKey: 'updated_at',
-          order: 'descend',
-        },
-      };
-    }
-
-    if (kind === 'package') {
-      return {
-        endpoint: '/api/v1/admin/flow/package-records',
-        tableWrapperClassName: 'router-business-flow-package-scroll',
-        searchPlaceholder: searchPlaceholder || t('flow.package.search_placeholder'),
-        emptyText: emptyText || t('flow.package.empty'),
-        onRowClick: (row) => {
-          const rowID = readOnlyText(row?.id);
-          if (rowID === '-') {
-            return;
-          }
-          navigateToDetail(
-            row,
-            `/admin/entitlement/package/records/${encodeURIComponent(rowID)}`,
-          );
-        },
-        statusOptions: [
-          { key: 'all', value: '', text: t('task.filters.status_all') },
-          { key: '1', value: '1', text: t('user.detail.package_status_types.active') },
-          { key: '2', value: '2', text: t('user.detail.package_status_types.expired') },
-          { key: '3', value: '3', text: t('user.detail.package_status_types.replaced') },
-          { key: '4', value: '4', text: t('user.detail.package_status_types.canceled') },
-          { key: '5', value: '5', text: t('user.detail.package_status_types.pending') },
-        ],
-        columns: [
-          compactUserColumn,
-          {
-            key: 'package_name',
-            label: t('user.detail.package_name'),
-            width: BUSINESS_FLOW_COLUMN_WIDTHS.packageName,
-            render: (row) => readOnlyText(row.package_name),
-          },
-          {
-            key: 'group',
-            label: t('user.detail.package_group'),
-            width: BUSINESS_FLOW_COLUMN_WIDTHS.group,
-            render: (row) => readOnlyText(row.group_name || row.group_id),
-          },
-          {
-            key: 'amount',
-            label: t('flow.package.columns.amount'),
-            width: BUSINESS_FLOW_COLUMN_WIDTHS.amount,
-            render: (row) => {
-              const amount = Number(row?.amount || 0);
-              const currency = readOnlyText(row?.currency);
-              return amount > 0 && currency !== '-'
-                ? formatAmountWithUnit(amount, currency, 6)
-                : '-';
-            },
-          },
-          {
-            key: 'daily_quota_limit',
-            label: (
-              <div className='router-table-header-with-control'>
-                <span>{t('user.detail.package_daily_limit')}</span>
-                <UnitDropdown
-                  variant='header'
-                  compact
-                  options={displayUnitOptions}
-                  value={displayUnit}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onChange={(_, { value }) => {
-                    setDisplayUnit((value || '').toString());
-                  }}
-                />
-              </div>
-            ),
-            width: BUSINESS_FLOW_COLUMN_WIDTHS.quota,
-            render: (row) => (
-              Number(row.daily_quota_limit || 0) > 0
-                ? formatDisplayAmountFromChargeAmount(
-                    row.daily_quota_limit,
-                    displayUnit,
-                    currencyIndex,
-                    { fractionDigits: 6, includeSymbol: false, chargeMode: 'fixed' },
-                  )
-                : t('common.unlimited')
-            ),
-          },
-          {
-            key: 'package_emergency_quota_limit',
-            label: (
-              <div className='router-table-header-with-control'>
-                <span>{t('user.detail.package_emergency_limit')}</span>
-                <UnitDropdown
-                  variant='header'
-                  compact
-                  options={displayUnitOptions}
-                  value={displayUnit}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onChange={(_, { value }) => {
-                    setDisplayUnit((value || '').toString());
-                  }}
-                />
-              </div>
-            ),
-            width: BUSINESS_FLOW_COLUMN_WIDTHS.quota,
-            render: (row) => formatDisplayAmountFromChargeAmount(
-              row.package_emergency_quota_limit || 0,
-              displayUnit,
-              currencyIndex,
-              { fractionDigits: 6, includeSymbol: false, chargeMode: 'fixed' },
-            ),
-          },
-          {
-            key: 'status',
-            label: t('user.detail.package_status'),
-            width: BUSINESS_FLOW_COLUMN_WIDTHS.status,
-            cellClassName: 'router-table-col-status-compact',
-            render: (row) => renderPackageStatus(row.status, t),
-          },
-          {
-            key: 'started_at',
-            label: t('user.detail.package_started_at'),
-            width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
-            cellClassName: 'router-table-col-datetime',
-            sortValue: (row) => Number(row?.started_at || 0),
-            render: (row) => formatDateTime(row.started_at),
-          },
-          {
-            key: 'expires_at',
-            label: t('user.detail.package_expires_at'),
-            width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
-            cellClassName: 'router-table-col-datetime',
-            sortValue: (row) => Number(row?.expires_at || 0),
-            render: (row) => (
-              Number(row.expires_at || 0) > 0 ? formatDateTime(row.expires_at) : t('common.unlimited')
-            ),
-          },
-          {
-            key: 'updated_at',
-            label: t('user.table.updated_at'),
-            width: BUSINESS_FLOW_COLUMN_WIDTHS.datetime,
-            cellClassName: 'router-table-col-datetime',
-            sortValue: (row) => Number(row?.updated_at || 0),
-            render: (row) => formatDateTime(row.updated_at),
           },
         ],
         defaultSorter: {
@@ -973,7 +876,7 @@ const BusinessRecordsTable = ({
         }
         query={
           <div className='router-list-toolbar-query router-list-toolbar-query-compact'>
-            {config.statusOptions.length > 0 ? (
+            {Array.isArray(config.statusOptions) && config.statusOptions.length > 0 ? (
               <AppSelect
                 className='router-section-dropdown router-flow-filter-dropdown router-dropdown-min-170'
                 options={statusDropdownOptions}

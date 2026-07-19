@@ -20,34 +20,36 @@ const (
 )
 
 type EntitlementProduct struct {
-	Id                       string                             `json:"id" gorm:"primaryKey;type:char(36)"`
-	Kind                     string                             `json:"kind" gorm:"type:varchar(32);not null;index"`
-	Name                     string                             `json:"name" gorm:"type:varchar(64);not null;index"`
-	Description              string                             `json:"description" gorm:"type:varchar(255);not null;default:''"`
-	GroupID                  string                             `json:"group_id" gorm:"type:char(36);not null;index"`
-	SalePrice                float64                            `json:"sale_price" gorm:"type:decimal(10,2);not null;default:0"`
-	SaleCurrency             string                             `json:"sale_currency" gorm:"type:varchar(16);not null;default:'CNY'"`
-	QuotaMetric              string                             `json:"quota_metric" gorm:"type:varchar(32);not null;default:'yyc';index"`
-	QuotaAmount              float64                            `json:"quota_amount" gorm:"type:numeric(18,6);not null;default:0"`
-	QuotaCurrency            string                             `json:"quota_currency" gorm:"type:varchar(16);not null;default:'YYC'"`
-	PeriodType               string                             `json:"period_type" gorm:"type:varchar(32);not null;default:'none';index"`
-	PeriodLimit              int64                              `json:"period_limit" gorm:"type:bigint;not null;default:0"`
-	DurationDays             int                                `json:"duration_days" gorm:"type:int;not null;default:0"`
-	ValidityDays             int                                `json:"validity_days" gorm:"type:int;not null;default:0"`
-	MaxConcurrencyPerUser    int                                `json:"max_concurrency_per_user" gorm:"type:int;not null;default:0"`
-	MaxConcurrencyPerPackage int                                `json:"max_concurrency_per_package" gorm:"type:int;not null;default:0"`
-	AllowBalanceFallback     bool                               `json:"allow_balance_fallback" gorm:"not null;default:false"`
-	VisibilityScope          string                             `json:"visibility_scope" gorm:"type:varchar(32);not null;default:'all';index"`
-	PublicVisible            bool                               `json:"public_visible" gorm:"not null;index"`
-	Enabled                  bool                               `json:"enabled" gorm:"not null;default:false;index"`
-	SortOrder                int                                `json:"sort_order" gorm:"not null;default:0;index"`
-	Source                   string                             `json:"source" gorm:"type:varchar(32);not null;default:'manual'"`
-	CreatedAt                int64                              `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt                int64                              `json:"updated_at" gorm:"bigint;index"`
-	GroupName                string                             `json:"group_name,omitempty" gorm:"-"`
-	SupportedModels          []string                           `json:"supported_models,omitempty" gorm:"-"`
-	VisibleUserIDs           []string                           `json:"visible_user_ids,omitempty" gorm:"-"`
-	VisibleUsers             []ServicePackageVisibleUserSummary `json:"visible_users,omitempty" gorm:"-"`
+	Id                       string  `json:"id" gorm:"primaryKey;type:char(36)"`
+	Kind                     string  `json:"kind" gorm:"type:varchar(32);not null;index"`
+	Name                     string  `json:"name" gorm:"type:varchar(64);not null;index"`
+	Description              string  `json:"description" gorm:"type:varchar(255);not null;default:''"`
+	GroupID                  string  `json:"group_id" gorm:"type:char(36);not null;index"`
+	SalePrice                float64 `json:"sale_price" gorm:"type:decimal(10,2);not null;default:0"`
+	SaleCurrency             string  `json:"sale_currency" gorm:"type:varchar(16);not null;default:'CNY'"`
+	QuotaMetric              string  `json:"quota_metric" gorm:"type:varchar(32);not null;default:'yyc';index"`
+	QuotaAmount              float64 `json:"quota_amount" gorm:"type:numeric(18,6);not null;default:0"`
+	QuotaCurrency            string  `json:"quota_currency" gorm:"type:varchar(16);not null;default:'YYC'"`
+	PeriodType               string  `json:"period_type" gorm:"type:varchar(32);not null;default:'none';index"`
+	PeriodLimit              int64   `json:"period_limit" gorm:"type:bigint;not null;default:0"`
+	DurationDays             int     `json:"duration_days" gorm:"type:int;not null;default:0"`
+	ValidityDays             int     `json:"validity_days" gorm:"type:int;not null;default:0"`
+	MaxConcurrencyPerUser    int     `json:"max_concurrency_per_user" gorm:"type:int;not null;default:0"`
+	MaxConcurrencyPerPackage int     `json:"max_concurrency_per_package" gorm:"type:int;not null;default:0"`
+	AllowBalanceFallback     bool    `json:"allow_balance_fallback" gorm:"not null;default:false"`
+	VisibilityScope          string  `json:"visibility_scope" gorm:"type:varchar(32);not null;default:'all';index"`
+	// PublicVisible is retained for legacy database synchronization only. New
+	// callers must use VisibilityScope and the visible-user relation.
+	PublicVisible   bool                               `json:"-" gorm:"not null;index"`
+	Enabled         bool                               `json:"enabled" gorm:"not null;default:false;index"`
+	SortOrder       int                                `json:"sort_order" gorm:"not null;default:0;index"`
+	Source          string                             `json:"source" gorm:"type:varchar(32);not null;default:'manual'"`
+	CreatedAt       int64                              `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt       int64                              `json:"updated_at" gorm:"bigint;index"`
+	GroupName       string                             `json:"group_name,omitempty" gorm:"-"`
+	SupportedModels []string                           `json:"supported_models,omitempty" gorm:"-"`
+	VisibleUserIDs  []string                           `json:"visible_user_ids,omitempty" gorm:"-"`
+	VisibleUsers    []ServicePackageVisibleUserSummary `json:"visible_users,omitempty" gorm:"-"`
 }
 
 func (EntitlementProduct) TableName() string {

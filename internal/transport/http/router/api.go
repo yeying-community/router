@@ -277,6 +277,7 @@ func SetApiRouter(engine *gin.Engine) {
 			adminChannelRoute.POST("/alerts/acknowledge", channel.AcknowledgeChannelAlert)
 			adminChannelRoute.POST("/alerts/resolve", channel.ResolveChannelAlert)
 			adminChannelRoute.GET("/billing/alerts", channel.GetRecentChannelBillingAlerts)
+			adminChannelRoute.GET("/billing/adapters", channel.GetChannelBillingAdapters)
 			adminChannelRoute.GET("/models/disabled", channel.GetRecentDisabledChannelModels)
 			adminChannelRoute.GET("/endpoints/disabled", channel.GetRecentDisabledChannelEndpoints)
 			adminChannelRoute.GET("/tests/failures", channel.GetRecentFailedChannelTests)
@@ -335,6 +336,7 @@ func SetApiRouter(engine *gin.Engine) {
 		adminFlowRoute.Use(middleware.AdminAuth())
 		{
 			adminFlowRoute.GET("/topup-orders", flow.GetTopupOrderRecords)
+			adminFlowRoute.GET("/purchase-records", flow.GetPurchaseRecords)
 			adminFlowRoute.GET("/topup-orders/:id", flow.GetTopupOrderRecord)
 			adminFlowRoute.GET("/topup-reconcile-records", flow.GetTopupReconcileRecords)
 			adminFlowRoute.GET("/topup-reconcile-records/:id", flow.GetTopupReconcileRecord)
