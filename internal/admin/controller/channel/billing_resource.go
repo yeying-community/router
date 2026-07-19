@@ -28,11 +28,11 @@ type channelBillingSummaryData struct {
 }
 
 type channelBillingProfileData struct {
-	ChannelID          string   `json:"channel_id"`
-	Enabled            bool     `json:"enabled"`
-	BillingSource      string   `json:"billing_source"`
-	BillingKey         string   `json:"billing_key"`
-	ActionCapabilities []string `json:"action_capabilities"`
+	ChannelID          string            `json:"channel_id"`
+	Enabled            bool              `json:"enabled"`
+	BillingSource      string            `json:"billing_source"`
+	BillingCredentials map[string]string `json:"billing_credentials"`
+	ActionCapabilities []string          `json:"action_capabilities"`
 }
 
 type channelBillingListData[T any] struct {
@@ -102,8 +102,8 @@ func isSupportedBillingResourceType(value string) bool {
 }
 
 type channelBillingProfileUpdateRequest struct {
-	BillingSource string `json:"billing_source"`
-	BillingKey    string `json:"billing_key"`
+	BillingSource      string            `json:"billing_source"`
+	BillingCredentials map[string]string `json:"billing_credentials"`
 }
 
 func GetChannelBillingAdapters(c *gin.Context) {
@@ -145,7 +145,7 @@ func buildChannelBillingProfileData(channelRow *model.Channel, profile model.Cha
 		ChannelID:          strings.TrimSpace(channelRow.Id),
 		Enabled:            profile.Enabled,
 		BillingSource:      normalizeChannelBillingSource(profile.BillingSource),
-		BillingKey:         strings.TrimSpace(fetchConfig.BillingKey),
+		BillingCredentials: sanitizeBillingCredentialMap(fetchConfig.BillingCredentials),
 		ActionCapabilities: profile.ParseActionCapabilities(),
 	}
 }
@@ -533,8 +533,9 @@ func UpdateChannelBillingProfile(c *gin.Context) {
 		}
 	}
 	nextSource := normalizeChannelBillingSource(req.BillingSource)
+	credentialFields := []billingServiceCredentialField{}
 	if nextSource != model.ChannelBillingSourceManual {
-		exists, err := billingServiceAdapterExists(c.Request.Context(), nextSource)
+		adapterInfo, exists, err := findBillingServiceAdapter(c.Request.Context(), nextSource)
 		if err != nil {
 			logChannelAdminWarn(c, "update_billing_profile", stringField("channel_id", channelID), stringField("reason", err.Error()))
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
@@ -544,11 +545,17 @@ func UpdateChannelBillingProfile(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": "Billing adapter 无效"})
 			return
 		}
+		credentialFields = adapterInfo.CredentialFields
+	}
+	billingCredentials := filterBillingCredentialsByFields(req.BillingCredentials, nextSource, credentialFields)
+	if missingField := missingRequiredBillingCredentialField(credentialFields, billingCredentials); missingField != "" {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": fmt.Sprintf("账务凭据 %s 未配置", missingField)})
+		return
 	}
 	profileRow.Enabled = true
 	profileRow.BillingSource = nextSource
 	nextConfig := map[string]any{
-		"billing_key": strings.TrimSpace(req.BillingKey),
+		"billing_credentials": billingCredentials,
 	}
 	profileRow.BillingConfig = marshalLogJSON(nextConfig)
 	capabilities := []string{model.ChannelBillingCapabilityManualUpdateSnapshot}
@@ -576,6 +583,40 @@ func marshalLogJSON(value any) string {
 		return ""
 	}
 	return string(body)
+}
+
+func sanitizeBillingCredentialMap(credentials map[string]string) map[string]string {
+	result := make(map[string]string)
+	for key, value := range credentials {
+		normalizedKey := normalizeBillingServiceCredentialFieldName(key)
+		normalizedValue := strings.TrimSpace(value)
+		if normalizedKey == "" || normalizedValue == "" {
+			continue
+		}
+		result[normalizedKey] = normalizedValue
+	}
+	return result
+}
+
+func filterBillingCredentialsByFields(credentials map[string]string, billingSource string, fields []billingServiceCredentialField) map[string]string {
+	if normalizeChannelBillingSource(billingSource) == model.ChannelBillingSourceManual {
+		return map[string]string{}
+	}
+	normalizedCredentials := sanitizeBillingCredentialMap(credentials)
+	if len(fields) == 0 {
+		return normalizedCredentials
+	}
+	allowedFields := map[string]bool{}
+	for _, field := range normalizeBillingServiceCredentialFields(fields) {
+		allowedFields[field.Name] = true
+	}
+	result := make(map[string]string)
+	for key, value := range normalizedCredentials {
+		if allowedFields[key] {
+			result[key] = value
+		}
+	}
+	return result
 }
 
 func maskBillingSecret(value string) string {

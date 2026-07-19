@@ -258,6 +258,38 @@ func stringFromJSONObject(values map[string]any, key string) string {
 	return strings.TrimSpace(fmt.Sprintf("%v", value))
 }
 
+func stringMapFromJSONObject(values map[string]any, key string) map[string]string {
+	value, ok := values[key]
+	if !ok || value == nil {
+		return map[string]string{}
+	}
+	result := make(map[string]string)
+	switch typed := value.(type) {
+	case map[string]any:
+		for itemKey, itemValue := range typed {
+			if itemValue == nil {
+				continue
+			}
+			normalizedKey := strings.TrimSpace(strings.ToLower(itemKey))
+			normalizedValue := strings.TrimSpace(fmt.Sprintf("%v", itemValue))
+			if normalizedKey == "" || normalizedValue == "" {
+				continue
+			}
+			result[normalizedKey] = normalizedValue
+		}
+	case map[string]string:
+		for itemKey, itemValue := range typed {
+			normalizedKey := strings.TrimSpace(strings.ToLower(itemKey))
+			normalizedValue := strings.TrimSpace(itemValue)
+			if normalizedKey == "" || normalizedValue == "" {
+				continue
+			}
+			result[normalizedKey] = normalizedValue
+		}
+	}
+	return result
+}
+
 func (row ChannelBillingProfile) ParseActionCapabilities() []string {
 	return parseJSONArrayString(row.ActionCapabilities)
 }
@@ -918,7 +950,7 @@ func CreateChannelBillingSnapshotItemsWithDB(db *gorm.DB, snapshotID string, cha
 }
 
 type channelBillingConfig struct {
-	BillingKey string `json:"billing_key,omitempty"`
+	BillingCredentials map[string]string `json:"billing_credentials,omitempty"`
 }
 
 type ChannelBillingNotifyConfig struct {
@@ -929,7 +961,7 @@ type ChannelBillingNotifyConfig struct {
 func (row ChannelBillingProfile) ParseBillingConfig() channelBillingConfig {
 	configMap := parseJSONObjectString(row.BillingConfig)
 	return channelBillingConfig{
-		BillingKey: stringFromJSONObject(configMap, "billing_key"),
+		BillingCredentials: stringMapFromJSONObject(configMap, "billing_credentials"),
 	}
 }
 

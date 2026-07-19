@@ -783,7 +783,7 @@
         "load_failed": "Failed to load channel billing data",
         "profile_title": "Billing Profile",
         "profile_enabled": "Billing Enabled",
-        "billing_key": "Billing Key",
+        "billing_credentials": "Billing Credentials",
         "profile_update_success": "Billing profile updated",
         "profile_update_failed": "Failed to update billing profile",
         "refresh_now": "Refresh",
@@ -884,7 +884,8 @@
         "no_procurement_batches": "No procurement batches",
         "no_procurement_consumptions": "No procurement consumptions",
         "no_expire": "No expiration",
-        "credential_hint": "Billing service uses Billing Key as credential first; if Billing Key is empty, it falls back to the API Key from channel basic settings. Model requests always use the API Key from channel basic settings.",
+        "credential_hint": "Billing service only uses the credentials below. Billing credentials must be configured manually and never fall back to the API Key from channel basic settings. Model requests always use the API Key from channel basic settings.",
+        "credential_required": "Please enter billing credential: {{field}}",
         "adapters_load_failed": "Failed to load Billing adapters",
         "procurement_status": {
           "active": "Allocatable",

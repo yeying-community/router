@@ -29,7 +29,9 @@ const resolveBillingSourceSelectValue = (source, adapters = []) => {
   if (normalizedSource === 'manual') {
     return normalizedSource;
   }
-  return adapterNameSet(adapters).has(normalizedSource) ? normalizedSource : 'manual';
+  return adapterNameSet(adapters).has(normalizedSource)
+    ? normalizedSource
+    : 'manual';
 };
 
 const buildBillingSourceOptions = (t, adapters = []) => {
@@ -55,6 +57,62 @@ const formatBillingSourceLabel = (t, source, adapters = []) => {
   }
   return normalizedSource;
 };
+
+const normalizeBillingCredentialFieldName = (name) =>
+  (name || '').toString().trim().toLowerCase();
+
+const normalizeBillingCredentials = (credentials) => {
+  if (!credentials || typeof credentials !== 'object') {
+    return {};
+  }
+  const result = {};
+  Object.entries(credentials).forEach(([key, value]) => {
+    const normalizedKey = normalizeBillingCredentialFieldName(key);
+    const normalizedValue = (value || '').toString().trim();
+    if (normalizedKey === '' || normalizedValue === '') {
+      return;
+    }
+    result[normalizedKey] = normalizedValue;
+  });
+  return result;
+};
+
+const normalizeBillingCredentialFields = (fields) => {
+  if (!Array.isArray(fields)) {
+    return [];
+  }
+  const seen = new Set();
+  return fields
+    .filter((field) => field && typeof field === 'object')
+    .map((field) => ({
+      name: normalizeBillingCredentialFieldName(field.name),
+      label: (field.label || '').toString().trim(),
+      required: field.required === true,
+      secret: field.secret !== false,
+    }))
+    .filter((field) => {
+      if (field.name === '' || seen.has(field.name)) {
+        return false;
+      }
+      seen.add(field.name);
+      return true;
+    });
+};
+
+const resolveBillingAdapterCredentialFields = (source, adapters = []) => {
+  const normalizedSource = resolveBillingSourceSelectValue(source, adapters);
+  if (normalizedSource === 'manual') {
+    return [];
+  }
+  const adapter = (Array.isArray(adapters) ? adapters : []).find(
+    (item) =>
+      (item?.name || '').toString().trim().toLowerCase() === normalizedSource
+  );
+  return normalizeBillingCredentialFields(adapter?.credential_fields);
+};
+
+const billingCredentialLabel = (field) =>
+  field.label || field.name || 'Credential';
 
 const maskSecret = (value) => {
   const normalizedValue = typeof value === 'string' ? value.trim() : '';
@@ -100,6 +158,18 @@ const ChannelDetailOverviewTab = ({
   onSaveBillingProfile,
 }) => {
   const billingReadonly = !detailBillingEditing || billingSubmitting;
+  const selectedBillingSource = detailBillingEditing
+    ? detailBillingDraft?.billing_source
+    : billingProfile?.billing_source;
+  const billingCredentialFields = resolveBillingAdapterCredentialFields(
+    selectedBillingSource,
+    billingAdapters
+  );
+  const activeBillingCredentials = normalizeBillingCredentials(
+    detailBillingEditing
+      ? detailBillingDraft?.billing_credentials
+      : billingProfile?.billing_credentials
+  );
 
   return (
     <>
@@ -263,6 +333,10 @@ const ChannelDetailOverviewTab = ({
                 onChange={(e, { value }) =>
                   onUpdateBillingProfileDraft({
                     billing_source: (value || 'manual').toString().trim(),
+                    billing_credentials:
+                      normalizeBillingSourceValue(value) === 'manual'
+                        ? {}
+                        : detailBillingDraft?.billing_credentials || {},
                   })
                 }
                 disabled={billingSubmitting}
@@ -281,25 +355,49 @@ const ChannelDetailOverviewTab = ({
               />
             )}
           </AppField>
-          <AppField label={t('channel.edit.billing.billing_key')}>
-            <AppInput
-              className='router-section-input'
-              type={detailBillingEditing ? 'password' : undefined}
-              value={
-                detailBillingEditing
-                  ? detailBillingDraft?.billing_key || ''
-                  : maskSecret(billingProfile?.billing_key)
-              }
-              onChange={(e, { value }) =>
-                onUpdateBillingProfileDraft({
-                  billing_key: (value || '').toString(),
-                })
-              }
-              readOnly={billingReadonly}
-              autoComplete='new-password'
-            />
-          </AppField>
         </AppFormRow>
+        {billingCredentialFields.length > 0 ? (
+          <AppFormRow>
+            {billingCredentialFields.map((field) => {
+              const credentialValue = activeBillingCredentials[field.name] || '';
+              return (
+                <AppField
+                  key={field.name}
+                  label={billingCredentialLabel(field)}
+                  required={detailBillingEditing && field.required}
+                >
+                  <AppInput
+                    className='router-section-input'
+                    type={
+                      detailBillingEditing && field.secret
+                        ? 'password'
+                        : undefined
+                    }
+                    value={
+                      detailBillingEditing
+                        ? credentialValue
+                        : field.secret
+                          ? maskSecret(credentialValue)
+                          : credentialValue || '-'
+                    }
+                    onChange={(e, { value }) =>
+                      onUpdateBillingProfileDraft({
+                        billing_credentials: {
+                          ...normalizeBillingCredentials(
+                            detailBillingDraft?.billing_credentials
+                          ),
+                          [field.name]: (value || '').toString(),
+                        },
+                      })
+                    }
+                    readOnly={billingReadonly}
+                    autoComplete='new-password'
+                  />
+                </AppField>
+              );
+            })}
+          </AppFormRow>
+        ) : null}
         <div className='router-form-hint router-form-hint-section'>
           {t('channel.edit.billing.credential_hint')}
         </div>

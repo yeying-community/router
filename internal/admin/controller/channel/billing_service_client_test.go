@@ -12,6 +12,24 @@ import (
 	"github.com/yeying-community/router/internal/admin/model"
 )
 
+func configureBillingServiceForTest(t *testing.T, handler http.HandlerFunc, apiKey string) *httptest.Server {
+	t.Helper()
+	oldBaseURL := config.BillingServiceBaseURL
+	oldAPIKey := config.BillingServiceAPIKey
+	oldTimeout := config.BillingServiceTimeoutSeconds
+	service := httptest.NewServer(handler)
+	config.BillingServiceBaseURL = service.URL
+	config.BillingServiceAPIKey = apiKey
+	config.BillingServiceTimeoutSeconds = 5
+	t.Cleanup(func() {
+		service.Close()
+		config.BillingServiceBaseURL = oldBaseURL
+		config.BillingServiceAPIKey = oldAPIKey
+		config.BillingServiceTimeoutSeconds = oldTimeout
+	})
+	return service
+}
+
 func TestResolveBillingServiceAdapterUsesAdapterName(t *testing.T) {
 	if got := resolveBillingServiceAdapter(model.ChannelBillingProfile{BillingSource: "vendor-a"}); got != "vendor-a" {
 		t.Fatalf("vendor-a adapter = %q", got)
@@ -25,16 +43,7 @@ func TestResolveBillingServiceAdapterUsesAdapterName(t *testing.T) {
 }
 
 func TestListBillingServiceAdaptersNormalizesServiceResponse(t *testing.T) {
-	oldBaseURL := config.BillingServiceBaseURL
-	oldAPIKey := config.BillingServiceAPIKey
-	oldTimeout := config.BillingServiceTimeoutSeconds
-	defer func() {
-		config.BillingServiceBaseURL = oldBaseURL
-		config.BillingServiceAPIKey = oldAPIKey
-		config.BillingServiceTimeoutSeconds = oldTimeout
-	}()
-
-	service := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != billingServiceAdaptersPath {
 			http.Error(w, "unexpected path", http.StatusNotFound)
 			return
@@ -44,13 +53,8 @@ func TestListBillingServiceAdaptersNormalizesServiceResponse(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":[{"name":" Vendor-B ","capabilities":["refresh_billing"]},{"name":"vendor-b"},{"name":"vendor-a"},{"name":""}]}`))
-	}))
-	defer service.Close()
-
-	config.BillingServiceBaseURL = service.URL
-	config.BillingServiceAPIKey = "service-key"
-	config.BillingServiceTimeoutSeconds = 5
+		_, _ = w.Write([]byte(`{"data":[{"name":" Vendor-B ","capabilities":["refresh_billing"],"credential_fields":[{"name":" Key ","label":"API Key","required":true,"secret":true},{"name":"key"}]},{"name":"vendor-b"},{"name":"vendor-a"},{"name":""}]}`))
+	}, "service-key")
 
 	items, err := listBillingServiceAdapters(context.Background())
 	if err != nil {
@@ -58,6 +62,9 @@ func TestListBillingServiceAdaptersNormalizesServiceResponse(t *testing.T) {
 	}
 	if len(items) != 2 || items[0].Name != "vendor-a" || items[1].Name != "vendor-b" {
 		t.Fatalf("unexpected adapters: %+v", items)
+	}
+	if got := items[1].CredentialFields; len(got) != 1 || got[0].Name != "key" || got[0].Label != "API Key" || !got[0].Required || !got[0].Secret {
+		t.Fatalf("unexpected credential fields: %+v", got)
 	}
 	exists, err := billingServiceAdapterExists(context.Background(), " Vendor-B ")
 	if err != nil {
@@ -76,14 +83,25 @@ func TestListBillingServiceAdaptersNormalizesServiceResponse(t *testing.T) {
 }
 
 func TestBuildBillingServiceQueryUsesAdapterProtocol(t *testing.T) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != billingServiceAdaptersPath {
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"name":"vendor-a","credential_fields":[{"name":"key","label":"API Key","required":true,"secret":true}]}]}`))
+	}, "")
+
 	profile := model.ChannelBillingProfile{
 		BillingSource: "vendor-a",
-		BillingConfig: `{"billing_key":"billing-secret"}`,
+		BillingConfig: `{"billing_credentials":{"key":"billing-secret"}}`,
 	}
-	query, err := buildBillingServiceQuery(&model.Channel{
+	baseURL := "https://vendor.example.com"
+	query, err := buildBillingServiceQuery(context.Background(), &model.Channel{
 		Id:       "channel-1",
 		Protocol: "vendor-protocol",
 		Key:      "model-secret-must-not-be-used",
+		BaseURL:  &baseURL,
 	}, profile)
 	if err != nil {
 		t.Fatal(err)
@@ -91,8 +109,11 @@ func TestBuildBillingServiceQueryUsesAdapterProtocol(t *testing.T) {
 	if query.Adapter != "vendor-a" {
 		t.Fatalf("adapter = %q", query.Adapter)
 	}
-	if query.Credential != "billing-secret" {
-		t.Fatalf("credential = %q", query.Credential)
+	if query.BaseURL != baseURL {
+		t.Fatalf("base_url = %q", query.BaseURL)
+	}
+	if query.Credentials["key"] != "billing-secret" {
+		t.Fatalf("credentials = %+v", query.Credentials)
 	}
 	if query.Config != nil {
 		t.Fatalf("config must be owned by billing service adapters, got %+v", query.Config)
@@ -104,36 +125,64 @@ func TestBuildBillingServiceQueryUsesAdapterProtocol(t *testing.T) {
 	if strings.Contains(string(body), "provider") {
 		t.Fatalf("query must not use legacy provider field: %s", body)
 	}
+	if strings.Contains(string(body), "credential\"") {
+		t.Fatalf("query must not use legacy credential field: %s", body)
+	}
 }
 
-func TestBuildBillingServiceQueryFallsBackToChannelKey(t *testing.T) {
+func TestBuildBillingServiceQueryRejectsMissingRequiredCredential(t *testing.T) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != billingServiceAdaptersPath {
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"name":"vendor-a","credential_fields":[{"name":"key","label":"API Key","required":true,"secret":true}]}]}`))
+	}, "")
+
 	profile := model.ChannelBillingProfile{
 		BillingSource: "vendor-a",
 		BillingConfig: `{}`,
 	}
-	query, err := buildBillingServiceQuery(&model.Channel{
+	_, err := buildBillingServiceQuery(context.Background(), &model.Channel{
 		Id:  "channel-1",
 		Key: "model-secret",
 	}, profile)
-	if err != nil {
-		t.Fatal(err)
+	if err == nil || !strings.Contains(err.Error(), "账务凭据 API Key 未配置") {
+		t.Fatalf("error = %v", err)
 	}
-	if query.Credential != "model-secret" {
-		t.Fatalf("credential = %q", query.Credential)
+}
+
+func TestBuildBillingServiceQueryRejectsMissingMultiFieldCredential(t *testing.T) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != billingServiceAdaptersPath {
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"name":"vendor-aksk","credential_fields":[{"name":"access_key","label":"Access Key","required":true,"secret":true},{"name":"secret_key","label":"Secret Key","required":true,"secret":true}]}]}`))
+	}, "")
+
+	profile := model.ChannelBillingProfile{
+		BillingSource: "vendor-aksk",
+		BillingConfig: `{}`,
+	}
+	_, err := buildBillingServiceQuery(context.Background(), &model.Channel{
+		Id:  "channel-1",
+		Key: "model-secret",
+	}, profile)
+	if err == nil || !strings.Contains(err.Error(), "账务凭据 Access Key 未配置") {
+		t.Fatalf("error = %v", err)
 	}
 }
 
 func TestCollectBillingServiceSnapshotConvertsResponse(t *testing.T) {
-	oldBaseURL := config.BillingServiceBaseURL
-	oldAPIKey := config.BillingServiceAPIKey
-	oldTimeout := config.BillingServiceTimeoutSeconds
-	defer func() {
-		config.BillingServiceBaseURL = oldBaseURL
-		config.BillingServiceAPIKey = oldAPIKey
-		config.BillingServiceTimeoutSeconds = oldTimeout
-	}()
-
-	service := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == billingServiceAdaptersPath {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":[{"name":"vendor-b","credential_fields":[{"name":"key","label":"API Key","required":true,"secret":true}]}]}`))
+			return
+		}
 		if r.URL.Path != billingServiceQueryPath {
 			t.Fatalf("path = %s", r.URL.Path)
 		}
@@ -147,17 +196,13 @@ func TestCollectBillingServiceSnapshotConvertsResponse(t *testing.T) {
 		if query["adapter"] != "vendor-b" || query["provider"] != nil {
 			t.Fatalf("unexpected query: %+v", query)
 		}
-		if query["credential"] != "billing-secret" {
-			t.Fatalf("credential = %q", query["credential"])
+		credentials, ok := query["credentials"].(map[string]any)
+		if !ok || credentials["key"] != "billing-secret" {
+			t.Fatalf("credentials = %+v", query["credentials"])
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"data":{"channel_id":"channel-1","adapter":"vendor-b","fetched_at":"2026-07-18T00:00:00Z","items":[{"resource_type":"credit","quota_type":"total","quota_label":"Vendor credits","amount":15,"limit_amount":100,"used_amount":85,"remaining_amount":15,"currency":"USD","status":"low","source_ref":"vendor_credits","metadata":{"source":"test"}}],"metadata":{"request_urls":["https://billing.example.com/credits"]}}}`))
-	}))
-	defer service.Close()
-
-	config.BillingServiceBaseURL = service.URL
-	config.BillingServiceAPIKey = "service-key"
-	config.BillingServiceTimeoutSeconds = 5
+	}, "service-key")
 
 	channelRow := &model.Channel{
 		Id:       "channel-1",
@@ -167,7 +212,7 @@ func TestCollectBillingServiceSnapshotConvertsResponse(t *testing.T) {
 	profile := model.ChannelBillingProfile{
 		ChannelId:     "channel-1",
 		BillingSource: "vendor-b",
-		BillingConfig: `{"billing_key":"billing-secret"}`,
+		BillingConfig: `{"billing_credentials":{"key":"billing-secret"}}`,
 	}
 	collected, err := collectBillingServiceSnapshot(channelRow, profile, "自动刷新账务")
 	if err != nil {
@@ -188,17 +233,13 @@ func TestCollectBillingServiceSnapshotConvertsResponse(t *testing.T) {
 }
 
 func TestCollectChannelBillingSnapshotPrefersBillingService(t *testing.T) {
-	oldBaseURL := config.BillingServiceBaseURL
-	oldAPIKey := config.BillingServiceAPIKey
-	oldTimeout := config.BillingServiceTimeoutSeconds
-	defer func() {
-		config.BillingServiceBaseURL = oldBaseURL
-		config.BillingServiceAPIKey = oldAPIKey
-		config.BillingServiceTimeoutSeconds = oldTimeout
-	}()
-
 	called := false
-	service := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == billingServiceAdaptersPath {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":[{"name":"vendor-a","credential_fields":[{"name":"key","label":"API Key","required":true,"secret":true}]}]}`))
+			return
+		}
 		called = true
 		var query map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&query); err != nil {
@@ -207,20 +248,16 @@ func TestCollectChannelBillingSnapshotPrefersBillingService(t *testing.T) {
 		if query["adapter"] != "vendor-a" {
 			t.Fatalf("adapter = %v", query["adapter"])
 		}
-		if query["credential"] != "billing-secret" {
-			t.Fatalf("credential = %v", query["credential"])
+		credentials, ok := query["credentials"].(map[string]any)
+		if !ok || credentials["key"] != "billing-secret" {
+			t.Fatalf("credentials = %v", query["credentials"])
 		}
 		if query["config"] != nil {
 			t.Fatalf("unexpected config: %+v", query["config"])
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"data":{"channel_id":"channel-1","adapter":"vendor-a","fetched_at":"2026-07-18T00:00:00Z","items":[{"resource_type":"credit","quota_type":"total","quota_label":"Total quota","amount":50,"limit_amount":100,"used_amount":50,"remaining_amount":50,"currency":"CNY","status":"active","source_ref":"vendor_total"}]}}`))
-	}))
-	defer service.Close()
-
-	config.BillingServiceBaseURL = service.URL
-	config.BillingServiceAPIKey = ""
-	config.BillingServiceTimeoutSeconds = 5
+	}, "")
 
 	collected, err := collectChannelBillingSnapshot(&model.Channel{
 		Id:       "channel-1",
@@ -229,7 +266,7 @@ func TestCollectChannelBillingSnapshotPrefersBillingService(t *testing.T) {
 	}, model.ChannelBillingProfile{
 		ChannelId:     "channel-1",
 		BillingSource: "vendor-a",
-		BillingConfig: `{"billing_key":"billing-secret"}`,
+		BillingConfig: `{"billing_credentials":{"key":"billing-secret"}}`,
 	}, "自动刷新账务")
 	if err != nil {
 		t.Fatal(err)

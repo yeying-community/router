@@ -783,7 +783,7 @@
         "load_failed": "加载渠道账务信息失败",
         "profile_title": "账务配置",
         "profile_enabled": "启用账务",
-        "billing_key": "账务 Key",
+        "billing_credentials": "账务凭据",
         "profile_update_success": "账务配置保存成功",
         "profile_update_failed": "账务配置保存失败",
         "refresh_now": "刷新",
@@ -884,7 +884,8 @@
         "no_procurement_batches": "暂无采购批次",
         "no_procurement_consumptions": "暂无消费明细",
         "no_expire": "无截止时间",
-        "credential_hint": "Billing 服务优先使用账务 Key 作为 credential；未配置账务 Key 时回退使用渠道基础配置里的 API Key。模型请求始终使用渠道基础配置里的 API Key。",
+        "credential_hint": "Billing 服务只使用下方账务凭据；账务凭据必须手动配置，不会回退使用渠道基础配置里的 API Key。模型请求始终使用渠道基础配置里的 API Key。",
+        "credential_required": "请填写账务凭据：{{field}}",
         "adapters_load_failed": "加载 Billing adapter 列表失败",
         "procurement_status": {
           "active": "可分摊",

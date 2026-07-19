@@ -110,6 +110,88 @@ const resolveChannelBillingSourceValue = (source, adapters = []) => {
   return adapterNames.has(normalizedSource) ? normalizedSource : 'manual';
 };
 
+const normalizeBillingCredentialFieldName = (name) =>
+  (name || '').toString().trim().toLowerCase();
+
+const normalizeBillingCredentialFields = (fields) => {
+  if (!Array.isArray(fields)) {
+    return [];
+  }
+  const seen = new Set();
+  return fields
+    .filter((field) => field && typeof field === 'object')
+    .map((field) => ({
+      name: normalizeBillingCredentialFieldName(field.name),
+      label: (field.label || '').toString().trim(),
+      required: field.required === true,
+      secret: field.secret !== false,
+    }))
+    .filter((field) => {
+      if (field.name === '' || seen.has(field.name)) {
+        return false;
+      }
+      seen.add(field.name);
+      return true;
+    });
+};
+
+const normalizeBillingCredentials = (credentials) => {
+  if (!credentials || typeof credentials !== 'object') {
+    return {};
+  }
+  const result = {};
+  Object.entries(credentials).forEach(([key, value]) => {
+    const normalizedKey = normalizeBillingCredentialFieldName(key);
+    const normalizedValue = (value || '').toString().trim();
+    if (normalizedKey === '' || normalizedValue === '') {
+      return;
+    }
+    result[normalizedKey] = normalizedValue;
+  });
+  return result;
+};
+
+const resolveBillingAdapterCredentialFields = (source, adapters = []) => {
+  const billingSource = resolveChannelBillingSourceValue(source, adapters);
+  if (billingSource === 'manual') {
+    return [];
+  }
+  const adapter = (Array.isArray(adapters) ? adapters : []).find(
+    (item) =>
+      (item?.name || '').toString().trim().toLowerCase() === billingSource
+  );
+  return normalizeBillingCredentialFields(adapter?.credential_fields);
+};
+
+const filterBillingCredentialsByFields = (credentials, fields) => {
+  const normalizedCredentials = normalizeBillingCredentials(credentials);
+  if (!Array.isArray(fields) || fields.length === 0) {
+    return {};
+  }
+  const allowedFields = new Set(
+    fields.map((field) => normalizeBillingCredentialFieldName(field.name))
+  );
+  const result = {};
+  Object.entries(normalizedCredentials).forEach(([key, value]) => {
+    if (allowedFields.has(key)) {
+      result[key] = value;
+    }
+  });
+  return result;
+};
+
+const missingRequiredBillingCredentialField = (fields, credentials) => {
+  const normalizedCredentials = normalizeBillingCredentials(credentials);
+  const credentialFields = normalizeBillingCredentialFields(fields);
+  const missingField = credentialFields.find(
+    (field) => field.required && !normalizedCredentials[field.name]
+  );
+  if (!missingField) {
+    return '';
+  }
+  return missingField.label || missingField.name;
+};
+
 const resolveEffectiveAPIBaseURL = (inputs, config) =>
   normalizeBaseURL(config?.api_base_url || inputs?.base_url || '');
 
@@ -672,7 +754,7 @@ const normalizeChannelBillingProfile = (item) => {
     channel_id: (item.channel_id || '').toString().trim(),
     enabled: item.enabled === true,
     billing_source: billingSource,
-    billing_key: (item.billing_key || '').toString().trim(),
+    billing_credentials: normalizeBillingCredentials(item.billing_credentials),
     action_capabilities: Array.isArray(item.action_capabilities)
       ? item.action_capabilities
       : [],
@@ -687,8 +769,11 @@ const normalizeChannelBillingAdapters = (items) => {
   return items
     .filter((item) => item && typeof item === 'object')
     .map((item) => ({
-      name: (item.name || '').toString().trim(),
+      name: (item.name || '').toString().trim().toLowerCase(),
       capabilities: Array.isArray(item.capabilities) ? item.capabilities : [],
+      credential_fields: normalizeBillingCredentialFields(
+        item.credential_fields
+      ),
     }))
     .filter((item) => {
       if (item.name === '' || seen.has(item.name)) {
@@ -3930,7 +4015,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           channel_id: (channelId || '').toString().trim(),
           enabled: true,
           billing_source: 'manual',
-          billing_key: '',
+          billing_credentials: {},
           action_capabilities: [],
         }),
         ...(patch || {}),
@@ -3953,15 +4038,36 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       detailBillingDraft.billing_source,
       channelBillingAdapters
     );
+    const credentialFields = resolveBillingAdapterCredentialFields(
+      billingSource,
+      channelBillingAdapters
+    );
+    const billingCredentials =
+      billingSource === 'manual'
+        ? {}
+        : filterBillingCredentialsByFields(
+            detailBillingDraft.billing_credentials,
+            credentialFields
+          );
+    const missingCredentialField = missingRequiredBillingCredentialField(
+      credentialFields,
+      billingCredentials
+    );
+    if (missingCredentialField) {
+      showError(
+        t('channel.edit.billing.credential_required', {
+          field: missingCredentialField,
+        })
+      );
+      return;
+    }
     setChannelBillingSubmitting(true);
     try {
       const res = await API.put(
         `/api/v1/admin/channel/${targetChannelId}/billing/profile`,
         {
           billing_source: billingSource,
-          billing_key: (detailBillingDraft.billing_key || '')
-            .toString()
-            .trim(),
+          billing_credentials: billingCredentials,
         }
       );
       const { success, message, data } = res.data || {};
