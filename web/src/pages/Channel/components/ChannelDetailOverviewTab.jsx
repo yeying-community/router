@@ -8,36 +8,52 @@ import {
   AppSelect,
 } from '../../../router-ui';
 
-const buildBillingModeOptions = (t, adapters = [], currentMode = '') => {
+const normalizeBillingSourceValue = (source) => {
+  const normalizedSource = (source || '').toString().trim().toLowerCase();
+  return normalizedSource === '' ||
+    normalizedSource === 'unsupported' ||
+    normalizedSource.startsWith('builtin_')
+    ? 'manual'
+    : normalizedSource;
+};
+
+const adapterNameSet = (adapters = []) =>
+  new Set(
+    (Array.isArray(adapters) ? adapters : [])
+      .map((adapter) => (adapter?.name || '').toString().trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+const resolveBillingSourceSelectValue = (source, adapters = []) => {
+  const normalizedSource = normalizeBillingSourceValue(source);
+  if (normalizedSource === 'manual') {
+    return normalizedSource;
+  }
+  return adapterNameSet(adapters).has(normalizedSource) ? normalizedSource : 'manual';
+};
+
+const buildBillingSourceOptions = (t, adapters = []) => {
   const options = [
-    { value: 'unsupported', label: t('channel.edit.billing.modes.unsupported') },
-    { value: 'manual', label: t('channel.edit.billing.modes.manual') },
+    { value: 'manual', label: t('channel.edit.billing.sources.manual') },
   ];
   const seen = new Set(options.map((item) => item.value));
   (Array.isArray(adapters) ? adapters : []).forEach((adapter) => {
-    const name = (adapter?.name || '').toString().trim();
+    const name = (adapter?.name || '').toString().trim().toLowerCase();
     if (name === '' || seen.has(name)) {
       return;
     }
     seen.add(name);
     options.push({ value: name, label: name });
   });
-  const normalizedCurrentMode = (currentMode || '').toString().trim();
-  if (normalizedCurrentMode !== '' && !seen.has(normalizedCurrentMode)) {
-    options.push({ value: normalizedCurrentMode, label: normalizedCurrentMode });
-  }
   return options;
 };
 
-const formatBillingModeLabel = (t, mode) => {
-  const normalizedMode = (mode || '').toString().trim();
-  if (normalizedMode === '') {
-    return '-';
+const formatBillingSourceLabel = (t, source, adapters = []) => {
+  const normalizedSource = resolveBillingSourceSelectValue(source, adapters);
+  if (normalizedSource === 'manual') {
+    return t(`channel.edit.billing.sources.${normalizedSource}`);
   }
-  if (normalizedMode === 'unsupported' || normalizedMode === 'manual') {
-    return t(`channel.edit.billing.modes.${normalizedMode}`);
-  }
-  return normalizedMode;
+  return normalizedSource;
 };
 
 const maskSecret = (value) => {
@@ -84,12 +100,6 @@ const ChannelDetailOverviewTab = ({
   onSaveBillingProfile,
 }) => {
   const billingReadonly = !detailBillingEditing || billingSubmitting;
-  const activeBillingMode = (
-    detailBillingEditing
-      ? detailBillingDraft?.billing_mode
-      : billingProfile?.billing_mode
-  ) || 'unsupported';
-  const showCDKBillingConfig = activeBillingMode === 'aixhan';
 
   return (
     <>
@@ -241,15 +251,18 @@ const ChannelDetailOverviewTab = ({
         }
       >
         <AppFormRow>
-          <AppField label={t('channel.edit.billing.billing_mode')}>
+          <AppField label={t('channel.edit.billing.billing_source')}>
             {detailBillingEditing ? (
               <AppSelect
                 className='router-section-input'
-                options={buildBillingModeOptions(t, billingAdapters, detailBillingDraft?.billing_mode)}
-                value={detailBillingDraft?.billing_mode || 'unsupported'}
+                options={buildBillingSourceOptions(t, billingAdapters)}
+                value={resolveBillingSourceSelectValue(
+                  detailBillingDraft?.billing_source,
+                  billingAdapters
+                )}
                 onChange={(e, { value }) =>
                   onUpdateBillingProfileDraft({
-                    billing_mode: (value || 'unsupported').toString().trim(),
+                    billing_source: (value || 'manual').toString().trim(),
                   })
                 }
                 disabled={billingSubmitting}
@@ -258,78 +271,38 @@ const ChannelDetailOverviewTab = ({
               <AppInput
                 className='router-section-input'
                 value={
-                  formatBillingModeLabel(t, billingProfile?.billing_mode)
+                  formatBillingSourceLabel(
+                    t,
+                    billingProfile?.billing_source,
+                    billingAdapters
+                  )
                 }
                 readOnly
               />
             )}
           </AppField>
-          <AppField label={t('channel.edit.billing.billing_api_base_url')}>
+          <AppField label={t('channel.edit.billing.billing_key')}>
             <AppInput
               className='router-section-input'
+              type={detailBillingEditing ? 'password' : undefined}
               value={
                 detailBillingEditing
-                  ? detailBillingDraft?.billing_api_base_url || ''
-                  : billingProfile?.billing_api_base_url || '-'
+                  ? detailBillingDraft?.billing_key || ''
+                  : maskSecret(billingProfile?.billing_key)
               }
               onChange={(e, { value }) =>
                 onUpdateBillingProfileDraft({
-                  billing_api_base_url: (value || '').toString(),
+                  billing_key: (value || '').toString(),
                 })
               }
               readOnly={billingReadonly}
+              autoComplete='new-password'
             />
           </AppField>
         </AppFormRow>
         <div className='router-form-hint router-form-hint-section'>
           {t('channel.edit.billing.credential_hint')}
         </div>
-        {showCDKBillingConfig && (
-          <AppFormRow>
-            <AppField label={t('channel.edit.billing.cdk')}>
-              <AppInput
-                className='router-section-input'
-                type={detailBillingEditing ? 'password' : undefined}
-                value={
-                  detailBillingEditing
-                    ? detailBillingDraft?.cdk || ''
-                    : maskSecret(billingProfile?.cdk)
-                }
-                onChange={(e, { value }) =>
-                  onUpdateBillingProfileDraft({
-                    cdk: (value || '').toString(),
-                  })
-                }
-                readOnly={billingReadonly}
-                autoComplete='new-password'
-              />
-            </AppField>
-            <AppField label={t('channel.edit.billing.currency')}>
-              {detailBillingEditing ? (
-                <AppSelect
-                  className='router-section-input'
-                  options={[
-                    { value: 'USD', label: 'USD' },
-                    { value: 'CNY', label: 'CNY' },
-                  ]}
-                  value={detailBillingDraft?.currency || 'USD'}
-                  onChange={(e, { value }) =>
-                    onUpdateBillingProfileDraft({
-                      currency: (value || 'USD').toString(),
-                    })
-                  }
-                  disabled={billingSubmitting}
-                />
-              ) : (
-                <AppInput
-                  className='router-section-input'
-                  value={billingProfile?.currency || '-'}
-                  readOnly
-                />
-              )}
-            </AppField>
-          </AppFormRow>
-        )}
       </AppDetailSection>
     </>
   );

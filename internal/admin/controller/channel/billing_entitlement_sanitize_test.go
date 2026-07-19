@@ -6,13 +6,13 @@ import (
 )
 
 func TestSanitizeBillingAlertReasonMasksURLAndHost(t *testing.T) {
-	input := `Get "https://cdk.aixhan.com/api/public/usage/stats?cdk=X9R5SVBSME3S": dial tcp: lookup cdk.aixhan.com: no such host`
+	input := `Get "https://billing.example.com/api/public/usage/stats?credential=X9R5SVBSME3S": dial tcp: lookup billing.example.com: no such host`
 	got := sanitizeBillingAlertReason(assertErrString(input))
-	if strings.Contains(got, "cdk.aixhan.com") {
+	if strings.Contains(got, "billing.example.com") {
 		t.Fatalf("sanitized reason leaked host: %q", got)
 	}
 	if strings.Contains(got, "X9R5SVBSME3S") {
-		t.Fatalf("sanitized reason leaked cdk: %q", got)
+		t.Fatalf("sanitized reason leaked credential: %q", got)
 	}
 	if got != "网络错误：账务服务域名解析失败" {
 		t.Fatalf("unexpected sanitized reason: %q", got)

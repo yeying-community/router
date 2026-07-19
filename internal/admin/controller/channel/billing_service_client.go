@@ -23,7 +23,6 @@ const (
 type billingServiceQueryRequest struct {
 	ChannelID  string         `json:"channel_id,omitempty"`
 	Adapter    string         `json:"adapter"`
-	BaseURL    string         `json:"base_url,omitempty"`
 	Credential string         `json:"credential,omitempty"`
 	Config     map[string]any `json:"config,omitempty"`
 }
@@ -89,14 +88,20 @@ func normalizeBillingServiceAdapterName(value string) string {
 	return strings.TrimSpace(strings.ToLower(value))
 }
 
-func resolveBillingServiceAdapter(profile model.ChannelBillingProfile) string {
-	mode := normalizeBillingServiceAdapterName(profile.BillingMode)
-	switch mode {
-	case "", model.ChannelBillingModeUnsupported, model.ChannelBillingModeManual:
-		return ""
-	default:
-		return mode
+func normalizeChannelBillingSource(value string) string {
+	source := normalizeBillingServiceAdapterName(value)
+	if source == "" || source == "unsupported" || strings.HasPrefix(source, "builtin_") {
+		return model.ChannelBillingSourceManual
 	}
+	return source
+}
+
+func resolveBillingServiceAdapter(profile model.ChannelBillingProfile) string {
+	source := normalizeChannelBillingSource(profile.BillingSource)
+	if source == model.ChannelBillingSourceManual {
+		return ""
+	}
+	return source
 }
 
 func getBillingServiceJSON(ctx context.Context, path string, out any) error {
@@ -191,18 +196,7 @@ func buildBillingServiceQuery(channel *model.Channel, profile model.ChannelBilli
 	request := billingServiceQueryRequest{
 		ChannelID:  strings.TrimSpace(channel.Id),
 		Adapter:    adapter,
-		BaseURL:    resolveChannelBillingAPIBaseURL(channel, profile),
-		Credential: strings.TrimSpace(channel.Key),
-	}
-	if adapter == "aixhan" {
-		request.Config = map[string]any{
-			"cdk":      resolveChannelCDKKey(channel, profile),
-			"currency": resolveChannelCDKBillingCurrency(profile),
-		}
-		return request, nil
-	}
-	if currency := resolveChannelBillingSnapshotCurrency(channel); currency != "" {
-		request.Config = map[string]any{"currency": currency}
+		Credential: strings.TrimSpace(profile.ParseBillingConfig().BillingKey),
 	}
 	return request, nil
 }
@@ -361,9 +355,6 @@ func primaryBillingServiceAmount(items []model.ChannelBillingSnapshotItem) float
 func shouldHardStopBillingServiceSnapshot(profile model.ChannelBillingProfile, items []model.ChannelBillingSnapshotItem, primaryAmount float64) bool {
 	if len(items) == 0 {
 		return true
-	}
-	if resolveBillingServiceAdapter(profile) == "aixhan" {
-		return false
 	}
 	for _, item := range model.NormalizeChannelBillingSnapshotItems(items) {
 		if strings.TrimSpace(strings.ToLower(item.QuotaType)) == "total" {

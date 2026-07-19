@@ -275,7 +275,6 @@ const TaskDetail = ({ detailKind: detailKindOverride = '' }) => {
       { key: 'models_url', label: 'models_url' },
       { key: 'billing_request_urls', label: 'billing_request_urls' },
       { key: 'count', label: 'count' },
-      { key: 'billing_api_base_url', label: 'billing_api_base_url' },
       { key: 'primary_amount', label: 'primary_amount' },
       { key: 'round', label: 'round' },
     ],

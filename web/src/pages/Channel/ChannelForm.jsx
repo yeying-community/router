@@ -88,6 +88,28 @@ const normalizeModelIDs = (models) => {
 const normalizeBaseURL = (baseURL) =>
   (baseURL || '').trim().replace(/\/+$/, '');
 
+const normalizeChannelBillingSourceValue = (source) => {
+  const normalizedSource = (source || '').toString().trim().toLowerCase();
+  return normalizedSource === '' ||
+    normalizedSource === 'unsupported' ||
+    normalizedSource.startsWith('builtin_')
+    ? 'manual'
+    : normalizedSource;
+};
+
+const resolveChannelBillingSourceValue = (source, adapters = []) => {
+  const normalizedSource = normalizeChannelBillingSourceValue(source);
+  if (normalizedSource === 'manual') {
+    return normalizedSource;
+  }
+  const adapterNames = new Set(
+    (Array.isArray(adapters) ? adapters : [])
+      .map((adapter) => (adapter?.name || '').toString().trim().toLowerCase())
+      .filter(Boolean)
+  );
+  return adapterNames.has(normalizedSource) ? normalizedSource : 'manual';
+};
+
 const resolveEffectiveAPIBaseURL = (inputs, config) =>
   normalizeBaseURL(config?.api_base_url || inputs?.base_url || '');
 
@@ -606,10 +628,11 @@ const normalizeChannelBillingSummary = (item) => {
   if (!item || typeof item !== 'object') {
     return null;
   }
+  const billingSource = normalizeChannelBillingSourceValue(item.billing_source);
   return {
     channel_id: (item.channel_id || '').toString().trim(),
     profile_enabled: item.profile_enabled === true,
-    billing_mode: (item.billing_mode || '').toString().trim(),
+    billing_source: billingSource,
     action_capabilities: Array.isArray(item.action_capabilities)
       ? item.action_capabilities
       : [],
@@ -644,13 +667,12 @@ const normalizeChannelBillingProfile = (item) => {
   if (!item || typeof item !== 'object') {
     return null;
   }
+  const billingSource = normalizeChannelBillingSourceValue(item.billing_source);
   return {
     channel_id: (item.channel_id || '').toString().trim(),
     enabled: item.enabled === true,
-    billing_mode: (item.billing_mode || '').toString().trim(),
-    billing_api_base_url: (item.billing_api_base_url || '').toString().trim(),
-    cdk: (item.cdk || '').toString().trim(),
-    currency: (item.currency || '').toString().trim(),
+    billing_source: billingSource,
+    billing_key: (item.billing_key || '').toString().trim(),
     action_capabilities: Array.isArray(item.action_capabilities)
       ? item.action_capabilities
       : [],
@@ -3907,10 +3929,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         ...(prev || {
           channel_id: (channelId || '').toString().trim(),
           enabled: true,
-          billing_mode: 'unsupported',
-          billing_api_base_url: '',
-          cdk: '',
-          currency: 'USD',
+          billing_source: 'manual',
+          billing_key: '',
           action_capabilities: [],
         }),
         ...(patch || {}),
@@ -3929,19 +3949,19 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     if (targetChannelId === '' || !detailBillingDraft) {
       return;
     }
+    const billingSource = resolveChannelBillingSourceValue(
+      detailBillingDraft.billing_source,
+      channelBillingAdapters
+    );
     setChannelBillingSubmitting(true);
     try {
       const res = await API.put(
         `/api/v1/admin/channel/${targetChannelId}/billing/profile`,
         {
-          billing_mode: (detailBillingDraft.billing_mode || '')
+          billing_source: billingSource,
+          billing_key: (detailBillingDraft.billing_key || '')
             .toString()
             .trim(),
-          billing_api_base_url: normalizeBaseURL(
-            detailBillingDraft.billing_api_base_url
-          ),
-          cdk: (detailBillingDraft.cdk || '').toString().trim(),
-          currency: (detailBillingDraft.currency || 'USD').toString().trim(),
         }
       );
       const { success, message, data } = res.data || {};
@@ -3970,6 +3990,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     }
   }, [
     channelId,
+    channelBillingAdapters,
     detailBillingDraft,
     refreshChannelBillingState,
     submitChannelBillingRefresh,

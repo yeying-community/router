@@ -1161,8 +1161,8 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			Description: "rename channel billing profile mode and config columns",
 			Up: func(tx *gorm.DB) error {
 				if tx.Migrator().HasColumn(&ChannelBillingProfile{}, "balance_fetch_mode") &&
-					!tx.Migrator().HasColumn(&ChannelBillingProfile{}, "billing_mode") {
-					if err := tx.Migrator().RenameColumn(&ChannelBillingProfile{}, "balance_fetch_mode", "billing_mode"); err != nil {
+					!tx.Migrator().HasColumn(&ChannelBillingProfile{}, "billing_source") {
+					if err := tx.Migrator().RenameColumn(&ChannelBillingProfile{}, "balance_fetch_mode", "billing_source"); err != nil {
 						return err
 					}
 				}
@@ -1790,6 +1790,19 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 					return err
 				}
 				return syncEntitlementProductsFromLegacyWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607191630_channel_billing_source",
+			Description: "rename channel billing profile billing mode to billing source",
+			Up: func(tx *gorm.DB) error {
+				if tx.Migrator().HasColumn(&ChannelBillingProfile{}, "billing_mode") &&
+					!tx.Migrator().HasColumn(&ChannelBillingProfile{}, "billing_source") {
+					if err := tx.Migrator().RenameColumn(&ChannelBillingProfile{}, "billing_mode", "billing_source"); err != nil {
+						return err
+					}
+				}
+				return tx.AutoMigrate(&ChannelBillingProfile{})
 			},
 		},
 	}

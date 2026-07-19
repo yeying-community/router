@@ -18,7 +18,7 @@ import (
 type channelBillingSummaryData struct {
 	ChannelID             string                             `json:"channel_id"`
 	ProfileEnabled        bool                               `json:"profile_enabled"`
-	BillingMode           string                             `json:"billing_mode"`
+	BillingSource         string                             `json:"billing_source"`
 	ActionCapabilities    []string                           `json:"action_capabilities"`
 	RefreshSupported      bool                               `json:"refresh_supported"`
 	LatestSnapshotAt      int64                              `json:"latest_snapshot_at"`
@@ -30,10 +30,8 @@ type channelBillingSummaryData struct {
 type channelBillingProfileData struct {
 	ChannelID          string   `json:"channel_id"`
 	Enabled            bool     `json:"enabled"`
-	BillingMode        string   `json:"billing_mode"`
-	BillingAPIBaseURL  string   `json:"billing_api_base_url"`
-	CDK                string   `json:"cdk"`
-	Currency           string   `json:"currency"`
+	BillingSource      string   `json:"billing_source"`
+	BillingKey         string   `json:"billing_key"`
 	ActionCapabilities []string `json:"action_capabilities"`
 }
 
@@ -104,10 +102,8 @@ func isSupportedBillingResourceType(value string) bool {
 }
 
 type channelBillingProfileUpdateRequest struct {
-	BillingMode       string `json:"billing_mode"`
-	BillingAPIBaseURL string `json:"billing_api_base_url"`
-	CDK               string `json:"cdk"`
-	Currency          string `json:"currency"`
+	BillingSource string `json:"billing_source"`
+	BillingKey    string `json:"billing_key"`
 }
 
 func GetChannelBillingAdapters(c *gin.Context) {
@@ -132,16 +128,13 @@ func buildChannelBillingSummary(channelRow *model.Channel, profile model.Channel
 	summary := channelBillingSummaryData{
 		ChannelID:             strings.TrimSpace(channelRow.Id),
 		ProfileEnabled:        profile.Enabled,
-		BillingMode:           strings.TrimSpace(profile.BillingMode),
+		BillingSource:         normalizeChannelBillingSource(profile.BillingSource),
 		ActionCapabilities:    capabilities,
 		RefreshSupported:      profile.HasCapability(model.ChannelBillingCapabilityRefreshBilling),
 		LatestSnapshotAt:      snapshot.CreatedAt,
 		LatestSnapshotStatus:  strings.TrimSpace(snapshot.RawStatus),
 		LatestSnapshotMessage: strings.TrimSpace(snapshot.Message),
 		QuotaItems:            model.NormalizeChannelBillingSnapshotItems(snapshot.Items),
-	}
-	if summary.BillingMode == "" {
-		summary.BillingMode = model.ChannelBillingModeUnsupported
 	}
 	return summary
 }
@@ -151,10 +144,8 @@ func buildChannelBillingProfileData(channelRow *model.Channel, profile model.Cha
 	return channelBillingProfileData{
 		ChannelID:          strings.TrimSpace(channelRow.Id),
 		Enabled:            profile.Enabled,
-		BillingMode:        strings.TrimSpace(profile.BillingMode),
-		BillingAPIBaseURL:  strings.TrimSpace(fetchConfig.APIBaseURL),
-		CDK:                strings.TrimSpace(fetchConfig.CDK),
-		Currency:           strings.TrimSpace(fetchConfig.Currency),
+		BillingSource:      normalizeChannelBillingSource(profile.BillingSource),
+		BillingKey:         strings.TrimSpace(fetchConfig.BillingKey),
 		ActionCapabilities: profile.ParseActionCapabilities(),
 	}
 }
@@ -529,7 +520,7 @@ func UpdateChannelBillingProfile(c *gin.Context) {
 				profileRow = model.ChannelBillingProfile{
 					ChannelId:          channelID,
 					Enabled:            true,
-					BillingMode:        model.ChannelBillingModeUnsupported,
+					BillingSource:      model.ChannelBillingSourceManual,
 					ActionCapabilities: "[]",
 				}
 			} else {
@@ -541,13 +532,9 @@ func UpdateChannelBillingProfile(c *gin.Context) {
 			return
 		}
 	}
-	nextMode := strings.TrimSpace(req.BillingMode)
-	if nextMode == "" {
-		nextMode = model.ChannelBillingModeUnsupported
-	}
-	nextMode = normalizeBillingServiceAdapterName(nextMode)
-	if nextMode != model.ChannelBillingModeUnsupported && nextMode != model.ChannelBillingModeManual {
-		exists, err := billingServiceAdapterExists(c.Request.Context(), nextMode)
+	nextSource := normalizeChannelBillingSource(req.BillingSource)
+	if nextSource != model.ChannelBillingSourceManual {
+		exists, err := billingServiceAdapterExists(c.Request.Context(), nextSource)
 		if err != nil {
 			logChannelAdminWarn(c, "update_billing_profile", stringField("channel_id", channelID), stringField("reason", err.Error()))
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
@@ -559,15 +546,13 @@ func UpdateChannelBillingProfile(c *gin.Context) {
 		}
 	}
 	profileRow.Enabled = true
-	profileRow.BillingMode = nextMode
+	profileRow.BillingSource = nextSource
 	nextConfig := map[string]any{
-		"api_base_url": strings.TrimSpace(req.BillingAPIBaseURL),
-		"cdk":          strings.TrimSpace(req.CDK),
-		"currency":     strings.TrimSpace(strings.ToUpper(req.Currency)),
+		"billing_key": strings.TrimSpace(req.BillingKey),
 	}
 	profileRow.BillingConfig = marshalLogJSON(nextConfig)
 	capabilities := []string{model.ChannelBillingCapabilityManualUpdateSnapshot}
-	if nextMode != model.ChannelBillingModeUnsupported && nextMode != model.ChannelBillingModeManual {
+	if nextSource != model.ChannelBillingSourceManual {
 		capabilities = append(capabilities, model.ChannelBillingCapabilityRefreshBilling)
 	}
 	profileRow.ActionCapabilities = marshalLogJSON(capabilities)
