@@ -8,20 +8,37 @@ import {
   AppSelect,
 } from '../../../router-ui';
 
-const billingModeOptions = (t) => [
-  { value: 'unsupported', label: t('channel.edit.billing.modes.unsupported') },
-  { value: 'manual', label: t('channel.edit.billing.modes.manual') },
-  { value: 'builtin_openai', label: t('channel.edit.billing.modes.builtin_openai') },
-  { value: 'builtin_closeai', label: t('channel.edit.billing.modes.builtin_closeai') },
-  { value: 'builtin_openai_sb', label: t('channel.edit.billing.modes.builtin_openai_sb') },
-  { value: 'builtin_aiproxy', label: t('channel.edit.billing.modes.builtin_aiproxy') },
-  { value: 'builtin_api2gpt', label: t('channel.edit.billing.modes.builtin_api2gpt') },
-  { value: 'builtin_aigc2d', label: t('channel.edit.billing.modes.builtin_aigc2d') },
-  { value: 'builtin_siliconflow', label: t('channel.edit.billing.modes.builtin_siliconflow') },
-  { value: 'builtin_deepseek', label: t('channel.edit.billing.modes.builtin_deepseek') },
-  { value: 'builtin_openrouter', label: t('channel.edit.billing.modes.builtin_openrouter') },
-  { value: 'builtin_cdk', label: t('channel.edit.billing.modes.builtin_cdk') },
-];
+const buildBillingModeOptions = (t, adapters = [], currentMode = '') => {
+  const options = [
+    { value: 'unsupported', label: t('channel.edit.billing.modes.unsupported') },
+    { value: 'manual', label: t('channel.edit.billing.modes.manual') },
+  ];
+  const seen = new Set(options.map((item) => item.value));
+  (Array.isArray(adapters) ? adapters : []).forEach((adapter) => {
+    const name = (adapter?.name || '').toString().trim();
+    if (name === '' || seen.has(name)) {
+      return;
+    }
+    seen.add(name);
+    options.push({ value: name, label: name });
+  });
+  const normalizedCurrentMode = (currentMode || '').toString().trim();
+  if (normalizedCurrentMode !== '' && !seen.has(normalizedCurrentMode)) {
+    options.push({ value: normalizedCurrentMode, label: normalizedCurrentMode });
+  }
+  return options;
+};
+
+const formatBillingModeLabel = (t, mode) => {
+  const normalizedMode = (mode || '').toString().trim();
+  if (normalizedMode === '') {
+    return '-';
+  }
+  if (normalizedMode === 'unsupported' || normalizedMode === 'manual') {
+    return t(`channel.edit.billing.modes.${normalizedMode}`);
+  }
+  return normalizedMode;
+};
 
 const maskSecret = (value) => {
   const normalizedValue = typeof value === 'string' ? value.trim() : '';
@@ -56,6 +73,7 @@ const ChannelDetailOverviewTab = ({
   protocolSpecificFields,
   timestamp2string,
   billingProfile,
+  billingAdapters,
   detailBillingEditing,
   detailBillingDraft,
   billingSubmitting,
@@ -71,7 +89,7 @@ const ChannelDetailOverviewTab = ({
       ? detailBillingDraft?.billing_mode
       : billingProfile?.billing_mode
   ) || 'unsupported';
-  const showCDKBillingConfig = activeBillingMode === 'builtin_cdk';
+  const showCDKBillingConfig = activeBillingMode === 'aixhan';
 
   return (
     <>
@@ -227,11 +245,11 @@ const ChannelDetailOverviewTab = ({
             {detailBillingEditing ? (
               <AppSelect
                 className='router-section-input'
-                options={billingModeOptions(t)}
+                options={buildBillingModeOptions(t, billingAdapters, detailBillingDraft?.billing_mode)}
                 value={detailBillingDraft?.billing_mode || 'unsupported'}
                 onChange={(e, { value }) =>
                   onUpdateBillingProfileDraft({
-                    billing_mode: (value || 'unsupported').toString(),
+                    billing_mode: (value || 'unsupported').toString().trim(),
                   })
                 }
                 disabled={billingSubmitting}
@@ -240,12 +258,7 @@ const ChannelDetailOverviewTab = ({
               <AppInput
                 className='router-section-input'
                 value={
-                  billingProfile?.billing_mode
-                    ? t(
-                        `channel.edit.billing.modes.${billingProfile.billing_mode}`,
-                        { defaultValue: billingProfile.billing_mode },
-                      )
-                    : '-'
+                  formatBillingModeLabel(t, billingProfile?.billing_mode)
                 }
                 readOnly
               />
@@ -268,6 +281,9 @@ const ChannelDetailOverviewTab = ({
             />
           </AppField>
         </AppFormRow>
+        <div className='router-form-hint router-form-hint-section'>
+          {t('channel.edit.billing.credential_hint')}
+        </div>
         {showCDKBillingConfig && (
           <AppFormRow>
             <AppField label={t('channel.edit.billing.cdk')}>

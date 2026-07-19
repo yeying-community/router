@@ -885,6 +885,8 @@
         "no_procurement_batches": "暂无采购批次",
         "no_procurement_consumptions": "暂无消费明细",
         "no_expire": "无截止时间",
+        "credential_hint": "Billing 服务使用渠道基础配置里的 API Key 作为 credential；Aixhan 额外使用下方 CDK 字段。",
+        "adapters_load_failed": "加载 Billing adapter 列表失败",
         "procurement_status": {
           "active": "可分摊",
           "cost_unconfigured": "成本未配置",
@@ -933,17 +935,7 @@
         },
         "modes": {
           "unsupported": "不支持自动刷新",
-          "manual": "人工维护",
-          "builtin_openai": "内置 OpenAI 账务接口",
-          "builtin_closeai": "内置 CloseAI 账务接口",
-          "builtin_openai_sb": "内置 OpenAI-SB 账务接口",
-          "builtin_aiproxy": "内置 AIProxy 账务接口",
-          "builtin_api2gpt": "内置 API2GPT 账务接口",
-          "builtin_aigc2d": "内置 AIGC2D 账务接口",
-          "builtin_siliconflow": "内置 SiliconFlow 账务接口",
-          "builtin_deepseek": "内置 DeepSeek 账务接口",
-          "builtin_openrouter": "内置 OpenRouter 账务接口",
-          "builtin_cdk": "内置 Aixhan 账务接口"
+          "manual": "人工维护"
         },
         "quota_types": {
           "daily": "每日额度规则",

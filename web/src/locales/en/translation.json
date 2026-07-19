@@ -885,6 +885,8 @@
         "no_procurement_batches": "No procurement batches",
         "no_procurement_consumptions": "No procurement consumptions",
         "no_expire": "No expiration",
+        "credential_hint": "Billing service uses the API Key from the channel basic settings as credential; Aixhan also uses the CDK field below.",
+        "adapters_load_failed": "Failed to load Billing adapters",
         "procurement_status": {
           "active": "Allocatable",
           "cost_unconfigured": "Cost Unconfigured",
@@ -933,17 +935,7 @@
         },
         "modes": {
           "unsupported": "Unsupported",
-          "manual": "Manual",
-          "builtin_openai": "Built-in OpenAI billing API",
-          "builtin_closeai": "Built-in CloseAI billing API",
-          "builtin_openai_sb": "Built-in OpenAI-SB billing API",
-          "builtin_aiproxy": "Built-in AIProxy billing API",
-          "builtin_api2gpt": "Built-in API2GPT billing API",
-          "builtin_aigc2d": "Built-in AIGC2D billing API",
-          "builtin_siliconflow": "Built-in SiliconFlow billing API",
-          "builtin_deepseek": "Built-in DeepSeek billing API",
-          "builtin_openrouter": "Built-in OpenRouter billing API",
-          "builtin_cdk": "Built-in Aixhan billing API"
+          "manual": "Manual"
         },
         "quota_types": {
           "daily": "Daily Quota Rule",

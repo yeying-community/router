@@ -128,26 +128,28 @@ Router 支持通过 `billing_service.base_url` 接入独立 Billing 服务。
 
 - 渠道 `config.api_base_url` 只用于模型请求转发
 - 账务 API 地址统一使用 Billing Profile 的 `billing_api_base_url`
+- 刷新时 Router 使用渠道基础配置里的 API Key 作为 Billing 请求的 `credential`
+- `billing_mode` 直接保存 Billing 服务返回的 adapter 名，不再使用 Router 内置模式名
 
 当前已接入：
 
-- `builtin_cdk`
-  - 远端 Billing 服务使用 `aixhan` adaptor；`cdk` 只是 Aixhan 渠道的卡密 / 凭据字段
+- `aixhan`
+  - `cdk` 是 Aixhan 渠道的卡密 / 凭据字段
   - `usage/stats` 输出日 / 周 / 总额度
   - `card-info` 输出套餐有效期与套餐元信息
   - 日 / 周额度带 `reset_at`
   - 套餐到期提醒基于 `plan` 类型权益项
-- `builtin_openai`
+- `openai`
   - 输出总额度
   - 带套餐到期时间
-- 其他内置模式
-  - 先统一落为 `total` 权益项
+- 其他渠道
+  - 由 Billing 服务 adapter 列表声明，Router 不再内置账务接口
 
 后续新增上游时，要求直接输出标准权益项，不再新增临时余额模型。
 
 ## CDK 字段映射
 
-当前 `builtin_cdk` 是 Router 历史模式名；下沉到 Billing 服务后由 `aixhan` adaptor 采集并按如下方式落库：
+下沉到 Billing 服务后，Aixhan 由 `aixhan` adapter 采集并按如下方式落库：
 
 - `usage/stats`
   - `remaining / consumed / resetAt` -> `daily`

@@ -110,6 +110,23 @@ type channelBillingProfileUpdateRequest struct {
 	Currency          string `json:"currency"`
 }
 
+func GetChannelBillingAdapters(c *gin.Context) {
+	items, err := listBillingServiceAdapters(c.Request.Context())
+	if err != nil {
+		logChannelAdminWarn(c, "list_billing_adapters", stringField("reason", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": channelBillingListData[billingServiceAdapterInfo]{
+			Items: items,
+			Total: len(items),
+		},
+	})
+}
+
 func buildChannelBillingSummary(channelRow *model.Channel, profile model.ChannelBillingProfile, snapshot model.ChannelBillingSnapshot) channelBillingSummaryData {
 	capabilities := profile.ParseActionCapabilities()
 	summary := channelBillingSummaryData{
@@ -528,22 +545,18 @@ func UpdateChannelBillingProfile(c *gin.Context) {
 	if nextMode == "" {
 		nextMode = model.ChannelBillingModeUnsupported
 	}
-	switch nextMode {
-	case model.ChannelBillingModeUnsupported,
-		model.ChannelBillingModeManual,
-		model.ChannelBillingModeBuiltinOpenAI,
-		model.ChannelBillingModeBuiltinCloseAI,
-		model.ChannelBillingModeBuiltinOpenAISB,
-		model.ChannelBillingModeBuiltinAIProxy,
-		model.ChannelBillingModeBuiltinAPI2GPT,
-		model.ChannelBillingModeBuiltinAIGC2D,
-		model.ChannelBillingModeBuiltinSiliconFlow,
-		model.ChannelBillingModeBuiltinDeepSeek,
-		model.ChannelBillingModeBuiltinOpenRouter,
-		model.ChannelBillingModeBuiltinCDK:
-	default:
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "账务刷新方式无效"})
-		return
+	nextMode = normalizeBillingServiceAdapterName(nextMode)
+	if nextMode != model.ChannelBillingModeUnsupported && nextMode != model.ChannelBillingModeManual {
+		exists, err := billingServiceAdapterExists(c.Request.Context(), nextMode)
+		if err != nil {
+			logChannelAdminWarn(c, "update_billing_profile", stringField("channel_id", channelID), stringField("reason", err.Error()))
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		if !exists {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "Billing adapter 无效"})
+			return
+		}
 	}
 	profileRow.Enabled = true
 	profileRow.BillingMode = nextMode

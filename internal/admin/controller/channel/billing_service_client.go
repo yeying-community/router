@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -14,7 +15,10 @@ import (
 	"github.com/yeying-community/router/internal/admin/model"
 )
 
-const billingServiceQueryPath = "/api/v1/internal/billing:query"
+const (
+	billingServiceQueryPath    = "/api/v1/internal/billing:query"
+	billingServiceAdaptersPath = "/api/v1/internal/adapters"
+)
 
 type billingServiceQueryRequest struct {
 	ChannelID  string         `json:"channel_id,omitempty"`
@@ -33,6 +37,16 @@ type billingServiceError struct {
 	Code      string `json:"code"`
 	Message   string `json:"message"`
 	RequestID string `json:"request_id"`
+}
+
+type billingServiceAdapterInfo struct {
+	Name         string   `json:"name"`
+	Capabilities []string `json:"capabilities"`
+}
+
+type billingServiceAdaptersResponse struct {
+	Data  []billingServiceAdapterInfo `json:"data"`
+	Error *billingServiceError        `json:"error,omitempty"`
 }
 
 type billingServiceSnapshot struct {
@@ -71,31 +85,99 @@ func resolveBillingServiceRequestURLs() []string {
 	return []string{baseURL + billingServiceQueryPath}
 }
 
+func normalizeBillingServiceAdapterName(value string) string {
+	return strings.TrimSpace(strings.ToLower(value))
+}
+
 func resolveBillingServiceAdapter(profile model.ChannelBillingProfile) string {
-	switch strings.TrimSpace(profile.BillingMode) {
-	case model.ChannelBillingModeBuiltinOpenAI:
-		return "openai-subscription"
-	case model.ChannelBillingModeBuiltinCloseAI:
-		return "closeai"
-	case model.ChannelBillingModeBuiltinOpenAISB:
-		return "openai-sb"
-	case model.ChannelBillingModeBuiltinAIProxy:
-		return "aiproxy"
-	case model.ChannelBillingModeBuiltinAPI2GPT:
-		return "api2gpt"
-	case model.ChannelBillingModeBuiltinAIGC2D:
-		return "aigc2d"
-	case model.ChannelBillingModeBuiltinSiliconFlow:
-		return "siliconflow"
-	case model.ChannelBillingModeBuiltinDeepSeek:
-		return "deepseek"
-	case model.ChannelBillingModeBuiltinOpenRouter:
-		return "openrouter"
-	case model.ChannelBillingModeBuiltinCDK:
-		return "aixhan"
-	default:
+	mode := normalizeBillingServiceAdapterName(profile.BillingMode)
+	switch mode {
+	case "", model.ChannelBillingModeUnsupported, model.ChannelBillingModeManual:
 		return ""
+	default:
+		return mode
 	}
+}
+
+func getBillingServiceJSON(ctx context.Context, path string, out any) error {
+	baseURL := strings.TrimRight(strings.TrimSpace(config.BillingServiceBaseURL), "/")
+	if baseURL == "" {
+		return fmt.Errorf("Billing 服务未配置")
+	}
+	timeout := time.Duration(config.BillingServiceTimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 20 * time.Second
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	if apiKey := strings.TrimSpace(config.BillingServiceAPIKey); apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	resp, err := (&http.Client{Timeout: timeout}).Do(req)
+	if err != nil {
+		return fmt.Errorf("调用 Billing 服务失败: %w", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return err
+	}
+	if len(body) > 0 {
+		if err := json.Unmarshal(body, out); err != nil {
+			return fmt.Errorf("解析 Billing 服务响应失败: %w", err)
+		}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if typed, ok := out.(*billingServiceAdaptersResponse); ok && typed.Error != nil {
+			return fmt.Errorf("Billing 服务返回 %s: %s", strings.TrimSpace(typed.Error.Code), strings.TrimSpace(typed.Error.Message))
+		}
+		return fmt.Errorf("Billing 服务返回 HTTP %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func listBillingServiceAdapters(ctx context.Context) ([]billingServiceAdapterInfo, error) {
+	decoded := billingServiceAdaptersResponse{}
+	if err := getBillingServiceJSON(ctx, billingServiceAdaptersPath, &decoded); err != nil {
+		return nil, err
+	}
+	items := make([]billingServiceAdapterInfo, 0, len(decoded.Data))
+	seen := map[string]bool{}
+	for _, item := range decoded.Data {
+		name := normalizeBillingServiceAdapterName(item.Name)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		items = append(items, billingServiceAdapterInfo{Name: name, Capabilities: item.Capabilities})
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
+	return items, nil
+}
+
+func billingServiceAdapterExists(ctx context.Context, name string) (bool, error) {
+	normalizedName := normalizeBillingServiceAdapterName(name)
+	if normalizedName == "" {
+		return false, nil
+	}
+	items, err := listBillingServiceAdapters(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, item := range items {
+		if item.Name == normalizedName {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func buildBillingServiceQuery(channel *model.Channel, profile model.ChannelBillingProfile) (billingServiceQueryRequest, error) {
@@ -112,7 +194,7 @@ func buildBillingServiceQuery(channel *model.Channel, profile model.ChannelBilli
 		BaseURL:    resolveChannelBillingAPIBaseURL(channel, profile),
 		Credential: strings.TrimSpace(channel.Key),
 	}
-	if strings.TrimSpace(profile.BillingMode) == model.ChannelBillingModeBuiltinCDK {
+	if adapter == "aixhan" {
 		request.Config = map[string]any{
 			"cdk":      resolveChannelCDKKey(channel, profile),
 			"currency": resolveChannelCDKBillingCurrency(profile),
@@ -280,7 +362,7 @@ func shouldHardStopBillingServiceSnapshot(profile model.ChannelBillingProfile, i
 	if len(items) == 0 {
 		return true
 	}
-	if strings.TrimSpace(profile.BillingMode) == model.ChannelBillingModeBuiltinCDK {
+	if resolveBillingServiceAdapter(profile) == "aixhan" {
 		return false
 	}
 	for _, item := range model.NormalizeChannelBillingSnapshotItems(items) {
