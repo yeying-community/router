@@ -783,7 +783,7 @@
         "load_failed": "加载渠道账务信息失败",
         "profile_title": "账务配置",
         "profile_enabled": "启用账务",
-        "billing_api_base_url": "账务 API 地址",
+        "billing_credentials": "账务凭据",
         "profile_update_success": "账务配置保存成功",
         "profile_update_failed": "账务配置保存失败",
         "refresh_now": "刷新",
@@ -791,9 +791,8 @@
         "latest_refresh_failed_unknown": "上游账务接口返回异常",
         "latest_snapshot_at": "最近刷新",
         "current_quotas_title": "权益项状态",
-        "billing_mode": "账务方式",
+        "billing_source": "账务来源",
         "updated_at": "更新时间",
-        "cdk": "CDK",
         "manual_update_title": "新增采购记录",
         "manual_purchase_title": "采购信息",
         "manual_purchase_at": "采购时间",
@@ -885,7 +884,8 @@
         "no_procurement_batches": "暂无采购批次",
         "no_procurement_consumptions": "暂无消费明细",
         "no_expire": "无截止时间",
-        "credential_hint": "Billing 服务使用渠道基础配置里的 API Key 作为 credential；Aixhan 额外使用下方 CDK 字段。",
+        "credential_hint": "Billing 服务只使用下方账务凭据；账务凭据必须手动配置，不会回退使用渠道基础配置里的 API Key。模型请求始终使用渠道基础配置里的 API Key。",
+        "credential_required": "请填写账务凭据：{{field}}",
         "adapters_load_failed": "加载 Billing adapter 列表失败",
         "procurement_status": {
           "active": "可分摊",
@@ -933,8 +933,7 @@
           "refresh_billing": "支持自动刷新账务",
           "manual_update_snapshot": "支持人工录入账务快照"
         },
-        "modes": {
-          "unsupported": "不支持自动刷新",
+        "sources": {
           "manual": "人工维护"
         },
         "quota_types": {
@@ -1154,7 +1153,6 @@
       "base_url_placeholder": "OpenAPI SDK 中所要求的地址",
       "api_base_url": "模型访问地址",
       "api_base_url_placeholder": "留空时使用协议地址",
-      "billing_api_base_url": "账务 API 地址",
       "address_routing_hint": "请求转发默认使用模型访问地址；如某个渠道端点单独配置了访问地址，则优先使用该地址。",
       "key": "密钥",
       "key_placeholder": "请输入密钥",
@@ -1913,9 +1911,11 @@
   },
   "log": {
     "cleanup": {
-      "label": "清理到",
-      "button": "清理历史日志",
-      "invalid_time": "请选择有效的清理时间",
+      "label": "删除此时间之前的日志",
+      "button": "删除历史日志",
+      "invalid_time": "请选择有效的截止时间",
+      "confirm_title": "确认删除历史日志？",
+      "confirm_description": "此操作将删除该时间之前的所有日志，且不可恢复。",
       "failed": "日志清理失败",
       "success": "已清理 {{count}} 条日志"
     },

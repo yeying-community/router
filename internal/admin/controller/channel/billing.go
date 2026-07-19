@@ -2,8 +2,6 @@ package channel
 
 import (
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,57 +12,6 @@ import (
 	"github.com/yeying-community/router/internal/admin/model"
 	channelsvc "github.com/yeying-community/router/internal/admin/service/channel"
 )
-
-func resolveChannelBillingAPIBaseURL(channel *model.Channel, profile model.ChannelBillingProfile) string {
-	if channel == nil {
-		return ""
-	}
-	return normalizeChannelBillingAPIBaseURL(profile.ParseBillingConfig().APIBaseURL)
-}
-
-func normalizeChannelBillingAPIBaseURL(raw string) string {
-	trimmed := strings.TrimRight(strings.TrimSpace(raw), "/")
-	if trimmed == "" {
-		return ""
-	}
-	parsed, err := url.Parse(trimmed)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return ""
-	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return ""
-	}
-	return trimmed
-}
-
-func resolveChannelCDKKey(channel *model.Channel, profile model.ChannelBillingProfile) string {
-	if cdk := profile.ParseBillingConfig().CDK; cdk != "" {
-		return cdk
-	}
-	if channel == nil {
-		return ""
-	}
-	return strings.TrimSpace(channel.Key)
-}
-
-func resolveChannelCDKBillingCurrency(profile model.ChannelBillingProfile) string {
-	if currency := profile.ParseBillingConfig().Currency; currency != "" {
-		return currency
-	}
-	return "USD"
-}
-
-func resolveChannelBillingSnapshotCurrency(channel *model.Channel) string {
-	if channel == nil {
-		return "USD"
-	}
-	switch strings.TrimSpace(strings.ToLower(channel.GetProtocol())) {
-	case "closeai", "openai-sb", "api2gpt", "deepseek", "siliconflow":
-		return "CNY"
-	default:
-		return "USD"
-	}
-}
 
 // UpdateChannelBilling submits a single-channel billing refresh task.
 // The admin HTTP route is unified under POST /api/v1/admin/channel/{id}/refresh with action=billing.

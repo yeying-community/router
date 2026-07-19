@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { API, showError, showInfo, showSuccess, timestamp2string } from '../../helpers';
 import { formatAmountWithUnit } from '../../helpers/render';
 import { formatPackageConcurrencyLimit } from '../../helpers/package';
@@ -184,7 +184,12 @@ const productToTopupPlan = (item) => ({
 const TopupPlanDetail = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
+  const redemptionSourcePath = typeof location.state?.from === 'string' &&
+    location.state.from.startsWith('/admin/redemption/')
+    ? location.state.from
+    : '';
   const [activeTabKey, setActiveTabKey] = useState('basic');
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState(null);
@@ -855,12 +860,31 @@ const TopupPlanDetail = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'admin', label: t('header.admin_workspace') },
-          { key: 'model', label: t('header.model') },
-          {
-            key: 'entitlement',
-            label: t('header.entitlement'),
-            onClick: () => navigate('/admin/entitlement'),
-          },
+          ...(redemptionSourcePath
+            ? [
+                { key: 'operation', label: t('header.operation') },
+                {
+                  key: 'redemption-source',
+                  label: t('header.redemption'),
+                  onClick: () => navigate('/admin/redemption'),
+                },
+                ...(redemptionSourcePath !== '/admin/redemption'
+                  ? [{
+                      key: 'redemption-detail-source',
+                      label: redemptionSourcePath.split('/').filter(Boolean).pop(),
+                      onClick: () => navigate(redemptionSourcePath),
+                    }]
+                  : []),
+              ]
+            : []),
+          ...(redemptionSourcePath ? [] : [
+            { key: 'model', label: t('header.model') },
+            {
+              key: 'entitlement',
+              label: t('header.entitlement'),
+              onClick: () => navigate('/admin/entitlement'),
+            },
+          ]),
           {
             key: 'topup-current',
             label: readOnlyText(plan?.id || id),

@@ -79,7 +79,7 @@ func NewRedemption(redemption *model.Redemption) *Redemption {
 	}
 	return &Redemption{
 		Redemption:   redemption,
-		CreditAmount: redemption.Quota,
+		CreditAmount: int64(redemption.QuotaAmountSnapshot),
 	}
 }
 

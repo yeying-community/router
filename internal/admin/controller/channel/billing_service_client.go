@@ -21,11 +21,11 @@ const (
 )
 
 type billingServiceQueryRequest struct {
-	ChannelID  string         `json:"channel_id,omitempty"`
-	Adapter    string         `json:"adapter"`
-	BaseURL    string         `json:"base_url,omitempty"`
-	Credential string         `json:"credential,omitempty"`
-	Config     map[string]any `json:"config,omitempty"`
+	ChannelID   string            `json:"channel_id,omitempty"`
+	Adapter     string            `json:"adapter"`
+	BaseURL     string            `json:"base_url,omitempty"`
+	Credentials map[string]string `json:"credentials,omitempty"`
+	Config      map[string]any    `json:"config,omitempty"`
 }
 
 type billingServiceQueryResponse struct {
@@ -40,8 +40,16 @@ type billingServiceError struct {
 }
 
 type billingServiceAdapterInfo struct {
-	Name         string   `json:"name"`
-	Capabilities []string `json:"capabilities"`
+	Name             string                          `json:"name"`
+	Capabilities     []string                        `json:"capabilities"`
+	CredentialFields []billingServiceCredentialField `json:"credential_fields,omitempty"`
+}
+
+type billingServiceCredentialField struct {
+	Name     string `json:"name"`
+	Label    string `json:"label,omitempty"`
+	Required bool   `json:"required"`
+	Secret   bool   `json:"secret"`
 }
 
 type billingServiceAdaptersResponse struct {
@@ -89,14 +97,40 @@ func normalizeBillingServiceAdapterName(value string) string {
 	return strings.TrimSpace(strings.ToLower(value))
 }
 
-func resolveBillingServiceAdapter(profile model.ChannelBillingProfile) string {
-	mode := normalizeBillingServiceAdapterName(profile.BillingMode)
-	switch mode {
-	case "", model.ChannelBillingModeUnsupported, model.ChannelBillingModeManual:
-		return ""
-	default:
-		return mode
+func normalizeBillingServiceCredentialFieldName(value string) string {
+	return strings.TrimSpace(strings.ToLower(value))
+}
+
+func normalizeBillingServiceCredentialFields(fields []billingServiceCredentialField) []billingServiceCredentialField {
+	result := make([]billingServiceCredentialField, 0, len(fields))
+	seen := map[string]bool{}
+	for _, field := range fields {
+		name := normalizeBillingServiceCredentialFieldName(field.Name)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		field.Name = name
+		field.Label = strings.TrimSpace(field.Label)
+		result = append(result, field)
 	}
+	return result
+}
+
+func normalizeChannelBillingSource(value string) string {
+	source := normalizeBillingServiceAdapterName(value)
+	if source == "" || source == "unsupported" || strings.HasPrefix(source, "builtin_") {
+		return model.ChannelBillingSourceManual
+	}
+	return source
+}
+
+func resolveBillingServiceAdapter(profile model.ChannelBillingProfile) string {
+	source := normalizeChannelBillingSource(profile.BillingSource)
+	if source == model.ChannelBillingSourceManual {
+		return ""
+	}
+	return source
 }
 
 func getBillingServiceJSON(ctx context.Context, path string, out any) error {
@@ -157,30 +191,80 @@ func listBillingServiceAdapters(ctx context.Context) ([]billingServiceAdapterInf
 			continue
 		}
 		seen[name] = true
-		items = append(items, billingServiceAdapterInfo{Name: name, Capabilities: item.Capabilities})
+		items = append(items, billingServiceAdapterInfo{
+			Name:             name,
+			Capabilities:     item.Capabilities,
+			CredentialFields: normalizeBillingServiceCredentialFields(item.CredentialFields),
+		})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
 	return items, nil
 }
 
-func billingServiceAdapterExists(ctx context.Context, name string) (bool, error) {
+func findBillingServiceAdapter(ctx context.Context, name string) (billingServiceAdapterInfo, bool, error) {
 	normalizedName := normalizeBillingServiceAdapterName(name)
 	if normalizedName == "" {
-		return false, nil
+		return billingServiceAdapterInfo{}, false, nil
 	}
 	items, err := listBillingServiceAdapters(ctx)
 	if err != nil {
-		return false, err
+		return billingServiceAdapterInfo{}, false, err
 	}
 	for _, item := range items {
 		if item.Name == normalizedName {
-			return true, nil
+			return item, true, nil
 		}
 	}
-	return false, nil
+	return billingServiceAdapterInfo{}, false, nil
 }
 
-func buildBillingServiceQuery(channel *model.Channel, profile model.ChannelBillingProfile) (billingServiceQueryRequest, error) {
+func billingServiceAdapterExists(ctx context.Context, name string) (bool, error) {
+	_, exists, err := findBillingServiceAdapter(ctx, name)
+	return exists, err
+}
+
+func hasBillingCredentialValue(credentials map[string]string) bool {
+	for _, value := range credentials {
+		if strings.TrimSpace(value) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveChannelBillingCredentials(profile model.ChannelBillingProfile, adapter string, fields []billingServiceCredentialField) map[string]string {
+	credentials := filterBillingCredentialsByFields(profile.ParseBillingConfig().BillingCredentials, adapter, fields)
+	if !hasBillingCredentialValue(credentials) {
+		return nil
+	}
+	return credentials
+}
+
+func missingRequiredBillingCredentialField(fields []billingServiceCredentialField, credentials map[string]string) string {
+	normalizedCredentials := sanitizeBillingCredentialMap(credentials)
+	for _, field := range normalizeBillingServiceCredentialFields(fields) {
+		if !field.Required {
+			continue
+		}
+		if strings.TrimSpace(normalizedCredentials[field.Name]) != "" {
+			continue
+		}
+		if label := strings.TrimSpace(field.Label); label != "" {
+			return label
+		}
+		return field.Name
+	}
+	return ""
+}
+
+func resolveChannelBillingBaseURL(channel *model.Channel) string {
+	if channel == nil {
+		return ""
+	}
+	return strings.TrimSpace(channel.ResolveAPIBaseURL(""))
+}
+
+func buildBillingServiceQuery(ctx context.Context, channel *model.Channel, profile model.ChannelBillingProfile) (billingServiceQueryRequest, error) {
 	if channel == nil {
 		return billingServiceQueryRequest{}, fmt.Errorf("渠道不存在")
 	}
@@ -188,27 +272,28 @@ func buildBillingServiceQuery(channel *model.Channel, profile model.ChannelBilli
 	if adapter == "" {
 		return billingServiceQueryRequest{}, fmt.Errorf("当前渠道不支持 Billing 服务刷新账务")
 	}
+	adapterInfo, exists, err := findBillingServiceAdapter(ctx, adapter)
+	if err != nil {
+		return billingServiceQueryRequest{}, err
+	}
+	if !exists {
+		return billingServiceQueryRequest{}, fmt.Errorf("Billing adapter 无效")
+	}
+	credentials := resolveChannelBillingCredentials(profile, adapter, adapterInfo.CredentialFields)
+	if missingField := missingRequiredBillingCredentialField(adapterInfo.CredentialFields, credentials); missingField != "" {
+		return billingServiceQueryRequest{}, fmt.Errorf("账务凭据 %s 未配置", missingField)
+	}
 	request := billingServiceQueryRequest{
-		ChannelID:  strings.TrimSpace(channel.Id),
-		Adapter:    adapter,
-		BaseURL:    resolveChannelBillingAPIBaseURL(channel, profile),
-		Credential: strings.TrimSpace(channel.Key),
-	}
-	if adapter == "aixhan" {
-		request.Config = map[string]any{
-			"cdk":      resolveChannelCDKKey(channel, profile),
-			"currency": resolveChannelCDKBillingCurrency(profile),
-		}
-		return request, nil
-	}
-	if currency := resolveChannelBillingSnapshotCurrency(channel); currency != "" {
-		request.Config = map[string]any{"currency": currency}
+		ChannelID:   strings.TrimSpace(channel.Id),
+		Adapter:     adapter,
+		BaseURL:     resolveChannelBillingBaseURL(channel),
+		Credentials: credentials,
 	}
 	return request, nil
 }
 
 func collectBillingServiceSnapshot(channel *model.Channel, profile model.ChannelBillingProfile, messageText string) (collectedChannelBillingSnapshot, error) {
-	request, err := buildBillingServiceQuery(channel, profile)
+	request, err := buildBillingServiceQuery(context.Background(), channel, profile)
 	if err != nil {
 		return collectedChannelBillingSnapshot{}, err
 	}
@@ -361,9 +446,6 @@ func primaryBillingServiceAmount(items []model.ChannelBillingSnapshotItem) float
 func shouldHardStopBillingServiceSnapshot(profile model.ChannelBillingProfile, items []model.ChannelBillingSnapshotItem, primaryAmount float64) bool {
 	if len(items) == 0 {
 		return true
-	}
-	if resolveBillingServiceAdapter(profile) == "aixhan" {
-		return false
 	}
 	for _, item := range model.NormalizeChannelBillingSnapshotItems(items) {
 		if strings.TrimSpace(strings.ToLower(item.QuotaType)) == "total" {

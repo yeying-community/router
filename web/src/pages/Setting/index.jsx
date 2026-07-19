@@ -12,19 +12,13 @@ import CurrencySetting from '../../components/CurrencySetting';
 import { resolveAdminSettingLocation } from '../../helpers/adminSetting';
 
 const SettingCard = ({ title, description, children }) => (
-  <AppSection
-    className='router-settings-card'
-    title={
-      <div className='router-settings-card-heading'>
-        <div className='router-settings-card-title'>{title}</div>
-        {description ? (
-          <div className='router-settings-card-description'>{description}</div>
-        ) : null}
-      </div>
-    }
-  >
+  <div className='router-settings-section-block'>
+    <div className='router-settings-card-heading'>
+      <div className='router-settings-card-title'>{title}</div>
+      {description ? <div className='router-settings-card-description'>{description}</div> : null}
+    </div>
     {children}
-  </AppSection>
+  </div>
 );
 
 const Setting = () => {

@@ -595,8 +595,7 @@ func executeChannelRefreshBillingTask(task *model.AsyncTask) (string, error) {
 	}
 	return marshalJSONForLog(map[string]any{
 		"channel_id":           channelID,
-		"billing_mode":         strings.TrimSpace(profile.BillingMode),
-		"billing_api_base_url": resolveChannelBillingAPIBaseURL(channelRow, profile),
+		"billing_source":       strings.TrimSpace(profile.BillingSource),
 		"billing_request_urls": billingRequestURLs,
 		"primary_amount":       primaryAmount,
 	}), nil

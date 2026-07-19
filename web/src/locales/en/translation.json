@@ -783,7 +783,7 @@
         "load_failed": "Failed to load channel billing data",
         "profile_title": "Billing Profile",
         "profile_enabled": "Billing Enabled",
-        "billing_api_base_url": "Billing API Base URL",
+        "billing_credentials": "Billing Credentials",
         "profile_update_success": "Billing profile updated",
         "profile_update_failed": "Failed to update billing profile",
         "refresh_now": "Refresh",
@@ -791,9 +791,8 @@
         "latest_refresh_failed_unknown": "Upstream billing API returned an error",
         "latest_snapshot_at": "Latest Refresh",
         "current_quotas_title": "Entitlement Status",
-        "billing_mode": "Billing Mode",
+        "billing_source": "Billing Source",
         "updated_at": "Updated At",
-        "cdk": "CDK",
         "manual_update_title": "Add Purchase Record",
         "manual_purchase_title": "Purchase Info",
         "manual_purchase_at": "Purchase Time",
@@ -885,7 +884,8 @@
         "no_procurement_batches": "No procurement batches",
         "no_procurement_consumptions": "No procurement consumptions",
         "no_expire": "No expiration",
-        "credential_hint": "Billing service uses the API Key from the channel basic settings as credential; Aixhan also uses the CDK field below.",
+        "credential_hint": "Billing service only uses the credentials below. Billing credentials must be configured manually and never fall back to the API Key from channel basic settings. Model requests always use the API Key from channel basic settings.",
+        "credential_required": "Please enter billing credential: {{field}}",
         "adapters_load_failed": "Failed to load Billing adapters",
         "procurement_status": {
           "active": "Allocatable",
@@ -933,8 +933,7 @@
           "refresh_billing": "Supports billing refresh",
           "manual_update_snapshot": "Supports manual billing snapshot entry"
         },
-        "modes": {
-          "unsupported": "Unsupported",
+        "sources": {
           "manual": "Manual"
         },
         "quota_types": {
@@ -1154,7 +1153,6 @@
       "base_url_placeholder": "The address required by the OpenAPI SDK",
       "api_base_url": "API Base URL",
       "api_base_url_placeholder": "Leave empty to use the protocol address",
-      "billing_api_base_url": "Billing API Base URL",
       "address_routing_hint": "Request forwarding uses API Base URL by default. If a channel endpoint has its own address configured, that endpoint address takes precedence.",
       "key": "Secret Key",
       "key_placeholder": "Please enter key",
@@ -1913,9 +1911,11 @@
   },
   "log": {
     "cleanup": {
-      "label": "Clean up to",
-      "button": "Clean Historical Logs",
-      "invalid_time": "Please choose a valid cleanup time",
+      "label": "Delete logs before",
+      "button": "Delete Historical Logs",
+      "invalid_time": "Please choose a valid cutoff time",
+      "confirm_title": "Delete historical logs?",
+      "confirm_description": "All logs before this time will be permanently deleted.",
       "failed": "Failed to clean logs",
       "success": "Cleaned {{count}} log entries"
     },

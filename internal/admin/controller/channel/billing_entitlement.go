@@ -125,8 +125,8 @@ func buildChannelBillingAlertKey(item model.ChannelBillingSnapshotItem) string {
 func buildChannelBillingRefreshFailureAlertKey(channel *model.Channel, profile model.ChannelBillingProfile) string {
 	return strings.Join([]string{
 		"refresh",
-		strings.TrimSpace(profile.BillingMode),
-		strings.TrimSpace(resolveChannelBillingAPIBaseURL(channel, profile)),
+		strings.TrimSpace(channel.Id),
+		strings.TrimSpace(profile.BillingSource),
 	}, "::")
 }
 
@@ -223,11 +223,8 @@ func shouldSkipExistingBillingAlert(channelID string, eventType string, alertKey
 	return false, err
 }
 
-func isCDKAuthExpiredBillingError(profile model.ChannelBillingProfile, err error) bool {
+func isBillingCredentialExpiredError(err error) bool {
 	if err == nil {
-		return false
-	}
-	if resolveBillingServiceAdapter(profile) != "aixhan" {
 		return false
 	}
 	reason := strings.ToLower(strings.TrimSpace(err.Error()))
@@ -256,7 +253,7 @@ func sanitizeBillingAlertReason(err error) string {
 	return model.SanitizeChannelBillingAlertReason(err.Error())
 }
 
-func createBillingRefreshFailureContent(channel *model.Channel, profile model.ChannelBillingProfile, err error) (string, string, string, string) {
+func createBillingRefreshFailureContent(channel *model.Channel, _ model.ChannelBillingProfile, err error) (string, string, string, string) {
 	if channel == nil || err == nil {
 		return "", "", "", ""
 	}
@@ -266,7 +263,7 @@ func createBillingRefreshFailureContent(channel *model.Channel, profile model.Ch
 	if reason == "" {
 		reason = "账务接口返回异常"
 	}
-	if isCDKAuthExpiredBillingError(profile, err) {
+	if isBillingCredentialExpiredError(err) {
 		return model.ChannelBillingAlertTypePlanExpired, "套餐到期", "渠道套餐已到期", fmt.Sprintf(`
 			<p>类别：套餐到期</p>
 			<p>渠道：%s</p>
@@ -282,7 +279,7 @@ func createBillingRefreshFailureContent(channel *model.Channel, profile model.Ch
 			<p>标识：%s</p>
 			<p>原因：上游账务接口返回了非预期内容，无法解析为账务数据。</p>
 			<p>详情：%s</p>
-			<p>处理：检查账务 API 地址、CDK 类型和上游服务状态；如果地址打开的是网页或错误页，请改为正确的账务接口地址。</p>
+			<p>处理：检查账务 API 地址、渠道凭据和上游服务状态；如果地址打开的是网页或错误页，请改为正确的账务接口地址。</p>
 		`, channelName, channelID, reason)
 	}
 	return model.ChannelBillingAlertTypeRefreshFailed, "刷新失败", "渠道账务刷新失败", fmt.Sprintf(`
@@ -290,7 +287,7 @@ func createBillingRefreshFailureContent(channel *model.Channel, profile model.Ch
 		<p>渠道：%s</p>
 		<p>标识：%s</p>
 		<p>原因：%s</p>
-		<p>处理：检查 CDK、账务 API 地址或上游账号状态；恢复后下次刷新会重新同步权益项。</p>
+		<p>处理：检查渠道凭据、账务 API 地址或上游账号状态；恢复后下次刷新会重新同步权益项。</p>
 	`, channelName, channelID, reason)
 }
 
@@ -430,8 +427,7 @@ func maybeNotifyChannelBillingRefreshFailure(channel *model.Channel, profile mod
 		status = model.ChannelBillingAlertStatusFailed
 	}
 	payload := map[string]any{
-		"billing_mode":                  strings.TrimSpace(profile.BillingMode),
-		"billing_api_base_url":          resolveChannelBillingAPIBaseURL(channel, profile),
+		"billing_source":                strings.TrimSpace(profile.BillingSource),
 		"category":                      category,
 		"reason":                        sanitizeBillingAlertReason(cause),
 		"failure_streak_started_at":     streakStartAt,

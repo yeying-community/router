@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   API,
   copy,
@@ -80,8 +80,7 @@ function formatByCurrencyMinorUnit(amount, currency) {
 function normalizeRedemptionRow(row) {
   return {
     ...(row || {}),
-    // Prefer YYC-native fields, fall back to historical quota payloads.
-    creditedChargeAmount: Number(row?.credit_amount ?? row?.quota ?? 0),
+    creditedChargeAmount: Number(row?.credit_amount || 0),
     groupLabel: renderGroupLabel(row),
     createdTime: Number(row?.created_time ?? 0),
     redeemedTime: Number(row?.redeemed_time ?? 0),
@@ -89,8 +88,7 @@ function normalizeRedemptionRow(row) {
 }
 
 function buildDisplayValue(redemption, displayUnit, currencyIndex) {
-  // Keep legacy quota fallback for older redemption records.
-  const creditedChargeAmount = Number(redemption?.creditedChargeAmount ?? redemption?.credit_amount ?? redemption?.quota ?? 0);
+  const creditedChargeAmount = Number(redemption?.creditedChargeAmount || 0);
   const targetCurrency = currencyIndex[displayUnit] || currencyIndex.YYC;
   const rate = Number(targetCurrency?.charge_rate || 0);
   if (!Number.isFinite(rate) || rate <= 0) {
@@ -396,18 +394,6 @@ const RedemptionsTable = ({ headerMeta = null }) => {
             render: (value) => value || t('redemption.table.no_name'),
           },
           {
-            title: t('redemption.table.group'),
-            dataIndex: 'groupLabel',
-            key: 'groupLabel',
-            width: REDEMPTION_LIST_COLUMN_WIDTHS.group,
-            ellipsis: true,
-            sorter: (a, b) => compareTextValue(a.groupLabel, b.groupLabel),
-            sortDirections: ['ascend', 'descend'],
-            sortOrder:
-              tableSorter.columnKey === 'groupLabel' ? tableSorter.order : null,
-            render: (value) => value || '-',
-          },
-          {
             title: t('redemption.table.status'),
             dataIndex: 'status',
             key: 'status',
@@ -419,31 +405,10 @@ const RedemptionsTable = ({ headerMeta = null }) => {
             render: (value) => renderStatus(value, t),
           },
           {
-            title: (
-              <div className='router-table-header-with-control router-redemption-face-value-header'>
-                <span>{t('redemption.table.face_value')}</span>
-                <UnitDropdown
-                  variant='header'
-                  compact
-                  options={displayUnitOptions}
-                  value={displayUnit}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onChange={(_, { value }) => {
-                    setDisplayUnit((value || '').toString());
-                  }}
-                />
-              </div>
-            ),
-            key: 'face_value',
+            title: '权益名称',
+            key: 'product_name_snapshot',
             width: REDEMPTION_LIST_COLUMN_WIDTHS.faceValue,
-            sorter: (a, b) => compareNumberValue(a.creditedChargeAmount, b.creditedChargeAmount),
-            sortDirections: ['ascend', 'descend'],
-            sortOrder:
-              tableSorter.columnKey === 'face_value' ? tableSorter.order : null,
-            render: (_, redemption) =>
-              renderDisplayFaceValue(redemption, displayUnit, currencyIndex),
+            render: (_, redemption) => redemption?.product_name_snapshot || redemption?.entitlement_product_id || '-',
           },
           {
             title: t('redemption.table.created_time'),
@@ -458,7 +423,7 @@ const RedemptionsTable = ({ headerMeta = null }) => {
               renderTimestamp(redemption.createdTime || redemption.created_time),
           },
           {
-            title: t('redemption.table.code_expires_at'),
+            title: '过期时间',
             dataIndex: 'code_expires_at',
             key: 'code_expires_at',
             className: 'router-table-col-datetime',

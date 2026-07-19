@@ -19,8 +19,7 @@ const (
 	ChannelBillingActionsTableName       = "channel_billing_actions"
 	ChannelBillingAlertEventsTableName   = "channel_billing_alert_events"
 
-	ChannelBillingModeUnsupported = "unsupported"
-	ChannelBillingModeManual      = "manual"
+	ChannelBillingSourceManual = "manual"
 
 	ChannelBillingCapabilityRefreshBilling       = "refresh_billing"
 	ChannelBillingCapabilityManualUpdateSnapshot = "manual_update_snapshot"
@@ -57,7 +56,7 @@ const (
 type ChannelBillingProfile struct {
 	ChannelId          string `json:"channel_id" gorm:"type:char(36);primaryKey"`
 	Enabled            bool   `json:"enabled" gorm:"not null"`
-	BillingMode        string `json:"billing_mode" gorm:"column:billing_mode;type:varchar(64);not null;default:'unsupported'"`
+	BillingSource      string `json:"billing_source" gorm:"column:billing_source;type:varchar(64);not null;default:'manual'"`
 	BillingConfig      string `json:"billing_config" gorm:"column:billing_config;type:text"`
 	ActionCapabilities string `json:"action_capabilities" gorm:"type:text"`
 	ActionConfig       string `json:"action_config" gorm:"type:text"`
@@ -257,6 +256,38 @@ func stringFromJSONObject(values map[string]any, key string) string {
 		return ""
 	}
 	return strings.TrimSpace(fmt.Sprintf("%v", value))
+}
+
+func stringMapFromJSONObject(values map[string]any, key string) map[string]string {
+	value, ok := values[key]
+	if !ok || value == nil {
+		return map[string]string{}
+	}
+	result := make(map[string]string)
+	switch typed := value.(type) {
+	case map[string]any:
+		for itemKey, itemValue := range typed {
+			if itemValue == nil {
+				continue
+			}
+			normalizedKey := strings.TrimSpace(strings.ToLower(itemKey))
+			normalizedValue := strings.TrimSpace(fmt.Sprintf("%v", itemValue))
+			if normalizedKey == "" || normalizedValue == "" {
+				continue
+			}
+			result[normalizedKey] = normalizedValue
+		}
+	case map[string]string:
+		for itemKey, itemValue := range typed {
+			normalizedKey := strings.TrimSpace(strings.ToLower(itemKey))
+			normalizedValue := strings.TrimSpace(itemValue)
+			if normalizedKey == "" || normalizedValue == "" {
+				continue
+			}
+			result[normalizedKey] = normalizedValue
+		}
+	}
+	return result
 }
 
 func (row ChannelBillingProfile) ParseActionCapabilities() []string {
@@ -608,12 +639,12 @@ func SaveChannelBillingProfileWithDB(db *gorm.DB, row ChannelBillingProfile) (Ch
 	}
 	normalized := row
 	normalized.ChannelId = strings.TrimSpace(normalized.ChannelId)
-	normalized.BillingMode = strings.TrimSpace(normalized.BillingMode)
+	normalized.BillingSource = strings.TrimSpace(strings.ToLower(normalized.BillingSource))
 	if normalized.ChannelId == "" {
 		return ChannelBillingProfile{}, fmt.Errorf("channel_id 不能为空")
 	}
-	if normalized.BillingMode == "" {
-		normalized.BillingMode = ChannelBillingModeUnsupported
+	if normalized.BillingSource == "" || normalized.BillingSource == "unsupported" || strings.HasPrefix(normalized.BillingSource, "builtin_") {
+		normalized.BillingSource = ChannelBillingSourceManual
 	}
 	now := helper.GetTimestamp()
 	if normalized.CreatedAt == 0 {
@@ -623,7 +654,7 @@ func SaveChannelBillingProfileWithDB(db *gorm.DB, row ChannelBillingProfile) (Ch
 	if err := db.Where("channel_id = ?", normalized.ChannelId).
 		Assign(map[string]any{
 			"enabled":             normalized.Enabled,
-			"billing_mode":        normalized.BillingMode,
+			"billing_source":      normalized.BillingSource,
 			"billing_config":      normalized.BillingConfig,
 			"action_capabilities": normalized.ActionCapabilities,
 			"action_config":       normalized.ActionConfig,
@@ -919,9 +950,7 @@ func CreateChannelBillingSnapshotItemsWithDB(db *gorm.DB, snapshotID string, cha
 }
 
 type channelBillingConfig struct {
-	APIBaseURL string `json:"api_base_url,omitempty"`
-	CDK        string `json:"cdk,omitempty"`
-	Currency   string `json:"currency,omitempty"`
+	BillingCredentials map[string]string `json:"billing_credentials,omitempty"`
 }
 
 type ChannelBillingNotifyConfig struct {
@@ -932,9 +961,7 @@ type ChannelBillingNotifyConfig struct {
 func (row ChannelBillingProfile) ParseBillingConfig() channelBillingConfig {
 	configMap := parseJSONObjectString(row.BillingConfig)
 	return channelBillingConfig{
-		APIBaseURL: stringFromJSONObject(configMap, "api_base_url"),
-		CDK:        stringFromJSONObject(configMap, "cdk"),
-		Currency:   strings.ToUpper(stringFromJSONObject(configMap, "currency")),
+		BillingCredentials: stringMapFromJSONObject(configMap, "billing_credentials"),
 	}
 }
 
@@ -973,20 +1000,11 @@ func BuildChannelBillingProfileFromChannelConfig(channel *Channel) (ChannelBilli
 	if channel == nil {
 		return ChannelBillingProfile{}, false
 	}
-	cfg, _ := channel.LoadConfig()
-	apiBaseURL := cfg.GetAPIBaseURL()
-	if apiBaseURL == "" {
-		apiBaseURL = normalizeConfiguredBaseURL(channel.GetBaseURL())
-	}
-	fetchConfig := channelBillingConfig{}
-	if apiBaseURL != "" {
-		fetchConfig.APIBaseURL = apiBaseURL
-	}
 	return ChannelBillingProfile{
 		ChannelId:          strings.TrimSpace(channel.Id),
 		Enabled:            true,
-		BillingMode:        ChannelBillingModeUnsupported,
-		BillingConfig:      marshalJSONString(fetchConfig),
+		BillingSource:      ChannelBillingSourceManual,
+		BillingConfig:      marshalJSONString(channelBillingConfig{}),
 		ActionCapabilities: marshalJSONString([]string{ChannelBillingCapabilityManualUpdateSnapshot}),
 	}, true
 }

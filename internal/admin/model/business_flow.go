@@ -377,9 +377,9 @@ func ListAdminRedemptionRecordsPageWithDB(db *gorm.DB, page int, pageSize int, k
 			r.group_id,
 			COALESCE(g.name, '') AS group_name,
 			r.name,
-			r.face_value_amount,
-			r.face_value_unit,
-			r.quota AS credit_amount,
+			r.quota_amount_snapshot AS face_value_amount,
+			r.quota_currency_snapshot AS face_value_unit,
+			CAST(r.quota_amount_snapshot AS BIGINT) AS credit_amount,
 			r.redeemed_time,
 			r.created_time`).
 		Order("r.redeemed_time desc, r.id desc").
@@ -411,9 +411,9 @@ func GetAdminRedemptionRecordByIDWithDB(db *gorm.DB, id string) (AdminRedemption
 			r.group_id,
 			COALESCE(g.name, '') AS group_name,
 			r.name,
-			r.face_value_amount,
-			r.face_value_unit,
-			r.quota AS credit_amount,
+			r.quota_amount_snapshot AS face_value_amount,
+			r.quota_currency_snapshot AS face_value_unit,
+			CAST(r.quota_amount_snapshot AS BIGINT) AS credit_amount,
 			r.redeemed_time,
 			r.created_time`).
 		Take(&row).Error

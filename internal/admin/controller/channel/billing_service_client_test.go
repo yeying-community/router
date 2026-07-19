@@ -12,29 +12,38 @@ import (
 	"github.com/yeying-community/router/internal/admin/model"
 )
 
+func configureBillingServiceForTest(t *testing.T, handler http.HandlerFunc, apiKey string) *httptest.Server {
+	t.Helper()
+	oldBaseURL := config.BillingServiceBaseURL
+	oldAPIKey := config.BillingServiceAPIKey
+	oldTimeout := config.BillingServiceTimeoutSeconds
+	service := httptest.NewServer(handler)
+	config.BillingServiceBaseURL = service.URL
+	config.BillingServiceAPIKey = apiKey
+	config.BillingServiceTimeoutSeconds = 5
+	t.Cleanup(func() {
+		service.Close()
+		config.BillingServiceBaseURL = oldBaseURL
+		config.BillingServiceAPIKey = oldAPIKey
+		config.BillingServiceTimeoutSeconds = oldTimeout
+	})
+	return service
+}
+
 func TestResolveBillingServiceAdapterUsesAdapterName(t *testing.T) {
-	if got := resolveBillingServiceAdapter(model.ChannelBillingProfile{BillingMode: "openai"}); got != "openai" {
-		t.Fatalf("openai adapter = %q", got)
+	if got := resolveBillingServiceAdapter(model.ChannelBillingProfile{BillingSource: "vendor-a"}); got != "vendor-a" {
+		t.Fatalf("vendor-a adapter = %q", got)
 	}
-	if got := resolveBillingServiceAdapter(model.ChannelBillingProfile{BillingMode: " OpenAI-SB "}); got != "openai-sb" {
-		t.Fatalf("openai-sb adapter = %q", got)
+	if got := resolveBillingServiceAdapter(model.ChannelBillingProfile{BillingSource: " Vendor-B "}); got != "vendor-b" {
+		t.Fatalf("vendor-b adapter = %q", got)
 	}
-	if got := resolveBillingServiceAdapter(model.ChannelBillingProfile{BillingMode: model.ChannelBillingModeManual}); got != "" {
+	if got := resolveBillingServiceAdapter(model.ChannelBillingProfile{BillingSource: model.ChannelBillingSourceManual}); got != "" {
 		t.Fatalf("manual adapter = %q", got)
 	}
 }
 
 func TestListBillingServiceAdaptersNormalizesServiceResponse(t *testing.T) {
-	oldBaseURL := config.BillingServiceBaseURL
-	oldAPIKey := config.BillingServiceAPIKey
-	oldTimeout := config.BillingServiceTimeoutSeconds
-	defer func() {
-		config.BillingServiceBaseURL = oldBaseURL
-		config.BillingServiceAPIKey = oldAPIKey
-		config.BillingServiceTimeoutSeconds = oldTimeout
-	}()
-
-	service := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != billingServiceAdaptersPath {
 			http.Error(w, "unexpected path", http.StatusNotFound)
 			return
@@ -44,27 +53,25 @@ func TestListBillingServiceAdaptersNormalizesServiceResponse(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":[{"name":" OpenAI ","capabilities":["refresh_billing"]},{"name":"openai"},{"name":"aixhan"},{"name":""}]}`))
-	}))
-	defer service.Close()
-
-	config.BillingServiceBaseURL = service.URL
-	config.BillingServiceAPIKey = "service-key"
-	config.BillingServiceTimeoutSeconds = 5
+		_, _ = w.Write([]byte(`{"data":[{"name":" Vendor-B ","capabilities":["refresh_billing"],"credential_fields":[{"name":" Key ","label":"API Key","required":true,"secret":true},{"name":"key"}]},{"name":"vendor-b"},{"name":"vendor-a"},{"name":""}]}`))
+	}, "service-key")
 
 	items, err := listBillingServiceAdapters(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 2 || items[0].Name != "aixhan" || items[1].Name != "openai" {
+	if len(items) != 2 || items[0].Name != "vendor-a" || items[1].Name != "vendor-b" {
 		t.Fatalf("unexpected adapters: %+v", items)
 	}
-	exists, err := billingServiceAdapterExists(context.Background(), " OpenAI ")
+	if got := items[1].CredentialFields; len(got) != 1 || got[0].Name != "key" || got[0].Label != "API Key" || !got[0].Required || !got[0].Secret {
+		t.Fatalf("unexpected credential fields: %+v", got)
+	}
+	exists, err := billingServiceAdapterExists(context.Background(), " Vendor-B ")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !exists {
-		t.Fatal("expected openai adapter to exist")
+		t.Fatal("expected vendor-b adapter to exist")
 	}
 	exists, err = billingServiceAdapterExists(context.Background(), "missing")
 	if err != nil {
@@ -76,26 +83,40 @@ func TestListBillingServiceAdaptersNormalizesServiceResponse(t *testing.T) {
 }
 
 func TestBuildBillingServiceQueryUsesAdapterProtocol(t *testing.T) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != billingServiceAdaptersPath {
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"name":"vendor-a","credential_fields":[{"name":"key","label":"API Key","required":true,"secret":true}]}]}`))
+	}, "")
+
 	profile := model.ChannelBillingProfile{
-		BillingMode:   "aixhan",
-		BillingConfig: `{"api_base_url":"https://billing.example.com","cdk":"profile-cdk","currency":"CNY"}`,
+		BillingSource: "vendor-a",
+		BillingConfig: `{"billing_credentials":{"key":"billing-secret"}}`,
 	}
-	query, err := buildBillingServiceQuery(&model.Channel{
+	baseURL := "https://vendor.example.com"
+	query, err := buildBillingServiceQuery(context.Background(), &model.Channel{
 		Id:       "channel-1",
-		Protocol: "openai",
-		Key:      "channel-key",
+		Protocol: "vendor-protocol",
+		Key:      "model-secret-must-not-be-used",
+		BaseURL:  &baseURL,
 	}, profile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if query.Adapter != "aixhan" {
+	if query.Adapter != "vendor-a" {
 		t.Fatalf("adapter = %q", query.Adapter)
 	}
-	if query.BaseURL != "https://billing.example.com" {
+	if query.BaseURL != baseURL {
 		t.Fatalf("base_url = %q", query.BaseURL)
 	}
-	if query.Config["cdk"] != "profile-cdk" || query.Config["currency"] != "CNY" {
-		t.Fatalf("unexpected config: %+v", query.Config)
+	if query.Credentials["key"] != "billing-secret" {
+		t.Fatalf("credentials = %+v", query.Credentials)
+	}
+	if query.Config != nil {
+		t.Fatalf("config must be owned by billing service adapters, got %+v", query.Config)
 	}
 	body, err := json.Marshal(query)
 	if err != nil {
@@ -104,19 +125,64 @@ func TestBuildBillingServiceQueryUsesAdapterProtocol(t *testing.T) {
 	if strings.Contains(string(body), "provider") {
 		t.Fatalf("query must not use legacy provider field: %s", body)
 	}
+	if strings.Contains(string(body), "credential\"") {
+		t.Fatalf("query must not use legacy credential field: %s", body)
+	}
+}
+
+func TestBuildBillingServiceQueryRejectsMissingRequiredCredential(t *testing.T) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != billingServiceAdaptersPath {
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"name":"vendor-a","credential_fields":[{"name":"key","label":"API Key","required":true,"secret":true}]}]}`))
+	}, "")
+
+	profile := model.ChannelBillingProfile{
+		BillingSource: "vendor-a",
+		BillingConfig: `{}`,
+	}
+	_, err := buildBillingServiceQuery(context.Background(), &model.Channel{
+		Id:  "channel-1",
+		Key: "model-secret",
+	}, profile)
+	if err == nil || !strings.Contains(err.Error(), "账务凭据 API Key 未配置") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestBuildBillingServiceQueryRejectsMissingMultiFieldCredential(t *testing.T) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != billingServiceAdaptersPath {
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"name":"vendor-aksk","credential_fields":[{"name":"access_key","label":"Access Key","required":true,"secret":true},{"name":"secret_key","label":"Secret Key","required":true,"secret":true}]}]}`))
+	}, "")
+
+	profile := model.ChannelBillingProfile{
+		BillingSource: "vendor-aksk",
+		BillingConfig: `{}`,
+	}
+	_, err := buildBillingServiceQuery(context.Background(), &model.Channel{
+		Id:  "channel-1",
+		Key: "model-secret",
+	}, profile)
+	if err == nil || !strings.Contains(err.Error(), "账务凭据 Access Key 未配置") {
+		t.Fatalf("error = %v", err)
+	}
 }
 
 func TestCollectBillingServiceSnapshotConvertsResponse(t *testing.T) {
-	oldBaseURL := config.BillingServiceBaseURL
-	oldAPIKey := config.BillingServiceAPIKey
-	oldTimeout := config.BillingServiceTimeoutSeconds
-	defer func() {
-		config.BillingServiceBaseURL = oldBaseURL
-		config.BillingServiceAPIKey = oldAPIKey
-		config.BillingServiceTimeoutSeconds = oldTimeout
-	}()
-
-	service := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == billingServiceAdaptersPath {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":[{"name":"vendor-b","credential_fields":[{"name":"key","label":"API Key","required":true,"secret":true}]}]}`))
+			return
+		}
 		if r.URL.Path != billingServiceQueryPath {
 			t.Fatalf("path = %s", r.URL.Path)
 		}
@@ -127,29 +193,26 @@ func TestCollectBillingServiceSnapshotConvertsResponse(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&query); err != nil {
 			t.Fatal(err)
 		}
-		if query["adapter"] != "openrouter" || query["provider"] != nil {
+		if query["adapter"] != "vendor-b" || query["provider"] != nil {
 			t.Fatalf("unexpected query: %+v", query)
 		}
-		if query["credential"] != "channel-secret" {
-			t.Fatalf("credential = %q", query["credential"])
+		credentials, ok := query["credentials"].(map[string]any)
+		if !ok || credentials["key"] != "billing-secret" {
+			t.Fatalf("credentials = %+v", query["credentials"])
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":{"channel_id":"channel-1","adapter":"openrouter","fetched_at":"2026-07-18T00:00:00Z","items":[{"resource_type":"credit","quota_type":"total","quota_label":"OpenRouter credits","amount":15,"limit_amount":100,"used_amount":85,"remaining_amount":15,"currency":"USD","status":"low","source_ref":"openrouter_credits","metadata":{"source":"test"}}],"metadata":{"request_urls":["https://openrouter.ai/api/v1/credits"]}}}`))
-	}))
-	defer service.Close()
-
-	config.BillingServiceBaseURL = service.URL
-	config.BillingServiceAPIKey = "service-key"
-	config.BillingServiceTimeoutSeconds = 5
+		_, _ = w.Write([]byte(`{"data":{"channel_id":"channel-1","adapter":"vendor-b","fetched_at":"2026-07-18T00:00:00Z","items":[{"resource_type":"credit","quota_type":"total","quota_label":"Vendor credits","amount":15,"limit_amount":100,"used_amount":85,"remaining_amount":15,"currency":"USD","status":"low","source_ref":"vendor_credits","metadata":{"source":"test"}}],"metadata":{"request_urls":["https://billing.example.com/credits"]}}}`))
+	}, "service-key")
 
 	channelRow := &model.Channel{
 		Id:       "channel-1",
-		Protocol: "openrouter",
-		Key:      "channel-secret",
+		Protocol: "vendor-protocol",
+		Key:      "model-secret-must-not-be-used",
 	}
 	profile := model.ChannelBillingProfile{
-		ChannelId:   "channel-1",
-		BillingMode: "openrouter",
+		ChannelId:     "channel-1",
+		BillingSource: "vendor-b",
+		BillingConfig: `{"billing_credentials":{"key":"billing-secret"}}`,
 	}
 	collected, err := collectBillingServiceSnapshot(channelRow, profile, "自动刷新账务")
 	if err != nil {
@@ -158,10 +221,10 @@ func TestCollectBillingServiceSnapshotConvertsResponse(t *testing.T) {
 	if collected.PrimaryAmount != 15 || collected.ShouldHardStop {
 		t.Fatalf("unexpected collected summary: %+v", collected)
 	}
-	if collected.Snapshot.Balance != 15 || collected.Snapshot.Currency != "USD" || !strings.Contains(collected.Snapshot.Message, "adapter=openrouter") {
+	if collected.Snapshot.Balance != 15 || collected.Snapshot.Currency != "USD" || !strings.Contains(collected.Snapshot.Message, "adapter=vendor-b") {
 		t.Fatalf("unexpected snapshot: %+v", collected.Snapshot)
 	}
-	if collected.Snapshot.RequestURL != "https://openrouter.ai/api/v1/credits" {
+	if collected.Snapshot.RequestURL != "https://billing.example.com/credits" {
 		t.Fatalf("request url = %q", collected.Snapshot.RequestURL)
 	}
 	if len(collected.Items) != 1 || collected.Items[0].Metadata == "" || collected.Items[0].RemainingAmount != 15 {
@@ -170,46 +233,40 @@ func TestCollectBillingServiceSnapshotConvertsResponse(t *testing.T) {
 }
 
 func TestCollectChannelBillingSnapshotPrefersBillingService(t *testing.T) {
-	oldBaseURL := config.BillingServiceBaseURL
-	oldAPIKey := config.BillingServiceAPIKey
-	oldTimeout := config.BillingServiceTimeoutSeconds
-	defer func() {
-		config.BillingServiceBaseURL = oldBaseURL
-		config.BillingServiceAPIKey = oldAPIKey
-		config.BillingServiceTimeoutSeconds = oldTimeout
-	}()
-
 	called := false
-	service := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	configureBillingServiceForTest(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == billingServiceAdaptersPath {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":[{"name":"vendor-a","credential_fields":[{"name":"key","label":"API Key","required":true,"secret":true}]}]}`))
+			return
+		}
 		called = true
 		var query map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&query); err != nil {
 			t.Fatal(err)
 		}
-		if query["adapter"] != "aixhan" {
+		if query["adapter"] != "vendor-a" {
 			t.Fatalf("adapter = %v", query["adapter"])
 		}
-		configMap, ok := query["config"].(map[string]any)
-		if !ok || configMap["cdk"] != "profile-cdk" {
+		credentials, ok := query["credentials"].(map[string]any)
+		if !ok || credentials["key"] != "billing-secret" {
+			t.Fatalf("credentials = %v", query["credentials"])
+		}
+		if query["config"] != nil {
 			t.Fatalf("unexpected config: %+v", query["config"])
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":{"channel_id":"channel-1","adapter":"aixhan","fetched_at":"2026-07-18T00:00:00Z","items":[{"resource_type":"credit","quota_type":"total","quota_label":"Total quota","amount":50,"limit_amount":100,"used_amount":50,"remaining_amount":50,"currency":"CNY","status":"active","source_ref":"aixhan_total"}]}}`))
-	}))
-	defer service.Close()
-
-	config.BillingServiceBaseURL = service.URL
-	config.BillingServiceAPIKey = ""
-	config.BillingServiceTimeoutSeconds = 5
+		_, _ = w.Write([]byte(`{"data":{"channel_id":"channel-1","adapter":"vendor-a","fetched_at":"2026-07-18T00:00:00Z","items":[{"resource_type":"credit","quota_type":"total","quota_label":"Total quota","amount":50,"limit_amount":100,"used_amount":50,"remaining_amount":50,"currency":"CNY","status":"active","source_ref":"vendor_total"}]}}`))
+	}, "")
 
 	collected, err := collectChannelBillingSnapshot(&model.Channel{
 		Id:       "channel-1",
-		Protocol: "openai",
-		Key:      "channel-key",
+		Protocol: "vendor-protocol",
+		Key:      "model-secret-must-not-be-used",
 	}, model.ChannelBillingProfile{
 		ChannelId:     "channel-1",
-		BillingMode:   "aixhan",
-		BillingConfig: `{"api_base_url":"https://billing.example.com","cdk":"profile-cdk","currency":"CNY"}`,
+		BillingSource: "vendor-a",
+		BillingConfig: `{"billing_credentials":{"key":"billing-secret"}}`,
 	}, "自动刷新账务")
 	if err != nil {
 		t.Fatal(err)
@@ -217,7 +274,7 @@ func TestCollectChannelBillingSnapshotPrefersBillingService(t *testing.T) {
 	if !called {
 		t.Fatal("billing service was not called")
 	}
-	if collected.PrimaryAmount != 50 || len(collected.Items) != 1 || collected.Items[0].SourceRef != "aixhan_total" {
+	if collected.PrimaryAmount != 50 || len(collected.Items) != 1 || collected.Items[0].SourceRef != "vendor_total" {
 		t.Fatalf("unexpected collected result: %+v", collected)
 	}
 }

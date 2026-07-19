@@ -10,7 +10,7 @@ const HelpDoc = () => {
     return usageDocHtml
       .replaceAll('https://api.hanbbq.top', 'https://router.yeying.pub')
       .replace(
-        /<p class="hero-subtitle"[^>]*>\s*API BaseURL（CF节点）：https:\/\/api\.aixhan\.com\s*<\/p>/g,
+        /<p class="hero-subtitle"[^>]*>\s*API BaseURL（CF节点）：[^<]*<\/p>/g,
         '',
       )
       .replace(

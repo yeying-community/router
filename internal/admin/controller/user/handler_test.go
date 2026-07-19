@@ -146,14 +146,15 @@ func TestBuildAdminTopUpBalanceLotListItemsWithSources(t *testing.T) {
 		t.Fatalf("create topup order: %v", err)
 	}
 	if err := db.Create(&model.Redemption{
-		Id:              "redemption-1",
-		Status:          model.RedemptionCodeStatusUsed,
-		Name:            "Gift code",
-		FaceValueAmount: 8,
-		FaceValueUnit:   model.RedemptionFaceValueUnitYYC,
-		Quota:           800,
-		RedeemedTime:    110,
-		CreatedTime:     95,
+		Id:                    "redemption-1",
+		Status:                model.RedemptionCodeStatusUsed,
+		Name:                  "Gift code",
+		EntitlementProductID:  "product-1",
+		ProductKind:           model.EntitlementProductKindBalance,
+		QuotaAmountSnapshot:   800,
+		QuotaCurrencySnapshot: model.BillingCurrencyCodeYYC,
+		RedeemedTime:          110,
+		CreatedTime:           95,
 	}).Error; err != nil {
 		t.Fatalf("create redemption: %v", err)
 	}

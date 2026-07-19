@@ -2401,9 +2401,9 @@ func loadTopupBalanceLotRedemptionSourceDetails(db *gorm.DB, ids []string) (map[
 			ID:           id,
 			Title:        strings.TrimSpace(redemption.Name),
 			Status:       "used",
-			Amount:       redemption.FaceValueAmount,
-			Currency:     strings.TrimSpace(redemption.FaceValueUnit),
-			CreditAmount: redemption.Quota,
+			Amount:       redemption.QuotaAmountSnapshot,
+			Currency:     strings.TrimSpace(redemption.QuotaCurrencySnapshot),
+			CreditAmount: int64(redemption.QuotaAmountSnapshot),
 			OccurredAt:   occurredAt,
 			DetailPath:   "/admin/redemption/records/" + id,
 		}

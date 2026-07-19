@@ -3,7 +3,6 @@ package model
 import (
 	"context"
 	"fmt"
-	"math"
 	"strings"
 
 	"gorm.io/gorm"
@@ -15,42 +14,41 @@ const (
 	RedemptionCodeStatusUsed     = 3 // also don't use 0
 )
 
-const RedemptionFaceValueUnitYYC = "YYC"
-
 type Redemption struct {
-	Id                 string  `json:"id" gorm:"type:char(36);primaryKey"`
-	UserId             string  `json:"user_id" gorm:"type:char(36);index"`
-	RedeemedByUserId   string  `json:"redeemed_by_user_id" gorm:"type:char(36);index"`
-	RedeemedByUsername string  `json:"redeemed_by_username,omitempty" gorm:"-"`
-	GroupID            string  `json:"group_id" gorm:"column:group_id;type:char(36);index"`
-	GroupName          string  `json:"group_name,omitempty" gorm:"-"`
-	Code               string  `json:"code" gorm:"column:code;type:char(32);uniqueIndex"`
-	Status             int     `json:"status" gorm:"default:1"`
-	Name               string  `json:"name" gorm:"index"`
-	FaceValueAmount    float64 `json:"face_value_amount" gorm:"type:numeric(30,8);not null;default:0"`
-	FaceValueUnit      string  `json:"face_value_unit" gorm:"type:varchar(16);not null;default:'YYC'"`
-	Quota              int64   `json:"quota" gorm:"bigint;default:100"`
-	CodeValidityDays   int     `json:"code_validity_days" gorm:"type:int;not null;default:0"`
-	CodeExpiresAt      int64   `json:"code_expires_at" gorm:"bigint;not null;default:0;index"`
-	CreditValidityDays int     `json:"credit_validity_days" gorm:"type:int;not null;default:0"`
-	CreditExpiresAt    int64   `json:"credit_expires_at" gorm:"bigint;not null;default:0;index"`
-	CreatedTime        int64   `json:"created_time" gorm:"bigint"`
-	RedeemedTime       int64   `json:"redeemed_time" gorm:"bigint"`
-	Count              int     `json:"count" gorm:"-:all"`
+	Id                    string  `json:"id" gorm:"type:char(36);primaryKey"`
+	UserId                string  `json:"user_id" gorm:"type:char(36);index"`
+	RedeemedByUserId      string  `json:"redeemed_by_user_id" gorm:"type:char(36);index"`
+	RedeemedByUsername    string  `json:"redeemed_by_username,omitempty" gorm:"-"`
+	GroupID               string  `json:"group_id" gorm:"column:group_id;type:char(36);index"`
+	GroupName             string  `json:"group_name,omitempty" gorm:"-"`
+	EntitlementProductID  string  `json:"entitlement_product_id,omitempty" gorm:"type:char(36);index"`
+	ProductKind           string  `json:"product_kind,omitempty" gorm:"type:varchar(32);index"`
+	ProductNameSnapshot   string  `json:"product_name_snapshot,omitempty" gorm:"type:varchar(64)"`
+	QuotaAmountSnapshot   float64 `json:"quota_amount_snapshot,omitempty" gorm:"type:numeric(18,6)"`
+	QuotaCurrencySnapshot string  `json:"quota_currency_snapshot,omitempty" gorm:"type:varchar(16)"`
+	ValidityDaysSnapshot  int     `json:"validity_days_snapshot,omitempty" gorm:"type:int"`
+	GroupIDSnapshot       string  `json:"group_id_snapshot,omitempty" gorm:"type:char(36)"`
+	Code                  string  `json:"code" gorm:"column:code;type:char(32);uniqueIndex"`
+	Status                int     `json:"status" gorm:"default:1"`
+	Name                  string  `json:"name" gorm:"index"`
+	CodeValidityDays      int     `json:"code_validity_days" gorm:"type:int;not null;default:0"`
+	CodeExpiresAt         int64   `json:"code_expires_at" gorm:"bigint;not null;default:0;index"`
+	CreditExpiresAt       int64   `json:"credit_expires_at" gorm:"bigint;not null;default:0;index"`
+	CreatedTime           int64   `json:"created_time" gorm:"bigint"`
+	RedeemedTime          int64   `json:"redeemed_time" gorm:"bigint"`
+	Count                 int     `json:"count" gorm:"-:all"`
 }
 
 type RedemptionResult struct {
-	RedeemedAmount      int64   `json:"redeemed_amount"`
-	BeforeBalanceAmount int64   `json:"before_balance_amount"`
-	AfterBalanceAmount  int64   `json:"after_balance_amount"`
-	RedemptionID        string  `json:"redemption_id"`
-	RedemptionName      string  `json:"redemption_name"`
-	GroupID             string  `json:"group_id,omitempty"`
-	GroupName           string  `json:"group_name,omitempty"`
-	FaceValueAmount     float64 `json:"face_value_amount,omitempty"`
-	FaceValueUnit       string  `json:"face_value_unit,omitempty"`
-	RedeemedAt          int64   `json:"redeemed_at"`
-	CreditExpiresAt     int64   `json:"credit_expires_at,omitempty"`
+	RedeemedAmount      int64  `json:"redeemed_amount"`
+	BeforeBalanceAmount int64  `json:"before_balance_amount"`
+	AfterBalanceAmount  int64  `json:"after_balance_amount"`
+	RedemptionID        string `json:"redemption_id"`
+	RedemptionName      string `json:"redemption_name"`
+	GroupID             string `json:"group_id,omitempty"`
+	GroupName           string `json:"group_name,omitempty"`
+	RedeemedAt          int64  `json:"redeemed_at"`
+	CreditExpiresAt     int64  `json:"credit_expires_at,omitempty"`
 }
 
 func normalizeRedemptionValidityDays(value int) int {
@@ -61,16 +59,6 @@ func normalizeRedemptionValidityDays(value int) int {
 		return UserBalanceLotMaxValidityDay
 	default:
 		return value
-	}
-}
-
-func normalizeRedemptionFaceValueUnit(value string) string {
-	normalized := strings.ToUpper(strings.TrimSpace(value))
-	switch normalized {
-	case "", RedemptionFaceValueUnitYYC:
-		return RedemptionFaceValueUnitYYC
-	default:
-		return normalizeBillingCurrencyCode(normalized)
 	}
 }
 
@@ -94,76 +82,8 @@ func ResolveRedemptionGroupWithDB(db *gorm.DB, groupRef string) (GroupCatalog, e
 	return resolved, nil
 }
 
-func ResolveRedemptionFaceValueWithDB(db *gorm.DB, amount float64, unit string) (float64, string, int64, error) {
-	normalizedUnit := normalizeRedemptionFaceValueUnit(unit)
-	if !isValidRedemptionFaceValueAmount(amount) {
-		return 0, "", 0, fmt.Errorf("面值必须大于 0")
-	}
-	switch normalizedUnit {
-	case RedemptionFaceValueUnitYYC:
-		quota := int64(math.Round(amount))
-		if quota <= 0 {
-			return 0, "", 0, fmt.Errorf("YYC 面值必须大于 0")
-		}
-		return amount, RedemptionFaceValueUnitYYC, quota, nil
-	default:
-		if db == nil {
-			return 0, "", 0, fmt.Errorf("database handle is nil")
-		}
-		currency := BillingCurrency{}
-		if err := db.Where("code = ?", normalizedUnit).Take(&currency).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return 0, "", 0, fmt.Errorf("计费单位不存在: %s", normalizedUnit)
-			}
-			return 0, "", 0, err
-		}
-		if currency.Status != BillingCurrencyStatusEnabled {
-			return 0, "", 0, fmt.Errorf("计费单位已禁用: %s", currency.Code)
-		}
-		if currency.ChargeRate <= 0 {
-			return 0, "", 0, fmt.Errorf("计费单位兑换比率无效: %s", currency.Code)
-		}
-		quotaFloat := amount * currency.ChargeRate
-		if !isValidRedemptionFaceValueAmount(quotaFloat) {
-			return 0, "", 0, fmt.Errorf("面值换算失败")
-		}
-		quota := int64(math.Round(quotaFloat))
-		if quota <= 0 {
-			return 0, "", 0, fmt.Errorf("换算后的 YYC 面值必须大于 0")
-		}
-		return amount, currency.Code, quota, nil
-	}
-}
-
-func NormalizeRedemptionFaceValueFieldsWithDB(db *gorm.DB, redemption *Redemption) error {
-	if redemption == nil {
-		return fmt.Errorf("兑换码不能为空")
-	}
-	amount := redemption.FaceValueAmount
-	unit := redemption.FaceValueUnit
-	if !isValidRedemptionFaceValueAmount(amount) {
-		if redemption.Quota <= 0 {
-			return fmt.Errorf("面值必须大于 0")
-		}
-		amount = float64(redemption.Quota)
-		unit = RedemptionFaceValueUnitYYC
-	}
-	resolvedAmount, resolvedUnit, resolvedQuota, err := ResolveRedemptionFaceValueWithDB(db, amount, unit)
-	if err != nil {
-		return err
-	}
-	redemption.FaceValueAmount = resolvedAmount
-	redemption.FaceValueUnit = resolvedUnit
-	redemption.Quota = resolvedQuota
-	return nil
-}
-
 func backfillRedemptionGroupWithDefaultGroupWithDB(db *gorm.DB) error {
 	return nil
-}
-
-func isValidRedemptionFaceValueAmount(value float64) bool {
-	return !math.IsNaN(value) && !math.IsInf(value, 0) && value > 0
 }
 
 func GetAllRedemptions(startIdx int, num int) ([]*Redemption, error) {
