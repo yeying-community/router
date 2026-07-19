@@ -23,14 +23,15 @@ func newRedemptionControllerTestDB(t *testing.T) *gorm.DB {
 func TestCreateRedemptionsWithDBRollsBackBatchOnInsertFailure(t *testing.T) {
 	db := newRedemptionControllerTestDB(t)
 	template := model.Redemption{
-		Name:               "batch",
-		GroupID:            "group-1",
-		FaceValueAmount:    100,
-		FaceValueUnit:      model.RedemptionFaceValueUnitYYC,
-		Quota:              100,
-		Count:              2,
-		CodeValidityDays:   7,
-		CreditValidityDays: 30,
+		Name:                  "batch",
+		GroupID:               "group-1",
+		EntitlementProductID:  "product-1",
+		ProductKind:           model.EntitlementProductKindBalance,
+		QuotaAmountSnapshot:   100,
+		QuotaCurrencySnapshot: model.BillingCurrencyCodeYYC,
+		Count:                 2,
+		CodeValidityDays:      7,
+		ValidityDaysSnapshot:  30,
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -55,14 +56,15 @@ func TestCreateRedemptionsWithDBRollsBackBatchOnInsertFailure(t *testing.T) {
 func TestCreateRedemptionsWithDBRecordsIssueAudit(t *testing.T) {
 	db := newRedemptionControllerTestDB(t)
 	template := model.Redemption{
-		Name:               "batch",
-		GroupID:            "group-1",
-		FaceValueAmount:    100,
-		FaceValueUnit:      model.RedemptionFaceValueUnitYYC,
-		Quota:              100,
-		Count:              2,
-		CodeValidityDays:   7,
-		CreditValidityDays: 30,
+		Name:                  "batch",
+		GroupID:               "group-1",
+		EntitlementProductID:  "product-1",
+		ProductKind:           model.EntitlementProductKindBalance,
+		QuotaAmountSnapshot:   100,
+		QuotaCurrencySnapshot: model.BillingCurrencyCodeYYC,
+		Count:                 2,
+		CodeValidityDays:      7,
+		ValidityDaysSnapshot:  30,
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {

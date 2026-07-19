@@ -354,7 +354,7 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				}
 				if err := tx.Exec(
 					"UPDATE redemptions SET face_value_unit = ? WHERE COALESCE(face_value_unit, '') = ''",
-					RedemptionFaceValueUnitYYC,
+					"YYC",
 				).Error; err != nil {
 					return err
 				}

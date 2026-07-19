@@ -84,23 +84,8 @@ const computeChargePreview = (amountValue, unitValue, currencyIndex) => {
   return Math.round(amount * rate);
 };
 
-const normalizeFaceValueAmount = (data) => {
-  const rawAmount = Number(data?.face_value_amount ?? 0);
-  if (Number.isFinite(rawAmount) && rawAmount > 0) {
-    return `${rawAmount}`;
-  }
-  // Older payloads only returned quota/credit_amount instead of face_value_amount.
-  const creditedChargeAmount = Number(data?.credit_amount ?? data?.quota ?? 0);
-  if (Number.isFinite(creditedChargeAmount) && creditedChargeAmount > 0) {
-    return `${creditedChargeAmount}`;
-  }
-  return '0';
-};
-
-const normalizeFaceValueUnit = (data) => {
-  const unit = (data?.face_value_unit || '').toString().trim().toUpperCase();
-  return unit || YYC_UNIT;
-};
+const normalizeFaceValueAmount = (data) => `${Number(data?.quota_amount_snapshot || 0)}`;
+const normalizeFaceValueUnit = (data) => (data?.quota_currency_snapshot || 'YYC').toString().trim().toUpperCase();
 
 const formatGroupLabel = (data) => {
   const name = (data?.group_name || '').toString().trim();
@@ -111,8 +96,7 @@ const formatGroupLabel = (data) => {
   return id || '-';
 };
 
-// Keep legacy quota fallback for historical redemption payloads.
-const resolveCreditedChargeAmount = (data) => Number(data?.credit_amount ?? data?.quota ?? 0);
+const resolveCreditedChargeAmount = (data) => Number(data?.quota_amount_snapshot || 0);
 
 const RedemptionDetail = () => {
   const { t } = useTranslation();
@@ -254,32 +238,11 @@ const RedemptionDetail = () => {
       showError(t('redemption.messages.group_required'));
       return;
     }
-    const faceValueAmount = Number.parseFloat(`${inputs.face_value_amount ?? ''}`);
-    if (!Number.isFinite(faceValueAmount) || faceValueAmount <= 0) {
-      showError(t('redemption.messages.face_value_invalid'));
-      return;
-    }
-    const codeValidityDays = Number.parseInt(`${inputs.code_validity_days ?? ''}`, 10);
-    if (!Number.isFinite(codeValidityDays) || codeValidityDays < 0) {
-      showError(t('redemption.messages.code_validity_invalid'));
-      return;
-    }
-    const creditValidityDays = Number.parseInt(`${inputs.credit_validity_days ?? ''}`, 10);
-    if (!Number.isFinite(creditValidityDays) || creditValidityDays < 0) {
-      showError(t('redemption.messages.credit_validity_invalid'));
-      return;
-    }
-
     setSaving(true);
     try {
       const res = await API.put('/api/v1/admin/redemption/', {
         id,
         name: (inputs.name || '').toString().trim(),
-        group_id: inputs.group_id,
-        face_value_amount: faceValueAmount,
-        face_value_unit: inputs.face_value_unit,
-        code_validity_days: codeValidityDays,
-        credit_validity_days: creditValidityDays,
       });
       const { success, message, data } = res.data || {};
       if (!success) {
@@ -370,7 +333,16 @@ const RedemptionDetail = () => {
           bodyClassName='router-page-stack'
         >
                 <AppFormRow>
-                  {isEditing ? (
+                  {redemption?.entitlement_product_id ? (
+                    <AppField label='绑定充值权益' readOnly>
+                      <AppInput
+                        className='router-section-input router-machine-input'
+                        value={redemption.product_name_snapshot || redemption.entitlement_product_id}
+                        readOnly
+                      />
+                    </AppField>
+                  ) : null}
+                  {isEditing && false ? (
                     <AppField label={t('redemption.edit.name')}>
                       <AppInput
                         className='router-section-input'
@@ -398,7 +370,7 @@ const RedemptionDetail = () => {
                   </AppField>
                 </AppFormRow>
                 <AppFormRow>
-                  {isEditing ? (
+                  {isEditing && false ? (
                     <AppField label={t('redemption.edit.group')}>
                       <AppSelect
                         className='router-section-input'
@@ -428,7 +400,7 @@ const RedemptionDetail = () => {
                   </AppField>
                 </AppFormRow>
 	                <AppFormRow>
-	                  {isEditing ? (
+	                  {isEditing && false ? (
 	                    <AppField label={t('redemption.edit.face_value_amount')}>
 	                      <AppCompact className='router-section-input-with-unit' block>
 	                        <AppInputNumber
@@ -456,14 +428,14 @@ const RedemptionDetail = () => {
                       <AppInput
                         className='router-section-input'
                         value={formatAmountWithUnit(
-                          redemption?.face_value_amount ?? resolveCreditedChargeAmount(redemption),
-                          normalizeFaceValueUnit(redemption)
+                          redemption?.quota_amount_snapshot || 0,
+                          redemption?.quota_currency_snapshot || 'YYC'
                         )}
                         readOnly
                       />
                     </AppField>
                   )}
-	                  {isEditing ? (
+	                  {isEditing && !redemption?.entitlement_product_id ? (
 	                    <AppField label={t('redemption.edit.credit_yyc')} readOnly>
 	                      <AppInput
 	                        className='router-section-input'
@@ -482,7 +454,7 @@ const RedemptionDetail = () => {
                   )}
                 </AppFormRow>
 	                <AppFormRow>
-                  {isEditing ? (
+                  {isEditing && false ? (
                     <AppField label={t('redemption.edit.code_validity_days')}>
                       <AppInputNumber
                         className='router-section-input'
@@ -521,8 +493,8 @@ const RedemptionDetail = () => {
                     <AppField label={t('redemption.detail.credit_validity_days')} readOnly>
                       <AppInput
                         className='router-section-input'
-                        value={Number(redemption?.credit_validity_days || 0) > 0
-                          ? `${Number(redemption?.credit_validity_days || 0)} ${t('common.day')}`
+                        value={Number(redemption?.validity_days_snapshot || 0) > 0
+                          ? `${Number(redemption?.validity_days_snapshot || 0)} ${t('common.day')}`
                           : t('common.never')}
                         readOnly
                       />

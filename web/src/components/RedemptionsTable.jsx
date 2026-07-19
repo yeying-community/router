@@ -80,8 +80,7 @@ function formatByCurrencyMinorUnit(amount, currency) {
 function normalizeRedemptionRow(row) {
   return {
     ...(row || {}),
-    // Prefer YYC-native fields, fall back to historical quota payloads.
-    creditedChargeAmount: Number(row?.credit_amount ?? row?.quota ?? 0),
+    creditedChargeAmount: Number(row?.credit_amount || 0),
     groupLabel: renderGroupLabel(row),
     createdTime: Number(row?.created_time ?? 0),
     redeemedTime: Number(row?.redeemed_time ?? 0),
@@ -89,8 +88,7 @@ function normalizeRedemptionRow(row) {
 }
 
 function buildDisplayValue(redemption, displayUnit, currencyIndex) {
-  // Keep legacy quota fallback for older redemption records.
-  const creditedChargeAmount = Number(redemption?.creditedChargeAmount ?? redemption?.credit_amount ?? redemption?.quota ?? 0);
+  const creditedChargeAmount = Number(redemption?.creditedChargeAmount || 0);
   const targetCurrency = currencyIndex[displayUnit] || currencyIndex.YYC;
   const rate = Number(targetCurrency?.charge_rate || 0);
   if (!Number.isFinite(rate) || rate <= 0) {

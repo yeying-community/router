@@ -63,15 +63,15 @@ func TestNewCreatedTokenKeepsKey(t *testing.T) {
 
 func TestNewRedemptionAddsAmountField(t *testing.T) {
 	row := &model.Redemption{
-		Id:    "r1",
-		Quota: 2048,
+		Id:                  "r1",
+		QuotaAmountSnapshot: 2048,
 	}
 	view := NewRedemption(row)
 	if view == nil {
 		t.Fatal("NewRedemption returned nil")
 	}
-	if view.CreditAmount != row.Quota {
-		t.Fatalf("credit_amount=%d, want %d", view.CreditAmount, row.Quota)
+	if view.CreditAmount != int64(row.QuotaAmountSnapshot) {
+		t.Fatalf("credit_amount=%d, want %d", view.CreditAmount, int64(row.QuotaAmountSnapshot))
 	}
 }
 

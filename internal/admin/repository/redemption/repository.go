@@ -171,6 +171,9 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 		if redemption.Status != model.RedemptionCodeStatusEnabled {
 			return errors.New("该兑换码已被使用")
 		}
+		if strings.TrimSpace(redemption.EntitlementProductID) == "" || redemption.ProductKind != model.EntitlementProductKindBalance {
+			return errors.New("兑换码未绑定有效的充值权益")
+		}
 		now := helper.GetTimestamp()
 		if redemption.CodeExpiresAt > 0 && now > redemption.CodeExpiresAt {
 			return errors.New("该兑换码已过期")
@@ -182,7 +185,7 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			}
 			return err
 		}
-		resolvedGroupID := strings.TrimSpace(redemption.GroupID)
+		resolvedGroupID := strings.TrimSpace(redemption.GroupIDSnapshot)
 		if resolvedGroupID != "" {
 			groupRow, err := model.ResolveRedemptionGroupWithDB(tx, resolvedGroupID)
 			if err != nil {
@@ -196,12 +199,12 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			return err
 		}
 		redeemedAt := now
-		creditExpiresAt := model.ResolveBalanceCreditExpiresAt(redeemedAt, redemption.CreditValidityDays)
+		creditExpiresAt := model.ResolveBalanceCreditExpiresAt(redeemedAt, redemption.ValidityDaysSnapshot)
 		_, creditedNow, err := model.CreditUserBalanceLotWithDB(tx, model.UserBalanceLotCreditInput{
 			UserID:      strings.TrimSpace(userId),
 			SourceType:  model.UserBalanceLotSourceRedeem,
 			SourceID:    strings.TrimSpace(redemption.Id),
-			TotalAmount: redemption.Quota,
+			TotalAmount: int64(redemption.QuotaAmountSnapshot),
 			GrantedAt:   redeemedAt,
 			ExpiresAt:   creditExpiresAt,
 		})
@@ -210,7 +213,7 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 		}
 		quotaIncrement := int64(0)
 		if creditedNow {
-			quotaIncrement = redemption.Quota
+			quotaIncrement = int64(redemption.QuotaAmountSnapshot)
 		}
 		afterBalanceAmount := beforeBalanceAmount + quotaIncrement
 		userUpdates := map[string]any{}
@@ -231,15 +234,13 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			return err
 		}
 		result = model.RedemptionResult{
-			RedeemedAmount:      redemption.Quota,
+			RedeemedAmount:      int64(redemption.QuotaAmountSnapshot),
 			BeforeBalanceAmount: beforeBalanceAmount,
 			AfterBalanceAmount:  afterBalanceAmount,
 			RedemptionID:        strings.TrimSpace(redemption.Id),
 			RedemptionName:      strings.TrimSpace(redemption.Name),
 			GroupID:             strings.TrimSpace(redemption.GroupID),
 			GroupName:           strings.TrimSpace(redemption.GroupName),
-			FaceValueAmount:     redemption.FaceValueAmount,
-			FaceValueUnit:       strings.TrimSpace(redemption.FaceValueUnit),
 			RedeemedAt:          redemption.RedeemedTime,
 			CreditExpiresAt:     redemption.CreditExpiresAt,
 		}
@@ -249,11 +250,11 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 		return model.RedemptionResult{}, errors.New("兑换失败，" + err.Error())
 	}
 	model.RefreshUserGroupCaches(userId)
-	logContent := fmt.Sprintf("通过兑换码充值 %s", common.LogQuota(redemption.Quota))
+	logContent := fmt.Sprintf("通过兑换码充值 %s", common.LogQuota(int64(redemption.QuotaAmountSnapshot)))
 	if redemptionName := strings.TrimSpace(redemption.Name); redemptionName != "" {
-		logContent = fmt.Sprintf("通过兑换码充值（%s）%s", redemptionName, common.LogQuota(redemption.Quota))
+		logContent = fmt.Sprintf("通过兑换码充值（%s）%s", redemptionName, common.LogQuota(int64(redemption.QuotaAmountSnapshot)))
 	}
-	model.RecordTopupLog(ctx, userId, logContent, int(redemption.Quota))
+	model.RecordTopupLog(ctx, userId, logContent, int(redemption.QuotaAmountSnapshot))
 	return result, nil
 }
 
@@ -271,11 +272,6 @@ func Create(redemption *model.Redemption) error {
 		redemption.CodeValidityDays = 0
 	} else if redemption.CodeValidityDays > model.UserBalanceLotMaxValidityDay {
 		redemption.CodeValidityDays = model.UserBalanceLotMaxValidityDay
-	}
-	if redemption.CreditValidityDays < 0 {
-		redemption.CreditValidityDays = 0
-	} else if redemption.CreditValidityDays > model.UserBalanceLotMaxValidityDay {
-		redemption.CreditValidityDays = model.UserBalanceLotMaxValidityDay
 	}
 	if redemption.CodeValidityDays > 0 {
 		redemption.CodeExpiresAt = model.ResolveBalanceCreditExpiresAt(redemption.CreatedTime, redemption.CodeValidityDays)
