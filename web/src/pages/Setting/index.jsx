@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { AppFilterHeader, AppSection } from '../../router-ui';
+import { AppFilterHeader } from '../../router-ui';
 import SystemSetting from '../../components/SystemSetting';
 import { isRoot } from '../../helpers';
 import OtherSetting from '../../components/OtherSetting';
@@ -218,15 +218,13 @@ const Setting = () => {
         ]}
         title={pageTitle}
       />
-      <AppSection className='router-settings-page-section'>
-        {menuGroups.length > 0 ? (
-          renderContent()
-        ) : (
-          <div className='router-empty-cell'>
-            {t('setting.empty_admin', '暂无可配置项')}
-          </div>
-        )}
-      </AppSection>
+      {menuGroups.length > 0 ? (
+        renderContent()
+      ) : (
+        <div className='router-empty-cell'>
+          {t('setting.empty_admin', '暂无可配置项')}
+        </div>
+      )}
     </div>
   );
 };

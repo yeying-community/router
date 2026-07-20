@@ -431,7 +431,7 @@ const TokensTable = () => {
           onRow={(token) => ({
             className: 'router-row-clickable',
             onClick: () =>
-              navigate(`/token/${token.id}`, {
+              navigate(`/workspace/token/${token.id}`, {
                 state: {
                   from: currentPagePath,
                 },
@@ -461,7 +461,6 @@ const TokensTable = () => {
               return (
                 <span
                   className='router-action-group'
-                  onClick={(event) => stopRowClick(event)}
                 >
                   <span
                     className='router-token-key-link'
@@ -473,7 +472,8 @@ const TokensTable = () => {
                     type='button'
                     className='router-icon-button'
                     title={t('token.buttons.copy')}
-                    onClick={async () => {
+                    onClick={async (event) => {
+                      event.stopPropagation();
                       if (copyValue === '') {
                         showError(t('token.messages.copy_failed'));
                         return;

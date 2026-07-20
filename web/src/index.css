@@ -839,14 +839,10 @@ body,
     margin-bottom: 8px;
 }
 
-.router-settings-page-section.ant-card .ant-card-body {
-    padding: 10px 12px;
-}
-
 .router-settings-page-content {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
 }
 
 .router-settings-card .router-ui-section-body {
@@ -860,6 +856,10 @@ body,
     flex-direction: column;
     gap: 8px;
     min-width: 0;
+    padding: 16px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    background: #fff;
 }
 
 .router-settings-card-heading {
@@ -897,26 +897,26 @@ body,
     border-color: rgba(15, 23, 42, 0.06);
 }
 
-.router-settings-page-section .router-ui-section-header {
+.router-settings-section-block .router-ui-section-header {
     margin-bottom: 6px;
 }
 
-.router-settings-page-section .router-ui-section-title {
+.router-settings-section-block .router-ui-section-title {
     font-size: 14px;
     font-weight: 600;
 }
 
-.router-settings-page-section .router-toolbar-compact {
+.router-settings-section-block .router-toolbar-compact {
     margin-top: 0;
     margin-bottom: 2px;
 }
 
-.router-settings-page-section .router-section-message {
+.router-settings-section-block .router-section-message {
     padding: 0.6em 0.8em !important;
     margin-bottom: 8px;
 }
 
-.router-settings-page-section .router-ui-form-actions {
+.router-settings-section-block .router-ui-form-actions {
     margin-top: 8px;
 }
 
@@ -954,7 +954,7 @@ body,
     border-radius: 8px;
 }
 
-.router-settings-page-section .router-ui-form-row {
+.router-settings-section-block .router-ui-form-row {
     row-gap: 10px;
 }
 
@@ -3119,6 +3119,16 @@ body,
     border: 1px solid rgba(17, 24, 39, 0.08);
     border-radius: 8px;
     background: #f8fafc;
+}
+
+.router-quota-detail-card {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 16px;
+    padding: 16px 18px;
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    border-radius: 8px;
+    background: #fff;
 }
 
 .router-quota-source-grid,

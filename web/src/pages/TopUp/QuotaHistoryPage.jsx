@@ -102,7 +102,11 @@ const QuotaHistoryPageInner = () => {
       <AppFilterHeader
         breadcrumbs={[
           { key: 'mine', label: t('header.mine') },
-          { key: 'quota', label: t('topup.mine.quota') },
+          {
+            key: 'quota',
+            label: t('topup.mine.quota'),
+            onClick: () => navigate('/workspace/topup?tab=quota'),
+          },
           {
             key: 'history',
             label: t('topup.quota_cards.history_title'),
@@ -112,9 +116,6 @@ const QuotaHistoryPageInner = () => {
         title={t('topup.quota_cards.history_title')}
         actions={
           <>
-            <AppButton onClick={() => navigate('/workspace/topup?tab=quota')}>
-              {t('topup.quota_cards.back_to_quota')}
-            </AppButton>
           <AppButton
             loading={loading}
             onClick={() => loadCards(page)}

@@ -898,7 +898,7 @@ const EditToken = () => {
             },
             {
               key: 'token-current',
-              label: inputs.name || tokenId,
+              label: tokenId,
               active: true,
             },
           ]}
