@@ -349,9 +349,6 @@ func TestDecidePricingKeepsCurrentChargeForOfficialAnchor(t *testing.T) {
 	decision := DecidePricing(PricingDecisionInput{
 		OfficialAnchor: MoneyAmount{Amount: 1, Currency: adminmodel.BillingCurrencyCodeCNY},
 		CurrentCharge:  MoneyAmount{Amount: 123, Currency: adminmodel.BillingCurrencyCodeYYC},
-		Policy: PricingPolicy{
-			OfficialMarkup: 1,
-		},
 	})
 	if decision.Reason != PricingDecisionReasonOfficialAnchor {
 		t.Fatalf("Reason=%q, want %q", decision.Reason, PricingDecisionReasonOfficialAnchor)
@@ -370,9 +367,8 @@ func TestDecidePricingUsesCostFloorWhenHigher(t *testing.T) {
 		CurrentCharge:   MoneyAmount{Amount: 1, Currency: adminmodel.BillingCurrencyCodeYYC},
 		ProcurementCost: MoneyAmount{Amount: 10, Currency: adminmodel.BillingCurrencyCodeCNY},
 		Policy: PricingPolicy{
-			OfficialMarkup: 1,
-			TargetMargin:   0.2,
-			RiskBuffer:     0.1,
+			TargetMargin: 0.2,
+			RiskBuffer:   0.1,
 		},
 	})
 	if decision.Reason != PricingDecisionReasonCostFloor {

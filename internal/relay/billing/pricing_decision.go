@@ -14,9 +14,8 @@ const (
 )
 
 type PricingPolicy struct {
-	OfficialMarkup float64 `json:"official_markup"`
-	TargetMargin   float64 `json:"target_margin"`
-	RiskBuffer     float64 `json:"risk_buffer"`
+	TargetMargin float64 `json:"target_margin"`
+	RiskBuffer   float64 `json:"risk_buffer"`
 }
 
 type MoneyAmount struct {
@@ -43,16 +42,12 @@ type PricingDecision struct {
 
 func CurrentPricingPolicy() PricingPolicy {
 	return PricingPolicy{
-		OfficialMarkup: config.BillingOfficialMarkup,
-		TargetMargin:   config.BillingTargetMargin,
-		RiskBuffer:     config.BillingRiskBuffer,
+		TargetMargin: config.BillingTargetMargin,
+		RiskBuffer:   config.BillingRiskBuffer,
 	}
 }
 
 func NormalizePricingPolicy(policy PricingPolicy) PricingPolicy {
-	if policy.OfficialMarkup <= 0 {
-		policy.OfficialMarkup = 1
-	}
 	if policy.TargetMargin < 0 {
 		policy.TargetMargin = 0
 	}
@@ -68,7 +63,7 @@ func NormalizePricingPolicy(policy PricingPolicy) PricingPolicy {
 func DecidePricing(input PricingDecisionInput) PricingDecision {
 	policy := NormalizePricingPolicy(input.Policy)
 	anchorAmount := convertBillingAmountToBaseAmount(input.OfficialAnchor.Amount, strings.TrimSpace(input.OfficialAnchor.Currency))
-	anchorSellAmount := anchorAmount * policy.OfficialMarkup
+	anchorSellAmount := anchorAmount
 	costFloorAmount := 0.0
 	if strings.EqualFold(strings.TrimSpace(input.ProcurementCost.Currency), model.BillingCurrencyCodeCNY) && input.ProcurementCost.Amount > 0 {
 		costFloorAmount = input.ProcurementCost.Amount * (1 + policy.RiskBuffer) / (1 - policy.TargetMargin)

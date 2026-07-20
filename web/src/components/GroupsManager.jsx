@@ -38,7 +38,6 @@ const createEmptyForm = () => ({
   id: '',
   name: '',
   description: '',
-  billing_ratio: 1,
 });
 
 const createEmptyModelConfig = () => ({
@@ -86,7 +85,6 @@ const buildFormFromRow = (row) => ({
   id: row?.id || '',
   name: row?.name || '',
   description: row?.description || '',
-  billing_ratio: Number(row?.billing_ratio ?? 1),
 });
 
 const toChannelOptions = (items) =>
@@ -719,17 +717,11 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       showInfo(t('group_manage.messages.id_required'));
       return;
     }
-    const billingRatio = Number(form.billing_ratio ?? 1);
-    if (!Number.isFinite(billingRatio) || billingRatio < 0) {
-      showInfo(t('group_manage.messages.billing_ratio_invalid'));
-      return;
-    }
     setSubmitting(true);
     try {
       const res = await API.post('/api/v1/admin/group/', {
         name,
         description: (form.description || '').trim(),
-        billing_ratio: billingRatio,
       });
       const { success, message, data } = res.data || {};
       if (!success) {
@@ -753,11 +745,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       showInfo(t('group_manage.messages.id_required'));
       return;
     }
-    const billingRatio = Number(form.billing_ratio ?? 1);
-    if (!Number.isFinite(billingRatio) || billingRatio < 0) {
-      showInfo(t('group_manage.messages.billing_ratio_invalid'));
-      return;
-    }
     const normalizedModels = buildNormalizedGroupModels();
     if (normalizedModels === null) {
       return;
@@ -768,7 +755,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
         id,
         name,
         description: (form.description || '').trim(),
-        billing_ratio: billingRatio,
         sort_order: Number(activeGroup?.sort_order || 0),
         channel_ids: formChannelIDs,
         models: normalizedModels,
@@ -1026,18 +1012,12 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       showInfo(t('group_manage.messages.id_required'));
       return;
     }
-    const billingRatio = Number(form.billing_ratio ?? 1);
-    if (!Number.isFinite(billingRatio) || billingRatio < 0) {
-      showInfo(t('group_manage.messages.billing_ratio_invalid'));
-      return;
-    }
     setSubmitting(true);
     try {
       const res = await API.put('/api/v1/admin/group/', {
         id,
         name,
         description: (form.description || '').trim(),
-        billing_ratio: billingRatio,
         sort_order: Number(activeGroup?.sort_order || 0),
         enabled: !!activeGroup?.enabled,
       });
@@ -1053,7 +1033,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     } finally {
       setSubmitting(false);
     }
-  }, [activeGroup, form.billing_ratio, form.description, form.name, refreshGroupDetailState, t]);
+  }, [activeGroup, form.description, form.name, refreshGroupDetailState, t]);
 
   const submitDetailChannels = useCallback(async (channelRows = detailChannelRows, options = {}) => {
     const id = (activeGroup?.id || '').toString().trim();
@@ -1316,14 +1296,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
             key: 'channels',
             width: GROUP_LIST_COLUMN_WIDTHS.channels,
             render: (channels) => (Array.isArray(channels) ? channels.length : 0),
-          },
-          {
-            title: t('group_manage.table.billing_ratio'),
-            dataIndex: 'billing_ratio',
-            key: 'billing_ratio',
-            className: 'router-table-col-status-narrow',
-            width: GROUP_LIST_COLUMN_WIDTHS.billingRatio,
-            render: (value) => Number(value ?? 1).toFixed(2),
           },
           {
             title: t('group_manage.table.status'),
@@ -2403,34 +2375,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
               </AppFormRow>
               <AppFormRow>
                 <AppField
-                  label={t('group_manage.form.billing_ratio')}
-                  hint={t('group_manage.form.billing_ratio_help')}
-                  readOnly={!detailBasicEditing}
-                >
-                  <AppInputNumber
-                    className='router-section-input'
-                    min={0}
-                    step={0.01}
-                    precision={2}
-                    fluid
-                    value={
-                      detailBasicEditing
-                        ? form.billing_ratio
-                        : Number(activeGroup.billing_ratio ?? 1).toFixed(2)
-                    }
-                    readOnly={!detailBasicEditing}
-                    placeholder={t('group_manage.form.billing_ratio_placeholder')}
-                    onChange={(e, { value }) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        billing_ratio: value ?? '',
-                      }))
-                    }
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFormRow>
-                <AppField
                   label={t('group_manage.table.created_at')}
                   readOnly
                 >
@@ -2542,29 +2486,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
           </AppField>
         </AppFormRow>
         <AppFormRow>
-          <AppField
-            label={t('group_manage.form.billing_ratio')}
-            hint={t('group_manage.form.billing_ratio_help')}
-          >
-            <AppInputNumber
-              className='router-section-input'
-              min={0}
-              step={0.01}
-              precision={2}
-              fluid
-              placeholder={t('group_manage.form.billing_ratio_placeholder')}
-              value={form.billing_ratio}
-              onChange={(e, { value }) =>
-                setForm((prev) => ({
-                  ...prev,
-                  billing_ratio: value ?? '',
-                }))
-              }
-            />
-          </AppField>
-          <AppField />
-        </AppFormRow>
-        <AppFormRow>
           <AppField label={t('group_manage.form.channels')}>
             <AppSelect
               className='router-section-dropdown'
@@ -2641,28 +2562,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                 setForm((prev) => ({
                   ...prev,
                   description: value || '',
-                }))
-              }
-            />
-          </AppField>
-        </AppFormRow>
-        <AppFormRow>
-          <AppField
-            label={t('group_manage.form.billing_ratio')}
-            hint={t('group_manage.form.billing_ratio_help')}
-          >
-            <AppInputNumber
-              className='router-section-input'
-              min={0}
-              step={0.01}
-              precision={2}
-              fluid
-              placeholder={t('group_manage.form.billing_ratio_placeholder')}
-              value={form.billing_ratio}
-              onChange={(e, { value }) =>
-                setForm((prev) => ({
-                  ...prev,
-                  billing_ratio: value ?? '',
                 }))
               }
             />

@@ -510,12 +510,12 @@ func appendProcurementBatchHealthIssues(response *billingHealthResponse) {
 }
 
 func appendPricingPolicyHealthIssues(response *billingHealthResponse) {
-	if config.BillingOfficialMarkup <= 1 && config.BillingTargetMargin <= 0 && config.BillingRiskBuffer <= 0 {
+	if config.BillingTargetMargin <= 0 && config.BillingRiskBuffer <= 0 {
 		appendBillingHealthIssue(response, billingHealthIssue{
 			Key:     "pricing_policy_no_margin",
 			Level:   "warning",
 			Title:   "销售计价未配置利润保护",
-			Message: "当前官方价格倍率、目标利润率和风险缓冲都没有形成加价保护。生产环境建议至少配置一个利润保护参数。",
+			Message: "当前目标利润率和风险缓冲都没有形成成本保护。生产环境建议至少配置一个利润保护参数。",
 			Link:    "/admin/setting?tab=operation&section=config",
 		})
 	}

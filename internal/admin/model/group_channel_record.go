@@ -284,19 +284,6 @@ func backfillGroupChannelBillingRatioWithDB(db *gorm.DB) error {
 	if err := db.AutoMigrate(&GroupChannel{}); err != nil {
 		return err
 	}
-	groupRows, err := listGroupCatalogWithDB(db)
-	if err != nil {
-		return err
-	}
-	ratioByGroup := buildGroupBillingRatioMap(groupRows)
-	groupCol := `"group"`
-	for groupID, ratio := range ratioByGroup {
-		if err := db.Model(&GroupChannel{}).
-			Where(groupCol+" = ?", groupID).
-			Update("billing_ratio", ratio).Error; err != nil {
-			return err
-		}
-	}
 	return syncGroupRuntimeCachesWithDB(db)
 }
 

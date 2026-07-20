@@ -107,16 +107,15 @@ func NewChannel(channel *model.Channel) *Channel {
 }
 
 type Group struct {
-	Id           string                   `json:"id"`
-	Name         string                   `json:"name"`
-	Description  string                   `json:"description"`
-	Source       string                   `json:"source"`
-	BillingRatio float64                  `json:"billing_ratio"`
-	Enabled      bool                     `json:"enabled"`
-	SortOrder    int                      `json:"sort_order"`
-	CreatedAt    int64                    `json:"created_at"`
-	UpdatedAt    int64                    `json:"updated_at"`
-	Channels     []model.GroupChannelItem `json:"channels,omitempty"`
+	Id          string                   `json:"id"`
+	Name        string                   `json:"name"`
+	Description string                   `json:"description"`
+	Source      string                   `json:"source"`
+	Enabled     bool                     `json:"enabled"`
+	SortOrder   int                      `json:"sort_order"`
+	CreatedAt   int64                    `json:"created_at"`
+	UpdatedAt   int64                    `json:"updated_at"`
+	Channels    []model.GroupChannelItem `json:"channels,omitempty"`
 }
 
 func NewGroup(group *model.GroupCatalog) *Group {
@@ -124,16 +123,15 @@ func NewGroup(group *model.GroupCatalog) *Group {
 		return nil
 	}
 	return &Group{
-		Id:           strings.TrimSpace(group.Id),
-		Name:         strings.TrimSpace(group.Name),
-		Description:  strings.TrimSpace(group.Description),
-		Source:       strings.TrimSpace(group.Source),
-		BillingRatio: group.BillingRatio,
-		Enabled:      group.Enabled,
-		SortOrder:    group.SortOrder,
-		CreatedAt:    group.CreatedAt,
-		UpdatedAt:    group.UpdatedAt,
-		Channels:     group.Channels,
+		Id:          strings.TrimSpace(group.Id),
+		Name:        strings.TrimSpace(group.Name),
+		Description: strings.TrimSpace(group.Description),
+		Source:      strings.TrimSpace(group.Source),
+		Enabled:     group.Enabled,
+		SortOrder:   group.SortOrder,
+		CreatedAt:   group.CreatedAt,
+		UpdatedAt:   group.UpdatedAt,
+		Channels:    group.Channels,
 	}
 }
 

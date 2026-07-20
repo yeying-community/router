@@ -12,16 +12,15 @@ import (
 )
 
 type GroupCatalog struct {
-	Id           string             `json:"id" gorm:"primaryKey;type:char(36)"`
-	Name         string             `json:"name" gorm:"type:varchar(64);not null;uniqueIndex"`
-	Description  string             `json:"description" gorm:"type:varchar(255);default:''"`
-	Source       string             `json:"source" gorm:"type:varchar(32);default:'system'"`
-	BillingRatio float64            `json:"billing_ratio" gorm:"type:numeric(12,6);not null;default:1"`
-	Enabled      bool               `json:"enabled" gorm:"index"`
-	SortOrder    int                `json:"sort_order" gorm:"default:0;index"`
-	CreatedAt    int64              `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt    int64              `json:"updated_at" gorm:"bigint;index"`
-	Channels     []GroupChannelItem `json:"channels,omitempty" gorm:"-"`
+	Id          string             `json:"id" gorm:"primaryKey;type:char(36)"`
+	Name        string             `json:"name" gorm:"type:varchar(64);not null;uniqueIndex"`
+	Description string             `json:"description" gorm:"type:varchar(255);default:''"`
+	Source      string             `json:"source" gorm:"type:varchar(32);default:'system'"`
+	Enabled     bool               `json:"enabled" gorm:"index"`
+	SortOrder   int                `json:"sort_order" gorm:"default:0;index"`
+	CreatedAt   int64              `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt   int64              `json:"updated_at" gorm:"bigint;index"`
+	Channels    []GroupChannelItem `json:"channels,omitempty" gorm:"-"`
 }
 
 func (GroupCatalog) TableName() string {
@@ -420,15 +419,14 @@ func createGroupCatalogWithDB(db *gorm.DB, item GroupCatalog) (GroupCatalog, err
 	}
 	now := helper.GetTimestamp()
 	row := GroupCatalog{
-		Id:           strings.TrimSpace(item.Id),
-		Name:         item.Identifier(),
-		Description:  strings.TrimSpace(item.Description),
-		Source:       strings.TrimSpace(item.Source),
-		BillingRatio: normalizeGroupBillingRatio(item.BillingRatio),
-		Enabled:      true,
-		SortOrder:    maxSortOrder + 1,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		Id:          strings.TrimSpace(item.Id),
+		Name:        item.Identifier(),
+		Description: strings.TrimSpace(item.Description),
+		Source:      strings.TrimSpace(item.Source),
+		Enabled:     true,
+		SortOrder:   maxSortOrder + 1,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	row.EnsureID()
 	if row.Source == "" {
@@ -470,7 +468,6 @@ func updateGroupCatalogWithDB(db *gorm.DB, item GroupCatalog) (GroupCatalog, err
 	}
 	row.Name = nextName
 	row.Description = strings.TrimSpace(item.Description)
-	row.BillingRatio = normalizeGroupBillingRatio(item.BillingRatio)
 	row.Enabled = item.Enabled
 	if item.SortOrder > 0 {
 		row.SortOrder = item.SortOrder

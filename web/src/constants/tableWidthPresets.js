@@ -109,7 +109,6 @@ export const GROUP_LIST_COLUMN_WIDTHS = {
   name: 120,
   description: 220,
   channels: 260,
-  billingRatio: 96,
   status: 92,
   createdAt: 148,
   updatedAt: 148,
@@ -120,7 +119,6 @@ export const GROUP_LIST_TABLE_MIN_WIDTH =
   GROUP_LIST_COLUMN_WIDTHS.name +
   GROUP_LIST_COLUMN_WIDTHS.description +
   GROUP_LIST_COLUMN_WIDTHS.channels +
-  GROUP_LIST_COLUMN_WIDTHS.billingRatio +
   GROUP_LIST_COLUMN_WIDTHS.status +
   GROUP_LIST_COLUMN_WIDTHS.createdAt +
   GROUP_LIST_COLUMN_WIDTHS.updatedAt +
