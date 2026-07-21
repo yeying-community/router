@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	groupBillingRatioLock       sync.RWMutex
-	groupBillingRatioMap        = map[string]float64{}
-	groupChannelBillingRatioMap = map[string]map[string]float64{}
+	groupBillingRatioLock            sync.RWMutex
+	groupChannelBillingRatioMap      = map[string]map[string]float64{}
+	groupModelChannelBillingRatioMap = map[string]map[string]map[string]float64{}
 )
 
 func normalizeGroupBillingRatio(value float64) float64 {
@@ -20,37 +20,27 @@ func normalizeGroupBillingRatio(value float64) float64 {
 	return value
 }
 
-func buildGroupBillingRatioMap(rows []GroupCatalog) map[string]float64 {
-	ratios := make(map[string]float64, len(rows))
-	for _, row := range rows {
-		groupID := strings.TrimSpace(row.Id)
-		if groupID == "" {
-			continue
-		}
-		ratios[groupID] = normalizeGroupBillingRatio(row.BillingRatio)
-	}
-	return ratios
-}
-
-func setGroupBillingRatioRuntime(ratios map[string]float64) {
-	groupBillingRatioLock.Lock()
-	groupBillingRatioMap = ratios
-	groupBillingRatioLock.Unlock()
-}
-
 func setGroupChannelBillingRatioRuntime(ratios map[string]map[string]float64) {
 	groupBillingRatioLock.Lock()
 	groupChannelBillingRatioMap = ratios
 	groupBillingRatioLock.Unlock()
 }
 
-func GetGroupBillingRatio(id string) float64 {
-	groupID := strings.TrimSpace(id)
-	if groupID == "" {
+func setGroupBillingRatiosRuntime(channelRatios map[string]map[string]float64, modelChannelRatios map[string]map[string]map[string]float64) {
+	groupBillingRatioLock.Lock()
+	groupChannelBillingRatioMap = channelRatios
+	groupModelChannelBillingRatioMap = modelChannelRatios
+	groupBillingRatioLock.Unlock()
+}
+
+func GetGroupChannelBillingRatio(group string, channelID string) float64 {
+	groupID := strings.TrimSpace(group)
+	normalizedChannelID := strings.TrimSpace(channelID)
+	if groupID == "" || normalizedChannelID == "" {
 		return 1
 	}
 	groupBillingRatioLock.RLock()
-	ratio, ok := groupBillingRatioMap[groupID]
+	ratio, ok := groupChannelBillingRatioMap[groupID][normalizedChannelID]
 	groupBillingRatioLock.RUnlock()
 	if !ok {
 		return 1
@@ -58,19 +48,20 @@ func GetGroupBillingRatio(id string) float64 {
 	return normalizeGroupBillingRatio(ratio)
 }
 
-func GetGroupChannelBillingRatio(group string, channelID string) float64 {
+func GetGroupModelChannelBillingRatio(group string, modelName string, channelID string) float64 {
 	groupID := strings.TrimSpace(group)
+	normalizedModel := strings.TrimSpace(modelName)
 	normalizedChannelID := strings.TrimSpace(channelID)
-	if groupID == "" || normalizedChannelID == "" {
-		return GetGroupBillingRatio(groupID)
+	if groupID == "" || normalizedModel == "" || normalizedChannelID == "" {
+		return 1
 	}
 	groupBillingRatioLock.RLock()
-	ratio, ok := groupChannelBillingRatioMap[groupID][normalizedChannelID]
+	ratio, ok := groupModelChannelBillingRatioMap[groupID][normalizedModel][normalizedChannelID]
 	groupBillingRatioLock.RUnlock()
 	if !ok {
-		return GetGroupBillingRatio(groupID)
+		return 1
 	}
-	return normalizeGroupBillingRatio(ratio)
+	return normalizeGroupModelChannelBillingRatio(ratio)
 }
 
 func buildGroupChannelBillingRatioMap(rows []GroupChannel) map[string]map[string]float64 {
@@ -89,19 +80,41 @@ func buildGroupChannelBillingRatioMap(rows []GroupChannel) map[string]map[string
 	return ratios
 }
 
+func buildGroupModelChannelBillingRatioMap(rows []GroupModelChannel) map[string]map[string]map[string]float64 {
+	ratios := make(map[string]map[string]map[string]float64)
+	for _, row := range rows {
+		groupID := strings.TrimSpace(row.Group)
+		modelName := strings.TrimSpace(row.Model)
+		channelID := strings.TrimSpace(row.ChannelId)
+		if groupID == "" || modelName == "" || channelID == "" {
+			continue
+		}
+		if _, ok := ratios[groupID]; !ok {
+			ratios[groupID] = make(map[string]map[string]float64)
+		}
+		if _, ok := ratios[groupID][modelName]; !ok {
+			ratios[groupID][modelName] = make(map[string]float64)
+		}
+		ratios[groupID][modelName][channelID] = normalizeGroupModelChannelBillingRatio(row.BillingRatio)
+	}
+	return ratios
+}
+
 func syncGroupBillingRatiosRuntimeWithDB(db *gorm.DB) error {
 	if db == nil {
 		return nil
 	}
-	rows, err := listGroupCatalogWithDB(db)
-	if err != nil {
-		return err
-	}
-	setGroupBillingRatioRuntime(buildGroupBillingRatioMap(rows))
 	channelRows := make([]GroupChannel, 0)
 	if err := db.Find(&channelRows).Error; err != nil {
 		return err
 	}
-	setGroupChannelBillingRatioRuntime(buildGroupChannelBillingRatioMap(channelRows))
+	modelChannelRows := make([]GroupModelChannel, 0)
+	if err := db.Find(&modelChannelRows).Error; err != nil {
+		return err
+	}
+	setGroupBillingRatiosRuntime(
+		buildGroupChannelBillingRatioMap(channelRows),
+		buildGroupModelChannelBillingRatioMap(modelChannelRows),
+	)
 	return nil
 }

@@ -8,12 +8,13 @@ import (
 )
 
 type GroupModelChannel struct {
-	Group         string `json:"group" gorm:"type:varchar(32);primaryKey;autoIncrement:false"`
-	Model         string `json:"model" gorm:"primaryKey;autoIncrement:false"`
-	ChannelId     string `json:"channel_id" gorm:"type:varchar(64);primaryKey;autoIncrement:false;index"`
-	UpstreamModel string `json:"upstream_model" gorm:"type:varchar(255);default:'';index"`
-	Provider      string `json:"provider" gorm:"type:varchar(128);default:'';index"`
-	Priority      *int64 `json:"priority" gorm:"bigint;default:0;index"`
+	Group         string  `json:"group" gorm:"type:varchar(32);primaryKey;autoIncrement:false"`
+	Model         string  `json:"model" gorm:"primaryKey;autoIncrement:false"`
+	ChannelId     string  `json:"channel_id" gorm:"type:varchar(64);primaryKey;autoIncrement:false;index"`
+	UpstreamModel string  `json:"upstream_model" gorm:"type:varchar(255);default:'';index"`
+	Provider      string  `json:"provider" gorm:"type:varchar(128);default:'';index"`
+	Priority      *int64  `json:"priority" gorm:"bigint;default:0;index"`
+	BillingRatio  float64 `json:"billing_ratio" gorm:"type:numeric(12,6);not null;default:1"`
 }
 
 func (route GroupModelChannel) GetPriority() int64 {
@@ -27,10 +28,11 @@ const (
 	GroupModelChannelsTableName = "group_model_channels"
 )
 
-// GroupModelChannel is the static expansion table of group model to channel model
-// mappings. It is derived from group_models, group_channels, and channel model
-// configuration data. Admin flows must not treat this table as source-of-truth
-// configuration, and temporary connectivity or test facts should not be written back into it.
+// GroupModelChannel is the static route binding table for group model to channel
+// model mappings. Most route fields are derived from group_models,
+// group_channels, and channel model configuration data; BillingRatio is the
+// admin-managed price adjustment for this exact group+model+channel route and
+// must be preserved across route refreshes.
 func (GroupModelChannel) TableName() string {
 	return GroupModelChannelsTableName
 }
@@ -100,6 +102,7 @@ func normalizeGroupModelChannelRowsPreserveOrder(rows []GroupModelChannel) []Gro
 		normalized.ChannelId = strings.TrimSpace(normalized.ChannelId)
 		normalized.UpstreamModel = NormalizeGroupModelChannelUpstreamModel(normalized.Model, normalized.UpstreamModel)
 		normalized.Provider = NormalizeGroupModelChannelProvider(normalized.Provider)
+		normalized.BillingRatio = normalizeGroupBillingRatio(normalized.BillingRatio)
 		if normalized.Group == "" || normalized.Model == "" || normalized.ChannelId == "" {
 			continue
 		}

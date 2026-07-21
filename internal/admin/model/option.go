@@ -21,6 +21,7 @@ var deprecatedOptionKeys = map[string]struct{}{
 	"DefaultUserGroup":               {},
 	"AutomaticDisableChannelEnabled": {},
 	"AutomaticEnableChannelEnabled":  {},
+	"BillingOfficialMarkup":          {},
 }
 
 type Option struct {
@@ -53,7 +54,6 @@ func InitOptionMap() {
 	config.OptionMap["ChannelBillingAutoRefreshEnabled"] = strconv.FormatBool(config.ChannelBillingAutoRefreshEnabled)
 	config.OptionMap["ChannelBillingAutoRefreshIntervalSeconds"] = strconv.Itoa(config.ChannelBillingAutoRefreshIntervalSeconds)
 	config.OptionMap["ChannelBillingAutoRefreshLastRunAt"] = strconv.FormatInt(config.ChannelBillingAutoRefreshLastRunAt, 10)
-	config.OptionMap["BillingOfficialMarkup"] = strconv.FormatFloat(config.BillingOfficialMarkup, 'f', -1, 64)
 	config.OptionMap["BillingTargetMargin"] = strconv.FormatFloat(config.BillingTargetMargin, 'f', -1, 64)
 	config.OptionMap["BillingRiskBuffer"] = strconv.FormatFloat(config.BillingRiskBuffer, 'f', -1, 64)
 	config.OptionMap["ChannelDisableThreshold"] = strconv.FormatFloat(config.ChannelDisableThreshold, 'f', -1, 64)
@@ -251,9 +251,6 @@ func UpdateOptionMap(key string, value string) (err error) {
 		config.ChannelBillingAutoRefreshIntervalSeconds = interval
 	case "ChannelBillingAutoRefreshLastRunAt":
 		config.ChannelBillingAutoRefreshLastRunAt, _ = strconv.ParseInt(value, 10, 64)
-	case "BillingOfficialMarkup":
-		config.BillingOfficialMarkup = normalizeBillingFloatOption(value, 1, 0, 100)
-		config.OptionMap[key] = strconv.FormatFloat(config.BillingOfficialMarkup, 'f', -1, 64)
 	case "BillingTargetMargin":
 		config.BillingTargetMargin = normalizeBillingFloatOption(value, 0, 0, 0.95)
 		config.OptionMap[key] = strconv.FormatFloat(config.BillingTargetMargin, 'f', -1, 64)

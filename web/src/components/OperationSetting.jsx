@@ -60,7 +60,6 @@ const BALANCE_OPTION_KEYS = {
 };
 
 const PRICING_POLICY_KEYS = {
-  officialMarkup: 'BillingOfficialMarkup',
   targetMargin: 'BillingTargetMargin',
   riskBuffer: 'BillingRiskBuffer',
 };
@@ -79,7 +78,6 @@ const OperationSetting = ({ section = '', showSectionTitle = true }) => {
     ChannelBillingAutoRefreshEnabled: 'true',
     ChannelBillingAutoRefreshIntervalSeconds: 1800,
     ChannelBillingAutoRefreshLastRunAt: 0,
-    [PRICING_POLICY_KEYS.officialMarkup]: 1,
     [PRICING_POLICY_KEYS.targetMargin]: 0,
     [PRICING_POLICY_KEYS.riskBuffer]: 0,
   });
@@ -438,13 +436,8 @@ const OperationSetting = ({ section = '', showSectionTitle = true }) => {
         break;
       case 'pricing':
         {
-          const officialMarkup = Number(inputs[PRICING_POLICY_KEYS.officialMarkup] ?? 1);
           const targetMargin = Number(inputs[PRICING_POLICY_KEYS.targetMargin] ?? 0);
           const riskBuffer = Number(inputs[PRICING_POLICY_KEYS.riskBuffer] ?? 0);
-          if (!Number.isFinite(officialMarkup) || officialMarkup <= 0) {
-            showError(t('setting.operation.pricing.official_markup_invalid'));
-            break;
-          }
           if (!Number.isFinite(targetMargin) || targetMargin < 0 || targetMargin >= 0.95) {
             showError(t('setting.operation.pricing.target_margin_invalid'));
             break;
@@ -454,7 +447,6 @@ const OperationSetting = ({ section = '', showSectionTitle = true }) => {
             break;
           }
           const pricingOptions = [
-            [PRICING_POLICY_KEYS.officialMarkup, officialMarkup],
             [PRICING_POLICY_KEYS.targetMargin, targetMargin],
             [PRICING_POLICY_KEYS.riskBuffer, riskBuffer],
           ];
@@ -877,21 +869,6 @@ const OperationSetting = ({ section = '', showSectionTitle = true }) => {
               ) : null}
               <div className='router-settings-section-body'>
                 <AppFormRow>
-                  <AppField
-                    label={t('setting.operation.pricing.official_markup')}
-                    hint={t('setting.operation.pricing.official_markup_hint')}
-                  >
-                    <AppInputNumber
-                      className='router-section-input'
-                      name={PRICING_POLICY_KEYS.officialMarkup}
-                      value={inputs[PRICING_POLICY_KEYS.officialMarkup] ?? 1}
-                      min={0.000001}
-                      precision={6}
-                      step={0.01}
-                      fluid
-                      onChange={handleInputChange}
-                    />
-                  </AppField>
                   <AppField
                     label={t('setting.operation.pricing.target_margin')}
                     hint={t('setting.operation.pricing.target_margin_hint')}

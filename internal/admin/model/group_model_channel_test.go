@@ -38,6 +38,35 @@ func TestNormalizeGroupModelChannelRowsPreserveOrder_DeduplicatesByPrimaryKey(t 
 	}
 }
 
+func TestGetRouteBillingRatioCombinesGroupAndModelChannel(t *testing.T) {
+	setGroupBillingRatiosRuntime(
+		map[string]map[string]float64{
+			"group-a": {
+				"channel-1": 1.5,
+			},
+		},
+		map[string]map[string]map[string]float64{
+			"group-a": {
+				"gpt-5.1": {
+					"channel-1": 2,
+				},
+			},
+		},
+	)
+	defer setGroupBillingRatiosRuntime(map[string]map[string]float64{}, map[string]map[string]map[string]float64{})
+
+	got := GetRouteBillingRatio("group-a", "gpt-5.1", "channel-1")
+	if got.GroupChannelRatio != 1.5 {
+		t.Fatalf("GroupChannelRatio = %v, want 1.5", got.GroupChannelRatio)
+	}
+	if got.ModelChannelRatio != 2 {
+		t.Fatalf("ModelChannelRatio = %v, want 2", got.ModelChannelRatio)
+	}
+	if got.EffectiveRatio != 3 {
+		t.Fatalf("EffectiveRatio = %v, want 3", got.EffectiveRatio)
+	}
+}
+
 func TestCloneChannelWithPriorityDoesNotMutateOriginal(t *testing.T) {
 	originalPriority := int64(0)
 	channel := &Channel{

@@ -778,6 +778,7 @@
         }
       },
       "billing": {
+        "structure_hint": "This page records upstream procurement for the channel. Purchase records create batches; request consumption turns batches into unit cost. It is separate from user payment records.",
         "title": "Billing",
         "hint": "This section shows standardized channel billing entitlements, not upstream-specific raw fields. The system tracks quotas, balances, credits, and plan validity as structured entitlement items, and uses those normalized fields for refresh, alerts, and future automation.",
         "load_failed": "Failed to load channel billing data",
@@ -1435,7 +1436,6 @@
       "name": "Group",
       "description": "Description",
       "channels": "Channels",
-      "billing_ratio": "Billing Ratio",
       "daily_quota_limit": "Daily Limit",
       "source": "Source",
       "status": "Status",
@@ -1455,9 +1455,6 @@
       "name_placeholder": "e.g. enterprise",
       "description": "Description",
       "description_placeholder": "Optional description for this group",
-      "billing_ratio": "Billing Ratio",
-      "billing_ratio_placeholder": "Defaults to 1, use 0 or greater",
-      "billing_ratio_help": "Adjusts the final billed amount for this group. 0 makes it free, values between 0 and 1 apply a discount, 1 keeps the base price, and values greater than 1 add a markup.",
       "daily_quota_limit": "Daily Limit",
       "daily_quota_limit_placeholder": "0 means unlimited",
       "sort_order": "Sort Value",
@@ -1503,6 +1500,8 @@
       "selected": "Use",
       "priority": "Priority",
       "channel_billing_ratio": "Channel Ratio",
+      "model_channel_billing_ratio": "Model Channel Ratio",
+      "model_channel_billing_ratio_short": "Model Ratio",
       "channel_count": "Channel Count",
       "model_channels": "Channels",
       "model_search_placeholder": "Search model or channel",
@@ -2056,7 +2055,9 @@
         "estimated_prompt_tokens": "Estimated Prompt Tokens",
         "estimated_output_tokens": "Estimated Output Quantity",
         "billing_settlement_mode": "Settlement Mode",
-        "billing_group_ratio": "Applied Business Ratio",
+        "billing_effective_ratio": "Effective Business Ratio",
+        "billing_group_channel_ratio": "Group Channel Ratio",
+        "billing_model_channel_ratio": "Model Channel Ratio",
         "billing_charge_rate": "Conversion Rate",
         "billing_input_quantity": "Input Quantity",
         "billing_output_quantity": "Output Quantity",
@@ -2765,6 +2766,7 @@
         }
       },
       "spending": {
+        "flow": { "title": "How the numbers connect", "summary": "Payments and top-ups are user-side revenue and cash flow. Request consumption is entitlement usage. Channel procurement is upstream cost, matched to revenue in Billing Overview to calculate gross profit." },
         "insights": {
           "net_positive": "Positive Net Inflow",
           "net_positive_hint": "Top-up exceeds spend in the selected period, keeping cashflow positive.",
@@ -3236,13 +3238,10 @@
         "title": "Pricing Rules",
         "description": "Configure selling-price rules and profit targets.",
         "description_title": "How charges are calculated",
-        "official_markup": "Official Price Multiplier",
-        "official_markup_hint": "Used to calculate the selling price from provider list pricing. 1 means list price, 1.2 means a 20% uplift.",
         "target_margin": "Target margin",
         "target_margin_hint": "Use decimals. 0.2 means 20% target margin; must be lower than 0.95.",
         "risk_buffer": "Cost Buffer Ratio",
         "risk_buffer_hint": "Used to absorb procurement cost fluctuation. 0.1 means adding a 10% buffer before calculating the floor price.",
-        "official_markup_invalid": "Official price multiplier must be greater than 0",
         "target_margin_invalid": "Target margin must be greater than or equal to 0 and lower than 0.95",
         "risk_buffer_invalid": "Cost buffer ratio must be greater than or equal to 0",
         "buttons": {
@@ -3420,7 +3419,7 @@
       "columns": { "channel": "Channel", "requests": "Requests", "yyc": "YYC consumed", "revenue": "Revenue CNY", "cost": "Procurement CNY", "profit": "Profit CNY", "margin": "Margin", "batches": "Procurement batches" }
     },
     "pricing_analysis": {
-      "nav": "Pricing Analysis",
+      "nav": "Model Pricing",
       "title": "Pricing Analysis",
       "load_failed": "Failed to load pricing analysis",
       "group_placeholder": "Filter group",
@@ -3430,11 +3429,12 @@
       "states": { "healthy": "Healthy", "low_margin": "Low margin", "loss": "Below cost", "unknown": "Insufficient data" },
       "cost_states": { "actual_available": "Actual cost available", "estimated_only": "Estimated only", "pending": "Cost pending", "none": "Cost not configured", "unit_mismatch": "Unit mismatch", "currency_mismatch": "Currency mismatch" },
       "decision": { "cost_floor": "Cost floor triggered", "current_price": "Current price usable" },
-      "columns": { "model": "Model", "state": "Pricing state", "requests": "Requests", "router_yyc": "YYC consumed", "sell": "Sell CNY", "official_price": "Official price", "current_price": "Current price", "ratio": "Group ratio", "cost": "Cost CNY", "profit": "Profit CNY", "margin": "Margin", "cost_coverage": "Cost coverage", "cost_state": "Cost state", "cost_unit": "Procurement unit cost", "selected_price": "Cost-floor sell", "decision": "Price decision", "floor_impact": "Floor impact", "details": "Details", "view": "View" }
+      "columns": { "model": "Model", "state": "Pricing state", "requests": "Requests", "router_yyc": "YYC consumed", "sell": "Sell CNY", "official_price": "Official price", "current_price": "Current price", "ratio": "Effective ratio", "cost": "Cost CNY", "profit": "Profit CNY", "margin": "Margin", "cost_coverage": "Cost coverage", "cost_state": "Cost state", "cost_unit": "Procurement unit cost", "selected_price": "Cost-floor sell", "decision": "Price decision", "floor_impact": "Floor impact", "details": "Details", "view": "View" }
     },
     "overview": {
       "nav": "Business Overview",
       "title": "Billing Business Overview",
+      "structure": { "title": "Billing structure", "summary": "Overview shows revenue and cost results. Model Pricing checks price coverage. Channel Procurement tracks upstream batches and cost attribution.", "pricing": "View model pricing", "procurement": "View channel procurement" },
       "load_failed": "Failed to load business data",
       "metrics": { "revenue": "Revenue CNY", "cost": "Procurement Cost CNY", "profit": "Gross Profit CNY", "margin": "Gross Margin", "yyc": "Router YYC Consumed", "requests": "Requests", "floor_triggered": "Floor triggers", "floor_amount": "Floor impact CNY" },
       "confidence": { "title": "Cost data confidence", "coverage": "Actual cost coverage {{value}}", "detail": "Estimated {{estimated}}, pending {{pending}}, unconfigured {{unconfigured}}" },
@@ -3444,7 +3444,7 @@
       "channel_placeholder": "Filter channel", "model_placeholder": "Filter model"
     },
     "procurement_report": {
-      "nav": "Procurement Cost",
+      "nav": "Channel Procurement",
       "title": "Procurement Cost Report",
       "empty": "No procurement cost data",
       "health": {

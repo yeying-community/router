@@ -618,7 +618,8 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	// Convert the original image model
 	imageRequest.Model, _ = getMappedModelName(imageRequest.Model, imagerule.ImageOriginModelName)
 	c.Set("response_format", imageRequest.ResponseFormat)
-	groupRatio := adminmodel.GetGroupChannelBillingRatio(meta.Group, meta.ChannelId)
+	billingRatio := adminmodel.GetRouteBillingRatio(meta.Group, meta.OriginModelName, meta.ChannelId)
+	groupRatio := billingRatio.EffectiveRatio
 	pricing, pricingErr := adminmodel.ResolveChannelModelPricing(meta.ChannelProtocol, meta.ChannelModelConfigs, imageModel)
 	if pricingErr != nil {
 		if groupRatio == 0 {
@@ -826,6 +827,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		billingSnapshot.EstimateSource = imageEstimateSourceImageCountRatio
 		billingSnapshot.SettlementMode = imageSettlementModeEstimateOnly
 	}
+	billingSnapshot.SetBillingRatioBreakdown(billingRatio)
 	if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, meta.ChannelId, imageRequest.Model); err != nil {
 		logger.Errorf(ctx, "image billing procurement cost estimate failed user_id=%s group=%s channel_id=%s model=%s err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), err.Error())
 		return openai.ErrorWrapper(err, "calculate_image_quota_failed", http.StatusInternalServerError)
@@ -913,6 +915,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 		tokenName := c.GetString(ctxkey.TokenName)
 		billingSnapshot.ChargeAmount = quota
+		billingSnapshot.SetBillingRatioBreakdown(billingRatio)
 		entry := &model.Log{
 			UserId:             meta.UserId,
 			GroupId:            meta.Group,
@@ -955,6 +958,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		finalSnapshot.UsageSource = imageUsageSourceProviderResponse
 		finalSnapshot.EstimateSource = imageEstimateSourceQwenImageOutputCount
 		finalSnapshot.SettlementMode = imageSettlementModeProviderUsageFinal
+		finalSnapshot.SetBillingRatioBreakdown(billingRatio)
 		if err := billing.ApplyEstimatedProcurementCostFloor(&finalSnapshot, meta.ChannelId, imageRequest.Model); err != nil {
 			logger.Errorf(ctx, "qwen image final procurement cost estimate failed user_id=%s group=%s channel_id=%s model=%s output_count=%d err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(imageRequest.Model), outputCount, err.Error())
 		}

@@ -98,7 +98,8 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 			strings.TrimSpace(meta.ActualModelName),
 		)
 	}
-	groupRatio := adminmodel.GetGroupChannelBillingRatio(meta.Group, meta.ChannelId)
+	billingRatio := adminmodel.GetRouteBillingRatio(meta.Group, meta.OriginModelName, meta.ChannelId)
+	groupRatio := billingRatio.EffectiveRatio
 	pricing, err := adminmodel.ResolveChannelModelPricing(meta.ChannelProtocol, meta.ChannelModelConfigs, textRequest.Model)
 	if err != nil {
 		if groupRatio == 0 {
@@ -167,6 +168,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		logger.Errorf(ctx, "ComputeTextPreConsumedQuota failed: %s", err.Error())
 		return openai.ErrorWrapper(err, "calculate_text_quota_failed", http.StatusInternalServerError)
 	}
+	preConsumedSnapshot.SetBillingRatioBreakdown(billingRatio)
 	if err := billing.ApplyEstimatedProcurementCostFloor(&preConsumedSnapshot, meta.ChannelId, meta.ActualModelName); err != nil {
 		logger.Errorf(ctx, "estimate procurement cost for text pre-consume failed: %s", err.Error())
 		return openai.ErrorWrapper(err, "calculate_text_quota_failed", http.StatusInternalServerError)
@@ -230,7 +232,7 @@ func RelayTextHelper(c *gin.Context) *model.ErrorWithStatusCode {
 		return respErr
 	}
 	// post-consume quota
-	go postConsumeQuota(ctx, usage, meta, upstreamRequest, pricing, preConsumedQuota, int(preConsumedSnapshot.OutputQuantity), groupReservedQuota, groupRatio, estimateResult, responsesImageTools, false, billingPlan)
+	go postConsumeQuota(ctx, usage, meta, upstreamRequest, pricing, preConsumedQuota, int(preConsumedSnapshot.OutputQuantity), groupReservedQuota, billingRatio, estimateResult, responsesImageTools, false, billingPlan)
 	preConsumedQuotaSettled = true
 	groupQuotaSettled = true
 	return nil

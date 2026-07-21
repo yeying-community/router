@@ -156,6 +156,9 @@ func DeleteGroupModelChannels(channel *model.Channel) error {
 	if err := model.DB.Where("channel_id = ?", channel.Id).Delete(&model.GroupModelChannel{}).Error; err != nil {
 		return err
 	}
+	if err := model.SyncGroupRuntimeCachesWithDB(model.DB); err != nil {
+		return err
+	}
 	model.RefreshGroupModelChannelCachesForGroups(groups...)
 	return nil
 }
@@ -183,6 +186,11 @@ func UpdateGroupModelChannels(channel *model.Channel) error {
 				return err
 			}
 			next := model.BuildGroupModelChannelsForChannel(groupID, channel, groupModels, priorityByChannelID[strings.TrimSpace(channel.Id)])
+			existingRatios, err := model.LoadGroupModelChannelBillingRatiosWithDB(tx, []string{groupID}, nil, []string{channel.Id})
+			if err != nil {
+				return err
+			}
+			next = model.ApplyGroupModelChannelBillingRatios(next, nil, existingRatios)
 			groupCol := `"group"`
 			if err := tx.Where(groupCol+" = ? AND channel_id = ?", groupID, channel.Id).Delete(&model.GroupModelChannel{}).Error; err != nil {
 				return err
@@ -197,6 +205,9 @@ func UpdateGroupModelChannels(channel *model.Channel) error {
 		return nil
 	})
 	if err != nil {
+		return err
+	}
+	if err := model.SyncGroupRuntimeCachesWithDB(model.DB); err != nil {
 		return err
 	}
 	model.RefreshGroupModelChannelCachesForGroups(groups...)

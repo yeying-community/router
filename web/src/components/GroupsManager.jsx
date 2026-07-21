@@ -38,7 +38,6 @@ const createEmptyForm = () => ({
   id: '',
   name: '',
   description: '',
-  billing_ratio: 1,
 });
 
 const createEmptyModelConfig = () => ({
@@ -47,6 +46,7 @@ const createEmptyModelConfig = () => ({
   upstream_model: '',
   enabled: true,
   priority: null,
+  billing_ratio: 1,
 });
 
 const GROUP_DETAIL_CHANNEL_COLUMN_WIDTHS = {
@@ -86,7 +86,6 @@ const buildFormFromRow = (row) => ({
   id: row?.id || '',
   name: row?.name || '',
   description: row?.description || '',
-  billing_ratio: Number(row?.billing_ratio ?? 1),
 });
 
 const toChannelOptions = (items) =>
@@ -152,6 +151,7 @@ const toDetailModelEntries = (items) =>
         channel_status: Number(row?.channel_status || 0),
         upstream_model: row?.upstream_model || '',
         priority: row?.priority ?? 0,
+        billing_ratio: toSafeBillingRatio(row?.billing_ratio, 1),
         enabled: item?.enabled !== false,
       })),
       allEnabled: item?.enabled !== false,
@@ -167,6 +167,7 @@ const flattenDetailModelEntriesToConfigRows = (items) =>
         upstream_model: row?.upstream_model || '',
         enabled: item?.allEnabled !== false,
         priority: row?.priority ?? 0,
+        billing_ratio: toSafeBillingRatio(row?.billing_ratio, 1),
         channel_name: row?.channel_name || '',
         channel_protocol: row?.channel_protocol || '',
         channel_status: Number(row?.channel_status || 0),
@@ -228,6 +229,7 @@ const ensureSelectedChannelsHaveModelRows = (rows, selectedChannelIDs, channelLo
         channel_id: channelID,
         upstream_model: item?.upstream_model || item?.model || '',
         priority: channel?.priority ?? null,
+        billing_ratio: 1,
       });
     });
   });
@@ -550,6 +552,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
             channel_status: Number(item?.channel_status || 0),
             upstream_model: item?.upstream_model || '',
             priority: item?.priority ?? 0,
+            billing_ratio: toSafeBillingRatio(item?.billing_ratio, 1),
           })),
         enabled: nextItems
           .filter((item) => (item?.model || '').trim() === modelName)
@@ -699,6 +702,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
         channel_id: channelID,
         upstream_model: upstreamModel,
         enabled: item?.enabled !== false,
+        billing_ratio: toSafeBillingRatio(item?.billing_ratio, 1),
       };
       const rawPriority = item?.priority;
       if (rawPriority !== '' && rawPriority !== null && typeof rawPriority !== 'undefined') {
@@ -719,17 +723,11 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       showInfo(t('group_manage.messages.id_required'));
       return;
     }
-    const billingRatio = Number(form.billing_ratio ?? 1);
-    if (!Number.isFinite(billingRatio) || billingRatio < 0) {
-      showInfo(t('group_manage.messages.billing_ratio_invalid'));
-      return;
-    }
     setSubmitting(true);
     try {
       const res = await API.post('/api/v1/admin/group/', {
         name,
         description: (form.description || '').trim(),
-        billing_ratio: billingRatio,
       });
       const { success, message, data } = res.data || {};
       if (!success) {
@@ -753,11 +751,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       showInfo(t('group_manage.messages.id_required'));
       return;
     }
-    const billingRatio = Number(form.billing_ratio ?? 1);
-    if (!Number.isFinite(billingRatio) || billingRatio < 0) {
-      showInfo(t('group_manage.messages.billing_ratio_invalid'));
-      return;
-    }
     const normalizedModels = buildNormalizedGroupModels();
     if (normalizedModels === null) {
       return;
@@ -768,7 +761,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
         id,
         name,
         description: (form.description || '').trim(),
-        billing_ratio: billingRatio,
         sort_order: Number(activeGroup?.sort_order || 0),
         channel_ids: formChannelIDs,
         models: normalizedModels,
@@ -1026,18 +1018,12 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       showInfo(t('group_manage.messages.id_required'));
       return;
     }
-    const billingRatio = Number(form.billing_ratio ?? 1);
-    if (!Number.isFinite(billingRatio) || billingRatio < 0) {
-      showInfo(t('group_manage.messages.billing_ratio_invalid'));
-      return;
-    }
     setSubmitting(true);
     try {
       const res = await API.put('/api/v1/admin/group/', {
         id,
         name,
         description: (form.description || '').trim(),
-        billing_ratio: billingRatio,
         sort_order: Number(activeGroup?.sort_order || 0),
         enabled: !!activeGroup?.enabled,
       });
@@ -1053,7 +1039,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
     } finally {
       setSubmitting(false);
     }
-  }, [activeGroup, form.billing_ratio, form.description, form.name, refreshGroupDetailState, t]);
+  }, [activeGroup, form.description, form.name, refreshGroupDetailState, t]);
 
   const submitDetailChannels = useCallback(async (channelRows = detailChannelRows, options = {}) => {
     const id = (activeGroup?.id || '').toString().trim();
@@ -1124,6 +1110,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
           upstream_model: (decoded.upstream_model || '').trim(),
           enabled: true,
           priority: toSafePriorityNumber(detailChannelDraft.priority, 0),
+          billing_ratio: 1,
         };
       }),
     ]);
@@ -1316,14 +1303,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
             key: 'channels',
             width: GROUP_LIST_COLUMN_WIDTHS.channels,
             render: (channels) => (Array.isArray(channels) ? channels.length : 0),
-          },
-          {
-            title: t('group_manage.table.billing_ratio'),
-            dataIndex: 'billing_ratio',
-            key: 'billing_ratio',
-            className: 'router-table-col-status-narrow',
-            width: GROUP_LIST_COLUMN_WIDTHS.billingRatio,
-            render: (value) => Number(value ?? 1).toFixed(2),
           },
           {
             title: t('group_manage.table.status'),
@@ -1650,6 +1629,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                       >
                         {item?.channel_name || item?.channel_id}
                         {` · ${formatPriorityLabel(item?.priority)}`}
+                        {` · ${t('group_manage.detail.model_channel_billing_ratio_short')}: ${toSafeBillingRatio(item?.billing_ratio, 1).toFixed(2)}`}
                       </AppTag>
                     ))}
                   </div>
@@ -1909,6 +1889,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
         priority: String(
           toSafePriorityNumber(existing?.priority ?? channel?.priority, 0)
         ),
+        billing_ratio: toSafeBillingRatio(existing?.billing_ratio, 1),
       });
     });
 
@@ -2022,6 +2003,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
           upstream_model: (channel?.upstream_model || '').toString().trim(),
           enabled: true,
           priority: toSafePriorityNumber(channel?.priority, 0),
+          billing_ratio: 1,
           channel_name: (channel?.channel_name || channelID).toString().trim(),
         });
       }
@@ -2104,6 +2086,7 @@ const GroupsManager = ({ detailGroupId = '' }) => {
       upstream_model: item.upstream_model,
       enabled: item.enabled !== false,
       priority: toSafePriorityNumber(item.priority, 0),
+      billing_ratio: toSafeBillingRatio(item.billing_ratio, 1),
       channel_name: item.channel_name,
       channel_protocol: item.channel_protocol,
       channel_status: item.channel_status,
@@ -2246,6 +2229,26 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                 />
               );
             },
+          },
+          {
+            title: t('group_manage.detail.model_channel_billing_ratio'),
+            key: 'billing_ratio',
+            width: 160,
+            render: (_, record) => (
+              <AppInputNumber
+                className='router-inline-input'
+                min={0}
+                step={0.1}
+                precision={4}
+                value={toSafeBillingRatio(record?.item?.billing_ratio, 1)}
+                onChange={(e, { value }) =>
+                  updateModelRow(record.index, (current) => ({
+                    ...current,
+                    billing_ratio: toSafeBillingRatio(value, 1),
+                  }))
+                }
+              />
+            ),
           },
           {
             title: t('group_manage.table.actions'),
@@ -2403,34 +2406,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
               </AppFormRow>
               <AppFormRow>
                 <AppField
-                  label={t('group_manage.form.billing_ratio')}
-                  hint={t('group_manage.form.billing_ratio_help')}
-                  readOnly={!detailBasicEditing}
-                >
-                  <AppInputNumber
-                    className='router-section-input'
-                    min={0}
-                    step={0.01}
-                    precision={2}
-                    fluid
-                    value={
-                      detailBasicEditing
-                        ? form.billing_ratio
-                        : Number(activeGroup.billing_ratio ?? 1).toFixed(2)
-                    }
-                    readOnly={!detailBasicEditing}
-                    placeholder={t('group_manage.form.billing_ratio_placeholder')}
-                    onChange={(e, { value }) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        billing_ratio: value ?? '',
-                      }))
-                    }
-                  />
-                </AppField>
-              </AppFormRow>
-              <AppFormRow>
-                <AppField
                   label={t('group_manage.table.created_at')}
                   readOnly
                 >
@@ -2542,29 +2517,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
           </AppField>
         </AppFormRow>
         <AppFormRow>
-          <AppField
-            label={t('group_manage.form.billing_ratio')}
-            hint={t('group_manage.form.billing_ratio_help')}
-          >
-            <AppInputNumber
-              className='router-section-input'
-              min={0}
-              step={0.01}
-              precision={2}
-              fluid
-              placeholder={t('group_manage.form.billing_ratio_placeholder')}
-              value={form.billing_ratio}
-              onChange={(e, { value }) =>
-                setForm((prev) => ({
-                  ...prev,
-                  billing_ratio: value ?? '',
-                }))
-              }
-            />
-          </AppField>
-          <AppField />
-        </AppFormRow>
-        <AppFormRow>
           <AppField label={t('group_manage.form.channels')}>
             <AppSelect
               className='router-section-dropdown'
@@ -2641,28 +2593,6 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                 setForm((prev) => ({
                   ...prev,
                   description: value || '',
-                }))
-              }
-            />
-          </AppField>
-        </AppFormRow>
-        <AppFormRow>
-          <AppField
-            label={t('group_manage.form.billing_ratio')}
-            hint={t('group_manage.form.billing_ratio_help')}
-          >
-            <AppInputNumber
-              className='router-section-input'
-              min={0}
-              step={0.01}
-              precision={2}
-              fluid
-              placeholder={t('group_manage.form.billing_ratio_placeholder')}
-              value={form.billing_ratio}
-              onChange={(e, { value }) =>
-                setForm((prev) => ({
-                  ...prev,
-                  billing_ratio: value ?? '',
                 }))
               }
             />
@@ -2754,6 +2684,27 @@ const GroupsManager = ({ detailGroupId = '' }) => {
                       updateDetailModelChannelDraft(item.channel_id, (current) => ({
                         ...current,
                         priority: value ?? '',
+                      }))
+                    }
+                  />
+                ),
+              },
+              {
+                title: t('group_manage.detail.model_channel_billing_ratio'),
+                key: 'billing_ratio',
+                width: 160,
+                render: (_, item) => (
+                  <AppInputNumber
+                    className='router-inline-input'
+                    min={0}
+                    step={0.1}
+                    precision={4}
+                    disabled={!item.selected}
+                    value={toSafeBillingRatio(item.billing_ratio, 1)}
+                    onChange={(e, { value }) =>
+                      updateDetailModelChannelDraft(item.channel_id, (current) => ({
+                        ...current,
+                        billing_ratio: toSafeBillingRatio(value, 1),
                       }))
                     }
                   />

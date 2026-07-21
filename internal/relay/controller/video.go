@@ -344,7 +344,8 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		return relayVideoRawResponse(c, resp, responseBody)
 	}
 
-	groupRatio := adminmodel.GetGroupChannelBillingRatio(meta.Group, meta.ChannelId)
+	billingRatio := adminmodel.GetRouteBillingRatio(meta.Group, meta.OriginModelName, meta.ChannelId)
+	groupRatio := billingRatio.EffectiveRatio
 	pricing, pricingErr := adminmodel.ResolveChannelModelPricing(meta.ChannelProtocol, meta.ChannelModelConfigs, videoRequest.Model)
 	if pricingErr != nil {
 		if groupRatio == 0 {
@@ -367,6 +368,7 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		logger.Errorf(ctx, "video billing snapshot failed user_id=%s group=%s channel_id=%s model=%s quantity=%.4f err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), quantity, snapshotErr.Error())
 		return openai.ErrorWrapper(snapshotErr, "calculate_video_quota_failed", http.StatusInternalServerError)
 	}
+	billingSnapshot.SetBillingRatioBreakdown(billingRatio)
 	annotateVideoBillingSnapshot(&billingSnapshot, pricing.Source)
 	if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, meta.ChannelId, videoRequest.Model); err != nil {
 		logger.Errorf(ctx, "video billing procurement cost estimate failed user_id=%s group=%s channel_id=%s model=%s quantity=%.4f err=%q", strings.TrimSpace(meta.UserId), strings.TrimSpace(meta.Group), strings.TrimSpace(meta.ChannelId), strings.TrimSpace(videoRequest.Model), quantity, err.Error())
@@ -473,6 +475,7 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		}
 		tokenName := c.GetString(ctxkey.TokenName)
 		billingSnapshot.ChargeAmount = quota
+		billingSnapshot.SetBillingRatioBreakdown(billingRatio)
 		entry := &model.Log{
 			UserId:             meta.UserId,
 			GroupId:            meta.Group,

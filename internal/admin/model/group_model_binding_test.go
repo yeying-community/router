@@ -91,6 +91,7 @@ func TestReplaceSingleGroupModelWithDB_PreservesDisabledState(t *testing.T) {
 		Type:           ProviderModelTypeText,
 		Selected:       true,
 		PublishEnabled: true,
+		PublishStatus:  ChannelModelPublishStatusPublished,
 	}).Error; err != nil {
 		t.Fatalf("create channel model: %v", err)
 	}
@@ -159,6 +160,118 @@ func TestReplaceSingleGroupModelWithDB_PreservesDisabledState(t *testing.T) {
 	}
 	if *items[0].Enabled {
 		t.Fatalf("items[0].Enabled = true, want false")
+	}
+}
+
+func TestReplaceSingleGroupModelWithDB_PreservesModelChannelBillingRatio(t *testing.T) {
+	db := openGroupModelBindingTestDB(t)
+
+	group := GroupCatalog{
+		Id:      "group-1",
+		Name:    "group-1",
+		Enabled: true,
+	}
+	if err := db.Create(&group).Error; err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+
+	channel := Channel{
+		Id:       "channel-1",
+		Name:     "channel-1",
+		Protocol: "openai",
+		Status:   ChannelStatusEnabled,
+	}
+	if err := db.Create(&channel).Error; err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Create(&GroupChannel{
+		Group:        group.Id,
+		ChannelId:    channel.Id,
+		Enabled:      true,
+		Priority:     10,
+		BillingRatio: 1.25,
+	}).Error; err != nil {
+		t.Fatalf("create group channel: %v", err)
+	}
+	if err := db.Create(&ChannelModel{
+		ChannelId:      channel.Id,
+		Model:          "gpt-5.1",
+		UpstreamModel:  "gpt-5.1",
+		Provider:       "openai",
+		Type:           ProviderModelTypeText,
+		Selected:       true,
+		PublishEnabled: true,
+		PublishStatus:  ChannelModelPublishStatusPublished,
+	}).Error; err != nil {
+		t.Fatalf("create channel model: %v", err)
+	}
+	if err := db.Create(&ChannelModelEndpoint{
+		ChannelId: channel.Id,
+		Model:     "gpt-5.1",
+		Endpoint:  ChannelModelEndpointResponses,
+		Enabled:   true,
+	}).Error; err != nil {
+		t.Fatalf("create channel model endpoint: %v", err)
+	}
+	if err := db.Create(&ChannelModelEndpointTestResult{
+		ChannelId:      channel.Id,
+		Model:          "gpt-5.1",
+		Endpoint:       ChannelModelEndpointResponses,
+		LastTestStatus: ChannelModelEndpointTestStatusSuccess,
+		LastSupported:  true,
+	}).Error; err != nil {
+		t.Fatalf("create channel model endpoint test result: %v", err)
+	}
+
+	enabled := true
+	ratio := 1.75
+	if err := replaceSingleGroupModelWithDB(db, group.Id, "gpt-5.1", []GroupModelBindingItem{
+		{
+			Model:         "gpt-5.1",
+			ChannelId:     channel.Id,
+			UpstreamModel: "gpt-5.1",
+			Enabled:       &enabled,
+			BillingRatio:  &ratio,
+		},
+	}); err != nil {
+		t.Fatalf("replace group model with ratio: %v", err)
+	}
+
+	row := GroupModelChannel{}
+	groupCol := `"group"`
+	if err := db.Where(groupCol+" = ? AND model = ? AND channel_id = ?", group.Id, "gpt-5.1", channel.Id).Take(&row).Error; err != nil {
+		t.Fatalf("load group model channel: %v", err)
+	}
+	if row.BillingRatio != 1.75 {
+		t.Fatalf("BillingRatio = %v, want 1.75", row.BillingRatio)
+	}
+
+	if err := replaceSingleGroupModelWithDB(db, group.Id, "gpt-5.1", []GroupModelBindingItem{
+		{
+			Model:         "gpt-5.1",
+			ChannelId:     channel.Id,
+			UpstreamModel: "gpt-5.1",
+			Enabled:       &enabled,
+		},
+	}); err != nil {
+		t.Fatalf("replace group model without ratio: %v", err)
+	}
+	if err := db.Where(groupCol+" = ? AND model = ? AND channel_id = ?", group.Id, "gpt-5.1", channel.Id).Take(&row).Error; err != nil {
+		t.Fatalf("reload group model channel: %v", err)
+	}
+	if row.BillingRatio != 1.75 {
+		t.Fatalf("preserved BillingRatio = %v, want 1.75", row.BillingRatio)
+	}
+
+	items, err := listGroupModelBindingItemsWithDB(db, group.Id)
+	if err != nil {
+		t.Fatalf("list group model binding items: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("len(items) = %d, want 1", len(items))
+	}
+	if items[0].BillingRatio == nil || *items[0].BillingRatio != 1.75 {
+		t.Fatalf("item BillingRatio = %v, want 1.75", items[0].BillingRatio)
 	}
 }
 

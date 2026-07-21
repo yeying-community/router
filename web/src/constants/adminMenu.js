@@ -98,14 +98,9 @@ export const ADMIN_MENU_GROUPS = [
         icon: 'line chart',
       },
       {
-        name: 'billing.channel_reconciliation.nav',
-        to: '/admin/billing/channel-reconciliation',
-        icon: 'exchange alternate',
-      },
-      {
         name: 'billing.procurement_report.nav',
         to: '/admin/billing/procurement-report',
-        icon: 'calculator',
+        icon: 'exchange alternate',
       },
     ],
   },

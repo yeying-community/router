@@ -35,7 +35,6 @@ var ChannelBillingAutoRefreshLastRunAt int64 = 0
 var BillingServiceBaseURL = ""
 var BillingServiceAPIKey = ""
 var BillingServiceTimeoutSeconds = 20
-var BillingOfficialMarkup = 1.0
 var BillingTargetMargin = 0.0
 var BillingRiskBuffer = 0.0
 

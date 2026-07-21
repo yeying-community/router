@@ -220,12 +220,13 @@ func consumeTokenRequestCount(ctx context.Context, tokenID string, requestCount 
 	}
 }
 
-func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, estimatedOutputTokens int, estimatedChargeAmount int64, groupRatio float64, estimateResult tokenestimate.EstimateResult, responsesImageTools []responsesImageToolSpec, systemPromptReset bool, billingPlan relayBillingPlan) {
+func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.Meta, textRequest *relaymodel.GeneralOpenAIRequest, pricing model.ResolvedModelPricing, preConsumedQuota int64, estimatedOutputTokens int, estimatedChargeAmount int64, billingRatio model.BillingRatioBreakdown, estimateResult tokenestimate.EstimateResult, responsesImageTools []responsesImageToolSpec, systemPromptReset bool, billingPlan relayBillingPlan) {
 	if usage == nil {
 		logger.Error(ctx, "usage is nil, which is unexpected")
 		releaseRelayBillingPlan(ctx, billingPlan)
 		return
 	}
+	groupRatio := billingRatio.EffectiveRatio
 	chargeUserBalance := billingPlan.ChargeUserBalance()
 	chargeTokenQuota := billingPlan.ChargeTokenQuota()
 	promptTokens := usage.PromptTokens
@@ -236,6 +237,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 	if snapshotErr != nil {
 		logger.Error(ctx, "calculate text billing snapshot failed: "+snapshotErr.Error())
 	}
+	billingSnapshot.SetBillingRatioBreakdown(billingRatio)
 	annotateTextBillingSnapshot(&billingSnapshot, settlementPricing.Source, resolveTextEstimateSourceLabel(estimateResult), meta.UpstreamRequestPath, textRequest)
 	imageFeeNote := ""
 	_, imageFeeNote, imageFeeErr := maybeApplyResponsesImageToolBilling(&billingSnapshot, usage, meta.ChannelProtocol, meta.ChannelModelConfigs, groupRatio, responsesImageTools)
@@ -296,6 +298,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		userEmergencyQuota = int(emergencyConsumed)
 	}
 	billingSnapshot.ChargeAmount = quota
+	billingSnapshot.SetBillingRatioBreakdown(billingRatio)
 	entry := &model.Log{
 		UserId:             meta.UserId,
 		GroupId:            meta.Group,

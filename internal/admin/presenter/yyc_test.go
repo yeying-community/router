@@ -156,20 +156,19 @@ func TestNewChannelAddsAmountField(t *testing.T) {
 
 func TestNewGroupRemovesQuotaFields(t *testing.T) {
 	row := &model.GroupCatalog{
-		Id:           "g1",
-		Name:         "enterprise",
-		Description:  "desc",
-		Source:       "manual",
-		BillingRatio: 1.5,
-		Enabled:      true,
-		SortOrder:    3,
-		UpdatedAt:    123,
+		Id:          "g1",
+		Name:        "enterprise",
+		Description: "desc",
+		Source:      "manual",
+		Enabled:     true,
+		SortOrder:   3,
+		UpdatedAt:   123,
 	}
 	view := NewGroup(row)
 	if view == nil {
 		t.Fatal("NewGroup returned nil")
 	}
-	if view.Id != row.Id || view.Name != row.Name || view.BillingRatio != row.BillingRatio {
+	if view.Id != row.Id || view.Name != row.Name {
 		t.Fatalf("group fields mismatch: %+v", view)
 	}
 }

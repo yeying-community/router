@@ -1226,6 +1226,10 @@ const AdminDashboard = () => {
           end={renderSectionControls()}
         />
       </div>
+      <div className='admin-dashboard-spending-flow'>
+        <strong>{t('dashboard.admin.spending.flow.title')}</strong>
+        <span>{t('dashboard.admin.spending.flow.summary')}</span>
+      </div>
       <div className='admin-dashboard-kpi-grid'>
         <div className='admin-dashboard-kpi-item'>
           <div className='admin-dashboard-kpi-label'>
