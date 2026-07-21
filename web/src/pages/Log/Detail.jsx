@@ -899,6 +899,10 @@ const LogDetail = () => {
                           : '-'}
                       </div>
                     </div>
+                    <div className='router-detail-item'><div className='router-detail-label'>{t('log.detail.fields.billing_procurement_cost')}</div><div className='router-detail-value'>{renderAmount(log?.billing_procurement_cost_base_amount, 'CNY')}</div></div>
+                    <div className='router-detail-item'><div className='router-detail-label'>{t('log.detail.fields.billing_procurement_cost_source')}</div><pre className='router-detail-value'>{renderText(log?.billing_procurement_cost_source)}</pre></div>
+                    <div className='router-detail-item'><div className='router-detail-label'>{t('log.detail.fields.billing_gross_profit')}</div><div className='router-detail-value'>{renderAmount(log?.billing_gross_profit_base_amount, 'CNY')}</div></div>
+                    <div className='router-detail-item'><div className='router-detail-label'>{t('log.detail.fields.billing_gross_margin')}</div><div className='router-detail-value'>{typeof log?.billing_gross_margin === 'number' ? `${(Number(log.billing_gross_margin) * 100).toFixed(2)}%` : '-'}</div></div>
                     <div className='router-detail-item'>
                       <div className='router-detail-label'>
                         {t('log.detail.fields.estimated_charge_amount')}

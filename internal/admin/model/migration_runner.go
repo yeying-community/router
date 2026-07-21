@@ -1827,7 +1827,7 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS quota_currency_snapshot varchar(16) NOT NULL DEFAULT 'YYC'`,
 					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS validity_days_snapshot integer NOT NULL DEFAULT 0`,
 					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS group_id_snapshot varchar(36) NOT NULL DEFAULT ''`,
-					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS entitlement_product_id varchar(36) NOT NULL DEFAULT ''`,
+					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS entitlement_product_id char(36) NOT NULL DEFAULT ''`,
 					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS product_name_snapshot varchar(64) NOT NULL DEFAULT ''`,
 					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS quota_amount_snapshot numeric(18,6) NOT NULL DEFAULT 0`,
 					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS quota_currency_snapshot varchar(16) NOT NULL DEFAULT 'YYC'`,

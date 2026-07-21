@@ -13,7 +13,7 @@ type RedemptionIssueAuditLog struct {
 	BatchID               string  `json:"batch_id" gorm:"type:char(36);not null;index"`
 	CreatedByUserID       string  `json:"created_by_user_id" gorm:"type:char(36);default:'';index"`
 	Name                  string  `json:"name" gorm:"type:varchar(255);default:''"`
-	EntitlementProductID  string  `json:"entitlement_product_id" gorm:"type:char(36);not null;index"`
+	EntitlementProductID  string  `json:"entitlement_product_id" gorm:"type:char(36);not null;default:'';index"`
 	ProductNameSnapshot   string  `json:"product_name_snapshot" gorm:"type:varchar(64);not null;default:''"`
 	QuotaAmountSnapshot   float64 `json:"quota_amount_snapshot" gorm:"type:numeric(18,6);not null;default:0"`
 	QuotaCurrencySnapshot string  `json:"quota_currency_snapshot" gorm:"type:varchar(16);not null;default:'YYC'"`
