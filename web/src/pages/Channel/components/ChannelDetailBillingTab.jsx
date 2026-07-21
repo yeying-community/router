@@ -1297,6 +1297,7 @@ const ChannelDetailBillingTab = ({
           </AppButton>
         ) : null}
       </div>
+      <AppAlert type='info' showIcon className='router-section-message' title={t('channel.edit.billing.structure_hint')} />
       {billingView === 'upstream' && <div className='router-billing-upstream-view'>
       <div className='router-billing-overview-strip'>
         <div className='router-billing-overview-main'>

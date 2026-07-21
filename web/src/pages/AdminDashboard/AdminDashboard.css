@@ -1129,3 +1129,5 @@
     grid-template-columns: 1fr;
   }
 }
+.admin-dashboard-spending-flow { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid #2563eb; background: #f8fafc; color: #64748b; font-size: 13px; }
+.admin-dashboard-spending-flow strong { color: #0f172a; }

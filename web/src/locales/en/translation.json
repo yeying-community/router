@@ -778,6 +778,7 @@
         }
       },
       "billing": {
+        "structure_hint": "This page records upstream procurement for the channel. Purchase records create batches; request consumption turns batches into unit cost. It is separate from user payment records.",
         "title": "Billing",
         "hint": "This section shows standardized channel billing entitlements, not upstream-specific raw fields. The system tracks quotas, balances, credits, and plan validity as structured entitlement items, and uses those normalized fields for refresh, alerts, and future automation.",
         "load_failed": "Failed to load channel billing data",
@@ -2765,6 +2766,7 @@
         }
       },
       "spending": {
+        "flow": { "title": "How the numbers connect", "summary": "Payments and top-ups are user-side revenue and cash flow. Request consumption is entitlement usage. Channel procurement is upstream cost, matched to revenue in Billing Overview to calculate gross profit." },
         "insights": {
           "net_positive": "Positive Net Inflow",
           "net_positive_hint": "Top-up exceeds spend in the selected period, keeping cashflow positive.",
@@ -3417,7 +3419,7 @@
       "columns": { "channel": "Channel", "requests": "Requests", "yyc": "YYC consumed", "revenue": "Revenue CNY", "cost": "Procurement CNY", "profit": "Profit CNY", "margin": "Margin", "batches": "Procurement batches" }
     },
     "pricing_analysis": {
-      "nav": "Pricing Analysis",
+      "nav": "Model Pricing",
       "title": "Pricing Analysis",
       "load_failed": "Failed to load pricing analysis",
       "group_placeholder": "Filter group",
@@ -3432,6 +3434,7 @@
     "overview": {
       "nav": "Business Overview",
       "title": "Billing Business Overview",
+      "structure": { "title": "Billing structure", "summary": "Overview shows revenue and cost results. Model Pricing checks price coverage. Channel Procurement tracks upstream batches and cost attribution.", "pricing": "View model pricing", "procurement": "View channel procurement" },
       "load_failed": "Failed to load business data",
       "metrics": { "revenue": "Revenue CNY", "cost": "Procurement Cost CNY", "profit": "Gross Profit CNY", "margin": "Gross Margin", "yyc": "Router YYC Consumed", "requests": "Requests", "floor_triggered": "Floor triggers", "floor_amount": "Floor impact CNY" },
       "confidence": { "title": "Cost data confidence", "coverage": "Actual cost coverage {{value}}", "detail": "Estimated {{estimated}}, pending {{pending}}, unconfigured {{unconfigured}}" },
@@ -3441,7 +3444,7 @@
       "channel_placeholder": "Filter channel", "model_placeholder": "Filter model"
     },
     "procurement_report": {
-      "nav": "Procurement Cost",
+      "nav": "Channel Procurement",
       "title": "Procurement Cost Report",
       "empty": "No procurement cost data",
       "health": {

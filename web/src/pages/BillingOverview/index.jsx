@@ -107,6 +107,12 @@ function BillingOverview() {
         breadcrumbs={[{ key: 'billing', label: t('header.billing') }, { key: 'billing-overview', label: t('billing.overview.title'), active: true }]}
         actions={<><AppSelect clearable options={report.items.map((item) => ({ key: item.dimension_key, value: item.dimension_key, text: item.dimension_key }))} value={channelID} placeholder={t('billing.overview.channel_placeholder')} onChange={(e, { value }) => setChannelID((value || '').toString())} /><AppSelect clearable options={modelOptions} value={modelName} placeholder={t('billing.overview.model_placeholder')} onChange={(e, { value }) => setModelName((value || '').toString())} /><AppButton className='router-page-button' color='blue' loading={loading} onClick={() => load().then()}>{t('common.refresh')}</AppButton></>}
       />
+      <div className='billing-overview-map' role='note'>
+        <strong>{t('billing.overview.structure.title')}</strong>
+        <span>{t('billing.overview.structure.summary')}</span>
+        <Link to='/admin/billing/pricing-analysis'>{t('billing.overview.structure.pricing')}</Link>
+        <Link to='/admin/billing/procurement-report'>{t('billing.overview.structure.procurement')}</Link>
+      </div>
       <AppSpin spinning={loading}>
         <AppSection className='billing-overview-section'>
           <div className='billing-overview-metric-grid'>

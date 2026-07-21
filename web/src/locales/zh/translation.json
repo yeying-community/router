@@ -778,6 +778,7 @@
         }
       },
       "billing": {
+        "structure_hint": "这里维护该渠道的上游采购事实：采购记录生成采购批次，批次容量被请求消费后形成单位成本；它不是用户支付记录。",
         "title": "账务",
         "hint": "这里展示的是渠道账务权益项，不是上游原始字段。系统统一按权益项维护额度、余额、信用额度、套餐有效期等信息，并基于这些标准字段做刷新、告警和后续自动化动作。",
         "load_failed": "加载渠道账务信息失败",
@@ -2765,6 +2766,7 @@
         }
       },
       "spending": {
+        "flow": { "title": "收支口径", "summary": "支付/充值是用户侧收入与现金流；请求消耗是用户权益的使用结果；渠道采购是上游成本，最终在计费经营总览中与收入匹配计算毛利。" },
         "insights": {
           "net_positive": "净流入为正",
           "net_positive_hint": "当前周期内充值大于消费，收支保持正向。",
@@ -3412,7 +3414,7 @@
       "columns": { "channel": "渠道", "requests": "请求数", "yyc": "消耗 YYC", "revenue": "收入 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "batches": "采购批次" }
     },
     "pricing_analysis": {
-      "nav": "定价分析",
+      "nav": "模型定价",
       "title": "定价分析",
       "load_failed": "定价分析加载失败",
       "group_placeholder": "筛选分组",
@@ -3427,6 +3429,7 @@
     "overview": {
       "nav": "经营总览",
       "title": "计费经营总览",
+      "structure": { "title": "计费结构", "summary": "总览看收入与成本结果；模型定价看售价是否覆盖成本；渠道采购看上游采购批次与成本归因。", "pricing": "查看模型定价", "procurement": "查看渠道采购" },
       "load_failed": "经营数据加载失败",
       "metrics": { "revenue": "收入 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "yyc": "Router 消耗 YYC", "requests": "请求数", "floor_triggered": "底线触发次数", "floor_amount": "底线影响 CNY" },
       "confidence": { "title": "成本数据可信度", "coverage": "真实成本覆盖 {{value}}", "detail": "估算 {{estimated}}，待归因 {{pending}}，未配置 {{unconfigured}}" },
@@ -3436,7 +3439,7 @@
       "channel_placeholder": "筛选渠道", "model_placeholder": "筛选模型"
     },
     "procurement_report": {
-      "nav": "采购成本",
+      "nav": "渠道采购",
       "title": "采购成本报表",
       "empty": "暂无采购成本数据",
       "health": {
