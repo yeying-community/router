@@ -12,14 +12,15 @@ import (
 )
 
 type GroupModelBindingItem struct {
-	Model           string `json:"model"`
-	ChannelId       string `json:"channel_id"`
-	UpstreamModel   string `json:"upstream_model"`
-	Enabled         *bool  `json:"enabled,omitempty"`
-	Priority        *int64 `json:"priority,omitempty"`
-	ChannelName     string `json:"channel_name,omitempty"`
-	ChannelProtocol string `json:"channel_protocol,omitempty"`
-	ChannelStatus   int    `json:"channel_status,omitempty"`
+	Model           string   `json:"model"`
+	ChannelId       string   `json:"channel_id"`
+	UpstreamModel   string   `json:"upstream_model"`
+	Enabled         *bool    `json:"enabled,omitempty"`
+	Priority        *int64   `json:"priority,omitempty"`
+	BillingRatio    *float64 `json:"billing_ratio,omitempty"`
+	ChannelName     string   `json:"channel_name,omitempty"`
+	ChannelProtocol string   `json:"channel_protocol,omitempty"`
+	ChannelStatus   int      `json:"channel_status,omitempty"`
 }
 
 type GroupChannelModelOption struct {
@@ -39,12 +40,13 @@ type GroupChannelModels struct {
 }
 
 type GroupModelViewChannel struct {
-	ChannelId       string `json:"channel_id"`
-	ChannelName     string `json:"channel_name"`
-	ChannelProtocol string `json:"channel_protocol"`
-	ChannelStatus   int    `json:"channel_status"`
-	UpstreamModel   string `json:"upstream_model"`
-	Priority        *int64 `json:"priority,omitempty"`
+	ChannelId       string  `json:"channel_id"`
+	ChannelName     string  `json:"channel_name"`
+	ChannelProtocol string  `json:"channel_protocol"`
+	ChannelStatus   int     `json:"channel_status"`
+	UpstreamModel   string  `json:"upstream_model"`
+	Priority        *int64  `json:"priority,omitempty"`
+	BillingRatio    float64 `json:"billing_ratio"`
 }
 
 type GroupModelViewItem struct {
@@ -88,6 +90,7 @@ func ListGroupModelsPayload(groupID string) (GroupModelsPayload, error) {
 			ChannelStatus:   item.ChannelStatus,
 			UpstreamModel:   NormalizeGroupModelChannelUpstreamModel(modelName, item.UpstreamModel),
 			Priority:        helperInt64Pointer(item.Priority),
+			BillingRatio:    resolveGroupModelChannelBillingRatio(item.BillingRatio),
 		})
 	}
 	items := make([]GroupModelViewItem, 0, len(groupModels))
@@ -139,6 +142,9 @@ func ReplaceGroupModels(groupID string, channelIDs []string, items []GroupModelB
 	}); err != nil {
 		return err
 	}
+	if err := syncGroupRuntimeCachesWithDB(DB); err != nil {
+		return err
+	}
 	RefreshGroupModelChannelCachesForGroups(groupCatalog.Id)
 	return nil
 }
@@ -157,6 +163,9 @@ func ReplaceSingleGroupModel(groupID string, modelName string, items []GroupMode
 	}); err != nil {
 		return err
 	}
+	if err := syncGroupRuntimeCachesWithDB(DB); err != nil {
+		return err
+	}
 	RefreshGroupModelChannelCachesForGroups(groupCatalog.Id)
 	return nil
 }
@@ -173,6 +182,9 @@ func DeleteSingleGroupModel(groupID string, modelName string) error {
 	if err := DB.Transaction(func(tx *gorm.DB) error {
 		return deleteSingleGroupModelWithDB(tx, groupCatalog.Id, normalizedModelName)
 	}); err != nil {
+		return err
+	}
+	if err := syncGroupRuntimeCachesWithDB(DB); err != nil {
 		return err
 	}
 	RefreshGroupModelChannelCachesForGroups(groupCatalog.Id)
@@ -223,6 +235,11 @@ func replaceSingleGroupModelWithDB(db *gorm.DB, groupID string, modelName string
 	if err != nil {
 		return err
 	}
+	existingRatios, err := LoadGroupModelChannelBillingRatiosWithDB(db, []string{groupID}, []string{modelName}, nil)
+	if err != nil {
+		return err
+	}
+	ratioOverrides := BuildGroupModelChannelBillingRatioOverrides(groupID, normalizedItems)
 
 	groupCol := `"group"`
 	if err := db.Where(groupCol+" = ? AND model = ?", groupID, modelName).Delete(&GroupModelChannel{}).Error; err != nil {
@@ -278,6 +295,7 @@ func replaceSingleGroupModelWithDB(db *gorm.DB, groupID string, modelName string
 			UpstreamModel: NormalizeGroupModelChannelUpstreamModel(modelName, upstreamModel),
 			Provider:      itemProvider,
 			Priority:      priority,
+			BillingRatio:  defaultGroupModelChannelBillingRatio(),
 		})
 	}
 
@@ -300,7 +318,7 @@ func replaceSingleGroupModelWithDB(db *gorm.DB, groupID string, modelName string
 	}).Create(&groupModel).Error; err != nil {
 		return err
 	}
-	rows = normalizeGroupModelChannelRowsPreserveOrder(rows)
+	rows = ApplyGroupModelChannelBillingRatios(normalizeGroupModelChannelRowsPreserveOrder(rows), ratioOverrides, existingRatios)
 	if len(rows) == 0 {
 		return nil
 	}
@@ -432,6 +450,7 @@ func buildGroupModelBindingItems(rows []GroupModelChannel, channelByID map[strin
 			UpstreamModel:   NormalizeGroupModelChannelUpstreamModel(modelName, route.UpstreamModel),
 			Enabled:         helperBoolPointer(enabled),
 			Priority:        helperInt64Pointer(route.Priority),
+			BillingRatio:    helperFloat64Pointer(normalizeGroupModelChannelBillingRatio(route.BillingRatio)),
 			ChannelName:     channel.DisplayName(),
 			ChannelProtocol: channel.GetProtocol(),
 			ChannelStatus:   channel.Status,
@@ -585,6 +604,11 @@ func replaceGroupModelsWithDB(db *gorm.DB, groupID string, channelIDs []string, 
 	if err != nil {
 		return err
 	}
+	existingRatios, err := LoadGroupModelChannelBillingRatiosWithDB(db, []string{groupID}, nil, nil)
+	if err != nil {
+		return err
+	}
+	ratioOverrides := BuildGroupModelChannelBillingRatioOverrides(groupID, normalizedItems)
 	for _, channelID := range allowedChannelIDs {
 		channel := channelsByID[channelID]
 		if channel == nil {
@@ -592,7 +616,7 @@ func replaceGroupModelsWithDB(db *gorm.DB, groupID string, channelIDs []string, 
 		}
 		rows = append(rows, BuildGroupModelChannelsForChannel(groupID, channel, groupModels, priorityByChannelID[channelID])...)
 	}
-	rows = normalizeGroupModelChannelRowsPreserveOrder(rows)
+	rows = ApplyGroupModelChannelBillingRatios(normalizeGroupModelChannelRowsPreserveOrder(rows), ratioOverrides, existingRatios)
 
 	if err := db.Where(groupCol+" = ?", groupID).Delete(&GroupModelChannel{}).Error; err != nil {
 		return err
@@ -617,12 +641,17 @@ func normalizeGroupModelBindingItems(items []GroupModelBindingItem) ([]GroupMode
 			UpstreamModel: strings.TrimSpace(item.UpstreamModel),
 			Enabled:       item.Enabled,
 			Priority:      helperInt64Pointer(item.Priority),
+			BillingRatio:  item.BillingRatio,
 		}
 		if normalized.Model == "" && normalized.ChannelId == "" && normalized.UpstreamModel == "" {
 			continue
 		}
 		if normalized.Model == "" || normalized.ChannelId == "" {
 			return nil, fmt.Errorf("分组模型存在未填写完整的行")
+		}
+		if normalized.BillingRatio != nil {
+			ratio := resolveGroupModelChannelBillingRatio(normalized.BillingRatio)
+			normalized.BillingRatio = helperFloat64Pointer(ratio)
 		}
 		result = append(result, normalized)
 	}

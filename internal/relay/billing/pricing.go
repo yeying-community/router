@@ -17,7 +17,9 @@ type BillingSnapshot struct {
 	UsageSource           string           `json:"usage_source,omitempty"`
 	EstimateSource        string           `json:"estimate_source,omitempty"`
 	SettlementMode        string           `json:"settlement_mode,omitempty"`
-	GroupRatio            float64          `json:"group_ratio,omitempty"`
+	EffectiveRatio        float64          `json:"effective_ratio,omitempty"`
+	GroupChannelRatio     float64          `json:"group_channel_ratio,omitempty"`
+	ModelChannelRatio     float64          `json:"model_channel_ratio,omitempty"`
 	ChargeRate            float64          `json:"charge_rate,omitempty"`
 	InputQuantity         float64          `json:"input_quantity,omitempty"`
 	OutputQuantity        float64          `json:"output_quantity,omitempty"`
@@ -55,7 +57,9 @@ func (snapshot BillingSnapshot) ApplyToLog(log *model.Log) {
 	log.BillingUsageSource = snapshot.UsageSource
 	log.BillingEstimateSource = snapshot.EstimateSource
 	log.BillingSettlementMode = snapshot.SettlementMode
-	log.BillingGroupRatio = snapshot.GroupRatio
+	log.BillingEffectiveRatio = snapshot.EffectiveRatio
+	log.BillingGroupChannelRatio = snapshot.GroupChannelRatio
+	log.BillingModelChannelRatio = snapshot.ModelChannelRatio
 	log.BillingChargeRate = snapshot.ChargeRate
 	log.BillingInputQuantity = snapshot.InputQuantity
 	log.BillingOutputQuantity = snapshot.OutputQuantity
@@ -89,6 +93,15 @@ func (snapshot BillingSnapshot) ApplyToLog(log *model.Log) {
 			log.BillingPricingRuleVersion = PricingRuleVersionOfficialAnchorV1
 		}
 	}
+}
+
+func (snapshot *BillingSnapshot) SetBillingRatioBreakdown(ratio model.BillingRatioBreakdown) {
+	if snapshot == nil {
+		return
+	}
+	snapshot.EffectiveRatio = ratio.EffectiveRatio
+	snapshot.GroupChannelRatio = ratio.GroupChannelRatio
+	snapshot.ModelChannelRatio = ratio.ModelChannelRatio
 }
 
 func ComputeTextPreConsumedQuota(promptTokens int, maxCompletionTokens int, pricing model.ResolvedModelPricing, groupRatio float64) (int64, error) {
@@ -266,7 +279,7 @@ func ComputeExplicitAmountBillingSnapshot(inputQuantity float64, outputQuantity 
 	snapshot := BillingSnapshot{
 		PriceUnit:      normalizePriceUnit(pricing.PriceUnit),
 		Currency:       normalizeCurrency(pricing.Currency),
-		GroupRatio:     groupRatio,
+		EffectiveRatio: groupRatio,
 		InputQuantity:  inputQuantity,
 		OutputQuantity: outputQuantity,
 		InputAmount:    inputAmount,
@@ -313,9 +326,9 @@ func ComputeImagePerImageQuota(imageCount int, multiplier float64, pricing model
 func ComputeImagePerImageBillingSnapshot(imageCount int, multiplier float64, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
 	if imageCount <= 0 {
 		return BillingSnapshot{
-			PriceUnit:  normalizePriceUnit(pricing.PriceUnit),
-			Currency:   normalizeCurrency(pricing.Currency),
-			GroupRatio: groupRatio,
+			PriceUnit:      normalizePriceUnit(pricing.PriceUnit),
+			Currency:       normalizeCurrency(pricing.Currency),
+			EffectiveRatio: groupRatio,
 		}, nil
 	}
 	quantity := float64(imageCount) * multiplier
@@ -333,9 +346,9 @@ func ComputeImagePerCallQuota(imageCount int, pricing model.ResolvedModelPricing
 func ComputeImagePerCallBillingSnapshot(imageCount int, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
 	if imageCount <= 0 {
 		return BillingSnapshot{
-			PriceUnit:  normalizePriceUnit(pricing.PriceUnit),
-			Currency:   normalizeCurrency(pricing.Currency),
-			GroupRatio: groupRatio,
+			PriceUnit:      normalizePriceUnit(pricing.PriceUnit),
+			Currency:       normalizeCurrency(pricing.Currency),
+			EffectiveRatio: groupRatio,
 		}, nil
 	}
 	return buildSingleSidedBillingSnapshot(1, primaryUnitPrice(pricing), pricing, groupRatio)
@@ -352,9 +365,9 @@ func ComputeAudioSpeechQuota(charCount int, pricing model.ResolvedModelPricing, 
 func ComputeAudioSpeechBillingSnapshot(charCount int, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
 	if charCount <= 0 {
 		return BillingSnapshot{
-			PriceUnit:  normalizePriceUnit(pricing.PriceUnit),
-			Currency:   normalizeCurrency(pricing.Currency),
-			GroupRatio: groupRatio,
+			PriceUnit:      normalizePriceUnit(pricing.PriceUnit),
+			Currency:       normalizeCurrency(pricing.Currency),
+			EffectiveRatio: groupRatio,
 		}, nil
 	}
 	return buildSingleSidedBillingSnapshot(float64(charCount), primaryUnitPrice(pricing), pricing, groupRatio)
@@ -371,9 +384,9 @@ func ComputeAudioTextQuota(tokenCount int, pricing model.ResolvedModelPricing, g
 func ComputeAudioTextBillingSnapshot(tokenCount int, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
 	if tokenCount <= 0 {
 		return BillingSnapshot{
-			PriceUnit:  normalizePriceUnit(pricing.PriceUnit),
-			Currency:   normalizeCurrency(pricing.Currency),
-			GroupRatio: groupRatio,
+			PriceUnit:      normalizePriceUnit(pricing.PriceUnit),
+			Currency:       normalizeCurrency(pricing.Currency),
+			EffectiveRatio: groupRatio,
 		}, nil
 	}
 	return buildSingleSidedBillingSnapshot(float64(tokenCount), primaryUnitPrice(pricing), pricing, groupRatio)
@@ -390,9 +403,9 @@ func ComputeVideoQuota(quantity float64, pricing model.ResolvedModelPricing, gro
 func ComputeVideoBillingSnapshot(quantity float64, pricing model.ResolvedModelPricing, groupRatio float64) (BillingSnapshot, error) {
 	if quantity <= 0 {
 		return BillingSnapshot{
-			PriceUnit:  normalizePriceUnit(pricing.PriceUnit),
-			Currency:   normalizeCurrency(pricing.Currency),
-			GroupRatio: groupRatio,
+			PriceUnit:      normalizePriceUnit(pricing.PriceUnit),
+			Currency:       normalizeCurrency(pricing.Currency),
+			EffectiveRatio: groupRatio,
 		}, nil
 	}
 	return buildSingleSidedBillingSnapshot(quantity, primaryUnitPrice(pricing), pricing, groupRatio)
@@ -406,7 +419,7 @@ func FormatPricingLog(pricing model.ResolvedModelPricing, groupRatio float64) st
 	component := strings.TrimSpace(pricing.MatchedComponent)
 	condition := strings.TrimSpace(pricing.MatchedCondition)
 	return fmt.Sprintf(
-		"计费: source=%s provider=%s type=%s component=%s condition=%s unit=%s currency=%s input=%.6f output=%.6f group=%.2f",
+		"计费: source=%s provider=%s type=%s component=%s condition=%s unit=%s currency=%s input=%.6f output=%.6f effective_ratio=%.6f",
 		source,
 		strings.TrimSpace(pricing.Provider),
 		strings.TrimSpace(pricing.Type),
@@ -460,7 +473,7 @@ func buildBillingSnapshot(inputQuantity float64, outputQuantity float64, inputPr
 	snapshot := BillingSnapshot{
 		PriceUnit:      normalizePriceUnit(pricing.PriceUnit),
 		Currency:       normalizeCurrency(pricing.Currency),
-		GroupRatio:     groupRatio,
+		EffectiveRatio: groupRatio,
 		InputQuantity:  inputQuantity,
 		OutputQuantity: outputQuantity,
 	}

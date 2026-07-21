@@ -62,13 +62,15 @@ const summarizeMatrix = (items) => {
   return Object.fromEntries(Object.entries(grouped).map(([model, values]) => {
     const inputs = new Set(values.map((item) => Number(item?.current_input_sell || 0)));
     const official = new Set(values.map((item) => Number(item?.official_input_price || 0)));
-    const ratios = new Set(values.map((item) => Number(item?.group_channel_ratio || 0)));
+    const ratios = new Set(values.map((item) => Number(item?.effective_ratio || 0)));
     return [model, {
       channel_count: values.length,
       mixed: inputs.size > 1 || official.size > 1 || ratios.size > 1,
       official_input_price: values[0]?.official_input_price || 0,
       current_input_sell: values[0]?.current_input_sell || 0,
       group_channel_ratio: values[0]?.group_channel_ratio || 0,
+      model_channel_ratio: values[0]?.model_channel_ratio || 0,
+      effective_ratio: values[0]?.effective_ratio || 0,
       pricing_source: values[0]?.pricing_source || '',
       procurement_cost_state: values[0]?.procurement_cost_state || 'unit_mismatch',
       procurement_cost_base_per_unit: values[0]?.procurement_cost_base_per_unit || 0,
@@ -180,7 +182,7 @@ function BillingPricingAnalysis() {
       key: 'ratio',
       width: 100,
       align: 'right',
-      render: (_, row) => row.pricing_matrix?.mixed ? t('billing.pricing_analysis.mixed') : Number(row.pricing_matrix?.group_channel_ratio || 0).toFixed(2),
+      render: (_, row) => row.pricing_matrix?.mixed ? t('billing.pricing_analysis.mixed') : Number(row.pricing_matrix?.effective_ratio || 0).toFixed(2),
     },
     {
       title: t('billing.pricing_analysis.columns.cost'),

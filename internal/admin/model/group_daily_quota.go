@@ -47,3 +47,7 @@ func syncGroupRuntimeCachesWithDB(db *gorm.DB) error {
 	}
 	return syncGroupBillingRatiosRuntimeWithDB(db)
 }
+
+func SyncGroupRuntimeCachesWithDB(db *gorm.DB) error {
+	return syncGroupRuntimeCachesWithDB(db)
+}

@@ -1499,6 +1499,8 @@
       "selected": "使用",
       "priority": "优先级",
       "channel_billing_ratio": "渠道业务倍率",
+      "model_channel_billing_ratio": "模型渠道倍率",
+      "model_channel_billing_ratio_short": "模型倍率",
       "channel_count": "渠道数",
       "model_channels": "渠道",
       "model_search_placeholder": "搜索模型或渠道",
@@ -2052,7 +2054,9 @@
         "estimated_prompt_tokens": "预估提示词消耗",
         "estimated_output_tokens": "预估输出计费数量",
         "billing_settlement_mode": "结算模式",
-        "billing_group_ratio": "命中业务倍率",
+        "billing_effective_ratio": "生效业务倍率",
+        "billing_group_channel_ratio": "分组渠道倍率",
+        "billing_model_channel_ratio": "模型渠道倍率",
         "billing_charge_rate": "折算比率",
         "billing_input_quantity": "输入计费数量",
         "billing_output_quantity": "输出计费数量",
@@ -3418,7 +3422,7 @@
       "states": { "healthy": "正常", "low_margin": "低毛利", "loss": "低于成本", "unknown": "数据不足" },
       "cost_states": { "actual_available": "真实成本可用", "estimated_only": "仅估算成本", "pending": "成本待归因", "none": "成本未配置", "unit_mismatch": "单位不匹配", "currency_mismatch": "币种不匹配" },
       "decision": { "cost_floor": "成本底线触发", "current_price": "当前售价可用" },
-      "columns": { "model": "模型", "state": "价格状态", "requests": "请求数", "router_yyc": "消耗 YYC", "sell": "售价 CNY", "official_price": "官方价格", "current_price": "当前价格", "ratio": "分组倍率", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "cost_coverage": "成本覆盖", "cost_state": "成本状态", "cost_unit": "采购单位成本", "selected_price": "成本底线售价", "decision": "价格决策", "floor_impact": "底线影响", "details": "明细", "view": "查看" }
+      "columns": { "model": "模型", "state": "价格状态", "requests": "请求数", "router_yyc": "消耗 YYC", "sell": "售价 CNY", "official_price": "官方价格", "current_price": "当前价格", "ratio": "生效倍率", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "cost_coverage": "成本覆盖", "cost_state": "成本状态", "cost_unit": "采购单位成本", "selected_price": "成本底线售价", "decision": "价格决策", "floor_impact": "底线影响", "details": "明细", "view": "查看" }
     },
     "overview": {
       "nav": "经营总览",

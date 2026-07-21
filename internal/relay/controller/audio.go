@@ -55,7 +55,8 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	}
 	var err error
 
-	groupRatio := adminmodel.GetGroupChannelBillingRatio(group, channelId)
+	billingRatio := adminmodel.GetRouteBillingRatio(group, audioModel, channelId)
+	groupRatio := billingRatio.EffectiveRatio
 	pricing, pricingErr := adminmodel.ResolveChannelModelPricing(channelProtocol, meta.ChannelModelConfigs, audioModel)
 	if pricingErr != nil {
 		if groupRatio == 0 {
@@ -82,6 +83,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
+		billingSnapshot.SetBillingRatioBreakdown(billingRatio)
 		annotateAudioBillingSnapshot(&billingSnapshot, pricing.Source, relayMode)
 		if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, channelId, audioModel); err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
@@ -95,6 +97,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
+		billingSnapshot.SetBillingRatioBreakdown(billingRatio)
 		annotateAudioBillingSnapshot(&billingSnapshot, pricing.Source, relayMode)
 		if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, channelId, audioModel); err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
@@ -258,6 +261,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 		if err != nil {
 			return openai.ErrorWrapper(err, "calculate_audio_quota_failed", http.StatusInternalServerError)
 		}
+		billingSnapshot.SetBillingRatioBreakdown(billingRatio)
 		annotateAudioBillingSnapshot(&billingSnapshot, pricing.Source, relayMode)
 		if err := billing.ApplyEstimatedProcurementCostFloor(&billingSnapshot, channelId, audioModel); err != nil {
 			logger.Errorf(ctx, "audio billing procurement cost estimate failed user_id=%s group=%s channel_id=%s model=%s err=%q", strings.TrimSpace(userId), strings.TrimSpace(group), strings.TrimSpace(channelId), strings.TrimSpace(audioModel), err.Error())
@@ -271,6 +275,7 @@ func RelayAudioHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 	succeed = true
 	quotaDelta := quota - preConsumedQuota
 	billingSnapshot.ChargeAmount = quota
+	billingSnapshot.SetBillingRatioBreakdown(billingRatio)
 	defer func(ctx context.Context) {
 		go billing.PostConsumeQuota(
 			ctx,

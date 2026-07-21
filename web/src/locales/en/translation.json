@@ -1499,6 +1499,8 @@
       "selected": "Use",
       "priority": "Priority",
       "channel_billing_ratio": "Channel Ratio",
+      "model_channel_billing_ratio": "Model Channel Ratio",
+      "model_channel_billing_ratio_short": "Model Ratio",
       "channel_count": "Channel Count",
       "model_channels": "Channels",
       "model_search_placeholder": "Search model or channel",
@@ -2052,7 +2054,9 @@
         "estimated_prompt_tokens": "Estimated Prompt Tokens",
         "estimated_output_tokens": "Estimated Output Quantity",
         "billing_settlement_mode": "Settlement Mode",
-        "billing_group_ratio": "Applied Business Ratio",
+        "billing_effective_ratio": "Effective Business Ratio",
+        "billing_group_channel_ratio": "Group Channel Ratio",
+        "billing_model_channel_ratio": "Model Channel Ratio",
         "billing_charge_rate": "Conversion Rate",
         "billing_input_quantity": "Input Quantity",
         "billing_output_quantity": "Output Quantity",
@@ -3423,7 +3427,7 @@
       "states": { "healthy": "Healthy", "low_margin": "Low margin", "loss": "Below cost", "unknown": "Insufficient data" },
       "cost_states": { "actual_available": "Actual cost available", "estimated_only": "Estimated only", "pending": "Cost pending", "none": "Cost not configured", "unit_mismatch": "Unit mismatch", "currency_mismatch": "Currency mismatch" },
       "decision": { "cost_floor": "Cost floor triggered", "current_price": "Current price usable" },
-      "columns": { "model": "Model", "state": "Pricing state", "requests": "Requests", "router_yyc": "YYC consumed", "sell": "Sell CNY", "official_price": "Official price", "current_price": "Current price", "ratio": "Group ratio", "cost": "Cost CNY", "profit": "Profit CNY", "margin": "Margin", "cost_coverage": "Cost coverage", "cost_state": "Cost state", "cost_unit": "Procurement unit cost", "selected_price": "Cost-floor sell", "decision": "Price decision", "floor_impact": "Floor impact", "details": "Details", "view": "View" }
+      "columns": { "model": "Model", "state": "Pricing state", "requests": "Requests", "router_yyc": "YYC consumed", "sell": "Sell CNY", "official_price": "Official price", "current_price": "Current price", "ratio": "Effective ratio", "cost": "Cost CNY", "profit": "Profit CNY", "margin": "Margin", "cost_coverage": "Cost coverage", "cost_state": "Cost state", "cost_unit": "Procurement unit cost", "selected_price": "Cost-floor sell", "decision": "Price decision", "floor_impact": "Floor impact", "details": "Details", "view": "View" }
     },
     "overview": {
       "nav": "Business Overview",

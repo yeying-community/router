@@ -98,27 +98,35 @@ func buildRealtimeProxyLog(relayMeta *meta.Meta, upstreamURL string, usage *rela
 	if modelName == "" {
 		modelName = strings.TrimSpace(relayMeta.OriginModelName)
 	}
+	ratioModel := strings.TrimSpace(relayMeta.OriginModelName)
+	if ratioModel == "" {
+		ratioModel = modelName
+	}
+	billingRatio := adminmodel.GetRouteBillingRatio(relayMeta.Group, ratioModel, relayMeta.ChannelId)
 	entry := &adminmodel.Log{
-		UserId:                strings.TrimSpace(relayMeta.UserId),
-		GroupId:               strings.TrimSpace(relayMeta.Group),
-		ChannelId:             strings.TrimSpace(relayMeta.ChannelId),
-		ModelName:             modelName,
-		TokenName:             strings.TrimSpace(relayMeta.TokenName),
-		Quota:                 0,
-		BillingSource:         adminmodel.ResolveConsumeLogBillingSource(true),
-		BillingUsageSource:    billingUsageSourceWebsocketProxy,
-		BillingEstimateSource: billingEstimateSourceRealtimeUnmeteredProxy,
-		BillingSettlementMode: billingSettlementModeRealtimeUnmeteredProxy,
-		BillingChargeAmount:   0,
-		Content:               "realtime websocket proxy connected; usage metering is not implemented yet; upstream_url=" + strings.TrimSpace(upstreamURL),
-		IsStream:              true,
-		ElapsedTime:           helper.CalcElapsedTime(relayMeta.StartTime),
+		UserId:                   strings.TrimSpace(relayMeta.UserId),
+		GroupId:                  strings.TrimSpace(relayMeta.Group),
+		ChannelId:                strings.TrimSpace(relayMeta.ChannelId),
+		ModelName:                modelName,
+		TokenName:                strings.TrimSpace(relayMeta.TokenName),
+		Quota:                    0,
+		BillingSource:            adminmodel.ResolveConsumeLogBillingSource(true),
+		BillingUsageSource:       billingUsageSourceWebsocketProxy,
+		BillingEstimateSource:    billingEstimateSourceRealtimeUnmeteredProxy,
+		BillingSettlementMode:    billingSettlementModeRealtimeUnmeteredProxy,
+		BillingEffectiveRatio:    billingRatio.EffectiveRatio,
+		BillingGroupChannelRatio: billingRatio.GroupChannelRatio,
+		BillingModelChannelRatio: billingRatio.ModelChannelRatio,
+		BillingChargeAmount:      0,
+		Content:                  "realtime websocket proxy connected; usage metering is not implemented yet; upstream_url=" + strings.TrimSpace(upstreamURL),
+		IsStream:                 true,
+		ElapsedTime:              helper.CalcElapsedTime(relayMeta.StartTime),
 	}
 	applyRouteObservabilityToLog(entry, relayMeta, modelName)
 	if usage == nil || usage.PromptTokens+usage.CompletionTokens <= 0 {
 		return entry
 	}
-	groupRatio := adminmodel.GetGroupChannelBillingRatio(relayMeta.Group, relayMeta.ChannelId)
+	groupRatio := billingRatio.EffectiveRatio
 	pricing, err := adminmodel.ResolveChannelModelPricing(relayMeta.ChannelProtocol, relayMeta.ChannelModelConfigs, modelName)
 	if err != nil {
 		if groupRatio == 0 {
@@ -141,6 +149,7 @@ func buildRealtimeProxyLog(relayMeta *meta.Meta, upstreamURL string, usage *rela
 		entry.Content = "realtime websocket proxy connected; usage returned but billing snapshot failed; upstream_url=" + strings.TrimSpace(upstreamURL)
 		return entry
 	}
+	snapshot.SetBillingRatioBreakdown(billingRatio)
 	snapshot.PricingSource = strings.TrimSpace(pricing.Source)
 	snapshot.UsageSource = billingUsageSourceUpstreamUsage
 	snapshot.EstimateSource = billingEstimateSourceRealtimeUpstreamUsage

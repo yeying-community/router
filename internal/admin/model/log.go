@@ -30,7 +30,9 @@ type Log struct {
 	BillingEstimateEstimator         string  `json:"billing_estimate_estimator" gorm:"type:varchar(64);default:''"`
 	BillingEstimatePrecision         string  `json:"billing_estimate_precision" gorm:"type:varchar(32);default:''"`
 	BillingSettlementMode            string  `json:"billing_settlement_mode" gorm:"type:varchar(64);default:''"`
-	BillingGroupRatio                float64 `json:"billing_group_ratio" gorm:"type:double precision;default:0"`
+	BillingEffectiveRatio            float64 `json:"billing_effective_ratio" gorm:"type:double precision;default:0"`
+	BillingGroupChannelRatio         float64 `json:"billing_group_channel_ratio" gorm:"type:double precision;default:0"`
+	BillingModelChannelRatio         float64 `json:"billing_model_channel_ratio" gorm:"type:double precision;default:0"`
 	BillingChargeRate                float64 `json:"billing_charge_rate" gorm:"type:double precision;default:0"`
 	BillingInputQuantity             float64 `json:"billing_input_quantity" gorm:"type:double precision;default:0"`
 	BillingOutputQuantity            float64 `json:"billing_output_quantity" gorm:"type:double precision;default:0"`

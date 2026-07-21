@@ -1873,8 +1873,30 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return removeGroupBaseRatioAndOfficialMarkupWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607211130_model_channel_billing_ratio",
+			Description: "add route-level billing ratio and replace ambiguous group ratio log field",
+			Up: func(tx *gorm.DB) error {
+				return migrateModelChannelBillingRatioWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
+}
+
+func migrateModelChannelBillingRatioWithDB(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if err := db.AutoMigrate(&GroupModelChannel{}, &Log{}); err != nil {
+		return err
+	}
+	if db.Migrator().HasColumn(EventLogsTableName, "billing_group_ratio") {
+		if err := db.Migrator().DropColumn(EventLogsTableName, "billing_group_ratio"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func removeGroupBaseRatioAndOfficialMarkupWithDB(db *gorm.DB) error {

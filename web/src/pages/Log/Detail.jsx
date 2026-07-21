@@ -769,10 +769,26 @@ const LogDetail = () => {
                     </div>
                     <div className='router-detail-item'>
                       <div className='router-detail-label'>
-                        {t('log.detail.fields.billing_group_ratio')}
+                        {t('log.detail.fields.billing_effective_ratio')}
                       </div>
                       <pre className='router-detail-value'>
-                        {formatNumber(log?.billing_group_ratio, 6)}
+                        {formatNumber(log?.billing_effective_ratio, 6)}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_group_channel_ratio')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {formatNumber(log?.billing_group_channel_ratio, 6)}
+                      </pre>
+                    </div>
+                    <div className='router-detail-item'>
+                      <div className='router-detail-label'>
+                        {t('log.detail.fields.billing_model_channel_ratio')}
+                      </div>
+                      <pre className='router-detail-value'>
+                        {formatNumber(log?.billing_model_channel_ratio, 6)}
                       </pre>
                     </div>
                     <div className='router-detail-item'>

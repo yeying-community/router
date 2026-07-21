@@ -345,6 +345,28 @@ func TestComputeExplicitAmountBillingSnapshot(t *testing.T) {
 	}
 }
 
+func TestBillingSnapshotApplyToLogWritesRatioBreakdown(t *testing.T) {
+	snapshot := BillingSnapshot{}
+	snapshot.SetBillingRatioBreakdown(adminmodel.BillingRatioBreakdown{
+		GroupChannelRatio: 1.5,
+		ModelChannelRatio: 2,
+		EffectiveRatio:    3,
+	})
+	log := &adminmodel.Log{}
+
+	snapshot.ApplyToLog(log)
+
+	if log.BillingGroupChannelRatio != 1.5 {
+		t.Fatalf("BillingGroupChannelRatio = %v, want 1.5", log.BillingGroupChannelRatio)
+	}
+	if log.BillingModelChannelRatio != 2 {
+		t.Fatalf("BillingModelChannelRatio = %v, want 2", log.BillingModelChannelRatio)
+	}
+	if log.BillingEffectiveRatio != 3 {
+		t.Fatalf("BillingEffectiveRatio = %v, want 3", log.BillingEffectiveRatio)
+	}
+}
+
 func TestDecidePricingKeepsCurrentChargeForOfficialAnchor(t *testing.T) {
 	decision := DecidePricing(PricingDecisionInput{
 		OfficialAnchor: MoneyAmount{Amount: 1, Currency: adminmodel.BillingCurrencyCodeCNY},

@@ -31,6 +31,8 @@ type PricingMatrixItem struct {
 	PriceUnit                  string  `json:"price_unit"`
 	Currency                   string  `json:"currency"`
 	GroupChannelRatio          float64 `json:"group_channel_ratio"`
+	ModelChannelRatio          float64 `json:"model_channel_ratio"`
+	EffectiveRatio             float64 `json:"effective_ratio"`
 	CurrentInputSell           float64 `json:"current_input_sell"`
 	CurrentOutputSell          float64 `json:"current_output_sell"`
 	PricingSource              string  `json:"pricing_source"`
@@ -90,7 +92,8 @@ func ListPricingMatrixWithDB(db *gorm.DB, query PricingMatrixQuery) ([]PricingMa
 			COALESCE(NULLIF(cm.output_price, 0), pm.output_price, 0) AS output_price,
 			COALESCE(NULLIF(cm.price_unit, ''), pm.price_unit, '') AS price_unit,
 			COALESCE(NULLIF(cm.currency, ''), pm.currency, '') AS currency,
-			gc.billing_ratio AS group_channel_ratio
+			gc.billing_ratio AS group_channel_ratio,
+			gmc.billing_ratio AS model_channel_ratio
 		FROM group_model_channels gmc
 		JOIN group_channels gc ON gc."group" = gmc."group" AND gc.channel_id = gmc.channel_id
 		LEFT JOIN channel_models cm ON cm.channel_id = gmc.channel_id AND cm.model = gmc.model
@@ -106,8 +109,11 @@ func ListPricingMatrixWithDB(db *gorm.DB, query PricingMatrixQuery) ([]PricingMa
 	}
 	for index := range rows {
 		row := &rows[index]
-		row.CurrentInputSell = row.InputPrice * row.GroupChannelRatio
-		row.CurrentOutputSell = row.OutputPrice * row.GroupChannelRatio
+		row.GroupChannelRatio = normalizeGroupBillingRatio(row.GroupChannelRatio)
+		row.ModelChannelRatio = normalizeGroupModelChannelBillingRatio(row.ModelChannelRatio)
+		row.EffectiveRatio = row.GroupChannelRatio * row.ModelChannelRatio
+		row.CurrentInputSell = row.InputPrice * row.EffectiveRatio
+		row.CurrentOutputSell = row.OutputPrice * row.EffectiveRatio
 		switch {
 		case row.InputPrice <= 0 && row.OutputPrice <= 0:
 			row.PricingState = "price_missing"

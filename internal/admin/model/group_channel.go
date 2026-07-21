@@ -163,6 +163,10 @@ func replaceGroupChannelsWithItemsDB(db *gorm.DB, groupID string, items []GroupC
 	if err != nil {
 		return err
 	}
+	existingRatios, err := LoadGroupModelChannelBillingRatiosWithDB(db, []string{groupID}, nil, nil)
+	if err != nil {
+		return err
+	}
 	rows := make([]GroupModelChannel, 0)
 	for _, id := range normalizedChannelIDs {
 		channel, ok := channelsByID[id]
@@ -177,7 +181,7 @@ func replaceGroupChannelsWithItemsDB(db *gorm.DB, groupID string, items []GroupC
 		}
 		rows = append(rows, channelAbilities...)
 	}
-	rows = normalizeGroupModelChannelRowsPreserveOrder(rows)
+	rows = ApplyGroupModelChannelBillingRatios(normalizeGroupModelChannelRowsPreserveOrder(rows), nil, existingRatios)
 
 	if err := db.Where(groupCol+" = ?", groupID).Delete(&GroupModelChannel{}).Error; err != nil {
 		return err
@@ -233,8 +237,12 @@ func refreshGroupModelChannelsForChannelWithDB(db *gorm.DB, channelID string, re
 		if err != nil {
 			return err
 		}
+		existingRatios, err := LoadGroupModelChannelBillingRatiosWithDB(db, []string{groupID}, nil, []string{normalizedChannelID})
+		if err != nil {
+			return err
+		}
 		rows := BuildGroupModelChannelsForChannel(groupID, channel, groupModels, priorityByChannelID[normalizedChannelID])
-		rows = normalizeGroupModelChannelRowsPreserveOrder(rows)
+		rows = ApplyGroupModelChannelBillingRatios(normalizeGroupModelChannelRowsPreserveOrder(rows), nil, existingRatios)
 		if err := db.Where(groupCol+" = ? AND channel_id = ?", groupID, normalizedChannelID).Delete(&GroupModelChannel{}).Error; err != nil {
 			return err
 		}
@@ -469,6 +477,7 @@ func BuildGroupModelChannelsForChannel(groupID string, channel *Channel, groupMo
 			UpstreamModel: NormalizeGroupModelChannelUpstreamModel(modelName, upstream),
 			Provider:      provider,
 			Priority:      priority,
+			BillingRatio:  defaultGroupModelChannelBillingRatio(),
 		})
 	}
 	for _, row := range channelSelectedModels(channel) {
@@ -499,6 +508,7 @@ func BuildGroupModelChannelsForChannel(groupID string, channel *Channel, groupMo
 			UpstreamModel: upstream,
 			Provider:      provider,
 			Priority:      priority,
+			BillingRatio:  defaultGroupModelChannelBillingRatio(),
 		})
 	}
 	return result
