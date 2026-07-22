@@ -1894,6 +1894,20 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return refreshQwenChinaPricingWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607221230_qwen_file_input_specifications",
+			Description: "add structured file input specifications for Qwen file transcription",
+			Up: func(tx *gorm.DB) error {
+				return refreshQwenChinaPricingWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607221330_provider_file_input_capabilities",
+			Description: "add documented file input capabilities for OpenAI, Anthropic, and Google catalog models",
+			Up: func(tx *gorm.DB) error {
+				return refreshOfficialProviderFileInputWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

@@ -14,6 +14,9 @@ type ProviderModelSpecification struct {
 type ProviderModelEndpointSpecification struct {
 	InputModalities  []string                                       `json:"input_modalities,omitempty"`
 	OutputModalities []string                                       `json:"output_modalities,omitempty"`
+	FileTypes        []string                                       `json:"file_types,omitempty"`
+	SupportsUpload   bool                                           `json:"supports_upload,omitempty"`
+	SupportsURL      bool                                           `json:"supports_url,omitempty"`
 	Parameters       map[string]ProviderModelParameterSpecification `json:"parameters,omitempty"`
 	Constraints      *ProviderModelConstraintSpecification          `json:"constraints,omitempty"`
 }
@@ -65,6 +68,9 @@ func NormalizeProviderModelSpecification(spec *ProviderModelSpecification) *Prov
 			normalizedEndpoint := ProviderModelEndpointSpecification{
 				InputModalities:  normalizeSpecificationValues(endpointSpec.InputModalities),
 				OutputModalities: normalizeSpecificationValues(endpointSpec.OutputModalities),
+				FileTypes:        normalizeSpecificationValues(endpointSpec.FileTypes),
+				SupportsUpload:   endpointSpec.SupportsUpload,
+				SupportsURL:      endpointSpec.SupportsURL,
 			}
 			if len(endpointSpec.Parameters) > 0 {
 				normalizedEndpoint.Parameters = make(map[string]ProviderModelParameterSpecification, len(endpointSpec.Parameters))
@@ -216,4 +222,23 @@ func ParseProviderModelSpecification(raw string) (*ProviderModelSpecification, e
 		return nil, err
 	}
 	return NormalizeProviderModelSpecification(&spec), nil
+}
+
+// ProviderModelSpecificationSupportsFileInput reports whether an endpoint
+// explicitly declares file input. A file_input tag alone is intentionally not
+// sufficient for tool integrations because accepted formats and transport
+// details are needed to build a safe request.
+func ProviderModelSpecificationSupportsFileInput(spec *ProviderModelSpecification) bool {
+	if spec == nil {
+		return false
+	}
+	for _, endpoint := range spec.Endpoints {
+		for _, modality := range endpoint.InputModalities {
+			if strings.EqualFold(strings.TrimSpace(modality), "file") ||
+				strings.EqualFold(strings.TrimSpace(modality), "audio_file") {
+				return len(endpoint.FileTypes) > 0 && (endpoint.SupportsUpload || endpoint.SupportsURL)
+			}
+		}
+	}
+	return false
 }

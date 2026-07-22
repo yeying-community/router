@@ -27,9 +27,19 @@ func refreshQwenChinaPricingWithDB(db *gorm.DB) error {
 	const sourceURL = "https://help.aliyun.com/zh/model-studio/model-pricing"
 	fileTranscriptionEndpoints, _ := json.Marshal([]string{"/v1/audio/transcriptions"})
 	fileTranscriptionTags := strings.Join(NormalizeProviderModelTags([]string{ProviderModelTagAudio, ProviderModelTagFileInput}), ",")
-	if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "provider"}, {Name: "model"}}, DoUpdates: clause.AssignmentColumns([]string{"tags", "supported_endpoints", "input_price", "output_price", "price_unit", "currency", "source", "updated_at"})}).Create(&ProviderModel{
+	fileTranscriptionSpec, _ := json.Marshal(ProviderModelSpecification{
+		Version: 1,
+		Endpoints: map[string]ProviderModelEndpointSpecification{
+			"/v1/audio/transcriptions": {
+				InputModalities: []string{"audio_file"},
+				FileTypes:       []string{"mp3", "wav", "m4a", "flac", "aac"},
+				SupportsUpload:  true,
+			},
+		},
+	})
+	if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "provider"}, {Name: "model"}}, DoUpdates: clause.AssignmentColumns([]string{"tags", "supported_endpoints", "specification", "input_price", "output_price", "price_unit", "currency", "source", "updated_at"})}).Create(&ProviderModel{
 		Provider: "qwen", Model: "qwen3-asr-flash-filetrans", Tags: fileTranscriptionTags,
-		SupportedEndpoints: string(fileTranscriptionEndpoints), InputPrice: 0.00022, PriceUnit: ProviderPriceUnitPerSecond,
+		SupportedEndpoints: string(fileTranscriptionEndpoints), Specification: string(fileTranscriptionSpec), InputPrice: 0.00022, PriceUnit: ProviderPriceUnitPerSecond,
 		Currency: "CNY", Source: "migration", UpdatedAt: helper.GetTimestamp(),
 	}).Error; err != nil {
 		return err
