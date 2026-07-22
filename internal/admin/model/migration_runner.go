@@ -1880,6 +1880,20 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return migrateModelChannelBillingRatioWithDB(tx)
 			},
 		},
+		{
+			Version:     "202607221030_qwen_china_realtime_pricing_and_file_tag",
+			Description: "fill China mainland Qwen realtime prices and mark existing file-transfer models",
+			Up: func(tx *gorm.DB) error {
+				return refreshQwenChinaPricingWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607221130_qwen_china_catalog_extension",
+			Description: "extend China mainland Qwen catalog with VL, audio, image, embedding, and rerank models",
+			Up: func(tx *gorm.DB) error {
+				return refreshQwenChinaPricingWithDB(tx)
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }
