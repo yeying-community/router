@@ -39,7 +39,7 @@ func applyRedemptionEntitlementProduct(productID string, redemption *model.Redem
 	redemption.EntitlementProductID = product.Id
 	redemption.ProductKind = product.Kind
 	redemption.ProductNameSnapshot = product.Name
-	redemption.QuotaAmountSnapshot = product.QuotaAmount
+	redemption.QuotaAmountSnapshot = model.NewRedemptionQuotaAmountSnapshot(product.QuotaAmount)
 	redemption.QuotaCurrencySnapshot = product.QuotaCurrency
 	redemption.ValidityDaysSnapshot = product.ValidityDays
 	redemption.GroupIDSnapshot = product.GroupID

@@ -3,6 +3,7 @@ package presenter
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/yeying-community/router/internal/admin/model"
 )
 
@@ -64,14 +65,14 @@ func TestNewCreatedTokenKeepsKey(t *testing.T) {
 func TestNewRedemptionAddsAmountField(t *testing.T) {
 	row := &model.Redemption{
 		Id:                  "r1",
-		QuotaAmountSnapshot: 2048,
+		QuotaAmountSnapshot: decimal.NewFromInt(2048),
 	}
 	view := NewRedemption(row)
 	if view == nil {
 		t.Fatal("NewRedemption returned nil")
 	}
-	if view.CreditAmount != int64(row.QuotaAmountSnapshot) {
-		t.Fatalf("credit_amount=%d, want %d", view.CreditAmount, int64(row.QuotaAmountSnapshot))
+	if view.CreditAmount != 2048 {
+		t.Fatalf("credit_amount=%d, want 2048", view.CreditAmount)
 	}
 }
 

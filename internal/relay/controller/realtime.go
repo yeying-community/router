@@ -160,7 +160,7 @@ func buildRealtimeProxyLog(relayMeta *meta.Meta, upstreamURL string, usage *rela
 	}
 	entry.PromptTokens = usage.PromptTokens
 	entry.CompletionTokens = usage.CompletionTokens
-	entry.Quota = int(snapshot.ChargeAmount)
+	entry.Quota = snapshot.ChargeAmount
 	entry.BillingSource = adminmodel.ResolveConsumeLogBillingSource(true)
 	entry.Content = buildTextBillingLogContent(pricing, groupRatio, contentSuffix)
 	snapshot.ApplyToLog(entry)

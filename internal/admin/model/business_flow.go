@@ -354,7 +354,7 @@ func ListAdminRedemptionRecordsPageWithDB(db *gorm.DB, page int, pageSize int, k
 	query := db.Table("redemptions AS r").
 		Joins("LEFT JOIN users u ON u.id = r.redeemed_by_user_id").
 		Joins("LEFT JOIN "+GroupCatalog{}.TableName()+" g ON g.id = r.group_id").
-		Where("r.redeemed_time > 0 AND r.status = ?", RedemptionCodeStatusUsed)
+		Where("r.redeemed_time > 0 AND r.status = ? AND COALESCE(TRIM(r.entitlement_product_id), '') <> ''", RedemptionCodeStatusUsed)
 	if normalizedUserID := strings.TrimSpace(userID); normalizedUserID != "" {
 		query = query.Where("r.redeemed_by_user_id = ?", normalizedUserID)
 	}
@@ -403,7 +403,7 @@ func GetAdminRedemptionRecordByIDWithDB(db *gorm.DB, id string) (AdminRedemption
 	err := db.Table("redemptions AS r").
 		Joins("LEFT JOIN users u ON u.id = r.redeemed_by_user_id").
 		Joins("LEFT JOIN "+GroupCatalog{}.TableName()+" g ON g.id = r.group_id").
-		Where("r.id = ? AND r.redeemed_time > 0 AND r.status = ?", normalizedID, RedemptionCodeStatusUsed).
+		Where("r.id = ? AND r.redeemed_time > 0 AND r.status = ? AND COALESCE(TRIM(r.entitlement_product_id), '') <> ''", normalizedID, RedemptionCodeStatusUsed).
 		Select(`
 			r.id,
 			r.redeemed_by_user_id,

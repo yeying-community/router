@@ -24,6 +24,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/pkoukk/tiktoken-go v0.1.8
+	github.com/shopspring/decimal v1.4.0
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.32.0
@@ -31,13 +32,11 @@ require (
 	golang.org/x/sync v0.10.0
 	google.golang.org/api v0.187.0
 	gorm.io/driver/postgres v1.5.7
+	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gorm v1.25.10
 )
 
-require (
-	github.com/mattn/go-sqlite3 v1.14.22 // indirect
-	gorm.io/driver/sqlite v1.5.7 // indirect
-)
+require github.com/mattn/go-sqlite3 v1.14.22 // indirect
 
 require (
 	cloud.google.com/go/auth v0.6.1 // indirect

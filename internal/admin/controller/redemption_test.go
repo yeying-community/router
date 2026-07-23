@@ -3,6 +3,7 @@ package controller
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/yeying-community/router/internal/admin/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -27,7 +28,7 @@ func TestCreateRedemptionsWithDBRollsBackBatchOnInsertFailure(t *testing.T) {
 		GroupID:               "group-1",
 		EntitlementProductID:  "product-1",
 		ProductKind:           model.EntitlementProductKindBalance,
-		QuotaAmountSnapshot:   100,
+		QuotaAmountSnapshot:   decimal.NewFromInt(100),
 		QuotaCurrencySnapshot: model.BillingCurrencyCodeYYC,
 		Count:                 2,
 		CodeValidityDays:      7,
@@ -60,7 +61,7 @@ func TestCreateRedemptionsWithDBRecordsIssueAudit(t *testing.T) {
 		GroupID:               "group-1",
 		EntitlementProductID:  "product-1",
 		ProductKind:           model.EntitlementProductKindBalance,
-		QuotaAmountSnapshot:   100,
+		QuotaAmountSnapshot:   decimal.NewFromInt(100),
 		QuotaCurrencySnapshot: model.BillingCurrencyCodeYYC,
 		Count:                 2,
 		CodeValidityDays:      7,

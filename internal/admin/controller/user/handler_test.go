@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/internal/admin/model"
 	"gorm.io/driver/sqlite"
@@ -151,7 +152,7 @@ func TestBuildAdminTopUpBalanceLotListItemsWithSources(t *testing.T) {
 		Name:                  "Gift code",
 		EntitlementProductID:  "product-1",
 		ProductKind:           model.EntitlementProductKindBalance,
-		QuotaAmountSnapshot:   800,
+		QuotaAmountSnapshot:   decimal.NewFromInt(800),
 		QuotaCurrencySnapshot: model.BillingCurrencyCodeYYC,
 		RedeemedTime:          110,
 		CreatedTime:           95,

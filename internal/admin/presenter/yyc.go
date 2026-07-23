@@ -77,9 +77,10 @@ func NewRedemption(redemption *model.Redemption) *Redemption {
 	if redemption == nil {
 		return nil
 	}
+	creditAmount, _ := redemption.QuotaAmountSnapshotInt64()
 	return &Redemption{
 		Redemption:   redemption,
-		CreditAmount: int64(redemption.QuotaAmountSnapshot),
+		CreditAmount: creditAmount,
 	}
 }
 
@@ -239,9 +240,9 @@ func NewLogStatistics(rows []*model.LogStatistic) []*LogStatistic {
 
 type Log struct {
 	*model.Log
-	ChargeAmount              int `json:"charge_amount"`
-	UserDailyChargeAmount     int `json:"user_daily_charge_amount"`
-	UserEmergencyChargeAmount int `json:"user_emergency_charge_amount"`
+	ChargeAmount              int64 `json:"charge_amount"`
+	UserDailyChargeAmount     int   `json:"user_daily_charge_amount"`
+	UserEmergencyChargeAmount int   `json:"user_emergency_charge_amount"`
 }
 
 func NewLog(row *model.Log) *Log {

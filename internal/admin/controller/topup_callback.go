@@ -169,7 +169,7 @@ func ProcessTopupCallback(c *gin.Context) {
 				c.Request.Context(),
 				order.UserID,
 				"外部支付充值 "+quotaText+" 额度",
-				int(order.Quota),
+				order.Quota,
 			)
 		}
 	}

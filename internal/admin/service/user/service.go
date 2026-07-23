@@ -71,7 +71,7 @@ func RecordLog(ctx context.Context, userId string, logType int, content string) 
 	userrepo.RecordLog(ctx, userId, logType, content)
 }
 
-func RecordTopupLog(ctx context.Context, userId string, remark string, quota int) {
+func RecordTopupLog(ctx context.Context, userId string, remark string, quota int64) {
 	userrepo.RecordTopupLog(ctx, userId, remark, quota)
 }
 

@@ -118,7 +118,7 @@ func buildPostConsumeLogEntry(userId string, groupID string, channelId string, m
 		CompletionTokens:   0,
 		ModelName:          modelName,
 		TokenName:          tokenName,
-		Quota:              int(totalQuota),
+		Quota:              totalQuota,
 		UserDailyQuota:     userDailyQuota,
 		UserEmergencyQuota: userEmergencyQuota,
 		Content:            FormatPricingLog(pricing, groupRatio),

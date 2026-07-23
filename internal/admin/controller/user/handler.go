@@ -2264,16 +2264,16 @@ type adminTopUpBalanceLotListData struct {
 }
 
 type topUpBalanceLotSourceDetail struct {
-	Type         string  `json:"type"`
-	ID           string  `json:"id"`
-	Title        string  `json:"title,omitempty"`
-	Status       string  `json:"status,omitempty"`
-	CreditOrigin string  `json:"credit_origin,omitempty"`
-	Amount       float64 `json:"amount,omitempty"`
-	Currency     string  `json:"currency,omitempty"`
-	CreditAmount int64   `json:"credit_amount,omitempty"`
-	OccurredAt   int64   `json:"occurred_at,omitempty"`
-	DetailPath   string  `json:"detail_path,omitempty"`
+	Type         string `json:"type"`
+	ID           string `json:"id"`
+	Title        string `json:"title,omitempty"`
+	Status       string `json:"status,omitempty"`
+	CreditOrigin string `json:"credit_origin,omitempty"`
+	Amount       any    `json:"amount,omitempty"`
+	Currency     string `json:"currency,omitempty"`
+	CreditAmount int64  `json:"credit_amount,omitempty"`
+	OccurredAt   int64  `json:"occurred_at,omitempty"`
+	DetailPath   string `json:"detail_path,omitempty"`
 }
 
 func buildAdminTopUpBalanceLotListItemsWithSources(db *gorm.DB, lots []model.UserBalanceLot) ([]adminTopUpBalanceLotListItem, error) {
@@ -2396,6 +2396,7 @@ func loadTopupBalanceLotRedemptionSourceDetails(db *gorm.DB, ids []string) (map[
 		if occurredAt <= 0 {
 			occurredAt = redemption.CreatedTime
 		}
+		creditAmount, _ := redemption.QuotaAmountSnapshotInt64()
 		details[id] = topUpBalanceLotSourceDetail{
 			Type:         model.UserBalanceLotSourceRedeem,
 			ID:           id,
@@ -2403,7 +2404,7 @@ func loadTopupBalanceLotRedemptionSourceDetails(db *gorm.DB, ids []string) (map[
 			Status:       "used",
 			Amount:       redemption.QuotaAmountSnapshot,
 			Currency:     strings.TrimSpace(redemption.QuotaCurrencySnapshot),
-			CreditAmount: int64(redemption.QuotaAmountSnapshot),
+			CreditAmount: creditAmount,
 			OccurredAt:   occurredAt,
 			DetailPath:   "/admin/redemption/records/" + id,
 		}
@@ -3496,7 +3497,7 @@ func AdminTopUp(c *gin.Context) {
 		})
 		return
 	}
-	usersvc.RecordTopupLog(ctx, req.UserId, remark, req.Quota)
+	usersvc.RecordTopupLog(ctx, req.UserId, remark, int64(req.Quota))
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",

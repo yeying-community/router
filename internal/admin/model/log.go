@@ -15,7 +15,7 @@ type Log struct {
 	ModelName                        string  `json:"model_name" gorm:"index;index:index_username_model_name,priority:1;default:''"`
 	GroupId                          string  `json:"group_id" gorm:"type:varchar(64);index"`
 	GroupName                        string  `json:"group_name,omitempty" gorm:"-"`
-	Quota                            int     `json:"quota" gorm:"default:0"`
+	Quota                            int64   `json:"quota" gorm:"type:bigint;default:0"`
 	BillingSource                    string  `json:"billing_source" gorm:"type:varchar(32);index;default:''"`
 	BillingSourceID                  string  `json:"billing_source_id" gorm:"type:char(36);index;default:''"`
 	BillingSourceName                string  `json:"billing_source_name" gorm:"type:varchar(255);default:''"`
@@ -138,7 +138,7 @@ func RecordLog(ctx context.Context, userId string, logType int, content string) 
 	mustLogRepo().RecordLog(ctx, userId, logType, content)
 }
 
-func RecordTopupLog(ctx context.Context, userId string, content string, quota int) {
+func RecordTopupLog(ctx context.Context, userId string, content string, quota int64) {
 	mustLogRepo().RecordTopupLog(ctx, userId, content, quota)
 }
 

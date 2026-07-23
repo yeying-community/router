@@ -581,6 +581,6 @@ func RecordLog(ctx context.Context, userId string, logType int, content string) 
 	model.RecordLog(ctx, userId, logType, content)
 }
 
-func RecordTopupLog(ctx context.Context, userId string, remark string, quota int) {
+func RecordTopupLog(ctx context.Context, userId string, remark string, quota int64) {
 	model.RecordTopupLog(ctx, userId, remark, quota)
 }

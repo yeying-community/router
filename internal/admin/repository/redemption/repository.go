@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"gorm.io/gorm"
@@ -194,6 +195,13 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			redemption.GroupID = strings.TrimSpace(groupRow.Id)
 			redemption.GroupName = strings.TrimSpace(groupRow.Name)
 		}
+		quotaAmount, err := redemption.QuotaAmountSnapshotInt64()
+		if err != nil {
+			return err
+		}
+		if quotaAmount <= 0 {
+			return errors.New("兑换额度必须大于 0")
+		}
 		beforeBalanceAmount, err := model.GetEffectiveUserBalanceAmountWithDB(tx, userId, now)
 		if err != nil {
 			return err
@@ -204,7 +212,7 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			UserID:      strings.TrimSpace(userId),
 			SourceType:  model.UserBalanceLotSourceRedeem,
 			SourceID:    strings.TrimSpace(redemption.Id),
-			TotalAmount: int64(redemption.QuotaAmountSnapshot),
+			TotalAmount: quotaAmount,
 			GrantedAt:   redeemedAt,
 			ExpiresAt:   creditExpiresAt,
 		})
@@ -213,7 +221,10 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 		}
 		quotaIncrement := int64(0)
 		if creditedNow {
-			quotaIncrement = int64(redemption.QuotaAmountSnapshot)
+			quotaIncrement = quotaAmount
+		}
+		if quotaIncrement > 0 && beforeBalanceAmount > math.MaxInt64-quotaIncrement {
+			return errors.New("兑换后余额超出账本范围")
 		}
 		afterBalanceAmount := beforeBalanceAmount + quotaIncrement
 		userUpdates := map[string]any{}
@@ -234,7 +245,7 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 			return err
 		}
 		result = model.RedemptionResult{
-			RedeemedAmount:      int64(redemption.QuotaAmountSnapshot),
+			RedeemedAmount:      quotaAmount,
 			BeforeBalanceAmount: beforeBalanceAmount,
 			AfterBalanceAmount:  afterBalanceAmount,
 			RedemptionID:        strings.TrimSpace(redemption.Id),
@@ -250,11 +261,11 @@ func Redeem(ctx context.Context, code string, userId string) (model.RedemptionRe
 		return model.RedemptionResult{}, errors.New("兑换失败，" + err.Error())
 	}
 	model.RefreshUserGroupCaches(userId)
-	logContent := fmt.Sprintf("通过兑换码充值 %s", common.LogQuota(int64(redemption.QuotaAmountSnapshot)))
+	logContent := fmt.Sprintf("通过兑换码充值 %s", common.LogQuota(result.RedeemedAmount))
 	if redemptionName := strings.TrimSpace(redemption.Name); redemptionName != "" {
-		logContent = fmt.Sprintf("通过兑换码充值（%s）%s", redemptionName, common.LogQuota(int64(redemption.QuotaAmountSnapshot)))
+		logContent = fmt.Sprintf("通过兑换码充值（%s）%s", redemptionName, common.LogQuota(result.RedeemedAmount))
 	}
-	model.RecordTopupLog(ctx, userId, logContent, int(redemption.QuotaAmountSnapshot))
+	model.RecordTopupLog(ctx, userId, logContent, result.RedeemedAmount)
 	return result, nil
 }
 
@@ -287,7 +298,7 @@ func SelectUpdate(redemption *model.Redemption) error {
 
 func Update(redemption *model.Redemption) error {
 	return model.DB.Model(redemption).
-		Select("name", "status", "group_id", "face_value_amount", "face_value_unit", "quota", "code_validity_days", "code_expires_at", "credit_validity_days", "credit_expires_at", "redeemed_time").
+		Select("name", "status").
 		Updates(redemption).Error
 }
 
