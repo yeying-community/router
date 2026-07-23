@@ -134,6 +134,7 @@ func loadProcurementReportUnconfiguredModelChannels(summary model.ProcurementRep
 		model.ProcurementCostSourceActual,
 		model.ProcurementCostSourceEstimated,
 		model.ProcurementCostSourceZeroCost,
+		"pending",
 	}
 	query := model.LOG_DB.Table(model.EventLogsTableName).
 		Select(`
@@ -576,6 +577,8 @@ func GetProcurementReport(c *gin.Context) {
 		GroupBy:   c.Query("group_by"),
 		CostScope: c.Query("cost_scope"),
 		GroupID:   strings.TrimSpace(c.Query("group_id")),
+		ChannelID: strings.TrimSpace(c.Query("channel_id")),
+		Model:     strings.TrimSpace(c.Query("model")),
 	})
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{

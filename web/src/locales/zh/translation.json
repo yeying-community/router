@@ -3448,10 +3448,12 @@
       "structure": { "title": "计费结构", "summary": "总览看收入与成本结果；模型定价看售价是否覆盖成本；渠道采购看上游采购批次与成本归因。", "pricing": "查看模型定价", "procurement": "查看渠道采购" },
       "load_failed": "经营数据加载失败",
       "metrics": { "revenue": "收入 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "yyc": "Router 消耗 YYC", "requests": "请求数", "floor_triggered": "底线触发次数", "floor_amount": "底线影响 CNY" },
+      "tokens": { "title": "Token 消耗结构", "input": "输入 Token", "output": "输出 Token", "cache_read": "缓存读取 Token", "cache_write": "缓存写入 Token" },
       "confidence": { "title": "成本数据可信度", "coverage": "真实成本覆盖 {{value}}", "detail": "估算 {{estimated}}，待归因 {{pending}}，未配置 {{unconfigured}}" },
-      "risks": { "title": "待处理风险", "view_details": "查看明细", "empty": "暂未发现待处理风险" },
+      "operating_risks": { "title": "当前范围经营异常", "view_details": "查看模型定价", "empty": "当前范围未发现经营异常", "unconfigured": "{{model}} 有 {{count}} 个请求未配置成本", "loss": "{{model}} 正式毛利为 {{amount}}", "low_margin": "{{model}} 正式毛利率仅 {{margin}}", "floor": "{{model}} 触发成本底线 {{count}} 次", "estimated": "{{model}} 有 {{count}} 个请求仅使用估算成本", "pending": "{{model}} 有 {{count}} 个请求成本待归因" },
+      "configuration_risks": { "title": "全局计费配置风险", "view_details": "查看渠道采购", "empty": "未发现全局计费配置风险" },
       "channels": { "title": "渠道底线影响", "view_details": "查看渠道对账", "empty": "暂无渠道数据" },
-      "trend": { "title": "近 7 天底线趋势" },
+      "trend": { "title": "近 7 天消耗与毛利趋势", "tokens": "输入 {{input}} / 输出 {{output}}", "financials": "收入 {{revenue}} / 成本 {{cost}} / 毛利 {{profit}}", "coverage": "正式成本 {{configured}} / {{total}}" },
       "channel_placeholder": "筛选渠道", "model_placeholder": "筛选模型"
     },
     "procurement_report": {

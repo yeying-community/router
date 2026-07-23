@@ -640,6 +640,9 @@ func SetChannelModelPublishEnabledWithDB(db *gorm.DB, channelID string, modelNam
 			if duplicateCount > 0 {
 				return fmt.Errorf("发布名称 %s 已被该渠道其他模型使用，请先取消原模型发布", normalizedPublishedModel)
 			}
+			if err := ValidateChannelModelProcurementCostReadyWithDB(tx, row); err != nil {
+				return err
+			}
 		}
 		now := helper.GetTimestamp()
 		updates := map[string]any{

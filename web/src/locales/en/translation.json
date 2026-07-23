@@ -3453,10 +3453,12 @@
       "structure": { "title": "Billing structure", "summary": "Overview shows revenue and cost results. Model Pricing checks price coverage. Channel Procurement tracks upstream batches and cost attribution.", "pricing": "View model pricing", "procurement": "View channel procurement" },
       "load_failed": "Failed to load business data",
       "metrics": { "revenue": "Revenue CNY", "cost": "Procurement Cost CNY", "profit": "Gross Profit CNY", "margin": "Gross Margin", "yyc": "Router YYC Consumed", "requests": "Requests", "floor_triggered": "Floor triggers", "floor_amount": "Floor impact CNY" },
+      "tokens": { "title": "Token consumption", "input": "Input tokens", "output": "Output tokens", "cache_read": "Cache-read tokens", "cache_write": "Cache-write tokens" },
       "confidence": { "title": "Cost data confidence", "coverage": "Actual cost coverage {{value}}", "detail": "Estimated {{estimated}}, pending {{pending}}, unconfigured {{unconfigured}}" },
-      "risks": { "title": "Risks to handle", "view_details": "View details", "empty": "No pending risks" },
+      "operating_risks": { "title": "Operating exceptions in scope", "view_details": "View model pricing", "empty": "No operating exception in the current scope", "unconfigured": "{{model}} has {{count}} requests without cost", "loss": "{{model}} has formal profit of {{amount}}", "low_margin": "{{model}} has only {{margin}} formal margin", "floor": "{{model}} triggered the cost floor {{count}} times", "estimated": "{{model}} has {{count}} requests using estimated cost only", "pending": "{{model}} has {{count}} requests pending cost attribution" },
+      "configuration_risks": { "title": "Global billing configuration risks", "view_details": "View channel procurement", "empty": "No global billing configuration risk" },
       "channels": { "title": "Channel floor impact", "view_details": "View reconciliation", "empty": "No channel data" },
-      "trend": { "title": "7-day floor trend" },
+      "trend": { "title": "7-day consumption and margin trend", "tokens": "Input {{input}} / Output {{output}}", "financials": "Revenue {{revenue}} / Cost {{cost}} / Profit {{profit}}", "coverage": "Formal cost {{configured}} / {{total}}" },
       "channel_placeholder": "Filter channel", "model_placeholder": "Filter model"
     },
     "procurement_report": {

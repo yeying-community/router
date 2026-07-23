@@ -483,6 +483,7 @@ func TestSetChannelModelPublishEnabledWithDBAllowsGPTImage2TokenBilling(t *testi
 		&ChannelModelEndpoint{},
 		&ChannelModelEndpointTestResult{},
 		&ChannelModelPriceComponent{},
+		&ChannelProcurementBatch{},
 	); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
@@ -527,6 +528,21 @@ func TestSetChannelModelPublishEnabledWithDBAllowsGPTImage2TokenBilling(t *testi
 		LastTestStatus: ChannelModelEndpointTestStatusSuccess,
 	}).Error; err != nil {
 		t.Fatalf("create endpoint test result: %v", err)
+	}
+	if err := db.Create(&ChannelProcurementBatch{
+		Id:                "batch-gpt-image-2",
+		ChannelId:         "channel-1",
+		ScopeType:         "model",
+		ScopeValue:        "gpt-image-2",
+		CapacityUnit:      "token",
+		CapacityTotal:     1000000,
+		CapacityEffective: 1000000,
+		CapacityRemaining: 1000000,
+		CostPerUnitAmount: 0.000001,
+		CostSource:        ProcurementCostSourceActual,
+		CostStatus:        ProcurementCostStatusActive,
+	}).Error; err != nil {
+		t.Fatalf("create procurement batch: %v", err)
 	}
 
 	if err := SetChannelModelPublishEnabledWithDB(db, "channel-1", "gpt-image-2", true, "gpt-image-2-public", "tester"); err != nil {

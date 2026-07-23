@@ -934,6 +934,11 @@ func TestListProcurementReportWithDB(t *testing.T) {
 			ChannelId:                        "channel-1",
 			UpstreamEndpoint:                 "/v1/chat/completions",
 			ModelName:                        "gpt-5",
+			ActualModelName:                  "gpt-5-routed",
+			BillingInputQuantity:             1000,
+			BillingOutputQuantity:            200,
+			BillingCacheReadQuantity:         300,
+			BillingCacheWriteQuantity:        40,
 			BillingChargeAmount:              100,
 			BillingSellBaseAmount:            10,
 			BillingProcurementCostBaseAmount: 4,
@@ -947,6 +952,9 @@ func TestListProcurementReportWithDB(t *testing.T) {
 			ChannelId:                    "channel-1",
 			UpstreamEndpoint:             "/v1/chat/completions",
 			ModelName:                    "gpt-5",
+			ActualModelName:              "gpt-5-routed",
+			BillingInputQuantity:         500,
+			BillingOutputQuantity:        100,
 			BillingChargeAmount:          80,
 			BillingSellBaseAmount:        8,
 			BillingProcurementCostSource: ProcurementCostSourceNone,
@@ -1006,6 +1014,23 @@ func TestListProcurementReportWithDB(t *testing.T) {
 	if report.RouterConsumedYYC != 230 {
 		t.Fatalf("RouterConsumedYYC=%d, want 230", report.RouterConsumedYYC)
 	}
+	if report.InputQuantity != 1500 || report.OutputQuantity != 300 || report.CacheReadQuantity != 300 || report.CacheWriteQuantity != 40 {
+		t.Fatalf("unexpected token quantities: input=%v output=%v cache_read=%v cache_write=%v", report.InputQuantity, report.OutputQuantity, report.CacheReadQuantity, report.CacheWriteQuantity)
+	}
+
+	filteredReport, err := ListProcurementReportWithDB(db, ProcurementReportQuery{
+		StartAt:   90,
+		EndAt:     140,
+		GroupBy:   ProcurementReportGroupByModel,
+		ChannelID: "channel-1",
+		Model:     "gpt-5-routed",
+	})
+	if err != nil {
+		t.Fatalf("list filtered report: %v", err)
+	}
+	if filteredReport.RequestCount != 2 || len(filteredReport.Items) != 1 || filteredReport.Items[0].DimensionKey != "gpt-5-routed" {
+		t.Fatalf("unexpected filtered report: requests=%d items=%+v", filteredReport.RequestCount, filteredReport.Items)
+	}
 
 	endpointReport, err := ListProcurementReportWithDB(db, ProcurementReportQuery{
 		StartAt: 90,
@@ -1042,5 +1067,45 @@ func TestListProcurementReportWithDB(t *testing.T) {
 	}
 	if unconfiguredReport.GrossProfitBaseAmount != 0 {
 		t.Fatalf("unconfigured GrossProfitBaseAmount=%v, want 0", unconfiguredReport.GrossProfitBaseAmount)
+	}
+}
+
+func TestListProcurementReportDoesNotClassifyEstimatedCostAsUnconfigured(t *testing.T) {
+	db := newProcurementTestDB(t)
+	if err := db.Create(&Log{
+		Id:                               "log-estimated",
+		Type:                             LogTypeConsume,
+		CreatedAt:                        100,
+		ChannelId:                        "channel-1",
+		ModelName:                        "model-1",
+		BillingSellBaseAmount:            10,
+		BillingProcurementCostBaseAmount: 4,
+		BillingProcurementCostSource:     ProcurementCostSourceEstimated,
+		BillingGrossProfitBaseAmount:     6,
+	}).Error; err != nil {
+		t.Fatalf("seed estimated log: %v", err)
+	}
+	report, err := ListProcurementReportWithDB(db, ProcurementReportQuery{
+		StartAt: 90,
+		EndAt:   110,
+		GroupBy: ProcurementReportGroupByChannel,
+	})
+	if err != nil {
+		t.Fatalf("list report: %v", err)
+	}
+	if report.RequestCount != 1 || report.EstimatedCostRequestCount != 1 || report.UnconfiguredCostRequestCount != 0 {
+		t.Fatalf("unexpected counts: requests=%d estimated=%d unconfigured=%d", report.RequestCount, report.EstimatedCostRequestCount, report.UnconfiguredCostRequestCount)
+	}
+	unconfigured, err := ListProcurementReportWithDB(db, ProcurementReportQuery{
+		StartAt:   90,
+		EndAt:     110,
+		GroupBy:   ProcurementReportGroupByChannel,
+		CostScope: ProcurementReportCostScopeUnconfigured,
+	})
+	if err != nil {
+		t.Fatalf("list unconfigured report: %v", err)
+	}
+	if unconfigured.RequestCount != 0 {
+		t.Fatalf("unconfigured RequestCount=%d, want 0", unconfigured.RequestCount)
 	}
 }
