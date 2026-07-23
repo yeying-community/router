@@ -3578,12 +3578,12 @@
     "tooltip": {
       "success_count": "成功数",
       "failure_count": "失败数",
-      "total_count": "调用数",
+      "total_count": "样本数",
       "pass_rate": "成功率",
       "avg_latency": "平均延迟",
-      "no_sample": "该时间窗口暂无调用样本",
+      "no_sample": "该时间窗口暂无调用或健康检测样本",
       "summary": {
-        "bucket": "每个格子统计 5 分钟内真实请求的成功、失败和平均延迟。"
+        "bucket": "每个格子统计 5 分钟内真实请求或健康检测的成功、失败和平均延迟。"
       }
     },
     "card": {
