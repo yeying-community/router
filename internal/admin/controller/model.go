@@ -695,6 +695,57 @@ func loadUserModelStatusTestRows(channelIDs []string, modelNames []string) (map[
 	return result, nil
 }
 
+func buildUserModelStatusTestHealthAggregates(nowTs int64, rows []model.ChannelTest) []healthtrend.Aggregate {
+	start := healthtrend.WindowStart(nowTs)
+	if start <= 0 || len(rows) == 0 {
+		return []healthtrend.Aggregate{}
+	}
+	byBucket := make(map[int64]*healthtrend.Aggregate)
+	for _, row := range rows {
+		if row.TestedAt < start || row.TestedAt > nowTs {
+			continue
+		}
+		bucketStart := healthtrend.BucketStart(row.TestedAt)
+		if bucketStart <= 0 {
+			continue
+		}
+		agg := byBucket[bucketStart]
+		if agg == nil {
+			agg = &healthtrend.Aggregate{BucketStart: bucketStart}
+			byBucket[bucketStart] = agg
+		}
+		switch model.NormalizeChannelTestStatus(row.Status) {
+		case model.ChannelTestStatusSupported:
+			if row.Supported {
+				agg.SuccessCount++
+			} else {
+				agg.FailureCount++
+			}
+		case model.ChannelTestStatusSkipped:
+			// Encode skipped probes as mixed signal so the health strip shows
+			// a warning point without counting it as a hard unsupported result.
+			agg.SuccessCount++
+			agg.FailureCount++
+		default:
+			agg.FailureCount++
+		}
+		if row.LatencyMs > 0 {
+			agg.LatencyTotal += row.LatencyMs
+			agg.LatencyCount++
+		}
+	}
+	result := make([]healthtrend.Aggregate, 0, len(byBucket))
+	for _, agg := range byBucket {
+		if agg != nil {
+			result = append(result, *agg)
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].BucketStart < result[j].BucketStart
+	})
+	return result
+}
+
 func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error) {
 	resolved, err := resolveRequestAvailableModels(c)
 	if err != nil {
@@ -825,6 +876,12 @@ func buildUserModelStatusPayload(c *gin.Context) (UserModelStatusPayload, error)
 					continue
 				}
 				modelTestRows = append(modelTestRows, row)
+			}
+		}
+		if trafficSummary.TotalCount == 0 {
+			testAggregates := buildUserModelStatusTestHealthAggregates(nowTs, modelTestRows)
+			if len(testAggregates) > 0 {
+				item.HealthPoints = healthtrend.BuildPoints(nowTs, testAggregates)
 			}
 		}
 		sort.SliceStable(modelTestRows, func(i, j int) bool {

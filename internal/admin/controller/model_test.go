@@ -638,7 +638,7 @@ func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Set(ctxkey.AvailableModels, "gpt-5.4,claude-sonnet-4-6")
-	now := helper.GetTimestamp()
+	now := healthtrend.BucketStart(helper.GetTimestamp())
 
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
 	if err != nil {
@@ -657,7 +657,7 @@ func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
 			Status:    model.ChannelTestStatusSupported,
 			Supported: true,
 			LatencyMs: 1200,
-			TestedAt:  now - 20,
+			TestedAt:  now,
 		},
 		{
 			ChannelId: "channel-2",
@@ -668,7 +668,7 @@ func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
 			Status:    model.ChannelTestStatusUnsupported,
 			Supported: false,
 			LatencyMs: 3000,
-			TestedAt:  now - 10,
+			TestedAt:  now,
 		},
 		{
 			ChannelId: "channel-3",
@@ -679,7 +679,7 @@ func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
 			Status:    model.ChannelTestStatusSkipped,
 			Supported: false,
 			LatencyMs: 0,
-			TestedAt:  now - 30,
+			TestedAt:  now,
 		},
 	}).Error; err != nil {
 		t.Fatalf("create channel tests: %v", err)
@@ -748,12 +748,30 @@ func TestBuildUserModelStatusPayloadAggregatesGroupModels(t *testing.T) {
 	if len(gpt.HealthPoints) != healthtrend.BucketCount {
 		t.Fatalf("gpt health points = %d, want %d", len(gpt.HealthPoints), healthtrend.BucketCount)
 	}
-	if gpt.HealthPoints[len(gpt.HealthPoints)-1].State != healthtrend.StateUnknown {
-		t.Fatalf("gpt latest point state = %q, want unknown without traffic", gpt.HealthPoints[len(gpt.HealthPoints)-1].State)
+	gptObserved := make([]healthtrend.Point, 0)
+	for _, point := range gpt.HealthPoints {
+		if point.TotalCount > 0 {
+			gptObserved = append(gptObserved, point)
+		}
+	}
+	if len(gptObserved) != 1 {
+		t.Fatalf("gpt observed points = %d, want 1 from channel tests", len(gptObserved))
+	}
+	if gptObserved[0].State != healthtrend.StateWarning || gptObserved[0].SuccessCount != 1 || gptObserved[0].FailureCount != 1 {
+		t.Fatalf("gpt test point = %+v, want warning with 1 success and 1 failure", gptObserved[0])
 	}
 	claude := byModel["claude-sonnet-4-6"]
 	if len(claude.HealthPoints) != healthtrend.BucketCount {
 		t.Fatalf("claude health points = %d, want %d", len(claude.HealthPoints), healthtrend.BucketCount)
+	}
+	claudeObserved := make([]healthtrend.Point, 0)
+	for _, point := range claude.HealthPoints {
+		if point.TotalCount > 0 {
+			claudeObserved = append(claudeObserved, point)
+		}
+	}
+	if len(claudeObserved) != 1 || claudeObserved[0].State != healthtrend.StateWarning {
+		t.Fatalf("claude observed point = %+v, want one warning point from skipped test", claudeObserved)
 	}
 	if len(claude.SupportedEndpoints) != 1 || claude.SupportedEndpoints[0] != model.ChannelModelEndpointMessages {
 		t.Fatalf("claude endpoints = %#v, want messages", claude.SupportedEndpoints)

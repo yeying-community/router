@@ -3583,12 +3583,12 @@
     "tooltip": {
       "success_count": "Successes",
       "failure_count": "Failures",
-      "total_count": "Calls",
+      "total_count": "Samples",
       "pass_rate": "Success Rate",
       "avg_latency": "Average Latency",
-      "no_sample": "No call sample in this time window",
+      "no_sample": "No call or health-check sample in this time window",
       "summary": {
-        "bucket": "Each cell summarizes real request successes, failures, and average latency within 5 minutes."
+        "bucket": "Each cell summarizes real request or health-check successes, failures, and average latency within 5 minutes."
       }
     },
     "card": {
