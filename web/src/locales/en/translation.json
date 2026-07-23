@@ -638,6 +638,12 @@
         "type": "Type",
         "tags": "Tags",
         "supported_endpoints": "Supported Endpoints",
+        "specification": "Capability Specification",
+        "input_modalities": "Input Modalities",
+        "file_types": "File Types",
+        "file_transport": "File Transport",
+        "file_upload": "Upload",
+        "file_url": "URL",
         "price": "Price",
         "price_compact": "Input | Output",
         "input_price": "Input Price",
@@ -2932,7 +2938,13 @@
         "text": "Text",
         "image": "Image",
         "audio": "Audio",
-        "video": "Video"
+        "video": "Video",
+        "file_input": "File input",
+        "vision": "Vision",
+        "tool_calling": "Tool calling",
+        "reasoning": "Reasoning",
+        "realtime": "Realtime",
+        "structured_output": "Structured output"
       },
       "health": {
         "summary": {

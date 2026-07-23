@@ -165,7 +165,7 @@ func FulfillTopupReconcileRecord(c *gin.Context) {
 			c.Request.Context(),
 			fulfilledOrder.UserID,
 			"管理员补偿外部支付充值 "+strconv.FormatInt(fulfilledOrder.Quota, 10)+" 额度",
-			int(fulfilledOrder.Quota),
+			fulfilledOrder.Quota,
 		)
 	}
 	c.JSON(http.StatusOK, gin.H{

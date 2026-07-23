@@ -523,6 +523,10 @@ const normalizeModelDetails = (details) => {
         item.supported_endpoints,
         type,
       ),
+      specification:
+        item.specification && typeof item.specification === 'object'
+          ? item.specification
+          : null,
       input_price:
         Number.isFinite(inputPrice) && inputPrice > 0 ? inputPrice : 0,
       output_price:
@@ -2600,6 +2604,25 @@ const ProvidersManager = () => {
                 />
               </AppField>
             </AppFormRow>
+            {detail.specification ? (
+              <AppFormRow className='router-provider-model-detail-form-row'>
+                <AppField
+                  className='router-provider-model-detail-field-wide'
+                  label={t('channel.providers.model_detail_table.specification')}
+                >
+                  <div className='router-provider-model-specification'>
+                    {Object.entries(detail.specification.endpoints || {}).map(([endpoint, spec]) => (
+                      <div className='router-provider-model-specification-row' key={endpoint}>
+                        <strong className='router-monospace-value'>{endpoint}</strong>
+                        {Array.isArray(spec?.input_modalities) && spec.input_modalities.length > 0 ? <span>{t('channel.providers.model_detail_table.input_modalities')}: {spec.input_modalities.join(' / ')}</span> : null}
+                        {Array.isArray(spec?.file_types) && spec.file_types.length > 0 ? <span>{t('channel.providers.model_detail_table.file_types')}: {spec.file_types.join(' / ')}</span> : null}
+                        {spec?.supports_upload || spec?.supports_url ? <span>{t('channel.providers.model_detail_table.file_transport')}: {[spec.supports_upload ? t('channel.providers.model_detail_table.file_upload') : '', spec.supports_url ? t('channel.providers.model_detail_table.file_url') : ''].filter(Boolean).join(' / ')}</span> : null}
+                      </div>
+                    ))}
+                  </div>
+                </AppField>
+              </AppFormRow>
+            ) : null}
             <AppFormRow className='router-provider-model-detail-form-row'>
               <AppField
                 className='router-provider-model-detail-field-wide'

@@ -162,7 +162,7 @@ func RecordLog(ctx context.Context, userId string, logType int, content string) 
 	recordLogHelper(ctx, log)
 }
 
-func RecordTopupLog(ctx context.Context, userId string, content string, quota int) {
+func RecordTopupLog(ctx context.Context, userId string, content string, quota int64) {
 	log := &model.Log{
 		UserId:    userId,
 		Username:  model.GetUsernameById(userId),

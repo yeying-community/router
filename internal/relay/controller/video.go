@@ -484,7 +484,7 @@ func RelayVideoHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			CompletionTokens:   0,
 			ModelName:          videoRequest.Model,
 			TokenName:          tokenName,
-			Quota:              int(quota),
+			Quota:              quota,
 			UserDailyQuota:     userDailyQuota,
 			UserEmergencyQuota: userEmergencyQuota,
 			Content:            appendVideoSummaryToLogContent(billing.FormatPricingLog(pricing, groupRatio), responseSummary),

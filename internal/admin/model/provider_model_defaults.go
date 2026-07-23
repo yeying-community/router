@@ -25,6 +25,7 @@ const (
 	ProviderModelTagVision           = "vision"
 	ProviderModelTagRealtime         = "realtime"
 	ProviderModelTagStructuredOutput = "structured_output"
+	ProviderModelTagFileInput        = "file_input"
 
 	ProviderPriceUnitPer1KTokens = "per_1k_tokens"
 	ProviderPriceUnitPer1KChars  = "per_1k_chars"
@@ -225,6 +226,7 @@ func NormalizeProviderModelTags(tags []string) []string {
 		ProviderModelTagVision:           80,
 		ProviderModelTagRealtime:         90,
 		ProviderModelTagStructuredOutput: 100,
+		ProviderModelTagFileInput:        110,
 	}
 	sort.Slice(result, func(i, j int) bool {
 		leftOrder := tagOrder[result[i]]

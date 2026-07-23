@@ -924,7 +924,7 @@ func RelayImageHelper(c *gin.Context, relayMode int) *relaymodel.ErrorWithStatus
 			CompletionTokens:   int(billingSnapshot.OutputQuantity),
 			ModelName:          imageRequest.Model,
 			TokenName:          tokenName,
-			Quota:              int(quota),
+			Quota:              quota,
 			UserDailyQuota:     userDailyQuota,
 			UserEmergencyQuota: userEmergencyQuota,
 			Content:            billing.FormatPricingLog(pricing, groupRatio),

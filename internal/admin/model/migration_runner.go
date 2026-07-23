@@ -1823,13 +1823,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS entitlement_product_id varchar(36) NOT NULL DEFAULT ''`,
 					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS product_kind varchar(32) NOT NULL DEFAULT ''`,
 					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS product_name_snapshot varchar(64) NOT NULL DEFAULT ''`,
-					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS quota_amount_snapshot numeric(18,6) NOT NULL DEFAULT 0`,
+					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS quota_amount_snapshot numeric(30,6) NOT NULL DEFAULT 0`,
 					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS quota_currency_snapshot varchar(16) NOT NULL DEFAULT 'YYC'`,
 					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS validity_days_snapshot integer NOT NULL DEFAULT 0`,
 					`ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS group_id_snapshot varchar(36) NOT NULL DEFAULT ''`,
 					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS entitlement_product_id char(36) NOT NULL DEFAULT ''`,
 					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS product_name_snapshot varchar(64) NOT NULL DEFAULT ''`,
-					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS quota_amount_snapshot numeric(18,6) NOT NULL DEFAULT 0`,
+					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS quota_amount_snapshot numeric(30,6) NOT NULL DEFAULT 0`,
 					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS quota_currency_snapshot varchar(16) NOT NULL DEFAULT 'YYC'`,
 					`ALTER TABLE redemption_issue_audit_logs ADD COLUMN IF NOT EXISTS validity_days_snapshot integer NOT NULL DEFAULT 0`,
 				}
@@ -1843,24 +1843,12 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 		},
 		{
 			Version:     "202607191720_cleanup_legacy_redemptions",
-			Description: "archive redeemed legacy codes and remove unused codes without entitlement bindings",
+			Description: "remove legacy codes without entitlement bindings",
 			Up: func(tx *gorm.DB) error {
 				if err := tx.Exec(`
-					UPDATE redemptions
-					SET product_kind = 'balance',
-						product_name_snapshot = CASE WHEN COALESCE(TRIM(name), '') = '' THEN '历史充值' ELSE name END,
-						quota_amount_snapshot = COALESCE(quota, 0),
-						quota_currency_snapshot = 'YYC',
-						validity_days_snapshot = COALESCE(credit_validity_days, 0),
-						group_id_snapshot = COALESCE(group_id, '')
-					WHERE status = ? AND COALESCE(TRIM(entitlement_product_id), '') = ''
-				`, RedemptionCodeStatusUsed).Error; err != nil {
-					return err
-				}
-				if err := tx.Exec(`
 					DELETE FROM redemptions
-					WHERE status <> ? AND COALESCE(TRIM(entitlement_product_id), '') = ''
-				`, RedemptionCodeStatusUsed).Error; err != nil {
+					WHERE COALESCE(TRIM(entitlement_product_id), '') = ''
+				`).Error; err != nil {
 					return err
 				}
 				return nil
@@ -1878,6 +1866,65 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			Description: "add route-level billing ratio and replace ambiguous group ratio log field",
 			Up: func(tx *gorm.DB) error {
 				return migrateModelChannelBillingRatioWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607221030_qwen_china_realtime_pricing_and_file_tag",
+			Description: "fill China mainland Qwen realtime prices and mark existing file-transfer models",
+			Up: func(tx *gorm.DB) error {
+				return refreshQwenChinaPricingWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607221130_qwen_china_catalog_extension",
+			Description: "extend China mainland Qwen catalog with VL, audio, image, embedding, and rerank models",
+			Up: func(tx *gorm.DB) error {
+				return refreshQwenChinaPricingWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607221230_qwen_file_input_specifications",
+			Description: "add structured file input specifications for Qwen file transcription",
+			Up: func(tx *gorm.DB) error {
+				return refreshQwenChinaPricingWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607221330_provider_file_input_capabilities",
+			Description: "add documented file input capabilities for OpenAI, Anthropic, and Google catalog models",
+			Up: func(tx *gorm.DB) error {
+				return refreshOfficialProviderFileInputWithDB(tx)
+			},
+		},
+		{
+			Version:     "202607231100_remove_legacy_redemption_face_value",
+			Description: "remove unbound legacy redemption records and obsolete face value columns",
+			Up: func(tx *gorm.DB) error {
+				if err := tx.Where("COALESCE(TRIM(entitlement_product_id), '') = ''").Delete(&Redemption{}).Error; err != nil {
+					return err
+				}
+				if err := tx.Where("COALESCE(TRIM(entitlement_product_id), '') = ''").Delete(&RedemptionIssueAuditLog{}).Error; err != nil {
+					return err
+				}
+				if err := tx.Exec(`ALTER TABLE redemptions ALTER COLUMN quota_amount_snapshot TYPE numeric(30,6)`).Error; err != nil {
+					return err
+				}
+				if err := tx.Exec(`ALTER TABLE redemption_issue_audit_logs ALTER COLUMN quota_amount_snapshot TYPE numeric(30,6)`).Error; err != nil {
+					return err
+				}
+				for _, column := range []string{
+					"face_value_amount",
+					"face_value_unit",
+					"quota",
+					"credit_validity_days",
+				} {
+					if tx.Migrator().HasColumn("redemptions", column) {
+						if err := tx.Migrator().DropColumn("redemptions", column); err != nil {
+							return err
+						}
+					}
+				}
+				return nil
 			},
 		},
 	}
@@ -3237,6 +3284,16 @@ func runLogVersionedMigrations(db *gorm.DB) error {
 			Description: "add pricing decision and cost floor fields to consume logs",
 			Up: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&Log{})
+			},
+		},
+		{
+			Version:     "202607231000_log_quota_bigint",
+			Description: "widen event log quota to bigint so large redemption credits are recorded exactly",
+			Up: func(tx *gorm.DB) error {
+				if !tx.Migrator().HasTable(&Log{}) {
+					return tx.AutoMigrate(&Log{})
+				}
+				return tx.Migrator().AlterColumn(&Log{}, "Quota")
 			},
 		},
 	}

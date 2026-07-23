@@ -307,7 +307,7 @@ func postConsumeQuota(ctx context.Context, usage *relaymodel.Usage, meta *meta.M
 		CompletionTokens:   completionTokens,
 		ModelName:          textRequest.Model,
 		TokenName:          meta.TokenName,
-		Quota:              int(quota),
+		Quota:              quota,
 		UserDailyQuota:     userDailyQuota,
 		UserEmergencyQuota: userEmergencyQuota,
 		Content:            buildTextBillingLogContent(settlementPricing, groupRatio, imageFeeNote),

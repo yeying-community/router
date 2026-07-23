@@ -638,6 +638,12 @@
         "type": "类型",
         "tags": "标签",
         "supported_endpoints": "支持端点",
+        "specification": "能力规格",
+        "input_modalities": "输入模态",
+        "file_types": "文件类型",
+        "file_transport": "文件传输",
+        "file_upload": "上传",
+        "file_url": "URL",
         "price": "价格",
         "price_compact": "输入｜输出价格",
         "input_price": "输入价格",
@@ -2932,7 +2938,13 @@
         "text": "文本",
         "image": "图片",
         "audio": "音频",
-        "video": "视频"
+        "video": "视频",
+        "file_input": "文件输入",
+        "vision": "视觉理解",
+        "tool_calling": "工具调用",
+        "reasoning": "推理",
+        "realtime": "实时",
+        "structured_output": "结构化输出"
       },
       "health": {
         "summary": {

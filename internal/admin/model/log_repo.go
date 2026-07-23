@@ -4,7 +4,7 @@ import "context"
 
 type LogRepository struct {
 	RecordLog                             func(ctx context.Context, userId string, logType int, content string)
-	RecordTopupLog                        func(ctx context.Context, userId string, content string, quota int)
+	RecordTopupLog                        func(ctx context.Context, userId string, content string, quota int64)
 	RecordConsumeLog                      func(ctx context.Context, log *Log)
 	RecordRelayFailureLog                 func(ctx context.Context, log *Log)
 	RecordTestLog                         func(ctx context.Context, log *Log)
