@@ -112,6 +112,47 @@ type ProcurementEstimateResult struct {
 	MissingQuantity float64
 }
 
+// ValidateChannelModelProcurementCostReadyWithDB ensures a model has a
+// production-grade cost basis before it can be published. Estimated costs are
+// useful for planning, but only actual or explicitly zero-cost batches are
+// allowed to support production profitability reporting.
+func ValidateChannelModelProcurementCostReadyWithDB(db *gorm.DB, row ChannelModel) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	channelID := strings.TrimSpace(row.ChannelId)
+	modelName := strings.TrimSpace(row.Model)
+	if channelID == "" || modelName == "" {
+		return fmt.Errorf("渠道和模型不能为空")
+	}
+	pricing := resolvedPricingFromChannelModelRow(row)
+	capacityUnits := []string{normalizePricingCapacityUnit(pricing.PriceUnit)}
+	if currency := strings.TrimSpace(strings.ToLower(pricing.Currency)); currency != "" {
+		capacityUnits = append(capacityUnits, currency+"_equivalent")
+	}
+	capacityUnits = normalizeTrimmedValuesPreserveOrder(capacityUnits)
+	now := helper.GetTimestamp()
+	count := int64(0)
+	err := db.Model(&ChannelProcurementBatch{}).
+		Where("channel_id = ?", channelID).
+		Where("capacity_unit IN ?", capacityUnits).
+		Where("cost_status = ?", ProcurementCostStatusActive).
+		Where("cost_source IN ?", []string{ProcurementCostSourceActual, ProcurementCostSourceZeroCost}).
+		Where("capacity_remaining > 0").
+		Where("(valid_from = 0 OR valid_from <= ?)", now).
+		Where("(expire_at = 0 OR expire_at > ?)", now).
+		Where("(scope_type = ? OR (scope_type = ? AND scope_value = ?))", "global", "model", modelName).
+		Where("cost_source = ? OR cost_per_unit_amount > 0", ProcurementCostSourceZeroCost).
+		Count(&count).Error
+	if err != nil {
+		return err
+	}
+	if count <= 0 {
+		return fmt.Errorf("模型 %s 缺少正式采购成本：请配置有效的实际成本或明确零成本采购批次，且容量单位必须匹配 %s", modelName, strings.Join(capacityUnits, " / "))
+	}
+	return nil
+}
+
 type ProcurementBatchCostUpdate struct {
 	PurchaseCurrency   string
 	PurchaseAmount     float64
