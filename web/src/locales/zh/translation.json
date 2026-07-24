@@ -3444,7 +3444,7 @@
     },
     "overview": {
       "nav": "经营总览",
-      "title": "计费经营总览",
+      "title": "经营总览",
       "structure": { "title": "计费结构", "summary": "总览看收入与成本结果；模型定价看售价是否覆盖成本；渠道采购看上游采购批次与成本归因。", "pricing": "查看模型定价", "procurement": "查看渠道采购" },
       "load_failed": "经营数据加载失败",
       "metrics": { "revenue": "收入 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "yyc": "Router 消耗 YYC", "requests": "请求数", "floor_triggered": "底线触发次数", "floor_amount": "底线影响 CNY" },

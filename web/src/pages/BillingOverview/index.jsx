@@ -107,7 +107,7 @@ function BillingOverview() {
         setModelOptions((Array.isArray(modelOptionsResponse.data?.data?.items) ? modelOptionsResponse.data.data.items : []).map((item) => ({ key: item.dimension_key, value: item.dimension_key, text: item.dimension_key })));
       }
       if (channelOptionsResponse.data?.success) {
-        setChannelOptions((Array.isArray(channelOptionsResponse.data?.data?.items) ? channelOptionsResponse.data.data.items : []).map((item) => ({ key: item.dimension_key, value: item.dimension_key, text: item.dimension_key })));
+        setChannelOptions((Array.isArray(channelOptionsResponse.data?.data?.items) ? channelOptionsResponse.data.data.items : []).map((item) => ({ key: item.dimension_key, value: item.dimension_key, text: item.dimension_name || item.dimension_key })));
       }
       if (healthResponse.data?.success) {
         setHealth(healthResponse.data.data || {});
@@ -150,7 +150,7 @@ function BillingOverview() {
     <div className='dashboard-container billing-overview-page'>
       <AppFilterHeader
         breadcrumbs={[{ key: 'billing', label: t('header.billing') }, { key: 'billing-overview', label: t('billing.overview.title'), active: true }]}
-        actions={<><AppSelect clearable options={channelOptions} value={channelID} placeholder={t('billing.overview.channel_placeholder')} onChange={(e, { value }) => setChannelID((value || '').toString())} /><AppSelect clearable options={modelOptions} value={modelName} placeholder={t('billing.overview.model_placeholder')} onChange={(e, { value }) => setModelName((value || '').toString())} /><AppButton className='router-page-button' color='blue' loading={loading} onClick={() => load().then()}>{t('common.refresh')}</AppButton></>}
+        actions={<><AppSelect className='billing-overview-channel-select' clearable search options={channelOptions} value={channelID} placeholder={t('billing.overview.channel_placeholder')} onChange={(e, { value }) => setChannelID((value || '').toString())} /><AppSelect className='billing-overview-model-select' clearable search options={modelOptions} value={modelName} placeholder={t('billing.overview.model_placeholder')} onChange={(e, { value }) => setModelName((value || '').toString())} /><AppButton className='router-page-button' color='blue' loading={loading} onClick={() => load().then()}>{t('common.refresh')}</AppButton></>}
       />
       <div className='billing-overview-map' role='note'>
         <strong>{t('billing.overview.structure.title')}</strong>

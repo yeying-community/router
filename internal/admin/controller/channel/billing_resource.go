@@ -107,6 +107,17 @@ type channelBillingProfileUpdateRequest struct {
 }
 
 func GetChannelBillingAdapters(c *gin.Context) {
+	if !billingServiceConfigured() {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "",
+			"data": channelBillingListData[billingServiceAdapterInfo]{
+				Items: []billingServiceAdapterInfo{},
+				Total: 0,
+			},
+		})
+		return
+	}
 	items, err := listBillingServiceAdapters(c.Request.Context())
 	if err != nil {
 		logChannelAdminWarn(c, "list_billing_adapters", stringField("reason", err.Error()))

@@ -1,4 +1,6 @@
 .billing-overview-page { max-width: 1600px; }
+.billing-overview-channel-select { width: 260px; }
+.billing-overview-model-select { width: 300px; }
 .billing-overview-map { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0; padding: 12px 14px; border-left: 3px solid #2563eb; background: #f8fafc; color: #475569; font-size: 13px; }
 .billing-overview-map strong { color: #0f172a; }
 .billing-overview-map a { color: #2563eb; }
@@ -29,4 +31,4 @@
 .billing-overview-trend-row strong { color: #0f172a; text-align: right; }
 .billing-overview-empty { padding: 24px 0; color: #64748b; text-align: center; }
 @media (max-width: 900px) { .billing-overview-metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .billing-overview-token-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .billing-overview-columns { grid-template-columns: 1fr; } .billing-overview-trend-row { grid-template-columns: 90px 1fr; } .billing-overview-trend-row strong { text-align: left; } }
-@media (max-width: 560px) { .billing-overview-metric-grid, .billing-overview-token-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .billing-overview-channel-select, .billing-overview-model-select { width: min(100%, 300px); } .billing-overview-metric-grid, .billing-overview-token-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

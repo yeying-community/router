@@ -8,9 +8,40 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/internal/admin/model"
 )
+
+func TestGetChannelBillingAdaptersAllowsUnconfiguredOptionalService(t *testing.T) {
+	oldBaseURL := config.BillingServiceBaseURL
+	config.BillingServiceBaseURL = ""
+	t.Cleanup(func() { config.BillingServiceBaseURL = oldBaseURL })
+
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/channel/billing/adapters", nil)
+
+	GetChannelBillingAdapters(c)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d, want %d", recorder.Code, http.StatusOK)
+	}
+	var response struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Items []billingServiceAdapterInfo `json:"items"`
+			Total int                         `json:"total"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !response.Success || len(response.Data.Items) != 0 || response.Data.Total != 0 {
+		t.Fatalf("unexpected response: %+v", response)
+	}
+}
 
 func configureBillingServiceForTest(t *testing.T, handler http.HandlerFunc, apiKey string) *httptest.Server {
 	t.Helper()
