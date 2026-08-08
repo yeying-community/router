@@ -14,6 +14,7 @@ INTERVAL="${HEALTH_INTERVAL:-2}"
 FORMAT="${HEALTH_FORMAT:-text}"
 CONFIG="${HEALTH_CONFIG:-$PROJECT_DIR/config.yaml}"
 BASE_URL="${HEALTH_BASE_URL:-}"
+LOGFILE=""
 WAIT_SECONDS=0
 QUIET=false
 VERBOSE=false
@@ -29,6 +30,37 @@ WAIT_TIMED_OUT=false
 STARTED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 RUN_STARTED_MS=0
 RUN_DURATION_MS=0
+
+init_log_file() {
+  local logfile_name=$1
+  local logfile_dir="/opt/logs"
+
+  LOGFILE="${logfile_dir}/${logfile_name}"
+  mkdir -p "$logfile_dir"
+  touch "$LOGFILE"
+
+  local filesize=0
+  filesize=$(stat -c "%s" "$LOGFILE" 2>/dev/null || echo 0)
+  if [[ "$filesize" -ge 1048576 ]]; then
+    printf 'clear old logs at %s to avoid log file too big\n' "$(date)" > "$LOGFILE"
+  fi
+}
+
+log() {
+  echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOGFILE"
+}
+
+log_err() {
+  echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOGFILE" >&2
+}
+
+log_info() {
+  log "$@" >/dev/null
+}
+
+log_error_info() {
+  log_err "$@" >/dev/null 2>&1
+}
 
 usage() {
   cat <<'USAGE'
@@ -55,11 +87,13 @@ USAGE
 }
 
 die_usage() {
+  log_error_info "usage error: $1"
   printf 'health-check: %s\n' "$1" >&2
   exit 2
 }
 
 die_framework() {
+  log_error_info "framework error: $1"
   printf 'health-check: %s\n' "$1" >&2
   exit 3
 }
@@ -79,6 +113,9 @@ need_value() {
     die_usage "$opt requires a value"
   fi
 }
+
+init_log_file "health-check-router.log"
+log_info "health check invoked: level=$LEVEL format=$FORMAT config=$CONFIG base_url=${BASE_URL:-<auto>} timeout=$TIMEOUT retries=$RETRIES interval=$INTERVAL wait=$WAIT_SECONDS"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -144,6 +181,8 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+log_info "health check options parsed: level=$LEVEL format=$FORMAT config=$CONFIG base_url=${BASE_URL:-<auto>} timeout=$TIMEOUT retries=$RETRIES interval=$INTERVAL wait=$WAIT_SECONDS components=${COMPONENTS[*]:-<all>} quiet=$QUIET verbose=$VERBOSE"
 
 case "$LEVEL" in
   liveness|readiness|dependency|all) ;;
@@ -298,8 +337,10 @@ run_check() {
 
     if [[ "$CHECK_STATUS" != "FAIL" || "$attempt" -ge "$RETRIES" ]]; then
       add_check "$name" "$CHECK_STATUS" "$duration_ms" "$CHECK_MESSAGE"
+      log_info "check completed: name=$name status=$CHECK_STATUS duration_ms=$duration_ms attempt=$attempt message=$CHECK_MESSAGE"
       return 0
     fi
+    log_info "check retry: name=$name status=$CHECK_STATUS attempt=$attempt next_attempt=$((attempt + 1)) interval=$INTERVAL message=$CHECK_MESSAGE"
     attempt=$((attempt + 1))
     sleep "$INTERVAL"
   done
@@ -616,6 +657,7 @@ output_json() {
 }
 
 resolve_base_url
+log_info "health check started: project=$PROJECT_NAME level=$LEVEL config=$CONFIG base_url=$BASE_URL"
 
 deadline_ms=$(($(now_ms) + WAIT_SECONDS * 1000))
 while :; do
@@ -642,8 +684,11 @@ fi
 
 if [[ "$FAILED" -gt 0 ]]; then
   if [[ "$WAIT_TIMED_OUT" == true ]]; then
+    log_error_info "health check failed: status=$OVERALL_STATUS passed=$PASSED warned=$WARNED failed=$FAILED skipped=$SKIPPED duration_ms=$RUN_DURATION_MS exit_code=4 wait_timed_out=true"
     exit 4
   fi
+  log_error_info "health check failed: status=$OVERALL_STATUS passed=$PASSED warned=$WARNED failed=$FAILED skipped=$SKIPPED duration_ms=$RUN_DURATION_MS exit_code=1"
   exit 1
 fi
+log_info "health check passed: status=$OVERALL_STATUS passed=$PASSED warned=$WARNED failed=$FAILED skipped=$SKIPPED duration_ms=$RUN_DURATION_MS exit_code=0"
 exit 0

@@ -1,0 +1,8 @@
+# Whether to back up config.yaml. Valid values: True or False.
+BACKUP_CONF_FLAG="True"
+
+# Backup file prefix. Can be empty. Test environment example: test-
+BACKUP_CONF_PREFIX=""
+
+# Backup file suffix.
+BACKUP_CONF_SUFFIX="conf.tar.gz"

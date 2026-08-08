@@ -13,6 +13,7 @@ data
 cmd.md
 .env
 config.yaml
+scripts/backup.conf
 temp
 .DS_Store
 .gocache
