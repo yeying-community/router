@@ -188,9 +188,63 @@
   border-color: #a8c2f4 !important;
 }
 
+.router-identity-login-panel {
+  display: flex;
+  min-height: 282px;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.router-identity-login-panel p {
+  max-width: 360px;
+  margin: 0;
+  color: #667085;
+  line-height: 1.6;
+}
+
+.router-identity-local-link {
+  color: #70bf53;
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.router-identity-local-link:hover {
+  color: #58aa3b;
+  text-decoration: underline;
+}
+
 .router-login-divider-wrap {
   width: min(420px, 100%);
   margin: 2px auto;
+}
+
+.router-login-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.router-login-mode-button {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 !important;
+  color: #315d8e !important;
+  border-color: #bfd0e0 !important;
+}
+
+.router-email-login-toggle {
+  min-height: 28px;
+  padding: 0 8px !important;
+  color: #087d70 !important;
+  border: 0 !important;
+  background: transparent !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
 }
 
 .router-login-divider.ant-divider,
@@ -322,3 +376,49 @@
     font-size: 12px;
   }
 }
+
+/* Workspace sign-in is intentionally a two-column shell, not a marketing hero. */
+.router-login-page { padding: 24px; background: #eef2f5; color: #17212b; }
+.router-login-layout { width: min(1120px, 100%); min-height: min(720px, calc(100vh - 48px)); display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(420px, .88fr); overflow: hidden; border: 1px solid #ccd5dd; border-radius: 8px; background: #fff; box-shadow: 0 18px 42px rgba(28, 39, 49, .12); }
+.router-login-intro { display: flex; flex-direction: column; padding: 38px 44px; background: #17394a; color: #f5f8fa; }
+.router-login-brand { display: inline-flex; align-items: center; gap: 10px; width: max-content; color: inherit; font-weight: 700; text-decoration: none; }
+.router-login-brand img { width: 28px; height: 28px; object-fit: contain; }
+.router-login-intro-copy { max-width: 440px; margin: auto 0; }
+.router-login-eyebrow { margin: 0 0 14px; color: #8fd2c4; font-size: 13px; font-weight: 600; }
+.router-login-intro h1 { margin: 0; color: #fff; font-size: 36px; line-height: 1.2; letter-spacing: 0; }
+.router-login-intro-copy > p:last-child { margin: 18px 0 0; color: #c6d5dc; font-size: 15px; line-height: 1.8; }
+.router-login-intro-footer { display: flex; justify-content: space-between; gap: 16px; color: #a8bec8; font-size: 13px; }
+.router-login-intro-footer a { color: #8fd2c4; text-decoration: none; white-space: nowrap; }
+.router-login-auth { display: flex; align-items: center; padding: 40px; background: #fff; }
+.router-login-form-shell { width: min(360px, 100%); margin: 0 auto; }
+.router-login-heading h2 { margin: 0; font-size: 24px; line-height: 1.3; color: #17212b; }
+.router-login-heading p { margin: 8px 0 28px; color: #6a7781; font-size: 14px; }
+.router-login-email-heading h3 { margin: 0; color: #27333d; font-size: 15px; }
+.router-login-email-heading p { margin: 5px 0 14px; color: #6a7781; font-size: 13px; }
+.router-login-form { gap: 12px; }
+.router-auth-input { min-height: 42px; border-radius: 5px !important; }
+.router-password-submit { min-height: 42px; margin-top: 4px !important; border-radius: 5px !important; background: #087d70 !important; }
+.router-password-submit:hover { background: #056b60 !important; }
+.router-login-links { align-items: center; margin-top: 14px; font-size: 13px; }
+.router-login-links a { color: #087d70; margin-left: 0; }
+.router-login-links span a { margin-left: 4px; }
+.router-login-divider-wrap { width: 100%; margin: 28px 0 18px; }
+.router-login-section { width: 100%; }
+.router-wallet-address-select .ant-select-selector, .router-login-main-btn { border-radius: 5px !important; }
+.router-wallet-address-select .ant-select-selector { border-width: 1px !important; }
+.router-wallet-button { background: #315d8e !important; }
+@media (max-width: 760px) { .router-login-page { padding: 0; } .router-login-layout { min-height: 100vh; grid-template-columns: 1fr; border: 0; border-radius: 0; } .router-login-intro { min-height: 210px; padding: 26px 24px; } .router-login-intro-copy { margin: auto 0 0; } .router-login-intro h1 { font-size: 28px; } .router-login-intro-copy > p:last-child { display: none; } .router-login-auth { padding: 36px 24px 48px; align-items: flex-start; } }
+
+/* The login surface is a focused card; authentication content is unchanged. */
+.router-login-page { padding: 24px; background: #f3f5f7; }
+.router-login-layout { position: relative; width: min(480px, 100%); min-height: 0; display: block; border-color: #dfe5ea; box-shadow: 0 14px 32px rgba(28, 39, 49, .1); }
+.router-login-auth { padding: 46px 48px; }
+.router-login-form-shell { width: min(360px, 100%); }
+.router-login-heading { text-align: center; }
+.router-login-heading p { margin-bottom: 28px; }
+.router-identity-login-panel { min-height: 300px; }
+@media (max-width: 760px) { .router-login-layout { min-height: 0; } .router-login-auth { padding: 42px 28px; } }
+
+.router-login-mode-corner { position: absolute !important; top: 0; right: 0; width: 72px; min-width: 72px !important; height: 72px; padding: 10px 8px 32px 34px !important; color: #fff !important; border: 0 !important; border-radius: 0 !important; background: #9dcc86 !important; clip-path: polygon(100% 0, 100% 100%, 0 0); box-shadow: none !important; }
+.router-login-mode-corner:hover { color: #fff !important; background: #8cc474 !important; }
+.router-login-mode-corner .anticon { font-size: 21px; }

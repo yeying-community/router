@@ -807,11 +807,19 @@
         "manual_update_title": "新增采购记录",
         "manual_purchase_title": "采购信息",
         "procurement_event_type": "采购变更类型",
-        "procurement_events": { "purchase": "新购", "renewal": "续费", "upgrade": "升级", "quota_adjustment": "补量/校正" },
+        "procurement_events": {
+          "purchase": "新购",
+          "renewal": "续费",
+          "upgrade": "升级",
+          "quota_adjustment": "补量/校正"
+        },
         "procurement_parent_record": "原采购记录",
         "procurement_parent_record_placeholder": "选择被升级的基础套餐",
         "procurement_old_batch_disposition": "旧套餐剩余额度",
-        "procurement_old_batch_dispositions": { "keep": "保留至到期", "disable": "升级后停止归因" },
+        "procurement_old_batch_dispositions": {
+          "keep": "保留至到期",
+          "disable": "升级后停止归因"
+        },
         "manual_channel": "采购渠道",
         "manual_channel_placeholder": "选择采购渠道",
         "manual_channel_required": "请选择采购渠道",
@@ -2865,7 +2873,10 @@
         }
       },
       "spending": {
-        "flow": { "title": "收支口径", "summary": "支付/充值是用户侧收入与现金流；请求消耗是用户权益的使用结果；渠道采购是上游成本，最终在财务模块总览中与收入匹配计算毛利。" },
+        "flow": {
+          "title": "收支口径",
+          "summary": "支付/充值是用户侧收入与现金流；请求消耗是用户权益的使用结果；渠道采购是上游成本，最终在财务模块总览中与收入匹配计算毛利。"
+        },
         "insights": {
           "net_positive": "净流入为正",
           "net_positive_hint": "当前周期内充值大于消费，收支保持正向。",
@@ -3514,30 +3525,171 @@
       "group_placeholder": "筛选分组",
       "note": "默认展示最近 7 天有请求的模型。正式毛利只基于真实或明确零成本，成本覆盖不足的模型不会被判定为正常盈利。",
       "empty": "暂无模型财务数据",
-      "states": { "healthy": "正常", "low_margin": "低毛利", "loss": "低于成本", "unknown": "数据不足" },
-      "columns": { "model": "模型", "state": "利润状态", "requests": "请求数", "sell": "计费收入 CNY", "cost": "采购成本 CNY", "profit": "毛利 CNY", "margin": "毛利率", "cost_coverage": "成本覆盖", "actions": "操作" },
+      "states": {
+        "healthy": "正常",
+        "low_margin": "低毛利",
+        "loss": "低于成本",
+        "unknown": "数据不足"
+      },
+      "columns": {
+        "model": "模型",
+        "state": "利润状态",
+        "requests": "请求数",
+        "sell": "计费收入 CNY",
+        "cost": "采购成本 CNY",
+        "profit": "毛利 CNY",
+        "margin": "毛利率",
+        "cost_coverage": "成本覆盖",
+        "actions": "操作"
+      },
       "context": "统计范围：{{start}} 至 {{end}}",
       "view_procurement": "查看采购"
     },
     "overview": {
       "nav": "总览",
       "title": "总览",
-      "structure": { "title": "财务看板", "summary": "先看计费收入、采购成本、毛利和毛利率是否符合预期；异常时再下钻利润和采购。", "pricing": "查看利润", "procurement": "查看采购" },
+      "structure": {
+        "title": "财务看板",
+        "summary": "先看计费收入、采购成本、毛利和毛利率是否符合预期；异常时再下钻利润和采购。",
+        "pricing": "查看利润",
+        "procurement": "查看采购"
+      },
       "load_failed": "财务数据加载失败",
-      "metrics": { "revenue": "计费收入", "cost": "采购成本", "profit": "毛利", "margin": "毛利率", "coverage": "成本覆盖率", "anomalies": "财务风险", "risk_count": "{{count}} 项", "risk_breakdown": "运营 {{operating}} / 配置 {{configuration}}", "coverage_note": "已覆盖 {{configured}} / {{total}}" },
+      "metrics": {
+        "revenue": "计费收入",
+        "cost": "采购成本",
+        "profit": "毛利",
+        "margin": "毛利率",
+        "coverage": "成本覆盖率",
+        "anomalies": "财务风险",
+        "risk_count": "{{count}} 项",
+        "risk_breakdown": "运营 {{operating}} / 配置 {{configuration}}",
+        "coverage_note": "已覆盖 {{configured}} / {{total}}"
+      },
       "invalid_time": "请选择有效的时间范围",
-      "context": { "range": "统计范围：{{start}} 至 {{end}}", "currency": "金额基准币种：CNY" },
-      "actions": { "drilldown": "下钻", "profit": "利润", "procurement": "采购" },
-      "status": { "ok": "正常", "warning": "关注", "critical": "处理", "empty": "无数据" },
-      "overview_table": { "title": "多维经营总览", "summary": "当前范围 {{risks}} 项运营风险", "columns": { "dimension": "维度", "primary": "关键指标", "secondary": "辅助信息", "status": "状态", "action": "操作" } },
-      "dimensions": { "profitability": { "title": "收入与利润", "primary": "收入 {{revenue}} / 毛利 {{profit}}", "secondary": "毛利率 {{margin}}，请求 {{requests}} 次" }, "cost_coverage": { "title": "成本归因", "primary": "覆盖率 {{coverage}}", "secondary": "已覆盖 {{configured}}，未配置 {{unconfigured}}，待归因 {{pending}}" }, "channel": { "title": "渠道结构", "primary": "{{count}} 个渠道，{{loss}} 个亏损", "secondary": "按渠道判断采购成本、毛利和成本覆盖" }, "model": { "title": "模型结构", "primary": "{{count}} 个模型，{{low}} 个低毛利", "secondary": "按模型判断售价、倍率和采购成本是否合理" }, "operating": { "title": "运营风险", "primary": "{{count}} 项待处理", "secondary": "严重 {{critical}}，提醒 {{warning}}" }, "configuration": { "title": "配置风险", "primary": "{{count}} 项配置问题", "secondary": "严重 {{critical}}，提醒 {{warning}}" } },
-      "operating_risks": { "title": "当前范围财务异常", "view_details": "查看利润", "empty": "当前范围未发现财务异常", "unconfigured": "{{model}} 有 {{count}} 个请求未配置成本", "loss": "{{model}} 正式毛利为 {{amount}}", "low_margin": "{{model}} 正式毛利率仅 {{margin}}", "floor": "{{model}} 触发成本底线 {{count}} 次", "estimated": "{{model}} 有 {{count}} 个请求仅使用估算成本", "pending": "{{model}} 有 {{count}} 个请求成本待归因", "retry": "{{model}} 有 {{count}} 个请求成本归因失败，需要重试" },
-      "configuration_risks": { "title": "财务配置风险", "view_details": "查看采购", "empty": "未发现财务配置风险" },
-      "channels": { "title": "渠道维度", "view_details": "进入采购", "empty": "暂无渠道数据", "sorted_note": "按采购成本、计费收入排序，展示前 10 个渠道", "columns": { "channel": "渠道", "requests": "请求数", "revenue": "计费收入", "cost": "采购成本", "profit": "毛利", "margin": "毛利率", "coverage": "成本覆盖率", "actions": "操作" } },
-      "models": { "title": "模型维度", "view_details": "进入利润", "empty": "暂无模型数据", "sorted_note": "按采购成本、计费收入排序，展示前 10 个模型", "columns": { "model": "模型", "requests": "请求数", "profit": "毛利", "margin": "毛利率", "coverage": "成本覆盖率", "actions": "操作" } },
-      "priority": { "title": "优先处理事项", "scope_note": "运营风险遵循当前筛选范围；配置风险为全局健康状态", "sources": { "operating": "运营", "configuration": "配置" }, "columns": { "source": "来源", "level": "级别", "issue": "事项", "impact": "影响请求", "action": "操作" } },
-      "trend": { "title": "当前范围计费收支趋势", "financials": "计费收入 {{revenue}} / 成本 {{cost}} / 毛利 {{profit}}" },
-      "channel_placeholder": "筛选渠道", "model_placeholder": "筛选模型"
+      "context": {
+        "range": "统计范围：{{start}} 至 {{end}}",
+        "currency": "金额基准币种：CNY"
+      },
+      "actions": {
+        "drilldown": "下钻",
+        "profit": "利润",
+        "procurement": "采购"
+      },
+      "status": {
+        "ok": "正常",
+        "warning": "关注",
+        "critical": "处理",
+        "empty": "无数据"
+      },
+      "overview_table": {
+        "title": "多维经营总览",
+        "summary": "当前范围 {{risks}} 项运营风险",
+        "columns": {
+          "dimension": "维度",
+          "primary": "关键指标",
+          "secondary": "辅助信息",
+          "status": "状态",
+          "action": "操作"
+        }
+      },
+      "dimensions": {
+        "profitability": {
+          "title": "收入与利润",
+          "primary": "收入 {{revenue}} / 毛利 {{profit}}",
+          "secondary": "毛利率 {{margin}}，请求 {{requests}} 次"
+        },
+        "cost_coverage": {
+          "title": "成本归因",
+          "primary": "覆盖率 {{coverage}}",
+          "secondary": "已覆盖 {{configured}}，未配置 {{unconfigured}}，待归因 {{pending}}"
+        },
+        "channel": {
+          "title": "渠道结构",
+          "primary": "{{count}} 个渠道，{{loss}} 个亏损",
+          "secondary": "按渠道判断采购成本、毛利和成本覆盖"
+        },
+        "model": {
+          "title": "模型结构",
+          "primary": "{{count}} 个模型，{{low}} 个低毛利",
+          "secondary": "按模型判断售价、倍率和采购成本是否合理"
+        },
+        "operating": {
+          "title": "运营风险",
+          "primary": "{{count}} 项待处理",
+          "secondary": "严重 {{critical}}，提醒 {{warning}}"
+        },
+        "configuration": {
+          "title": "配置风险",
+          "primary": "{{count}} 项配置问题",
+          "secondary": "严重 {{critical}}，提醒 {{warning}}"
+        }
+      },
+      "operating_risks": {
+        "title": "当前范围财务异常",
+        "view_details": "查看利润",
+        "empty": "当前范围未发现财务异常",
+        "unconfigured": "{{model}} 有 {{count}} 个请求未配置成本",
+        "loss": "{{model}} 正式毛利为 {{amount}}",
+        "low_margin": "{{model}} 正式毛利率仅 {{margin}}",
+        "floor": "{{model}} 触发成本底线 {{count}} 次",
+        "estimated": "{{model}} 有 {{count}} 个请求仅使用估算成本",
+        "pending": "{{model}} 有 {{count}} 个请求成本待归因",
+        "retry": "{{model}} 有 {{count}} 个请求成本归因失败，需要重试"
+      },
+      "configuration_risks": {
+        "title": "财务配置风险",
+        "view_details": "查看采购",
+        "empty": "未发现财务配置风险"
+      },
+      "channels": {
+        "title": "渠道维度",
+        "view_details": "进入采购",
+        "empty": "暂无渠道数据",
+        "sorted_note": "按采购成本、计费收入排序，展示前 10 个渠道",
+        "columns": {
+          "channel": "渠道",
+          "requests": "请求数",
+          "revenue": "计费收入",
+          "cost": "采购成本",
+          "profit": "毛利",
+          "margin": "毛利率",
+          "coverage": "成本覆盖率",
+          "actions": "操作"
+        }
+      },
+      "models": {
+        "title": "模型维度",
+        "view_details": "进入利润",
+        "empty": "暂无模型数据",
+        "sorted_note": "按采购成本、计费收入排序，展示前 10 个模型",
+        "columns": {
+          "model": "模型",
+          "requests": "请求数",
+          "profit": "毛利",
+          "margin": "毛利率",
+          "coverage": "成本覆盖率",
+          "actions": "操作"
+        }
+      },
+      "priority": {
+        "title": "优先处理事项",
+        "scope_note": "运营风险遵循当前筛选范围；配置风险为全局健康状态",
+        "sources": { "operating": "运营", "configuration": "配置" },
+        "columns": {
+          "source": "来源",
+          "level": "级别",
+          "issue": "事项",
+          "impact": "影响请求",
+          "action": "操作"
+        }
+      },
+      "trend": {
+        "title": "当前范围计费收支趋势",
+        "financials": "计费收入 {{revenue}} / 成本 {{cost}} / 毛利 {{profit}}"
+      },
+      "channel_placeholder": "筛选渠道",
+      "model_placeholder": "筛选模型"
     },
     "procurement_report": {
       "nav": "采购",
@@ -3721,6 +3873,13 @@
   "auth": {
     "login": {
       "title": "用户登录",
+      "community_name": "夜莺社区",
+      "workspace_eyebrow": "ROUTER WORKSPACE",
+      "workspace_title": "开始你的工作",
+      "community_hint": "统一管理模型访问与团队工作流",
+      "learn_more": "了解夜莺社区",
+      "email": "邮箱地址",
+      "start_work": "开始你的工作",
       "banner_text": "帮助您更好地管理、分发、路由和使用各大模型厂商接口服务",
       "username": "用户名 / 邮箱地址",
       "password": "密码",
@@ -3732,6 +3891,8 @@
       "register": "点击注册",
       "other_methods": "使用其他方式登录",
       "wallet_title": "钱包登录",
+      "wallet_subtitle": "连接钱包并确认签名后进入工作区。",
+      "email_login_divider": "使用邮箱登录",
       "wallet_button": "使用钱包登录",
       "wallet_action": "钱包登陆",
       "wallet_pending": "请在钱包中确认签名",
@@ -3739,11 +3900,22 @@
       "wallet_address_placeholder": "选择钱包地址",
       "wallet_rejected": "用户拒绝了请求",
       "wallet_failed": "钱包登录失败",
+      "wallet_identity_email_required": "Router 需要已验证邮箱。请先在夜莺钱包插件中完成钱包身份验证和邮箱验证，再重新登录。",
       "user_fetch_failed": "未获取到用户信息",
       "password_button": "使用账密登录",
       "password_action": "密码登陆",
       "password_disabled": "用户名密码登录未开启",
       "wallet_disabled": "钱包登录未开启",
+      "identity_title": "钱包身份登录",
+      "switch_to_identity": "切换钱包身份登录",
+      "switch_to_wallet": "切换钱包登录",
+      "identity_hint": "使用钱包身份 Passkey 完成验证后，将自动进入工作区。",
+      "identity_loading": "正在创建钱包身份验证请求...",
+      "identity_open": "无法扫码？使用本机 Passkey 登录",
+      "identity_refresh": "刷新二维码",
+      "identity_failed": "钱包身份登录失败，请重试",
+      "identity_expired": "本次登录已过期，请重新发起",
+      "identity_unbound": "该钱包身份未找到 Router 账户，请确认钱包地址已自动注册或已启用",
       "wechat": {
         "scan_tip": "微信扫码关注公众号，输入「验证码」获取验证码（三分钟内有效）",
         "code_placeholder": "验证码"

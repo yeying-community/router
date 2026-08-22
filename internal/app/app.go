@@ -21,6 +21,7 @@ import (
 	"github.com/yeying-community/router/internal/admin/monitor"
 	_ "github.com/yeying-community/router/internal/admin/repository/bootstrap"
 	billingsvc "github.com/yeying-community/router/internal/admin/service/billing"
+	notificationsvc "github.com/yeying-community/router/internal/admin/service/notification"
 	topupsvc "github.com/yeying-community/router/internal/admin/service/topup"
 	"github.com/yeying-community/router/internal/relay/adaptor/openai"
 	"github.com/yeying-community/router/internal/transport/http/middleware"
@@ -88,6 +89,7 @@ func Run() {
 		billingsvc.StartFXAutoSyncWorker()
 		billingsvc.StartChannelBillingAutoRefreshWorker()
 		topupsvc.StartTopupReconcileWorker()
+		notificationsvc.StartUserNotificationWorker()
 		billingsvc.StartProcurementRetryWorker()
 	}
 

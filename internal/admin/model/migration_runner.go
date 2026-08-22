@@ -61,6 +61,13 @@ type versionedMigration struct {
 func runMainVersionedMigrations(db *gorm.DB) error {
 	migrations := []versionedMigration{
 		{
+			Version:     "202608081100_identity_passkey_login",
+			Description: "add wallet identity passkey PKCE login sessions",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&IdentityPasskeyLoginSession{}, &IdentityLoginSession{})
+			},
+		},
+		{
 			Version:     "202603122230_main_baseline_v30",
 			Description: "baseline: create current main schema with user password-state flag, current task tables, and current provider data",
 			Up: func(tx *gorm.DB) error {
@@ -1974,6 +1981,35 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			Description: "refresh all official provider models, statuses, and pricing from the reviewed catalog snapshot",
 			Up: func(tx *gorm.DB) error {
 				return replaceProviderMigrationSeedsWithDB(tx)
+			},
+		},
+		{
+			Version:     "202608091030_identity_email",
+			Description: "drop legacy passport identity bindings and add identity login sessions",
+			Up: func(tx *gorm.DB) error {
+				_ = tx.Migrator().DropTable("passport_identity_bindings")
+				return tx.AutoMigrate(&IdentityLoginSession{})
+			},
+		},
+		{
+			Version:     "202608091130_user_notification_events",
+			Description: "add idempotent user email notification outbox",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&UserNotificationEvent{}, &UserBalanceNotificationState{})
+			},
+		},
+		{
+			Version:     "202608200900_drop_wallet_identity_bindings",
+			Description: "drop obsolete wallet identity bindings table after moving identity login into web3-bs",
+			Up: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable("wallet_identity_bindings")
+			},
+		},
+		{
+			Version:     "202608201100_identity_login_sessions",
+			Description: "add local wallet identity login sessions",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&IdentityLoginSession{})
 			},
 		},
 	}

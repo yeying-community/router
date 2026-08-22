@@ -807,11 +807,19 @@
         "manual_update_title": "Add Purchase Record",
         "manual_purchase_title": "Purchase Info",
         "procurement_event_type": "Procurement change",
-        "procurement_events": { "purchase": "New purchase", "renewal": "Renewal", "upgrade": "Upgrade", "quota_adjustment": "Quota adjustment" },
+        "procurement_events": {
+          "purchase": "New purchase",
+          "renewal": "Renewal",
+          "upgrade": "Upgrade",
+          "quota_adjustment": "Quota adjustment"
+        },
         "procurement_parent_record": "Prior purchase record",
         "procurement_parent_record_placeholder": "Select the base plan being upgraded",
         "procurement_old_batch_disposition": "Remaining base-plan capacity",
-        "procurement_old_batch_dispositions": { "keep": "Keep until expiry", "disable": "Stop attribution after upgrade" },
+        "procurement_old_batch_dispositions": {
+          "keep": "Keep until expiry",
+          "disable": "Stop attribution after upgrade"
+        },
         "manual_channel": "Procurement Channel",
         "manual_channel_placeholder": "Select procurement channel",
         "manual_channel_required": "Please select a procurement channel",
@@ -2865,7 +2873,10 @@
         }
       },
       "spending": {
-        "flow": { "title": "How the numbers connect", "summary": "Payments and top-ups are user-side revenue and cash flow. Request consumption is entitlement usage. Channel procurement is upstream cost, matched to revenue in Billing Overview to calculate gross profit." },
+        "flow": {
+          "title": "How the numbers connect",
+          "summary": "Payments and top-ups are user-side revenue and cash flow. Request consumption is entitlement usage. Channel procurement is upstream cost, matched to revenue in Billing Overview to calculate gross profit."
+        },
         "insights": {
           "net_positive": "Positive Net Inflow",
           "net_positive_hint": "Top-up exceeds spend in the selected period, keeping cashflow positive.",
@@ -3519,30 +3530,174 @@
       "group_placeholder": "Filter group",
       "note": "Showing models with requests in the last 7 days. Formal margin uses actual or explicitly zero cost only; models with incomplete cost coverage are not treated as healthy.",
       "empty": "No model finance data",
-      "states": { "healthy": "Healthy", "low_margin": "Low margin", "loss": "Below cost", "unknown": "Insufficient data" },
-      "columns": { "model": "Model", "state": "Profit state", "requests": "Requests", "sell": "Billed Revenue CNY", "cost": "Procurement cost CNY", "profit": "Gross profit CNY", "margin": "Gross margin", "cost_coverage": "Cost coverage", "actions": "Actions" },
+      "states": {
+        "healthy": "Healthy",
+        "low_margin": "Low margin",
+        "loss": "Below cost",
+        "unknown": "Insufficient data"
+      },
+      "columns": {
+        "model": "Model",
+        "state": "Profit state",
+        "requests": "Requests",
+        "sell": "Billed Revenue CNY",
+        "cost": "Procurement cost CNY",
+        "profit": "Gross profit CNY",
+        "margin": "Gross margin",
+        "cost_coverage": "Cost coverage",
+        "actions": "Actions"
+      },
       "context": "Range: {{start}} to {{end}}",
       "view_procurement": "View procurement"
     },
     "overview": {
       "nav": "Overview",
       "title": "Overview",
-      "structure": { "title": "Finance board", "summary": "Start with billed revenue, procurement cost, gross profit, and margin. Drill into Profit and Procurement only when something is off.", "pricing": "View profit", "procurement": "View procurement" },
+      "structure": {
+        "title": "Finance board",
+        "summary": "Start with billed revenue, procurement cost, gross profit, and margin. Drill into Profit and Procurement only when something is off.",
+        "pricing": "View profit",
+        "procurement": "View procurement"
+      },
       "load_failed": "Failed to load finance data",
-      "metrics": { "revenue": "Billed Revenue", "cost": "Procurement Cost", "profit": "Gross Profit", "margin": "Gross Margin", "coverage": "Cost Coverage", "anomalies": "Finance Risks", "risk_count": "{{count}} items", "risk_breakdown": "Operating {{operating}} / Config {{configuration}}", "coverage_note": "Covered {{configured}} / {{total}}" },
+      "metrics": {
+        "revenue": "Billed Revenue",
+        "cost": "Procurement Cost",
+        "profit": "Gross Profit",
+        "margin": "Gross Margin",
+        "coverage": "Cost Coverage",
+        "anomalies": "Finance Risks",
+        "risk_count": "{{count}} items",
+        "risk_breakdown": "Operating {{operating}} / Config {{configuration}}",
+        "coverage_note": "Covered {{configured}} / {{total}}"
+      },
       "invalid_time": "Select a valid time range",
-      "context": { "range": "Range: {{start}} to {{end}}", "currency": "Base currency: CNY" },
-      "actions": { "drilldown": "Drill down", "profit": "Profit", "procurement": "Procurement" },
-      "status": { "ok": "Healthy", "warning": "Watch", "critical": "Action", "empty": "No data" },
-      "overview_table": { "title": "Multidimensional Finance Overview", "summary": "{{risks}} operating risks in scope", "columns": { "dimension": "Dimension", "primary": "Key metric", "secondary": "Context", "status": "Status", "action": "Action" } },
-      "dimensions": { "profitability": { "title": "Revenue and Profit", "primary": "Revenue {{revenue}} / Profit {{profit}}", "secondary": "Margin {{margin}}, {{requests}} requests" }, "cost_coverage": { "title": "Cost Attribution", "primary": "Coverage {{coverage}}", "secondary": "Covered {{configured}}, unconfigured {{unconfigured}}, pending {{pending}}" }, "channel": { "title": "Channel Mix", "primary": "{{count}} channels, {{loss}} loss-making", "secondary": "Review procurement cost, gross profit, and cost coverage by channel" }, "model": { "title": "Model Mix", "primary": "{{count}} models, {{low}} low-margin", "secondary": "Review pricing, ratios, and procurement cost by model" }, "operating": { "title": "Operating Risks", "primary": "{{count}} open items", "secondary": "Critical {{critical}}, warning {{warning}}" }, "configuration": { "title": "Configuration Risks", "primary": "{{count}} config issues", "secondary": "Critical {{critical}}, warning {{warning}}" } },
-      "operating_risks": { "title": "Finance exceptions in scope", "view_details": "View profit", "empty": "No finance exception in the current scope", "unconfigured": "{{model}} has {{count}} requests without cost", "loss": "{{model}} has formal profit of {{amount}}", "low_margin": "{{model}} has only {{margin}} formal margin", "floor": "{{model}} triggered the cost floor {{count}} times", "estimated": "{{model}} has {{count}} requests using estimated cost only", "pending": "{{model}} has {{count}} requests pending cost attribution", "retry": "{{model}} has {{count}} failed cost attributions requiring retry" },
-      "configuration_risks": { "title": "Finance configuration risks", "view_details": "View procurement", "empty": "No finance configuration risk" },
-      "channels": { "title": "Channel Dimension", "view_details": "Open procurement", "empty": "No channel data", "sorted_note": "Top 10 channels by procurement cost and billed revenue", "columns": { "channel": "Channel", "requests": "Requests", "revenue": "Billed revenue", "cost": "Procurement cost", "profit": "Gross profit", "margin": "Gross margin", "coverage": "Cost coverage", "actions": "Actions" } },
-      "models": { "title": "Model Dimension", "view_details": "Open profit", "empty": "No model data", "sorted_note": "Top 10 models by procurement cost and billed revenue", "columns": { "model": "Model", "requests": "Requests", "profit": "Gross profit", "margin": "Gross margin", "coverage": "Cost coverage", "actions": "Actions" } },
-      "priority": { "title": "Priority Items", "scope_note": "Operating risks follow the current filters; configuration risks are global health", "sources": { "operating": "Operating", "configuration": "Configuration" }, "columns": { "source": "Source", "level": "Level", "issue": "Issue", "impact": "Affected requests", "action": "Action" } },
-      "trend": { "title": "Billed revenue and cost trend in scope", "financials": "Billed revenue {{revenue}} / Cost {{cost}} / Profit {{profit}}" },
-      "channel_placeholder": "Filter channel", "model_placeholder": "Filter model"
+      "context": {
+        "range": "Range: {{start}} to {{end}}",
+        "currency": "Base currency: CNY"
+      },
+      "actions": {
+        "drilldown": "Drill down",
+        "profit": "Profit",
+        "procurement": "Procurement"
+      },
+      "status": {
+        "ok": "Healthy",
+        "warning": "Watch",
+        "critical": "Action",
+        "empty": "No data"
+      },
+      "overview_table": {
+        "title": "Multidimensional Finance Overview",
+        "summary": "{{risks}} operating risks in scope",
+        "columns": {
+          "dimension": "Dimension",
+          "primary": "Key metric",
+          "secondary": "Context",
+          "status": "Status",
+          "action": "Action"
+        }
+      },
+      "dimensions": {
+        "profitability": {
+          "title": "Revenue and Profit",
+          "primary": "Revenue {{revenue}} / Profit {{profit}}",
+          "secondary": "Margin {{margin}}, {{requests}} requests"
+        },
+        "cost_coverage": {
+          "title": "Cost Attribution",
+          "primary": "Coverage {{coverage}}",
+          "secondary": "Covered {{configured}}, unconfigured {{unconfigured}}, pending {{pending}}"
+        },
+        "channel": {
+          "title": "Channel Mix",
+          "primary": "{{count}} channels, {{loss}} loss-making",
+          "secondary": "Review procurement cost, gross profit, and cost coverage by channel"
+        },
+        "model": {
+          "title": "Model Mix",
+          "primary": "{{count}} models, {{low}} low-margin",
+          "secondary": "Review pricing, ratios, and procurement cost by model"
+        },
+        "operating": {
+          "title": "Operating Risks",
+          "primary": "{{count}} open items",
+          "secondary": "Critical {{critical}}, warning {{warning}}"
+        },
+        "configuration": {
+          "title": "Configuration Risks",
+          "primary": "{{count}} config issues",
+          "secondary": "Critical {{critical}}, warning {{warning}}"
+        }
+      },
+      "operating_risks": {
+        "title": "Finance exceptions in scope",
+        "view_details": "View profit",
+        "empty": "No finance exception in the current scope",
+        "unconfigured": "{{model}} has {{count}} requests without cost",
+        "loss": "{{model}} has formal profit of {{amount}}",
+        "low_margin": "{{model}} has only {{margin}} formal margin",
+        "floor": "{{model}} triggered the cost floor {{count}} times",
+        "estimated": "{{model}} has {{count}} requests using estimated cost only",
+        "pending": "{{model}} has {{count}} requests pending cost attribution",
+        "retry": "{{model}} has {{count}} failed cost attributions requiring retry"
+      },
+      "configuration_risks": {
+        "title": "Finance configuration risks",
+        "view_details": "View procurement",
+        "empty": "No finance configuration risk"
+      },
+      "channels": {
+        "title": "Channel Dimension",
+        "view_details": "Open procurement",
+        "empty": "No channel data",
+        "sorted_note": "Top 10 channels by procurement cost and billed revenue",
+        "columns": {
+          "channel": "Channel",
+          "requests": "Requests",
+          "revenue": "Billed revenue",
+          "cost": "Procurement cost",
+          "profit": "Gross profit",
+          "margin": "Gross margin",
+          "coverage": "Cost coverage",
+          "actions": "Actions"
+        }
+      },
+      "models": {
+        "title": "Model Dimension",
+        "view_details": "Open profit",
+        "empty": "No model data",
+        "sorted_note": "Top 10 models by procurement cost and billed revenue",
+        "columns": {
+          "model": "Model",
+          "requests": "Requests",
+          "profit": "Gross profit",
+          "margin": "Gross margin",
+          "coverage": "Cost coverage",
+          "actions": "Actions"
+        }
+      },
+      "priority": {
+        "title": "Priority Items",
+        "scope_note": "Operating risks follow the current filters; configuration risks are global health",
+        "sources": {
+          "operating": "Operating",
+          "configuration": "Configuration"
+        },
+        "columns": {
+          "source": "Source",
+          "level": "Level",
+          "issue": "Issue",
+          "impact": "Affected requests",
+          "action": "Action"
+        }
+      },
+      "trend": {
+        "title": "Billed revenue and cost trend in scope",
+        "financials": "Billed revenue {{revenue}} / Cost {{cost}} / Profit {{profit}}"
+      },
+      "channel_placeholder": "Filter channel",
+      "model_placeholder": "Filter model"
     },
     "procurement_report": {
       "nav": "Procurement",
@@ -3726,6 +3881,13 @@
   "auth": {
     "login": {
       "title": "User Login",
+      "community_name": "YeYing Community",
+      "workspace_eyebrow": "ROUTER WORKSPACE",
+      "workspace_title": "Start your work",
+      "community_hint": "Manage model access and team workflows in one place",
+      "learn_more": "Learn about YeYing Community",
+      "email": "Email address",
+      "start_work": "Start your work",
       "banner_text": "Manage, distribute, route, and use model provider APIs more effectively",
       "username": "Username / Email",
       "password": "Password",
@@ -3737,6 +3899,8 @@
       "register": "Register",
       "other_methods": "Other login methods",
       "wallet_title": "Wallet Login",
+      "wallet_subtitle": "Connect your wallet and confirm the signature to enter the workspace.",
+      "email_login_divider": "Sign in with email",
       "wallet_button": "Sign in with wallet",
       "wallet_action": "Wallet Login",
       "wallet_pending": "Confirm the signature in your wallet",
@@ -3744,11 +3908,22 @@
       "wallet_address_placeholder": "Select wallet address",
       "wallet_rejected": "User rejected the request",
       "wallet_failed": "Wallet login failed",
+      "wallet_identity_email_required": "Router requires a verified email. Complete wallet identity verification and email verification in the YeYing Wallet extension, then sign in again.",
       "user_fetch_failed": "Failed to fetch user information",
       "password_button": "Sign in with password",
       "password_action": "Password Login",
       "password_disabled": "Password login is disabled",
       "wallet_disabled": "Wallet login is disabled",
+      "identity_title": "Wallet identity login",
+      "switch_to_identity": "Use wallet identity",
+      "switch_to_wallet": "Use wallet login",
+      "identity_hint": "Verify with your wallet identity passkey. You will return to your workspace automatically.",
+      "identity_loading": "Creating wallet identity verification request...",
+      "identity_open": "Cannot scan? Use Passkey on this device",
+      "identity_refresh": "Refresh QR code",
+      "identity_failed": "Wallet identity login failed. Please try again.",
+      "identity_expired": "This login request has expired. Start again.",
+      "identity_unbound": "This wallet identity does not resolve to an enabled Router account.",
       "wechat": {
         "scan_tip": "Scan QR code to follow WeChat Official Account, enter 'code' to get verification code (valid for 3 minutes)",
         "code_placeholder": "Verification code"

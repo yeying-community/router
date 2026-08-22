@@ -10,6 +10,7 @@ export { default as AppInputNumber } from './primitives/AppInputNumber';
 export { default as AppMenuDropdown } from './primitives/AppMenuDropdown';
 export { default as AppNavMenu } from './primitives/AppNavMenu';
 export { default as AppModal } from './primitives/AppModal';
+export { default as AppQRCode } from './primitives/AppQRCode';
 export { default as AppPopover } from './primitives/AppPopover';
 export { default as AppPopconfirm } from './primitives/AppPopconfirm';
 export { default as AppSelect } from './primitives/AppSelect';

@@ -1274,6 +1274,9 @@ func ApplyTopupOrderCallbackWithDB(db *gorm.DB, input TopupOrderCallbackInput) (
 		if err := tx.Save(&order).Error; err != nil {
 			return err
 		}
+		if err := CreateUserOrderNotificationEventWithDB(tx, order); err != nil {
+			logger.SysWarnf("create user notification event failed order_id=%s err=%s", order.Id, err.Error())
+		}
 		result = order
 		return nil
 	})

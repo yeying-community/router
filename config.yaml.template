@@ -50,6 +50,15 @@ node:
   # slave 轮询间隔（秒）；master 可设为 0。
   polling_interval_seconds: 0
 
+identity:
+  # 夜莺 Node 钱包身份 API 地址，例如 http://127.0.0.1:8100。
+  node_url: ""
+  # 在 Node 应用中心发布的 Router 应用 ID。
+  app_id: ""
+  # 可选。留空时使用 server.public_url + /api/v1/public/oauth/identity/callback。
+  # 必须与 Node 应用的 redirectUris 完全一致，并且必须由 Router 后端处理，不能指向 Vite。
+  callback_url: ""
+
 cache:
   # 缓存类型：local / redis。
   # 留空表示兼容旧配置：redis.conn_string 非空时使用 redis，否则使用 local。
@@ -172,6 +181,8 @@ operation:
   chat_link: ""
 
 notify:
+  # 用户可用余额低于该额度时发送邮件提醒；0 表示关闭。
+  user_balance_low_threshold: 0
   # 通知通道：
   # - dingtalk：钉钉机器人 WebHook
   # - lark：飞书机器人 WebHook

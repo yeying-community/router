@@ -38,6 +38,11 @@ var BillingServiceTimeoutSeconds = 20
 var BillingTargetMargin = 0.0
 var BillingRiskBuffer = 0.0
 
+// YeYing wallet identity login configuration, loaded from the identity section in config.yaml.
+var IdentityNodeURL = ""
+var IdentityAppID = ""
+var IdentityCallbackURL = ""
+
 // Any options with "Secret", "Token" in its key won't be return by GetOptions
 
 var CookieSecret = uuid.New().String()
@@ -88,6 +93,7 @@ var SMTPPort = 587
 var SMTPAccount = ""
 var SMTPFrom = ""
 var SMTPToken = ""
+var UserBalanceLowNotificationThreshold int64
 
 var GitHubClientId = ""
 var GitHubClientSecret = ""

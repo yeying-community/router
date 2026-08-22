@@ -36,10 +36,12 @@ func SetApiRouter(engine *gin.Engine) {
 	web3AuthRouter.Use(gzip.Gzip(gzip.DefaultCompression))
 	web3AuthRouter.Use(middleware.GlobalAPIRateLimit())
 	{
-		web3AuthRouter.POST("/challenge", middleware.CriticalRateLimit(), auth.WalletChallengeWeb3)
-		web3AuthRouter.POST("/verify", middleware.CriticalRateLimit(), auth.WalletVerifyWeb3)
 		web3AuthRouter.POST("/refresh", middleware.CriticalRateLimit(), auth.WalletRefreshWeb3)
 		web3AuthRouter.POST("/logout", middleware.CriticalRateLimit(), auth.WalletLogoutWeb3)
+		web3AuthRouter.POST("/identity/passkey/login/session", middleware.CriticalRateLimit(), auth.CreateIdentityPasskeyLoginSession)
+		web3AuthRouter.GET("/identity/passkey/login/status", middleware.CriticalRateLimit(), auth.IdentityPasskeyLoginStatus)
+		web3AuthRouter.POST("/identity/login/session", middleware.CriticalRateLimit(), auth.CreateIdentityLoginSession)
+		web3AuthRouter.POST("/identity/login/verify", middleware.CriticalRateLimit(), auth.VerifyIdentityWalletLogin)
 	}
 
 	publicRouter := engine.Group("/api/v1/public")
@@ -63,10 +65,10 @@ func SetApiRouter(engine *gin.Engine) {
 
 		publicRouter.GET("/oauth/wallet/nonce", middleware.CriticalRateLimit(), auth.WalletNonce)
 		publicRouter.POST("/oauth/wallet/login", middleware.CriticalRateLimit(), auth.WalletLogin)
-		publicRouter.POST("/oauth/wallet/bind", middleware.CriticalRateLimit(), middleware.UserAuth(), auth.WalletBind)
 		publicRouter.GET("/oauth/state", middleware.CriticalRateLimit(), auth.GenerateOAuthCode)
 		publicRouter.GET("/oauth/github", middleware.CriticalRateLimit(), auth.GitHubOAuth)
 		publicRouter.GET("/oauth/lark", middleware.CriticalRateLimit(), auth.LarkOAuth)
+		publicRouter.GET("/oauth/identity/callback", middleware.CriticalRateLimit(), auth.IdentityPasskeyLoginCallback)
 
 		publicUserRoute := publicRouter.Group("/user")
 		{

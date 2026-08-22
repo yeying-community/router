@@ -43,6 +43,7 @@ type AppConfig struct {
 	Operation OperationConfig `yaml:"operation"`
 	Notify    NotifyConfig    `yaml:"notify"`
 	Billing   BillingConfig   `yaml:"billing_service"`
+	Identity  IdentityConfig  `yaml:"identity"`
 	Relay     RelayConfig     `yaml:"relay"`
 	RateLimit RateLimitConfig `yaml:"rate_limit"`
 	Metrics   MetricsConfig   `yaml:"metrics"`
@@ -132,16 +133,23 @@ type OperationConfig struct {
 }
 
 type NotifyConfig struct {
-	Provider   string `yaml:"provider"`
-	WebhookURL string `yaml:"webhook_url"`
-	Secret     string `yaml:"secret"`
-	Token      string `yaml:"token"`
+	Provider                string `yaml:"provider"`
+	WebhookURL              string `yaml:"webhook_url"`
+	Secret                  string `yaml:"secret"`
+	Token                   string `yaml:"token"`
+	UserBalanceLowThreshold int64  `yaml:"user_balance_low_threshold"`
 }
 
 type BillingConfig struct {
 	BaseURL        string `yaml:"base_url"`
 	APIKey         string `yaml:"api_key"`
 	TimeoutSeconds int    `yaml:"timeout_seconds"`
+}
+
+type IdentityConfig struct {
+	NodeURL     string `yaml:"node_url"`
+	AppID       string `yaml:"app_id"`
+	CallbackURL string `yaml:"callback_url"`
 }
 
 type RelayConfig struct {
@@ -364,6 +372,7 @@ func ApplyAppConfig(cfg *AppConfig, portFlagSet bool, logDirFlagSet bool) error 
 	config.NotifyWebhookURL = strings.TrimSpace(cfg.Notify.WebhookURL)
 	config.NotifySecret = strings.TrimSpace(cfg.Notify.Secret)
 	config.NotifyToken = strings.TrimSpace(cfg.Notify.Token)
+	config.UserBalanceLowNotificationThreshold = cfg.Notify.UserBalanceLowThreshold
 	config.BillingServiceBaseURL = strings.TrimRight(strings.TrimSpace(cfg.Billing.BaseURL), "/")
 	config.BillingServiceAPIKey = strings.TrimSpace(cfg.Billing.APIKey)
 	if cfg.Billing.TimeoutSeconds > 0 {
@@ -371,6 +380,9 @@ func ApplyAppConfig(cfg *AppConfig, portFlagSet bool, logDirFlagSet bool) error 
 	} else {
 		config.BillingServiceTimeoutSeconds = 20
 	}
+	config.IdentityNodeURL = strings.TrimRight(strings.TrimSpace(cfg.Identity.NodeURL), "/")
+	config.IdentityAppID = strings.TrimSpace(cfg.Identity.AppID)
+	config.IdentityCallbackURL = strings.TrimSpace(cfg.Identity.CallbackURL)
 	SQLDSN = strings.TrimSpace(cfg.Database.SQLDSN)
 	LogSQLDSN = strings.TrimSpace(cfg.Database.LogSQLDSN)
 	SQLMaxIdleConns = cfg.Database.MaxIdleConns
