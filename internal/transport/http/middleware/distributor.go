@@ -344,6 +344,13 @@ func SelectEntitlementChannelForRequest(ctx context.Context, c *gin.Context, use
 	if strings.TrimSpace(initialGroup) != "" {
 		message = fmt.Sprintf("当前分组 %s 下对于模型 %s 无可用渠道", initialGroup, requestModel)
 	}
+	if !model.HasPublishedModelChannelBinding(initialGroup, requestModel) {
+		c.Set(ctxkey.RelayModelUnavailable, true)
+		c.Set(ctxkey.RelayErrorCode, "model_not_found")
+		message = fmt.Sprintf("模型 %s 当前未发布或不支持使用，请从可用模型列表中选择其他模型", requestModel)
+		logger.RelayWarnf(ctx, "DISTRIBUTE decision=abort reason=model_unavailable user_id=%s group=%s model=%s endpoint=%s listed_candidates=%d message=%q", userID, initialGroup, requestModel, requestPath, lastStats.ListedCount, message)
+		return nil, "", nil, fmt.Errorf("%s", message)
+	}
 	if lastErr != nil {
 		logger.RelayErrorf(ctx, "DISTRIBUTE decision=abort reason=no_entitlement_channel user_id=%s group=%s model=%s endpoint=%s listed_candidates=%d endpoint_filtered_candidates=%d message=%q error=%q", userID, initialGroup, requestModel, requestPath, lastStats.ListedCount, lastStats.EndpointFilteredCount, message, lastErr.Error())
 	} else {
@@ -462,10 +469,13 @@ func Distribute() func(c *gin.Context) {
 				reason = "entitlement_unavailable"
 				if entitlementErr.ModelUnavailable {
 					c.Set(ctxkey.RelayModelUnavailable, true)
+					c.Set(ctxkey.RelayErrorCode, "model_not_found")
 					reason = "model_unavailable"
 				}
 			}
-			c.Set(ctxkey.RelayErrorCode, errorCode)
+			if c.GetString(ctxkey.RelayErrorCode) == "" {
+				c.Set(ctxkey.RelayErrorCode, errorCode)
+			}
 			logger.RelayWarnf(ctx, "DISTRIBUTE decision=abort reason=%s user_id=%s model=%s endpoint=%s status=%d error=%q", reason, userId, requestModel, c.Request.URL.Path, statusCode, groupErr.Error())
 			abortWithMessage(c, statusCode, groupErr.Error())
 		}

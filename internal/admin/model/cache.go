@@ -362,6 +362,30 @@ func CacheListSatisfiedChannels(group string, model string) ([]*Channel, error) 
 	return result, nil
 }
 
+// HasPublishedModelChannelBinding reports whether a model has at least one
+// published channel binding in a group. Callers use it to distinguish an
+// unpublished or unsupported model from a temporarily unavailable channel.
+func HasPublishedModelChannelBinding(group string, model string) bool {
+	groupName := strings.TrimSpace(group)
+	modelName := strings.TrimSpace(model)
+	if groupName == "" || modelName == "" {
+		return false
+	}
+	if config.MemoryCacheEnabled {
+		channelSyncLock.RLock()
+		defer channelSyncLock.RUnlock()
+		return len(group2model2channels[groupName][modelName]) > 0
+	}
+	count := int64(0)
+	if DB == nil {
+		return false
+	}
+	err := DB.Model(&GroupModelChannel{}).
+		Where("\"group\" = ? AND model = ?", groupName, modelName).
+		Count(&count).Error
+	return err == nil && count > 0
+}
+
 type ChannelCandidateStats struct {
 	ListedCount           int
 	EndpointFilteredCount int
