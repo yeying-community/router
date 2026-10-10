@@ -653,6 +653,33 @@ func GetLatestChannelBillingSnapshotByChannelIDWithDB(db *gorm.DB, channelID str
 	return rows[0], nil
 }
 
+// GetLatestChannelBillingSnapshotBySourceWithDB returns the latest snapshot of a
+// specific source type (e.g. api for adapter-refreshed balance). Balance/entitlement
+// display must use the api source only: manual snapshots are procurement cost
+// records, not an upstream balance (see docs/商业计费/成本与盈利核算标准.md §6).
+func GetLatestChannelBillingSnapshotBySourceWithDB(db *gorm.DB, channelID string, sourceType string) (ChannelBillingSnapshot, error) {
+	if db == nil {
+		return ChannelBillingSnapshot{}, fmt.Errorf("database handle is nil")
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	normalizedSourceType := strings.TrimSpace(sourceType)
+	if normalizedChannelID == "" || normalizedSourceType == "" {
+		return ChannelBillingSnapshot{}, gorm.ErrRecordNotFound
+	}
+	row := ChannelBillingSnapshot{}
+	if err := db.
+		Where("channel_id = ? AND source_type = ?", normalizedChannelID, normalizedSourceType).
+		Order("created_at desc, id desc").
+		Take(&row).Error; err != nil {
+		return ChannelBillingSnapshot{}, err
+	}
+	rows := []ChannelBillingSnapshot{row}
+	if err := HydrateChannelBillingSnapshotsWithItemsWithDB(db, rows); err != nil {
+		return ChannelBillingSnapshot{}, err
+	}
+	return rows[0], nil
+}
+
 func GetLatestChannelBillingSnapshotCreatedAtByStatusWithDB(db *gorm.DB, channelID string, sourceType string, rawStatus string) (int64, error) {
 	if db == nil {
 		return 0, fmt.Errorf("database handle is nil")

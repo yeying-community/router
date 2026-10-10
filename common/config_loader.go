@@ -141,9 +141,15 @@ type NotifyConfig struct {
 }
 
 type BillingConfig struct {
-	BaseURL        string `yaml:"base_url"`
-	APIKey         string `yaml:"api_key"`
-	TimeoutSeconds int    `yaml:"timeout_seconds"`
+	BaseURL                  string `yaml:"base_url"`
+	APIKey                   string `yaml:"api_key"`
+	TimeoutSeconds           int    `yaml:"timeout_seconds"`
+	// CostRateFloorEnabled gates the online cost floor's use of cached
+	// billing-service cost quotes (see BillingServiceCostRateFloorEnabled).
+	CostRateFloorEnabled bool `yaml:"cost_rate_floor_enabled"`
+	// CostRateFloorTTLSeconds is the freshness window for a cached quote.
+	// Quotes older than this are ignored and the floor falls back to local.
+	CostRateFloorTTLSeconds int64 `yaml:"cost_rate_floor_ttl_seconds"`
 }
 
 type IdentityConfig struct {
@@ -383,6 +389,10 @@ func ApplyAppConfig(cfg *AppConfig, portFlagSet bool, logDirFlagSet bool) error 
 		config.BillingServiceTimeoutSeconds = cfg.Billing.TimeoutSeconds
 	} else {
 		config.BillingServiceTimeoutSeconds = 20
+	}
+	config.BillingServiceCostRateFloorEnabled = cfg.Billing.CostRateFloorEnabled
+	if cfg.Billing.CostRateFloorTTLSeconds > 0 {
+		config.BillingServiceCostRateFloorTTLSeconds = cfg.Billing.CostRateFloorTTLSeconds
 	}
 	config.IdentityNodeURL = strings.TrimRight(strings.TrimSpace(cfg.Identity.NodeURL), "/")
 	config.IdentityAppID = strings.TrimSpace(cfg.Identity.AppID)

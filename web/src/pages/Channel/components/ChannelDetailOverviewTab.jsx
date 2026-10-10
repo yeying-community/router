@@ -415,21 +415,23 @@ const ChannelDetailOverviewTab = ({
           {t('channel.edit.billing.credential_hint')}
         </div>
       </AppDetailSection>
-      <ChannelBillingAccountView
-        t={t}
-        billingSummary={billingSummary}
-        billingLoading={billingLoading}
-        billingError={billingError}
-        billingSubmitting={billingSubmitting}
-        onRefreshBilling={onRefreshBilling}
-        onViewProcurement={
-          typeof onNavigateTab === 'function'
-            ? () => onNavigateTab('procurement')
-            : undefined
-        }
-        timestamp2string={timestamp2string}
-        channelID={channelID}
-      />
+      {billingSummary?.refresh_supported ? (
+        <ChannelBillingAccountView
+          t={t}
+          billingSummary={billingSummary}
+          billingLoading={billingLoading}
+          billingError={billingError}
+          billingSubmitting={billingSubmitting}
+          onRefreshBilling={onRefreshBilling}
+          onViewProcurement={
+            typeof onNavigateTab === 'function'
+              ? () => onNavigateTab('procurement')
+              : undefined
+          }
+          timestamp2string={timestamp2string}
+          channelID={channelID}
+        />
+      ) : null}
     </>
   );
 };

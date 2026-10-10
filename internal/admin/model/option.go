@@ -56,6 +56,8 @@ func InitOptionMap() {
 	config.OptionMap["ChannelBillingAutoRefreshLastRunAt"] = strconv.FormatInt(config.ChannelBillingAutoRefreshLastRunAt, 10)
 	config.OptionMap["BillingTargetMargin"] = strconv.FormatFloat(config.BillingTargetMargin, 'f', -1, 64)
 	config.OptionMap["BillingRiskBuffer"] = strconv.FormatFloat(config.BillingRiskBuffer, 'f', -1, 64)
+	config.OptionMap["BillingServiceCostRateFloorEnabled"] = strconv.FormatBool(config.BillingServiceCostRateFloorEnabled)
+	config.OptionMap["BillingServiceCostRateFloorTTLSeconds"] = strconv.FormatInt(config.BillingServiceCostRateFloorTTLSeconds, 10)
 	config.OptionMap["ChannelDisableThreshold"] = strconv.FormatFloat(config.ChannelDisableThreshold, 'f', -1, 64)
 	config.OptionMap["SMTPServer"] = ""
 	config.OptionMap["SMTPFrom"] = ""
@@ -257,6 +259,16 @@ func UpdateOptionMap(key string, value string) (err error) {
 	case "BillingRiskBuffer":
 		config.BillingRiskBuffer = normalizeBillingFloatOption(value, 0, 0, 100)
 		config.OptionMap[key] = strconv.FormatFloat(config.BillingRiskBuffer, 'f', -1, 64)
+	case "BillingServiceCostRateFloorEnabled":
+		config.BillingServiceCostRateFloorEnabled = value == "true"
+		config.OptionMap[key] = strconv.FormatBool(config.BillingServiceCostRateFloorEnabled)
+	case "BillingServiceCostRateFloorTTLSeconds":
+		ttl, _ := strconv.ParseInt(value, 10, 64)
+		if ttl < 0 {
+			ttl = 0
+		}
+		config.BillingServiceCostRateFloorTTLSeconds = ttl
+		config.OptionMap[key] = strconv.FormatInt(ttl, 10)
 	case "ChannelDisableThreshold":
 		config.ChannelDisableThreshold, _ = strconv.ParseFloat(value, 64)
 	case "QuotaPerUnit":

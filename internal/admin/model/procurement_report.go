@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/yeying-community/router/common/config"
 	"gorm.io/gorm"
 )
 
@@ -49,6 +50,8 @@ type ProcurementReportItem struct {
 	ProcurementCostBaseAmount    float64 `json:"procurement_cost_base_amount" gorm:"column:procurement_cost_base_amount"`
 	GrossProfitBaseAmount        float64 `json:"gross_profit_base_amount" gorm:"column:gross_profit_base_amount"`
 	GrossMargin                  float64 `json:"gross_margin" gorm:"-"`
+	ProcurementCostYYC           float64 `json:"procurement_cost_yyc" gorm:"-"`
+	GrossProfitYYC               float64 `json:"gross_profit_yyc" gorm:"-"`
 	ActualCostBaseAmount         float64 `json:"actual_cost_base_amount" gorm:"column:actual_cost_base_amount"`
 	EstimatedCostBaseAmount      float64 `json:"estimated_cost_base_amount" gorm:"column:estimated_cost_base_amount"`
 	CostFloorTriggeredCount      int64   `json:"cost_floor_triggered_count" gorm:"column:cost_floor_triggered_count"`
@@ -83,6 +86,10 @@ type ProcurementReportSummary struct {
 	ProcurementCostBaseAmount    float64                 `json:"procurement_cost_base_amount"`
 	GrossProfitBaseAmount        float64                 `json:"gross_profit_base_amount"`
 	GrossMargin                  float64                 `json:"gross_margin"`
+	ProcurementCostYYC           float64                 `json:"procurement_cost_yyc"`
+	GrossProfitYYC               float64                 `json:"gross_profit_yyc"`
+	TargetMargin                 float64                 `json:"target_margin"`
+	RiskBuffer                   float64                 `json:"risk_buffer"`
 	CostFloorTriggeredCount      int64                   `json:"cost_floor_triggered_count"`
 	CostFloorTriggeredAmount     float64                 `json:"cost_floor_triggered_amount"`
 }
@@ -100,6 +107,8 @@ type ProcurementTrendItem struct {
 	SellBaseAmount               float64 `json:"sell_base_amount" gorm:"column:sell_base_amount"`
 	ProcurementCostBaseAmount    float64 `json:"procurement_cost_base_amount" gorm:"column:procurement_cost_base_amount"`
 	GrossProfitBaseAmount        float64 `json:"gross_profit_base_amount" gorm:"column:gross_profit_base_amount"`
+	ProcurementCostYYC           float64 `json:"procurement_cost_yyc" gorm:"-"`
+	GrossProfitYYC               float64 `json:"gross_profit_yyc" gorm:"-"`
 	CostFloorTriggeredCount      int64   `json:"cost_floor_triggered_count" gorm:"column:cost_floor_triggered_count"`
 	CostFloorTriggeredAmount     float64 `json:"cost_floor_triggered_amount" gorm:"column:cost_floor_triggered_amount"`
 }
@@ -149,7 +158,27 @@ func ListProcurementTrendWithDB(db *gorm.DB, query ProcurementTrendQuery) ([]Pro
 		dbQuery = dbQuery.Where("COALESCE(NULLIF(TRIM(el.actual_model_name), ''), NULLIF(TRIM(el.model_name), '')) = ?", strings.TrimSpace(query.Model))
 	}
 	err := dbQuery.Group("day").Order("day ASC").Scan(&rows).Error
-	return rows, err
+	if err != nil {
+		return rows, err
+	}
+	// Express CNY base cost/profit in YYC too (see §2 of the accounting standard).
+	cnyChargeRate := procurementReportCNYChargeRate()
+	for index := range rows {
+		rows[index].ProcurementCostYYC = rows[index].ProcurementCostBaseAmount * cnyChargeRate
+		rows[index].GrossProfitYYC = rows[index].GrossProfitBaseAmount * cnyChargeRate
+	}
+	return rows, nil
+}
+
+// procurementReportCNYChargeRate returns YYC-per-1-CNY so CNY base amounts can be
+// expressed in the YYC accounting unit. Returns 0 when the rate is unavailable, in
+// which case YYC-denominated fields stay 0 and callers fall back to the CNY columns.
+func procurementReportCNYChargeRate() float64 {
+	rate, err := GetBillingCurrencyChargeRate(BillingCurrencyCodeCNY)
+	if err != nil || rate <= 0 {
+		return 0
+	}
+	return rate
 }
 
 func NormalizeProcurementReportCostScope(value string) string {
@@ -261,11 +290,17 @@ func ListProcurementReportWithDB(db *gorm.DB, query ProcurementReportQuery) (Pro
 		Scan(&rows).Error; err != nil {
 		return summary, err
 	}
+	// YYC is the accounting unit (see docs/商业计费/成本与盈利核算标准.md §2). Cost/
+	// profit are stored as CNY base amounts; express them in YYC too so cost/profit
+	// share the same unit as revenue (router_consumed_yyc). Rate = YYC per 1 CNY.
+	cnyChargeRate := procurementReportCNYChargeRate()
 	for index := range rows {
 		rows[index].DimensionType = groupBy
 		if rows[index].ConfiguredSellBaseAmount > 0 {
 			rows[index].GrossMargin = rows[index].GrossProfitBaseAmount / rows[index].ConfiguredSellBaseAmount
 		}
+		rows[index].ProcurementCostYYC = rows[index].ProcurementCostBaseAmount * cnyChargeRate
+		rows[index].GrossProfitYYC = rows[index].GrossProfitBaseAmount * cnyChargeRate
 		summary.RequestCount += rows[index].RequestCount
 		summary.ConfiguredCostRequestCount += rows[index].ConfiguredCostRequestCount
 		summary.UnconfiguredCostRequestCount += rows[index].UnconfiguredCostRequestCount
@@ -288,6 +323,10 @@ func ListProcurementReportWithDB(db *gorm.DB, query ProcurementReportQuery) (Pro
 	if summary.ConfiguredSellBaseAmount > 0 {
 		summary.GrossMargin = summary.GrossProfitBaseAmount / summary.ConfiguredSellBaseAmount
 	}
+	summary.ProcurementCostYYC = summary.ProcurementCostBaseAmount * cnyChargeRate
+	summary.GrossProfitYYC = summary.GrossProfitBaseAmount * cnyChargeRate
+	summary.TargetMargin = normalizeTargetMargin(config.BillingTargetMargin)
+	summary.RiskBuffer = normalizeRiskBuffer(config.BillingRiskBuffer)
 	summary.Items = rows
 	return summary, nil
 }

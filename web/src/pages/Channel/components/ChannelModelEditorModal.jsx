@@ -425,6 +425,35 @@ const ChannelModelEditorModal = ({
                     }
                   />
                 </AppField>
+                <AppField
+                  label={t('channel.edit.model_selector.table.target_margin')}
+                  hint={t('channel.edit.model_selector.target_margin_hint')}
+                >
+                  <AppInputNumber
+                    className='router-modal-input'
+                    min={0}
+                    max={95}
+                    step={1}
+                    fluid
+                    placeholder={t('channel.edit.model_selector.target_margin_placeholder')}
+                    value={
+                      detailEditingModelRow.target_margin === null ||
+                      detailEditingModelRow.target_margin === undefined ||
+                      detailEditingModelRow.target_margin === ''
+                        ? ''
+                        : Number((Number(detailEditingModelRow.target_margin) * 100).toFixed(2))
+                    }
+                    onChange={(e, { value }) =>
+                      updateModelConfigField(
+                        detailEditingModelRow.upstream_model,
+                        'target_margin',
+                        value === '' || value === null || value === undefined
+                          ? null
+                          : Number(value) / 100,
+                      )
+                    }
+                  />
+                </AppField>
               </AppFormRow>
             )}
           </div>

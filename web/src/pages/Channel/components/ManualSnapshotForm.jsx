@@ -10,19 +10,14 @@ import {
   AppInputNumber,
   AppSegmented,
   AppSelect,
-  AppTooltip,
 } from '../../../router-ui';
 import {
   ensureUnitOption,
-  entitlementTypeOptions,
-  entitlementTypePatch,
-  entitlementTypeValue,
   isPurchaseCurrencyCNY,
   MANUAL_CURRENCY_OPTIONS,
   PROCUREMENT_CURRENCY_OPTIONS,
   PURCHASE_KINDS,
   resolveManualAmountLabel,
-  resolveManualResourceHint,
   shouldShowManualAmountFields,
 } from './channelBilling.helpers';
 
@@ -387,11 +382,6 @@ const ManualSnapshotForm = ({
               <div className='router-billing-manual-item-header'>
                 <div className='router-billing-manual-item-title'>
                   {t('channel.edit.billing.manual_item_title', { index: index + 1 })}
-                  <AppTooltip title={resolveManualResourceHint(item, t)}>
-                    <span className='router-help-trigger router-billing-manual-item-help'>
-                      ?
-                    </span>
-                  </AppTooltip>
                 </div>
                 <div className='router-billing-manual-item-actions'>
                   <AppButton
@@ -407,56 +397,40 @@ const ManualSnapshotForm = ({
                 </div>
               </div>
               <AppFormRow>
-                <AppField label={t('channel.edit.billing.manual_resource_type')} required>
-                  <AppSelect
-                    className='router-section-input'
-                    options={entitlementTypeOptions(t)}
-                    value={entitlementTypeValue(item)}
-                    onChange={(e, { value }) =>
-                      onUpdateManualItem(index, {
-                        ...entitlementTypePatch(value),
-                        quota_label: '',
-                      })
-                    }
-                    disabled={inputReadOnly}
-                  />
+                <AppField label={resolveManualAmountLabel(item, t)} required>
+                  <AppCompact className='router-section-input-with-unit' block>
+                    <AppInputNumber
+                      className='router-section-input router-section-input-with-unit-field'
+                      fluid
+                      value={item.limit_amount}
+                      min={0}
+                      onChange={(e, { value }) =>
+                        onUpdateManualItem(index, {
+                          limit_amount: value,
+                        })
+                      }
+                      disabled={inputReadOnly}
+                    />
+                    <UnitDropdown
+                      variant='inputUnit'
+                      options={ensureUnitOption(
+                        MANUAL_CURRENCY_OPTIONS,
+                        item.currency || 'USD'
+                      )}
+                      value={item.currency || 'USD'}
+                      onChange={(_, { value }) =>
+                        onUpdateManualItem(index, {
+                          currency: (value || 'USD')
+                            .toString()
+                            .trim()
+                            .toUpperCase(),
+                        })
+                      }
+                      disabled={inputReadOnly}
+                      aria-label={t('channel.edit.billing.currency')}
+                    />
+                  </AppCompact>
                 </AppField>
-                {shouldShowManualAmountFields(item) ? (
-                  <AppField label={resolveManualAmountLabel(item, t)} required>
-                    <AppCompact className='router-section-input-with-unit' block>
-                      <AppInputNumber
-                        className='router-section-input router-section-input-with-unit-field'
-                        fluid
-                        value={item.limit_amount}
-                        min={0}
-                        onChange={(e, { value }) =>
-                          onUpdateManualItem(index, {
-                            limit_amount: value,
-                          })
-                        }
-                        disabled={inputReadOnly}
-                      />
-                      <UnitDropdown
-                        variant='inputUnit'
-                        options={ensureUnitOption(
-                          MANUAL_CURRENCY_OPTIONS,
-                          item.currency || 'USD'
-                        )}
-                        value={item.currency || 'USD'}
-                        onChange={(_, { value }) =>
-                          onUpdateManualItem(index, {
-                            currency: (value || 'USD')
-                              .toString()
-                              .trim()
-                              .toUpperCase(),
-                          })
-                        }
-                        disabled={inputReadOnly}
-                        aria-label={t('channel.edit.billing.currency')}
-                      />
-                    </AppCompact>
-                  </AppField>
-                ) : null}
               </AppFormRow>
             </div>
           ))}

@@ -290,6 +290,19 @@ const normalizePriceOverrideValue = (value) => {
   return price;
 };
 
+// Per-model target margin override is a fraction (0..0.95); null/empty clears the
+// override so the global policy applies. See 成本与盈利核算标准 §5.
+const normalizeTargetMarginOverride = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const margin = Number(value);
+  if (!Number.isFinite(margin) || margin <= 0) {
+    return null;
+  }
+  return margin > 0.95 ? 0.95 : margin;
+};
+
 const normalizePriceUnitValue = (value) => {
   const normalized = (value || '').toString().trim().toLowerCase();
   return normalized || 'per_1k_tokens';
@@ -1496,6 +1509,7 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
     is_stream: resolveModelTestStreamEnabled(row),
     input_price: normalizePriceOverrideValue(row.input_price),
     output_price: normalizePriceOverrideValue(row.output_price),
+    target_margin: normalizeTargetMarginOverride(row.target_margin),
     price_unit: normalizePriceUnitValue(row.price_unit),
     currency: normalizeCurrencyValue(row.currency),
     price_components: normalizeComplexPriceComponents(row.price_components),
@@ -1893,6 +1907,57 @@ const fetchChannelProcurementBatches = async (channelId) => {
   return normalizeChannelProcurementBatches(data?.items);
 };
 
+// Read-only cost-quote reconciliation: billing service's normalized unit cost per
+// model (YYC) vs local procurement readiness. Never affects online charging.
+const fetchChannelCostQuotes = async (channelId) => {
+  const normalizedChannelId = (channelId || '').toString().trim();
+  if (normalizedChannelId === '') {
+    return { service_available: false, reason: '', rows: [] };
+  }
+  const res = await API.get(
+    `/api/v1/admin/channel/${normalizedChannelId}/billing/cost-quotes`
+  );
+  const { success, message, data } = res.data || {};
+  if (!success) {
+    throw new Error(message || 'fetch channel cost quotes failed');
+  }
+  return {
+    service_available: data?.service_available === true,
+    reason: (data?.reason || '').toString(),
+    rows: Array.isArray(data?.rows)
+      ? data.rows.map((row) => ({
+          model: (row?.model || '').toString(),
+          capacity_unit: (row?.capacity_unit || '').toString(),
+          service_unit_cost: Number(row?.service_unit_cost || 0),
+          service_currency: (row?.service_currency || '').toString(),
+          service_unit_cost_yyc: Number(row?.service_unit_cost_yyc || 0),
+          service_confidence: (row?.service_confidence || '').toString(),
+          local_readiness: (row?.local_readiness || '').toString(),
+        }))
+      : [],
+  };
+};
+
+// Sync service cost quotes into the local rate cache (admin-only). Returns the
+// counts of newly cached quotes vs skipped ones (non-actual, unparseable currency).
+const syncChannelCostQuotes = async (channelId) => {
+  const normalizedChannelId = (channelId || '').toString().trim();
+  if (normalizedChannelId === '') {
+    return { cached: 0, skipped: 0 };
+  }
+  const res = await API.post(
+    `/api/v1/admin/channel/${normalizedChannelId}/billing/cost-quotes/sync`
+  );
+  const { success, message, data } = res.data || {};
+  if (!success) {
+    throw new Error(message || 'sync channel cost quotes failed');
+  }
+  return {
+    cached: Number(data?.cached || 0),
+    skipped: Number(data?.skipped || 0),
+  };
+};
+
 const fetchChannelProcurementBatchConsumptions = async (channelId, batchId) => {
   const normalizedChannelId = (channelId || '').toString().trim();
   const normalizedBatchId = (batchId || '').toString().trim();
@@ -2212,6 +2277,8 @@ export {
   fetchChannelEndpoints,
   fetchChannelProcurementBatchConsumptions,
   fetchChannelProcurementBatches,
+  fetchChannelCostQuotes,
+  syncChannelCostQuotes,
   fetchChannelTests,
   fetchTaskById,
   filterBillingCredentialsByFields,

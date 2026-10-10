@@ -2224,6 +2224,20 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return nil
 			},
 		},
+		{
+			Version:     "202610111200_channel_model_target_margin",
+			Description: "add per-channel-model target_margin override column for the pricing closed loop",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelModel{})
+			},
+		},
+		{
+			Version:     "202610111300_channel_model_cost_rates",
+			Description: "create channel_model_cost_rates for the billing-service cost quote cache (P5 §A.4 step 2)",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelModelCostRate{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

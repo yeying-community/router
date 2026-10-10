@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { API, showError, showSuccess, withCardLabels } from '../../../helpers';
 import { exportCSV } from '../../../helpers/csv';
-import { formatDecimalNumber } from '../../../helpers/render';
+import { formatDecimalNumber, formatCreditAmount } from '../../../helpers/render';
 import { buildLogDrilldownPath } from '../../../components/LogsTable.helpers';
 import {
   AppButton,
@@ -27,6 +27,7 @@ import {
 import './BillingPricingAnalysis.css';
 
 const formatCNY = formatCnyFixed;
+const formatYYC = (value) => formatCreditAmount(value || 0, true);
 const formatCount = (value) => formatDecimalNumber(value || 0, 0);
 const formatPercent = (value) => formatBillingPercent(value, BILLING_PERCENT_DECIMALS);
 
@@ -62,6 +63,7 @@ const STATE_COLORS = {
 };
 
 const normalize = (payload) => ({
+  target_margin: Number(payload?.target_margin || 0),
   items: (Array.isArray(payload?.items) ? payload.items : []).map((item) => ({
     ...item,
     request_count: Number(item?.request_count || 0),
@@ -74,6 +76,8 @@ const normalize = (payload) => ({
     sell_base_amount: Number(item?.sell_base_amount || 0),
     procurement_cost_base_amount: Number(item?.procurement_cost_base_amount || 0),
     gross_profit_base_amount: Number(item?.gross_profit_base_amount || 0),
+    procurement_cost_yyc: Number(item?.procurement_cost_yyc || 0),
+    gross_profit_yyc: Number(item?.gross_profit_yyc || 0),
     gross_margin: Number(item?.gross_margin || 0),
     cost_floor_triggered_count: Number(item?.cost_floor_triggered_count || 0),
     cost_floor_triggered_amount: Number(item?.cost_floor_triggered_amount || 0),
@@ -86,11 +90,16 @@ const recentRange = () => {
   return { start_at: end - 7 * 24 * 60 * 60, end_at: end };
 };
 
-const pricingState = (row) => {
+// Threshold comes from the configured pricing policy (target_margin) so the
+// state legend reflects the operator's intent; falls back to 0.1 when unset.
+// See docs/商业计费/成本与盈利核算标准.md §5.
+const DEFAULT_LOW_MARGIN_THRESHOLD = 0.1;
+
+const pricingState = (row, targetMargin = DEFAULT_LOW_MARGIN_THRESHOLD) => {
   if (row.unconfigured_cost_request_count > 0 || row.pending_cost_request_count > 0 || row.retry_cost_request_count > 0 || row.estimated_cost_request_count > 0) return 'unknown';
   if (row.configured_cost_request_count <= 0) return 'unknown';
   if (row.gross_margin < 0) return 'loss';
-  if (row.gross_margin < 0.1) return 'low_margin';
+  if (row.gross_margin < targetMargin) return 'low_margin';
   return 'healthy';
 };
 
@@ -122,6 +131,7 @@ function BillingPricingAnalysis({ embedded = false }) {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [rows, setRows] = useState([]);
+  const [targetMargin, setTargetMargin] = useState(0);
   const [stateFilter, setStateFilter] = useState(initialContext.stateFilter);
   const [groupID, setGroupID] = useState(initialContext.groupID);
   const [channelID, setChannelID] = useState(initialContext.channelID);
@@ -247,7 +257,9 @@ function BillingPricingAnalysis({ embedded = false }) {
         showError(response.data?.message || t('billing.pricing_analysis.load_failed'));
         return;
       }
-      setRows(normalize(response.data.data).items);
+      const payload = normalize(response.data.data);
+      setRows(payload.items);
+      setTargetMargin(Number(payload.target_margin || 0));
     } catch (error) {
       setLoadError(true);
       showError(error?.message || t('billing.pricing_analysis.load_failed'));
@@ -258,11 +270,14 @@ function BillingPricingAnalysis({ embedded = false }) {
 
   useEffect(() => { load().then(); }, [load]);
 
+  const lowMarginThreshold = targetMargin > 0 ? targetMargin : DEFAULT_LOW_MARGIN_THRESHOLD;
+
   const summaryTotals = useMemo(() => {
     const items = Array.isArray(rows) ? rows : [];
     let revenue = 0;
     let cost = 0;
     let profit = 0;
+    let profitYYC = 0;
     let lossCount = 0;
     let lowMarginCount = 0;
     items.forEach((row) => {
@@ -272,8 +287,9 @@ function BillingPricingAnalysis({ embedded = false }) {
         revenue += Number(row?.sell_base_amount || 0);
         cost += rowCost;
         profit += Number(row?.gross_profit_base_amount || 0);
+        profitYYC += Number(row?.gross_profit_yyc || 0);
       }
-      const state = pricingState(row);
+      const state = pricingState(row, lowMarginThreshold);
       if (state === 'loss') lossCount += 1;
       else if (state === 'low_margin') lowMarginCount += 1;
     });
@@ -285,15 +301,16 @@ function BillingPricingAnalysis({ embedded = false }) {
       revenue,
       cost,
       profit,
+      profitYYC,
       weightedMargin,
     };
-  }, [rows]);
+  }, [rows, lowMarginThreshold]);
 
   const stateDistribution = useMemo(() => {
     const items = Array.isArray(rows) ? rows : [];
     const counts = { healthy: 0, low_margin: 0, loss: 0, unknown: 0 };
     items.forEach((row) => {
-      counts[pricingState(row)] += 1;
+      counts[pricingState(row, lowMarginThreshold)] += 1;
     });
     return ['healthy', 'low_margin', 'loss', 'unknown'].map((state) => ({
       key: state,
@@ -301,16 +318,16 @@ function BillingPricingAnalysis({ embedded = false }) {
       count: counts[state],
       color: STATE_COLORS[state],
     }));
-  }, [rows, t]);
+  }, [rows, lowMarginThreshold, t]);
 
   const displayedRows = useMemo(
     () =>
       stateFilter === 'all'
         ? rows
         : (Array.isArray(rows) ? rows : []).filter(
-            (row) => pricingState(row) === stateFilter,
+            (row) => pricingState(row, lowMarginThreshold) === stateFilter,
           ),
-    [rows, stateFilter],
+    [rows, lowMarginThreshold, stateFilter],
   );
 
   const columns = [
@@ -325,7 +342,7 @@ function BillingPricingAnalysis({ embedded = false }) {
       key: 'state',
       width: 120,
       render: (_, row) => {
-        const state = pricingState(row);
+        const state = pricingState(row, lowMarginThreshold);
         return <AppTag color={state === 'loss' ? 'red' : state === 'healthy' ? 'green' : 'orange'}>{t(`billing.pricing_analysis.states.${state}`)}</AppTag>;
       },
     },
@@ -356,6 +373,13 @@ function BillingPricingAnalysis({ embedded = false }) {
       width: 130,
       align: 'right',
       render: formatCNY,
+    },
+    {
+      title: t('billing.pricing_analysis.columns.profit_yyc'),
+      dataIndex: 'gross_profit_yyc',
+      width: 130,
+      align: 'right',
+      render: formatYYC,
     },
     {
       title: t('billing.pricing_analysis.columns.margin'),
@@ -417,10 +441,22 @@ function BillingPricingAnalysis({ embedded = false }) {
       danger: summaryTotals.profit < 0,
     },
     {
+      key: 'profit_yyc',
+      label: t('billing.pricing_analysis.summary.total_profit_yyc'),
+      value: formatYYC(summaryTotals.profitYYC),
+      danger: summaryTotals.profitYYC < 0,
+    },
+    {
       key: 'margin',
       label: t('billing.pricing_analysis.summary.avg_margin'),
       value: formatPercent(summaryTotals.weightedMargin),
-      danger: summaryTotals.weightedMargin < 0.1,
+      danger: summaryTotals.weightedMargin < lowMarginThreshold,
+    },
+    {
+      key: 'target_margin',
+      label: t('billing.pricing_analysis.summary.target_margin'),
+      value: targetMargin > 0 ? formatPercent(targetMargin) : t('billing.pricing_analysis.summary.target_margin_unset'),
+      danger: false,
     },
   ];
 
@@ -443,6 +479,7 @@ function BillingPricingAnalysis({ embedded = false }) {
                     { key: 'sell_base_amount', label: t('billing.pricing_analysis.columns.sell'), format: formatCsvCurrency },
                     { key: 'procurement_cost_base_amount', label: t('billing.pricing_analysis.columns.cost'), format: formatCsvCurrency },
                     { key: 'gross_profit_base_amount', label: t('billing.pricing_analysis.columns.profit'), format: formatCsvCurrency },
+                    { key: 'gross_profit_yyc', label: t('billing.pricing_analysis.columns.profit_yyc'), format: formatCsvCurrency },
                     { key: 'gross_margin', label: t('billing.pricing_analysis.columns.margin'), format: formatCsvPercent },
                   ],
                   rows,

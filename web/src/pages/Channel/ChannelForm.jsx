@@ -75,6 +75,8 @@ import {
   fetchChannelEndpoints,
   fetchChannelProcurementBatchConsumptions,
   fetchChannelProcurementBatches,
+  fetchChannelCostQuotes,
+  syncChannelCostQuotes,
   fetchChannelTests,
   fetchTaskById,
   filterBillingCredentialsByFields,
@@ -246,6 +248,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const [channelProcurementBatches, setChannelProcurementBatches] = useState(
     []
   );
+  const [channelCostQuotes, setChannelCostQuotes] = useState({
+    service_available: false,
+    reason: '',
+    rows: [],
+  });
   const [channelBillingLoading, setChannelBillingLoading] = useState(false);
   const [channelBillingError, setChannelBillingError] = useState('');
   const [channelBillingSubmitting, setChannelBillingSubmitting] =
@@ -1567,6 +1574,20 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         setChannelBillingSnapshots(Array.isArray(snapshots) ? snapshots : []);
         setChannelProcurementBatches(Array.isArray(batches) ? batches : []);
         setChannelBillingError('');
+        // Cost-quote reconciliation is read-only and optional: a missing/errored
+        // billing service must never block the procurement view.
+        try {
+          const quotes = await fetchChannelCostQuotes(normalizedChannelId);
+          setChannelCostQuotes(
+            quotes || { service_available: false, reason: '', rows: [] }
+          );
+        } catch (quoteError) {
+          setChannelCostQuotes({
+            service_available: false,
+            reason: quoteError?.message || '',
+            rows: [],
+          });
+        }
       } catch (error) {
         setChannelBillingError(
           error?.message || t('channel.edit.billing.load_failed')
@@ -1581,7 +1602,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       t,
     ]
   );
-
   useEffect(() => {
     if (!isDetailMode || activeDetailTab !== 'procurement') {
       return;
@@ -4800,6 +4820,24 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 costMissingModelCount={
                   channelBillingProfile?.cost_missing_model_count || 0
                 }
+                costQuotes={channelCostQuotes}
+                onSyncCostQuotes={async () => {
+                  try {
+                    const result = await syncChannelCostQuotes(channelId);
+                    showSuccess(
+                      t('channel.edit.billing.cost_reconcile_sync_done', {
+                        cached: result.cached,
+                        skipped: result.skipped,
+                      })
+                    );
+                    await refreshChannelProcurementState(channelId);
+                  } catch (error) {
+                    showError(
+                      error?.message ||
+                        t('channel.edit.billing.cost_reconcile_sync_failed')
+                    );
+                  }
+                }}
               />
             )}
           </div>

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/helper"
 	relaychannel "github.com/yeying-community/router/internal/relay/channel"
 	"gorm.io/gorm"
@@ -12,6 +13,8 @@ import (
 
 const (
 	ChannelModelsTableName = "channel_models"
+
+	ChannelModelCostRatesTableName = "channel_model_cost_rates"
 
 	ChannelModelPublishStatusSelectable     = "selectable"
 	ChannelModelPublishStatusPendingConfig  = "pending_config"
@@ -38,6 +41,11 @@ type ChannelModel struct {
 	OutputPrice          *float64                            `json:"output_price,omitempty" gorm:"type:double precision"`
 	PriceUnit            string                              `json:"price_unit,omitempty" gorm:"type:varchar(64);default:''"`
 	Currency             string                              `json:"currency,omitempty" gorm:"type:varchar(16);default:''"`
+	// TargetMargin overrides the global pricing target margin (0..0.95) for this
+	// channel+model. Nil falls back to the operator-configured global policy. See
+	// docs/商业计费/成本与盈利核算标准.md §5 — per-model granularity for the
+	// pricing closed loop.
+	TargetMargin         *float64                            `json:"target_margin,omitempty" gorm:"type:double precision"`
 	PriceComponents      []ProviderModelPriceComponentDetail `json:"price_components,omitempty" gorm:"-"`
 	SortOrder            int                                 `json:"sort_order" gorm:"default:0"`
 	UpdatedAt            int64                               `json:"updated_at" gorm:"bigint"`
@@ -49,6 +57,32 @@ type ChannelModel struct {
 
 func (ChannelModel) TableName() string {
 	return ChannelModelsTableName
+}
+
+// ResolveChannelModelTargetMarginWithDB returns the effective target margin for a
+// channel+model: the per-model override when set, otherwise the operator-configured
+// global target. Always clamped to the valid range. Falls back to global on any
+// lookup issue so pricing never fails closed.
+func ResolveChannelModelTargetMarginWithDB(db *gorm.DB, channelID string, modelName string) float64 {
+	globalMargin := normalizeTargetMargin(config.BillingTargetMargin)
+	if db == nil {
+		return globalMargin
+	}
+	normalizedChannelID := strings.TrimSpace(channelID)
+	normalizedModel := strings.TrimSpace(modelName)
+	if normalizedChannelID == "" || normalizedModel == "" {
+		return globalMargin
+	}
+	row := ChannelModel{}
+	if err := db.Select("target_margin").
+		Where("channel_id = ? AND model = ?", normalizedChannelID, normalizedModel).
+		Take(&row).Error; err != nil {
+		return globalMargin
+	}
+	if row.TargetMargin == nil {
+		return globalMargin
+	}
+	return normalizeTargetMargin(*row.TargetMargin)
 }
 
 func NormalizeChannelModelIDsPreserveOrder(modelIDs []string) []string {
@@ -1431,6 +1465,11 @@ func replaceChannelModelRowsWithDB(db *gorm.DB, channelID string, rows []Channel
 				row.PublishedModel = strings.TrimSpace(existingRow.PublishedModel)
 				row.PublishedAt = existingRow.PublishedAt
 				row.PublishedBy = strings.TrimSpace(existingRow.PublishedBy)
+				// Preserve the operator's per-model target margin override across
+				// upstream re-syncs: re-fetching models must not wipe pricing policy.
+				if row.TargetMargin == nil {
+					row.TargetMargin = existingRow.TargetMargin
+				}
 			} else {
 				row.PublishEnabled = false
 				if strings.TrimSpace(row.PublishedModel) == "" {
@@ -1438,6 +1477,9 @@ func replaceChannelModelRowsWithDB(db *gorm.DB, channelID string, rows []Channel
 				}
 				row.PublishedAt = 0
 				row.PublishedBy = ""
+				if row.TargetMargin == nil {
+					row.TargetMargin = existingByModel[row.Model].TargetMargin
+				}
 			}
 		}
 		if !row.Selected {

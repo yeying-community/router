@@ -62,6 +62,8 @@ const BALANCE_OPTION_KEYS = {
 const PRICING_POLICY_KEYS = {
   targetMargin: 'BillingTargetMargin',
   riskBuffer: 'BillingRiskBuffer',
+  costRateFloorEnabled: 'BillingServiceCostRateFloorEnabled',
+  costRateFloorTTLSeconds: 'BillingServiceCostRateFloorTTLSeconds',
 };
 
 const OperationSetting = ({ section = '', showSectionTitle = true }) => {
@@ -80,6 +82,8 @@ const OperationSetting = ({ section = '', showSectionTitle = true }) => {
     ChannelBillingAutoRefreshLastRunAt: 0,
     [PRICING_POLICY_KEYS.targetMargin]: 0,
     [PRICING_POLICY_KEYS.riskBuffer]: 0,
+    [PRICING_POLICY_KEYS.costRateFloorEnabled]: 'false',
+    [PRICING_POLICY_KEYS.costRateFloorTTLSeconds]: 900,
   });
   const [originInputs, setOriginInputs] = useState({});
   const [topupPlanOptions, setTopupPlanOptions] = useState([]);
@@ -446,9 +450,23 @@ const OperationSetting = ({ section = '', showSectionTitle = true }) => {
             showError(t('setting.operation.pricing.risk_buffer_invalid'));
             break;
           }
+          const ttlSeconds = Number(
+            inputs[PRICING_POLICY_KEYS.costRateFloorTTLSeconds] ?? 900
+          );
+          if (!Number.isFinite(ttlSeconds) || ttlSeconds < 0) {
+            showError(t('setting.operation.pricing.cost_rate_floor_ttl_invalid'));
+            break;
+          }
           const pricingOptions = [
             [PRICING_POLICY_KEYS.targetMargin, targetMargin],
             [PRICING_POLICY_KEYS.riskBuffer, riskBuffer],
+            [
+              PRICING_POLICY_KEYS.costRateFloorEnabled,
+              inputs[PRICING_POLICY_KEYS.costRateFloorEnabled] === 'true'
+                ? 'true'
+                : 'false',
+            ],
+            [PRICING_POLICY_KEYS.costRateFloorTTLSeconds, Math.trunc(ttlSeconds)],
           ];
           for (const [key, nextValue] of pricingOptions) {
             const normalizedNextValue = `${nextValue}`;
@@ -903,6 +921,44 @@ const OperationSetting = ({ section = '', showSectionTitle = true }) => {
                       min={0}
                       precision={6}
                       step={0.01}
+                      fluid
+                      onChange={handleInputChange}
+                    />
+                  </AppField>
+                </AppFormRow>
+                <AppFormRow>
+                  <AppField
+                    label={t('setting.operation.pricing.cost_rate_floor_enabled')}
+                    hint={t('setting.operation.pricing.cost_rate_floor_enabled_hint')}
+                  >
+                    <AppSwitch
+                      checked={
+                        inputs[PRICING_POLICY_KEYS.costRateFloorEnabled] === 'true'
+                      }
+                      onChange={() =>
+                        handleInputChange(null, {
+                          name: PRICING_POLICY_KEYS.costRateFloorEnabled,
+                          value:
+                            inputs[PRICING_POLICY_KEYS.costRateFloorEnabled] ===
+                            'true'
+                              ? 'false'
+                              : 'true',
+                        })
+                      }
+                    />
+                  </AppField>
+                  <AppField
+                    label={t('setting.operation.pricing.cost_rate_floor_ttl')}
+                    hint={t('setting.operation.pricing.cost_rate_floor_ttl_hint')}
+                  >
+                    <AppInputNumber
+                      className='router-section-input'
+                      name={PRICING_POLICY_KEYS.costRateFloorTTLSeconds}
+                      value={
+                        inputs[PRICING_POLICY_KEYS.costRateFloorTTLSeconds] ?? 900
+                      }
+                      min={0}
+                      step={60}
                       fluid
                       onChange={handleInputChange}
                     />

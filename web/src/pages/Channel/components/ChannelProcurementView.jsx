@@ -10,6 +10,7 @@ import {
   AppTooltip,
 } from '../../../router-ui';
 import ConsumptionModal from './ConsumptionModal';
+import CostQuoteReconcileTable from './CostQuoteReconcileTable';
 import ManualSnapshotForm from './ManualSnapshotForm';
 import ProcurementBatchTable from './ProcurementBatchTable';
 import ProcurementCostForm from './ProcurementCostForm';
@@ -57,6 +58,8 @@ const ChannelProcurementView = ({
   onCostTrackingModeChange,
   costTrackingSubmitting = false,
   costMissingModelCount = 0,
+  costQuotes = null,
+  onSyncCostQuotes,
 }) => {
   const [manualPurchaseRecord, setManualPurchaseRecord] = useState(
     buildManualPurchaseRecord()
@@ -152,7 +155,7 @@ const ChannelProcurementView = ({
     setManualItems((prev) => {
       const list = prev.length > 0 ? prev : [buildManualQuotaItem()];
       return list.map((item, index) =>
-        index === 0 ? applyPurchaseKindToItem(item, kind) : item
+        index === 0 ? applyPurchaseKindToItem(item) : item
       );
     });
   };
@@ -190,7 +193,7 @@ const ChannelProcurementView = ({
     setAdvancedOpen(false);
     setManualMessage('');
     setManualItems([
-      applyPurchaseKindToItem(buildManualQuotaItem(), buildManualPurchaseRecord().purchase_kind),
+      applyPurchaseKindToItem(buildManualQuotaItem()),
     ]);
     setManualModalOpen(true);
   };
@@ -211,7 +214,7 @@ const ChannelProcurementView = ({
     const nextItems =
       items.length > 0
         ? items.map((item) => buildManualQuotaItemFromSnapshotItem(item))
-        : [applyPurchaseKindToItem(buildManualQuotaItem(), nextRecord.purchase_kind)];
+        : [applyPurchaseKindToItem(buildManualQuotaItem())];
     setManualItems(nextItems);
     setAdvancedOpen(
       recordUsesAdvanced(nextRecord, nextItems) ||
@@ -467,6 +470,14 @@ const ChannelProcurementView = ({
           onUpdateStatus={updateProcurementBatchStatus}
         />
       )}
+      {costQuotes ? (
+        <CostQuoteReconcileTable
+          t={t}
+          costQuotes={costQuotes}
+          onSyncCostQuotes={onSyncCostQuotes}
+          syncSubmitting={billingSubmitting}
+        />
+      ) : null}
         </>
       ) : null}
       <div>

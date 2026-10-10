@@ -18,7 +18,10 @@ import (
 const (
 	billingServiceQueryPath    = "/api/v1/internal/billing:query"
 	billingServiceAdaptersPath = "/api/v1/internal/adapters"
+	billingServiceCostPath     = "/api/v1/internal/billing:cost"
 )
+
+const billingServiceCapabilityCostQuote = "cost"
 
 type billingServiceQueryRequest struct {
 	ChannelID   string            `json:"channel_id,omitempty"`
@@ -467,6 +470,152 @@ func requestURLsFromBillingServiceMetadata(metadata map[string]any) []string {
 }
 
 func normalizeRequestURLs(values []string) []string {
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
+// ----- Cost quote (P5 step 1: read-only reconciliation) -----
+
+type billingServiceCostQuote struct {
+	Model        string         `json:"model,omitempty"`
+	CapacityUnit string         `json:"capacity_unit"`
+	UnitCost     float64        `json:"unit_cost"`
+	Currency     string         `json:"currency,omitempty"`
+	AsOf         *time.Time     `json:"as_of,omitempty"`
+	Confidence   string         `json:"confidence"`
+	ValidUntil   *time.Time     `json:"valid_until,omitempty"`
+	Metadata     map[string]any `json:"metadata,omitempty"`
+}
+
+type billingServiceCostQuotes struct {
+	ChannelID string                 `json:"channel_id,omitempty"`
+	Adapter   string                 `json:"adapter"`
+	Quotes    []billingServiceCostQuote `json:"quotes"`
+	FetchedAt time.Time              `json:"fetched_at"`
+	Metadata  map[string]any         `json:"metadata,omitempty"`
+}
+
+type billingServiceCostRequest struct {
+	ChannelID   string            `json:"channel_id,omitempty"`
+	Adapter     string            `json:"adapter"`
+	Credentials map[string]string `json:"credentials,omitempty"`
+	Models      []string          `json:"models,omitempty"`
+}
+
+type billingServiceCostResponse struct {
+	Data  billingServiceCostQuotes `json:"data"`
+	Error *billingServiceError     `json:"error,omitempty"`
+}
+
+// billingServiceSupportsCost returns true if the named adapter advertises the
+// "cost" capability. It does NOT trigger a network call unless the adapter cache
+// is cold; on miss, an empty result is returned and the caller can fall back.
+func billingServiceSupportsCost(ctx context.Context, adapter string) bool {
+	adapter = normalizeBillingServiceAdapterName(adapter)
+	if adapter == "" {
+		return false
+	}
+	info, found, err := findBillingServiceAdapter(ctx, adapter)
+	if err != nil || !found {
+		return false
+	}
+	for _, capability := range info.Capabilities {		if strings.EqualFold(strings.TrimSpace(capability), billingServiceCapabilityCostQuote) {
+			return true
+		}
+	}
+	return false
+}
+
+func collectBillingServiceCostQuotes(ctx context.Context, channel *model.Channel, profile model.ChannelBillingProfile, models []string) (billingServiceCostQuotes, error) {
+	empty := billingServiceCostQuotes{}
+	if !billingServiceConfigured() {
+		return empty, fmt.Errorf("Billing 服务未配置")
+	}
+	adapter := resolveBillingServiceAdapter(profile)
+	if adapter == "" {
+		return empty, fmt.Errorf("当前渠道不支持 Billing 服务")
+	}
+	if !billingServiceSupportsCost(ctx, adapter) {
+		return empty, fmt.Errorf("Billing adapter %q 未声明 cost 能力", adapter)
+	}
+	adapterInfo, exists, err := findBillingServiceAdapter(ctx, adapter)
+	if err != nil {
+		return empty, err
+	}
+	if !exists {
+		return empty, fmt.Errorf("Billing adapter 无效")
+	}
+	credentials := resolveChannelBillingCredentials(profile, adapter, adapterInfo.CredentialFields)
+	if missingField := missingRequiredBillingCredentialField(adapterInfo.CredentialFields, credentials); missingField != "" {
+		return empty, fmt.Errorf("账务凭据 %s 未配置", missingField)
+	}
+	normalizedChannelID := ""
+	if channel != nil {
+		normalizedChannelID = strings.TrimSpace(channel.Id)
+	}
+	request := billingServiceCostRequest{
+		ChannelID:   normalizedChannelID,
+		Adapter:     adapter,
+		Credentials: credentials,
+		Models:      nonEmptyTrimmedStrings(models),
+	}
+	endpoint := strings.TrimRight(strings.TrimSpace(config.BillingServiceBaseURL), "/") + billingServiceCostPath
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return empty, err
+	}
+	timeout := time.Duration(config.BillingServiceTimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 20 * time.Second
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	callCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	httpReq, err := http.NewRequestWithContext(callCtx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return empty, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/json")
+	if apiKey := strings.TrimSpace(config.BillingServiceAPIKey); apiKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	resp, err := (&http.Client{Timeout: timeout}).Do(httpReq)
+	if err != nil {
+		return empty, fmt.Errorf("调用 Billing 服务失败: %w", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return empty, err
+	}
+	decoded := billingServiceCostResponse{}
+	if len(body) > 0 {
+		if err := json.Unmarshal(body, &decoded); err != nil {
+			return empty, fmt.Errorf("解析 Billing 服务响应失败: %w", err)
+		}
+	}
+	if resp.StatusCode == http.StatusNotImplemented && decoded.Error != nil &&
+		strings.Contains(decoded.Error.Code, "BILLING_COST_UNSUPPORTED") {
+		return empty, fmt.Errorf("Billing adapter 不支持 cost 能力")
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if decoded.Error != nil {
+			return empty, fmt.Errorf("Billing 服务返回 %s: %s", strings.TrimSpace(decoded.Error.Code), strings.TrimSpace(decoded.Error.Message))
+		}
+		return empty, fmt.Errorf("Billing 服务返回 HTTP %d", resp.StatusCode)
+	}
+	return decoded.Data, nil
+}
+
+func nonEmptyTrimmedStrings(values []string) []string {
 	result := make([]string, 0, len(values))
 	for _, value := range values {
 		if trimmed := strings.TrimSpace(value); trimmed != "" {

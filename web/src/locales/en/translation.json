@@ -880,7 +880,7 @@
         "endpoints": "Endpoints",
         "tests": "Tests",
         "publish": "Publish",
-        "procurement": "Cost & Procurement",
+        "procurement": "Procurement",
         "billing": "Billing"
       },
       "publish": {
@@ -939,14 +939,14 @@
             "actual": "Actual cost"
           },
           "consequence": {
-            "untracked": "Excluded from the margin report",
-            "free": "Cost counted as 0, margin at full amount",
-            "actual": "Accounted via procurement batches"
+            "untracked": "No margin (cost unknown)",
+            "free": "Margin counted, margin = sell price (cost 0)",
+            "actual": "Margin counted, cost from procurement batches"
           },
           "hint": {
-            "untracked": "Cost is not tracked for this channel; its requests are excluded from the margin report (honestly marked as untracked).",
-            "free": "Upstream is free; cost counted as 0 with auto-managed zero-cost batches, so margin is computed at full amount.",
-            "actual": "Record actual cost via procurement batches; models missing a batch are flagged on the group page to add cost."
+            "untracked": "Does not track this channel's cost: its requests do not appear in the margin report (honestly marked \"untracked\" rather than faking unknown cost as 0). Use it when you don't care about this channel's margin yet.",
+            "free": "Use when upstream is genuinely free: cost is a known 0, requests ARE counted in the margin report, and margin = full sell price (100%). Difference from \"untracked\": free is counted in margin, untracked is not.",
+            "actual": "Record actual cost via procurement batches and count it toward margin; models missing a batch are flagged on the group page to add cost."
           },
           "missing_cost": "{{count}} models missing cost",
           "missing_cost_hint": "These models have no recorded procurement cost, so margin can't be computed yet; add procurement cost or mark zero-cost on the model page."
@@ -985,16 +985,8 @@
         "manual_purchase_hint": "Fill in the purchase payment details first, then record what entitlements were bought.",
         "entitlement_info_title": "Entitlement Information",
         "entitlement_name": "Entitlement Name",
-        "entitlement_items_title": "Entitlement Items",
-        "entitlement_types": {
-          "balance": "Account Balance",
-          "credit": "Credit Limit",
-          "daily": "Daily Quota",
-          "weekly": "Weekly Quota",
-          "monthly": "Monthly Quota",
-          "total": "Total Quota"
-        },
-        "add_entitlement_item": "Add Entitlement Item",
+        "entitlement_items_title": "Purchased Capacity",
+        "add_entitlement_item": "Add Capacity Item",
         "manual_snapshot_invalid": "Please provide at least one valid entitlement item",
         "manual_snapshot_success": "Purchase record saved",
         "manual_snapshot_failed": "Failed to save purchase record",
@@ -1005,19 +997,12 @@
         "delete_purchase_record_confirm": "Delete this purchase record?",
         "delete_purchase_record_success": "Purchase record deleted",
         "delete_purchase_record_failed": "Failed to delete purchase record",
-        "manual_resource_type": "Entitlement Type",
         "manual_resource_hints": {
-          "default": "Items jointly constrain current usage. Periodic quotas reset daily, weekly, or monthly, while total quota keeps decreasing. If any applicable item is insufficient, the entitlement group cannot provide that usage.",
-          "balance": "Balance: directly consumable account balance. Fill total, used, and remaining amount.",
-          "credit": "Credit: granted or promotional provider credit. It is consumable like balance, but has a different source.",
-          "quota": "Quota: consumable usage capacity. Daily, weekly, and monthly quotas are package periodic quota rules; total quota is cumulative and decreases as it is used.",
-          "periodic": "Periodic quota: enter the amount available in each period. It resets automatically, and unused quota does not carry over.",
-          "total": "Total quota: cumulative consumable quota. It decreases as it is used and does not reset daily, weekly, or monthly.",
-          "source_ref": "Use the provider original name as source reference for traceability."
+          "default": "Enter the capacity this purchase bought (amount and unit); used to compute unit cost."
         },
         "manual_plan_name": "Plan Name",
         "manual_plan_name_placeholder": "e.g. Monthly Plan / Quarterly Plan",
-        "manual_item_title": "Entitlement {{index}}",
+        "manual_item_title": "Capacity {{index}}",
         "manual_quota_type": "Quota Type",
         "manual_quota_label": "Quota Name",
         "manual_quota_amount": "Quota Amount",
@@ -1065,6 +1050,22 @@
         "no_quota_items": "No billing quota items",
         "no_procurement_batches": "No procurement batches",
         "no_procurement_consumptions": "No procurement consumptions",
+        "cost_reconcile_title": "Service cost reconciliation",
+        "cost_reconcile_sync": "Sync service costs",
+        "cost_reconcile_sync_done": "Cached {{cached}} service cost quotes (skipped {{skipped}})",
+        "cost_reconcile_sync_failed": "Failed to sync service cost quotes",
+        "cost_reconcile_hint": "Read-only view: lists the billing service's normalized unit cost next to each model's local procurement readiness, so you can validate consistency before these quotes drive the online cost floor. No effect on live billing.",
+        "cost_reconcile_unavailable_title": "Cost reconciliation unavailable",
+        "cost_reconcile_unavailable_default": "Billing service is not configured or the current channel's adapter does not declare the cost capability.",
+        "cost_reconcile_empty_title": "No model costs to reconcile",
+        "cost_reconcile_col": {
+          "model": "Model",
+          "capacity_unit": "Unit",
+          "service_unit_cost": "Service unit cost",
+          "service_unit_cost_yyc": "Service unit cost (YYC)",
+          "service_confidence": "Service confidence",
+          "local_readiness": "Local readiness"
+        },
         "no_expire": "No expiration",
         "credential_hint": "Billing service only uses the credentials below. Billing credentials must be configured manually and never fall back to the API Key from channel basic settings. Model requests always use the API Key from channel basic settings.",
         "credential_required": "Please enter billing credential: {{field}}",
@@ -1116,7 +1117,7 @@
           "manual_update_snapshot": "Supports manual billing snapshot entry"
         },
         "sources": {
-          "manual": "Manual"
+          "manual": "No balance tracking"
         },
         "quota_types": {
           "daily": "Daily Quota Rule",
@@ -1373,6 +1374,8 @@
       },
       "model_selector": {
         "summary": "Selected {{selected}} / {{total}}",
+        "target_margin_hint": "Overrides the global target margin (0–95%); leave blank to use global. The cost floor raises price to this when actual cost is known.",
+        "target_margin_placeholder": "Blank = use global",
         "cards": {
           "enabled": "Enabled Models",
           "selectable": "Ready to Enable",
@@ -1391,6 +1394,7 @@
           "price": "Input|Output Price",
           "input_price": "Input Price",
           "output_price": "Output Price",
+          "target_margin": "Target margin",
           "upstream_return": "Latest Upstream Return",
           "enable_block_reason": "Blocked Reason",
           "selection_status": "Selection Status",
@@ -3862,6 +3866,11 @@
         "risk_buffer_hint": "Used to absorb procurement cost fluctuation. 0.1 means adding a 10% buffer before calculating the floor price.",
         "target_margin_invalid": "Target margin must be greater than or equal to 0 and lower than 0.95",
         "risk_buffer_invalid": "Cost buffer ratio must be greater than or equal to 0",
+        "cost_rate_floor_enabled": "Enable service cost floor",
+        "cost_rate_floor_enabled_hint": "When on, the billing service's actual unit costs feed the online cost floor, kept fresh by a background sync. Off = local procurement cost only (default). Validate consistency with the cost reconciliation view before enabling.",
+        "cost_rate_floor_ttl": "Cost cache freshness (seconds)",
+        "cost_rate_floor_ttl_hint": "Service costs older than this window are ignored and the floor falls back to local procurement. Default 900.",
+        "cost_rate_floor_ttl_invalid": "Cost cache freshness must be greater than or equal to 0",
         "buttons": {
           "save": "Save Settings"
         }
@@ -4054,7 +4063,10 @@
         "total_revenue": "Billed revenue",
         "total_cost": "Procurement cost",
         "total_profit": "Gross profit",
-        "avg_margin": "Weighted margin"
+        "total_profit_yyc": "Gross profit (YYC)",
+        "avg_margin": "Weighted margin",
+        "target_margin": "Target margin",
+        "target_margin_unset": "Unset"
       },
       "distribution": {
         "title": "Profit state distribution",
@@ -4073,6 +4085,7 @@
         "sell": "Billed Revenue CNY",
         "cost": "Procurement cost CNY",
         "profit": "Gross profit CNY",
+        "profit_yyc": "Gross profit YYC",
         "margin": "Gross margin",
         "cost_coverage": "Cost coverage",
         "actions": "Actions"
@@ -4119,6 +4132,7 @@
       },
       "headline": {
         "profit": "Gross profit this period",
+        "profit_yyc": "Gross profit this period (YYC)",
         "margin": "Margin {{margin}}",
         "revenue": "Billed revenue",
         "cost": "Procurement cost",
@@ -4305,6 +4319,7 @@
         "procurement_cost_hint": "Only configured cost requests are counted",
         "gross_profit": "Gross profit",
         "gross_profit_hint": "Unconfigured cost requests are excluded",
+        "gross_profit_yyc": "Gross profit (YYC)",
         "gross_margin": "Gross margin",
         "gross_margin_hint": "Gross profit / configured-cost sell amount",
         "unconfigured": "Unconfigured cost requests",
@@ -4325,6 +4340,7 @@
         "sell_amount": "Sell CNY",
         "procurement_cost": "Cost CNY",
         "gross_profit": "Profit CNY",
+        "gross_profit_yyc": "Profit YYC",
         "gross_margin": "Margin"
       },
       "status": {

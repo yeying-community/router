@@ -38,6 +38,18 @@ var BillingServiceTimeoutSeconds = 20
 var BillingTargetMargin = 0.0
 var BillingRiskBuffer = 0.0
 
+// BillingServiceCostRateFloorEnabled gates the online cost floor's use of cached
+// billing-service cost quotes. Off by default (zero behavior change vs. local
+// procurement). A channel-level override on the billing profile may opt in for
+// specific channels even when the global flag is off; the flag only governs
+// channels without an override.
+var BillingServiceCostRateFloorEnabled = false
+
+// BillingServiceCostRateFloorTTLSeconds is the freshness window for a cached
+// service quote. Quotes older than this are ignored and the floor falls back to
+// the local procurement path. 0 disables the floor entirely (parity with off).
+var BillingServiceCostRateFloorTTLSeconds int64 = 900
+
 // YeYing wallet identity login configuration, loaded from the identity section in config.yaml.
 var IdentityNodeURL = ""
 var IdentityAppID = ""

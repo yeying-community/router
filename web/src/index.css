@@ -4061,6 +4061,29 @@ html[data-theme='dark'] .router-provider-brand-monogram {
     line-height: 1.5;
 }
 
+.router-cost-reconcile-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.router-cost-reconcile-table th,
+.router-cost-reconcile-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--router-border-color, rgba(0, 0, 0, 0.06));
+}
+
+.router-cost-reconcile-table th {
+    color: var(--router-text-muted, rgba(0, 0, 0, 0.45));
+    font-weight: 500;
+}
+
+.router-cost-reconcile-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
 .router-checkbox-block {
     margin-bottom: 12px;
 }

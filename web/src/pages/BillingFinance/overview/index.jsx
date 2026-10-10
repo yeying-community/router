@@ -12,7 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { API, showError, showSuccess, timestamp2string, withCardLabels } from '../../../helpers';
-import { formatDecimalNumber } from '../../../helpers/render';
+import { formatDecimalNumber, formatCreditAmount } from '../../../helpers/render';
 import {
   BILLING_DECIMALS,
   BILLING_PERCENT_DECIMALS,
@@ -41,6 +41,7 @@ import { exportCSV } from '../../../helpers/csv';
 import './BillingOverview.css';
 
 const formatCNY = (value) => formatCnyFixed(value, BILLING_DECIMALS);
+const formatYYC = (value) => formatCreditAmount(value || 0, true);
 const formatCount = (value) => formatDecimalNumber(value || 0, 0);
 const formatPercent = (value) => formatBillingPercent(value, BILLING_PERCENT_DECIMALS);
 
@@ -78,6 +79,7 @@ const normalize = (payload) => ({
   sell_base_amount: Number(payload?.sell_base_amount || 0),
   procurement_cost_base_amount: Number(payload?.procurement_cost_base_amount || 0),
   gross_profit_base_amount: Number(payload?.gross_profit_base_amount || 0),
+  gross_profit_yyc: Number(payload?.gross_profit_yyc || 0),
   gross_margin: Number(payload?.gross_margin || 0),
   configured_cost_request_count: Number(payload?.configured_cost_request_count || 0),
   estimated_cost_request_count: Number(payload?.estimated_cost_request_count || 0),
@@ -443,6 +445,10 @@ function BillingOverview({ embedded = false }) {
             <span className='billing-overview-headline-sub'>{t('billing.overview.headline.margin', { margin: headlineMargin })}</span>
           </div>
           <div className='billing-overview-headline-side'>
+            <div className='billing-overview-headline-stat'>
+              <span className='billing-overview-headline-stat-label'>{t('billing.overview.headline.profit_yyc')}</span>
+              <span className='billing-overview-headline-stat-value'>{formatYYC(report.gross_profit_yyc)}</span>
+            </div>
             <div className='billing-overview-headline-stat'>
               <span className='billing-overview-headline-stat-label'>{t('billing.overview.headline.revenue')}</span>
               <span className='billing-overview-headline-stat-value'>{formatCNY(report.sell_base_amount)}</span>

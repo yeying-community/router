@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/internal/admin/model"
@@ -553,10 +554,10 @@ func buildBillingSnapshot(inputQuantity float64, outputQuantity float64, inputPr
 }
 
 func applyPricingDecision(snapshot *BillingSnapshot) {
-	applyPricingDecisionWithProcurementCost(snapshot, MoneyAmount{})
+	applyPricingDecisionWithProcurementCost(snapshot, MoneyAmount{}, CurrentPricingPolicy())
 }
 
-func applyPricingDecisionWithProcurementCost(snapshot *BillingSnapshot, procurementCost MoneyAmount) {
+func applyPricingDecisionWithProcurementCost(snapshot *BillingSnapshot, procurementCost MoneyAmount, policy PricingPolicy) {
 	if snapshot == nil {
 		return
 	}
@@ -570,7 +571,7 @@ func applyPricingDecisionWithProcurementCost(snapshot *BillingSnapshot, procurem
 			Currency: model.BillingCurrencyCodeYYC,
 		},
 		ProcurementCost: procurementCost,
-		Policy:          CurrentPricingPolicy(),
+		Policy:          policy,
 	})
 	snapshot.PricingDecision = &decision
 	if decision.SelectedCharge.Amount > float64(snapshot.ChargeAmount) {
@@ -581,6 +582,24 @@ func applyPricingDecisionWithProcurementCost(snapshot *BillingSnapshot, procurem
 func ApplyEstimatedProcurementCostFloor(snapshot *BillingSnapshot, channelID string, modelName string) error {
 	if snapshot == nil {
 		return nil
+	}
+	// P5 §A.4 step 2: optionally drive the cost floor from a cached billing-service
+	// quote. Strictly gated — when the flag is off or the cache is empty, the
+	// existing local procurement path runs unchanged. Failures (DB miss, fresh
+	// check, capacity mismatch) silently fall back to local; no fail-closed.
+	if config.BillingServiceCostRateFloorEnabled {
+		units := floorCapacityUnitsForCacheLookup(snapshot)
+		if rate, ok := model.ResolveChannelModelCostRateWithDB(model.DB, channelID, modelName, units); ok {
+			if model.IsChannelModelCostRateFresh(rate, time.Now(), config.BillingServiceCostRateFloorTTLSeconds) {
+				policy := CurrentPricingPolicy()
+				policy.TargetMargin = model.ResolveChannelModelTargetMarginWithDB(model.DB, channelID, modelName)
+				applyPricingDecisionWithProcurementCost(snapshot, MoneyAmount{
+					Amount:   rate.UnitCostYyc * procurementConsumptionQuantityFromSnapshot(snapshot),
+					Currency: model.BillingCurrencyCodeCNY,
+				}, policy)
+				return nil
+			}
+		}
 	}
 	candidates := procurementConsumptionCandidatesFromSnapshot(snapshot)
 	if len(candidates) == 0 {
@@ -606,10 +625,13 @@ func ApplyEstimatedProcurementCostFloor(snapshot *BillingSnapshot, channelID str
 		if result.CostSource != model.ProcurementCostSourceActual && result.CostSource != model.ProcurementCostSourceZeroCost {
 			continue
 		}
+		// Per-model target margin (falls back to the global policy) drives the floor.
+		policy := CurrentPricingPolicy()
+		policy.TargetMargin = model.ResolveChannelModelTargetMarginWithDB(model.DB, channelID, modelName)
 		applyPricingDecisionWithProcurementCost(snapshot, MoneyAmount{
 			Amount:   result.TotalCostAmount,
 			Currency: model.BillingCurrencyCodeCNY,
-		})
+		}, policy)
 		return nil
 	}
 	return nil
@@ -692,6 +714,23 @@ func procurementScopeTypeFromModelName(modelName string) string {
 		return "global"
 	}
 	return "model"
+}
+
+// floorCapacityUnitsForCacheLookup returns the capacity units the cached service
+// quote can be matched against, derived from the snapshot's pricing. Mirrors the
+// procurement units logic so a cache hit only fires when the units align.
+func floorCapacityUnitsForCacheLookup(snapshot *BillingSnapshot) []string {
+	if snapshot == nil {
+		return nil
+	}
+	units := make([]string, 0, 2)
+	if unit := procurementCapacityUnitFromSnapshot(snapshot); unit != "" {
+		units = append(units, unit)
+	}
+	if unit := procurementCurrencyEquivalentCapacityUnitFromSnapshot(snapshot); unit != "" && unit != units[0] {
+		units = append(units, unit)
+	}
+	return units
 }
 
 func primaryUnitPrice(pricing model.ResolvedModelPricing) float64 {

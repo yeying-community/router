@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import { API, showError, showSuccess, timestamp2string, withCardLabels } from '../../../helpers';
 import { exportCSV } from '../../../helpers/csv';
-import { formatDecimalNumber } from '../../../helpers/render';
+import { formatDecimalNumber, formatCreditAmount } from '../../../helpers/render';
 import {
   AppButton,
   AppErrorState,
@@ -76,6 +76,7 @@ const createLastSevenDaysRange = () => {
 };
 
 const formatCNY = formatCnyFixed;
+const formatYYC = (value) => formatCreditAmount(value || 0, true);
 const formatCount = (value) => formatDecimalNumber(value || 0, 0);
 const formatPercent = (value) => formatBillingPercent(value, BILLING_PERCENT_DECIMALS);
 
@@ -95,6 +96,7 @@ const normalizeReport = (payload) => {
     unconfigured_sell_base_amount: Number(payload?.unconfigured_sell_base_amount || 0),
     procurement_cost_base_amount: Number(payload?.procurement_cost_base_amount || 0),
     gross_profit_base_amount: Number(payload?.gross_profit_base_amount || 0),
+    gross_profit_yyc: Number(payload?.gross_profit_yyc || 0),
     gross_margin: Number(payload?.gross_margin || 0),
     items: items.map((item) => ({
       ...item,
@@ -117,6 +119,7 @@ const normalizeReport = (payload) => {
       unconfigured_sell_base_amount: Number(item?.unconfigured_sell_base_amount || 0),
       procurement_cost_base_amount: Number(item?.procurement_cost_base_amount || 0),
       gross_profit_base_amount: Number(item?.gross_profit_base_amount || 0),
+      gross_profit_yyc: Number(item?.gross_profit_yyc || 0),
       gross_margin: Number(item?.gross_margin || 0),
     })),
   };
@@ -452,6 +455,11 @@ function BillingProcurementReport({ embedded = false }) {
   const attributionProcessing = report.pending_cost_request_count + report.retry_cost_request_count;
   const headlineSideStats = [
     {
+      key: 'profit_yyc',
+      label: t('billing.procurement_report.summary.gross_profit_yyc'),
+      value: formatYYC(report.gross_profit_yyc),
+    },
+    {
       key: 'revenue',
       label: t('billing.procurement_report.summary.sell_amount'),
       value: formatCNY(report.sell_base_amount),
@@ -700,6 +708,13 @@ function BillingProcurementReport({ embedded = false }) {
       render: formatCNY,
     },
     {
+      title: t('billing.procurement_report.columns.gross_profit_yyc'),
+      dataIndex: 'gross_profit_yyc',
+      width: 132,
+      align: 'right',
+      render: formatYYC,
+    },
+    {
       title: t('billing.procurement_report.columns.gross_margin'),
       dataIndex: 'gross_margin',
       width: 100,
@@ -841,6 +856,7 @@ function BillingProcurementReport({ embedded = false }) {
                     { key: 'sell_base_amount', label: t('billing.procurement_report.columns.sell_amount'), format: formatCsvCurrency },
                     { key: 'procurement_cost_base_amount', label: t('billing.procurement_report.columns.procurement_cost'), format: formatCsvCurrency },
                     { key: 'gross_profit_base_amount', label: t('billing.procurement_report.columns.gross_profit'), format: formatCsvCurrency },
+                    { key: 'gross_profit_yyc', label: t('billing.procurement_report.columns.gross_profit_yyc'), format: formatCsvCurrency },
                     { key: 'gross_margin', label: t('billing.procurement_report.columns.gross_margin'), format: formatCsvPercent },
                   ],
                   report.items,

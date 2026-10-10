@@ -53,10 +53,9 @@ func ApplyProcurementCostObservation(logRow *model.Log) {
 		logRow.BillingProcurementCostSource = model.ProcurementCostSourceNone
 	}
 	if strings.TrimSpace(logRow.BillingProcurementCostStatus) == "" {
-		switch logRow.BillingProcurementCostSource {
-		case model.ProcurementCostSourceActual, model.ProcurementCostSourceEstimated, model.ProcurementCostSourceZeroCost:
+		if model.IsUsableProcurementCostSource(logRow.BillingProcurementCostSource) {
 			logRow.BillingProcurementCostStatus = model.ProcurementCostAttributionStatusFromSource(logRow.BillingProcurementCostSource)
-		default:
+		} else {
 			logRow.BillingProcurementCostStatus = model.ProcurementCostAttributionStatusPending
 		}
 	}
@@ -66,10 +65,9 @@ func ApplyProcurementCostObservation(logRow *model.Log) {
 	if strings.TrimSpace(logRow.BillingCostRuleVersion) == "" {
 		logRow.BillingCostRuleVersion = CostRuleVersionUnconfiguredV1
 	}
-	// Gross profit is only meaningful after actual or explicitly estimated procurement cost is attached.
-	if logRow.BillingProcurementCostSource == model.ProcurementCostSourceActual ||
-		logRow.BillingProcurementCostSource == model.ProcurementCostSourceEstimated ||
-		logRow.BillingProcurementCostSource == model.ProcurementCostSourceZeroCost {
+	// Gross profit is only meaningful after a usable (actual / estimated / zero-cost)
+	// procurement cost is attached.
+	if model.IsUsableProcurementCostSource(logRow.BillingProcurementCostSource) {
 		logRow.BillingGrossProfitBaseAmount = logRow.BillingSellBaseAmount - logRow.BillingProcurementCostBaseAmount
 		if logRow.BillingSellBaseAmount > 0 {
 			logRow.BillingGrossMargin = logRow.BillingGrossProfitBaseAmount / logRow.BillingSellBaseAmount

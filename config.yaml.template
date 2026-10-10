@@ -215,6 +215,12 @@ billing_service:
   api_key: ""
   # Router 调用 Billing 服务超时（秒）。
   timeout_seconds: 20
+  # 是否让 billing 服务导出的成本 quote 参与线上成本地板（P5 §A.4）。
+  # 默认 false = 与改造前零行为变更；建议先用「服务成本对账」验证一致再打开。
+  # 打开后由定时任务自动把各渠道 actual quote 同步进本地缓存。
+  cost_rate_floor_enabled: false
+  # 本地成本缓存的新鲜窗口（秒）。超过该窗口的 quote 不再用于地板、回退本地采购。
+  cost_rate_floor_ttl_seconds: 900
 
 relay:
   # 上游请求总超时（秒）；0 表示使用默认策略。

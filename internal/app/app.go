@@ -96,6 +96,7 @@ func Run() {
 		channelcontroller.StartChannelHealthProbeWorker()
 		billingsvc.StartFXAutoSyncWorker()
 		billingsvc.StartChannelBillingAutoRefreshWorker()
+		billingsvc.StartChannelCostQuoteSyncWorker()
 		topupsvc.StartTopupReconcileWorker()
 		notificationsvc.StartUserNotificationWorker()
 		billingsvc.StartProcurementRetryWorker()

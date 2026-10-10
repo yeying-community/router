@@ -880,7 +880,7 @@
         "endpoints": "接口",
         "tests": "测试",
         "publish": "发布",
-        "procurement": "成本与采购",
+        "procurement": "采购",
         "billing": "账务"
       },
       "publish": {
@@ -939,14 +939,14 @@
             "actual": "实际成本"
           },
           "consequence": {
-            "untracked": "不计入毛利报表",
-            "free": "成本按 0 计,毛利按满额",
-            "actual": "按采购批次核算"
+            "untracked": "不算毛利(成本未知)",
+            "free": "算毛利,毛利=售价(成本 0)",
+            "actual": "算毛利,成本按采购批次"
           },
           "hint": {
-            "untracked": "不核算该渠道成本,相关请求不计入毛利报表(如实标记为未跟踪)。",
-            "free": "上游免费,成本按 0 计,自动维护零成本采购批次,毛利按满额核算。",
-            "actual": "按采购批次记录实际成本,缺批次的模型会在分组页提示补录成本。"
+            "untracked": "不追踪该渠道成本:相关请求不出现在毛利报表里(如实标记为「未跟踪」,而不是把未知成本伪造成 0)。适合你暂时不关心该渠道毛利时用。",
+            "free": "上游确实免费时用:成本确定为 0,相关请求计入毛利报表,毛利=全部售价(100%)。与「不核算」的区别——免费会算毛利,不核算不算。",
+            "actual": "按采购批次记录实际成本并计入毛利;缺批次的模型会在分组页提示补录成本。"
           },
           "missing_cost": "{{count}} 个模型缺成本",
           "missing_cost_hint": "这些模型未记录采购成本,毛利暂不可算;可在模型页补录采购成本或标记零成本。"
@@ -985,16 +985,8 @@
         "manual_purchase_hint": "先填写这笔采购的实付信息，再填写买到了什么权益。",
         "entitlement_info_title": "权益信息",
         "entitlement_name": "权益名称",
-        "entitlement_items_title": "权益项列表",
-        "entitlement_types": {
-          "balance": "账户余额",
-          "credit": "信用额度",
-          "daily": "每日额度",
-          "weekly": "每周额度",
-          "monthly": "每月额度",
-          "total": "总额度"
-        },
-        "add_entitlement_item": "新增权益项",
+        "entitlement_items_title": "采购容量",
+        "add_entitlement_item": "新增容量项",
         "manual_snapshot_invalid": "请至少填写一条有效权益项",
         "manual_snapshot_success": "采购记录保存成功",
         "manual_snapshot_failed": "采购记录保存失败",
@@ -1005,19 +997,12 @@
         "delete_purchase_record_confirm": "确认删除该采购记录？",
         "delete_purchase_record_success": "采购记录已删除",
         "delete_purchase_record_failed": "采购记录删除失败",
-        "manual_resource_type": "权益类型",
         "manual_resource_hints": {
-          "default": "权益项共同约束当前使用量。周期额度按日、周或月恢复，总额度持续递减；任一适用权益不足时，该权益组不能继续提供对应用量。",
-          "balance": "余额：表示可直接消耗的账户余额，通常要填写总额度、已用额度和剩余额度。",
-          "credit": "信用额度：表示供应商授信或赠送额度，本质上也是可消耗额度，但和余额来源不同。",
-          "quota": "额度：表示可消耗的调用容量。日/周/月额度是套餐周期额度规则；总额度是累计额度，用一点少一点。",
-          "periodic": "周期额度：填写每个周期可使用的额度。到新周期自动恢复，未用完的额度不累计到下一周期。",
-          "total": "总额度：填写累计可消耗额度，有效期内用一点少一点，不随日/周/月重置。",
-          "source_ref": "来源标识建议填写供应商原始名称，方便追溯。"
+          "default": "填写这次采购买到的容量(数量与单位),用于核算单位成本。"
         },
         "manual_plan_name": "套餐名称",
         "manual_plan_name_placeholder": "例如：月套餐 / 季度套餐",
-        "manual_item_title": "权益项 {{index}}",
+        "manual_item_title": "容量项 {{index}}",
         "manual_quota_type": "额度类型",
         "manual_quota_label": "额度名称",
         "manual_quota_amount": "额度数值",
@@ -1065,6 +1050,22 @@
         "no_quota_items": "暂无账务额度记录",
         "no_procurement_batches": "暂无采购批次",
         "no_procurement_consumptions": "暂无消费明细",
+        "cost_reconcile_title": "服务成本对账",
+        "cost_reconcile_sync": "同步服务成本",
+        "cost_reconcile_sync_done": "已缓存 {{cached}} 条服务成本(跳过 {{skipped}} 条)",
+        "cost_reconcile_sync_failed": "同步服务成本失败",
+        "cost_reconcile_hint": "只读对账:把账务服务导出的归一化单位成本与本地采购就绪状态并列,供接入线上成本地板前验证一致性;不影响实际计费。",
+        "cost_reconcile_unavailable_title": "服务成本对账暂不可用",
+        "cost_reconcile_unavailable_default": "未配置账务服务或当前渠道未声明 cost 能力。",
+        "cost_reconcile_empty_title": "暂无可对账的模型成本",
+        "cost_reconcile_col": {
+          "model": "模型",
+          "capacity_unit": "单位",
+          "service_unit_cost": "服务单价",
+          "service_unit_cost_yyc": "服务单价 (YYC)",
+          "service_confidence": "服务置信",
+          "local_readiness": "本地就绪"
+        },
         "no_expire": "无截止时间",
         "credential_hint": "Billing 服务只使用下方账务凭据；账务凭据必须手动配置，不会回退使用渠道基础配置里的 API Key。模型请求始终使用渠道基础配置里的 API Key。",
         "credential_required": "请填写账务凭据：{{field}}",
@@ -1116,7 +1117,7 @@
           "manual_update_snapshot": "支持人工录入账务快照"
         },
         "sources": {
-          "manual": "人工维护"
+          "manual": "不跟踪余额"
         },
         "quota_types": {
           "daily": "每日额度规则",
@@ -1373,6 +1374,8 @@
       },
       "model_selector": {
         "summary": "已选择 {{selected}} / {{total}}",
+        "target_margin_hint": "覆盖全局目标毛利(0–95%);留空用全局。有实际成本时成本地板按此抬价。",
+        "target_margin_placeholder": "留空用全局",
         "cards": {
           "enabled": "已启用模型",
           "selectable": "可直接启用",
@@ -1391,6 +1394,7 @@
           "price": "输入｜输出价",
           "input_price": "输入价",
           "output_price": "输出价",
+          "target_margin": "目标毛利",
           "upstream_return": "最近一次上游返回",
           "enable_block_reason": "不能启用原因",
           "selection_status": "选择状态",
@@ -3862,6 +3866,11 @@
         "risk_buffer_hint": "用于覆盖采购成本波动，小数填写，0.1 表示先按成本上浮 10% 再计算保底售价。",
         "target_margin_invalid": "目标毛利率必须大于或等于 0 且小于 0.95",
         "risk_buffer_invalid": "成本缓冲比例必须大于或等于 0",
+        "cost_rate_floor_enabled": "启用服务成本地板",
+        "cost_rate_floor_enabled_hint": "开启后,账务服务导出的实际单位成本会参与线上成本地板;并由定时任务自动同步缓存。关闭=仅用本地采购成本(默认)。建议先用「服务成本对账」验证一致再开。",
+        "cost_rate_floor_ttl": "成本缓存新鲜期(秒)",
+        "cost_rate_floor_ttl_hint": "超过该窗口的服务成本不再用于地板、回退本地采购。默认 900。",
+        "cost_rate_floor_ttl_invalid": "成本缓存新鲜期必须大于或等于 0",
         "buttons": {
           "save": "保存设置"
         }
@@ -4054,7 +4063,10 @@
         "total_revenue": "计费收入合计",
         "total_cost": "采购成本合计",
         "total_profit": "毛利合计",
-        "avg_margin": "加权毛利率"
+        "total_profit_yyc": "毛利合计 (YYC)",
+        "avg_margin": "加权毛利率",
+        "target_margin": "目标毛利",
+        "target_margin_unset": "未设置"
       },
       "distribution": {
         "title": "利润状态分布",
@@ -4073,6 +4085,7 @@
         "sell": "计费收入 CNY",
         "cost": "采购成本 CNY",
         "profit": "毛利 CNY",
+        "profit_yyc": "毛利 YYC",
         "margin": "毛利率",
         "cost_coverage": "成本覆盖",
         "actions": "操作"
@@ -4119,6 +4132,7 @@
       },
       "headline": {
         "profit": "本期毛利",
+        "profit_yyc": "本期毛利 (YYC)",
         "margin": "毛利率 {{margin}}",
         "revenue": "计费收入",
         "cost": "采购成本",
@@ -4305,6 +4319,7 @@
         "procurement_cost_hint": "仅统计已配置成本请求",
         "gross_profit": "毛利",
         "gross_profit_hint": "未配置成本请求不参与计算",
+        "gross_profit_yyc": "毛利 (YYC)",
         "gross_margin": "毛利率",
         "gross_margin_hint": "毛利 / 已配置成本请求售价",
         "unconfigured": "未配置成本请求",
@@ -4325,6 +4340,7 @@
         "sell_amount": "售价 CNY",
         "procurement_cost": "采购成本 CNY",
         "gross_profit": "毛利 CNY",
+        "gross_profit_yyc": "毛利 YYC",
         "gross_margin": "毛利率"
       },
       "status": {

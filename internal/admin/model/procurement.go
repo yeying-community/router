@@ -220,7 +220,7 @@ func evaluateChannelModelProcurementReadiness(capacityUnits []string, matchingBa
 	hasFormalSource, hasActive, hasRemaining, hasExpired := false, false, false, false
 	for _, batch := range matchingBatches {
 		source := normalizeProcurementCostSource(batch.CostSource)
-		if source != ProcurementCostSourceActual && source != ProcurementCostSourceZeroCost {
+		if !IsFormalProcurementCostSource(source) {
 			continue
 		}
 		hasFormalSource = true
@@ -366,7 +366,7 @@ func ValidateChannelModelProcurementCostReadyWithDB(db *gorm.DB, row ChannelMode
 		Where("channel_id = ?", channelID).
 		Where("capacity_unit IN ?", capacityUnits).
 		Where("cost_status = ?", ProcurementCostStatusActive).
-		Where("cost_source IN ?", []string{ProcurementCostSourceActual, ProcurementCostSourceZeroCost}).
+		Where("cost_source IN ?", FormalProcurementCostSources()).
 		Where("capacity_remaining > 0").
 		Where("(valid_from = 0 OR valid_from <= ?)", now).
 		Where("(expire_at = 0 OR expire_at > ?)", now).
@@ -1242,7 +1242,7 @@ func EstimateChannelProcurementCostWithDB(db *gorm.DB, input ProcurementConsumeI
 		Where("channel_id = ?", normalizedChannelID).
 		Where("capacity_unit = ?", normalizedCapacityUnit).
 		Where("cost_status = ?", ProcurementCostStatusActive).
-		Where("cost_source IN ?", []string{ProcurementCostSourceActual, ProcurementCostSourceEstimated, ProcurementCostSourceZeroCost}).
+		Where("cost_source IN ?", UsableProcurementCostSources()).
 		Where("capacity_remaining > 0").
 		Where("(valid_from = 0 OR valid_from <= ?)", now).
 		Where("(expire_at = 0 OR expire_at > ?)", now)
@@ -1303,7 +1303,7 @@ func ConsumeChannelProcurementBatchesWithDB(db *gorm.DB, input ProcurementConsum
 			Where("channel_id = ?", normalizedChannelID).
 			Where("capacity_unit = ?", normalizedCapacityUnit).
 			Where("cost_status = ?", ProcurementCostStatusActive).
-			Where("cost_source IN ?", []string{ProcurementCostSourceActual, ProcurementCostSourceEstimated, ProcurementCostSourceZeroCost}).
+			Where("cost_source IN ?", UsableProcurementCostSources()).
 			Where("capacity_remaining > 0").
 			Where("(valid_from = 0 OR valid_from <= ?)", now).
 			Where("(expire_at = 0 OR expire_at > ?)", now)
