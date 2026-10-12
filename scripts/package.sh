@@ -66,6 +66,7 @@ prepare_source_dir() {
   backup_conf_template="$source_dir/scripts/backup.conf.template"
   config_backup_src="$source_dir/scripts/config_backup.sh"
   copy_for_upgrade_src="$source_dir/scripts/copy-for-upgrade.sh"
+  upgrade_src="$source_dir/scripts/upgrade.sh"
   passphrase_template="$source_dir/scripts/.passphrase-file.template"
 }
 
@@ -99,6 +100,10 @@ verify_artifacts() {
   fi
   if [[ ! -x "$config_backup_src" ]]; then
     echo "Missing config backup script or not executable: $config_backup_src" >&2
+    exit 1
+  fi
+  if [[ ! -x "$upgrade_src" ]]; then
+    echo "Missing upgrade script or not executable: $upgrade_src" >&2
     exit 1
   fi
   if [[ ! -f "$passphrase_template" ]]; then
@@ -232,6 +237,7 @@ cp "$starter_src" "$stage_dir/scripts/"
 cp "$health_check_src" "$stage_dir/scripts/"
 cp "$backup_conf_template" "$stage_dir/scripts/"
 cp "$config_backup_src" "$stage_dir/scripts/"
+  cp "$upgrade_src" "$stage_dir/scripts/"
 if [[ -x "$copy_for_upgrade_src" ]]; then
   cp "$copy_for_upgrade_src" "$stage_dir/scripts/"
 fi

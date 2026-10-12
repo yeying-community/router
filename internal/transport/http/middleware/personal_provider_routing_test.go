@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/config"
 	"github.com/yeying-community/router/common/ctxkey"
 	"github.com/yeying-community/router/internal/admin/model"
@@ -177,5 +178,43 @@ func TestDistributePersonalOnlyRejectsMissingConnectionBeforeCommunityLookup(t *
 	}
 	if strings.Contains(recorder.Body.String(), "no such table") {
 		t.Fatalf("personal-only request attempted community entitlement lookup: %s", recorder.Body.String())
+	}
+}
+
+// resetConflictingResponsesState underpins the regular-community-channel pin
+// failover (task 149): when a pinned channel is unavailable, the distributor
+// resets the Responses state and falls through to normal selection instead of
+// returning 409. This verifies the reset strips the now-invalid identifiers and
+// clears the stateful context so downstream selection is not re-pinned.
+func TestResetConflictingResponsesStateStripsPinnedIdentifiers(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	body := `{"model":"m","previous_response_id":"resp_old","input":[{"type":"message","id":"msg_old","role":"user","content":"hi"}]}`
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/public/responses", bytes.NewBufferString(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set(ctxkey.ResponsesPreviousResponseID, "resp_old")
+	c.Set(ctxkey.ResponsesItemIDs, []string{"msg_old"})
+	c.Set(ctxkey.ResponsesStatefulRequest, true)
+
+	if err := resetConflictingResponsesState(c); err != nil {
+		t.Fatalf("reset error: %v", err)
+	}
+
+	if got := c.GetString(ctxkey.ResponsesPreviousResponseID); got != "" {
+		t.Fatalf("previous_response_id context = %q, want cleared", got)
+	}
+	if c.GetBool(ctxkey.ResponsesStatefulRequest) {
+		t.Fatal("stateful flag must be cleared after reset")
+	}
+	raw, _ := common.GetRequestBody(c)
+	if strings.Contains(string(raw), "resp_old") {
+		t.Fatalf("rewritten body still carries previous_response_id: %s", string(raw))
+	}
+	if strings.Contains(string(raw), "msg_old") {
+		t.Fatalf("rewritten body still carries stale item id: %s", string(raw))
+	}
+	if !strings.Contains(string(raw), "\"content\":\"hi\"") {
+		t.Fatalf("rewritten body dropped replayable content: %s", string(raw))
 	}
 }

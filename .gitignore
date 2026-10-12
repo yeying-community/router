@@ -29,3 +29,9 @@ nohup.out
 /CodexDev/SnwHist/
 /Codex/
 /LifeForm/*
+
+# Project skill task binding (never commit; no secrets but local-only)
+.project-task.json
+.project-lifecycle.json
+.project-execution.json
+.project-execution/

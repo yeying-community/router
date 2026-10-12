@@ -522,8 +522,28 @@ func Distribute() func(c *gin.Context) {
 				}
 				channel, _ = selectPinnedResponsesChannel(c, userId, userGroup, requestModel, c.Request.URL.Path)
 				if channel == nil {
-					abortWithMessage(c, http.StatusConflict, "已绑定的 Responses 会话上游不可用，请重新开始会话")
-					return
+					// A personal or community-offer pin is intentionally fixed to that
+					// exact upstream; failing it over to a different provider would be
+					// surprising, so keep requiring a fresh session.
+					if model.IsPersonalProviderChannelID(pinnedChannelID) || model.IsCommunityOfferChannelID(pinnedChannelID) {
+						abortWithMessage(c, http.StatusConflict, "已绑定的 Responses 会话上游不可用，请重新开始会话")
+						return
+					}
+					// A regular community channel pin became unavailable (disabled, out
+					// of balance, or no longer eligible). Instead of forcing the user to
+					// restart the session with a 409, reset the now-unusable Responses
+					// state (strip previous_response_id/item IDs and clear the pin) and
+					// fall through to normal selection so the request continues on a
+					// healthy channel. Server-side context held by the old upstream
+					// account cannot be carried over, so this is a graceful degrade, not a
+					// seamless migration; a terminal error is still returned downstream
+					// only when no eligible channel exists at all.
+					logger.RelayWarnf(ctx, "DISTRIBUTE decision=responses_pin_failover reason=pinned_channel_unavailable user_id=%s group=%s model=%s endpoint=%s", userId, userGroup, requestModel, c.Request.URL.Path)
+					if resetErr := resetConflictingResponsesState(c); resetErr != nil {
+						logger.RelayWarnf(ctx, "DISTRIBUTE decision=abort reason=responses_pin_reset_failed user_id=%s group=%s model=%s endpoint=%s error=%q", userId, userGroup, requestModel, c.Request.URL.Path, resetErr.Error())
+						abortWithMessage(c, http.StatusConflict, "已绑定的 Responses 会话上游不可用，请重新开始会话")
+						return
+					}
 				}
 			}
 			selectPersonalChannel := func(decision string, reason string) (*model.Channel, error) {
