@@ -40,6 +40,13 @@ func TestShouldWarnForUnavailableModel(t *testing.T) {
 			wantWarnLevel: false,
 		},
 		{
+			name:          "unpublished model",
+			status:        http.StatusForbidden,
+			modelFlag:     true,
+			errorCode:     "model_not_found",
+			wantWarnLevel: true,
+		},
+		{
 			name:          "different status",
 			status:        http.StatusInternalServerError,
 			modelFlag:     true,

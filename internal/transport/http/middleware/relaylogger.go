@@ -71,7 +71,8 @@ func shouldWarnForUnavailableModel(c *gin.Context, status int) bool {
 		return false
 	}
 	return c.GetBool(ctxkey.RelayModelUnavailable) &&
-		c.GetString(ctxkey.RelayErrorCode) == "entitlement_unavailable"
+		(c.GetString(ctxkey.RelayErrorCode) == "entitlement_unavailable" ||
+			c.GetString(ctxkey.RelayErrorCode) == "model_not_found")
 }
 
 func relayModeName(path string) string {

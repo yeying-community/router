@@ -28,6 +28,9 @@ type EntitlementUnavailableError struct {
 }
 
 func (e *EntitlementUnavailableError) Error() string {
+	if e.ModelUnavailable {
+		return fmt.Sprintf("模型 %s 当前未发布或不支持使用，请从可用模型列表中选择其他模型", e.Model)
+	}
 	return fmt.Sprintf("当前账号对模型 %s 没有有效权益，可能是套餐已过期或额度已用尽，请充值或购买对应套餐后重试", e.Model)
 }
 
