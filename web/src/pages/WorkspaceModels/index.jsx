@@ -279,8 +279,6 @@ const WorkspaceModels = () => {
     },
   });
   const showOperations = hasAdminAccess && tab === 'operations';
-  const activeSort =
-    !hasAdminAccess && sortBy === 'pass_rate' ? 'health' : sortBy;
   // Admins can jump straight from a model to the publish tab of a channel that
   // serves it (channel_ids comes from /api/v1/public/model/status). Single
   // channel → direct deep link; multiple → a popover of per-channel links.
@@ -389,13 +387,11 @@ const WorkspaceModels = () => {
 
   const sortOptions = useMemo(
     () =>
-      SORT_OPTIONS.filter(
-        (value) => hasAdminAccess || value !== 'pass_rate',
-      ).map((value) => ({
+      SORT_OPTIONS.map((value) => ({
         value,
         label: t(`workspace_models.sort.${value}`),
       })),
-    [hasAdminAccess, t],
+    [t],
   );
 
   const filteredModels = useMemo(() => {
@@ -418,16 +414,16 @@ const WorkspaceModels = () => {
         .includes(query);
     });
     rows.sort((left, right) => {
-      if (activeSort === 'name') {
+      if (sortBy === 'name') {
         return left.model.localeCompare(right.model);
       }
-      if (activeSort === 'latency') {
+      if (sortBy === 'latency') {
         const leftLatency = left.avg_latency_ms || Number.MAX_SAFE_INTEGER;
         const rightLatency = right.avg_latency_ms || Number.MAX_SAFE_INTEGER;
         if (leftLatency !== rightLatency) {
           return leftLatency - rightLatency;
         }
-      } else if (activeSort === 'pass_rate') {
+      } else if (sortBy === 'pass_rate') {
         if (left.pass_rate !== right.pass_rate) {
           return right.pass_rate - left.pass_rate;
         }
@@ -437,7 +433,7 @@ const WorkspaceModels = () => {
       return left.model.localeCompare(right.model);
     });
     return rows;
-  }, [healthFilter, keyword, payload.models, activeSort]);
+  }, [healthFilter, keyword, payload.models, sortBy]);
 
   const isFiltered = healthFilter !== 'all' || keyword.trim().length > 0;
 
@@ -473,13 +469,11 @@ const WorkspaceModels = () => {
           },
           {
             key: 'models',
-            label: t(
-              hasAdminAccess ? 'header.model' : 'workspace_models.title',
-            ),
+            label: t('header.model'),
             active: true,
           },
         ]}
-        title={t(hasAdminAccess ? 'header.model' : 'workspace_models.title')}
+        title={t('header.model')}
       />
       {hasAdminAccess && (
         <AppTabs
@@ -562,7 +556,7 @@ const WorkspaceModels = () => {
                       className='workspace-models-select'
                       aria-label={t('workspace_models.sort_label')}
                       options={sortOptions}
-                      value={activeSort}
+                      value={sortBy}
                       onChange={(e, { value }) =>
                         patchFilters({ sortBy: value })
                       }
@@ -576,19 +570,17 @@ const WorkspaceModels = () => {
                 })}
               </div>
             </div>
-            {hasAdminAccess && (
-              <div className='workspace-models-legend'>
-                {['success', 'warning', 'failure', 'unknown'].map((state) => (
-                  <span key={state} className='workspace-models-legend-item'>
-                    <span
-                      className='workspace-models-legend-dot'
-                      style={{ background: POINT_COLORS[state] }}
-                    />
-                    {t(`workspace_models.history.${state}`)}
-                  </span>
-                ))}
-              </div>
-            )}
+            <div className='workspace-models-legend'>
+              {['success', 'warning', 'failure', 'unknown'].map((state) => (
+                <span key={state} className='workspace-models-legend-item'>
+                  <span
+                    className='workspace-models-legend-dot'
+                    style={{ background: POINT_COLORS[state] }}
+                  />
+                  {t(`workspace_models.history.${state}`)}
+                </span>
+              ))}
+            </div>
             {filteredModels.length === 0 ? (
               loading ? (
                 <AppSkeleton variant='list' count={6} />
@@ -614,9 +606,7 @@ const WorkspaceModels = () => {
             ) : (
               <div className='workspace-models-list'>
                 {filteredModels.map((item) => {
-                  const history = hasAdminAccess
-                    ? buildHealthHistory(item.health_points)
-                    : [];
+                  const history = buildHealthHistory(item.health_points);
                   return (
                     <div
                       key={`${item.provider || 'unknown'}-${item.model}`}
@@ -624,11 +614,27 @@ const WorkspaceModels = () => {
                     >
                       <div className='workspace-model-card-header'>
                         <div className='workspace-model-card-title-block'>
-                          <div
-                            className='workspace-model-card-title'
-                            title={item.model}
-                          >
-                            {item.model || '-'}
+                          <div className='workspace-model-card-title-row'>
+                            <div
+                              className='workspace-model-card-title'
+                              title={item.model}
+                            >
+                              {item.model || '-'}
+                            </div>
+                            <AppTooltip
+                              title={t('workspace_models.card.copy_model')}
+                            >
+                              <AppButton
+                                type='button'
+                                className='workspace-model-card-icon-button'
+                                aria-label={t(
+                                  'workspace_models.card.copy_model',
+                                )}
+                                icon={<AppIcon name='copy outline' />}
+                                onClick={() => handleCopyModel(item.model)}
+                                disabled={!item.model}
+                              />
+                            </AppTooltip>
                           </div>
                           <div className='workspace-model-card-subtitle'>
                             <span>{item.provider || '-'}</span>
@@ -643,94 +649,94 @@ const WorkspaceModels = () => {
                           </div>
                         </div>
                         <div className='workspace-model-card-status'>
-                          {hasAdminAccess ? (
-                            renderHealthTag(item.health_level)
-                          ) : (
-                            <AppTooltip
-                              title={t('workspace_models.health_hint')}
-                            >
-                              {renderHealthTag(item.health_level)}
-                            </AppTooltip>
-                          )}
-                          {hasAdminAccess &&
-                            renderHealthSource(item.health_source)}
+                          {renderHealthTag(item.health_level)}
+                          {renderHealthSource(item.health_source)}
+                          <AppTooltip title={t('log.drilldown.view')}>
+                            <AppButton
+                              type='button'
+                              className='workspace-model-card-icon-button workspace-model-card-log-button'
+                              aria-label={t('log.drilldown.view')}
+                              icon={<AppIcon name='book' />}
+                              onClick={() =>
+                                navigate(
+                                  buildLogDrilldownPath(
+                                    hasAdminAccess ? 'admin' : 'workspace',
+                                    { model_name: item.model },
+                                  ),
+                                )
+                              }
+                              disabled={!item.model}
+                            />
+                          </AppTooltip>
                         </div>
                       </div>
-                      {hasAdminAccess && (
-                        <div className='workspace-model-health-row'>
-                          <div className='workspace-model-health-strip-wrap'>
-                            <div
-                              className='workspace-model-health-strip'
-                              aria-label={t('workspace_models.history_label', {
-                                model: item.model,
-                              })}
-                            >
-                              {history.map((point, index) => {
-                                const stateLabel = point.observed
-                                  ? t(`workspace_models.history.${point.state}`)
-                                  : t('workspace_models.history.no_data');
-                                const title = point.observed
-                                  ? renderHealthPointTooltip(
-                                      point,
-                                      stateLabel,
-                                      t,
-                                    )
-                                  : t('workspace_models.tooltip.no_sample');
-                                return (
-                                  <AppTooltip
-                                    key={point.key}
-                                    title={title}
-                                    placement='top'
-                                    color='#ffffff'
-                                    classNames={{
-                                      root: 'workspace-model-health-tooltip-popup',
+                      <div className='workspace-model-health-row'>
+                        <div className='workspace-model-health-strip-wrap'>
+                          <div
+                            className='workspace-model-health-strip'
+                            aria-label={t('workspace_models.history_label', {
+                              model: item.model,
+                            })}
+                          >
+                            {history.map((point) => {
+                              const stateLabel = point.observed
+                                ? t(`workspace_models.history.${point.state}`)
+                                : t('workspace_models.history.no_data');
+                              const title = point.observed
+                                ? renderHealthPointTooltip(point, stateLabel, t)
+                                : t('workspace_models.tooltip.no_sample');
+                              return (
+                                <AppTooltip
+                                  key={point.key}
+                                  title={title}
+                                  placement='top'
+                                  color='#ffffff'
+                                  classNames={{
+                                    root: 'workspace-model-health-tooltip-popup',
+                                  }}
+                                >
+                                  <span
+                                    className={`workspace-model-health-cell workspace-model-health-cell-${point.state}`}
+                                    style={{
+                                      background:
+                                        POINT_COLORS[point.state] ||
+                                        POINT_COLORS.unknown,
                                     }}
-                                  >
-                                    <span
-                                      className={`workspace-model-health-cell workspace-model-health-cell-${point.state}`}
-                                      style={{
-                                        background:
-                                          POINT_COLORS[point.state] ||
-                                          POINT_COLORS.unknown,
-                                      }}
-                                    />
-                                  </AppTooltip>
-                                );
-                              })}
-                            </div>
-                            <div className='workspace-model-health-axis'>
-                              <span>{t('workspace_models.history.past')}</span>
-                              <span>{t('workspace_models.history.now')}</span>
-                            </div>
+                                  />
+                                </AppTooltip>
+                              );
+                            })}
                           </div>
-                          <div className='workspace-model-metrics'>
-                            <div className='workspace-model-metric'>
-                              <span>
-                                {t('workspace_models.card.health_score')}
-                              </span>
-                              <strong>{formatCount(item.health_score)}</strong>
-                            </div>
-                            <div className='workspace-model-metric'>
-                              <span>
-                                {t('workspace_models.card.pass_rate')}
-                              </span>
-                              <strong>{formatPercent(item.pass_rate)}</strong>
-                            </div>
-                            <div className='workspace-model-metric'>
-                              <span>{t('workspace_models.card.latency')}</span>
-                              <strong>
-                                {item.avg_latency_ms > 0
-                                  ? `${formatCount(item.avg_latency_ms)} ms`
-                                  : '-'}
-                              </strong>
-                            </div>
-                            <div className='workspace-model-metric'>
-                              <span>{t('workspace_models.card.channels')}</span>
-                              {renderChannelCount(item)}
-                            </div>
+                          <div className='workspace-model-health-axis'>
+                            <span>{t('workspace_models.history.past')}</span>
+                            <span>{t('workspace_models.history.now')}</span>
                           </div>
                         </div>
-                      )}
+                        <div className='workspace-model-metrics'>
+                          <div className='workspace-model-metric'>
+                            <span>
+                              {t('workspace_models.card.health_score')}
+                            </span>
+                            <strong>{formatCount(item.health_score)}</strong>
+                          </div>
+                          <div className='workspace-model-metric'>
+                            <span>{t('workspace_models.card.pass_rate')}</span>
+                            <strong>{formatPercent(item.pass_rate)}</strong>
+                          </div>
+                          <div className='workspace-model-metric'>
+                            <span>{t('workspace_models.card.latency')}</span>
+                            <strong>
+                              {item.avg_latency_ms > 0
+                                ? `${formatCount(item.avg_latency_ms)} ms`
+                                : '-'}
+                            </strong>
+                          </div>
+                          <div className='workspace-model-metric'>
+                            <span>{t('workspace_models.card.channels')}</span>
+                            {renderChannelCount(item)}
+                          </div>
+                        </div>
+                      </div>
                       <div className='workspace-model-footer'>
                         <div className='workspace-model-endpoints'>
                           {item.supported_endpoints.length > 0
@@ -744,49 +750,14 @@ const WorkspaceModels = () => {
                               ))
                             : t('workspace_models.card.no_endpoints')}
                         </div>
-                        {hasAdminAccess && (
-                          <div className='workspace-model-last-tested'>
-                            {t(
-                              `workspace_models.card.last_signal.${item.health_source}`,
-                              {
-                                time: formatUpdatedAt(item.last_signal_at),
-                              },
-                            )}
-                          </div>
-                        )}
-                        {!hasAdminAccess && item.avg_latency_ms > 0 && (
-                          <div className='workspace-model-last-tested'>
-                            {t('workspace_models.card.latency')}:{' '}
-                            {formatCount(item.avg_latency_ms)} ms
-                          </div>
-                        )}
-                      </div>
-                      <div className='workspace-model-actions'>
-                        <AppButton
-                          size='small'
-                          className='router-inline-button'
-                          icon={<AppIcon name='copy outline' />}
-                          onClick={() => handleCopyModel(item.model)}
-                          disabled={!item.model}
-                        >
-                          {t('workspace_models.card.copy_model')}
-                        </AppButton>
-                        <AppButton
-                          size='small'
-                          className='router-inline-button'
-                          icon={<AppIcon name='book' />}
-                          onClick={() =>
-                            navigate(
-                              buildLogDrilldownPath(
-                                hasAdminAccess ? 'admin' : 'workspace',
-                                { model_name: item.model },
-                              ),
-                            )
-                          }
-                          disabled={!item.model}
-                        >
-                          {t('log.drilldown.view')}
-                        </AppButton>
+                        <div className='workspace-model-last-tested'>
+                          {t(
+                            `workspace_models.card.last_signal.${item.health_source}`,
+                            {
+                              time: formatUpdatedAt(item.last_signal_at),
+                            },
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
