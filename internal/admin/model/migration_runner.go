@@ -58,8 +58,55 @@ type versionedMigration struct {
 	Up          func(tx *gorm.DB) error
 }
 
+func restoreCompletedChannelModelTestOperationsWithDB(db *gorm.DB) error {
+	rows := make([]AsyncTask, 0)
+	if err := db.
+		Where("type = ? AND status = ? AND COALESCE(result, '') <> ''", AsyncTaskTypeChannelModelTest, AsyncTaskStatusFailed).
+		Find(&rows).Error; err != nil {
+		return err
+	}
+	for _, row := range rows {
+		status, _, ok := ResolveAsyncTaskBusinessOutcome(row.Type, row.Result)
+		if !ok || status != AsyncTaskStatusSucceeded {
+			continue
+		}
+		if err := db.Model(&AsyncTask{}).
+			Where("id = ?", row.Id).
+			Updates(map[string]any{
+				"status":        AsyncTaskStatusSucceeded,
+				"error_message": "",
+			}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func runMainVersionedMigrations(db *gorm.DB) error {
 	migrations := []versionedMigration{
+		{
+			Version:     "202610241330_channel_model_tests_are_verifications",
+			Description: "stop treating channel model verification as an asynchronous system task",
+			Up: func(tx *gorm.DB) error {
+				if !tx.Migrator().HasTable(&AsyncTask{}) {
+					return nil
+				}
+				return tx.Model(&AsyncTask{}).
+					Where("type = ? AND status IN ?", AsyncTaskTypeChannelModelTest, []string{AsyncTaskStatusPending, AsyncTaskStatusRunning}).
+					Updates(map[string]any{
+						"status":        AsyncTaskStatusCanceled,
+						"finished_at":   helper.GetTimestamp(),
+						"error_message": "已迁移到渠道验证记录，不再作为系统任务执行",
+					}).Error
+			},
+		},
+		{
+			Version:     "202610241300_channel_supply_bindings",
+			Description: "link publisher services to personal channels and add operator-managed community supply group bindings",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&PublisherService{}, &GroupSupplyBinding{})
+			},
+		},
 		{
 			Version:     "202609231030_personal_provider_routing",
 			Description: "add encrypted personal provider connections, model route rules, and token route policy",
@@ -2269,6 +2316,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 			Description: "persist duty incident ownership and lifecycle state for the operator workbench",
 			Up: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&DutyIncidentState{})
+			},
+		},
+		{
+			Version:     "202610231200_restore_completed_channel_model_test_operations",
+			Description: "treat persisted negative channel model test conclusions as completed operations",
+			Up: func(tx *gorm.DB) error {
+				return restoreCompletedChannelModelTestOperationsWithDB(tx)
 			},
 		},
 	}

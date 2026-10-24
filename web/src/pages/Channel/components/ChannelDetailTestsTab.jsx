@@ -3,8 +3,10 @@ import {
   AppAlert,
   AppButton,
   AppDetailSection,
+  AppDrawer,
   AppFilterHeader,
   AppInput,
+  AppPagination,
   AppPopover,
   resolvePopupContainer,
   AppSelect,
@@ -56,7 +58,10 @@ const ChannelDetailTestsTab = ({
   handleRunModelTests,
   detailTestingReadonly,
   modelTestError,
-  openChannelTaskView,
+  onDownloadTestArtifact,
+  initialHistoryModel,
+  initialHistoryEndpoint,
+  onCloseHistoryFilter,
   selectedModelTestHasActiveTasks,
   timestamp2string,
   updateAllModelTestStreams,
@@ -78,6 +83,18 @@ const ChannelDetailTestsTab = ({
   const [typeFilter, setTypeFilter] = useState('');
   const [batchSelectionMode, setBatchSelectionMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const [historyOpen, setHistoryOpen] = useState(
+    Boolean(initialHistoryModel || initialHistoryEndpoint),
+  );
+  const [historyModel, setHistoryModel] = useState(
+    (initialHistoryModel || '').toString().trim(),
+  );
+  const [historyEndpoint, setHistoryEndpoint] = useState(
+    (initialHistoryEndpoint || '').toString().trim(),
+  );
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(10);
 
   if (inputs.protocol === 'proxy') {
     return null;
@@ -301,6 +318,74 @@ const ChannelDetailTestsTab = ({
     return summaryMap;
   }, [buildModelTestResultKey, modelTestResults]);
 
+  const historyRows = useMemo(() => {
+    const rows = (Array.isArray(modelTestResults) ? modelTestResults : [])
+      .filter((item) => {
+        const modelName = (item?.model || '').toString().trim();
+        const endpoint = (item?.endpoint || '').toString().trim();
+        if (historyModel !== '' && modelName !== historyModel) {
+          return false;
+        }
+        if (historyEndpoint !== '' && endpoint !== historyEndpoint) {
+          return false;
+        }
+        return modelName !== '' && endpoint !== '';
+      })
+      .slice();
+    rows.sort((left, right) => {
+      const testedAtDiff =
+        Number(right?.tested_at || 0) - Number(left?.tested_at || 0);
+      if (testedAtDiff !== 0) {
+        return testedAtDiff;
+      }
+      const roundDiff = Number(right?.round || 0) - Number(left?.round || 0);
+      if (roundDiff !== 0) {
+        return roundDiff;
+      }
+      const modelDiff = (left?.model || '').localeCompare(right?.model || '');
+      if (modelDiff !== 0) {
+        return modelDiff;
+      }
+      return (left?.endpoint || '').localeCompare(right?.endpoint || '');
+    });
+    return rows;
+  }, [historyEndpoint, historyModel, modelTestResults]);
+
+  const pagedHistoryRows = useMemo(() => {
+    const offset = (historyPage - 1) * historyPageSize;
+    return historyRows.slice(offset, offset + historyPageSize);
+  }, [historyPage, historyPageSize, historyRows]);
+
+  React.useEffect(() => {
+    const maxPage = Math.max(
+      1,
+      Math.ceil(historyRows.length / historyPageSize),
+    );
+    if (historyPage > maxPage) {
+      setHistoryPage(maxPage);
+    }
+  }, [historyPage, historyPageSize, historyRows.length]);
+
+  const openTestHistory = (row = null) => {
+    setHistoryModel((row?.model || '').toString().trim());
+    setHistoryEndpoint(row ? getRowEndpoint(row) : '');
+    setHistoryPage(1);
+    setHistoryOpen(true);
+  };
+
+  const closeTestHistory = () => {
+    setHistoryOpen(false);
+    onCloseHistoryFilter?.();
+  };
+
+  const historyTitle =
+    historyModel === ''
+      ? t('channel.edit.model_tester.history_title')
+      : t('channel.edit.model_tester.history_title_filtered', {
+          model: historyModel,
+          endpoint: historyEndpoint,
+        });
+
   const toggleFilteredTargets = (checked) => {
     const targetSet = new Set(filteredTargetSet);
     filteredTargetKeys.forEach((targetKey) => {
@@ -347,7 +432,8 @@ const ChannelDetailTestsTab = ({
     : undefined;
 
   return (
-    <AppDetailSection title={t('channel.edit.model_tester.title')} titleTag='span'>
+    <>
+      <AppDetailSection title={t('channel.edit.model_tester.title')} titleTag='span'>
       <div>
         <AppAlert
           type='info'
@@ -459,10 +545,11 @@ const ChannelDetailTestsTab = ({
                     />
                   </div>
                   <div className='router-block-gap-xs'>
-                    <label>
+                    <label htmlFor='channel-model-test-image-upload'>
                       {t('channel.edit.model_tester.image_edit_upload')}
                     </label>
                     <input
+                      id='channel-model-test-image-upload'
                       type='file'
                       accept='image/*'
                       onChange={handleImageEditTestFileChange}
@@ -541,11 +628,7 @@ const ChannelDetailTestsTab = ({
             <AppButton
               type='button'
               className='router-page-button'
-              onClick={() =>
-                openChannelTaskView({
-                  type: 'channel_model_test',
-                })
-              }
+              onClick={() => openTestHistory()}
             >
               {t('channel.edit.model_tester.history_tasks')}
             </AppButton>
@@ -784,13 +867,7 @@ const ChannelDetailTestsTab = ({
                     <AppTableActionButton
                       icon='history'
                       title={t('channel.edit.model_tester.history')}
-                      onClick={() =>
-                        openChannelTaskView({
-                          type: 'channel_model_test',
-                          model: row.model,
-                          endpoint: getRowEndpoint(row),
-                        })
-                      }
+                      onClick={() => openTestHistory(row)}
                     />
                   </div>
                 );
@@ -799,7 +876,202 @@ const ChannelDetailTestsTab = ({
           ]}
         />
       </div>
-    </AppDetailSection>
+      </AppDetailSection>
+      <AppDrawer
+        open={historyOpen}
+        onClose={closeTestHistory}
+        placement='right'
+        size='large'
+        title={historyTitle}
+        className='channel-model-test-history-drawer'
+      >
+        <div className='router-page-stack'>
+          <AppAlert
+            type='info'
+            showIcon
+            title={t('channel.edit.model_tester.history_hint')}
+          />
+          <AppTable
+            className='router-detail-table'
+            pagination={false}
+            scroll={{ x: 1120 }}
+            rowKey={(item) =>
+              [
+                item?.channel_id,
+                item?.model,
+                item?.round,
+                item?.endpoint,
+                item?.is_stream,
+                item?.tested_at,
+              ].join('::')
+            }
+            dataSource={pagedHistoryRows}
+            locale={{
+              emptyText: t('channel.edit.model_tester.history_empty'),
+            }}
+            columns={[
+              {
+                title: t('channel.edit.model_tester.table.model'),
+                dataIndex: 'model',
+                key: 'model',
+                width: 190,
+                render: (value) => (
+                  <span className='router-monospace-value' title={value || '-'}>
+                    {value || '-'}
+                  </span>
+                ),
+              },
+              {
+                title: t('channel.edit.model_tester.table.endpoint'),
+                dataIndex: 'endpoint',
+                key: 'endpoint',
+                width: 190,
+                render: (value) => (
+                  <span className='router-cell-truncate' title={value || '-'}>
+                    {value || '-'}
+                  </span>
+                ),
+              },
+              {
+                title: t('channel.edit.model_tester.history_table.result'),
+                key: 'result',
+                width: 100,
+                render: (_, item) => {
+                  const status = (item?.status || 'unsupported')
+                    .toString()
+                    .trim()
+                    .toLowerCase();
+                  const color =
+                    status === 'supported'
+                      ? 'green'
+                      : status === 'skipped'
+                      ? 'grey'
+                      : 'red';
+                  return (
+                    <AppTag color={color} className='router-tag'>
+                      {t(`channel.edit.model_tester.status.${status}`)}
+                    </AppTag>
+                  );
+                },
+              },
+              {
+                title: t('channel.edit.model_tester.history_table.mode'),
+                key: 'mode',
+                width: 100,
+                render: (_, item) =>
+                  item?.is_stream === true
+                    ? t('channel.edit.model_tester.history_stream')
+                    : item?.is_stream === false
+                    ? t('channel.edit.model_tester.history_non_stream')
+                    : '-',
+              },
+              {
+                title: t('channel.edit.model_tester.history_table.source'),
+                dataIndex: 'source',
+                key: 'source',
+                width: 120,
+                render: (value) =>
+                  t(
+                    `channel.edit.model_tester.history_sources.${
+                      value || 'manual_test'
+                    }`,
+                    {
+                      defaultValue: value || '-',
+                    },
+                  ),
+              },
+              {
+                title: t('channel.edit.model_tester.history_table.latency'),
+                dataIndex: 'latency_ms',
+                key: 'latency_ms',
+                width: 90,
+                render: (value) =>
+                  Number(value || 0) > 0 ? `${value} ms` : '-',
+              },
+              {
+                title: t('channel.edit.model_tester.history_table.message'),
+                dataIndex: 'message',
+                key: 'message',
+                width: 220,
+                render: (value) => (
+                  <span className='router-cell-truncate' title={value || '-'}>
+                    {value || '-'}
+                  </span>
+                ),
+              },
+              {
+                title: t('channel.edit.model_tester.history_table.tested_at'),
+                dataIndex: 'tested_at',
+                key: 'tested_at',
+                width: 170,
+                render: (value) =>
+                  Number(value || 0) > 0 ? timestamp2string(value) : '-',
+              },
+              {
+                title: t('channel.edit.model_tester.table.actions'),
+                key: 'actions',
+                width: 100,
+                fixed: 'right',
+                render: (_, item) => {
+                  const rowTestKey = buildModelTestResultKey(
+                    item?.model,
+                    item?.endpoint,
+                  );
+                  const canRetest = rowsWithMeta.some(
+                    (row) => getRowTestKey(row) === rowTestKey,
+                  );
+                  return (
+                    <div className='router-inline-actions router-table-actions-icon-compact'>
+                      <AppTableActionButton
+                        icon='exchange'
+                        title={t('channel.edit.model_tester.history_retest')}
+                        disabled={
+                          disabledBase ||
+                          modelTesting ||
+                          !canRetest ||
+                          activeChannelTasksByModel.has(rowTestKey)
+                        }
+                        onClick={() => {
+                          closeTestHistory();
+                          handleRunModelTests({
+                            targetModels: [rowTestKey],
+                            scope: 'single',
+                          });
+                        }}
+                      />
+                      <AppTableActionButton
+                        icon='download'
+                        title={t('channel.edit.model_tester.history_download')}
+                        disabled={
+                          !(item?.artifact_name || item?.artifact_path) ||
+                          typeof onDownloadTestArtifact !== 'function'
+                        }
+                        onClick={() => onDownloadTestArtifact?.(item)}
+                      />
+                    </div>
+                  );
+                },
+              },
+            ]}
+          />
+          {historyRows.length > 0 ? (
+            <AppPagination
+              current={historyPage}
+              total={historyRows.length}
+              pageSize={historyPageSize}
+              onChange={(nextPage, nextPageSize) => {
+                if (nextPageSize !== historyPageSize) {
+                  setHistoryPageSize(nextPageSize);
+                  setHistoryPage(1);
+                  return;
+                }
+                setHistoryPage(nextPage);
+              }}
+            />
+          ) : null}
+        </div>
+      </AppDrawer>
+    </>
   );
 };
 

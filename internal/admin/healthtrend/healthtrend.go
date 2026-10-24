@@ -64,17 +64,24 @@ func WindowStart(now int64) int64 {
 }
 
 func SQLBucketExpression(db *gorm.DB, column string) string {
+	return SQLBucketExpressionForInterval(db, column, BucketIntervalSeconds)
+}
+
+func SQLBucketExpressionForInterval(db *gorm.DB, column string, intervalSeconds int64) string {
 	normalizedColumn := strings.TrimSpace(column)
 	if normalizedColumn == "" {
 		normalizedColumn = "created_at"
 	}
+	if intervalSeconds <= 0 {
+		intervalSeconds = BucketIntervalSeconds
+	}
 	switch strings.ToLower(strings.TrimSpace(dbDialectName(db))) {
 	case "mysql":
-		return fmt.Sprintf("(FLOOR(%s / %d) * %d)", normalizedColumn, BucketIntervalSeconds, BucketIntervalSeconds)
+		return fmt.Sprintf("(FLOOR(%s / %d) * %d)", normalizedColumn, intervalSeconds, intervalSeconds)
 	case "sqlite":
-		return fmt.Sprintf("(CAST(%s / %d AS INTEGER) * %d)", normalizedColumn, BucketIntervalSeconds, BucketIntervalSeconds)
+		return fmt.Sprintf("(CAST(%s / %d AS INTEGER) * %d)", normalizedColumn, intervalSeconds, intervalSeconds)
 	default:
-		return fmt.Sprintf("((%s / %d) * %d)", normalizedColumn, BucketIntervalSeconds, BucketIntervalSeconds)
+		return fmt.Sprintf("((%s / %d) * %d)", normalizedColumn, intervalSeconds, intervalSeconds)
 	}
 }
 
@@ -87,22 +94,36 @@ func dbDialectName(db *gorm.DB) string {
 
 func BuildPoints(now int64, rows []Aggregate) []Point {
 	start := WindowStart(now)
-	points := make([]Point, 0, BucketCount)
-	latencyCounts := make([]int64, BucketCount)
-	for i := 0; i < BucketCount; i++ {
-		bucketStart := start + int64(i)*BucketIntervalSeconds
+	end := BucketStart(now) + BucketIntervalSeconds - 1
+	return BuildPointsForWindow(start, end, BucketIntervalSeconds, rows)
+}
+
+func BuildPointsForWindow(startAt int64, endAt int64, intervalSeconds int64, rows []Aggregate) []Point {
+	if startAt <= 0 || endAt < startAt {
+		return []Point{}
+	}
+	if intervalSeconds <= 0 {
+		intervalSeconds = BucketIntervalSeconds
+	}
+	start := startAt - startAt%intervalSeconds
+	end := endAt - endAt%intervalSeconds
+	count := int((end-start)/intervalSeconds) + 1
+	if count <= 0 {
+		return []Point{}
+	}
+	points := make([]Point, 0, count)
+	latencyCounts := make([]int64, count)
+	for i := 0; i < count; i++ {
+		bucketStart := start + int64(i)*intervalSeconds
 		points = append(points, Point{
 			State:       StateUnknown,
 			BucketStart: bucketStart,
-			BucketEnd:   bucketStart + BucketIntervalSeconds - 1,
+			BucketEnd:   bucketStart + intervalSeconds - 1,
 		})
 	}
-	if start <= 0 {
-		return points
-	}
 	for _, row := range rows {
-		bucketStart := BucketStart(row.BucketStart)
-		index := int((bucketStart - start) / BucketIntervalSeconds)
+		bucketStart := row.BucketStart - row.BucketStart%intervalSeconds
+		index := int((bucketStart - start) / intervalSeconds)
 		if index < 0 || index >= len(points) {
 			continue
 		}

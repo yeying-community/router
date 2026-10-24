@@ -49,7 +49,8 @@ const AdminSidebar = ({ compact = false }) => {
   // than localStorage, and recompute when it changes — so a server-side role
   // change is reflected in the sidebar without a full re-login.
   const hasAdminAccess = useIsAdmin();
-  // 侧栏主动推送:仅未解决严重告警(unresolved_critical)驱动渠道项红点。
+  // 侧栏主动推送:仅未解决严重渠道告警驱动值班台红点。
+  // 这是过渡数据源；待有跨域 duty summary 后再扩展为全域事件数。
   const { unresolvedCritical } = useChannelAlertSummary();
   const menuItems = useMemo(
     () => buildUnifiedWorkspaceMenuGroups(hasAdminAccess),
@@ -157,11 +158,11 @@ const AdminSidebar = ({ compact = false }) => {
   const items = useMemo(
     () => {
       // 命中 badge 标记且有对应计数时,把纯字符串 label 换成带红点的 JSX;
-      // 其余项保持字符串路径不变(避免全量重排)。当前仅渠道项(channel-alerts)
+      // 其余项保持字符串路径不变(避免全量重排)。当前仅值班台项
       // 在 unresolved_critical>0 时亮红点。
       const decorateLabel = (item) => {
         const label = t(item.name);
-        if (item.badge === 'channel-alerts' && unresolvedCritical > 0) {
+        if (item.badge === 'duty-alerts' && unresolvedCritical > 0) {
           return (
             <span className='router-nav-label-with-badge'>
               {label}

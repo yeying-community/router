@@ -27,22 +27,59 @@ type modelRouteInput struct {
 	RoutePolicy string `json:"route_policy"`
 }
 
-func connectionOutput(row *model.PersonalProviderConnection) gin.H {
+func connectionOutput(row *model.PersonalProviderConnection, runtime model.ChannelRuntimeMetrics, window model.ChannelMetricWindow, supply *model.PublisherService) gin.H {
 	if row == nil {
 		return nil
 	}
-	return gin.H{"id": row.Id, "name": row.Name, "protocol": row.Protocol, "base_url": row.BaseURL, "models": row.Models, "priority": row.Priority, "status": row.Status, "created_at": row.CreatedAt, "updated_at": row.UpdatedAt, "credential_configured": row.CredentialConfigured, "last_checked_at": row.LastCheckedAt, "last_check_ok": row.LastCheckOK, "last_check_error": row.LastCheckError}
+	var supplyStatus any
+	if supply != nil {
+		supplyStatus = gin.H{"service_id": supply.Id, "status": supply.Status, "last_checked_at": supply.LastCheckedAt, "last_check_ok": supply.LastCheckOK}
+	}
+	return gin.H{
+		"id": row.Id, "channel_id": model.PersonalProviderChannelPrefix + row.Id,
+		"source_kind": "personal", "visibility": "private", "owner_id": row.UserId,
+		"name": row.Name, "protocol": row.Protocol, "base_url": row.BaseURL, "models": row.Models,
+		"priority": row.Priority, "status": row.Status, "created_at": row.CreatedAt, "updated_at": row.UpdatedAt,
+		"credential_configured": row.CredentialConfigured,
+		"verification":          gin.H{"last_checked_at": row.LastCheckedAt, "ok": row.LastCheckOK, "error": row.LastCheckError},
+		"last_checked_at":       row.LastCheckedAt, "last_check_ok": row.LastCheckOK, "last_check_error": row.LastCheckError,
+		"runtime_metrics": runtime, "metric_window": window,
+		"metric_availability": gin.H{"runtime": true, "quota": false, "cost": false, "earnings": supply != nil},
+		"supply":              supplyStatus,
+	}
 }
 
 func ListConnections(c *gin.Context) {
-	rows, err := model.ListPersonalProviderConnections(c.GetString(ctxkey.Id))
+	userID := c.GetString(ctxkey.Id)
+	rows, err := model.ListPersonalProviderConnections(userID)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
+	window := model.ResolveChannelMetricWindow(c.Query("period"), time.Now())
+	ids := make([]string, 0, len(rows))
+	for i := range rows {
+		ids = append(ids, rows[i].Id)
+	}
+	metrics, err := model.LoadChannelRuntimeMetrics(model.ChannelRuntimeMetricQuery{Window: window, PersonalProviderIDs: ids, UserID: userID})
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	supplyByConnection := make(map[string]*model.PublisherService)
+	if services, serviceErr := model.ListPublisherServices(userID); serviceErr == nil {
+		for i := range services {
+			connectionID := strings.TrimSpace(services[i].SourcePersonalConnectionId)
+			if connectionID == "" {
+				continue
+			}
+			service := services[i]
+			supplyByConnection[connectionID] = &service
+		}
+	}
 	data := make([]gin.H, 0, len(rows))
 	for i := range rows {
-		data = append(data, connectionOutput(&rows[i]))
+		data = append(data, connectionOutput(&rows[i], metrics[model.PersonalProviderChannelPrefix+rows[i].Id], window, supplyByConnection[rows[i].Id]))
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": data})
 }
@@ -53,7 +90,7 @@ func GetConnection(c *gin.Context) {
 		respondConnectionError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": connectionOutput(row)})
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": connectionOutput(row, model.ChannelRuntimeMetrics{}, model.ChannelMetricWindow{}, nil)})
 }
 
 func CreateConnection(c *gin.Context) {
@@ -67,7 +104,7 @@ func CreateConnection(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": connectionOutput(row)})
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": connectionOutput(row, model.ChannelRuntimeMetrics{}, model.ChannelMetricWindow{}, nil)})
 }
 
 func UpdateConnection(c *gin.Context) {
@@ -100,7 +137,7 @@ func UpdateConnection(c *gin.Context) {
 		respondConnectionError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": connectionOutput(updated)})
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": connectionOutput(updated, model.ChannelRuntimeMetrics{}, model.ChannelMetricWindow{}, nil)})
 }
 
 func DeleteConnection(c *gin.Context) {
@@ -118,10 +155,10 @@ func VerifyConnection(c *gin.Context) {
 			respondConnectionError(c, err)
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error(), "data": connectionOutput(row)})
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error(), "data": connectionOutput(row, model.ChannelRuntimeMetrics{}, model.ChannelMetricWindow{}, nil)})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": connectionOutput(row)})
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": connectionOutput(row, model.ChannelRuntimeMetrics{}, model.ChannelMetricWindow{}, nil)})
 }
 
 func ListModelRoutes(c *gin.Context) {
@@ -209,7 +246,7 @@ func RoutingQuota(c *gin.Context) {
 
 func respondConnectionError(c *gin.Context, err error) {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "个人供应商连接不存在或无权访问", "code": "personal_provider_not_found"})
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "个人渠道不存在或无权访问", "code": "personal_provider_not_found"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})

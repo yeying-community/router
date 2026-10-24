@@ -106,10 +106,10 @@ const EditToken = ({ admin = false } = {}) => {
   const allModelValues = modelOptions.map((option) => option.value);
 
   const routePolicyOptions = [
-    { value: 'personal_first', label: '个人优先，社区服务回退' },
-    { value: 'personal_only', label: '仅个人供应商' },
-    { value: 'community_only', label: '仅社区服务' },
-    { value: 'community_first', label: '社区服务优先' },
+    { value: 'personal_first', label: '自用渠道优先，供给渠道回退' },
+    { value: 'personal_only', label: '仅自用渠道' },
+    { value: 'community_only', label: '仅供给渠道' },
+    { value: 'community_first', label: '供给渠道优先' },
   ];
   const hasAvailableModels = allModelValues.length > 0;
   const formatEntitlementSourceLabel = useCallback(

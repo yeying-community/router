@@ -99,6 +99,84 @@ func TestDropChannelModelInactiveWithDB(t *testing.T) {
 	}
 }
 
+func TestRestoreCompletedChannelModelTestOperationsWithDB(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(&AsyncTask{}); err != nil {
+		t.Fatalf("migrate async tasks: %v", err)
+	}
+	rows := []AsyncTask{
+		{
+			Id:           "completed-unsupported",
+			Type:         AsyncTaskTypeChannelModelTest,
+			Status:       AsyncTaskStatusFailed,
+			Result:       `{"status":"unsupported","supported":false,"message":"not supported"}`,
+			ErrorMessage: "not supported",
+		},
+		{
+			Id:           "completed-skipped",
+			Type:         AsyncTaskTypeChannelModelTest,
+			Status:       AsyncTaskStatusFailed,
+			Result:       `{"status":"skipped","supported":false,"message":"not applicable"}`,
+			ErrorMessage: "not applicable",
+		},
+		{
+			Id:           "actual-execution-failure",
+			Type:         AsyncTaskTypeChannelModelTest,
+			Status:       AsyncTaskStatusFailed,
+			Result:       "",
+			ErrorMessage: "connection reset",
+		},
+		{
+			Id:           "invalid-result",
+			Type:         AsyncTaskTypeChannelModelTest,
+			Status:       AsyncTaskStatusFailed,
+			Result:       "not-json",
+			ErrorMessage: "decode failed",
+		},
+		{
+			Id:           "invalid-conclusion",
+			Type:         AsyncTaskTypeChannelModelTest,
+			Status:       AsyncTaskStatusFailed,
+			Result:       `{"status":"unknown"}`,
+			ErrorMessage: "unknown conclusion",
+		},
+		{
+			Id:           "other-operation",
+			Type:         AsyncTaskTypeChannelRefreshModels,
+			Status:       AsyncTaskStatusFailed,
+			Result:       `{"status":"unsupported"}`,
+			ErrorMessage: "refresh failed",
+		},
+	}
+	if err := db.Create(&rows).Error; err != nil {
+		t.Fatalf("seed async tasks: %v", err)
+	}
+
+	if err := restoreCompletedChannelModelTestOperationsWithDB(db); err != nil {
+		t.Fatalf("restore completed model tests: %v", err)
+	}
+
+	assertStatus := func(id string, wantStatus string, wantError string) {
+		t.Helper()
+		row := AsyncTask{}
+		if err := db.First(&row, "id = ?", id).Error; err != nil {
+			t.Fatalf("load %s: %v", id, err)
+		}
+		if row.Status != wantStatus || row.ErrorMessage != wantError {
+			t.Fatalf("%s status/error = %q/%q, want %q/%q", id, row.Status, row.ErrorMessage, wantStatus, wantError)
+		}
+	}
+	assertStatus("completed-unsupported", AsyncTaskStatusSucceeded, "")
+	assertStatus("completed-skipped", AsyncTaskStatusSucceeded, "")
+	assertStatus("actual-execution-failure", AsyncTaskStatusFailed, "connection reset")
+	assertStatus("invalid-result", AsyncTaskStatusFailed, "decode failed")
+	assertStatus("invalid-conclusion", AsyncTaskStatusFailed, "unknown conclusion")
+	assertStatus("other-operation", AsyncTaskStatusFailed, "refresh failed")
+}
+
 func TestBackfillLogRouteModelNamesWithDB(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
 	if err != nil {

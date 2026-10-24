@@ -126,6 +126,22 @@ import {
 
 const CHANNEL_PROCUREMENT_PAGE_SIZE = 20;
 
+const parseDownloadFilename = (contentDisposition, fallbackName) => {
+  const fallback =
+    (fallbackName || 'download.bin').toString().trim() || 'download.bin';
+  const headerValue = (contentDisposition || '').toString();
+  const utf8Match = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+  const plainMatch = headerValue.match(/filename=\"?([^\";]+)\"?/i);
+  return plainMatch?.[1] || fallback;
+};
+
 const ChannelForm = ({ mode = 'auto' } = {}) => {
   const { t } = useTranslation();
   const params = useParams();
@@ -166,6 +182,32 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     const query = new URLSearchParams(location.search);
     return normalizeDetailTab(query.get('tab'));
   }, [isDetailMode, location.search]);
+  const modelTestHistoryFilter = useMemo(() => {
+    if (!isDetailMode || activeDetailTab !== 'tests') {
+      return { model: '', endpoint: '' };
+    }
+    const query = new URLSearchParams(location.search);
+    return {
+      model: (query.get('model') || '').toString().trim(),
+      endpoint: (query.get('endpoint') || '').toString().trim(),
+    };
+  }, [activeDetailTab, isDetailMode, location.search]);
+  const clearModelTestHistoryFilter = useCallback(() => {
+    const query = new URLSearchParams(location.search);
+    if (!query.has('model') && !query.has('endpoint')) {
+      return;
+    }
+    query.delete('model');
+    query.delete('endpoint');
+    const nextSearch = query.toString();
+    navigate(
+      {
+        pathname: location.pathname,
+        search: nextSearch ? `?${nextSearch}` : '',
+      },
+      { replace: true, state: location.state }
+    );
+  }, [location.pathname, location.search, location.state, navigate]);
   const [channelKeySet, setChannelKeySet] = useState(false);
   const handleBackToChannelList = useCallback(() => {
     navigate(returnPath || '/admin/channel');
@@ -282,38 +324,74 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     },
     [t]
   );
-  const openChannelTaskView = useCallback(
-    (extraParams = {}) => {
+  const handleDownloadModelTestArtifact = useCallback(
+    async (item) => {
       const targetChannelId = (channelId || '').toString().trim();
-      const query = new URLSearchParams();
-      if (targetChannelId !== '') {
-        query.set('channel_id', targetChannelId);
+      const modelName = (item?.model || '').toString().trim();
+      const endpoint = (item?.endpoint || '').toString().trim();
+      if (
+        targetChannelId === '' ||
+        modelName === '' ||
+        endpoint === '' ||
+        !(item?.artifact_name || item?.artifact_path)
+      ) {
+        showError(t('channel.edit.model_tester.download_unavailable'));
+        return;
       }
-      Object.entries(extraParams || {}).forEach(([key, value]) => {
-        const normalizedValue = (value || '').toString().trim();
-        if (normalizedValue !== '') {
-          query.set(key, normalizedValue);
+      try {
+        const response = await API.get(
+          `/api/v1/admin/channel/${targetChannelId}/tests/artifact`,
+          {
+            params: {
+              model: modelName,
+              endpoint,
+              round: Number(item?.round || 0) || undefined,
+            },
+            responseType: 'blob',
+          }
+        );
+        const responseContentType = (
+          response.headers?.['content-type'] || ''
+        ).toString();
+        if (responseContentType.includes('application/json')) {
+          const text = await response.data.text();
+          let parsed = null;
+          try {
+            parsed = JSON.parse(text);
+          } catch {
+            parsed = null;
+          }
+          showError(
+            parsed?.message ||
+              parsed?.error?.message ||
+              t('channel.edit.model_tester.download_failed')
+          );
+          return;
         }
-      });
-      query.set('tab', 'tasks');
-      const search = query.toString();
-      navigate(`/admin/channel${search ? `?${search}` : ''}`, {
-        state: {
-          from: `${location.pathname}${location.search}${location.hash}`,
-          fromLabel: (inputs.name || channelId || '').toString().trim(),
-          contextType: 'channel_test_history',
-          contextLabel: (inputs.name || channelId || '').toString().trim(),
-        },
-      });
+        const blob = new Blob([response.data], {
+          type:
+            responseContentType ||
+            item?.artifact_content_type ||
+            'application/octet-stream',
+        });
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = parseDownloadFilename(
+          response.headers?.['content-disposition'],
+          item?.artifact_name || `${modelName}.bin`
+        );
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+      } catch (error) {
+        showError(
+          error?.message || t('channel.edit.model_tester.download_failed')
+        );
+      }
     },
-    [
-      channelId,
-      inputs.name,
-      location.hash,
-      location.pathname,
-      location.search,
-      navigate,
-    ]
+    [channelId, t]
   );
   const [modelTestedAt, setModelTestedAt] = useState(0);
   const [modelTestedSignature, setModelTestedSignature] = useState('');
@@ -349,7 +427,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   const [detailProviderFilter, setDetailProviderFilter] = useState('all');
   const [detailModelPage, setDetailModelPage] = useState(1);
   const [detailModelPageSize, setDetailModelPageSize] = useState(
-    CHANNEL_MODEL_PAGE_SIZE,
+    CHANNEL_MODEL_PAGE_SIZE
   );
   const fetchingModelsRef = useRef(false);
   const pendingRefreshTaskIdRef = useRef('');
@@ -512,6 +590,14 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       if (
         Number(item.tested_at || 0) === Number(existing.tested_at || 0) &&
+        Number(item.round || 0) > Number(existing.round || 0)
+      ) {
+        index.set(key, item);
+        return;
+      }
+      if (
+        Number(item.tested_at || 0) === Number(existing.tested_at || 0) &&
+        Number(item.round || 0) === Number(existing.round || 0) &&
         Number(item.latency_ms || 0) >= Number(existing.latency_ms || 0)
       ) {
         index.set(key, item);
@@ -594,7 +680,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   useEffect(() => {
     const visibleModelSet = new Set(modelTestRows.map((row) => row.test_key));
     setModelTestTargetModels((previous) => {
-      const next = previous.filter((targetKey) => visibleModelSet.has(targetKey));
+      const next = previous.filter((targetKey) =>
+        visibleModelSet.has(targetKey)
+      );
       if (next.length === previous.length) {
         return previous;
       }
@@ -1031,10 +1119,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
   }, [searchedChannelModels.length, detailModelPageSize]);
   const renderedChannelModels = useMemo(() => {
     const offset = (detailModelPage - 1) * detailModelPageSize;
-    return searchedChannelModels.slice(
-      offset,
-      offset + detailModelPageSize
-    );
+    return searchedChannelModels.slice(offset, offset + detailModelPageSize);
   }, [searchedChannelModels, detailModelPage, detailModelPageSize]);
   const modelSelectionSummaryText = useMemo(
     () =>
@@ -1095,10 +1180,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     if (inputs.protocol === 'awsclaude' || inputs.protocol === 'vertexai') {
       return null;
     }
-    const keyDisplayValue =
-      detailBasicReadonly
-        ? inputs.key_preview || (channelKeySet ? '********' : '-')
-        : inputs.key;
+    const keyDisplayValue = detailBasicReadonly
+      ? inputs.key_preview || (channelKeySet ? '********' : '-')
+      : inputs.key;
     return (
       <AppFormRow>
         <AppField label={t('channel.edit.key')} required={isCreateMode}>
@@ -1344,21 +1428,24 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     ]
   );
 
-  const saveDetailBasicInfo = useCallback(async (options = {}) => {
-    const { closeEditing = true, showSuccessMessage = true } = options || {};
-    const ok = await persistDetailChannel({
-      loadingSetter: setDetailBasicSaving,
-      successMessage: showSuccessMessage
-        ? t('channel.edit.messages.update_success')
-        : '',
-      validateBasic: true,
-      includeModelState: false,
-    });
-    if (ok && closeEditing) {
-      setDetailBasicEditing(false);
-    }
-    return ok;
-  }, [persistDetailChannel, t]);
+  const saveDetailBasicInfo = useCallback(
+    async (options = {}) => {
+      const { closeEditing = true, showSuccessMessage = true } = options || {};
+      const ok = await persistDetailChannel({
+        loadingSetter: setDetailBasicSaving,
+        successMessage: showSuccessMessage
+          ? t('channel.edit.messages.update_success')
+          : '',
+        validateBasic: true,
+        includeModelState: false,
+      });
+      if (ok && closeEditing) {
+        setDetailBasicEditing(false);
+      }
+      return ok;
+    },
+    [persistDetailChannel, t]
+  );
 
   const saveDetailModelsConfig = useCallback(async () => {
     if (!detailModelsEditing) {
@@ -1511,12 +1598,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       }
       setChannelBillingLoading(true);
       try {
-        const [summary, profile, adapters] =
-          await Promise.all([
-            loadChannelBillingSummaryFromServer(normalizedChannelId),
-            loadChannelBillingProfileFromServer(normalizedChannelId),
-            loadChannelBillingAdaptersFromServer(),
-          ]);
+        const [summary, profile, adapters] = await Promise.all([
+          loadChannelBillingSummaryFromServer(normalizedChannelId),
+          loadChannelBillingProfileFromServer(normalizedChannelId),
+          loadChannelBillingAdaptersFromServer(),
+        ]);
         setChannelBillingAdapters(adapters);
         setChannelBillingSummary(summary);
         setChannelBillingProfile(profile);
@@ -1564,10 +1650,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         setChannelBillingLoading(false);
       }
     },
-    [
-      loadChannelProcurementEventsFromServer,
-      t,
-    ]
+    [loadChannelProcurementEventsFromServer, t]
   );
   useEffect(() => {
     if (!isDetailMode || activeDetailTab !== 'procurement') {
@@ -1578,7 +1661,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       return;
     }
     refreshChannelProcurementState(targetChannelId);
-  }, [isDetailMode, activeDetailTab, channelId, refreshChannelProcurementState]);
+  }, [
+    isDetailMode,
+    activeDetailTab,
+    channelId,
+    refreshChannelProcurementState,
+  ]);
 
   const refreshChannelRuntimeState = useCallback(
     async (targetChannelId) => {
@@ -1664,7 +1752,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const modelName = (row?.model || row?.upstream_model || '')
         .toString()
         .trim();
-      const publishedModel = (row?.published_model || modelName).toString().trim();
+      const publishedModel = (row?.published_model || modelName)
+        .toString()
+        .trim();
       if (targetChannelId === '' || modelName === '') {
         return false;
       }
@@ -1864,28 +1954,29 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         const path =
           (id || '').toString().trim() === ''
             ? `/api/v1/admin/channel/${targetChannelId}/billing/snapshots`
-            : `/api/v1/admin/channel/${targetChannelId}/billing/snapshots/${(id || '')
+            : `/api/v1/admin/channel/${targetChannelId}/billing/snapshots/${(
+                id || ''
+              )
                 .toString()
                 .trim()}`;
-        const res = await API[method](
-          path,
-          {
-            ...(method === 'put' ? { id: (id || '').toString().trim() } : {}),
-            purchase_at: Number(purchase_at || 0),
-            purchase_currency: (purchase_currency || '').toString().trim(),
-            purchase_amount: Number(purchase_amount || 0),
-            purchase_fx_rate: Number(purchase_fx_rate || 0),
-            purchase_cost_amount: Number(purchase_cost_amount || 0),
-            entitlement_name: (entitlement_name || '').toString().trim(),
-            event_type: (event_type || 'purchase').toString().trim(),
-            parent_snapshot_id: (parent_snapshot_id || '').toString().trim(),
-            old_batch_disposition: (old_batch_disposition || 'keep').toString().trim(),
-            valid_from: Number(valid_from || 0),
-            valid_until: Number(valid_until || 0),
-            items: normalizedItems,
-            message: (message || '').toString().trim(),
-          }
-        );
+        const res = await API[method](path, {
+          ...(method === 'put' ? { id: (id || '').toString().trim() } : {}),
+          purchase_at: Number(purchase_at || 0),
+          purchase_currency: (purchase_currency || '').toString().trim(),
+          purchase_amount: Number(purchase_amount || 0),
+          purchase_fx_rate: Number(purchase_fx_rate || 0),
+          purchase_cost_amount: Number(purchase_cost_amount || 0),
+          entitlement_name: (entitlement_name || '').toString().trim(),
+          event_type: (event_type || 'purchase').toString().trim(),
+          parent_snapshot_id: (parent_snapshot_id || '').toString().trim(),
+          old_batch_disposition: (old_batch_disposition || 'keep')
+            .toString()
+            .trim(),
+          valid_from: Number(valid_from || 0),
+          valid_until: Number(valid_until || 0),
+          items: normalizedItems,
+          message: (message || '').toString().trim(),
+        });
         const { success, message: responseMessage } = res.data || {};
         if (!success) {
           showError(
@@ -1924,7 +2015,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         const { success, message: responseMessage } = res.data || {};
         if (!success) {
           showError(
-            responseMessage || t('channel.edit.billing.delete_purchase_record_failed')
+            responseMessage ||
+              t('channel.edit.billing.delete_purchase_record_failed')
           );
           return false;
         }
@@ -1934,7 +2026,8 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return true;
       } catch (error) {
         showError(
-          error?.message || t('channel.edit.billing.delete_purchase_record_failed')
+          error?.message ||
+            t('channel.edit.billing.delete_purchase_record_failed')
         );
         return false;
       } finally {
@@ -1972,89 +2065,92 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     setDetailBillingEditing(false);
   }, [channelBillingProfile]);
 
-  const saveDetailBillingProfile = useCallback(async (options = {}) => {
-    const { closeEditing = true, showSuccessMessage = true } = options || {};
-    const targetChannelId = (channelId || '').toString().trim();
-    if (targetChannelId === '' || !detailBillingDraft) {
-      return false;
-    }
-    const billingSource = resolveChannelBillingSourceValue(
-      detailBillingDraft.billing_source,
-      channelBillingAdapters
-    );
-    const credentialFields = resolveBillingAdapterCredentialFields(
-      billingSource,
-      channelBillingAdapters
-    );
-    const billingCredentials =
-      billingSource === 'manual'
-        ? {}
-        : filterBillingCredentialsByFields(
-            detailBillingDraft.billing_credentials,
-            credentialFields
-          );
-    const missingCredentialField = missingRequiredBillingCredentialField(
-      credentialFields,
-      billingCredentials
-    );
-    if (missingCredentialField) {
-      showError(
-        t('channel.edit.billing.credential_required', {
-          field: missingCredentialField,
-        })
-      );
-      return false;
-    }
-    setChannelBillingSubmitting(true);
-    try {
-      const res = await API.put(
-        `/api/v1/admin/channel/${targetChannelId}/billing/profile`,
-        {
-          billing_source: billingSource,
-          cost_tracking_mode: normalizeChannelCostTrackingModeValue(
-            detailBillingDraft.cost_tracking_mode
-          ),
-          billing_credentials: billingCredentials,
-        }
-      );
-      const { success, message, data } = res.data || {};
-      if (!success) {
-        showError(message || t('channel.edit.billing.profile_update_failed'));
+  const saveDetailBillingProfile = useCallback(
+    async (options = {}) => {
+      const { closeEditing = true, showSuccessMessage = true } = options || {};
+      const targetChannelId = (channelId || '').toString().trim();
+      if (targetChannelId === '' || !detailBillingDraft) {
         return false;
       }
-      const normalizedProfile = normalizeChannelBillingProfile(data);
-      setChannelBillingProfile(normalizedProfile);
-      setDetailBillingDraft(normalizedProfile);
-      if (closeEditing) {
-        setDetailBillingEditing(false);
-      }
-      await refreshChannelBillingState(targetChannelId);
-      if (
-        Array.isArray(normalizedProfile?.action_capabilities) &&
-        normalizedProfile.action_capabilities.includes('refresh_billing')
-      ) {
-        await submitChannelBillingRefresh(targetChannelId, { silent: true });
-      }
-      if (showSuccessMessage) {
-        showSuccess(t('channel.edit.billing.profile_update_success'));
-      }
-      return true;
-    } catch (error) {
-      showError(
-        error?.message || t('channel.edit.billing.profile_update_failed')
+      const billingSource = resolveChannelBillingSourceValue(
+        detailBillingDraft.billing_source,
+        channelBillingAdapters
       );
-      return false;
-    } finally {
-      setChannelBillingSubmitting(false);
-    }
-  }, [
-    channelId,
-    channelBillingAdapters,
-    detailBillingDraft,
-    refreshChannelBillingState,
-    submitChannelBillingRefresh,
-    t,
-  ]);
+      const credentialFields = resolveBillingAdapterCredentialFields(
+        billingSource,
+        channelBillingAdapters
+      );
+      const billingCredentials =
+        billingSource === 'manual'
+          ? {}
+          : filterBillingCredentialsByFields(
+              detailBillingDraft.billing_credentials,
+              credentialFields
+            );
+      const missingCredentialField = missingRequiredBillingCredentialField(
+        credentialFields,
+        billingCredentials
+      );
+      if (missingCredentialField) {
+        showError(
+          t('channel.edit.billing.credential_required', {
+            field: missingCredentialField,
+          })
+        );
+        return false;
+      }
+      setChannelBillingSubmitting(true);
+      try {
+        const res = await API.put(
+          `/api/v1/admin/channel/${targetChannelId}/billing/profile`,
+          {
+            billing_source: billingSource,
+            cost_tracking_mode: normalizeChannelCostTrackingModeValue(
+              detailBillingDraft.cost_tracking_mode
+            ),
+            billing_credentials: billingCredentials,
+          }
+        );
+        const { success, message, data } = res.data || {};
+        if (!success) {
+          showError(message || t('channel.edit.billing.profile_update_failed'));
+          return false;
+        }
+        const normalizedProfile = normalizeChannelBillingProfile(data);
+        setChannelBillingProfile(normalizedProfile);
+        setDetailBillingDraft(normalizedProfile);
+        if (closeEditing) {
+          setDetailBillingEditing(false);
+        }
+        await refreshChannelBillingState(targetChannelId);
+        if (
+          Array.isArray(normalizedProfile?.action_capabilities) &&
+          normalizedProfile.action_capabilities.includes('refresh_billing')
+        ) {
+          await submitChannelBillingRefresh(targetChannelId, { silent: true });
+        }
+        if (showSuccessMessage) {
+          showSuccess(t('channel.edit.billing.profile_update_success'));
+        }
+        return true;
+      } catch (error) {
+        showError(
+          error?.message || t('channel.edit.billing.profile_update_failed')
+        );
+        return false;
+      } finally {
+        setChannelBillingSubmitting(false);
+      }
+    },
+    [
+      channelId,
+      channelBillingAdapters,
+      detailBillingDraft,
+      refreshChannelBillingState,
+      submitChannelBillingRefresh,
+      t,
+    ]
+  );
 
   const startDetailOverviewEdit = useCallback(() => {
     setDetailBasicEditing(true);
@@ -2301,12 +2397,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         pendingRefreshTaskIdRef.current = refreshTask.id;
         pendingRefreshSignatureRef.current = requestSignature;
         pendingRefreshBeforeCountRef.current = Array.isArray(
-          inputs.channel_models,
+          inputs.channel_models
         )
           ? inputs.channel_models.length
           : 0;
         pendingRefreshBeforeModelsRef.current = Array.isArray(
-          inputs.channel_models,
+          inputs.channel_models
         )
           ? inputs.channel_models
               .map((row) => (row?.model || '').toString().trim())
@@ -2545,7 +2641,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       const selectedTargetKeys =
         explicitConfigs.length > 0
           ? explicitConfigs
-              .map((item) => buildChannelEndpointKey(item?.model, item?.endpoint))
+              .map((item) =>
+                buildChannelEndpointKey(item?.model, item?.endpoint)
+              )
               .filter((item) => item !== '::')
           : normalizeModelIDs(
               Array.isArray(targetModels) && targetModels.length > 0
@@ -2557,8 +2655,13 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         explicitConfigs.length > 0
           ? explicitConfigs
               .map((item) => {
-                const key = buildChannelEndpointKey(item?.model, item?.endpoint);
-                return modelTestRows.find((row) => row.test_key === key) || null;
+                const key = buildChannelEndpointKey(
+                  item?.model,
+                  item?.endpoint
+                );
+                return (
+                  modelTestRows.find((row) => row.test_key === key) || null
+                );
               })
               .filter(Boolean)
           : modelTestRows.filter((row) => targetKeySet.has(row.test_key));
@@ -2571,19 +2674,19 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         return;
       }
       const nextTargetConfigs = selectedRows.map((row) => {
-          const endpoint = getEffectiveModelEndpoint(row);
-          const targetConfig = {
-            model: row.model,
-            endpoint,
-          };
-          if (supportsModelTestStream(row)) {
-            targetConfig.is_stream = !!row.is_stream;
-          }
-          if (endpoint === '/v1/responses') {
-            targetConfig.responses_test_mode = responsesTestMode;
-          }
-          return targetConfig;
-        });
+        const endpoint = getEffectiveModelEndpoint(row);
+        const targetConfig = {
+          model: row.model,
+          endpoint,
+        };
+        if (supportsModelTestStream(row)) {
+          targetConfig.is_stream = !!row.is_stream;
+        }
+        if (endpoint === '/v1/responses') {
+          targetConfig.responses_test_mode = responsesTestMode;
+        }
+        return targetConfig;
+      });
       const normalizedTargets = normalizeModelIDs(
         selectedRows.map((row) => row.model)
       );
@@ -2602,7 +2705,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             image_edit_data: imageEditTestData,
           }
         );
-        const { success, message, data, meta } = res.data || {};
+        const { success, message } = res.data || {};
         if (!success) {
           const errorMessage =
             message || t('channel.edit.model_tester.test_failed');
@@ -2610,17 +2713,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           showError(errorMessage);
           return;
         }
-        const nextTasks = normalizeAsyncTasks(data?.tasks);
-        setChannelTasks((prev) =>
-          normalizeAsyncTasks([...normalizeAsyncTasks(prev), ...nextTasks])
-        );
+        const nextTests = await loadChannelTestsFromServer(targetChannelId);
+        setModelTestResults(normalizeModelTestResults(nextTests.items));
+        setModelTestedAt(Number(nextTests.lastTestedAt || 0) * 1000);
         setModelTestError('');
-        showSuccess(
-          t('channel.edit.model_tester.task_created', {
-            count: Number(meta?.created || nextTasks.length || 0),
-            reused: Number(meta?.reused || 0),
-          })
-        );
+        showSuccess(t('channel.edit.model_tester.test_success'));
       } catch (error) {
         const errorMessage =
           error?.message || t('channel.edit.model_tester.test_failed');
@@ -2647,6 +2744,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       responsesTestMode,
       imageEditTestURL,
       imageEditTestData,
+      loadChannelTestsFromServer,
     ]
   );
 
@@ -2841,7 +2939,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             response_policy: prettyJSONString(existingPolicy.response_policy),
             access_base_url:
               templateValue === ENDPOINT_POLICY_TEMPLATE_OVERRIDE_BASE_URL
-                ? parseEndpointAccessPolicyBaseURL(existingPolicy.request_policy)
+                ? parseEndpointAccessPolicyBaseURL(
+                    existingPolicy.request_policy
+                  )
                 : '',
           }
         : template.buildDraft(prev);
@@ -2887,9 +2987,13 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
     try {
       const shouldSavePolicy =
         (policyDraft.id || '').toString().trim() !== '' ||
-        [templateKey, capabilities, requestPolicy, responsePolicy, policyDraft.reason].some(
-          (value) => (value || '').toString().trim() !== ''
-        ) ||
+        [
+          templateKey,
+          capabilities,
+          requestPolicy,
+          responsePolicy,
+          policyDraft.reason,
+        ].some((value) => (value || '').toString().trim() !== '') ||
         policyDraft.enabled === false;
       if (shouldSavePolicy && templateKey === '') {
         showError(t('channel.edit.endpoint_policies.editor.template_required'));
@@ -3018,7 +3122,11 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
 
   const handleBatchUpdateEndpointCapabilities = useCallback(
     async (rows, enabled) => {
-      if (!isDetailMode || endpointCapabilityReadonly || endpointBatchMutating) {
+      if (
+        !isDetailMode ||
+        endpointCapabilityReadonly ||
+        endpointBatchMutating
+      ) {
         return false;
       }
       const targetChannelId = (channelId || '').toString().trim();
@@ -3779,7 +3887,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
               completedRefreshTask = null;
             }
           }
-          const runtimeState = await refreshChannelRuntimeState(targetChannelId);
+          const runtimeState = await refreshChannelRuntimeState(
+            targetChannelId
+          );
           if (refreshTaskId !== '') {
             pendingRefreshTaskIdRef.current = '';
             if (
@@ -3799,7 +3909,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 ? afterModels.length
                 : pendingRefreshBeforeCountRef.current;
               const beforeModelSet = new Set(
-                pendingRefreshBeforeModelsRef.current,
+                pendingRefreshBeforeModelsRef.current
               );
               let addedCount = 0;
               let staleCount = 0;
@@ -3808,7 +3918,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 if (modelName !== '' && !beforeModelSet.has(modelName)) {
                   addedCount += 1;
                 }
-                if ((row?.sync_status || '').toString().trim() === 'not_returned') {
+                if (
+                  (row?.sync_status || '').toString().trim() === 'not_returned'
+                ) {
                   staleCount += 1;
                 }
               });
@@ -3817,7 +3929,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                   added: addedCount,
                   stale: staleCount,
                   total: totalCount,
-                }),
+                })
               );
             } else {
               setVerifiedModelSignature('');
@@ -3916,7 +4028,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       return;
     }
     loadProviderIndex({ silent: true }).then();
-  }, [loadProviderIndex, showDetailPublishTab, showDetailTestsTab, showStepTwo]);
+  }, [
+    loadProviderIndex,
+    showDetailPublishTab,
+    showDetailTestsTab,
+    showStepTwo,
+  ]);
 
   useEffect(() => {
     if (detailModelPage <= detailModelTotalPages) {
@@ -4098,25 +4215,25 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
         )}
         {inputs.protocol === VOLCENGINE_STANDARD_PROTOCOL &&
           !isVolcengineRealtime && (
-          <AppAlert
-            type='info'
-            showIcon
-            className='router-section-message'
-            title={
-              <span>
-                {t('channel.edit.douban_notice')}
-                <a
-                  target='_blank'
-                  rel='noreferrer'
-                  href='https://console.volcengine.com/ark/region:ark+cn-beijing/endpoint'
-                >
-                  {t('channel.edit.douban_notice_link')}
-                </a>
-                {t('channel.edit.douban_notice_2')}
-              </span>
-            }
-          />
-        )}
+            <AppAlert
+              type='info'
+              showIcon
+              className='router-section-message'
+              title={
+                <span>
+                  {t('channel.edit.douban_notice')}
+                  <a
+                    target='_blank'
+                    rel='noreferrer'
+                    href='https://console.volcengine.com/ark/region:ark+cn-beijing/endpoint'
+                  >
+                    {t('channel.edit.douban_notice_link')}
+                  </a>
+                  {t('channel.edit.douban_notice_2')}
+                </span>
+              }
+            />
+          )}
         {isVolcengineRealtime && (
           <>
             <AppAlert
@@ -4261,7 +4378,9 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 className='router-section-input'
                 name='user_id'
                 required
-                placeholder={t('channel.edit.cloudflare_account_id_placeholder')}
+                placeholder={t(
+                  'channel.edit.cloudflare_account_id_placeholder'
+                )}
                 onChange={handleConfigChange}
                 value={config.user_id}
                 autoComplete=''
@@ -4510,8 +4629,12 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                     normalizeChannelModelType={normalizeChannelModelType}
                     startDetailModelEdit={startDetailModelEdit}
                     handleDeleteDetailModel={handleDeleteDetailModel}
-                    handleBatchSelectDetailModels={handleBatchSelectDetailModels}
-                    handleBatchDeleteDetailModels={handleBatchDeleteDetailModels}
+                    handleBatchSelectDetailModels={
+                      handleBatchSelectDetailModels
+                    }
+                    handleBatchDeleteDetailModels={
+                      handleBatchDeleteDetailModels
+                    }
                     detailModelPage={detailModelPage}
                     setDetailModelPage={setDetailModelPage}
                     detailModelTotal={searchedChannelModels.length}
@@ -4580,7 +4703,10 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
                 handleRunModelTests={handleRunModelTests}
                 detailTestingReadonly={detailTestingReadonly}
                 modelTestError={modelTestError}
-                openChannelTaskView={openChannelTaskView}
+                onDownloadTestArtifact={handleDownloadModelTestArtifact}
+                initialHistoryModel={modelTestHistoryFilter.model}
+                initialHistoryEndpoint={modelTestHistoryFilter.endpoint}
+                onCloseHistoryFilter={clearModelTestHistoryFilter}
                 selectedModelTestHasActiveTasks={
                   selectedModelTestHasActiveTasks
                 }

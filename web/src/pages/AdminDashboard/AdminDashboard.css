@@ -1,7 +1,6 @@
 .admin-dashboard-container {
   max-width: 1600px;
 }
-
 .admin-dashboard-content-spin {
   display: block;
   min-height: 320px;
@@ -60,7 +59,9 @@
 }
 
 .admin-dashboard-period-control .router-ui-select.router-section-dropdown,
-.admin-dashboard-period-control .router-ui-select.router-section-dropdown .ant-select-selector,
+.admin-dashboard-period-control
+  .router-ui-select.router-section-dropdown
+  .ant-select-selector,
 .admin-dashboard-refresh-controls .router-ui-button.router-inline-button {
   min-height: 32px !important;
   height: 32px !important;
@@ -70,7 +71,9 @@
   min-width: 132px;
 }
 
-.admin-dashboard-period-control .router-ui-select.router-section-dropdown .ant-select-selector {
+.admin-dashboard-period-control
+  .router-ui-select.router-section-dropdown
+  .ant-select-selector {
   align-items: center;
 }
 
@@ -161,7 +164,8 @@
 .admin-dashboard-board-divider {
   margin: 24px 0 8px;
   padding-top: 18px;
-  border-top: 1px dashed var(--router-border-color, var(--router-border-color, #e5e7eb));
+  border-top: 1px dashed
+    var(--router-border-color, var(--router-border-color, #e5e7eb));
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -197,110 +201,6 @@
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
   margin-bottom: 8px;
-}
-
-.admin-dashboard-spending-headline {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
-  padding: 20px 24px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 12px;
-  background: linear-gradient(180deg, var(--router-surface-muted, var(--router-surface-muted, #f8fafc)) 0%, var(--router-surface, var(--router-surface, var(--router-surface, #fff))fff) 100%);
-}
-
-.admin-dashboard-spending-headline-main {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.admin-dashboard-spending-headline-label {
-  color: var(--router-text-muted, var(--router-text-muted, #64748b));
-  font-size: 13px;
-}
-
-.admin-dashboard-spending-headline-value {
-  color: var(--router-text-primary, var(--router-text-primary, #0f172a));
-  font-size: 36px;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-}
-
-.admin-dashboard-spending-headline-value-positive {
-  color: var(--router-status-success, var(--router-status-success, #15803d));
-}
-
-.admin-dashboard-spending-headline-value-negative {
-  color: var(--router-status-danger, var(--router-status-danger, #dc2626));
-}
-
-.admin-dashboard-model-headline-cta {
-  appearance: none;
-  -webkit-appearance: none;
-  border: none;
-  background: none;
-  padding: 0;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-
-.admin-dashboard-model-headline-cta:hover {
-  opacity: 0.82;
-  text-decoration: underline;
-}
-
-.admin-dashboard-spending-headline-hint {
-  color: var(--router-text-secondary, var(--router-text-secondary, #475569));
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.admin-dashboard-spending-headline-side {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px 16px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 10px;
-  background: var(--router-surface, var(--router-surface, #fff));
-}
-
-.admin-dashboard-spending-headline-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--router-text-muted, var(--router-text-muted, #64748b));
-  font-size: 12px;
-}
-
-.admin-dashboard-spending-headline-row strong {
-  color: var(--router-text-primary, var(--router-text-primary, #0f172a));
-  font-size: 14px;
-  font-weight: 600;
-}
-
-/* Clickable side-row value: looks like the strong value, drills into a filtered list. */
-.admin-dashboard-spending-headline-row-cta {
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--router-link, #2563eb);
-}
-
-.admin-dashboard-spending-headline-row-cta:hover {
-  color: var(--router-link-hover, #1d4ed8);
-  text-decoration: underline;
 }
 
 /* User section: monetization metrics as a slim inline strip, not a card grid. */
@@ -373,7 +273,8 @@
   background: rgba(220, 38, 38, 0.06);
 }
 
-.admin-dashboard-channel-bell.is-critical.is-active .admin-dashboard-channel-bell-value {
+.admin-dashboard-channel-bell.is-critical.is-active
+  .admin-dashboard-channel-bell-value {
   color: var(--router-status-danger, var(--router-status-danger, #dc2626));
 }
 
@@ -382,7 +283,8 @@
   background: rgba(245, 158, 11, 0.06);
 }
 
-.admin-dashboard-channel-bell.is-warning.is-active .admin-dashboard-channel-bell-value {
+.admin-dashboard-channel-bell.is-warning.is-active
+  .admin-dashboard-channel-bell-value {
   color: var(--router-status-warning, var(--router-status-warning, #b45309));
 }
 
@@ -653,30 +555,20 @@
   font-size: 12px;
 }
 
-.admin-dashboard-channel-health-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-}
-
 .admin-dashboard-channel-health-list-header {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-end;
   gap: 16px;
   margin-bottom: 2px;
 }
-
-.admin-dashboard-channel-health-list-title {
-  min-width: 0;
+.admin-dashboard-channel-health-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-
-.admin-dashboard-channel-health-hint {
-  margin-top: 4px;
-  color: var(--router-text-muted, var(--router-text-muted, #64748b));
-  font-size: 12px;
-  line-height: 1.5;
+.admin-dashboard-channel-health-filters .router-ui-select {
+  min-width: 132px;
 }
 
 .admin-dashboard-health-strip-legend {
@@ -704,7 +596,10 @@
 
 .admin-dashboard-channel-health-row {
   display: grid;
-  grid-template-columns: minmax(190px, 0.9fr) minmax(280px, 1.5fr) minmax(220px, 0.9fr);
+  grid-template-columns: minmax(190px, 0.9fr) minmax(280px, 1.5fr) minmax(
+      220px,
+      0.9fr
+    );
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
@@ -715,7 +610,7 @@
 
 .admin-dashboard-channel-health-row-circuit {
   border-color: rgba(220, 38, 38, 0.36);
-  background: var(--router-surface, var(--router-surface, #fff))afa;
+  background: var(--router-surface, var(--router-surface, #fff)) afa;
 }
 
 .admin-dashboard-channel-health-info {
@@ -972,7 +867,6 @@
   }
 }
 
-
 .admin-dashboard-alert-filters {
   display: flex;
   align-items: center;
@@ -1007,12 +901,15 @@
 }
 
 .admin-dashboard-alert-filter-selects .router-ui-select.router-section-dropdown,
-.admin-dashboard-alert-filter-selects .router-ui-select.router-section-dropdown .ant-select-selector {
+.admin-dashboard-alert-filter-selects
+  .router-ui-select.router-section-dropdown
+  .ant-select-selector {
   min-height: 32px !important;
   height: 32px !important;
 }
 
-.admin-dashboard-alert-filter-selects .router-ui-select.router-section-dropdown {
+.admin-dashboard-alert-filter-selects
+  .router-ui-select.router-section-dropdown {
   min-width: 132px;
 }
 
@@ -1214,7 +1111,9 @@
   flex-wrap: nowrap;
 }
 
-.admin-dashboard-usage-rank-filters .router-list-toolbar-query .router-ui-button,
+.admin-dashboard-usage-rank-filters
+  .router-list-toolbar-query
+  .router-ui-button,
 .admin-dashboard-usage-rank-filters .admin-dashboard-period-control,
 .admin-dashboard-usage-rank-title-row .admin-dashboard-refresh-controls {
   flex-shrink: 0;
@@ -1301,7 +1200,11 @@
   inset: 0 auto 0 0;
   width: var(--admin-dashboard-share-width, 4%);
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--router-link, var(--router-link, #2563eb)) 0%, #0ea5e9 100%);
+  background: linear-gradient(
+    90deg,
+    var(--router-link, var(--router-link, #2563eb)) 0%,
+    #0ea5e9 100%
+  );
 }
 
 .admin-dashboard-rank-table .ant-table {
@@ -1322,7 +1225,7 @@
 
 .admin-dashboard-model-overview-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   margin-bottom: 10px;
 }
@@ -1336,56 +1239,6 @@
 
 .admin-dashboard-model-chart {
   margin-top: 6px;
-}
-
-.admin-dashboard-model-distribution-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.admin-dashboard-model-distribution-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--router-surface-muted, var(--router-surface-muted, #f8fafc));
-}
-
-.admin-dashboard-model-distribution-main {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.admin-dashboard-model-distribution-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.admin-dashboard-model-distribution-label {
-  color: var(--router-text-secondary, var(--router-text-secondary, #334155));
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.admin-dashboard-model-distribution-value {
-  color: var(--router-text-primary, var(--router-text-primary, #0f172a));
-  font-size: 16px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.admin-dashboard-model-distribution-footnote {
-  color: var(--router-text-muted, var(--router-text-muted, #64748b));
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .admin-dashboard-model-card {
@@ -1498,6 +1351,11 @@
 }
 
 @media (max-width: 768px) {
+  .admin-dashboard-channel-health-filters {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
   .admin-dashboard-toolbar.router-log-toolbar {
     align-items: stretch;
   }
@@ -1532,7 +1390,6 @@
     grid-template-columns: 1fr;
   }
 
-  .admin-dashboard-spending-headline,
   .admin-dashboard-user-growth-grid,
   .admin-dashboard-user-segment-grid,
   .admin-dashboard-model-overview-grid {
@@ -1540,8 +1397,7 @@
   }
 
   .admin-dashboard-channel-health-list-header {
-    align-items: flex-start;
-    flex-direction: column;
+    justify-content: flex-start;
   }
 
   .admin-dashboard-health-strip-legend {
@@ -1566,5 +1422,239 @@
     grid-template-columns: 1fr;
   }
 }
-.admin-dashboard-spending-flow { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid var(--router-link, var(--router-link, #2563eb)); background: var(--router-surface-muted, var(--router-surface-muted, #f8fafc)); color: var(--router-text-muted, var(--router-text-muted, #64748b)); font-size: 13px; }
-.admin-dashboard-spending-flow strong { color: var(--router-text-primary, var(--router-text-primary, #0f172a)); }
+.admin-dashboard-spending-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--router-link, var(--router-link, #2563eb));
+  background: var(--router-surface-muted, var(--router-surface-muted, #f8fafc));
+  color: var(--router-text-muted, var(--router-text-muted, #64748b));
+  font-size: 13px;
+}
+.admin-dashboard-spending-flow strong {
+  color: var(--router-text-primary, var(--router-text-primary, #0f172a));
+}
+
+/* Channel health is a flat diagnostic matrix. The five-hour heatmap carries
+   the visual weight; row metrics use type and separators only. */
+.router-admin-main > .admin-dashboard-channel-shell {
+  min-height: calc(100vh - 124px);
+  background-color: var(--router-surface, #fff);
+}
+
+.admin-dashboard-channel-health-surface {
+  min-width: 0;
+  padding: 10px 2px 0;
+  background: var(--router-surface, #fff);
+}
+
+.admin-dashboard-channel-health-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--router-border-color, #e5e7eb);
+}
+
+.admin-dashboard-channel-health-page-heading {
+  min-width: 0;
+}
+
+.admin-dashboard-channel-health-page-heading h1 {
+  margin: 0;
+  color: var(--router-text-primary, #0f172a);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.admin-dashboard-channel-health-page-heading p {
+  max-width: 720px;
+  margin: 6px 0 0;
+  color: var(--router-text-muted, #64748b);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.admin-dashboard-channel-duty-link {
+  flex: 0 0 auto;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  border-radius: 0;
+  background: transparent;
+  color: var(--router-link, #2563eb);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.admin-dashboard-channel-duty-link:hover {
+  color: var(--router-link-hover, #1d4ed8);
+}
+
+.admin-dashboard-channel-duty-link:focus-visible,
+.admin-dashboard-channel-health-name:focus-visible {
+  outline: 2px solid var(--router-focus-ring, #60a5fa);
+  outline-offset: 3px;
+}
+
+.admin-dashboard-channel-health-list-header {
+  padding: 14px 0 10px;
+  margin-bottom: 0;
+}
+
+.admin-dashboard-channel-health-matrix {
+  min-width: 0;
+  border-top: 1px solid var(--router-border-color, #e5e7eb);
+}
+
+.admin-dashboard-channel-health-matrix-header,
+.admin-dashboard-channel-health-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.95fr) minmax(300px, 1.5fr) minmax(
+      320px,
+      1fr
+    );
+  align-items: center;
+  gap: 18px;
+}
+
+.admin-dashboard-channel-health-matrix-header {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--router-border-color, #e5e7eb);
+  color: var(--router-text-muted, #64748b);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.admin-dashboard-channel-health-matrix-header > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-dashboard-channel-health-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 34px 0;
+  border-top: 1px solid var(--router-border-color, #e5e7eb);
+  border-bottom: 1px solid var(--router-border-color, #e5e7eb);
+  color: var(--router-text-muted, #64748b);
+  font-size: 13px;
+}
+
+.admin-dashboard-channel-health-empty strong {
+  color: var(--router-text-primary, #0f172a);
+  font-size: 14px;
+}
+
+.admin-dashboard-channel-health-row {
+  position: relative;
+  padding: 13px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--router-border-color, #e5e7eb);
+  border-radius: 0;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.admin-dashboard-channel-health-row:hover {
+  background: var(--router-surface-muted, #f8fafc);
+}
+
+.admin-dashboard-channel-health-row-attention {
+  background: rgba(245, 158, 11, 0.025);
+}
+
+.admin-dashboard-channel-health-row-circuit {
+  border-color: var(--router-border-color, #e5e7eb);
+  background: transparent;
+  box-shadow: inset 3px 0 0 var(--router-status-danger, #dc2626);
+}
+
+.admin-dashboard-channel-health-strip-wrap {
+  min-width: 0;
+}
+
+.admin-dashboard-health-strip {
+  min-width: 300px;
+}
+
+.admin-dashboard-channel-health-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-dashboard-channel-health-metric {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.admin-dashboard-channel-health-metric strong {
+  margin-top: 4px;
+}
+
+@media (max-width: 1120px) {
+  .admin-dashboard-channel-health-matrix-header {
+    display: none;
+  }
+
+  .admin-dashboard-channel-health-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-dashboard-channel-health-page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-dashboard-channel-health-page-header {
+    gap: 14px;
+  }
+
+  .admin-dashboard-channel-health-page-header .admin-dashboard-section-toolbar,
+  .admin-dashboard-channel-health-page-header .router-filter-toolbar,
+  .admin-dashboard-channel-health-page-header .router-list-toolbar,
+  .admin-dashboard-channel-health-page-header
+    .admin-dashboard-section-controls {
+    width: 100%;
+  }
+
+  .admin-dashboard-channel-health-row {
+    padding: 13px 4px;
+  }
+
+  .admin-dashboard-channel-health-strip-wrap {
+    overflow-x: auto;
+    padding-bottom: 3px;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-dashboard-channel-health-surface {
+    padding-top: 4px;
+  }
+
+  .admin-dashboard-channel-health-page-heading h1 {
+    font-size: 20px;
+  }
+
+  .admin-dashboard-channel-health-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 16px;
+  }
+}

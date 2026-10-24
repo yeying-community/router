@@ -746,7 +746,7 @@ const Task = ({ pageKind: pageKindOverride = '', embedded = false }) => {
   };
 
   // 批量重试/取消:后端无批量接口,沿用 ChannelsTable/告警面板的「串行循环+聚合
-  // toast」模式;仅系统任务页启用,用户任务不可触发(per-row 已被隐藏)。
+  // toast」模式;仅后台执行兼容视图启用,用户任务不可触发(per-row 已被隐藏)。
   const runBatchTaskAction = useCallback(
     async (action) => {
       if (batchRunning) return;

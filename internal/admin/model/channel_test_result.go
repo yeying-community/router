@@ -393,6 +393,10 @@ func ListLatestChannelTestSupportByChannelIDsWithDB(db *gorm.DB, channelIDs []st
 }
 
 func GetLatestChannelTestByModelEndpointWithDB(db *gorm.DB, channelID string, modelID string, endpoint string) (ChannelTest, error) {
+	return GetChannelTestByModelEndpointRoundWithDB(db, channelID, modelID, endpoint, 0)
+}
+
+func GetChannelTestByModelEndpointRoundWithDB(db *gorm.DB, channelID string, modelID string, endpoint string, round int64) (ChannelTest, error) {
 	if db == nil {
 		return ChannelTest{}, fmt.Errorf("database handle is nil")
 	}
@@ -402,8 +406,12 @@ func GetLatestChannelTestByModelEndpointWithDB(db *gorm.DB, channelID string, mo
 	if normalizedChannelID == "" || normalizedModelID == "" || normalizedEndpoint == "" {
 		return ChannelTest{}, gorm.ErrRecordNotFound
 	}
+	query := db.Where("channel_id = ? AND model = ? AND endpoint = ?", normalizedChannelID, normalizedModelID, normalizedEndpoint)
+	if round > 0 {
+		query = query.Where("round = ?", round)
+	}
 	rows := make([]ChannelTest, 0, 1)
-	if err := db.Where("channel_id = ? AND model = ? AND endpoint = ?", normalizedChannelID, normalizedModelID, normalizedEndpoint).
+	if err := query.
 		Order("round desc, tested_at desc, sort_order asc").
 		Limit(1).
 		Find(&rows).Error; err != nil {

@@ -67,6 +67,91 @@ func TestSummarizeChannelHealthItemsUsesAllItems(t *testing.T) {
 	}
 }
 
+func TestSupplyChannelProjectionKeepsStableIdentityAcrossOfferAndGroupChanges(t *testing.T) {
+	row := model.AdminSupplyChannelView{
+		PublisherStatus: model.PublisherStatusActive,
+		ServiceId:       "service-1",
+		ServiceStatus:   model.PublisherServiceStatusReady,
+		LastCheckOK:     true,
+		Offers: []model.AdminSupplyOfferView{
+			{OfferId: "offer-1", OfferStatus: model.ServiceOfferStatusPublished, OfferScope: model.ServiceOfferScopePublic, Model: "gpt-5.4"},
+			{OfferId: "offer-2", OfferStatus: model.ServiceOfferStatusReviewing, OfferScope: model.ServiceOfferScopeInvite, Model: "o3"},
+		},
+	}
+	channelID := model.PublisherServiceChannelPrefix + row.ServiceId
+	operatorType, ownershipType, purpose := channelClassification("published_supply")
+	if operatorType != "independent" || ownershipType != "third_party" || purpose != "supply" {
+		t.Fatalf("supply classification = %q/%q/%q", operatorType, ownershipType, purpose)
+	}
+	offerIDs, groups, earnings, publishedCount, eligible := supplyChannelOfferSummary(
+		row,
+		map[string][]string{"offer-1": {"default", "premium"}, "offer-2": {"premium"}},
+		map[string]int64{"offer-1": 70, "offer-2": 30},
+	)
+	if channelID != "publisher-service:service-1" {
+		t.Fatalf("stable channel id = %q", channelID)
+	}
+	if len(offerIDs) != 2 || len(groups) != 2 || groups[0] != "default" || groups[1] != "premium" {
+		t.Fatalf("offer/group aggregate = %#v/%#v", offerIDs, groups)
+	}
+	if earnings != 100 || publishedCount != 1 || !eligible {
+		t.Fatalf("supply aggregate earnings/published/eligible = %d/%d/%v", earnings, publishedCount, eligible)
+	}
+	if supplyChannelAccessScope(row.Offers) != "mixed" || supplyChannelStatus(row.Offers) != model.ServiceOfferStatusPublished {
+		t.Fatalf("supply access/status = %q/%q", supplyChannelAccessScope(row.Offers), supplyChannelStatus(row.Offers))
+	}
+	if supplyChannelRuntimeStatus(row, eligible) != model.ChannelStatusEnabled {
+		t.Fatalf("eligible service runtime status should be enabled")
+	}
+
+	_, groupsAfterRemoval, _, _, eligibleAfterRemoval := supplyChannelOfferSummary(row, map[string][]string{}, nil)
+	operatorTypeAfterRemoval, ownershipTypeAfterRemoval, purposeAfterRemoval := channelClassification("published_supply")
+	if len(groupsAfterRemoval) != 0 || !eligibleAfterRemoval || channelID != model.PublisherServiceChannelPrefix+row.ServiceId || operatorTypeAfterRemoval != operatorType || ownershipTypeAfterRemoval != ownershipType || purposeAfterRemoval != purpose {
+		t.Fatalf("group removal changed channel identity or classification: groups=%#v eligible=%v id=%q classification=%q/%q/%q", groupsAfterRemoval, eligibleAfterRemoval, channelID, operatorTypeAfterRemoval, ownershipTypeAfterRemoval, purposeAfterRemoval)
+	}
+	row.Offers = nil
+	if status := supplyChannelRuntimeStatus(row, false); status != model.ChannelStatusCreating {
+		t.Fatalf("draft supply status = %d, want creating", status)
+	}
+	operatorTypeWithoutOffers, ownershipTypeWithoutOffers, purposeWithoutOffers := channelClassification("published_supply")
+	if operatorTypeWithoutOffers != operatorType || ownershipTypeWithoutOffers != ownershipType || purposeWithoutOffers != purpose {
+		t.Fatalf("offer removal changed classification = %q/%q/%q", operatorTypeWithoutOffers, ownershipTypeWithoutOffers, purposeWithoutOffers)
+	}
+	row.ServiceStatus = model.PublisherServiceStatusSuspended
+	if status := supplyChannelRuntimeStatus(row, false); status != model.ChannelStatusManuallyDisabled {
+		t.Fatalf("suspended supply status = %d, want disabled", status)
+	}
+}
+
+func TestChannelClassificationPreservesCompatibility(t *testing.T) {
+	tests := []struct {
+		name          string
+		sourceKind    string
+		operatorType  string
+		ownershipType string
+		purpose       string
+	}{
+		{name: "platform service", sourceKind: "managed", operatorType: "platform", ownershipType: "platform", purpose: "platform_service"},
+		{name: "self-use channel", sourceKind: "personal", operatorType: "independent", ownershipType: "third_party", purpose: "self_use"},
+		{name: "supply channel", sourceKind: "published_supply", operatorType: "independent", ownershipType: "third_party", purpose: "supply"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			operatorType, ownershipType, purpose := channelClassification(tt.sourceKind)
+			if operatorType != tt.operatorType || ownershipType != tt.ownershipType || purpose != tt.purpose {
+				t.Fatalf("classification = %q/%q/%q, want %q/%q/%q", operatorType, ownershipType, purpose, tt.operatorType, tt.ownershipType, tt.purpose)
+			}
+		})
+	}
+}
+
+func TestRuntimeChannelHealthTreatsCreatingWithoutTrafficAsUnknown(t *testing.T) {
+	score, level := runtimeChannelHealth(model.ChannelStatusCreating, model.ChannelRuntimeMetrics{}, nil)
+	if score != 0 || level != channelHealthLevelUnknown {
+		t.Fatalf("creating channel health = %d/%q, want 0/%q", score, level, channelHealthLevelUnknown)
+	}
+}
+
 func TestBuildUserGrowthDashboardWithDBCountsWeeklyGrowth(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
 	if err != nil {

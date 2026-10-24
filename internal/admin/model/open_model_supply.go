@@ -90,6 +90,11 @@ const (
 	// from one reviewed public offer. It must never be persisted as a Channel:
 	// a community offer has its own operational and commercial lifecycle.
 	CommunityOfferChannelPrefix = "community-offer:"
+
+	// PublisherServiceChannelPrefix is the stable product identity of a
+	// third-party supply channel. Routing and settlement continue to use the
+	// offer-level CommunityOfferChannelPrefix above.
+	PublisherServiceChannelPrefix = "publisher-service:"
 )
 
 // Publisher is the accountable party that can submit independently operated
@@ -116,23 +121,24 @@ func (Publisher) TableName() string { return PublishersTableName }
 // PublisherService stores an independently configured upstream. Credentials
 // never have a JSON field and are not shared with personal connections.
 type PublisherService struct {
-	Id                   string                  `json:"id" gorm:"type:char(36);primaryKey"`
-	PublisherId          string                  `json:"publisher_id" gorm:"type:char(36);not null;index:idx_publisher_service_name,priority:1;index"`
-	Name                 string                  `json:"name" gorm:"type:varchar(96);not null;index:idx_publisher_service_name,priority:2"`
-	Protocol             string                  `json:"protocol" gorm:"type:varchar(64);not null;default:'openai'"`
-	BaseURL              string                  `json:"base_url" gorm:"type:text;not null;default:''"`
-	CredentialEncrypted  string                  `json:"-" gorm:"type:text;not null"`
-	Region               string                  `json:"region" gorm:"type:varchar(64);not null;default:''"`
-	DataPolicy           string                  `json:"data_policy" gorm:"type:text;not null;default:'{}'"`
-	CapacityPolicy       string                  `json:"capacity_policy" gorm:"type:text;not null;default:'{}'"`
-	Status               string                  `json:"status" gorm:"type:varchar(32);not null;default:'draft';index"`
-	LastCheckedAt        int64                   `json:"last_checked_at" gorm:"bigint;not null;default:0;index"`
-	LastCheckOK          bool                    `json:"last_check_ok" gorm:"not null;default:false"`
-	LastCheckError       string                  `json:"last_check_error" gorm:"type:text;not null;default:''"`
-	CredentialConfigured bool                    `json:"credential_configured" gorm:"-"`
-	Models               []PublisherServiceModel `json:"models,omitempty" gorm:"-"`
-	CreatedAt            int64                   `json:"created_at" gorm:"bigint;not null;index"`
-	UpdatedAt            int64                   `json:"updated_at" gorm:"bigint;not null;index"`
+	Id                         string                  `json:"id" gorm:"type:char(36);primaryKey"`
+	PublisherId                string                  `json:"publisher_id" gorm:"type:char(36);not null;index:idx_publisher_service_name,priority:1;index"`
+	SourcePersonalConnectionId string                  `json:"source_personal_connection_id,omitempty" gorm:"type:char(36);not null;default:'';index"`
+	Name                       string                  `json:"name" gorm:"type:varchar(96);not null;index:idx_publisher_service_name,priority:2"`
+	Protocol                   string                  `json:"protocol" gorm:"type:varchar(64);not null;default:'openai'"`
+	BaseURL                    string                  `json:"base_url" gorm:"type:text;not null;default:''"`
+	CredentialEncrypted        string                  `json:"-" gorm:"type:text;not null"`
+	Region                     string                  `json:"region" gorm:"type:varchar(64);not null;default:''"`
+	DataPolicy                 string                  `json:"data_policy" gorm:"type:text;not null;default:'{}'"`
+	CapacityPolicy             string                  `json:"capacity_policy" gorm:"type:text;not null;default:'{}'"`
+	Status                     string                  `json:"status" gorm:"type:varchar(32);not null;default:'draft';index"`
+	LastCheckedAt              int64                   `json:"last_checked_at" gorm:"bigint;not null;default:0;index"`
+	LastCheckOK                bool                    `json:"last_check_ok" gorm:"not null;default:false"`
+	LastCheckError             string                  `json:"last_check_error" gorm:"type:text;not null;default:''"`
+	CredentialConfigured       bool                    `json:"credential_configured" gorm:"-"`
+	Models                     []PublisherServiceModel `json:"models,omitempty" gorm:"-"`
+	CreatedAt                  int64                   `json:"created_at" gorm:"bigint;not null;index"`
+	UpdatedAt                  int64                   `json:"updated_at" gorm:"bigint;not null;index"`
 }
 
 func (PublisherService) TableName() string { return PublisherServicesTableName }
@@ -942,6 +948,34 @@ type PublishedServiceOfferCatalogItem struct {
 	PublishedAt          int64  `json:"published_at"`
 }
 
+type AdminSupplyOfferView struct {
+	OfferId     string `json:"offer_id"`
+	OfferStatus string `json:"offer_status"`
+	OfferScope  string `json:"offer_scope"`
+	Model       string `json:"model"`
+	UpdatedAt   int64  `json:"updated_at"`
+}
+
+type AdminSupplyChannelView struct {
+	PublisherId          string                 `json:"publisher_id"`
+	PublisherUserId      string                 `json:"publisher_user_id"`
+	PublisherDisplayName string                 `json:"publisher_display_name"`
+	PublisherStatus      string                 `json:"publisher_status"`
+	PublisherLevel       string                 `json:"publisher_level"`
+	ServiceId            string                 `json:"service_id"`
+	ServiceName          string                 `json:"service_name"`
+	ServiceProtocol      string                 `json:"service_protocol"`
+	ServiceRegion        string                 `json:"service_region"`
+	ServiceStatus        string                 `json:"service_status"`
+	LastCheckedAt        int64                  `json:"last_checked_at"`
+	LastCheckOK          bool                   `json:"last_check_ok"`
+	LastCheckError       string                 `json:"last_check_error"`
+	UpdatedAt            int64                  `json:"updated_at"`
+	Models               []string               `json:"models" gorm:"-"`
+	Offers               []AdminSupplyOfferView `json:"offers" gorm:"-"`
+	OfferCount           int                    `json:"offer_count" gorm:"-"`
+}
+
 type PublisherAuditLog struct {
 	Id          string `json:"id" gorm:"type:char(36);primaryKey"`
 	PublisherId string `json:"publisher_id" gorm:"type:char(36);not null;index"`
@@ -961,14 +995,15 @@ type PublisherProfileInput struct {
 }
 
 type PublisherServiceInput struct {
-	Name           string                  `json:"name"`
-	Protocol       string                  `json:"protocol"`
-	BaseURL        string                  `json:"base_url"`
-	APIKey         string                  `json:"api_key"`
-	Region         string                  `json:"region"`
-	DataPolicy     json.RawMessage         `json:"data_policy"`
-	CapacityPolicy json.RawMessage         `json:"capacity_policy"`
-	Models         []PublisherServiceModel `json:"models"`
+	SourcePersonalConnectionId string                  `json:"source_personal_connection_id"`
+	Name                       string                  `json:"name"`
+	Protocol                   string                  `json:"protocol"`
+	BaseURL                    string                  `json:"base_url"`
+	APIKey                     string                  `json:"api_key"`
+	Region                     string                  `json:"region"`
+	DataPolicy                 json.RawMessage         `json:"data_policy"`
+	CapacityPolicy             json.RawMessage         `json:"capacity_policy"`
+	Models                     []PublisherServiceModel `json:"models"`
 }
 
 type ServiceOfferInput struct {
@@ -1067,6 +1102,7 @@ func normalizePublisherServiceModels(rows []PublisherServiceModel) ([]PublisherS
 }
 
 func normalizePublisherServiceInput(input PublisherServiceInput, requireCredential bool) (PublisherServiceInput, error) {
+	input.SourcePersonalConnectionId = strings.TrimSpace(input.SourcePersonalConnectionId)
 	input.Name = strings.TrimSpace(input.Name)
 	input.Protocol = relaychannel.NormalizeProtocolName(input.Protocol)
 	input.BaseURL = strings.TrimRight(strings.TrimSpace(input.BaseURL), "/")
@@ -1355,6 +1391,11 @@ func CreatePublisherService(userID string, input PublisherServiceInput) (*Publis
 	if err != nil {
 		return nil, err
 	}
+	if input.SourcePersonalConnectionId != "" {
+		if _, err := GetPersonalProviderConnection(userID, input.SourcePersonalConnectionId); err != nil {
+			return nil, errors.New("来源个人渠道不存在或无权访问")
+		}
+	}
 	if err := validateTrustedPublisherServiceModelsWithDB(DB, input.Models); err != nil {
 		return nil, err
 	}
@@ -1363,7 +1404,7 @@ func CreatePublisherService(userID string, input PublisherServiceInput) (*Publis
 		return nil, err
 	}
 	now := helper.GetTimestamp()
-	service := &PublisherService{Id: random.GetUUID(), PublisherId: publisher.Id, Name: input.Name, Protocol: input.Protocol, BaseURL: input.BaseURL, CredentialEncrypted: credential, Region: input.Region, DataPolicy: string(input.DataPolicy), CapacityPolicy: string(input.CapacityPolicy), Status: PublisherServiceStatusDraft, CreatedAt: now, UpdatedAt: now}
+	service := &PublisherService{Id: random.GetUUID(), PublisherId: publisher.Id, SourcePersonalConnectionId: input.SourcePersonalConnectionId, Name: input.Name, Protocol: input.Protocol, BaseURL: input.BaseURL, CredentialEncrypted: credential, Region: input.Region, DataPolicy: string(input.DataPolicy), CapacityPolicy: string(input.CapacityPolicy), Status: PublisherServiceStatusDraft, CreatedAt: now, UpdatedAt: now}
 	err = DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(service).Error; err != nil {
 			return err
@@ -1399,12 +1440,20 @@ func UpdatePublisherService(userID string, serviceID string, input PublisherServ
 	if err != nil {
 		return nil, err
 	}
+	if input.SourcePersonalConnectionId != "" && input.SourcePersonalConnectionId != existing.SourcePersonalConnectionId {
+		if _, err := GetPersonalProviderConnection(userID, input.SourcePersonalConnectionId); err != nil {
+			return nil, errors.New("来源个人渠道不存在或无权访问")
+		}
+	}
 	if err := validateTrustedPublisherServiceModelsWithDB(DB, input.Models); err != nil {
 		return nil, err
 	}
 	now := helper.GetTimestamp()
 	endpointChanged := existing.Protocol != input.Protocol || existing.BaseURL != input.BaseURL || strings.TrimSpace(input.APIKey) != ""
 	updates := map[string]any{"name": input.Name, "protocol": input.Protocol, "base_url": input.BaseURL, "region": input.Region, "data_policy": string(input.DataPolicy), "capacity_policy": string(input.CapacityPolicy), "updated_at": now}
+	if input.SourcePersonalConnectionId != "" {
+		updates["source_personal_connection_id"] = input.SourcePersonalConnectionId
+	}
 	if strings.TrimSpace(input.APIKey) != "" {
 		credential, encryptErr := encryptPublisherServiceCredential(input.APIKey)
 		if encryptErr != nil {
@@ -1652,6 +1701,128 @@ func ListPublishedServiceOfferCatalog(modelName string, limit int) ([]PublishedS
 		return nil, err
 	}
 	return rows, nil
+}
+
+func ListSupplyChannelViewsForAdmin(limit int) ([]AdminSupplyChannelView, error) {
+	if DB == nil || !DB.Migrator().HasTable(ServiceOffersTableName) ||
+		!DB.Migrator().HasTable(PublishersTableName) ||
+		!DB.Migrator().HasTable(PublisherServicesTableName) {
+		return []AdminSupplyChannelView{}, nil
+	}
+	if limit <= 0 || limit > 500 {
+		limit = 500
+	}
+	rows := make([]AdminSupplyChannelView, 0)
+	if err := DB.Table(PublisherServicesTableName + " AS s").
+		Select(`s.publisher_id, p.user_id AS publisher_user_id, p.display_name AS publisher_display_name,
+			p.status AS publisher_status, p.level AS publisher_level,
+			s.id AS service_id, s.name AS service_name, s.protocol AS service_protocol, s.region AS service_region,
+			s.status AS service_status, s.last_checked_at, s.last_check_ok, s.last_check_error,
+			s.updated_at`).
+		Joins("JOIN " + PublishersTableName + " AS p ON p.id = s.publisher_id").
+		Order("s.updated_at desc, s.id asc").Limit(limit).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return rows, nil
+	}
+	serviceIDs := make([]string, 0, len(rows))
+	indexByServiceID := make(map[string]int, len(rows))
+	modelSets := make([]map[string]struct{}, len(rows))
+	for i := range rows {
+		rows[i].Models = []string{}
+		rows[i].Offers = []AdminSupplyOfferView{}
+		serviceID := strings.TrimSpace(rows[i].ServiceId)
+		serviceIDs = append(serviceIDs, serviceID)
+		indexByServiceID[serviceID] = i
+		modelSets[i] = make(map[string]struct{})
+	}
+	if DB.Migrator().HasTable(PublisherServiceModelsTableName) {
+		type adminSupplyServiceModelRow struct {
+			ServiceId string `gorm:"column:service_id"`
+			Model     string `gorm:"column:model"`
+		}
+		serviceModelRows := make([]adminSupplyServiceModelRow, 0)
+		if err := DB.Table(PublisherServiceModelsTableName).
+			Select("service_id, model").Where("service_id IN ?", serviceIDs).
+			Order("service_id asc, model asc").Scan(&serviceModelRows).Error; err != nil {
+			return nil, err
+		}
+		for _, serviceModel := range serviceModelRows {
+			index, ok := indexByServiceID[strings.TrimSpace(serviceModel.ServiceId)]
+			modelName := strings.TrimSpace(serviceModel.Model)
+			if ok && modelName != "" {
+				modelSets[index][modelName] = struct{}{}
+			}
+		}
+	}
+	type adminSupplyOfferRow struct {
+		ServiceId   string `gorm:"column:service_id"`
+		OfferId     string `gorm:"column:offer_id"`
+		OfferStatus string `gorm:"column:offer_status"`
+		OfferScope  string `gorm:"column:offer_scope"`
+		Model       string `gorm:"column:model"`
+		UpdatedAt   int64  `gorm:"column:updated_at"`
+	}
+	offerRows := make([]adminSupplyOfferRow, 0)
+	if err := DB.Table(ServiceOffersTableName+" AS o").
+		Select("o.service_id, o.id AS offer_id, o.status AS offer_status, o.scope AS offer_scope, o.model, o.updated_at").
+		Joins("JOIN "+PublisherServicesTableName+" AS s ON s.id = o.service_id AND s.publisher_id = o.publisher_id").
+		Where("o.service_id IN ?", serviceIDs).
+		Order("o.service_id asc, o.updated_at desc, o.id asc").Scan(&offerRows).Error; err != nil {
+		return nil, err
+	}
+	for _, offer := range offerRows {
+		index, ok := indexByServiceID[strings.TrimSpace(offer.ServiceId)]
+		if !ok {
+			continue
+		}
+		rows[index].Offers = append(rows[index].Offers, AdminSupplyOfferView{
+			OfferId: offer.OfferId, OfferStatus: offer.OfferStatus, OfferScope: offer.OfferScope,
+			Model: offer.Model, UpdatedAt: offer.UpdatedAt,
+		})
+		modelName := strings.TrimSpace(offer.Model)
+		if modelName != "" {
+			modelSets[index][modelName] = struct{}{}
+		}
+	}
+	for i := range rows {
+		rows[i].OfferCount = len(rows[i].Offers)
+		for modelName := range modelSets[i] {
+			rows[i].Models = append(rows[i].Models, modelName)
+		}
+		sort.Strings(rows[i].Models)
+	}
+	return rows, nil
+}
+
+func SumPublisherEarningsByOfferIDs(offerIDs []string, startAt int64, endAt int64) (map[string]int64, error) {
+	result := make(map[string]int64)
+	ids := normalizeTrimmedValuesPreserveOrder(offerIDs)
+	if len(ids) == 0 {
+		return result, nil
+	}
+	if DB == nil || !DB.Migrator().HasTable(&PublisherOfferSettlement{}) {
+		return result, nil
+	}
+	type row struct {
+		OfferID string `gorm:"column:offer_id"`
+		Amount  int64  `gorm:"column:amount"`
+	}
+	rows := make([]row, 0)
+	query := DB.Model(&PublisherOfferSettlement{}).
+		Select("offer_id, COALESCE(SUM(publisher_payable_micros), 0) AS amount").
+		Where("offer_id IN ?", ids)
+	if startAt > 0 && endAt >= startAt {
+		query = query.Where("created_at BETWEEN ? AND ?", startAt, endAt)
+	}
+	if err := query.Group("offer_id").Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, item := range rows {
+		result[item.OfferID] = item.Amount
+	}
+	return result, nil
 }
 
 func GetPublishedServiceOfferCatalogItem(offerID string) (*PublishedServiceOfferCatalogItem, error) {

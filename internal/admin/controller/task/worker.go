@@ -137,11 +137,6 @@ func asyncTaskWorkerLoop(workerIndex int) {
 				finalStatus = model.AsyncTaskStatusFailed
 				errorMessage = execErr.Error()
 			}
-		} else if resolvedStatus, resolvedMessage, ok := model.ResolveAsyncTaskBusinessOutcome(taskRow.Type, result); ok {
-			finalStatus = resolvedStatus
-			if finalStatus != model.AsyncTaskStatusSucceeded {
-				errorMessage = resolvedMessage
-			}
 		}
 		finishErr := model.FinishAsyncTaskWithDB(model.DB, taskRow.Id, finalStatus, result, errorMessage)
 		if finishErr != nil {

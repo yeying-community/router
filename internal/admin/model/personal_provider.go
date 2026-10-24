@@ -135,7 +135,7 @@ func normalizePersonalProviderModels(models []string) []string {
 
 func (connection *PersonalProviderConnection) normalize() error {
 	if connection == nil {
-		return errors.New("个人供应商连接不能为空")
+		return errors.New("个人渠道不能为空")
 	}
 	connection.Id = strings.TrimSpace(connection.Id)
 	connection.UserId = strings.TrimSpace(connection.UserId)
@@ -145,7 +145,7 @@ func (connection *PersonalProviderConnection) normalize() error {
 		connection.Protocol = "openai"
 	}
 	if !IsPersonalProviderProtocol(connection.Protocol) {
-		return errors.New("个人供应商协议不受支持")
+		return errors.New("个人渠道协议不受支持")
 	}
 	connection.BaseURL = strings.TrimRight(strings.TrimSpace(connection.BaseURL), "/")
 	if err := client.ValidatePersonalProviderBaseURL(connection.BaseURL); err != nil {
@@ -168,7 +168,7 @@ func (connection *PersonalProviderConnection) normalize() error {
 		connection.Status = PersonalProviderStatusEnabled
 	}
 	if connection.Status != PersonalProviderStatusEnabled && connection.Status != PersonalProviderStatusDisabled {
-		return errors.New("个人供应商连接状态无效")
+		return errors.New("个人渠道状态无效")
 	}
 	return nil
 }
@@ -197,7 +197,7 @@ func personalCredentialKey(secret string) []byte {
 func encryptPersonalProviderCredential(value string) (string, error) {
 	secret := strings.TrimSpace(config.JWTSecret)
 	if secret == "" {
-		return "", errors.New("auth.jwt_secret 未配置，无法保存个人供应商凭据")
+		return "", errors.New("auth.jwt_secret 未配置，无法保存个人渠道凭据")
 	}
 	block, err := aes.NewCipher(personalCredentialKey(secret))
 	if err != nil {
@@ -219,7 +219,7 @@ func decryptPersonalProviderCredential(value string) (string, error) {
 	raw := strings.TrimPrefix(strings.TrimSpace(value), "v1:")
 	bytes, err := base64.RawURLEncoding.DecodeString(raw)
 	if err != nil {
-		return "", errors.New("个人供应商凭据格式无效")
+		return "", errors.New("个人渠道凭据格式无效")
 	}
 	secrets := append([]string{strings.TrimSpace(config.JWTSecret)}, config.JWTFallbackSecrets...)
 	for _, secret := range secrets {
@@ -239,7 +239,7 @@ func decryptPersonalProviderCredential(value string) (string, error) {
 			return string(plaintext), nil
 		}
 	}
-	return "", errors.New("无法解密个人供应商凭据，请轮换凭据")
+	return "", errors.New("无法解密个人渠道凭据，请轮换凭据")
 }
 
 func ListPersonalProviderConnections(userID string) ([]PersonalProviderConnection, error) {
@@ -249,6 +249,21 @@ func ListPersonalProviderConnections(userID string) ([]PersonalProviderConnectio
 	}
 	for i := range rows {
 		rows[i].hydrate()
+	}
+	return rows, nil
+}
+
+func ListPersonalProviderConnectionsForAdmin() ([]PersonalProviderConnection, error) {
+	if DB == nil || !DB.Migrator().HasTable(&PersonalProviderConnection{}) {
+		return []PersonalProviderConnection{}, nil
+	}
+	rows := make([]PersonalProviderConnection, 0)
+	if err := DB.Order("updated_at desc, id asc").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		rows[i].hydrate()
+		rows[i].CredentialConfigured = strings.TrimSpace(rows[i].CredentialEncrypted) != ""
 	}
 	return rows, nil
 }
@@ -320,7 +335,7 @@ func MergePersonalProviderModelsIntoEntitlements(userID string, payload UserEnti
 			payload.Items = append(payload.Items, UserAvailableModel{
 				Model:         normalizedModel,
 				Provider:      PersonalProviderSourceType,
-				ProviderLabel: "个人供应商",
+				ProviderLabel: "个人渠道",
 				Sources:       []UserEntitlementModelSource{source},
 			})
 			itemByModel[normalizedModel] = len(payload.Items) - 1
@@ -522,7 +537,7 @@ func verifyPersonalProviderCredential(connection *PersonalProviderConnection, cr
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return fmt.Errorf("无法创建个人供应商验证请求: %w", err)
+		return fmt.Errorf("无法创建个人渠道验证请求: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 	switch connection.Protocol {
@@ -536,22 +551,22 @@ func verifyPersonalProviderCredential(connection *PersonalProviderConnection, cr
 	}
 	resp, err := doPersonalProviderVerificationRequest(req)
 	if err != nil {
-		return fmt.Errorf("无法连接个人供应商: %w", err)
+		return fmt.Errorf("无法连接个人渠道: %w", err)
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-			return errors.New("个人供应商拒绝了 API Key，请检查凭据权限或轮换 API Key")
+			return errors.New("个人渠道拒绝了 API Key，请检查凭据权限或轮换 API Key")
 		}
-		return fmt.Errorf("个人供应商验证失败：上游返回 HTTP %d", resp.StatusCode)
+		return fmt.Errorf("个人渠道验证失败：上游返回 HTTP %d", resp.StatusCode)
 	}
 	return nil
 }
 
 func personalProviderVerificationEndpoint(connection *PersonalProviderConnection) (string, error) {
 	if connection == nil {
-		return "", errors.New("个人供应商连接不能为空")
+		return "", errors.New("个人渠道不能为空")
 	}
 	baseURL := strings.TrimSpace(connection.BaseURL)
 	if baseURL == "" {
@@ -567,12 +582,12 @@ func personalProviderVerificationEndpoint(connection *PersonalProviderConnection
 		case "deepseek":
 			baseURL = "https://api.deepseek.com"
 		default:
-			return "", errors.New("个人供应商协议不受支持")
+			return "", errors.New("个人渠道协议不受支持")
 		}
 	}
 	parsed, err := url.Parse(baseURL)
 	if err != nil {
-		return "", fmt.Errorf("个人供应商 Base URL 无效: %w", err)
+		return "", fmt.Errorf("个人渠道 Base URL 无效: %w", err)
 	}
 	path := strings.TrimRight(parsed.Path, "/")
 	switch connection.Protocol {
@@ -591,7 +606,7 @@ func personalProviderVerificationEndpoint(connection *PersonalProviderConnection
 	case "deepseek":
 		// DeepSeek exposes its catalogue at the service root /models endpoint.
 	default:
-		return "", errors.New("个人供应商协议不受支持")
+		return "", errors.New("个人渠道协议不受支持")
 	}
 	parsed.Path = strings.TrimRight(path, "/") + "/models"
 	parsed.RawQuery = ""
@@ -629,7 +644,7 @@ func ListPersonalProviderChannelsForModel(userID string, modelName string) ([]*C
 		}
 		credential, decryptErr := decryptPersonalProviderCredential(connection.CredentialEncrypted)
 		if decryptErr != nil {
-			return nil, fmt.Errorf("个人供应商 %s 的凭据不可用: %w", connection.Name, decryptErr)
+			return nil, fmt.Errorf("个人渠道 %s 的凭据不可用: %w", connection.Name, decryptErr)
 		}
 		baseURL := connection.BaseURL
 		channel := &Channel{Id: PersonalProviderChannelPrefix + connection.Id, Name: "personal-" + connection.Id, Protocol: connection.Protocol, Key: credential, BaseURL: &baseURL, Status: ChannelStatusEnabled, Priority: &connection.Priority, PersonalProviderName: connection.Name}
@@ -653,7 +668,7 @@ func ResolvePersonalProviderChannel(userID string, channelID string) (*Channel, 
 		return nil, err
 	}
 	if connection.Status != PersonalProviderStatusEnabled {
-		return nil, errors.New("个人供应商连接已禁用")
+		return nil, errors.New("个人渠道已禁用")
 	}
 	credential, err := decryptPersonalProviderCredential(connection.CredentialEncrypted)
 	if err != nil {

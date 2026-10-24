@@ -1,6 +1,7 @@
 package duty
 
 import (
+	"strings"
 	"testing"
 
 	channelcontroller "github.com/yeying-community/router/internal/admin/controller/channel"
@@ -40,6 +41,28 @@ func TestParseDutyWindow(t *testing.T) {
 	}
 }
 
+func TestConfigureIncidentLinksDoesNotExposeLegacyAlertPage(t *testing.T) {
+	incident := newDutyIncident("channel:channel-1", "channel", "Channel issue", "", "warning", 100)
+	incident.ChannelID = "channel-1"
+
+	configureIncidentLinks(incident, 100, 200)
+
+	if incident.Links.Alerts != "" {
+		t.Fatalf("configureIncidentLinks() alerts = %q, want empty", incident.Links.Alerts)
+	}
+	for _, link := range []string{
+		incident.Links.Channel,
+		incident.Links.Tasks,
+		incident.Links.Logs,
+		incident.Links.Models,
+		incident.Links.Finance,
+	} {
+		if strings.Contains(link, "tab=alerts") {
+			t.Fatalf("configureIncidentLinks() exposed legacy alert link %q", link)
+		}
+	}
+}
+
 func TestTaskNeedsDutyAttention(t *testing.T) {
 	const now = int64(10_000)
 	tests := []struct {
@@ -58,6 +81,73 @@ func TestTaskNeedsDutyAttention(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if got := taskNeedsDutyAttention(test.task, now); got != test.want {
 				t.Fatalf("taskNeedsDutyAttention() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestDutyOperationName(t *testing.T) {
+	tests := []struct {
+		name     string
+		taskType string
+		want     string
+	}{
+		{name: "model test", taskType: model.AsyncTaskTypeChannelModelTest, want: "模型测试"},
+		{name: "model refresh", taskType: model.AsyncTaskTypeChannelRefreshModels, want: "模型同步"},
+		{name: "billing refresh", taskType: model.AsyncTaskTypeChannelRefreshBilling, want: "账务刷新"},
+		{name: "provider usage", taskType: model.AsyncTaskTypeChannelSyncProviderUsage, want: "用量同步"},
+		{name: "unknown", taskType: "unknown", want: "后台执行"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := dutyOperationName(test.taskType); got != test.want {
+				t.Fatalf("dutyOperationName(%q) = %q, want %q", test.taskType, got, test.want)
+			}
+		})
+	}
+}
+
+func TestDutyOperationLink(t *testing.T) {
+	tests := []struct {
+		name string
+		task model.AsyncTask
+		want string
+	}{
+		{
+			name: "model test preserves scoped filter safely",
+			task: model.AsyncTask{
+				Type:      model.AsyncTaskTypeChannelModelTest,
+				ChannelId: "channel/one",
+				Model:     "qwen image/plus",
+				Endpoint:  "/v1/images/edits?mode=mask",
+			},
+			want: "/admin/channel/detail/channel%2Fone?endpoint=%2Fv1%2Fimages%2Fedits%3Fmode%3Dmask&model=qwen+image%2Fplus&tab=tests",
+		},
+		{
+			name: "model refresh",
+			task: model.AsyncTask{Type: model.AsyncTaskTypeChannelRefreshModels, ChannelId: "channel-1"},
+			want: "/admin/channel/detail/channel-1?tab=models",
+		},
+		{
+			name: "billing refresh",
+			task: model.AsyncTask{Type: model.AsyncTaskTypeChannelRefreshBilling, ChannelId: "channel-1"},
+			want: "/admin/channel/detail/channel-1?tab=procurement",
+		},
+		{
+			name: "provider usage sync",
+			task: model.AsyncTask{Type: model.AsyncTaskTypeChannelSyncProviderUsage, ChannelId: "channel-1"},
+			want: "/admin/channel/detail/channel-1?tab=procurement",
+		},
+		{
+			name: "missing channel",
+			task: model.AsyncTask{Type: model.AsyncTaskTypeChannelModelTest},
+			want: "/admin/channel",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := dutyOperationLink(test.task); got != test.want {
+				t.Fatalf("dutyOperationLink() = %q, want %q", got, test.want)
 			}
 		})
 	}

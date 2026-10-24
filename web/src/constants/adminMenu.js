@@ -14,6 +14,10 @@ export const ADMIN_MENU_GROUPS = [
         name: 'dashboard.admin.nav.duty',
         to: '/admin/dashboard',
         icon: 'chart line',
+        // The duty station is the only incident acknowledgement surface. Keep
+        // the existing lightweight critical-channel signal as its global dot
+        // until a cross-domain duty summary endpoint is available.
+        badge: 'duty-alerts',
       },
     ],
   },
@@ -28,19 +32,11 @@ export const ADMIN_MENU_GROUPS = [
         icon: 'cubes',
       },
       {
-        // 渠道的「面」:列表 / 健康 / 告警 / 系统任务 现已全部落在 /admin/channel?tab=…,
+        // 渠道的「面」:列表 / 健康 现已全部落在 /admin/channel?tab=…,
         // 与 /admin/channel/* 详情路由同前缀,基准 `to` 即可覆盖全部面,无需 matchPaths。
         name: 'header.channel',
         to: '/admin/channel',
         icon: 'sitemap',
-        // 声明式红点标记:AdminSidebar 据此把本项 label 换成带告警红点的 JSX
-        // (数据源 useChannelAlertSummary,仅 unresolved_critical>0 时亮)。
-        badge: 'channel-alerts',
-      },
-      {
-        name: 'publisher_operations.title',
-        to: '/admin/publisher',
-        icon: 'cloud upload',
       },
       {
         name: 'header.group',
@@ -160,7 +156,6 @@ export const PERSONAL_WORKSPACE_MENU_GROUP = {
     },
   ],
 };
-
 export const buildUnifiedWorkspaceMenuGroups = (hasAdminAccess) => {
   if (!hasAdminAccess) {
     return buildUserWorkspaceMenuItems();
@@ -196,7 +191,7 @@ export const isAdminRouteActive = (location, to) => {
   if (path === '/admin/setting' && targetTab !== '') {
     const { tab: currentTab } = resolveAdminSettingLocation(
       currentParams.get('tab') || 'basic',
-      currentParams.get('section') || 'general',
+      currentParams.get('section') || 'general'
     );
     if (currentTab !== targetTab) {
       return false;
@@ -217,12 +212,12 @@ export const isAdminRouteActive = (location, to) => {
     return true;
   }
   return entries.every(
-    ([key, value]) => (currentParams.get(key) || '') === value,
+    ([key, value]) => (currentParams.get(key) || '') === value
   );
 };
 
 // A single sidebar item can stand for one operational entity whose several
-// "faces" live at different routes (e.g. 渠道 = list + health + alerts + tasks).
+// "faces" live at different routes (e.g. 渠道 = list + health + tasks).
 // `matchPaths` lists those extra face routes so the item highlights on any of
 // them; the primary `to` stays the entity's default (list) face. Paths may be
 // admin or /workspace/* — the caller picks the right matcher per path.

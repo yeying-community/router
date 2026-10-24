@@ -233,25 +233,14 @@ func enqueueDueChannelHealthProbes(db *gorm.DB, logDB *gorm.DB, now int64, limit
 
 func runChannelHealthProbeScan() {
 	created, err := enqueueDueChannelHealthProbes(model.DB, model.LOG_DB, time.Now().Unix(), channelHealthProbeBatchSize, func(channelID string, modelID string, endpoint string) (bool, error) {
-		_, createdCount, _, err := CreateChannelModelTestTasks(
-			channelID,
-			"health_probe",
-			"",
-			nil,
-			[]channelModelTestTargetItem{{Model: modelID, Endpoint: endpoint}},
-			"health-probe",
-			"",
-			"",
-			"",
-		)
-		return createdCount > 0, err
+		return scheduleChannelModelVerification(channelID, modelID, endpoint, "automatic_probe")
 	})
 	if err != nil {
 		logger.SysError("channel health probe scan failed: " + err.Error())
 		return
 	}
 	if created > 0 {
-		logger.SysLogf("channel health probe scan enqueued %d tasks", created)
+		logger.SysLogf("channel health probe scan scheduled %d verifications", created)
 	}
 }
 

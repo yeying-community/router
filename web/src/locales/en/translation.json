@@ -74,10 +74,10 @@
       "channel_model_disabled_source": "Channel model runtime disablement",
       "channel_model_disabled_no_reason": "Open model details for more information",
       "channel_model_disabled_by": "Disabled by",
-      "task_source_admin": "System task",
+      "task_source_admin": "Background execution",
       "task_source_user": "My task",
-      "admin_task_failed_title": "Channel task failed",
-      "admin_task_running_title": "Channel task running",
+      "admin_task_failed_title": "Channel background execution failed",
+      "admin_task_running_title": "Channel background execution running",
       "user_task_failed_title": "Task failed",
       "user_task_running_title": "Task running",
       "user_task_failed_summary": "Open task details for more information",
@@ -620,8 +620,7 @@
       "providers": "Providers",
       "list": "List",
       "health": "Health",
-      "alerts": "Alerts",
-      "tasks": "System tasks"
+      "alerts": "Alerts"
     },
     "search": "Search channels by identifier...",
     "table": {
@@ -1542,10 +1541,32 @@
         "image_edit_uploaded": "Image uploaded",
         "image_edit_file_failed": "Failed to read image",
         "single": "Test",
-        "task_created": "{{count}} test tasks submitted, {{reused}} active tasks reused.",
+        "task_created": "Model verification completed.",
         "group_count": "{{count}} models",
         "group_type": "Type: {{type}}",
         "history_tasks": "Test History",
+        "history_title": "All Test History",
+        "history_title_filtered": "{{model}} · {{endpoint}} Test History",
+        "history_hint": "This view shows model-test conclusions. Pending and running states stay in the main model-test table instead of becoming separate tasks.",
+        "history_empty": "No model-test history yet",
+        "history_stream": "Streaming",
+        "history_non_stream": "Non-streaming",
+        "history_retest": "Run Test Again",
+        "history_download": "Download Test Artifact",
+        "history_sources": {
+          "manual_test": "Manual Test",
+          "automatic_probe": "Automatic Probe",
+          "channel_recovery": "Recovery Probe",
+          "runtime": "Runtime Probe"
+        },
+        "history_table": {
+          "result": "Conclusion",
+          "mode": "Mode",
+          "source": "Source",
+          "latency": "Latency",
+          "message": "Details",
+          "tested_at": "Tested At"
+        },
         "filters": {
           "all_provider": "All Providers",
           "all_type": "All Types",
@@ -1557,7 +1578,7 @@
         "verify_required": "Please finish the current model tests before continuing.",
         "empty": "No testable models yet. Please select models in step 2 first.",
         "last_tested": "Last tested at: {{time}}",
-        "test_success": "Model test tasks submitted",
+        "test_success": "Model verification completed",
         "test_failed": "Model test failed",
         "download_failed": "Failed to download the test artifact",
         "download_unavailable": "No downloadable artifact is available for this test result",
@@ -1571,9 +1592,9 @@
         "latest_result_from_endpoint": "Current endpoint is untested. Showing latest test result from endpoint: {{endpoint}}.",
         "failure_reason": "Failure reason: {{reason}}",
         "status": {
-          "pending": "Pending",
-          "running": "Running",
-          "failed": "Failed",
+          "pending": "Waiting",
+          "running": "Testing",
+          "failed": "Test Error",
           "success": "Success",
           "untested": "Untested",
           "stale": "Retest Needed",
@@ -1587,7 +1608,7 @@
           "endpoint": "Endpoint",
           "batch_set": "Batch",
           "supported_endpoints": "Supported Endpoints",
-          "status": "Success/Fail",
+          "status": "Passed/Not Passed",
           "recent_test": "Latest Result",
           "latency": "Min/Avg/Max (ms)",
           "tested_at": "Latest Test Time",
@@ -2363,7 +2384,7 @@
         "failure_summary": "This request ultimately failed. The last attempted channel was {{channel}}, requested model {{model}}, after {{fallbackCount}} fallback(s).",
         "user_summary": "This request used published model {{model}}, after {{fallbackCount}} fallback(s), using estimate source {{source}} and settlement mode {{settlement}}.",
         "user_failure_summary": "This request ultimately failed. Requested model {{model}}, after {{fallbackCount}} fallback(s).",
-        "user_source_summary": "This request started with {{policy}}. The initial source was {{initialSource}}, the actual source was {{actualSource}}, with {{fallbackCount}} fallback(s). Community calls are billed through the package or balance.",
+        "user_source_summary": "This request started with {{policy}}. The initial source was {{initialSource}}, the actual source was {{actualSource}}, with {{fallbackCount}} fallback(s). Supply-channel calls are billed through the package or balance.",
         "attempt_title": "Attempt {{attempt}}",
         "outcome": {
           "succeeded": "Succeeded",
@@ -2404,18 +2425,18 @@
             "source_policy": "Effective source policy",
             "initial_source": "Initial source",
             "actual_source": "Actual source",
-            "personal_provider": "Personal provider"
+            "personal_provider": "Self-use channel"
           },
           "policy": {
-            "personal_first": "Personal first, community fallback",
-            "personal_only": "Personal provider only",
-            "community_only": "Community package only",
-            "community_first": "Community first",
+            "personal_first": "Self-use first, supply-channel fallback",
+            "personal_only": "Self-use channel only",
+            "community_only": "Supply channels only",
+            "community_first": "Supply channels first",
             "unknown": "Not recorded"
           },
           "source": {
-            "personal_provider": "Personal provider",
-            "community_package": "Community service",
+            "personal_provider": "Self-use channel",
+            "community_package": "Supply channel",
             "unknown": "Not recorded"
           }
         },
@@ -2555,7 +2576,7 @@
     "empty": "No tasks yet",
     "summary": "{{total}} tasks",
     "scopes": {
-      "admin": "System Tasks",
+      "admin": "Background Execution Record",
       "user": "User Tasks"
     },
     "filters": {
@@ -2623,6 +2644,7 @@
     },
     "messages": {
       "load_failed": "Failed to load tasks",
+      "operation_load_failed": "Failed to load the background execution record",
       "retry_success": "Task requeued",
       "retry_failed": "Failed to retry task",
       "cancel_success": "Task canceled",
@@ -3158,7 +3180,7 @@
           "models": "Model runtime",
           "alerts": "Channel alerts",
           "routes": "Route runtime",
-          "tasks": "System tasks",
+          "tasks": "Background executions",
           "finance": "Finance checks",
           "incident_states": "Handling records"
         },
@@ -3173,7 +3195,7 @@
           "affected_models": "Affected models",
           "failures": "Failed requests",
           "fallbacks": "Fallbacks",
-          "failed_tasks": "Failed tasks",
+          "failed_tasks": "Execution failures",
           "finance_issues": "Finance issues",
           "abnormal_objects": "Abnormal objects",
           "unknown_objects": "Unknown state",
@@ -3276,7 +3298,7 @@
             "channels": "Channels",
             "models": "Models",
             "routes": "Routes",
-            "tasks": "System tasks",
+            "tasks": "Background executions",
             "finance": "Finance"
           },
           "empty_title": "No findings match this filter",
@@ -3304,12 +3326,12 @@
           "assignee": "Current owner",
           "last_seen": "Last observed",
           "impact_title": "Impact",
-          "impact_brief": "Failures {{failures}} · tasks {{tasks}} · finance {{finance}}",
+          "impact_brief": "Failures {{failures}} · executions {{tasks}} · finance {{finance}}",
           "channel": "Channel",
           "models": "Models",
           "endpoints": "Endpoints",
           "signals": "Contributing signals",
-          "tasks": "Related tasks",
+          "tasks": "Abnormal executions",
           "finance": "Finance issues",
           "handling": "Response progress",
           "note_placeholder": "Record findings, actions taken, or recovery evidence",
@@ -3328,7 +3350,7 @@
             "failures": "Failed requests",
             "failure_rate": "Failure rate",
             "fallbacks": "Fallbacks",
-            "failed_tasks": "Failed tasks",
+            "failed_tasks": "Execution failures",
             "finance": "Finance issues"
           },
           "actions": {
@@ -3342,7 +3364,7 @@
         "links": {
           "channel": "Channel details",
           "alerts": "Channel alerts",
-          "tasks": "System tasks",
+          "tasks": "Related operation",
           "logs": "Request logs",
           "models": "Model operations",
           "finance": "Finance management"
@@ -3411,8 +3433,8 @@
         "channel_disabled": "Disabled Channels",
         "groups": "Groups",
         "providers": "Providers",
-        "tasks_active": "Active Tasks",
-        "tasks_failed": "Failed Tasks"
+        "tasks_active": "Active Executions",
+        "tasks_failed": "Execution Failures"
       },
       "board": {
         "operations_title": "Operations Board",
@@ -3425,26 +3447,71 @@
         "models": "Models"
       },
       "channels": {
+        "title": "Health",
+        "page_hint": "View platform-operated and independently operated channels together. Operator type is determined only by who owns the account, credentials, cost, and operational responsibility. Health comes from real calls in the selected range; model tests remain separate verification data.",
+        "open_duty": "Open duty station",
+        "operator": {
+          "all": "All channels",
+          "platform": "Platform-operated",
+          "independent": "Independently operated"
+        },
+        "ownership": {
+          "all": "All channels",
+          "platform": "Platform-operated",
+          "third_party": "Independently operated"
+        },
+        "purpose": {
+          "platform_service": "Platform service",
+          "self_use": "Self-use",
+          "supply": "Supply"
+        },
+        "access_scope": {
+          "platform": "Platform-authorized scope",
+          "private": "Owner only",
+          "public": "Public offers",
+          "invite": "Invite-only scope",
+          "mixed": "Mixed scope",
+          "unpublished": "No offers yet"
+        },
+        "supply_status": {
+          "no_offer": "No offers yet",
+          "draft": "Draft",
+          "reviewing": "In review",
+          "published": "Published",
+          "suspended": "Suspended",
+          "offline": "Offline",
+          "rejected": "Rejected"
+        },
+        "metadata": {
+          "owner": "Owner",
+          "access": "Access scope",
+          "offers": "Published / total offers",
+          "supply_status": "Supply status",
+          "groups": "Groups",
+          "models": "Models",
+          "verification": "Connection verification"
+        },
+        "verification": {
+          "verified": "Passed",
+          "failed": "Failed",
+          "unverified": "Not verified"
+        },
         "insights": {
           "retest": "Channels Pending Retest",
           "retest_hint": "Channels whose selected models are not fully covered by tests, or whose pass rate or coverage has not reached 100%.",
           "risk": "Risky Channels",
-          "risk_hint": "Channels already in critical health, or whose current test pass rate is below 80%.",
+          "risk_hint": "Channels already in critical health, or whose real-call success rate is below 80%.",
           "circuit": "Circuit Open",
           "circuit_hint": "Channels currently in open or half-open recovery state.",
           "latency": "High-Latency Channels",
           "latency_hint": "Channels whose current average latency is 8 seconds or higher."
         },
-        "sort": {
-          "label": "Sort",
-          "health": "Health first",
-          "pass_rate": "Pass rate first",
-          "latency": "Latency first",
-          "requests": "Volume first"
+        "columns": {
+          "channel": "Channel",
+          "history": "Runtime timeline"
         },
         "history": {
-          "title": "Recent Call Health",
-          "hint": "Fixed to the last 5 hours. Prioritizes circuit, risky, retest-needed, and high request-volume channels. Each cell is a 5-minute call window; gray means that window has no call sample.",
+          "accessible_summary": "{{channel}} in the selected range: {{success}} successful windows, {{warning}} partially degraded, {{failure}} failed, and {{unknown}} without data.",
           "no_data": "No call sample",
           "window": "Time Window",
           "success_count": "Successes",
@@ -3702,21 +3769,6 @@
       "models": {
         "title": "Model Overview",
         "description": "Aggregate model requests, spend, and test health for the selected period.",
-        "headline": {
-          "hint": "Click the at-risk count to drill into models that need attention."
-        },
-        "summary": {
-          "selected_model_count": "Selected Models",
-          "tested_model_count": "Tested Models",
-          "healthy_model_count": "Healthy Models",
-          "warning_model_count": "Warning Models",
-          "critical_model_count": "Critical Models",
-          "request_count": "Requests",
-          "total_tokens": "Tokens",
-          "total_spend": "Spend (USD)",
-          "avg_pass_rate": "Average Pass Rate",
-          "avg_latency": "Average Latency"
-        },
         "sort": {
           "spend": "By Spend",
           "requests": "By Requests",
@@ -3724,9 +3776,7 @@
           "latency": "By Latency"
         },
         "chart": {
-          "leaderboard": "Model Leaderboard",
-          "distribution": "Health Distribution",
-          "distribution_hint": "Health distribution is computed from channel coverage, test pass rate, and average latency in the selected period."
+          "leaderboard": "Model Leaderboard"
         },
         "card": {
           "requests": "Requests",
@@ -3809,6 +3859,7 @@
           "pass_rate": "Pass Rate",
           "coverage_rate": "Coverage Rate",
           "avg_latency": "Average Latency",
+          "request_count": "Request Volume",
           "last_tested": "Last Tested",
           "legend_health": "Bar: Health Score",
           "legend_pass": "Line: Pass Rate",
@@ -4982,7 +5033,7 @@
     "bind_success": "Bound successfully!"
   },
   "personal_routing": {
-    "title": "My providers"
+    "title": "My channels"
   },
   "publisher_workspace": {
     "title": "Model publishing"
@@ -4991,7 +5042,7 @@
     "title": "Open supply"
   },
   "community_services": {
-    "title": "Community services"
+    "title": "Model offers"
   },
   "not_found": {
     "title": "Page not found",

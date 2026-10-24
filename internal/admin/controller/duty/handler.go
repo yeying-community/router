@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -363,6 +364,46 @@ func taskNeedsDutyAttention(task model.AsyncTask, now int64) bool {
 	return observedAt > 0 && now-observedAt >= dutyTaskStaleAfterSecond
 }
 
+func dutyOperationName(taskType string) string {
+	switch model.NormalizeAsyncTaskType(taskType) {
+	case model.AsyncTaskTypeChannelModelTest:
+		return "模型测试"
+	case model.AsyncTaskTypeChannelRefreshModels:
+		return "模型同步"
+	case model.AsyncTaskTypeChannelRefreshBilling:
+		return "账务刷新"
+	case model.AsyncTaskTypeChannelSyncProviderUsage:
+		return "用量同步"
+	default:
+		return "后台执行"
+	}
+}
+
+func dutyOperationLink(task model.AsyncTask) string {
+	channelID := strings.TrimSpace(task.ChannelId)
+	if channelID == "" {
+		return "/admin/channel"
+	}
+	base := "/admin/channel/detail/" + url.PathEscape(channelID)
+	switch model.NormalizeAsyncTaskType(task.Type) {
+	case model.AsyncTaskTypeChannelModelTest:
+		query := url.Values{"tab": []string{"tests"}}
+		if modelName := strings.TrimSpace(task.Model); modelName != "" {
+			query.Set("model", modelName)
+		}
+		if endpoint := strings.TrimSpace(task.Endpoint); endpoint != "" {
+			query.Set("endpoint", endpoint)
+		}
+		return base + "?" + query.Encode()
+	case model.AsyncTaskTypeChannelRefreshModels:
+		return base + "?tab=models"
+	case model.AsyncTaskTypeChannelRefreshBilling, model.AsyncTaskTypeChannelSyncProviderUsage:
+		return base + "?tab=procurement"
+	default:
+		return base
+	}
+}
+
 func filterDutyChannelAlerts(alerts []channelcontroller.DutyChannelAlert, startAt int64, endAt int64) []channelcontroller.DutyChannelAlert {
 	filtered := make([]channelcontroller.DutyChannelAlert, 0, len(alerts))
 	for _, alert := range alerts {
@@ -652,7 +693,7 @@ func buildDutyInspection(
 
 	taskDomain := dutyInspectionDomain{
 		Key: "tasks", MetricKind: "objects", TotalCount: int(taskTotal), ObservationStatus: dutyObservationReady,
-		Link: "/admin/channel?tab=tasks",
+		Link: "/admin/channel",
 	}
 	for _, task := range tasks {
 		if !taskNeedsDutyAttention(task, endAt) {
@@ -670,11 +711,12 @@ func buildDutyInspection(
 			objectName = strings.TrimSpace(task.Type)
 		}
 		incidentKey, _ := incidentKeyForChannelOrModel(task.ChannelId, task.Model, "task:"+safeScopePart(task.Id))
+		operationName := dutyOperationName(task.Type)
 		inspection.Findings = append(inspection.Findings, dutyFinding{
-			ID: "task:" + safeScopePart(task.Id), Domain: "tasks", ObjectType: "task", ObjectID: task.Id, ObjectName: objectName,
+			ID: "task:" + safeScopePart(task.Id), Domain: "tasks", ObjectType: "operation", ObjectID: task.Id, ObjectName: objectName,
 			Severity: dutyHealthWarning, HealthStatus: dutyHealthWarning, ObservationStatus: dutyObservationReady,
-			Title: objectName + " 任务需要处理", Summary: task.ErrorMessage, LastSeenAt: observedAt,
-			IncidentID: dutyFindingIncidentID(incidentKey, incidentIDs), Link: "/admin/channel/tasks/" + task.Id,
+			Title: objectName + " " + operationName + "需要处理", Summary: task.ErrorMessage, LastSeenAt: observedAt,
+			IncidentID: dutyFindingIncidentID(incidentKey, incidentIDs), Link: dutyOperationLink(task),
 		})
 	}
 	if taskDomain.TotalCount > taskDomain.WarningCount {
@@ -791,11 +833,15 @@ func buildDutyIncidentResponse(window string, startAt int64, endAt int64) dutyIn
 	filteredAlerts := filterDutyChannelAlerts(alerts, startAt, endAt)
 	filteredTasks := make([]model.AsyncTask, 0, len(tasks))
 	for _, task := range tasks {
+		if model.NormalizeAsyncTaskType(task.Type) == model.AsyncTaskTypeChannelModelTest {
+			continue
+		}
 		if !taskNeedsDutyAttention(task, endAt) {
 			continue
 		}
 		filteredTasks = append(filteredTasks, task)
 	}
+	taskTotal = int64(len(filteredTasks))
 
 	incidents := make(map[string]*dutyIncident)
 	ensure := func(key string, scopeType string, title string, summary string, severity string, observedAt int64) *dutyIncident {
@@ -828,7 +874,7 @@ func buildDutyIncidentResponse(window string, startAt int64, endAt int64) dutyIn
 			Title:         alert.Title,
 			Summary:       strings.TrimSpace(strings.Join([]string{alert.Summary, alert.Detail}, " ")),
 			CreatedAt:     alert.CreatedAt,
-			Link:          "/admin/channel?tab=alerts",
+			Link:          "/admin/dashboard?view=incidents&domain=channels&incident=" + url.QueryEscape(incident.ID),
 			ReferenceType: alert.Type,
 			ReferenceKey:  alert.ID,
 			ChannelID:     alert.ChannelID,
@@ -872,11 +918,12 @@ func buildDutyIncidentResponse(window string, startAt int64, endAt int64) dutyIn
 	for _, task := range filteredTasks {
 		key, scopeType := incidentKeyForChannelOrModel(task.ChannelId, task.Model, "task:"+safeScopePart(task.Id))
 		severity := "warning"
-		title := "系统任务需要处理"
+		operationName := dutyOperationName(task.Type)
+		title := operationName + "执行异常"
 		if strings.TrimSpace(task.ChannelName) != "" {
-			title = task.ChannelName + " 任务异常"
+			title = task.ChannelName + " " + operationName + "异常"
 		} else if strings.TrimSpace(task.Model) != "" {
-			title = task.Model + " 任务异常"
+			title = task.Model + " " + operationName + "异常"
 		}
 		incident := ensure(key, scopeType, title, task.ErrorMessage, severity, maxTimestamp(task.CreatedAt, task.FinishedAt))
 		if incident.ChannelID == "" {
@@ -895,7 +942,7 @@ func buildDutyIncidentResponse(window string, startAt int64, endAt int64) dutyIn
 			ErrorMessage: task.ErrorMessage,
 			CreatedAt:    task.CreatedAt,
 			FinishedAt:   task.FinishedAt,
-			Link:         "/admin/channel/tasks/" + task.Id,
+			Link:         dutyOperationLink(task),
 		})
 	}
 
@@ -1037,8 +1084,6 @@ func configureIncidentLinks(incident *dutyIncident, startAt int64, endAt int64) 
 	}
 	if incident.ChannelID != "" {
 		incident.Links.Channel = "/admin/channel/detail/" + incident.ChannelID + "?tab=tests"
-		incident.Links.Alerts = "/admin/channel?tab=alerts&q=" + incident.ChannelID
-		incident.Links.Tasks = "/admin/channel?tab=tasks&channel_id=" + incident.ChannelID
 		incident.Links.Logs = fmt.Sprintf("/admin/log?channel=%s&start_timestamp=%d&end_timestamp=%d", incident.ChannelID, startAt, endAt)
 		incident.Links.Finance = "/admin/finance?tab=overview&channel_id=" + incident.ChannelID
 	}

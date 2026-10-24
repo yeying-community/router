@@ -374,13 +374,31 @@ type ChannelCandidateFilter struct {
 }
 
 func CacheListSatisfiedChannelsForRequestWithStats(group string, model string, requestPath string) ([]*Channel, ChannelCandidateStats, error) {
-	channels, err := CacheListSatisfiedChannels(group, model)
-	if err != nil {
-		return nil, ChannelCandidateStats{}, err
+	channels, managedErr := CacheListSatisfiedChannels(group, model)
+	if managedErr != nil {
+		channels = []*Channel{}
 	}
 	filtered, err := cacheFilterChannelsByRequestEndpoint(group, channels, model, requestPath)
 	if err != nil {
 		return nil, ChannelCandidateStats{}, err
+	}
+	supplyChannels, supplyErr := ListGroupSupplyChannelsForRequest(group, model, requestPath)
+	if supplyErr != nil {
+		return nil, ChannelCandidateStats{}, supplyErr
+	}
+	if len(supplyChannels) > 0 {
+		filtered = append(filtered, supplyChannels...)
+		sort.SliceStable(filtered, func(i, j int) bool {
+			leftPriority := filtered[i].GetPriority()
+			rightPriority := filtered[j].GetPriority()
+			if leftPriority != rightPriority {
+				return leftPriority > rightPriority
+			}
+			return strings.TrimSpace(filtered[i].Id) < strings.TrimSpace(filtered[j].Id)
+		})
+	}
+	if managedErr != nil && len(filtered) == 0 {
+		return nil, ChannelCandidateStats{}, managedErr
 	}
 	eligible := make(map[string]struct{}, len(filtered))
 	for _, channel := range filtered {
@@ -405,7 +423,7 @@ func CacheListSatisfiedChannelsForRequestWithStats(group string, model string, r
 		}
 	}
 	return filtered, ChannelCandidateStats{
-		ListedCount:           len(channels),
+		ListedCount:           len(channels) + len(supplyChannels),
 		EndpointFilteredCount: len(filtered),
 		FilteredCandidates:    filteredCandidates,
 	}, nil

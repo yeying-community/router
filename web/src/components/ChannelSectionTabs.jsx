@@ -2,7 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import SectionTabs from './SectionTabs';
 
-// Channels domain sub-nav: list / health / alerts / system tasks.
+// Channels domain sub-nav: list / health. Operational incidents are handled in
+// the duty station so channels do not expose a second acknowledgement surface.
 // All tabs point at /admin/channel?tab=... so the ChannelLayout shell keeps
 // its breadcrumb/header mounted and swaps the body in place.
 function ChannelSectionTabs({ active = 'list' }) {
@@ -16,12 +17,6 @@ function ChannelSectionTabs({ active = 'list' }) {
           key: 'health',
           label: t('channel.tabs.health'),
           to: '/admin/channel?tab=health',
-        },
-        { key: 'alerts', label: t('channel.tabs.alerts'), to: '/admin/channel?tab=alerts' },
-        {
-          key: 'tasks',
-          label: t('channel.tabs.tasks'),
-          to: '/admin/channel?tab=tasks',
         },
       ]}
     />

@@ -128,30 +128,6 @@ const ModelOperationsSection = () => {
     return items;
   }, [dashboard.top_models, modelSort]);
 
-  const modelHealthDistribution = useMemo(
-    () => [
-      {
-        key: 'healthy',
-        label: t('dashboard.admin.health.level.healthy'),
-        count: Number(dashboard.model_summary.healthy_model_count || 0),
-        color: HEALTH_LEVEL_COLORS.healthy,
-      },
-      {
-        key: 'warning',
-        label: t('dashboard.admin.health.level.warning'),
-        count: Number(dashboard.model_summary.warning_model_count || 0),
-        color: HEALTH_LEVEL_COLORS.warning,
-      },
-      {
-        key: 'critical',
-        label: t('dashboard.admin.health.level.critical'),
-        count: Number(dashboard.model_summary.critical_model_count || 0),
-        color: HEALTH_LEVEL_COLORS.critical,
-      },
-    ],
-    [dashboard.model_summary, t]
-  );
-
   const modelLeaderboardData = useMemo(() => {
     return sortedModels.slice(0, 8).map((item) => {
       let value = Number(item.spend_amount || 0);
@@ -228,61 +204,6 @@ const ModelOperationsSection = () => {
             }
           />
         </div>
-        <div className='admin-dashboard-spending-headline'>
-          <div className='admin-dashboard-spending-headline-main'>
-            <div className='admin-dashboard-spending-headline-label'>
-              {t('dashboard.admin.models.summary.critical_model_count')}
-            </div>
-            <button
-              type='button'
-              className={`admin-dashboard-spending-headline-value admin-dashboard-model-headline-cta${
-                Number(dashboard.model_summary.critical_model_count) > 0
-                  ? ' admin-dashboard-spending-headline-value-negative'
-                  : ''
-              }`}
-              onClick={() =>
-                navigate('/workspace/service/models?health=critical')
-              }
-            >
-              {formatCount(dashboard.model_summary.critical_model_count)}
-            </button>
-            <div className='admin-dashboard-spending-headline-hint'>
-              {t('dashboard.admin.models.headline.hint')}
-            </div>
-          </div>
-          <div className='admin-dashboard-spending-headline-side'>
-            <div className='admin-dashboard-spending-headline-row'>
-              <span>
-                {t('dashboard.admin.models.summary.selected_model_count')}
-              </span>
-              <strong>
-                {formatCount(dashboard.model_summary.selected_model_count)}
-              </strong>
-            </div>
-            <div className='admin-dashboard-spending-headline-row'>
-              <span>
-                {t('dashboard.admin.models.summary.tested_model_count')}
-              </span>
-              <strong>
-                {formatCount(dashboard.model_summary.tested_model_count)}
-              </strong>
-            </div>
-            <div className='admin-dashboard-spending-headline-row'>
-              <span>
-                {t('dashboard.admin.models.summary.healthy_model_count')}
-              </span>
-              <button
-                type='button'
-                className='admin-dashboard-spending-headline-row-cta'
-                onClick={() =>
-                  navigate('/workspace/service/models?health=healthy')
-                }
-              >
-                {formatCount(dashboard.model_summary.healthy_model_count)}
-              </button>
-            </div>
-          </div>
-        </div>
         <div className='admin-dashboard-usage-rank'>
           {sortedModels.length === 0 ? (
             <div className='admin-dashboard-empty'>
@@ -338,35 +259,6 @@ const ModelOperationsSection = () => {
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
-                </div>
-                <div className='admin-dashboard-model-panel'>
-                  <div className='admin-dashboard-card-title'>
-                    {t('dashboard.admin.models.chart.distribution')}
-                  </div>
-                  <div className='admin-dashboard-model-distribution-list'>
-                    {modelHealthDistribution.map((item) => (
-                      <div
-                        key={item.key}
-                        className='admin-dashboard-model-distribution-item'
-                      >
-                        <div className='admin-dashboard-model-distribution-main'>
-                          <span
-                            className='admin-dashboard-model-distribution-dot'
-                            style={{ background: item.color }}
-                          />
-                          <span className='admin-dashboard-model-distribution-label'>
-                            {item.label}
-                          </span>
-                        </div>
-                        <div className='admin-dashboard-model-distribution-value'>
-                          {formatCount(item.count)}
-                        </div>
-                      </div>
-                    ))}
-                    <div className='admin-dashboard-model-distribution-footnote'>
-                      {t('dashboard.admin.models.chart.distribution_hint')}
-                    </div>
                   </div>
                 </div>
               </div>

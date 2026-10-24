@@ -3,6 +3,7 @@ package channel
 import (
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,7 @@ func DownloadChannelTestArtifact(c *gin.Context) {
 	channelID := strings.TrimSpace(c.Param("id"))
 	modelID := strings.TrimSpace(c.Query("model"))
 	endpoint := strings.TrimSpace(c.Query("endpoint"))
+	round, _ := strconv.ParseInt(strings.TrimSpace(c.Query("round")), 10, 64)
 	if channelID == "" || modelID == "" || endpoint == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -20,11 +22,12 @@ func DownloadChannelTestArtifact(c *gin.Context) {
 		})
 		return
 	}
-	testRow, err := model.GetLatestChannelTestByModelEndpointWithDB(
+	testRow, err := model.GetChannelTestByModelEndpointRoundWithDB(
 		model.DB,
 		channelID,
 		modelID,
 		endpoint,
+		round,
 	)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{

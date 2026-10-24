@@ -2,15 +2,16 @@ package channel
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/yeying-community/router/common/helper"
 	"github.com/yeying-community/router/common/logger"
+	"github.com/yeying-community/router/common/random"
 	"github.com/yeying-community/router/internal/admin/model"
 	channelsvc "github.com/yeying-community/router/internal/admin/service/channel"
 	"gorm.io/gorm"
@@ -41,55 +42,7 @@ type channelModelTestTaskTarget struct {
 	ResponsesTestMode string
 }
 
-func buildChannelModelTestTaskDedupeKey(channelID string, modelID string, endpoint string, streamOverride *bool, audioLanguage string, imageEditURL string, imageEditData string, responsesTestMode string) string {
-	normalizedModelID := strings.TrimSpace(modelID)
-	normalizedEndpoint := model.NormalizeRequestedChannelModelEndpoint(endpoint)
-	normalizedAudioLanguage := normalizeAudioTestLanguage(audioLanguage)
-	imageEditSignature := channelModelTestImageEditSignature(normalizedEndpoint, imageEditURL, imageEditData)
-	normalizedResponsesTestMode := ""
-	if normalizedEndpoint == model.ChannelModelEndpointResponses {
-		normalizedResponsesTestMode = normalizeResponsesTestMode(responsesTestMode)
-	}
-	if streamOverride == nil {
-		if normalizedAudioLanguage == "zh-CN" && imageEditSignature == "" && normalizedResponsesTestMode == "" {
-			return fmt.Sprintf("%s:%s:%s:%s", model.AsyncTaskTypeChannelModelTest, strings.TrimSpace(channelID), normalizedModelID, normalizedEndpoint)
-		}
-		return fmt.Sprintf("%s:%s:%s:%s:%s:%s:%s", model.AsyncTaskTypeChannelModelTest, strings.TrimSpace(channelID), normalizedModelID, normalizedEndpoint, normalizedAudioLanguage, imageEditSignature, normalizedResponsesTestMode)
-	}
-	key := fmt.Sprintf(
-		"%s:%s:%s:%s:%t",
-		model.AsyncTaskTypeChannelModelTest,
-		strings.TrimSpace(channelID),
-		normalizedModelID,
-		normalizedEndpoint,
-		*streamOverride,
-	)
-	if normalizedAudioLanguage != "zh-CN" {
-		key = fmt.Sprintf("%s:%s", key, normalizedAudioLanguage)
-	}
-	if imageEditSignature != "" {
-		key = fmt.Sprintf("%s:%s", key, imageEditSignature)
-	}
-	if normalizedResponsesTestMode != "" {
-		key = fmt.Sprintf("%s:%s", key, normalizedResponsesTestMode)
-	}
-	return key
-}
-
-func channelModelTestImageEditSignature(endpoint string, imageEditURL string, imageEditData string) string {
-	if model.NormalizeRequestedChannelModelEndpoint(endpoint) != model.ChannelModelEndpointImageEdit {
-		return ""
-	}
-	source := strings.TrimSpace(imageEditData)
-	if source == "" {
-		source = strings.TrimSpace(imageEditURL)
-	}
-	if source == "" {
-		source = defaultChannelImageEditTestSource
-	}
-	sum := sha256.Sum256([]byte(source))
-	return fmt.Sprintf("image:%x", sum[:8])
-}
+var activeChannelModelVerifications sync.Map
 
 func buildChannelRefreshModelsTaskDedupeKey(channelID string) string {
 	return fmt.Sprintf("%s:%s", model.AsyncTaskTypeChannelRefreshModels, strings.TrimSpace(channelID))
@@ -101,19 +54,6 @@ func buildChannelRefreshBillingTaskDedupeKey(channelID string) string {
 
 func buildChannelProviderUsageSyncTaskDedupeKey(channelID string) string {
 	return fmt.Sprintf("%s:%s", model.AsyncTaskTypeChannelSyncProviderUsage, strings.TrimSpace(channelID))
-}
-
-func buildChannelModelTestTaskPayload(modelID string, channelID string, endpoint string, streamOverride *bool, audioLanguage string, imageEditURL string, imageEditData string, responsesTestMode string) string {
-	return marshalJSONForLog(channelModelTestTaskPayload{
-		ChannelID:         strings.TrimSpace(channelID),
-		Model:             strings.TrimSpace(modelID),
-		Endpoint:          model.NormalizeRequestedChannelModelEndpoint(endpoint),
-		IsStream:          streamOverride,
-		AudioLanguage:     normalizeAudioTestLanguage(audioLanguage),
-		ImageEditURL:      strings.TrimSpace(imageEditURL),
-		ImageEditData:     strings.TrimSpace(imageEditData),
-		ResponsesTestMode: normalizeResponsesTestMode(responsesTestMode),
-	})
 }
 
 func resolveChannelModelTestTaskTargets(channelRow *model.Channel, testMode string, requestedTestModel string, requestedModels []string, requestedConfigs []channelModelTestTargetItem) []channelModelTestTaskTarget {
@@ -180,15 +120,22 @@ func resolveChannelModelTestTaskTargets(channelRow *model.Channel, testMode stri
 	return result
 }
 
-func CreateChannelModelTestTasks(channelID string, createdBy string, requestedTestModel string, requestedModels []string, requestedConfigs []channelModelTestTargetItem, traceID string, requestedAudioLanguage string, requestedImageEditURL string, requestedImageEditData string) ([]model.AsyncTask, int, int, error) {
+// RunChannelModelVerifications performs channel verification directly and
+// persists the resulting verification records. Model verification is not an
+// AsyncTask: the task domain is reserved for user-facing asynchronous media
+// generation calls.
+func RunChannelModelVerifications(ctx context.Context, channelID string, source string, requestedTestModel string, requestedModels []string, requestedConfigs []channelModelTestTargetItem, requestedAudioLanguage string, requestedImageEditURL string, requestedImageEditData string) ([]model.ChannelTest, error) {
 	normalizedChannelID := strings.TrimSpace(channelID)
 	if normalizedChannelID == "" {
-		return nil, 0, 0, fmt.Errorf("渠道 ID 无效")
+		return nil, fmt.Errorf("渠道 ID 无效")
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	normalizedAudioLanguage := normalizeAudioTestLanguage(requestedAudioLanguage)
 	channelRow, err := channelsvc.GetByID(normalizedChannelID)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, err
 	}
 	testMode := channelModelTestModeBatch
 	if len(requestedModels) == 1 || strings.TrimSpace(requestedTestModel) != "" {
@@ -196,20 +143,19 @@ func CreateChannelModelTestTasks(channelID string, createdBy string, requestedTe
 	}
 	targets := resolveChannelModelTestTaskTargets(channelRow, testMode, requestedTestModel, requestedModels, requestedConfigs)
 	if len(targets) == 0 {
-		return nil, 0, 0, fmt.Errorf("未找到可用于测试的模型")
+		return nil, fmt.Errorf("未找到可用于测试的模型")
 	}
-	tasks := make([]model.AsyncTask, 0, len(targets))
-	createdCount := 0
-	reusedCount := 0
+	verificationID := random.GetUUID()
+	results := make([]model.ChannelTest, 0, len(targets))
 	for _, target := range targets {
 		row := target.Row
 		stream := target.Stream
 		normalizedEndpoint, endpointErr := resolveChannelModelTestEndpointForRow(row)
 		if endpointErr != nil {
-			return nil, createdCount, reusedCount, endpointErr
+			return nil, endpointErr
 		}
 		if err := validateChannelModelTestEndpointAgainstProvider(row, normalizedEndpoint); err != nil {
-			return nil, createdCount, reusedCount, err
+			return nil, err
 		}
 		if resolveSelectionModelType(row) == model.ProviderModelTypeAudio {
 			stream = nil
@@ -224,56 +170,51 @@ func CreateChannelModelTestTasks(channelID string, createdBy string, requestedTe
 			imageEditURL = requestedImageEditURL
 			imageEditData = requestedImageEditData
 		}
-		modelID := strings.TrimSpace(row.Model)
-		task, reused, err := model.CreateOrReuseAsyncTaskWithDB(model.DB, model.AsyncTask{
-			Type:      model.AsyncTaskTypeChannelModelTest,
-			DedupeKey: buildChannelModelTestTaskDedupeKey(normalizedChannelID, modelID, normalizedEndpoint, stream, normalizedAudioLanguage, imageEditURL, imageEditData, responsesTestMode),
-			ChannelId: normalizedChannelID,
-			Model:     modelID,
-			Endpoint:  normalizedEndpoint,
-			Payload:   buildChannelModelTestTaskPayload(modelID, normalizedChannelID, normalizedEndpoint, stream, normalizedAudioLanguage, imageEditURL, imageEditData, responsesTestMode),
-			CreatedBy: strings.TrimSpace(createdBy),
-			TraceID:   strings.TrimSpace(traceID),
-		})
-		if err != nil {
-			return nil, createdCount, reusedCount, err
+		row.Endpoint = normalizedEndpoint
+		testContext := ctx
+		if strings.TrimSpace(source) == "automatic_probe" {
+			testContext = withChannelHealthProbeContext(testContext)
 		}
-		if reused {
-			reusedCount++
-		} else {
-			createdCount++
+		testResult, execution := runSingleChannelModelTestWithContextAndStream(testContext, channelRow, row, stream, normalizedAudioLanguage, imageEditTestInput{
+			URL: imageEditURL, DataURI: imageEditData,
+		}, responsesTestMode)
+		testResult.ChannelId = normalizedChannelID
+		if normalizedSource := strings.TrimSpace(source); normalizedSource != "" {
+			testResult.Source = normalizedSource
 		}
-		tasks = append(tasks, task)
+		persistChannelTestArtifactForExecution(testContext, verificationID, &testResult, &execution)
+		results = append(results, testResult)
 	}
-	return tasks, createdCount, reusedCount, nil
+	if err := persistChannelModelTests(normalizedChannelID, verificationID, results); err != nil {
+		return nil, err
+	}
+	return model.NormalizeChannelTestRows(results), nil
 }
 
-func EnqueueChannelModelEndpointRecoveryTest(channelID string, modelID string, endpoint string, traceID string) (bool, error) {
+func scheduleChannelModelVerification(channelID string, modelID string, endpoint string, source string) (bool, error) {
 	normalizedModelID := strings.TrimSpace(modelID)
 	normalizedEndpoint := model.NormalizeRequestedChannelModelEndpoint(endpoint)
 	if strings.TrimSpace(channelID) == "" || normalizedModelID == "" || normalizedEndpoint == "" {
 		return false, nil
 	}
-	_, createdCount, _, err := CreateChannelModelTestTasks(
-		channelID,
-		"runtime",
-		normalizedModelID,
-		[]string{normalizedModelID},
-		[]channelModelTestTargetItem{
-			{
-				Model:    normalizedModelID,
-				Endpoint: normalizedEndpoint,
-			},
-		},
-		traceID,
-		"",
-		"",
-		"",
-	)
-	if err != nil {
-		return false, err
+	key := strings.Join([]string{strings.TrimSpace(channelID), normalizedModelID, normalizedEndpoint, strings.TrimSpace(source)}, "::")
+	if _, loaded := activeChannelModelVerifications.LoadOrStore(key, struct{}{}); loaded {
+		return false, nil
 	}
-	return createdCount > 0, nil
+	go func() {
+		defer activeChannelModelVerifications.Delete(key)
+		if _, err := RunChannelModelVerifications(
+			context.Background(), channelID, source, normalizedModelID, []string{normalizedModelID},
+			[]channelModelTestTargetItem{{Model: normalizedModelID, Endpoint: normalizedEndpoint}}, "", "", "",
+		); err != nil {
+			logger.SysError(fmt.Sprintf("channel model verification failed: channel=%s model=%s endpoint=%s source=%s error=%s", channelID, normalizedModelID, normalizedEndpoint, source, err.Error()))
+		}
+	}()
+	return true, nil
+}
+
+func EnqueueChannelModelEndpointRecoveryTest(channelID string, modelID string, endpoint string, traceID string) (bool, error) {
+	return scheduleChannelModelVerification(channelID, modelID, endpoint, "runtime")
 }
 
 func enqueueInsufficientBalanceRecoveryTest(channelRow *model.Channel, traceID string) (bool, error) {
@@ -307,28 +248,13 @@ func enqueueInsufficientBalanceRecoveryTest(channelRow *model.Channel, traceID s
 		return false, err
 	}
 	logInsufficientBalanceRecoveryProbe("create_test_task", channelID, modelID, "", fmt.Sprintf("endpoint=%s", endpoint))
-	_, createdCount, reusedCount, err := CreateChannelModelTestTasks(
-		channelID,
-		"channel_recovery",
-		modelID,
-		[]string{modelID},
-		[]channelModelTestTargetItem{
-			{
-				Model:    modelID,
-				Endpoint: endpoint,
-			},
-		},
-		traceID,
-		"",
-		"",
-		"",
-	)
+	created, err := scheduleChannelModelVerification(channelID, modelID, endpoint, "channel_recovery")
 	if err != nil {
 		logInsufficientBalanceRecoveryProbe("create_test_task_failed", channelID, modelID, err.Error(), fmt.Sprintf("endpoint=%s", endpoint))
 		return false, err
 	}
-	logInsufficientBalanceRecoveryProbe("test_task_result", channelID, modelID, "", fmt.Sprintf("endpoint=%s created=%d reused=%d", endpoint, createdCount, reusedCount))
-	return createdCount > 0, nil
+	logInsufficientBalanceRecoveryProbe("verification_scheduled", channelID, modelID, "", fmt.Sprintf("endpoint=%s scheduled=%t", endpoint, created))
+	return created, nil
 }
 
 func EnqueueRuntimeDisabledCapabilityRecoveryTests(limit int) (int, error) {

@@ -1,11 +1,61 @@
-.publisher-workspace-page { max-width: 1440px; }
-.publisher-workspace-page > .router-ui-alert { margin-bottom: 16px; }
-.publisher-profile-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; max-width: 760px; }
-.publisher-profile-form .router-ui-form-actions { grid-column: 1 / -1; }
-.publisher-hint, .publisher-review-note { color: var(--ant-color-text-secondary); font-size: 13px; line-height: 1.6; margin: 0 0 14px; }
-.publisher-review-note { color: var(--ant-color-warning-text); }
-.publisher-service-name, .publisher-verify-state { display: grid; gap: 3px; min-width: 0; }
-.publisher-service-name span, .publisher-verify-state span { color: var(--ant-color-text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.publisher-actions { display: inline-flex; gap: 2px; }
-.publisher-monospace { font-family: var(--router-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12px; }
-@media (max-width: 720px) { .publisher-profile-form { grid-template-columns: 1fr; } }
+.publisher-workspace-page {
+  max-width: 1440px;
+}
+.publisher-workspace-embedded {
+  max-width: none;
+}
+.publisher-workspace-page > .router-ui-alert {
+  margin-bottom: 16px;
+}
+.publisher-profile-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+  max-width: 760px;
+}
+.publisher-profile-form .router-ui-form-actions {
+  grid-column: 1 / -1;
+}
+.publisher-hint,
+.publisher-review-note {
+  color: var(--ant-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 14px;
+}
+.publisher-review-note {
+  color: var(--ant-color-warning-text);
+}
+.publisher-service-name,
+.publisher-verify-state {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.publisher-service-name span,
+.publisher-verify-state span {
+  color: var(--ant-color-text-secondary);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.publisher-actions {
+  display: inline-flex;
+  gap: 2px;
+}
+.publisher-monospace {
+  font-family: var(
+    --router-font-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace
+  );
+  font-size: 12px;
+}
+@media (max-width: 720px) {
+  .publisher-profile-form {
+    grid-template-columns: 1fr;
+  }
+}

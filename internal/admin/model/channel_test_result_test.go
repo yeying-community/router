@@ -1,6 +1,11 @@
 package model
 
-import "testing"
+import (
+	"testing"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+)
 
 func TestNormalizeChannelModelEndpoint(t *testing.T) {
 	t.Run("text defaults to responses", func(t *testing.T) {
@@ -155,5 +160,59 @@ func TestNormalizeChannelTestRowsKeepsDistinctEndpointsWithinSameRound(t *testin
 	}
 	if rows[1].Endpoint != ChannelModelEndpointChat {
 		t.Fatalf("unexpected row[1] endpoint: %#v", rows[1])
+	}
+}
+
+func TestGetChannelTestByModelEndpointRoundWithDB(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=private"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&ChannelTest{}); err != nil {
+		t.Fatalf("migrate channel tests: %v", err)
+	}
+	rows := []ChannelTest{
+		{
+			ChannelId: "channel-1", Model: "gpt-4.1", Round: 1,
+			Type: ProviderModelTypeText, Endpoint: ChannelModelEndpointResponses,
+			Status: ChannelTestStatusSupported, Supported: true, TestedAt: 10,
+			ArtifactName: "round-1.bin", ArtifactPath: "round-1.bin",
+		},
+		{
+			ChannelId: "channel-1", Model: "gpt-4.1", Round: 2,
+			Type: ProviderModelTypeText, Endpoint: ChannelModelEndpointResponses,
+			Status: ChannelTestStatusSupported, Supported: true, TestedAt: 20,
+			ArtifactName: "round-2.bin", ArtifactPath: "round-2.bin",
+		},
+	}
+	if err := db.Create(&rows).Error; err != nil {
+		t.Fatalf("seed channel tests: %v", err)
+	}
+
+	selected, err := GetChannelTestByModelEndpointRoundWithDB(
+		db,
+		"channel-1",
+		"gpt-4.1",
+		ChannelModelEndpointResponses,
+		1,
+	)
+	if err != nil {
+		t.Fatalf("get round 1: %v", err)
+	}
+	if selected.Round != 1 || selected.ArtifactName != "round-1.bin" {
+		t.Fatalf("selected test = %#v, want round 1", selected)
+	}
+
+	latest, err := GetLatestChannelTestByModelEndpointWithDB(
+		db,
+		"channel-1",
+		"gpt-4.1",
+		ChannelModelEndpointResponses,
+	)
+	if err != nil {
+		t.Fatalf("get latest: %v", err)
+	}
+	if latest.Round != 2 || latest.ArtifactName != "round-2.bin" {
+		t.Fatalf("latest test = %#v, want round 2", latest)
 	}
 }

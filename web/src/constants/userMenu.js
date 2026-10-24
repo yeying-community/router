@@ -36,13 +36,8 @@ export const buildUserWorkspaceMenuItems = () => {
     },
     {
       name: 'personal_routing.title',
-      to: '/workspace/personal-routing',
+      to: '/workspace/channels',
       icon: 'share alternate',
-    },
-    {
-      name: 'publisher_workspace.title',
-      to: '/workspace/publisher',
-      icon: 'cloud upload',
     },
     {
       name: 'community_services.title',

@@ -1885,15 +1885,21 @@ paths:
   /api/v1/admin/channel/{id}/tests/artifact:
     get:
       tags: [Admin Channels]
-      summary: Download latest channel test artifact
+      summary: Download a channel test artifact
       parameters:
         - $ref: "#/components/parameters/IDPath"
         - name: model
           in: query
+          required: true
           schema: { type: string }
         - name: endpoint
           in: query
+          required: true
           schema: { type: string }
+        - name: round
+          in: query
+          description: Optional test round. Omit or pass 0 to download the latest matching artifact.
+          schema: { type: integer, format: int64, minimum: 0 }
       responses:
         "200":
           description: Artifact binary
@@ -1905,7 +1911,7 @@ paths:
   /api/v1/admin/channel/{id}/refresh:
     post:
       tags: [Admin Channels]
-      summary: Submit channel refresh task
+      summary: Submit a channel refresh operation
       parameters:
         - $ref: "#/components/parameters/IDPath"
       requestBody:
@@ -1921,8 +1927,8 @@ paths:
         "200": { $ref: "#/components/responses/APIResponse" }
   /api/v1/admin/tasks:
     get:
-      tags: [Admin Tasks]
-      summary: List system tasks
+      tags: [Admin Operations]
+      summary: List internal background executions
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PageSize"
@@ -1930,30 +1936,30 @@ paths:
         "200": { $ref: "#/components/responses/PaginatedAPIResponse" }
   /api/v1/admin/tasks/options:
     get:
-      tags: [Admin Tasks]
-      summary: Get system task filters
+      tags: [Admin Operations]
+      summary: Get background execution filters
       responses:
         "200": { $ref: "#/components/responses/APIResponse" }
   /api/v1/admin/tasks/{id}:
     get:
-      tags: [Admin Tasks]
-      summary: Get system task detail
+      tags: [Admin Operations]
+      summary: Get background execution detail
       parameters:
         - $ref: "#/components/parameters/IDPath"
       responses:
         "200": { $ref: "#/components/responses/APIResponse" }
   /api/v1/admin/tasks/{id}/cancel:
     post:
-      tags: [Admin Tasks]
-      summary: Cancel task
+      tags: [Admin Operations]
+      summary: Cancel a background execution
       parameters:
         - $ref: "#/components/parameters/IDPath"
       responses:
         "200": { $ref: "#/components/responses/APIResponse" }
   /api/v1/admin/tasks/{id}/retry:
     post:
-      tags: [Admin Tasks]
-      summary: Retry task
+      tags: [Admin Operations]
+      summary: Retry a background execution
       parameters:
         - $ref: "#/components/parameters/IDPath"
       responses:

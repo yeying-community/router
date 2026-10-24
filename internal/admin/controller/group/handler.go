@@ -27,6 +27,10 @@ type updateGroupChannelsRequest struct {
 	Channels   []model.GroupChannelItem `json:"channels"`
 }
 
+type updateGroupSuppliesRequest struct {
+	Supplies []model.GroupSupplyBindingItem `json:"supplies"`
+}
+
 const maxGroupListPageSize = 100
 
 type groupListPageData struct {
@@ -284,6 +288,33 @@ func GetGroupChannels(c *gin.Context) {
 	})
 }
 
+func GetGroupSupplies(c *gin.Context) {
+	rows, err := model.ListGroupSupplyBindingItems(c.Param("id"))
+	if err != nil {
+		respondGroupError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": rows})
+}
+
+func UpdateGroupSupplies(c *gin.Context) {
+	req := updateGroupSuppliesRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "请求格式无效"})
+		return
+	}
+	if err := model.ReplaceGroupSupplyBindings(c.Param("id"), req.Supplies); err != nil {
+		respondGroupError(c, err)
+		return
+	}
+	rows, err := model.ListGroupSupplyBindingItems(c.Param("id"))
+	if err != nil {
+		respondGroupError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": rows})
+}
+
 func GetGroupModels(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
@@ -461,4 +492,8 @@ func UpdateGroupChannels(c *gin.Context) {
 		"success": true,
 		"message": "",
 	})
+}
+
+func respondGroupError(c *gin.Context, err error) {
+	c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 }

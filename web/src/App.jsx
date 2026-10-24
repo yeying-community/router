@@ -1,5 +1,19 @@
-import React, { Suspense, lazy, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import React, {
+  Suspense,
+  lazy,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import i18n from './i18n.jsx';
 import Loading from './components/Loading';
 import { PrivateRoute } from './components/PrivateRoute';
@@ -13,15 +27,15 @@ import {
   showNotice,
 } from './helpers';
 import { applyChartThemeToDocument } from './router-ui';
-import { resolveInitialThemeMode, applyThemeMode } from './router-ui/theme/store';
+import {
+  resolveInitialThemeMode,
+  applyThemeMode,
+} from './router-ui/theme/store';
 import { UserContext } from './context/User';
 import { StatusContext } from './context/Status';
 import { WEB3_TOKEN_STORAGE_KEY } from './helpers/web3';
 import { buildLoginPath } from './helpers/authRedirect';
-import {
-  logoutWallet,
-  restoreWalletSession,
-} from './services/web3Auth';
+import { logoutWallet, restoreWalletSession } from './services/web3Auth';
 import { useWalletProviderStatus } from './hooks/useWalletProviderStatus';
 import { useCanManageUsers, useIsAdmin } from './hooks/useAuth';
 import AdminLayout from './layouts/AdminLayout';
@@ -44,11 +58,8 @@ import EditRedemption from './pages/Redemption/EditRedemption';
 import RedemptionDetail from './pages/Redemption/RedemptionDetail';
 import TopupPlanDetail from './pages/AdminTopup/Detail';
 import EntitlementLayout from './pages/Entitlement/EntitlementLayout';
-import AdminChannelTaskDetailPage from './pages/Task/AdminChannelTaskDetailPage';
 import AdminUserTaskDetailPage from './pages/Task/AdminUserTaskDetailPage';
-import Task, {
-  TASK_PAGE_KIND_WORKSPACE_USER,
-} from './pages/Task';
+import Task, { TASK_PAGE_KIND_WORKSPACE_USER } from './pages/Task';
 import WorkspaceTaskDetailPage from './pages/Task/WorkspaceTaskDetailPage';
 import PaymentRecordDetail from './pages/Records/PaymentRecordDetail';
 import RedemptionRecordDetail from './pages/Records/RedemptionRecordDetail';
@@ -59,7 +70,9 @@ import FinanceLayout from './pages/BillingFinance/FinanceLayout';
 const RegisterForm = lazy(() => import('./components/RegisterForm'));
 const LoginForm = lazy(() => import('./components/LoginForm'));
 const PasswordResetForm = lazy(() => import('./components/PasswordResetForm'));
-const PasswordResetConfirm = lazy(() => import('./components/PasswordResetConfirm'));
+const PasswordResetConfirm = lazy(() =>
+  import('./components/PasswordResetConfirm')
+);
 const Token = lazy(() => import('./pages/Token'));
 const EditToken = lazy(() => import('./pages/Token/EditToken'));
 const AdminTokens = lazy(() => import('./pages/Token/AdminTokens'));
@@ -67,8 +80,8 @@ const TopUp = lazy(() => import('./pages/TopUp'));
 const TopUpOrderDetail = lazy(() => import('./pages/TopUp/TopUpOrderDetail'));
 const TopUpOrderReturn = lazy(() => import('./pages/TopUp/TopUpOrderReturn'));
 const QuotaHistoryPage = lazy(() => import('./pages/TopUp/QuotaHistoryPage'));
-const QuotaCardDetailPage = lazy(
-  () => import('./pages/TopUp/QuotaCardDetailPage'),
+const QuotaCardDetailPage = lazy(() =>
+  import('./pages/TopUp/QuotaCardDetailPage')
 );
 const Chat = lazy(() => import('./pages/Chat'));
 const ServicePricing = lazy(() => import('./pages/ServicePricing'));
@@ -77,8 +90,6 @@ const HelpDoc = lazy(() => import('./pages/HelpDoc'));
 const RouterGuideDoc = lazy(() => import('./pages/HelpDoc/RouterGuideDoc'));
 const WorkspaceStart = lazy(() => import('./pages/WorkspaceStart'));
 const PersonalRouting = lazy(() => import('./pages/PersonalRouting'));
-const PublisherWorkspace = lazy(() => import('./pages/PublisherWorkspace'));
-const PublisherOperations = lazy(() => import('./pages/PublisherOperations'));
 const CommunityServices = lazy(() => import('./pages/CommunityServices'));
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || '';
@@ -123,7 +134,7 @@ function UserWorkspaceEntryRedirect() {
     const resolveTargetPath = async () => {
       try {
         const response = await API.get(
-          '/api/v1/public/user/onboarding/progress',
+          '/api/v1/public/user/onboarding/progress'
         );
         const data = response?.data?.success
           ? response?.data?.data || null
@@ -132,7 +143,9 @@ function UserWorkspaceEntryRedirect() {
         if (!active) {
           return;
         }
-        setTargetPath(hasApiCall ? '/workspace/topup?tab=quota' : '/workspace/start');
+        setTargetPath(
+          hasApiCall ? '/workspace/topup?tab=quota' : '/workspace/start'
+        );
       } catch (error) {
         if (!active) {
           return;
@@ -224,7 +237,9 @@ function RedemptionEditRedirect() {
   const search = nextSearchParams.toString();
   return (
     <Navigate
-      to={`/admin/redemption/${suffix}${search ? `?${search}` : ''}${location.hash}`}
+      to={`/admin/redemption/${suffix}${search ? `?${search}` : ''}${
+        location.hash
+      }`}
       state={location.state}
       replace
     />
@@ -241,7 +256,9 @@ function TokenEditRedirect() {
   const search = nextSearchParams.toString();
   return (
     <Navigate
-      to={`/workspace/token/${suffix}${search ? `?${search}` : ''}${location.hash}`}
+      to={`/workspace/token/${suffix}${search ? `?${search}` : ''}${
+        location.hash
+      }`}
       state={location.state}
       replace
     />
@@ -269,8 +286,7 @@ function TopUpTabRedirect() {
 }
 
 // Redirect a legacy standalone route onto a shell tab, merging the incoming
-// query (e.g. /admin/alerts?type=circuit -> /admin/channel?tab=alerts&type=circuit)
-// so deep-link params survive the move to `?tab=`.
+// query so deep-link params survive the move to `?tab=`.
 function TabRedirect({ to, tab }) {
   const location = useLocation();
   const nextSearchParams = new URLSearchParams(location.search);
@@ -281,6 +297,30 @@ function TabRedirect({ to, tab }) {
   return (
     <Navigate
       to={`${to}${search ? `?${search}` : ''}${location.hash}`}
+      state={location.state}
+      replace
+    />
+  );
+}
+
+// Channel alerts are now operational signals inside the duty station rather
+// than a second acknowledgement surface. Preserve old bookmarks and filters,
+// but scope the destination to channel incidents explicitly.
+function DutyAlertsRedirect() {
+  const location = useLocation();
+  const nextSearchParams = new URLSearchParams(location.search);
+  const legacyStatus = (nextSearchParams.get('status') || '')
+    .trim()
+    .toLowerCase();
+  nextSearchParams.delete('tab');
+  nextSearchParams.set(
+    'view',
+    legacyStatus === 'resolved' ? 'resolved' : 'incidents'
+  );
+  nextSearchParams.set('domain', 'channels');
+  return (
+    <Navigate
+      to={`/admin/dashboard?${nextSearchParams.toString()}${location.hash}`}
       state={location.state}
       replace
     />
@@ -346,34 +386,31 @@ function App() {
   const walletDisconnectTimerRef = useRef(null);
   const walletSessionRecoveryRef = useRef(null);
 
-  const clearWalletSession = useCallback(
-    async () => {
-      window.clearTimeout(walletDisconnectTimerRef.current);
-      walletDisconnectTimerRef.current = null;
-      try {
-        await API.get('/api/v1/public/user/logout', {
-          skipErrorHandler: true,
-        });
-      } catch (error) {
-        // The local session must still be cleared if the server logout fails.
-      }
-      try {
-        await logoutWallet();
-      } catch (error) {
-        // Ignore wallet SDK logout errors while clearing a stale session.
-      }
-      userDispatch({ type: 'logout' });
-      statusDispatch({ type: 'unset' });
-      localStorage.removeItem('user');
-      localStorage.removeItem(WEB3_TOKEN_STORAGE_KEY);
-      localStorage.removeItem('wallet_token_expires_at');
-      localStorage.removeItem('status');
-      if (location.pathname !== '/login') {
-        navigate(buildLoginPath(location), { replace: true });
-      }
-    },
-    [location, navigate, statusDispatch, userDispatch],
-  );
+  const clearWalletSession = useCallback(async () => {
+    window.clearTimeout(walletDisconnectTimerRef.current);
+    walletDisconnectTimerRef.current = null;
+    try {
+      await API.get('/api/v1/public/user/logout', {
+        skipErrorHandler: true,
+      });
+    } catch (error) {
+      // The local session must still be cleared if the server logout fails.
+    }
+    try {
+      await logoutWallet();
+    } catch (error) {
+      // Ignore wallet SDK logout errors while clearing a stale session.
+    }
+    userDispatch({ type: 'logout' });
+    statusDispatch({ type: 'unset' });
+    localStorage.removeItem('user');
+    localStorage.removeItem(WEB3_TOKEN_STORAGE_KEY);
+    localStorage.removeItem('wallet_token_expires_at');
+    localStorage.removeItem('status');
+    if (location.pathname !== '/login') {
+      navigate(buildLoginPath(location), { replace: true });
+    }
+  }, [location, navigate, statusDispatch, userDispatch]);
 
   const isWalletSessionActive = useCallback(() => {
     return Boolean(localStorage.getItem(WEB3_TOKEN_STORAGE_KEY));
@@ -382,7 +419,9 @@ function App() {
   const getCurrentUserWalletAddress = useCallback(() => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      return String(user?.wallet_address || '').trim().toLowerCase();
+      return String(user?.wallet_address || '')
+        .trim()
+        .toLowerCase();
     } catch (error) {
       return '';
     }
@@ -454,12 +493,17 @@ function App() {
         return;
       }
       const currentWalletAddress = getCurrentUserWalletAddress();
-      const nextWalletAddress = String(accounts?.[0] || '').trim().toLowerCase();
+      const nextWalletAddress = String(accounts?.[0] || '')
+        .trim()
+        .toLowerCase();
       if (nextWalletAddress === '') {
         handleWalletDisconnected();
         return;
       }
-      if (currentWalletAddress === '' || currentWalletAddress !== nextWalletAddress) {
+      if (
+        currentWalletAddress === '' ||
+        currentWalletAddress !== nextWalletAddress
+      ) {
         clearWalletSession().then();
       }
     },
@@ -468,7 +512,7 @@ function App() {
       getCurrentUserWalletAddress,
       handleWalletDisconnected,
       isWalletSessionActive,
-    ],
+    ]
   );
 
   useWalletProviderStatus({
@@ -507,7 +551,7 @@ function App() {
           APP_VERSION !== ''
         ) {
           showNotice(
-            i18n.t('common.new_version_notice', { version: data.version }),
+            i18n.t('common.new_version_notice', { version: data.version })
           );
         }
       } else {
@@ -558,10 +602,7 @@ function App() {
       return undefined;
     }
     const recover = () => {
-      if (
-        document.visibilityState &&
-        document.visibilityState !== 'visible'
-      ) {
+      if (document.visibilityState && document.visibilityState !== 'visible') {
         return;
       }
       recoverWalletSession().then();
@@ -638,7 +679,10 @@ function App() {
           </PrivateRoute>
         }
       >
-        <Route path='/workspace/entry' element={<UserWorkspaceEntryRedirect />} />
+        <Route
+          path='/workspace/entry'
+          element={<UserWorkspaceEntryRedirect />}
+        />
         <Route
           path='/workspace/start'
           element={
@@ -664,7 +708,7 @@ function App() {
           }
         />
         <Route
-          path='/workspace/personal-routing'
+          path='/workspace/channels'
           element={
             <Suspense fallback={<Loading />}>
               <PersonalRouting />
@@ -672,12 +716,12 @@ function App() {
           }
         />
         <Route
+          path='/workspace/personal-routing'
+          element={<TabRedirect to='/workspace/channels' tab='channels' />}
+        />
+        <Route
           path='/workspace/publisher'
-          element={
-            <Suspense fallback={<Loading />}>
-              <PublisherWorkspace />
-            </Suspense>
-          }
+          element={<TabRedirect to='/workspace/channels' tab='supply' />}
         />
         <Route
           path='/workspace/community-services'
@@ -833,10 +877,7 @@ function App() {
             </Suspense>
           }
         />
-        <Route
-          path='/workspace/setting'
-          element={<WorkspaceSetting />}
-        />
+        <Route path='/workspace/setting' element={<WorkspaceSetting />} />
       </Route>
 
       <Route
@@ -848,54 +889,29 @@ function App() {
           </PrivateRoute>
         }
       >
-        <Route
-          path='/admin/channel'
-          element={<ChannelLayout />}
-        />
+        <Route path='/admin/channel' element={<ChannelLayout />} />
         <Route
           path='/admin/channel/tasks'
-          element={<TabRedirect to='/admin/channel' tab='tasks' />}
+          element={<TabRedirect to='/admin/channel' />}
         />
         <Route
           path='/admin/channel/tasks/:id'
-          element={<AdminChannelTaskDetailPage />}
+          element={<TabRedirect to='/admin/channel' tab='health' />}
         />
         <Route
           path='/admin/channel/edit/:id'
           element={<ChannelEditRedirect />}
         />
-        <Route
-          path='/admin/channel/detail/:id'
-          element={<EditChannel />}
-        />
-        <Route
-          path='/admin/channel/add'
-          element={<AddChannel />}
-        />
-        <Route
-          path='/admin/provider'
-          element={<Providers />}
-        />
+        <Route path='/admin/channel/detail/:id' element={<EditChannel />} />
+        <Route path='/admin/channel/add' element={<AddChannel />} />
+        <Route path='/admin/provider' element={<Providers />} />
         <Route
           path='/admin/publisher'
-          element={
-            <Suspense fallback={<Loading />}>
-              <PublisherOperations />
-            </Suspense>
-          }
+          element={<TabRedirect to='/admin/channel' tab='supply' />}
         />
-        <Route
-          path='/admin/group'
-          element={<Group />}
-        />
-        <Route
-          path='/admin/group/detail/:id'
-          element={<Group />}
-        />
-        <Route
-          path='/admin/entitlement'
-          element={<EntitlementLayout />}
-        />
+        <Route path='/admin/group' element={<Group />} />
+        <Route path='/admin/group/detail/:id' element={<Group />} />
+        <Route path='/admin/entitlement' element={<EntitlementLayout />} />
         <Route
           path='/admin/entitlement/package/detail/:id'
           element={<PackageDetail />}
@@ -928,80 +944,32 @@ function App() {
           path='/admin/user/detail/:id/payment/:paymentId'
           element={<PaymentRecordDetail />}
         />
-        <Route
-          path='/admin/redemption'
-          element={<RedemptionLayout />}
-        />
+        <Route path='/admin/redemption' element={<RedemptionLayout />} />
         <Route
           path='/admin/redemption/edit/:id'
           element={<RedemptionEditRedirect />}
         />
-        <Route
-          path='/admin/redemption/:id'
-          element={<RedemptionDetail />}
-        />
-        <Route
-          path='/admin/redemption/add'
-          element={<EditRedemption />}
-        />
-        <Route
-          path='/admin/user'
-          element={<UserPageLayout />}
-        />
-        <Route
-          path='/admin/user/detail/:id'
-          element={<UserDetail />}
-        />
-        <Route
-          path='/admin/user/edit'
-          element={<UserEditRedirect />}
-        />
-        <Route
-          path='/admin/user/edit/:id'
-          element={<UserEditRedirect />}
-        />
-        <Route
-          path='/admin/user/add'
-          element={<AddUser />}
-        />
-        <Route
-          path='/admin/dashboard'
-          element={<DashboardSectionRedirect />}
-        />
-        <Route
-          path='/admin/alerts'
-          element={<TabRedirect to='/admin/channel' tab='alerts' />}
-        />
+        <Route path='/admin/redemption/:id' element={<RedemptionDetail />} />
+        <Route path='/admin/redemption/add' element={<EditRedemption />} />
+        <Route path='/admin/user' element={<UserPageLayout />} />
+        <Route path='/admin/user/detail/:id' element={<UserDetail />} />
+        <Route path='/admin/user/edit' element={<UserEditRedirect />} />
+        <Route path='/admin/user/edit/:id' element={<UserEditRedirect />} />
+        <Route path='/admin/user/add' element={<AddUser />} />
+        <Route path='/admin/dashboard' element={<DashboardSectionRedirect />} />
+        <Route path='/admin/alerts' element={<DutyAlertsRedirect />} />
         <Route path='/admin/finance' element={<FinanceLayout />} />
         <Route path='/admin/finance/*' element={<FinanceTabRedirect />} />
-        <Route
-          path='/admin/token'
-          element={<AdminTokens />}
-        />
-        <Route
-          path='/admin/token/:id'
-          element={<EditToken admin />}
-        />
-        <Route
-          path='/admin/log'
-          element={<Log />}
-        />
-        <Route
-          path='/admin/log/:id'
-          element={<LogDetail />}
-        />
+        <Route path='/admin/token' element={<AdminTokens />} />
+        <Route path='/admin/token/:id' element={<EditToken admin />} />
+        <Route path='/admin/log' element={<Log />} />
+        <Route path='/admin/log/:id' element={<LogDetail />} />
         <Route
           path='/admin/task'
           element={<TabRedirect to='/admin/user' tab='tasks' />}
         />
-        <Route
-          path='/admin/task/:id'
-          element={<AdminUserTaskDetailPage />}
-        />
-        <Route
-          path='/admin/setting'
-          element={<AdminSetting />}
-        />
+        <Route path='/admin/task/:id' element={<AdminUserTaskDetailPage />} />
+        <Route path='/admin/setting' element={<AdminSetting />} />
       </Route>
 
       <Route

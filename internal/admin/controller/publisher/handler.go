@@ -90,6 +90,36 @@ func CreateService(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": row})
 }
 
+func CreateServiceFromPersonalConnection(c *gin.Context) {
+	userID := c.GetString(ctxkey.Id)
+	connection, err := model.GetPersonalProviderConnection(userID, c.Param("connection_id"))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	input := model.PublisherServiceInput{}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "请求格式无效"})
+		return
+	}
+	input.SourcePersonalConnectionId = connection.Id
+	if strings.TrimSpace(input.Name) == "" {
+		input.Name = connection.Name
+	}
+	if strings.TrimSpace(input.Protocol) == "" {
+		input.Protocol = connection.Protocol
+	}
+	if strings.TrimSpace(input.BaseURL) == "" {
+		input.BaseURL = connection.BaseURL
+	}
+	row, err := model.CreatePublisherService(userID, input)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": row})
+}
+
 func UpdateService(c *gin.Context) {
 	input := model.PublisherServiceInput{}
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -166,6 +196,19 @@ func ListSettlements(c *gin.Context) {
 	rows, err := model.ListPublisherOfferSettlements(c.GetString(ctxkey.Id), limit)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": []model.PublisherOfferSettlement{}})
+		return
+	}
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": rows})
+}
+
+func ListGroupAssignments(c *gin.Context) {
+	rows, err := model.ListPublisherGroupAssignments(c.GetString(ctxkey.Id))
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": []model.PublisherGroupAssignment{}})
 		return
 	}
 	if err != nil {

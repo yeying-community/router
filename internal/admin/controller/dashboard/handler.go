@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	channelDashboardListLimit = 12
+	channelDashboardListLimit = 200
 	taskRecentLimit           = 8
 	modelTopLimit             = 12
 	sectionAll                = "all"
@@ -28,6 +28,8 @@ const (
 	periodToday               = "today"
 	periodLast7Days           = "last_7_days"
 	periodLast30Days          = "last_30_days"
+	periodLastHour            = "last_hour"
+	periodLast24Hours         = "last_24_hours"
 	periodThisMonth           = "this_month"
 	periodLastMonth           = "last_month"
 	periodThisYear            = "this_year"
@@ -79,30 +81,59 @@ type trendPoint struct {
 }
 
 type channelHealthItem struct {
-	ID                 string                              `json:"id"`
-	Name               string                              `json:"name"`
-	Protocol           string                              `json:"protocol"`
-	Status             int                                 `json:"status"`
-	Capabilities       []string                            `json:"capabilities"`
-	UsedQuota          int64                               `json:"used_quota"`
-	UsedAmount         int64                               `json:"used_amount"`
-	Priority           int64                               `json:"priority"`
-	SelectedModelCount int                                 `json:"selected_model_count"`
-	TestedModelCount   int                                 `json:"tested_model_count"`
-	TestedEndpointCnt  int                                 `json:"tested_endpoint_count"`
-	SupportedCount     int                                 `json:"supported_count"`
-	UnsupportedCount   int                                 `json:"unsupported_count"`
-	PassRate           float64                             `json:"pass_rate"`
-	CoverageRate       float64                             `json:"coverage_rate"`
-	AvgLatencyMs       int64                               `json:"avg_latency_ms"`
-	LastTestedAt       int64                               `json:"last_tested_at"`
-	HasTestData        bool                                `json:"has_test_data"`
-	HealthScore        int                                 `json:"health_score"`
-	HealthLevel        string                              `json:"health_level"`
-	CircuitBreaker     *channelCircuitBreakerDashboardItem `json:"circuit_breaker,omitempty"`
-	RecentRequestCount int64                               `json:"recent_request_count"`
-	HealthPoints       []channelHealthPoint                `json:"health_points"`
-	BillingLevel       string                              `json:"billing_level,omitempty"`
+	ID                       string                              `json:"id"`
+	Name                     string                              `json:"name"`
+	OperatorType             string                              `json:"operator_type"`
+	OwnershipType            string                              `json:"ownership_type"`
+	ChannelPurpose           string                              `json:"channel_purpose"`
+	AccessScope              string                              `json:"access_scope"`
+	SourceKind               string                              `json:"source_kind"`
+	OwnerID                  string                              `json:"owner_id,omitempty"`
+	OwnerName                string                              `json:"owner_name,omitempty"`
+	Visibility               string                              `json:"visibility"`
+	Models                   []string                            `json:"models,omitempty"`
+	GroupNames               []string                            `json:"group_names,omitempty"`
+	Protocol                 string                              `json:"protocol"`
+	Status                   int                                 `json:"status"`
+	Capabilities             []string                            `json:"capabilities"`
+	UsedQuota                int64                               `json:"used_quota"`
+	UsedAmount               int64                               `json:"used_amount"`
+	Priority                 int64                               `json:"priority"`
+	SelectedModelCount       int                                 `json:"selected_model_count"`
+	TestedModelCount         int                                 `json:"tested_model_count"`
+	TestedEndpointCnt        int                                 `json:"tested_endpoint_count"`
+	SupportedCount           int                                 `json:"supported_count"`
+	UnsupportedCount         int                                 `json:"unsupported_count"`
+	PassRate                 float64                             `json:"pass_rate"`
+	SuccessCount             int64                               `json:"success_count"`
+	FailureCount             int64                               `json:"failure_count"`
+	SuccessRate              float64                             `json:"success_rate"`
+	HasRuntimeData           bool                                `json:"has_runtime_data"`
+	LastObservedAt           int64                               `json:"last_observed_at"`
+	PromptTokens             int64                               `json:"prompt_tokens"`
+	OutputTokens             int64                               `json:"output_tokens"`
+	TotalTokens              int64                               `json:"total_tokens"`
+	CoverageRate             float64                             `json:"coverage_rate"`
+	AvgLatencyMs             int64                               `json:"avg_latency_ms"`
+	VerificationPassRate     float64                             `json:"verification_pass_rate"`
+	VerificationAvgLatencyMs int64                               `json:"verification_avg_latency_ms"`
+	VerificationStatus       string                              `json:"verification_status"`
+	VerificationError        string                              `json:"verification_error,omitempty"`
+	LastTestedAt             int64                               `json:"last_tested_at"`
+	HasTestData              bool                                `json:"has_test_data"`
+	HealthScore              int                                 `json:"health_score"`
+	HealthLevel              string                              `json:"health_level"`
+	CircuitBreaker           *channelCircuitBreakerDashboardItem `json:"circuit_breaker,omitempty"`
+	RecentRequestCount       int64                               `json:"recent_request_count"`
+	HealthPoints             []channelHealthPoint                `json:"health_points"`
+	BillingLevel             string                              `json:"billing_level,omitempty"`
+	QuotaAvailable           bool                                `json:"quota_available"`
+	CostAvailable            bool                                `json:"cost_available"`
+	EarningsAvailable        bool                                `json:"earnings_available"`
+	EarningsMicros           int64                               `json:"earnings_micros,omitempty"`
+	SupplyStatus             string                              `json:"supply_status,omitempty"`
+	OfferCount               int                                 `json:"offer_count,omitempty"`
+	PublishedOfferCount      int                                 `json:"published_offer_count,omitempty"`
 }
 
 type channelHealthSummaryData struct {
@@ -268,7 +299,9 @@ func normalizeSection(raw string) string {
 
 func normalizePeriod(raw string) string {
 	switch strings.TrimSpace(strings.ToLower(raw)) {
-	case periodToday,
+	case periodLastHour,
+		periodLast24Hours,
+		periodToday,
 		periodLast7Days,
 		periodLast30Days,
 		periodThisMonth,
@@ -289,6 +322,10 @@ func periodRange(period string, now time.Time) (start time.Time, end time.Time) 
 	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
 	switch period {
+	case periodLastHour:
+		return now.Add(-time.Hour), now
+	case periodLast24Hours:
+		return now.Add(-24 * time.Hour), now
 	case periodToday:
 		return startOfDay, endOfDay
 	case periodLast7Days:
@@ -316,7 +353,7 @@ func periodRange(period string, now time.Time) (start time.Time, end time.Time) 
 
 func periodGranularity(period string) string {
 	switch period {
-	case periodToday:
+	case periodLastHour, periodLast24Hours, periodToday:
 		return granularityHour
 	case periodLast7Days, periodLast30Days, periodThisMonth, periodLastMonth:
 		return granularityDay
@@ -715,6 +752,49 @@ func calcChannelHealth(channel *model.Channel, nowTs int64) channelHealthMetrics
 	return metrics
 }
 
+func runtimeChannelHealth(status int, runtime model.ChannelRuntimeMetrics, circuitBreaker *channelCircuitBreakerDashboardItem) (int, string) {
+	if runtime.RequestCount <= 0 {
+		if status == model.ChannelStatusEnabled || status == model.ChannelStatusCreating {
+			return 0, channelHealthLevelUnknown
+		}
+		return 30, channelHealthLevelCritical
+	}
+	score := runtime.SuccessRate * 80
+	switch {
+	case runtime.AvgLatencyMs <= 0:
+		score -= 5
+	case runtime.AvgLatencyMs >= 30000:
+		score += 0
+	case runtime.AvgLatencyMs >= 15000:
+		score += 5
+	case runtime.AvgLatencyMs >= 8000:
+		score += 10
+	case runtime.AvgLatencyMs >= 3000:
+		score += 15
+	default:
+		score += 20
+	}
+	if status != model.ChannelStatusEnabled {
+		score -= 25
+	}
+	if isActiveDashboardCircuitBreaker(circuitBreaker) {
+		score = math.Min(score, 40)
+	}
+	score = math.Max(0, math.Min(100, score))
+	normalized := int(math.Round(score))
+	return normalized, channelHealthLevelByScore(normalized)
+}
+
+func verificationStatus(hasData bool, ok bool) string {
+	if !hasData {
+		return "unverified"
+	}
+	if ok {
+		return "verified"
+	}
+	return "failed"
+}
+
 func collectCapabilities(channel *model.Channel) []string {
 	if channel == nil {
 		return []string{}
@@ -832,14 +912,22 @@ func isActiveDashboardCircuitBreaker(circuitBreaker *channelCircuitBreakerDashbo
 }
 
 func dashboardChannelNeedsRetest(item channelHealthItem) bool {
+	sourceKind := strings.TrimSpace(item.SourceKind)
+	if sourceKind != "" && sourceKind != "managed" {
+		return item.VerificationStatus != "verified"
+	}
+	verificationPassRate := item.VerificationPassRate
+	if verificationPassRate == 0 && item.PassRate > 0 {
+		verificationPassRate = item.PassRate
+	}
 	return item.SelectedModelCount > 0 &&
-		(!item.HasTestData || item.CoverageRate < 1 || item.PassRate < 1)
+		(!item.HasTestData || item.CoverageRate < 1 || verificationPassRate < 1)
 }
 
 func dashboardChannelRisky(item channelHealthItem) bool {
 	return item.HealthLevel == channelHealthLevelCritical ||
 		isActiveDashboardCircuitBreaker(item.CircuitBreaker) ||
-		(item.HasTestData && item.PassRate < 0.8)
+		(item.HasRuntimeData && item.SuccessRate < 0.8)
 }
 
 func summarizeChannelHealthItems(items []channelHealthItem) channelHealthSummaryData {
@@ -857,7 +945,11 @@ func summarizeChannelHealthItems(items []channelHealthItem) channelHealthSummary
 		testedModelTotal += int64(item.TestedModelCount)
 		if item.HasTestData {
 			summary.WithTests++
-			passRateTotal += item.PassRate
+			verificationPassRate := item.VerificationPassRate
+			if verificationPassRate == 0 && strings.TrimSpace(item.SourceKind) == "" && item.PassRate > 0 {
+				verificationPassRate = item.PassRate
+			}
+			passRateTotal += verificationPassRate
 		} else {
 			summary.WithoutTests++
 		}
@@ -909,7 +1001,168 @@ func channelHealthLevelSortRank(level string) int {
 	}
 }
 
-func listDashboardChannelsWithLimit(limit int) ([]channelHealthItem, channelHealthSummaryData, error) {
+func selectedChannelModelNames(channel *model.Channel) []string {
+	if channel == nil {
+		return []string{}
+	}
+	models := make([]string, 0)
+	seen := make(map[string]struct{})
+	for _, row := range channel.GetChannelModels() {
+		name := strings.TrimSpace(row.Model)
+		if name == "" || !model.IsChannelModelPublished(row) {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		models = append(models, name)
+	}
+	sort.Strings(models)
+	return models
+}
+
+func loadChannelOwnerNames(userIDs []string) (map[string]string, error) {
+	result := make(map[string]string)
+	ids := make([]string, 0, len(userIDs))
+	seen := make(map[string]struct{}, len(userIDs))
+	for _, id := range userIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return result, nil
+	}
+	users := make([]model.User, 0)
+	if err := model.DB.Select("id", "username", "display_name").Where("id IN ?", ids).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	for _, user := range users {
+		name := strings.TrimSpace(user.DisplayName)
+		if name == "" {
+			name = strings.TrimSpace(user.Username)
+		}
+		result[user.Id] = name
+	}
+	return result, nil
+}
+
+func channelClassification(sourceKind string) (operatorType string, ownershipType string, purpose string) {
+	switch strings.TrimSpace(sourceKind) {
+	case "managed":
+		return "platform", "platform", "platform_service"
+	case "personal":
+		return "independent", "third_party", "self_use"
+	case "published_supply":
+		return "independent", "third_party", "supply"
+	default:
+		return "", "", ""
+	}
+}
+
+func supplyChannelAccessScope(offers []model.AdminSupplyOfferView) string {
+	scopes := make(map[string]struct{})
+	for _, offer := range offers {
+		if scope := strings.TrimSpace(offer.OfferScope); scope != "" {
+			scopes[scope] = struct{}{}
+		}
+	}
+	if len(scopes) == 0 {
+		return "unpublished"
+	}
+	if len(scopes) > 1 {
+		return "mixed"
+	}
+	for scope := range scopes {
+		return scope
+	}
+	return "unpublished"
+}
+
+func supplyChannelStatus(offers []model.AdminSupplyOfferView) string {
+	if len(offers) == 0 {
+		return "no_offer"
+	}
+	statusRank := map[string]int{
+		model.ServiceOfferStatusPublished: 0,
+		model.ServiceOfferStatusReviewing: 1,
+		model.ServiceOfferStatusSuspended: 2,
+		model.ServiceOfferStatusRejected:  3,
+		model.ServiceOfferStatusDraft:     4,
+		model.ServiceOfferStatusOffline:   5,
+	}
+	selected := strings.TrimSpace(offers[0].OfferStatus)
+	selectedRank, ok := statusRank[selected]
+	if !ok {
+		selectedRank = len(statusRank) + 1
+	}
+	for _, offer := range offers[1:] {
+		status := strings.TrimSpace(offer.OfferStatus)
+		rank, exists := statusRank[status]
+		if !exists {
+			rank = len(statusRank) + 1
+		}
+		if rank < selectedRank {
+			selected, selectedRank = status, rank
+		}
+	}
+	return selected
+}
+
+func supplyChannelOfferSummary(row model.AdminSupplyChannelView, groupNamesByOffer map[string][]string, earningsByOffer map[string]int64) (offerIDs []string, groupNames []string, earnings int64, publishedCount int, eligible bool) {
+	groupSet := make(map[string]struct{})
+	for _, offer := range row.Offers {
+		offerID := strings.TrimSpace(offer.OfferId)
+		if offerID == "" {
+			continue
+		}
+		offerIDs = append(offerIDs, offerID)
+		earnings += earningsByOffer[offerID]
+		for _, groupName := range groupNamesByOffer[offerID] {
+			if name := strings.TrimSpace(groupName); name != "" {
+				groupSet[name] = struct{}{}
+			}
+		}
+		if offer.OfferStatus == model.ServiceOfferStatusPublished {
+			publishedCount++
+			if offer.OfferScope == model.ServiceOfferScopePublic {
+				eligible = true
+			}
+		}
+	}
+	for groupName := range groupSet {
+		groupNames = append(groupNames, groupName)
+	}
+	sort.Strings(groupNames)
+	eligible = eligible && row.PublisherStatus == model.PublisherStatusActive &&
+		row.ServiceStatus == model.PublisherServiceStatusReady && row.LastCheckOK
+	return offerIDs, groupNames, earnings, publishedCount, eligible
+}
+
+func supplyChannelRuntimeStatus(row model.AdminSupplyChannelView, eligible bool) int {
+	if eligible {
+		return model.ChannelStatusEnabled
+	}
+	switch row.ServiceStatus {
+	case model.PublisherServiceStatusSuspended, model.PublisherServiceStatusOffline:
+		return model.ChannelStatusManuallyDisabled
+	}
+	switch row.PublisherStatus {
+	case model.PublisherStatusRestricted, model.PublisherStatusSuspended, model.PublisherStatusClosed:
+		return model.ChannelStatusManuallyDisabled
+	default:
+		return model.ChannelStatusCreating
+	}
+}
+
+func listDashboardChannelsForWindow(limit int, window model.ChannelMetricWindow) ([]channelHealthItem, channelHealthSummaryData, error) {
 	rows := make([]*model.Channel, 0)
 	err := model.DB.Model(&model.Channel{}).
 		Order("used_quota desc, created_time desc").
@@ -951,12 +1204,53 @@ func listDashboardChannelsWithLimit(limit int) ([]channelHealthItem, channelHeal
 			billingLevelByChannelID[strings.TrimSpace(snapshot.ChannelId)] = level
 		}
 	}
-	nowTs := helper.GetTimestamp()
-	healthBucketsByChannelID, err := loadDashboardChannelHealthBuckets(channelIDs, healthtrend.WindowStart(nowTs))
+	personalRows, err := model.ListPersonalProviderConnectionsForAdmin()
 	if err != nil {
 		return nil, channelHealthSummaryData{}, err
 	}
-	items := make([]channelHealthItem, 0, len(rows))
+	personalIDs := make([]string, 0, len(personalRows))
+	ownerIDs := make([]string, 0, len(personalRows))
+	for i := range personalRows {
+		personalIDs = append(personalIDs, personalRows[i].Id)
+		ownerIDs = append(ownerIDs, personalRows[i].UserId)
+	}
+	supplyRows, err := model.ListSupplyChannelViewsForAdmin(500)
+	if err != nil {
+		return nil, channelHealthSummaryData{}, err
+	}
+	offerIDs := make([]string, 0, len(supplyRows))
+	for _, row := range supplyRows {
+		ownerIDs = append(ownerIDs, row.PublisherUserId)
+		for _, offer := range row.Offers {
+			offerID := strings.TrimSpace(offer.OfferId)
+			if offerID == "" {
+				continue
+			}
+			offerIDs = append(offerIDs, offerID)
+			channelIDs = append(channelIDs, model.CommunityOfferChannelPrefix+offerID)
+		}
+	}
+	ownerNames, err := loadChannelOwnerNames(ownerIDs)
+	if err != nil {
+		return nil, channelHealthSummaryData{}, err
+	}
+	runtimeByChannelID, err := model.LoadChannelRuntimeMetrics(model.ChannelRuntimeMetricQuery{
+		Window: window, ChannelIDs: channelIDs, PersonalProviderIDs: personalIDs,
+	})
+	if err != nil {
+		return nil, channelHealthSummaryData{}, err
+	}
+	groupNamesByOffer, err := model.ListGroupNamesByOfferIDs(offerIDs)
+	if err != nil {
+		return nil, channelHealthSummaryData{}, err
+	}
+	earningsByOffer, err := model.SumPublisherEarningsByOfferIDs(offerIDs, window.StartAt, window.EndAt)
+	if err != nil {
+		return nil, channelHealthSummaryData{}, err
+	}
+
+	nowTs := helper.GetTimestamp()
+	items := make([]channelHealthItem, 0, len(rows)+len(personalRows)+len(supplyRows))
 	for _, row := range rows {
 		if row == nil {
 			continue
@@ -968,33 +1262,124 @@ func listDashboardChannelsWithLimit(limit int) ([]channelHealthItem, channelHeal
 		if circuitRow, ok := circuitByChannelID[channelID]; ok {
 			circuitBreaker = buildChannelCircuitBreakerDashboardItem(circuitRow)
 		}
-		healthPoints := healthtrend.BuildPoints(nowTs, healthBucketsByChannelID[channelID])
-		recentTraffic := healthtrend.Summarize(healthPoints)
+		runtime := runtimeByChannelID[channelID]
+		healthScore, healthLevel := runtimeChannelHealth(row.Status, runtime, circuitBreaker)
+		operatorType, ownershipType, channelPurpose := channelClassification("managed")
 		items = append(items, channelHealthItem{
-			ID:                 channelID,
-			Name:               strings.TrimSpace(row.Name),
-			Protocol:           strings.TrimSpace(row.Protocol),
-			Status:             row.Status,
-			Capabilities:       collectCapabilities(row),
-			UsedQuota:          row.UsedQuota,
-			UsedAmount:         row.UsedQuota,
-			Priority:           row.GetPriority(),
-			SelectedModelCount: health.SelectedModelCount,
-			TestedModelCount:   health.TestedModelCount,
-			TestedEndpointCnt:  health.TestedEndpointCnt,
-			SupportedCount:     health.SupportedCount,
-			UnsupportedCount:   health.UnsupportedCount,
-			PassRate:           health.PassRate,
-			CoverageRate:       health.CoverageRate,
-			AvgLatencyMs:       health.AvgLatencyMs,
-			LastTestedAt:       health.LastTestedAt,
-			HasTestData:        health.HasTestData,
-			HealthScore:        health.HealthScore,
-			HealthLevel:        health.HealthLevel,
-			CircuitBreaker:     circuitBreaker,
-			RecentRequestCount: recentTraffic.TotalCount,
-			HealthPoints:       healthPoints,
-			BillingLevel:       billingLevelByChannelID[channelID],
+			ID:                       channelID,
+			Name:                     strings.TrimSpace(row.Name),
+			OperatorType:             operatorType,
+			OwnershipType:            ownershipType,
+			ChannelPurpose:           channelPurpose,
+			AccessScope:              "platform",
+			SourceKind:               "managed",
+			Visibility:               "managed",
+			Models:                   selectedChannelModelNames(row),
+			Protocol:                 strings.TrimSpace(row.Protocol),
+			Status:                   row.Status,
+			Capabilities:             collectCapabilities(row),
+			UsedQuota:                row.UsedQuota,
+			UsedAmount:               row.UsedQuota,
+			Priority:                 row.GetPriority(),
+			SelectedModelCount:       health.SelectedModelCount,
+			TestedModelCount:         health.TestedModelCount,
+			TestedEndpointCnt:        health.TestedEndpointCnt,
+			SupportedCount:           health.SupportedCount,
+			UnsupportedCount:         health.UnsupportedCount,
+			PassRate:                 runtime.SuccessRate,
+			SuccessCount:             runtime.SuccessCount,
+			FailureCount:             runtime.FailureCount,
+			SuccessRate:              runtime.SuccessRate,
+			HasRuntimeData:           runtime.RequestCount > 0,
+			LastObservedAt:           runtime.LastObservedAt,
+			PromptTokens:             runtime.PromptTokens,
+			OutputTokens:             runtime.OutputTokens,
+			TotalTokens:              runtime.TotalTokens,
+			CoverageRate:             health.CoverageRate,
+			AvgLatencyMs:             runtime.AvgLatencyMs,
+			VerificationPassRate:     health.PassRate,
+			VerificationAvgLatencyMs: health.AvgLatencyMs,
+			VerificationStatus:       verificationStatus(health.HasTestData, health.HasTestData && health.PassRate >= 1),
+			LastTestedAt:             health.LastTestedAt,
+			HasTestData:              health.HasTestData,
+			HealthScore:              healthScore,
+			HealthLevel:              healthLevel,
+			CircuitBreaker:           circuitBreaker,
+			RecentRequestCount:       runtime.RequestCount,
+			HealthPoints:             runtime.Points,
+			BillingLevel:             billingLevelByChannelID[channelID],
+			QuotaAvailable:           true,
+			CostAvailable:            true,
+		})
+	}
+	for i := range personalRows {
+		row := personalRows[i]
+		channelID := model.PersonalProviderChannelPrefix + row.Id
+		runtime := runtimeByChannelID[channelID]
+		status := model.ChannelStatusManuallyDisabled
+		if row.Status == model.PersonalProviderStatusEnabled {
+			status = model.ChannelStatusEnabled
+		}
+		healthScore, healthLevel := runtimeChannelHealth(status, runtime, nil)
+		operatorType, ownershipType, channelPurpose := channelClassification("personal")
+		items = append(items, channelHealthItem{
+			ID: channelID, Name: row.Name, OperatorType: operatorType, OwnershipType: ownershipType, ChannelPurpose: channelPurpose, AccessScope: "private",
+			SourceKind: "personal", OwnerID: row.UserId,
+			OwnerName: ownerNames[row.UserId], Visibility: "private", Models: row.Models,
+			Protocol: row.Protocol, Status: status, Capabilities: []string{"text"}, Priority: row.Priority,
+			SelectedModelCount: len(row.Models), PassRate: runtime.SuccessRate,
+			SuccessCount: runtime.SuccessCount, FailureCount: runtime.FailureCount,
+			SuccessRate: runtime.SuccessRate, HasRuntimeData: runtime.RequestCount > 0,
+			LastObservedAt: runtime.LastObservedAt, PromptTokens: runtime.PromptTokens,
+			OutputTokens: runtime.OutputTokens, TotalTokens: runtime.TotalTokens,
+			AvgLatencyMs: runtime.AvgLatencyMs, LastTestedAt: row.LastCheckedAt,
+			HasTestData: row.LastCheckedAt > 0,
+			VerificationPassRate: func() float64 {
+				if row.LastCheckedAt > 0 && row.LastCheckOK {
+					return 1
+				}
+				return 0
+			}(),
+			VerificationStatus: verificationStatus(row.LastCheckedAt > 0, row.LastCheckOK),
+			VerificationError:  row.LastCheckError, HealthScore: healthScore, HealthLevel: healthLevel,
+			RecentRequestCount: runtime.RequestCount, HealthPoints: runtime.Points,
+		})
+	}
+	for _, row := range supplyRows {
+		channelID := model.PublisherServiceChannelPrefix + row.ServiceId
+		serviceOfferIDs, groupNames, earnings, publishedCount, eligible := supplyChannelOfferSummary(row, groupNamesByOffer, earningsByOffer)
+		offerMetrics := make([]model.ChannelRuntimeMetrics, 0, len(serviceOfferIDs))
+		for _, offerID := range serviceOfferIDs {
+			offerMetrics = append(offerMetrics, runtimeByChannelID[model.CommunityOfferChannelPrefix+offerID])
+		}
+		runtime := model.MergeChannelRuntimeMetrics(window, offerMetrics...)
+		status := supplyChannelRuntimeStatus(row, eligible)
+		healthScore, healthLevel := runtimeChannelHealth(status, runtime, nil)
+		operatorType, ownershipType, channelPurpose := channelClassification("published_supply")
+		items = append(items, channelHealthItem{
+			ID: channelID, Name: strings.TrimSpace(row.ServiceName), OperatorType: operatorType, OwnershipType: ownershipType, ChannelPurpose: channelPurpose,
+			AccessScope: supplyChannelAccessScope(row.Offers), SourceKind: "published_supply", OwnerID: row.PublisherUserId,
+			OwnerName: row.PublisherDisplayName, Visibility: supplyChannelAccessScope(row.Offers),
+			Models: row.Models, GroupNames: groupNames,
+			Protocol: row.ServiceProtocol, Status: status, Capabilities: []string{"text"},
+			SelectedModelCount: len(row.Models), PassRate: runtime.SuccessRate,
+			SuccessCount: runtime.SuccessCount, FailureCount: runtime.FailureCount,
+			SuccessRate: runtime.SuccessRate, HasRuntimeData: runtime.RequestCount > 0,
+			LastObservedAt: runtime.LastObservedAt, PromptTokens: runtime.PromptTokens,
+			OutputTokens: runtime.OutputTokens, TotalTokens: runtime.TotalTokens,
+			AvgLatencyMs: runtime.AvgLatencyMs, LastTestedAt: row.LastCheckedAt,
+			HasTestData: row.LastCheckedAt > 0,
+			VerificationPassRate: func() float64 {
+				if row.LastCheckedAt > 0 && row.LastCheckOK {
+					return 1
+				}
+				return 0
+			}(),
+			VerificationStatus: verificationStatus(row.LastCheckedAt > 0, row.LastCheckOK),
+			VerificationError:  row.LastCheckError, HealthScore: healthScore, HealthLevel: healthLevel,
+			RecentRequestCount: runtime.RequestCount, HealthPoints: runtime.Points,
+			EarningsAvailable: true, EarningsMicros: earnings, SupplyStatus: supplyChannelStatus(row.Offers),
+			OfferCount: row.OfferCount, PublishedOfferCount: publishedCount,
 		})
 	}
 	healthSummary := summarizeChannelHealthItems(items)
@@ -1029,6 +1414,11 @@ func listDashboardChannelsWithLimit(limit int) ([]channelHealthItem, channelHeal
 		items = items[:limit]
 	}
 	return items, healthSummary, nil
+}
+
+func listDashboardChannelsWithLimit(limit int) ([]channelHealthItem, channelHealthSummaryData, error) {
+	window := model.ResolveChannelMetricWindow(model.ChannelMetricPeriodLast24Hours, time.Now())
+	return listDashboardChannelsForWindow(limit, window)
 }
 
 func listDashboardChannels() ([]channelHealthItem, channelHealthSummaryData, error) {
@@ -1876,7 +2266,8 @@ func GetDashboard(c *gin.Context) {
 	}
 
 	if section == sectionAll || section == sectionChannels {
-		topChannels, channelHealthSummary, err := listDashboardChannels()
+		channelWindow := model.NewChannelMetricWindow(period, startAt, endAt)
+		topChannels, channelHealthSummary, err := listDashboardChannelsForWindow(channelDashboardListLimit, channelWindow)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 			return

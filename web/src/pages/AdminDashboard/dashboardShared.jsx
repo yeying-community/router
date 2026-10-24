@@ -58,13 +58,6 @@ export const MODEL_SORT_OPTIONS = [
   'latency',
 ];
 
-export const CHANNEL_SORT_OPTIONS = [
-  'health',
-  'pass_rate',
-  'latency',
-  'requests',
-];
-
 export const EMPTY_SUMMARY = {
   spend_amount: 0,
   topup_amount: 0,

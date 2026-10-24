@@ -388,7 +388,7 @@ func TestValidateChannelModelTestEndpointAgainstProviderPrefersSnapshotProviderM
 	}
 }
 
-func TestCreateChannelModelTestTasks_TargetConfigsAllowSameModelMultipleEndpoints(t *testing.T) {
+func TestResolveChannelModelVerificationTargetsAllowsSameModelMultipleEndpoints(t *testing.T) {
 	previousDB := adminmodel.DB
 	t.Cleanup(func() {
 		adminmodel.DB = previousDB
@@ -457,9 +457,16 @@ func TestCreateChannelModelTestTasks_TargetConfigsAllowSameModelMultipleEndpoint
 		}
 	}
 
-	tasks, createdCount, reusedCount, err := CreateChannelModelTestTasks(
-		"channel-1",
-		"admin",
+	channelRow := &adminmodel.Channel{}
+	if err := db.Where("id = ?", "channel-1").Take(channelRow).Error; err != nil {
+		t.Fatalf("load channel: %v", err)
+	}
+	if err := adminmodel.HydrateChannelWithModels(db, channelRow); err != nil {
+		t.Fatalf("hydrate channel models: %v", err)
+	}
+	targets := resolveChannelModelTestTaskTargets(
+		channelRow,
+		channelModelTestModeSingle,
 		"",
 		[]string{"gpt-5.4"},
 		[]channelModelTestTargetItem{
@@ -472,23 +479,16 @@ func TestCreateChannelModelTestTasks_TargetConfigsAllowSameModelMultipleEndpoint
 				Endpoint: adminmodel.ChannelModelEndpointResponses,
 			},
 		},
-		"trace-1",
-		"",
-		"",
-		"",
 	)
-	if err != nil {
-		t.Fatalf("CreateChannelModelTestTasks returned error: %v", err)
-	}
-	if createdCount != 2 || reusedCount != 0 || len(tasks) != 2 {
-		t.Fatalf("created=%d reused=%d len(tasks)=%d, want 2/0/2", createdCount, reusedCount, len(tasks))
+	if len(targets) != 2 {
+		t.Fatalf("len(targets)=%d, want 2", len(targets))
 	}
 	endpoints := map[string]bool{}
-	for _, task := range tasks {
-		endpoints[task.Endpoint] = true
+	for _, target := range targets {
+		endpoints[target.Row.Endpoint] = true
 	}
 	if !endpoints[adminmodel.ChannelModelEndpointChat] || !endpoints[adminmodel.ChannelModelEndpointResponses] {
-		t.Fatalf("task endpoints=%v, want chat and responses", endpoints)
+		t.Fatalf("verification endpoints=%v, want chat and responses", endpoints)
 	}
 }
 

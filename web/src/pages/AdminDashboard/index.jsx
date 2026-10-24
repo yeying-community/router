@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AppAlert,
   AppButton,
@@ -74,6 +74,23 @@ const EMPTY_DUTY_DASHBOARD = {
   incidents: [],
 };
 
+function toPlainDutyText(value) {
+  const text = String(value || '');
+  if (text === '') return '';
+  return text
+    .replace(/<br\s*\/?\s*>/gi, ' ')
+    .replace(/<\/(p|div|li|h[1-6])\s*>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 const normalizeDutyDashboard = (payload) => ({
   ...EMPTY_DUTY_DASHBOARD,
   ...(payload || {}),
@@ -89,8 +106,33 @@ const normalizeDutyDashboard = (payload) => ({
       ? payload.inspection.findings
       : [],
   },
-  incidents: Array.isArray(payload?.incidents) ? payload.incidents : [],
+  incidents: Array.isArray(payload?.incidents)
+    ? payload.incidents.map((incident) => ({
+        ...incident,
+        title: toPlainDutyText(incident?.title),
+        summary: toPlainDutyText(incident?.summary),
+        signals: Array.isArray(incident?.signals)
+          ? incident.signals.map((signal) => ({
+              ...signal,
+              title: toPlainDutyText(signal?.title),
+              summary: toPlainDutyText(signal?.summary),
+            }))
+          : [],
+        finance_issues: Array.isArray(incident?.finance_issues)
+          ? incident.finance_issues.map((issue) => ({
+              ...issue,
+              title: toPlainDutyText(issue?.title),
+              message: toPlainDutyText(issue?.message),
+            }))
+          : [],
+      }))
+    : [],
 });
+
+const queryChoice = (searchParams, key, allowed, fallback) => {
+  const value = (searchParams.get(key) || '').trim().toLowerCase();
+  return allowed.includes(value) ? value : fallback;
+};
 
 const formatCount = (value) => {
   const count = Number(value || 0);
@@ -142,19 +184,36 @@ const resolveIncidentDomain = (incident) => {
 function AdminDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [windowValue, setWindowValue] = useState('6h');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const windowValue = queryChoice(searchParams, 'window', DUTY_WINDOWS, '6h');
+  const workView = queryChoice(searchParams, 'view', WORK_VIEWS, 'attention');
+  const domainScope = (searchParams.get('domain') || 'all').trim() || 'all';
+  const sortMode = queryChoice(searchParams, 'sort', SORT_MODES, 'priority');
+  const searchQuery = searchParams.get('q') || '';
+  const requestedIncidentID = (searchParams.get('incident') || '').trim();
   const [dashboard, setDashboard] = useState(EMPTY_DUTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [workView, setWorkView] = useState('attention');
-  const [domainScope, setDomainScope] = useState('all');
-  const [sortMode, setSortMode] = useState('priority');
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedItemID, setSelectedItemID] = useState('');
   const [mobileDetail, setMobileDetail] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionNote, setActionNote] = useState('');
+
+  const patchDutyQuery = useCallback(
+    (patch, options = { replace: true }) => {
+      const nextSearchParams = new URLSearchParams(searchParams);
+      Object.entries(patch).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') {
+          nextSearchParams.delete(key);
+          return;
+        }
+        nextSearchParams.set(key, String(value));
+      });
+      setSearchParams(nextSearchParams, options);
+    },
+    [searchParams, setSearchParams]
+  );
 
   const loadDashboard = useCallback(
     async ({ silent = false } = {}) => {
@@ -315,10 +374,23 @@ function AdminDashboard() {
   }, [domainScope, queueItems, searchQuery, sortMode]);
 
   useEffect(() => {
+    const requestedItemID = requestedIncidentID
+      ? `incident:${requestedIncidentID}`
+      : '';
+    if (
+      requestedItemID &&
+      visibleItems.some((item) => item.id === requestedItemID)
+    ) {
+      if (selectedItemID !== requestedItemID) {
+        setSelectedItemID(requestedItemID);
+      }
+      setMobileDetail(true);
+      return;
+    }
     if (visibleItems.some((item) => item.id === selectedItemID)) return;
     setSelectedItemID(visibleItems[0]?.id || '');
     setMobileDetail(false);
-  }, [selectedItemID, visibleItems]);
+  }, [requestedIncidentID, selectedItemID, visibleItems]);
 
   const selectedItem =
     visibleItems.find((item) => item.id === selectedItemID) || null;
@@ -395,8 +467,11 @@ function AdminDashboard() {
   };
 
   const openIncidentFromFinding = (finding) => {
-    setWorkView('incidents');
-    setDomainScope('all');
+    patchDutyQuery({
+      view: 'incidents',
+      domain: 'all',
+      incident: finding.incident_id,
+    });
     window.requestAnimationFrame(() => {
       setSelectedItemID(`incident:${finding.incident_id}`);
       setMobileDetail(true);
@@ -416,7 +491,9 @@ function AdminDashboard() {
             className='duty-window-control'
             options={windowOptions}
             value={windowValue}
-            onChange={(_, data) => setWindowValue(data.value)}
+            onChange={(_, data) =>
+              patchDutyQuery({ window: data.value, incident: null })
+            }
           />
         }
         actions={
@@ -531,7 +608,7 @@ function AdminDashboard() {
                       type='button'
                       className={workView === view ? 'is-active' : ''}
                       onClick={() => {
-                        setWorkView(view);
+                        patchDutyQuery({ view, incident: null });
                         setMobileDetail(false);
                       }}
                     >
@@ -549,7 +626,9 @@ function AdminDashboard() {
                 <button
                   type='button'
                   className={domainScope === 'all' ? 'is-active' : ''}
-                  onClick={() => setDomainScope('all')}
+                  onClick={() =>
+                    patchDutyQuery({ domain: 'all', incident: null })
+                  }
                 >
                   <span>{t('dashboard.admin.duty.console.scope_all')}</span>
                 </button>
@@ -558,7 +637,9 @@ function AdminDashboard() {
                     key={domain.key}
                     type='button'
                     className={domainScope === domain.key ? 'is-active' : ''}
-                    onClick={() => setDomainScope(domain.key)}
+                    onClick={() =>
+                      patchDutyQuery({ domain: domain.key, incident: null })
+                    }
                   >
                     <span>
                       <i
@@ -610,7 +691,9 @@ function AdminDashboard() {
                   value={searchQuery}
                   placeholder={t('dashboard.admin.duty.console.search')}
                   aria-label={t('dashboard.admin.duty.console.search')}
-                  onChange={(_, data) => setSearchQuery(data.value)}
+                  onChange={(_, data) =>
+                    patchDutyQuery({ q: data.value, incident: null })
+                  }
                 />
                 <AppSelect
                   className='duty-mobile-scope'
@@ -618,7 +701,9 @@ function AdminDashboard() {
                   options={domainOptions}
                   value={domainScope}
                   aria-label={t('dashboard.admin.duty.console.scopes')}
-                  onChange={(_, data) => setDomainScope(data.value)}
+                  onChange={(_, data) =>
+                    patchDutyQuery({ domain: data.value, incident: null })
+                  }
                 />
                 <AppSelect
                   className='duty-sort-select'
@@ -626,7 +711,9 @@ function AdminDashboard() {
                   options={sortOptions}
                   value={sortMode}
                   aria-label={t('dashboard.admin.duty.console.sort.label')}
-                  onChange={(_, data) => setSortMode(data.value)}
+                  onChange={(_, data) =>
+                    patchDutyQuery({ sort: data.value, incident: null })
+                  }
                 />
               </div>
 
@@ -652,6 +739,10 @@ function AdminDashboard() {
                       }`}
                       onClick={() => {
                         setSelectedItemID(item.id);
+                        patchDutyQuery({
+                          incident:
+                            item.kind === 'incident' ? item.incident.id : null,
+                        });
                         setMobileDetail(true);
                       }}
                     >
@@ -759,7 +850,10 @@ function AdminDashboard() {
                 basic
                 icon={<AppIcon name='left chevron' />}
                 aria-label={t('common.back')}
-                onClick={() => setMobileDetail(false)}
+                onClick={() => {
+                  patchDutyQuery({ incident: null });
+                  setMobileDetail(false);
+                }}
               />
               {selectedItem?.kind === 'incident' ? (
                 <IncidentDetail

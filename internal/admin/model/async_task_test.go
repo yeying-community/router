@@ -32,15 +32,24 @@ func TestResolveAsyncTaskBusinessOutcomeForUnsupportedChannelModelTest(t *testin
 	if !ok {
 		t.Fatalf("ResolveAsyncTaskBusinessOutcome ok = false, want true")
 	}
-	if status != AsyncTaskStatusFailed {
-		t.Fatalf("ResolveAsyncTaskBusinessOutcome status = %q, want %q", status, AsyncTaskStatusFailed)
+	if status != AsyncTaskStatusSucceeded {
+		t.Fatalf("ResolveAsyncTaskBusinessOutcome status = %q, want %q", status, AsyncTaskStatusSucceeded)
 	}
-	if message != "dial tcp timeout" {
-		t.Fatalf("ResolveAsyncTaskBusinessOutcome message = %q, want %q", message, "dial tcp timeout")
+	if message != "" {
+		t.Fatalf("ResolveAsyncTaskBusinessOutcome message = %q, want empty", message)
 	}
 }
 
-func TestNormalizeAsyncTaskRowAppliesBusinessFailureStatus(t *testing.T) {
+func TestResolveAsyncTaskBusinessOutcomeRejectsInvalidModelTestResult(t *testing.T) {
+	for _, result := range []string{"", "not-json", `{}`, `{"status":"unknown"}`} {
+		status, message, ok := ResolveAsyncTaskBusinessOutcome(AsyncTaskTypeChannelModelTest, result)
+		if ok || status != "" || message != "" {
+			t.Fatalf("ResolveAsyncTaskBusinessOutcome(%q) = %q/%q/%v, want empty/empty/false", result, status, message, ok)
+		}
+	}
+}
+
+func TestNormalizeAsyncTaskRowPreservesExecutionStatus(t *testing.T) {
 	row := AsyncTask{
 		Type:   AsyncTaskTypeChannelModelTest,
 		Status: AsyncTaskStatusSucceeded,
@@ -49,11 +58,11 @@ func TestNormalizeAsyncTaskRowAppliesBusinessFailureStatus(t *testing.T) {
 
 	normalizeAsyncTaskRow(&row)
 
-	if row.Status != AsyncTaskStatusFailed {
-		t.Fatalf("normalizeAsyncTaskRow status = %q, want %q", row.Status, AsyncTaskStatusFailed)
+	if row.Status != AsyncTaskStatusSucceeded {
+		t.Fatalf("normalizeAsyncTaskRow status = %q, want %q", row.Status, AsyncTaskStatusSucceeded)
 	}
-	if row.ErrorMessage != "request timeout" {
-		t.Fatalf("normalizeAsyncTaskRow error_message = %q, want %q", row.ErrorMessage, "request timeout")
+	if row.ErrorMessage != "" {
+		t.Fatalf("normalizeAsyncTaskRow error_message = %q, want empty", row.ErrorMessage)
 	}
 }
 

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -18,7 +19,7 @@ func newOpenModelSupplyTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&User{}, &ProviderModel{}, &BillingCurrency{}, &Log{}, &UserBalanceLot{}, &UserBalanceLotTransaction{}, &Publisher{}, &PublisherService{}, &PublisherServiceModel{}, &ServiceOffer{}, &PublisherAuditLog{}, &PublisherOfferSettlement{}, &PublisherSettlementDelivery{}, &CommunityOfferModelRoute{}); err != nil {
+	if err := db.AutoMigrate(&User{}, &ProviderModel{}, &BillingCurrency{}, &Log{}, &UserBalanceLot{}, &UserBalanceLotTransaction{}, &PersonalProviderConnection{}, &Publisher{}, &PublisherService{}, &PublisherServiceModel{}, &ServiceOffer{}, &PublisherAuditLog{}, &PublisherOfferSettlement{}, &PublisherSettlementDelivery{}, &CommunityOfferModelRoute{}, &GroupCatalog{}, &GroupModel{}, &GroupSupplyBinding{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	previousDB := DB
@@ -66,6 +67,53 @@ func testPublisherServiceInput() PublisherServiceInput {
 	}
 }
 
+func TestListSupplyChannelViewsForAdminGroupsOffersByService(t *testing.T) {
+	db := newOpenModelSupplyTestDB(t)
+	publisher := Publisher{
+		Id: "publisher-1", UserId: "user-1", WalletIdentityDID: "did:yeying:publisher-1",
+		DisplayName: "Publisher One", Level: PublisherLevelVerifiedCommunity, Status: PublisherStatusActive,
+		CreatedAt: 1, UpdatedAt: 2,
+	}
+	if err := db.Create(&publisher).Error; err != nil {
+		t.Fatalf("create publisher: %v", err)
+	}
+	services := []PublisherService{
+		{Id: "service-1", PublisherId: publisher.Id, Name: "multi-model", Protocol: "openai", CredentialEncrypted: "encrypted", Status: PublisherServiceStatusReady, LastCheckedAt: 20, LastCheckOK: true, CreatedAt: 1, UpdatedAt: 30},
+		{Id: "service-2", PublisherId: publisher.Id, Name: "no-offer-yet", Protocol: "openai", CredentialEncrypted: "encrypted", Status: PublisherServiceStatusDraft, CreatedAt: 1, UpdatedAt: 10},
+	}
+	if err := db.Create(&services).Error; err != nil {
+		t.Fatalf("create services: %v", err)
+	}
+	if err := db.Create(&PublisherServiceModel{Id: "service-model-2", ServiceId: "service-2", Model: "text-embedding-3-small", Status: PublisherServiceModelStatusReady, CreatedAt: 2, UpdatedAt: 2}).Error; err != nil {
+		t.Fatalf("create service model: %v", err)
+	}
+	offers := []ServiceOffer{
+		{Id: "offer-1", PublisherId: publisher.Id, ServiceId: "service-1", Model: "gpt-5.4", Scope: ServiceOfferScopePublic, Status: ServiceOfferStatusPublished, CreatedAt: 2, UpdatedAt: 20},
+		{Id: "offer-2", PublisherId: publisher.Id, ServiceId: "service-1", Model: "o3", Scope: ServiceOfferScopeInvite, Status: ServiceOfferStatusReviewing, CreatedAt: 3, UpdatedAt: 21},
+	}
+	if err := db.Create(&offers).Error; err != nil {
+		t.Fatalf("create offers: %v", err)
+	}
+
+	rows, err := ListSupplyChannelViewsForAdmin(10)
+	if err != nil {
+		t.Fatalf("ListSupplyChannelViewsForAdmin: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("channel rows = %d, want one per service (2)", len(rows))
+	}
+	first := rows[0]
+	if first.ServiceId != "service-1" || first.OfferCount != 2 || len(first.Offers) != 2 {
+		t.Fatalf("first service projection = %#v, want one row with two offers", first)
+	}
+	if len(first.Models) != 2 || first.Models[0] != "gpt-5.4" || first.Models[1] != "o3" {
+		t.Fatalf("first service models = %#v, want stable aggregate", first.Models)
+	}
+	if rows[1].ServiceId != "service-2" || rows[1].OfferCount != 0 || len(rows[1].Offers) != 0 || len(rows[1].Models) != 1 || rows[1].Models[0] != "text-embedding-3-small" {
+		t.Fatalf("service without offers projection = %#v", rows[1])
+	}
+}
+
 func TestEnsurePublisherProfileRequiresWalletIdentityDID(t *testing.T) {
 	db := newOpenModelSupplyTestDB(t)
 	seedOpenModelSupplyUser(t, db, "user-without-did", "")
@@ -104,6 +152,53 @@ func TestPublisherServiceOwnershipAndCredentialBoundary(t *testing.T) {
 	}
 	if got, err := decryptPublisherServiceCredential(rows[0].CredentialEncrypted); err != nil || got != "sk-test-secret" {
 		t.Fatalf("decrypt credential = %q, %v", got, err)
+	}
+}
+
+func TestPublisherServiceFromPersonalConnectionRequiresOwnershipAndNewCredential(t *testing.T) {
+	db := newOpenModelSupplyTestDB(t)
+	seedOpenModelSupplyCatalog(t, db)
+	seedOpenModelSupplyUser(t, db, "user-a", "did:yeying:wid_user_a")
+	seedOpenModelSupplyUser(t, db, "user-b", "did:yeying:wid_user_b")
+	if _, err := EnsurePublisherProfile("user-a", PublisherProfileInput{}); err != nil {
+		t.Fatalf("create publisher A: %v", err)
+	}
+	connectionA := &PersonalProviderConnection{UserId: "user-a", Name: "private-a", Protocol: "openai", BaseURL: "https://1.1.1.1/v1", Models: []string{"gpt-5.4"}, Status: PersonalProviderStatusEnabled}
+	if err := CreatePersonalProviderConnection(connectionA, "sk-private-a"); err != nil {
+		t.Fatalf("create connection A: %v", err)
+	}
+	connectionB := &PersonalProviderConnection{UserId: "user-b", Name: "private-b", Protocol: "openai", BaseURL: "https://1.1.1.2/v1", Models: []string{"gpt-5.4"}, Status: PersonalProviderStatusEnabled}
+	if err := CreatePersonalProviderConnection(connectionB, "sk-private-b"); err != nil {
+		t.Fatalf("create connection B: %v", err)
+	}
+	foreignInput := testPublisherServiceInput()
+	foreignInput.SourcePersonalConnectionId = connectionB.Id
+	if _, err := CreatePublisherService("user-a", foreignInput); err == nil || !strings.Contains(err.Error(), "无权访问") {
+		t.Fatalf("foreign source error = %v, want ownership rejection", err)
+	}
+	ownInput := testPublisherServiceInput()
+	ownInput.SourcePersonalConnectionId = connectionA.Id
+	ownInput.APIKey = "sk-separate-supply"
+	service, err := CreatePublisherService("user-a", ownInput)
+	if err != nil {
+		t.Fatalf("create service from own connection: %v", err)
+	}
+	if service.SourcePersonalConnectionId != connectionA.Id {
+		t.Fatalf("source connection = %q, want %q", service.SourcePersonalConnectionId, connectionA.Id)
+	}
+	if got, err := decryptPublisherServiceCredential(service.CredentialEncrypted); err != nil || got != "sk-separate-supply" {
+		t.Fatalf("supply credential = %q, %v", got, err)
+	}
+	if service.CredentialEncrypted == connectionA.CredentialEncrypted {
+		t.Fatal("publisher service reused the personal-channel encrypted credential")
+	}
+	payload, err := json.Marshal(service)
+	if err != nil {
+		t.Fatalf("marshal service: %v", err)
+	}
+	serialized := string(payload)
+	if strings.Contains(serialized, "sk-private-a") || strings.Contains(serialized, "sk-separate-supply") || strings.Contains(serialized, service.CredentialEncrypted) {
+		t.Fatalf("service JSON leaked credential material: %s", serialized)
 	}
 }
 

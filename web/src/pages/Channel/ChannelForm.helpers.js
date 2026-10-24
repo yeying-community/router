@@ -224,10 +224,15 @@ function isEffectiveVolcengineRealtimeProtocol(inputs) {
   // the Volcengine voice WebSocket API. Other providers (e.g. Aliyun/QianWen) may
   // also expose a /v1/realtime model, so gate on the effective protocol too —
   // otherwise their realtime models wrongly surface the Volcengine-only fields.
-  if (resolveEffectiveProtocolFromInputs(inputs) !== VOLCENGINE_STANDARD_PROTOCOL) {
+  if (
+    resolveEffectiveProtocolFromInputs(inputs) !== VOLCENGINE_STANDARD_PROTOCOL
+  ) {
     return false;
   }
-  return hasVolcengineRealtimeChannelModel(inputs?.channel_models, inputs?.protocol);
+  return hasVolcengineRealtimeChannelModel(
+    inputs?.channel_models,
+    inputs?.protocol
+  );
 }
 
 const validateChannelIdentifier = (value, t) => {
@@ -958,7 +963,8 @@ const ENDPOINT_POLICY_TEMPLATES = [
     text: 'OVERRIDE_ENDPOINT_BASE_URL',
     buildDraft: (prev = {}) => {
       const baseURL = normalizeBaseURL(
-        prev.access_base_url || parseEndpointAccessPolicyBaseURL(prev.request_policy)
+        prev.access_base_url ||
+          parseEndpointAccessPolicyBaseURL(prev.request_policy)
       );
       return {
         template_key: ENDPOINT_POLICY_TEMPLATE_OVERRIDE_BASE_URL,
@@ -1473,7 +1479,12 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
   )
     .toString()
     .trim();
-  const modelName = (row.model || row.alias || row.display_model || upstreamModel)
+  const modelName = (
+    row.model ||
+    row.alias ||
+    row.display_model ||
+    upstreamModel
+  )
     .toString()
     .trim();
   const model = modelName || upstreamModel;
@@ -1513,18 +1524,24 @@ const normalizeChannelModelConfigRow = (row, protocol) => {
     price_components: normalizeComplexPriceComponents(row.price_components),
     publish_status: (row.publish_status || '').toString().trim(),
     publish_enabled: row.publish_enabled === true,
-    published_model: (
-      Object.prototype.hasOwnProperty.call(row, 'published_model')
-        ? row.published_model
-        : row.model || upstreamModel || ''
-    ).toString().trim(),
+    published_model: (Object.prototype.hasOwnProperty.call(
+      row,
+      'published_model'
+    )
+      ? row.published_model
+      : row.model || upstreamModel || ''
+    )
+      .toString()
+      .trim(),
     published_model_original: (
       row.published_model_original ||
       row.published_model ||
       row.model ||
       upstreamModel ||
       ''
-    ).toString().trim(),
+    )
+      .toString()
+      .trim(),
     published_at: Number(row.published_at || 0),
     published_by: (row.published_by || '').toString().trim(),
     sync_status: (row.sync_status || 'unknown').toString().trim(),
@@ -1818,7 +1835,9 @@ const fetchActiveChannelTasks = async (channelId) => {
   if (!success) {
     throw new Error(message || 'fetch channel tasks failed');
   }
-  return normalizeAsyncTasks(data?.items);
+  return normalizeAsyncTasks(data?.items).filter(
+    (item) => item.type !== 'channel_model_test'
+  );
 };
 
 const fetchChannelBillingAdapters = async () => {
@@ -2098,6 +2117,7 @@ const normalizeModelTestResults = (results) => {
         channel_id: (item.channel_id || '').toString().trim(),
         model: item.model || '',
         upstream_model: item.upstream_model || '',
+        round: Number(item.round || 0),
         type: normalizeChannelModelType(item.type),
         endpoint: item.endpoint || '',
         is_stream:
@@ -2105,7 +2125,9 @@ const normalizeModelTestResults = (results) => {
         status: item.status || 'unsupported',
         supported: !!item.supported,
         message: item.message || '',
+        source: (item.source || 'manual_test').toString().trim(),
         latency_ms: Number(item.latency_ms || 0),
+        sort_order: Number(item.sort_order || 0),
         tested_at: Number(item.tested_at || 0),
         artifact_path: (item.artifact_path || '').toString().trim(),
         artifact_name: (item.artifact_name || '').toString().trim(),
