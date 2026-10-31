@@ -72,7 +72,13 @@ verify_artifacts() {
   local web_build_dir="$source_dir/web/dist"
   if [[ ! -x "$bin_src" ]]; then
     echo "Missing binary: $bin_src" >&2
-    echo "Build first: mkdir -p build && go build -o build/router ./cmd/router" >&2
+    echo "Build first with a release version: go build -ldflags '-X github.com/yeying-community/router/common.Version=<version>' -o build/router ./cmd/router" >&2
+    exit 1
+  fi
+  local embedded_version
+  embedded_version="$("$bin_src" --version 2>/dev/null | head -n 1)"
+  if [[ "$embedded_version" != "$target_tag" ]]; then
+    echo "Router binary version mismatch: expected $target_tag, got ${embedded_version:-unknown}" >&2
     exit 1
   fi
   if [[ ! -d "$web_build_dir" ]]; then
@@ -135,7 +141,7 @@ build_artifacts() {
   fi
   echo "Building backend binary..."
   mkdir -p "$source_dir/build"
-  (cd "$source_dir" && go build -o build/router ./cmd/router)
+  (cd "$source_dir" && go build -ldflags "-X github.com/yeying-community/router/common.Version=${target_tag}" -o build/router ./cmd/router)
 }
 
 cleanup() {
@@ -238,6 +244,7 @@ cp "$config_backup_src" "$stage_dir/scripts/"
   cp "$upgrade_src" "$stage_dir/scripts/"
 cp "$passphrase_template" "$stage_dir/scripts/"
 cp -R "$web_build_dir" "$stage_dir/web/"
+printf '%s\n' "$target_tag" > "$stage_dir/VERSION"
 
 rm -f "$archive_path"
 tar -czf "$archive_path" -C "$out_dir" "$pkg_name"

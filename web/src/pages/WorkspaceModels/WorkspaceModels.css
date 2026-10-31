@@ -499,16 +499,15 @@ html[data-theme='dark']
   width: 142px;
 }
 
-.router-quota-model-usage {
-  margin-top: 0;
+.router-topup-model-usage {
   padding: 4px 0 10px;
 }
 
 /* The quota workspace still uses a light canvas when the global theme toggles
-   dark. Keep the embedded ranking on that same canvas instead of inheriting
+   dark. Keep the personal usage tab on that same canvas instead of inheriting
    light-on-dark model-center tokens and becoming unreadable. This remains a
    flat section; no compensating card or decorative surface is introduced. */
-html[data-theme='dark'] .router-quota-model-usage {
+html[data-theme='dark'] .router-topup-model-usage {
   --router-surface: #fff;
   --router-surface-muted: #f8fafc;
   --router-text-primary: #0f172a;
@@ -520,13 +519,13 @@ html[data-theme='dark'] .router-quota-model-usage {
 }
 
 html[data-theme='dark']
-  .router-quota-model-usage
+  .router-topup-model-usage
   .recharts-cartesian-axis-tick-value {
   fill: #64748b;
 }
 
 html[data-theme='dark']
-  .router-quota-model-usage
+  .router-topup-model-usage
   .recharts-cartesian-grid
   line {
   stroke: rgba(15, 23, 42, 0.08);

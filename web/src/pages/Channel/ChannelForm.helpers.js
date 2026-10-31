@@ -1835,9 +1835,7 @@ const fetchActiveChannelTasks = async (channelId) => {
   if (!success) {
     throw new Error(message || 'fetch channel tasks failed');
   }
-  return normalizeAsyncTasks(data?.items).filter(
-    (item) => item.type !== 'channel_model_test'
-  );
+  return normalizeAsyncTasks(data?.items);
 };
 
 const fetchChannelBillingAdapters = async () => {

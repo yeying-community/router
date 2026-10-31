@@ -70,6 +70,13 @@ func defaultProviderModelDeleted(provider string, modelName string) bool {
 		return modelName == "kimi-k2.5"
 	case "google":
 		return modelName == "gemini-live-2.5-flash-preview"
+	case "minimax":
+		switch modelName {
+		case "minimax-m2", "minimax-m2.1", "minimax-m2.1-highspeed":
+			return true
+		default:
+			return false
+		}
 	case "xai":
 		return modelName == "grok-2-image-1212"
 	default:
@@ -151,8 +158,17 @@ func defaultProviderModelStatus(provider string, modelName string) string {
 		if modelName == "gemini-live-2.5-flash-preview" {
 			return ProviderModelStatusDeprecated
 		}
+	case "minimax":
+		switch modelName {
+		case "minimax-m2", "minimax-m2.1", "minimax-m2.1-highspeed":
+			return ProviderModelStatusDeprecated
+		}
 	case "xai":
-		if modelName == "grok-2-image-1212" {
+		if modelName == "grok-2-image-1212" || modelName == "grok-voice-2.0" || modelName == "grok-imagine-image-quality" {
+			return ProviderModelStatusDeprecated
+		}
+	case "deepgram":
+		if modelName == "nova-2" {
 			return ProviderModelStatusDeprecated
 		}
 	}

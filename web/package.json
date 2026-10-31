@@ -23,9 +23,10 @@
   },
   "scripts": {
     "start": "vite",
-    "check": "npm run test:write-paged-rows && npm run test:wallet-session && npm run test:chart-theme && npm run test:theme-store && npm run test:csv && npm run test:billing-format && npm run test:channel-purchase && npm run check:router-ui && npm run check:popover-safety && npm run check:chart-palette && npm run check:i18n && npm run check:i18n-cjk && vite build",
+    "check": "npm run test:write-paged-rows && npm run test:list-state && npm run test:wallet-session && npm run test:chart-theme && npm run test:theme-store && npm run test:csv && npm run test:billing-format && npm run test:channel-purchase && npm run check:router-ui && npm run check:popover-safety && npm run check:chart-palette && npm run check:i18n && npm run check:i18n-cjk && vite build",
     "build": "node ./scripts/check-router-ui-boundary.mjs && node ./scripts/check-popover-select-safety.mjs && node ./scripts/check-chart-palette.mjs && node ./scripts/check-i18n-line-align.mjs && node ./scripts/scan-hardcoded-i18n.mjs && vite build",
     "test:write-paged-rows": "node ./tests/write-paged-rows.test.mjs",
+    "test:list-state": "node ./tests/list-state.test.mjs",
     "test:wallet-session": "node ./tests/wallet-session.test.mjs",
     "test:chart-theme": "node ./tests/chart-theme.test.mjs",
     "test:theme-store": "node ./tests/theme-store.test.mjs",

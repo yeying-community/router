@@ -163,6 +163,7 @@ operation:
   # - api：旧外部支付 API 模式，router 服务端调用 create API，再跳转 cashier_url
   # - node：Node 公共收银台模式，router 服务端使用商户 HMAC 调 Node
   # 留空时：若配置了 top_up_api_create_url 则按 api，否则按 redirect；Node 必须显式填写 node。
+  # 切换到 node 后，未结清的旧 api 订单仍需保留下方查单地址、uniacid、商户标识和签名密钥。
   top_up_mode: ""
   # redirect 模式收银台地址；api 模式可留空。
   # 若配置的是 .../cashier，api 模式下系统可尝试推导 create URL。
@@ -171,7 +172,8 @@ operation:
   # 示例：
   # https://www.tidukongjian.com/addons/ymq_zixishi/public/index.php/addons/ymqzixishi/api.external_pay/create
   top_up_api_create_url: ""
-  # api 模式查单地址（query）；留空时会优先从 create URL 推导。
+  # 旧 api 订单查单地址（query）；留空时会优先从 create URL 推导。
+  # 即使 top_up_mode=node，显式配置仍用于查旧 api 订单。
   top_up_api_query_url: ""
   # api 请求参数 uniacid。
   top_up_api_uniacid: 1
@@ -179,7 +181,7 @@ operation:
   top_up_merchant_app: router
   # api 请求超时（秒）。
   top_up_api_timeout_seconds: 15
-  # 外部支付签名密钥（创建充值/购卡订单签名）。
+  # 旧外部支付 API 签名密钥（创建及查询旧订单）；未结清旧订单期间请保留。
   # 生成命令：
   #   openssl rand -hex 32
   top_up_sign_secret: ""

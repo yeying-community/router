@@ -3,24 +3,32 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import QuotaPage from './QuotaPage';
 import { QuotaHistoryPageInner } from './QuotaHistoryPage';
+import ModelUsagePage from './ModelUsagePage';
 import TopUpRecordsPage from './TopUpRecordsPage';
 import Log from '../Log';
 import TopUpWorkspaceProvider from './provider.jsx';
 import { AppFilterHeader } from '../../router-ui';
 import SectionTabs from '../../components/SectionTabs';
 
-// Single "my usage" hub for normal users: quota overview, historical quota
-// cards, payment records and the personal call log all live under
-// `/workspace/topup?tab=...` so the sidebar exposes one entry instead of
-// scattering these across orphan routes.
+// Single "my usage" hub for normal users. Historical quota is a child view of
+// quota (entered from the quota page), while personal model usage is a primary
+// workspace tab alongside quota, payment records and the personal call log.
 const TABS = [
   { key: 'quota', labelKey: 'topup.mine.quota' },
-  { key: 'history', labelKey: 'topup.quota_cards.history_title' },
+  { key: 'model_usage', labelKey: 'topup.model_usage.title' },
   { key: 'records', labelKey: 'topup.payment_history.title' },
   { key: 'logs', labelKey: 'header.log' },
 ];
 
-const VALID_TABS = new Set(TABS.map((tab) => tab.key));
+const VIEW_LABEL_KEYS = {
+  quota: 'topup.mine.quota',
+  history: 'topup.quota_cards.history_title',
+  model_usage: 'topup.model_usage.title',
+  records: 'topup.payment_history.title',
+  logs: 'header.log',
+};
+
+const VALID_VIEWS = new Set(Object.keys(VIEW_LABEL_KEYS));
 
 const TopUpLayout = () => {
   const { t } = useTranslation();
@@ -35,7 +43,7 @@ const TopUpLayout = () => {
     ? 'history'
     : rawRecord || rawTab === 'records'
       ? 'records'
-      : VALID_TABS.has(rawTab)
+      : VALID_VIEWS.has(rawTab)
         ? rawTab
         : 'quota';
 
@@ -43,6 +51,8 @@ const TopUpLayout = () => {
     switch (activeTab) {
       case 'history':
         return <QuotaHistoryPageInner embedded />;
+      case 'model_usage':
+        return <ModelUsagePage />;
       case 'records':
         return <TopUpRecordsPage embedded />;
       case 'logs':
@@ -53,8 +63,8 @@ const TopUpLayout = () => {
     }
   };
 
-  const activeTabLabelKey =
-    TABS.find((tab) => tab.key === activeTab)?.labelKey || 'topup.mine.quota';
+  const activeTabLabelKey = VIEW_LABEL_KEYS[activeTab] || 'topup.mine.quota';
+  const navigationTab = activeTab === 'history' ? 'quota' : activeTab;
 
   return (
     <TopUpWorkspaceProvider>
@@ -67,7 +77,7 @@ const TopUpLayout = () => {
           ]}
           query={
             <SectionTabs
-              active={activeTab}
+              active={navigationTab}
               tabs={TABS.map((tab) => ({
                 key: tab.key,
                 label: t(tab.labelKey),

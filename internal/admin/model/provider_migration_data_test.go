@@ -2204,8 +2204,6 @@ func TestBuildProviderMigrationSeeds_RemainingUnpricedModelsAreExplicitlyTracked
 			"cogvideox-flash": false,
 			"glm-4.6v-flash":  false,
 			"glm-4.7-flash":   false,
-			"glm-5.3":         false,
-			"glm-5.3-flash":   false,
 		},
 		"mistral": {
 			"pixtral-large-latest": false,

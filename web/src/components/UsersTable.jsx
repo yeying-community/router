@@ -19,6 +19,7 @@ import UserSectionTabs from './UserSectionTabs';
 import { buildLogDrilldownPath } from './LogsTable.helpers';
 
 import { ITEMS_PER_PAGE } from '../constants';
+import { resolveListEffectPage } from '../helpers/listState.mjs';
 import {
   USER_LIST_COLUMN_WIDTHS,
   USER_LIST_TABLE_MIN_WIDTH,
@@ -180,7 +181,6 @@ const UsersTable = ({ embedded = false }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const didInitListRef = useRef(false);
   const [activePage, setActivePage] = useState(initialListQuery.page);
   const [pageSize, setPageSize] = useState(initialListQuery.pageSize);
   const pageSizeRef = useRef(initialListQuery.pageSize);
@@ -215,7 +215,7 @@ const UsersTable = ({ embedded = false }) => {
     columnKey: 'created_at',
     order: 'descend',
   });
-  const initializedSearchRef = useRef(false);
+  const previousSearchKeywordRef = useRef(searchKeyword);
   const [currencyIndex, setCurrencyIndex] = useState(() =>
     buildPublicDisplayCurrencyIndex([]),
   );
@@ -329,6 +329,26 @@ const UsersTable = ({ embedded = false }) => {
     };
   }, [locationSearch]);
   const focusKey = focusParams.ids.join(',');
+  const userListRequestKey = useMemo(
+    () =>
+      JSON.stringify({
+        focusKey,
+        focusName: focusParams.name,
+        focusTotal: focusParams.total,
+        status: statusFilter,
+        role: roleFilter,
+        group: groupFilter,
+      }),
+    [
+      focusKey,
+      focusParams.name,
+      focusParams.total,
+      groupFilter,
+      roleFilter,
+      statusFilter,
+    ],
+  );
+  const previousUserListRequestKeyRef = useRef(userListRequestKey);
 
   const refresh = async () => {
     setLoading(true);
@@ -406,10 +426,14 @@ const UsersTable = ({ embedded = false }) => {
     setFocusLabel('');
     setFocusTotal(0);
     setIsFocusMode(false);
-    // 首次挂载按 URL 复原页码;后续筛选变化(status/role)才回到第 1 页。
-    const firstRun = !didInitListRef.current;
-    didInitListRef.current = true;
-    const startPage = firstRun ? initialListQuery.page : 1;
+    // StrictMode 会重放挂载 effect；不能用 didMount 布尔值判断首次加载，
+    // 否则第二次挂载执行会被误判成筛选变化并把 URL 页码重置为 1。
+    const startPage = resolveListEffectPage(
+      previousUserListRequestKeyRef.current,
+      userListRequestKey,
+      initialListQuery.page,
+    );
+    previousUserListRequestKeyRef.current = userListRequestKey;
     setActivePage(startPage);
     loadUsers(startPage, { status: statusFilter, role: roleFilter, group: groupFilter })
       .then()
@@ -428,6 +452,7 @@ const UsersTable = ({ embedded = false }) => {
     roleFilter,
     groupFilter,
     initialListQuery,
+    userListRequestKey,
   ]);
 
   useEffect(() => {
@@ -705,11 +730,12 @@ const UsersTable = ({ embedded = false }) => {
   }, [navigate]);
 
   useEffect(() => {
-    const firstRun = !initializedSearchRef.current;
-    initializedSearchRef.current = true;
-    if (firstRun && searchKeyword === '') {
+    const keywordChanged = previousSearchKeywordRef.current !== searchKeyword;
+    previousSearchKeywordRef.current = searchKeyword;
+    if (!keywordChanged && searchKeyword === '') {
       // Initial list load is owned by the filter effect; only auto-run search
-      // on mount when a keyword was restored from the URL.
+      // on mount when a keyword was restored from the URL. This semantic check
+      // is safe when StrictMode replays the mount effect.
       return undefined;
     }
     if (isFocusMode && searchKeyword === '') {

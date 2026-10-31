@@ -24,6 +24,29 @@ func TestResolvedTopUpAPIQueryURL(t *testing.T) {
 	}
 }
 
+func TestResolvedTopUpAPIQueryURLDerivesFromLegacyCreateURLInNodeMode(t *testing.T) {
+	previousMode := TopUpMode
+	previousLink := TopUpLink
+	previousCreateURL := TopUpAPICreateURL
+	previousQueryURL := TopUpAPIQueryURL
+	t.Cleanup(func() {
+		TopUpMode = previousMode
+		TopUpLink = previousLink
+		TopUpAPICreateURL = previousCreateURL
+		TopUpAPIQueryURL = previousQueryURL
+	})
+
+	TopUpMode = TopUpModeNode
+	TopUpLink = ""
+	TopUpAPICreateURL = "https://pay.example.com/addons/ymqzixishi/api.external_pay/create?uniacid=1"
+	TopUpAPIQueryURL = ""
+
+	want := "https://pay.example.com/addons/ymqzixishi/api.external_pay/query?uniacid=1"
+	if got := ResolvedTopUpAPIQueryURL(); got != want {
+		t.Fatalf("legacy query url in Node mode = %q, want %q", got, want)
+	}
+}
+
 func TestResolvedTopUpAPICreateURLNormalizesBackendPHP(t *testing.T) {
 	previousMode := TopUpMode
 	previousLink := TopUpLink

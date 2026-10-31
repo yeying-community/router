@@ -162,7 +162,16 @@ const BusinessRecordsTable = ({
     // 仅在挂载时读取一次;后续以组件内 state 为准。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const kindMountedRef = useRef(false);
+  const listContextKey = useMemo(
+    () =>
+      JSON.stringify({
+        kind,
+        endpoint: config.endpoint,
+        requestParams,
+      }),
+    [config.endpoint, kind, requestParams],
+  );
+  const previousListContextKeyRef = useRef(listContextKey);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activePage, setActivePage] = useState(initialListQuery.page);
@@ -836,9 +845,12 @@ const BusinessRecordsTable = ({
   }, [loadCurrencyCatalog]);
 
   useEffect(() => {
-    if (!kindMountedRef.current) {
-      // 首次挂载:按 URL 复原已应用的筛选并加载,而非清空。
-      kindMountedRef.current = true;
+    const contextChanged = previousListContextKeyRef.current !== listContextKey;
+    previousListContextKeyRef.current = listContextKey;
+    if (!contextChanged) {
+      // 首次挂载及 StrictMode 挂载重放：按 URL 复原页码和筛选。
+      // 不能用 didMount 布尔值，否则第二次挂载 effect 会被当成 kind
+      // 切换，清空查询并退回第 1 页。
       loadItems(
         initialListQuery.page,
         initialListQuery.keyword,
@@ -853,7 +865,10 @@ const BusinessRecordsTable = ({
     setTotalCount(0);
     setActivePage(1);
     loadItems(1, '', '').then();
-  }, [initialListQuery, kind, loadItems]);
+    // loadItems always points at the latest render through this effect closure;
+    // the semantic context key, not callback identity, owns reset behavior.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listContextKey]);
 
   const onSearchSubmit = useCallback(() => {
     loadItems(1, keyword, statusFilter).then();

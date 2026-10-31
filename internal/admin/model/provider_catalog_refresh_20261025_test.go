@@ -126,10 +126,10 @@ func TestProviderCatalogRefresh20261025IncludesVerifiedModelsAndPricing(t *testi
 			"grok-imagine-video":          {modelType: ProviderModelTypeVideo, input: 0.05, priceUnit: ProviderPriceUnitPerSecond, componentCount: 2},
 			"grok-imagine-video-1.5":      {modelType: ProviderModelTypeVideo, input: 0.08, priceUnit: ProviderPriceUnitPerSecond, componentCount: 3},
 			"grok-imagine-video-1.5-lite": {modelType: ProviderModelTypeVideo, input: 0.02, priceUnit: ProviderPriceUnitPerSecond, componentCount: 3},
-			"grok-tts":                    {modelType: ProviderModelTypeAudio, priceUnit: ProviderPriceUnitPer1KTokens},
-			"grok-voice-2.0":              {modelType: ProviderModelTypeAudio, priceUnit: ProviderPriceUnitPer1KTokens},
-			"grok-voice-3.0":              {modelType: ProviderModelTypeAudio, priceUnit: ProviderPriceUnitPer1KTokens},
-			"grok-voice-transcribe-2.0":   {modelType: ProviderModelTypeAudio, priceUnit: ProviderPriceUnitPer1KTokens},
+			"grok-tts":                    {modelType: ProviderModelTypeAudio, input: 0.015, priceUnit: ProviderPriceUnitPer1KChars},
+			"grok-voice-2.0":              {modelType: ProviderModelTypeAudio, input: 0.08, priceUnit: ProviderPriceUnitPerMinute},
+			"grok-voice-3.0":              {modelType: ProviderModelTypeAudio, input: 0.08, priceUnit: ProviderPriceUnitPerMinute},
+			"grok-voice-transcribe-2.0":   {modelType: ProviderModelTypeAudio, input: 0.0016666667, priceUnit: ProviderPriceUnitPerMinute},
 		},
 	}
 

@@ -1,0 +1,328 @@
+[
+  {
+    "Provider": "qwen",
+    "OfficialURL": "https://help.aliyun.com/zh/model-studio/models",
+    "PricingURL": "https://help.aliyun.com/zh/model-studio/model-pricing",
+    "ModelDetails": [
+      {
+        "model": "qwen3.5-omni-plus-realtime",
+        "tags": ["audio", "realtime", "vision", "tool_calling"],
+        "status": "active",
+        "description": "Qwen3.5 Omni Plus Realtime 是阿里云百炼的实时全模态语音交互模型。",
+        "supported_endpoints": ["/v1/realtime"],
+        "input_price": 0.01,
+        "output_price": 0.08,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+        "price_components": [
+          {"component": "realtime_text", "input_price": 0.01, "output_price": 0.08, "price_unit": "per_1k_tokens", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 10},
+          {"component": "realtime_audio", "input_price": 0.06, "output_price": 0.3, "price_unit": "per_1k_tokens", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 20}
+        ]
+      },
+      {
+        "model": "qwen3.5-omni-flash-realtime",
+        "tags": ["audio", "realtime", "vision", "tool_calling"],
+        "status": "active",
+        "description": "Qwen3.5 Omni Flash Realtime 是阿里云百炼的实时全模态语音交互模型。",
+        "supported_endpoints": ["/v1/realtime"],
+        "input_price": 0.0033,
+        "output_price": 0.027,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+        "price_components": [
+          {"component": "realtime_text", "input_price": 0.0033, "output_price": 0.027, "price_unit": "per_1k_tokens", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 10},
+          {"component": "realtime_audio", "input_price": 0.02, "output_price": 0.107, "price_unit": "per_1k_tokens", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 20}
+        ]
+      },
+      {
+        "model": "qwen3.8-omni-flash-realtime",
+        "tags": ["audio", "realtime", "vision", "tool_calling"],
+        "status": "active",
+        "description": "Qwen3.8 Omni Flash Realtime 是阿里云百炼最新的实时全模态语音交互模型。",
+        "supported_endpoints": ["/v1/realtime"],
+        "input_price": 0.0015,
+        "output_price": 0.0045,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+        "price_components": [
+          {"component": "realtime_text", "input_price": 0.0015, "output_price": 0.0045, "price_unit": "per_1k_tokens", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 10},
+          {"component": "realtime_audio", "input_price": 0.006, "output_price": 0.012, "price_unit": "per_1k_tokens", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 20}
+        ]
+      },
+      {
+        "model": "qwen3.8-livetranslate-flash-realtime",
+        "tags": ["audio", "realtime"],
+        "status": "active",
+        "description": "Qwen3.8 LiveTranslate Flash Realtime 是阿里云百炼的实时语音翻译模型。",
+        "supported_endpoints": ["/v1/realtime"],
+        "input_price": 0.04,
+        "output_price": 0.1,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+        "price_components": [
+          {"component": "realtime_text", "input_price": 0.0033, "output_price": 0.1, "price_unit": "per_1k_tokens", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 10},
+          {"component": "realtime_audio", "input_price": 0.04, "output_price": 0.16, "price_unit": "per_1k_tokens", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 20}
+        ]
+      },
+      {
+        "model": "qwen3.5-livetranslate-flash-realtime",
+        "tags": ["audio", "realtime"],
+        "status": "active",
+        "description": "Qwen3.5 LiveTranslate Flash Realtime 是阿里云百炼的实时语音翻译模型。",
+        "supported_endpoints": ["/v1/realtime"],
+        "input_price": 0.04,
+        "output_price": 0.1,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+        "price_components": [
+          {"component": "realtime_text", "input_price": 0.0033, "output_price": 0.1, "price_unit": "per_1k_tokens", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 10},
+          {"component": "realtime_audio", "input_price": 0.04, "output_price": 0.16, "price_unit": "per_1k_tokens", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 20}
+        ]
+      },
+      {
+        "model": "qwen-tts-realtime",
+        "tags": ["audio", "realtime"],
+        "status": "active",
+        "description": "Qwen TTS Realtime 是支持 WebSocket 流式文本转语音的实时语音合成模型。",
+        "supported_endpoints": ["/v1/realtime"],
+        "input_price": 0.0024,
+        "output_price": 0.012,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+        "price_components": [
+          {"component": "realtime_text", "input_price": 0.0024, "output_price": 0.012, "price_unit": "per_1k_tokens", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 10}
+        ]
+      },
+      {
+        "model": "qwen3-tts-instruct-flash-realtime",
+        "tags": ["audio", "realtime"],
+        "status": "active",
+        "description": "Qwen3 TTS Instruct Flash Realtime 是支持风格指令控制的实时语音合成模型。",
+        "supported_endpoints": ["/v1/realtime"],
+        "input_price": 0.1,
+        "price_unit": "per_1k_chars",
+        "currency": "CNY",
+        "source": "migration",
+        "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+        "price_components": [
+          {"component": "realtime_text", "input_price": 0.1, "price_unit": "per_1k_chars", "currency": "CNY", "source": "migration", "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing", "sort_order": 10}
+        ]
+      },
+      {
+        "model": "qwen3-tts-flash-realtime",
+        "tags": ["audio", "realtime"],
+        "status": "active",
+        "description": "Qwen3 TTS Flash Realtime 按输入文本字符数计费，语音输出不另计费。",
+        "supported_endpoints": ["/v1/realtime"],
+        "input_price": 0.1,
+        "price_unit": "per_1k_chars",
+        "currency": "CNY",
+        "source": "migration",
+        "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing"
+      }
+    ]
+  },
+  {
+    "Provider": "minimax",
+    "OfficialURL": "https://platform.minimax.io/docs/faq/models",
+    "PricingURL": "https://platform.minimax.io/docs/pricing/overview",
+    "ModelDetails": [
+      {
+        "model": "MiniMax-H3",
+        "tags": ["video"],
+        "status": "active",
+        "description": "MiniMax H3 视频生成模型，默认登记 768P 输出费；2K 和输入素材价按官方价组件区分。",
+        "supported_endpoints": ["/v1/videos"],
+        "input_price": 0.08,
+        "output_price": 0.08,
+        "price_unit": "per_second",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://platform.minimax.io/docs/pricing/overview",
+        "price_components": [
+          {"component": "video_generation", "condition": "resolution=768p", "input_price": 0.08, "output_price": 0.08, "price_unit": "per_second", "currency": "USD", "source": "migration", "source_url": "https://platform.minimax.io/docs/pricing/overview", "sort_order": 10},
+          {"component": "video_generation", "condition": "resolution=2k", "input_price": 0.13, "output_price": 0.13, "price_unit": "per_second", "currency": "USD", "source": "migration", "source_url": "https://platform.minimax.io/docs/pricing/overview", "sort_order": 20}
+        ]
+      },
+      {
+        "model": "MiniMax-H3-Highspeed",
+        "tags": ["video"],
+        "status": "active",
+        "description": "MiniMax H3 Highspeed 视频生成模型，768P 输出和视频输入按秒计价。",
+        "supported_endpoints": ["/v1/videos"],
+        "input_price": 0.06,
+        "output_price": 0.06,
+        "price_unit": "per_second",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://platform.minimax.io/docs/pricing/overview"
+      },
+      {
+        "model": "MiniMax-H3-Lite",
+        "tags": ["video"],
+        "status": "active",
+        "description": "MiniMax H3 Lite 视频生成模型，基础价按 768P 输出登记，其他分辨率使用价格组件。",
+        "supported_endpoints": ["/v1/videos"],
+        "input_price": 0.04,
+        "output_price": 0.04,
+        "price_unit": "per_second",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://platform.minimax.io/docs/pricing/overview",
+        "price_components": [
+          {"component": "video_generation", "condition": "resolution=768p", "input_price": 0.04, "output_price": 0.04, "price_unit": "per_second", "currency": "USD", "source": "migration", "source_url": "https://platform.minimax.io/docs/pricing/overview", "sort_order": 10},
+          {"component": "video_generation", "condition": "resolution=480p", "input_price": 0.025, "output_price": 0.025, "price_unit": "per_second", "currency": "USD", "source": "migration", "source_url": "https://platform.minimax.io/docs/pricing/overview", "sort_order": 20}
+        ]
+      },
+      {
+        "model": "MiniMax-H3-Max",
+        "tags": ["video"],
+        "status": "active",
+        "description": "MiniMax H3 Max 视频生成模型，基础价按 768P 输出登记，输入视频价按分辨率组件区分。",
+        "supported_endpoints": ["/v1/videos"],
+        "input_price": 0.143,
+        "output_price": 0.08,
+        "price_unit": "per_second",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://platform.minimax.io/docs/pricing/overview",
+        "price_components": [
+          {"component": "video_generation", "condition": "resolution=768p", "input_price": 0.143, "output_price": 0.08, "price_unit": "per_second", "currency": "USD", "source": "migration", "source_url": "https://platform.minimax.io/docs/pricing/overview", "sort_order": 10},
+          {"component": "video_generation", "condition": "resolution=480p", "input_price": 0.0553, "output_price": 0.05, "price_unit": "per_second", "currency": "USD", "source": "migration", "source_url": "https://platform.minimax.io/docs/pricing/overview", "sort_order": 20}
+        ]
+      },
+      {
+        "model": "speech-2.8-hd",
+        "tags": ["audio"],
+        "status": "active",
+        "description": "MiniMax Speech 2.8 HD 文本转语音模型，按输入字符数计价。",
+        "supported_endpoints": ["/v1/audio/speech"],
+        "input_price": 0.1,
+        "price_unit": "per_1k_chars",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://platform.minimax.io/docs/pricing/overview"
+      },
+      {
+        "model": "speech-2.8-turbo",
+        "tags": ["audio"],
+        "status": "active",
+        "description": "MiniMax Speech 2.8 Turbo 文本转语音模型，按输入字符数计价。",
+        "supported_endpoints": ["/v1/audio/speech"],
+        "input_price": 0.06,
+        "price_unit": "per_1k_chars",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://platform.minimax.io/docs/pricing/overview"
+      }
+    ]
+  },
+  {
+    "Provider": "xai",
+    "OfficialURL": "https://docs.x.ai/docs/models",
+    "PricingURL": "https://docs.x.ai/docs/models",
+    "ModelDetails": [
+      {
+        "model": "grok-tts",
+        "tags": ["audio"],
+        "status": "active",
+        "description": "Grok Voice API 文本转语音按每百万字符计价。",
+        "supported_endpoints": ["/v1/audio/speech"],
+        "input_price": 0.015,
+        "price_unit": "per_1k_chars",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://docs.x.ai/docs/models"
+      },
+      {
+        "model": "grok-voice-2.0",
+        "tags": ["audio", "realtime"],
+        "status": "deprecated",
+        "description": "Grok Voice 2.0 Speech-to-Speech 已弃用，迁移至 Grok Voice 3.0。",
+        "supported_endpoints": ["/v1/realtime"],
+        "input_price": 0.08,
+        "price_unit": "per_minute",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://docs.x.ai/docs/models"
+      },
+      {
+        "model": "grok-voice-3.0",
+        "tags": ["audio", "realtime"],
+        "status": "active",
+        "description": "Grok Voice 3.0 Speech-to-Speech 按会话时长计价。",
+        "supported_endpoints": ["/v1/realtime"],
+        "input_price": 0.08,
+        "price_unit": "per_minute",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://docs.x.ai/docs/models"
+      },
+      {
+        "model": "grok-voice-transcribe-2.0",
+        "tags": ["audio"],
+        "status": "active",
+        "description": "Grok Voice API REST 语音转写按音频时长计价；Streaming 费率不同。",
+        "supported_endpoints": ["/v1/audio/transcriptions"],
+        "input_price": 0.0016666667,
+        "price_unit": "per_minute",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://docs.x.ai/docs/models"
+      },
+      {
+        "model": "grok-imagine-image-quality",
+        "tags": ["image"],
+        "status": "deprecated",
+        "description": "Grok Imagine Image Quality 将于 2026-11-02 退休。",
+        "supported_endpoints": ["/v1/images/generations"],
+        "input_price": 0.05,
+        "price_unit": "per_image",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://docs.x.ai/docs/models"
+      }
+    ]
+  },
+  {
+    "Provider": "deepgram",
+    "OfficialURL": "https://developers.deepgram.com/docs/pricing",
+    "PricingURL": "https://deepgram.com/pricing",
+    "ModelDetails": [
+      {
+        "model": "nova-2",
+        "tags": ["text", "native_adapter_required"],
+        "status": "deprecated",
+        "description": "Nova-2 仅保留给已有部署；新部署应使用 Nova-3。",
+        "input_price": 0.0058333333,
+        "price_unit": "per_minute",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://deepgram.com/pricing"
+      },
+      {
+        "model": "nova-3",
+        "tags": ["text", "native_adapter_required"],
+        "status": "active",
+        "description": "Deepgram Nova-3 Monolingual Streaming 按音频分钟计价；其他语言或处理模式费率不同。",
+        "input_price": 0.0077,
+        "price_unit": "per_minute",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://deepgram.com/pricing"
+      }
+    ]
+  }
+]

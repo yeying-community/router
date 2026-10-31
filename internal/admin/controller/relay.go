@@ -96,7 +96,8 @@ func Relay(c *gin.Context) {
 	appendFallbackFailureAttempt(c, 1, bizErr)
 	go processChannelRelayError(ctx, userId, group, channelId, channelName, originalModel, requestPath, *bizErr)
 	traceID := c.GetString(helper.TraceIDKey)
-	retryAllRemainingCandidates := shouldRetryRemainingCandidates(bizErr)
+	allowFallbackForError := shouldRetryRemainingCandidates(bizErr)
+	retryAllRemainingCandidates := allowFallbackForError
 	// Community offers are an explicit consumer choice. Never turn an upstream
 	// failure into a silent switch to another offer, a package channel, or a
 	// personal key; the caller must see and change that choice deliberately.
@@ -115,7 +116,7 @@ func Relay(c *gin.Context) {
 	// A personal-first selection intentionally does not require a community
 	// entitlement up front. Once that private upstream fails, resolve the
 	// community side lazily and continue through its normal candidate set.
-	if retryable && personalRoutePolicy == dbmodel.PersonalRoutePolicyPersonalFirst &&
+	if retryable && allowFallbackForError && personalRoutePolicy == dbmodel.PersonalRoutePolicyPersonalFirst &&
 		dbmodel.IsPersonalProviderChannelID(channelId) && !isPinnedResponsesRequest(c) &&
 		isPersonalProviderTextRelay(c) {
 		fallbackGroup, fallbackSource, entitlementErr := dbmodel.ResolveUserEntitlementGroupForModel(ctx, userId, originalModel)
@@ -141,6 +142,9 @@ func Relay(c *gin.Context) {
 						monitor.Emit(communityChannel.Id, true)
 						return
 					}
+					if markClientAbortIfNeeded(c, bizErr) {
+						return
+					}
 					channelId = c.GetString(ctxkey.ChannelId)
 					lastFailedChannelId = channelId
 					channelName = c.GetString(ctxkey.ChannelName)
@@ -150,6 +154,9 @@ func Relay(c *gin.Context) {
 					}
 					appendFallbackFailureAttempt(c, retryCount+1, bizErr)
 					go processChannelRelayError(ctx, userId, group, channelId, channelName, originalModel, requestPath, *bizErr)
+					retryable = shouldRetry(c, bizErr)
+					allowFallbackForError = shouldRetryRemainingCandidates(bizErr)
+					retryAllRemainingCandidates = allowFallbackForError
 				}
 			}
 		}
@@ -169,6 +176,19 @@ func Relay(c *gin.Context) {
 			String("model", originalModel).
 			String("endpoint", requestPath).
 			String("reason", skipReason).
+			Build())
+		retryAllRemainingCandidates = false
+	} else if !allowFallbackForError {
+		logger.RelayWarnf(ctx, relaylogging.NewFields("RETRY").
+			String("decision", "skip").
+			Int("status", bizErr.StatusCode).
+			String("channel_id", channelId).
+			String("channel_name", channelName).
+			String("user_id", userId).
+			String("group", group).
+			String("model", originalModel).
+			String("endpoint", requestPath).
+			String("reason", "network_retry_disabled").
 			Build())
 		retryAllRemainingCandidates = false
 	}
@@ -242,12 +262,13 @@ func Relay(c *gin.Context) {
 		}
 		appendFallbackFailureAttempt(c, retryCount+1, bizErr)
 		go processChannelRelayError(ctx, userId, group, channelId, channelName, originalModel, requestPath, *bizErr)
+		retryAllRemainingCandidates = shouldRetry(c, bizErr) && shouldRetryRemainingCandidates(bizErr)
 	}
 	// Community-first is symmetric with the default personal-first policy:
 	// after all eligible community channels fail with a retryable upstream error,
 	// a stateless text request may use the user's own matching connection.
 	if bizErr != nil && personalRoutePolicy == dbmodel.PersonalRoutePolicyCommunityFirst &&
-		shouldRetry(c, bizErr) && !isPinnedResponsesRequest(c) &&
+		shouldRetry(c, bizErr) && shouldRetryRemainingCandidates(bizErr) && !isPinnedResponsesRequest(c) &&
 		isPersonalProviderTextRelay(c) {
 		personalChannels, personalErr := dbmodel.ListPersonalProviderChannelsForModel(userId, originalModel)
 		if personalErr == nil && len(personalChannels) > 0 {
@@ -414,6 +435,9 @@ func shouldRetry(c *gin.Context, bizErr *model.ErrorWithStatusCode) bool {
 	if bizErr == nil {
 		return false
 	}
+	if c != nil && c.Writer != nil && c.Writer.Written() {
+		return false
+	}
 	switch getEffectiveRelayMode(c) {
 	case relaymode.ImagesGenerations, relaymode.ImagesEdits:
 		return false
@@ -425,6 +449,9 @@ func shouldRetry(c *gin.Context, bizErr *model.ErrorWithStatusCode) bool {
 		return false
 	}
 	if controller.IsGroupDailyQuotaExceededError(bizErr) {
+		return false
+	}
+	if isContentPolicyRelayError(bizErr) {
 		return false
 	}
 	// User/token balance failures are local policy decisions and retrying them
@@ -449,7 +476,7 @@ func shouldRetry(c *gin.Context, bizErr *model.ErrorWithStatusCode) bool {
 	if statusCode/100 == 5 {
 		return true
 	}
-	if statusCode == http.StatusBadRequest {
+	if statusCode == http.StatusBadRequest || statusCode == http.StatusUnprocessableEntity {
 		return false
 	}
 	if statusCode/100 == 2 {
@@ -458,22 +485,51 @@ func shouldRetry(c *gin.Context, bizErr *model.ErrorWithStatusCode) bool {
 	return true
 }
 
-// Some channel-scoped failures must try another eligible channel even when
-// the operator has disabled general request retries. In particular, an
-// upstream account quota failure is not recoverable by repeating the same
-// channel, so leaving it in the candidate pool would keep returning the same
-// provider error to users.
-func shouldRetryRemainingCandidates(err *model.ErrorWithStatusCode) bool {
-	if config.RetryTimes > 0 {
-		return true
+func isContentPolicyRelayError(err *model.ErrorWithStatusCode) bool {
+	if err == nil {
+		return false
 	}
+	value := strings.ToLower(strings.Join([]string{
+		strings.TrimSpace(err.Type),
+		strings.TrimSpace(errorCodeString(err.Code)),
+		strings.TrimSpace(err.Message),
+	}, " "))
+	for _, marker := range []string{
+		"content_policy_violation",
+		"content_filter",
+		"content filtered",
+		"safety_violation",
+		"safety filter",
+		"blocked by safety",
+	} {
+		if strings.Contains(value, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// RetryTimes only controls candidate retries for explicit upstream transport
+// failures. A provider HTTP response is a candidate failure and may fail over
+// regardless of this setting.
+func shouldRetryRemainingCandidates(err *model.ErrorWithStatusCode) bool {
 	if err == nil {
 		return false
 	}
 	if isLocalQuotaRelayError(err) {
 		return false
 	}
-	return monitor.IsHardChannelFailure(&err.Error, err.StatusCode) || isUpstreamQuotaRelayError(err)
+	if isExplicitUpstreamTransportError(err) {
+		return config.RetryTimes > 0
+	}
+	return true
+}
+
+func isExplicitUpstreamTransportError(err *model.ErrorWithStatusCode) bool {
+	if err == nil {
+		return false
+	}
+	return isTransientUpstreamTransportErrorCode(errorCodeString(err.Code))
 }
 
 func markClientAbortIfNeeded(c *gin.Context, bizErr *model.ErrorWithStatusCode) bool {
@@ -621,7 +677,7 @@ func isTransientUpstreamRelayError(err *model.ErrorWithStatusCode) bool {
 
 func isTransientUpstreamTransportErrorCode(code string) bool {
 	switch strings.ToLower(strings.TrimSpace(code)) {
-	case "do_request_failed", "upstream_transport_goaway":
+	case "do_request_failed", "read_response_body_failed", "upstream_transport_goaway":
 		return true
 	default:
 		return false

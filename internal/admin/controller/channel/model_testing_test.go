@@ -388,7 +388,7 @@ func TestValidateChannelModelTestEndpointAgainstProviderPrefersSnapshotProviderM
 	}
 }
 
-func TestResolveChannelModelVerificationTargetsAllowsSameModelMultipleEndpoints(t *testing.T) {
+func TestCreateChannelModelTestTasksAllowsSameModelMultipleEndpoints(t *testing.T) {
 	previousDB := adminmodel.DB
 	t.Cleanup(func() {
 		adminmodel.DB = previousDB
@@ -489,6 +489,73 @@ func TestResolveChannelModelVerificationTargetsAllowsSameModelMultipleEndpoints(
 	}
 	if !endpoints[adminmodel.ChannelModelEndpointChat] || !endpoints[adminmodel.ChannelModelEndpointResponses] {
 		t.Fatalf("verification endpoints=%v, want chat and responses", endpoints)
+	}
+
+	tasks, createdCount, reusedCount, err := CreateChannelModelTestTasks(
+		"channel-1",
+		"admin",
+		"",
+		[]string{"gpt-5.4"},
+		[]channelModelTestTargetItem{
+			{
+				Model:    "gpt-5.4",
+				Endpoint: adminmodel.ChannelModelEndpointChat,
+			},
+			{
+				Model:    "gpt-5.4",
+				Endpoint: adminmodel.ChannelModelEndpointResponses,
+			},
+		},
+		"trace-1",
+		"",
+		"",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("CreateChannelModelTestTasks returned error: %v", err)
+	}
+	if createdCount != 2 || reusedCount != 0 || len(tasks) != 2 {
+		t.Fatalf("created=%d reused=%d len(tasks)=%d, want 2/0/2", createdCount, reusedCount, len(tasks))
+	}
+	queuedEndpoints := map[string]bool{}
+	for _, task := range tasks {
+		if task.Type != adminmodel.AsyncTaskTypeChannelModelTest {
+			t.Fatalf("task type=%q, want %q", task.Type, adminmodel.AsyncTaskTypeChannelModelTest)
+		}
+		if task.Status != adminmodel.AsyncTaskStatusPending {
+			t.Fatalf("task status=%q, want %q", task.Status, adminmodel.AsyncTaskStatusPending)
+		}
+		queuedEndpoints[task.Endpoint] = true
+	}
+	if !queuedEndpoints[adminmodel.ChannelModelEndpointChat] || !queuedEndpoints[adminmodel.ChannelModelEndpointResponses] {
+		t.Fatalf("queued task endpoints=%v, want chat and responses", queuedEndpoints)
+	}
+
+	reusedTasks, createdCount, reusedCount, err := CreateChannelModelTestTasks(
+		"channel-1",
+		"admin",
+		"",
+		[]string{"gpt-5.4"},
+		[]channelModelTestTargetItem{
+			{
+				Model:    "gpt-5.4",
+				Endpoint: adminmodel.ChannelModelEndpointChat,
+			},
+			{
+				Model:    "gpt-5.4",
+				Endpoint: adminmodel.ChannelModelEndpointResponses,
+			},
+		},
+		"trace-2",
+		"",
+		"",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("CreateChannelModelTestTasks reuse returned error: %v", err)
+	}
+	if createdCount != 0 || reusedCount != 2 || len(reusedTasks) != 2 {
+		t.Fatalf("reuse created=%d reused=%d len(tasks)=%d, want 0/2/2", createdCount, reusedCount, len(reusedTasks))
 	}
 }
 

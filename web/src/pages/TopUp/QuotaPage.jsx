@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API, showError } from '../../helpers';
 import { AppButton, AppSection, AppSkeleton, AppStatistic } from '../../router-ui';
-import useUrlState from '../../hooks/useUrlState';
-import ModelRankingSection from '../WorkspaceModels/ModelRankingSection';
 import QuotaCardItem from './QuotaCardItem';
 import SpendingCalendar from './SpendingCalendar';
 import RedeemCodePage from './RedeemCodePage';
@@ -25,18 +23,6 @@ const QuotaPage = () => {
   const [tokenTotal, setTokenTotal] = useState(null);
   const [loading, setLoading] = useState(false);
   const [redeemOpen, setRedeemOpen] = useState(false);
-  const [{ modelUsageKeyword, modelUsagePeriod }, patchModelUsageFilters] =
-    useUrlState({
-      modelUsageKeyword: { param: 'usage_q', default: '' },
-      modelUsagePeriod: {
-        param: 'usage_period',
-        default: 'last_7_days',
-        parse: (raw) =>
-          ['last_24_hours', 'last_7_days', 'last_30_days'].includes(raw)
-            ? raw
-            : 'last_7_days',
-      },
-    });
 
   const loadQuotaPage = useCallback(async () => {
     setLoading(true);
@@ -198,21 +184,6 @@ const QuotaPage = () => {
           {t('topup.quota_overview.hint')}
         </div>
       </AppSection>
-
-      <ModelRankingSection
-        className='router-quota-model-usage'
-        headingId='quota-model-usage-heading'
-        titleKey='topup.model_usage.title'
-        keyword={modelUsageKeyword}
-        scope='me'
-        period={modelUsagePeriod}
-        onKeywordChange={(value) =>
-          patchModelUsageFilters({ modelUsageKeyword: value })
-        }
-        onPeriodChange={(value) =>
-          patchModelUsageFilters({ modelUsagePeriod: value })
-        }
-      />
 
       <AppSection
         title={t('topup.quota_cards.active_title')}

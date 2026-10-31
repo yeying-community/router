@@ -9,6 +9,10 @@ import { useTranslation } from 'react-i18next';
 import UnitDropdown from './UnitDropdown';
 import useList, { sorterToSort, sortOrderForColumn } from '../hooks/useList';
 import { parseListPageSize, parsePageParam } from '../hooks/useUrlState';
+import {
+  buildQueryFilterSignature,
+  resolveListEffectPage,
+} from '../helpers/listState.mjs';
 
 import { LIST_PAGE_SIZE } from '../constants';
 import { exportCSV } from '../helpers/csv';
@@ -71,6 +75,21 @@ import {
   toUserFilterOption,
 } from './LogsTable.helpers';
 
+const COMMON_LOG_FILTER_QUERY_KEYS = [
+  'log_type',
+  'type',
+  'start_timestamp',
+  'end_timestamp',
+  'token_name',
+  'model_name',
+];
+const ADMIN_LOG_FILTER_QUERY_KEYS = [
+  ...COMMON_LOG_FILTER_QUERY_KEYS,
+  'channel',
+  'group_id',
+  'username',
+];
+
 const LogsTable = () => {
   const { t } = useTranslation();
   const location = useLocation();
@@ -100,9 +119,22 @@ const LogsTable = () => {
     items.push({ key: 'log', label: t('header.log'), active: true });
     return items;
   }, [isAdminScope, logSource, navigate, t]);
-  const initialSearchFilters = useMemo(
-    () => parseLogFiltersFromSearch(location.search, isAdminScope),
-    [isAdminScope, location.search]
+  // Keep URL-driven filter hydration separate from pagination/sort/navigation
+  // params. If this depended on the whole location.search, writing `page=2`
+  // would create fresh filter objects, rebuild fetchLogs, and reset page to 1.
+  const urlFilterSignature = useMemo(
+    () =>
+      buildQueryFilterSignature(
+        location.search,
+        isAdminScope
+          ? ADMIN_LOG_FILTER_QUERY_KEYS
+          : COMMON_LOG_FILTER_QUERY_KEYS,
+      ),
+    [isAdminScope, location.search],
+  );
+  const urlSearchFilters = useMemo(
+    () => parseLogFiltersFromSearch(urlFilterSignature, isAdminScope),
+    [isAdminScope, urlFilterSignature],
   );
   const initialPageSize = useMemo(() => {
     const raw = new URLSearchParams(location.search).get('page_size');
@@ -117,7 +149,7 @@ const LogsTable = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
-  const [logType, setLogType] = useState(initialSearchFilters.logType);
+  const [logType, setLogType] = useState(urlSearchFilters.logType);
   const [filterOptions, setFilterOptions] = useState({
     tokenNames: [],
     modelNames: [],
@@ -130,7 +162,7 @@ const LogsTable = () => {
   const [userFilterSearchLoading, setUserFilterSearchLoading] = useState(false);
   const [tokenFilterSearchLoading, setTokenFilterSearchLoading] = useState(false);
   const [modelFilterSearchLoading, setModelFilterSearchLoading] = useState(false);
-  const [inputs, setInputs] = useState(initialSearchFilters.inputs);
+  const [inputs, setInputs] = useState(urlSearchFilters.inputs);
   const {
     username,
     token_name,
@@ -141,7 +173,7 @@ const LogsTable = () => {
     group_id,
   } = inputs;
   const [activeFilterKeys, setActiveFilterKeys] = useState(
-    initialSearchFilters.activeFilterKeys
+    urlSearchFilters.activeFilterKeys
   );
   const [displayUnit, setDisplayUnit] = useState('USD');
   const [currencyIndex, setCurrencyIndex] = useState(() =>
@@ -234,6 +266,38 @@ const LogsTable = () => {
       channel,
       group_id,
       activeFilterKeys,
+    ],
+  );
+
+  // This key describes only the fields that alter the backend log query. It is
+  // deliberately independent from page, page size and sort, whose handlers
+  // already perform their own loads. Sorting the active keys makes the key
+  // insensitive to array identity/order and prevents reference-only reloads.
+  const logRequestFilterKey = useMemo(
+    () =>
+      JSON.stringify({
+        scope: isAdminScope ? 'admin' : 'workspace',
+        active: [...activeFilterKeys].sort(),
+        logType,
+        username,
+        token_name,
+        model_name,
+        start_timestamp,
+        end_timestamp,
+        channel,
+        group_id,
+      }),
+    [
+      activeFilterKeys,
+      channel,
+      end_timestamp,
+      group_id,
+      isAdminScope,
+      logType,
+      model_name,
+      start_timestamp,
+      token_name,
+      username,
     ],
   );
 
@@ -441,12 +505,12 @@ const LogsTable = () => {
   );
 
   useEffect(() => {
-    setInputs(initialSearchFilters.inputs);
-    setLogType(initialSearchFilters.logType);
-    setActiveFilterKeys(initialSearchFilters.activeFilterKeys);
-    // No explicit page reset: the filter change flows through `fetchLogs`, whose
-    // identity change triggers a reload to page 1.
-  }, [initialSearchFilters]);
+    setInputs(urlSearchFilters.inputs);
+    setLogType(urlSearchFilters.logType);
+    setActiveFilterKeys(urlSearchFilters.activeFilterKeys);
+    // The request-key effect below owns the page-1 reset. Page/sort-only URL
+    // changes leave urlFilterSignature unchanged, so they never enter here.
+  }, [urlSearchFilters]);
 
   const loadFilterOptions = useCallback(async (filterKey = '') => {
     const normalizedFilterKey = String(filterKey || '').trim();
@@ -855,17 +919,20 @@ const LogsTable = () => {
     }
   }, [cleanupTimestamp, refresh, t]);
 
-  // `loadLogs` (useList.load) is stable, so `fetchLogs` is the real trigger:
-  // its identity changes with the filter deps, reloading page 1 on filter change.
-  // On the very first run we restore the seeded page instead; later filter
-  // changes reset to page 1 as usual.
-  const didInitLogsRef = useRef(false);
+  // React StrictMode replays mount effects. A boolean "did mount" ref would
+  // misclassify that replay as a filter update and load page 1. Compare the
+  // semantic request key instead: equal means mount/replay, changed means a
+  // real filter/scope change.
+  const previousLogRequestFilterKeyRef = useRef(logRequestFilterKey);
   useEffect(() => {
-    const firstRun = !didInitLogsRef.current;
-    didInitLogsRef.current = true;
-    loadLogs(firstRun ? initialPage : 1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchLogs]);
+    const targetPage = resolveListEffectPage(
+      previousLogRequestFilterKeyRef.current,
+      logRequestFilterKey,
+      initialPage,
+    );
+    previousLogRequestFilterKeyRef.current = logRequestFilterKey;
+    loadLogs(targetPage);
+  }, [initialPage, loadLogs, logRequestFilterKey]);
 
   useEffect(() => {
     loadDisplayUnits().then();

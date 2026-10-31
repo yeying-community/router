@@ -28,6 +28,7 @@ import {
 } from '../helpers/render';
 import UnitDropdown from './UnitDropdown';
 import useUrlState, { parsePageParam, parseListPageSize } from '../hooks/useUrlState';
+import { resolveListEffectPage } from '../helpers/listState.mjs';
 import useBatchRowActions from '../hooks/useBatchRowActions';
 import {
   AppButton,
@@ -156,7 +157,6 @@ const RedemptionsTable = ({ sectionTabs = null, embedded = false }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const didInitListRef = useRef(false);
   const [activePage, setActivePage] = useState(initialListQuery.page);
   const [pageSize, setPageSize] = useState(initialListQuery.pageSize);
   const pageSizeRef = useRef(initialListQuery.pageSize);
@@ -179,7 +179,7 @@ const RedemptionsTable = ({ sectionTabs = null, embedded = false }) => {
     [patchQuery],
   );
   const [searching, setSearching] = useState(false);
-  const initializedSearchRef = useRef(false);
+  const previousSearchKeywordRef = useRef(searchKeyword);
   const [tableSorter, setTableSorter] = useState({
     columnKey: 'created_time',
     order: 'descend',
@@ -289,19 +289,30 @@ const RedemptionsTable = ({ sectionTabs = null, embedded = false }) => {
     })();
   };
 
+  const redemptionListRequestKey = String(statusFilter || 'all');
+  const previousRedemptionListRequestKeyRef = useRef(redemptionListRequestKey);
   useEffect(() => {
     setLoading(true);
-    // 首次挂载按 URL 复原页码;后续筛选变化才回到第 1 页。
-    const firstRun = !didInitListRef.current;
-    didInitListRef.current = true;
-    const startPage = firstRun ? initialListQuery.page : 1;
+    // Compare the request semantics instead of a didMount boolean. StrictMode
+    // replays mount effects, and that replay must keep the URL-restored page.
+    const startPage = resolveListEffectPage(
+      previousRedemptionListRequestKeyRef.current,
+      redemptionListRequestKey,
+      initialListQuery.page,
+    );
+    previousRedemptionListRequestKeyRef.current = redemptionListRequestKey;
     setActivePage(startPage);
     loadRedemptions(startPage, { status: statusFilter })
       .then()
       .catch((reason) => {
         showError(reason);
       });
-  }, [loadRedemptions, statusFilter, initialListQuery]);
+  }, [
+    initialListQuery,
+    loadRedemptions,
+    redemptionListRequestKey,
+    statusFilter,
+  ]);
 
   useEffect(() => {
     loadDisplayUnits().then();
@@ -373,11 +384,12 @@ const RedemptionsTable = ({ sectionTabs = null, embedded = false }) => {
   };
 
   useEffect(() => {
-    const firstRun = !initializedSearchRef.current;
-    initializedSearchRef.current = true;
-    if (firstRun && searchKeyword === '') {
+    const keywordChanged = previousSearchKeywordRef.current !== searchKeyword;
+    previousSearchKeywordRef.current = searchKeyword;
+    if (!keywordChanged && searchKeyword === '') {
       // Initial list load is owned by the filter effect; only auto-run search
-      // on mount when a keyword was restored from the URL.
+      // on mount when a keyword was restored from the URL. This remains true
+      // during StrictMode's deliberate mount replay.
       return undefined;
     }
     const timer = window.setTimeout(() => {

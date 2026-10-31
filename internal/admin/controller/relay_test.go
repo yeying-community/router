@@ -98,6 +98,67 @@ func TestShouldRetryRemainingCandidatesSkipsLocalQuotaWithoutGeneralRetries(t *t
 	}
 }
 
+func TestShouldRetryRemainingCandidatesUsesRetryTimesOnlyForTransportErrors(t *testing.T) {
+	originalRetryTimes := config.RetryTimes
+	config.RetryTimes = 0
+	t.Cleanup(func() { config.RetryTimes = originalRetryTimes })
+
+	for _, testCase := range []struct {
+		name string
+		err  *relaymodel.ErrorWithStatusCode
+		want bool
+	}{
+		{
+			name: "provider rate limit fails over without network retries",
+			err:  &relaymodel.ErrorWithStatusCode{StatusCode: http.StatusTooManyRequests},
+			want: true,
+		},
+		{
+			name: "provider server response fails over without network retries",
+			err:  &relaymodel.ErrorWithStatusCode{StatusCode: http.StatusBadGateway},
+			want: true,
+		},
+		{
+			name: "transport failure is disabled",
+			err: &relaymodel.ErrorWithStatusCode{
+				StatusCode: http.StatusInternalServerError,
+				Error:      relaymodel.Error{Code: "do_request_failed"},
+			},
+			want: false,
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := shouldRetryRemainingCandidates(testCase.err); got != testCase.want {
+				t.Fatalf("shouldRetryRemainingCandidates() = %t, want %t", got, testCase.want)
+			}
+		})
+	}
+
+	config.RetryTimes = 1
+	for _, code := range []string{"do_request_failed", "read_response_body_failed", "upstream_transport_goaway"} {
+		err := &relaymodel.ErrorWithStatusCode{
+			StatusCode: http.StatusInternalServerError,
+			Error:      relaymodel.Error{Code: code},
+		}
+		if !shouldRetryRemainingCandidates(err) {
+			t.Errorf("shouldRetryRemainingCandidates(%q) = false, want true", code)
+		}
+	}
+}
+
+func TestShouldRetrySkipsAfterResponseHasStarted(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	responseRecorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(responseRecorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	_, _ = c.Writer.Write([]byte("partial response"))
+
+	err := &relaymodel.ErrorWithStatusCode{StatusCode: http.StatusBadGateway}
+	if shouldRetry(c, err) {
+		t.Fatal("shouldRetry returned true after response output began")
+	}
+}
+
 func TestShouldRetrySkipsLocalUserBalance(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
@@ -107,6 +168,35 @@ func TestShouldRetrySkipsLocalUserBalance(t *testing.T) {
 	err.Error.Code = "insufficient_user_balance"
 	if shouldRetry(c, err) {
 		t.Fatal("local user balance failures must not retry another provider")
+	}
+}
+
+func TestShouldRetrySkipsUserInputAndContentPolicyResponses(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, testCase := range []struct {
+		name string
+		err  *relaymodel.ErrorWithStatusCode
+	}{
+		{
+			name: "unprocessable user input",
+			err:  &relaymodel.ErrorWithStatusCode{StatusCode: http.StatusUnprocessableEntity},
+		},
+		{
+			name: "content policy refusal",
+			err: &relaymodel.ErrorWithStatusCode{
+				StatusCode: http.StatusForbidden,
+				Error:      relaymodel.Error{Code: "content_policy_violation"},
+			},
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			responseRecorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(responseRecorder)
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+			if shouldRetry(c, testCase.err) {
+				t.Fatal("shouldRetry returned true for a user-input or content-policy error")
+			}
+		})
 	}
 }
 

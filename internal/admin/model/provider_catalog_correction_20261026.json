@@ -1,0 +1,169 @@
+[
+  {
+    "Provider": "minimax",
+    "OfficialURL": "https://platform.minimax.io/docs/guides/models",
+    "PricingURL": "https://platform.minimax.io/docs/pricing/overview",
+    "ModelDetails": [
+      {
+        "model": "MiniMax-M3.1-Flash",
+        "tags": ["text", "reasoning", "tool_calling"],
+        "status": "active",
+        "description": "MiniMax M3.1 Flash 是 MiniMax 的低延迟高性价比通用模型。",
+        "supported_endpoints": ["/v1/chat/completions"],
+        "input_price": 0.00015,
+        "output_price": 0.0006,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://platform.minimax.io/docs/pricing/overview",
+        "price_components": [
+          {
+            "component": "text_cache_read",
+            "input_price": 0.000015,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.minimax.io/docs/pricing/overview",
+            "sort_order": 910
+          }
+        ]
+      },
+      {
+        "model": "MiniMax-M3",
+        "tags": ["text", "reasoning", "tool_calling"],
+        "status": "active",
+        "description": "MiniMax M3 是 MiniMax 的长上下文通用模型；目录默认采用 Standard 服务层当前有效价格，Priority 服务层需在渠道价格中单独配置。",
+        "supported_endpoints": ["/v1/chat/completions"],
+        "input_price": 0.0003,
+        "output_price": 0.0012,
+        "price_unit": "per_1k_tokens",
+        "currency": "USD",
+        "source": "migration",
+        "source_url": "https://platform.minimax.io/docs/pricing/overview",
+        "price_components": [
+          {
+            "component": "text",
+            "condition": "prompt_tokens_lte=512000",
+            "input_price": 0.0003,
+            "output_price": 0.0012,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.minimax.io/docs/pricing/overview",
+            "sort_order": 10
+          },
+          {
+            "component": "text",
+            "condition": "prompt_tokens_gt=512000",
+            "input_price": 0.0006,
+            "output_price": 0.0024,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.minimax.io/docs/pricing/overview",
+            "sort_order": 20
+          },
+          {
+            "component": "text_cache_read",
+            "condition": "prompt_tokens_lte=512000",
+            "input_price": 0.00006,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.minimax.io/docs/pricing/overview",
+            "sort_order": 910
+          },
+          {
+            "component": "text_cache_read",
+            "condition": "prompt_tokens_gt=512000",
+            "input_price": 0.00012,
+            "price_unit": "per_1k_tokens",
+            "currency": "USD",
+            "source": "migration",
+            "source_url": "https://platform.minimax.io/docs/pricing/overview",
+            "sort_order": 920
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Provider": "zhipu",
+    "OfficialURL": "https://open.bigmodel.cn/dev/api",
+    "PricingURL": "https://open.bigmodel.cn/pricing",
+    "ModelDetails": [
+      {
+        "model": "glm-5.3",
+        "tags": ["text", "reasoning", "tool_calling"],
+        "status": "active",
+        "description": "GLM-5.3 是智谱的新一代旗舰文本模型，适合复杂编程和长程任务。",
+        "supported_endpoints": ["/v1/chat/completions", "/v1/messages"],
+        "input_price": 0.008,
+        "output_price": 0.028,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "source_url": "https://open.bigmodel.cn/pricing",
+        "price_components": [
+          {
+            "component": "text_cache_read",
+            "input_price": 0.002,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://open.bigmodel.cn/pricing",
+            "sort_order": 910
+          }
+        ]
+      },
+      {
+        "model": "glm-5.3-flash",
+        "tags": ["text", "reasoning", "tool_calling", "vision"],
+        "status": "active",
+        "description": "GLM-5.3 Flash 是智谱的原生多模态高性价比模型。",
+        "supported_endpoints": ["/v1/chat/completions", "/v1/messages"],
+        "input_price": 0.0008,
+        "output_price": 0.0028,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "source_url": "https://open.bigmodel.cn/pricing",
+        "price_components": [
+          {
+            "component": "text_cache_read",
+            "input_price": 0.00023,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://open.bigmodel.cn/pricing",
+            "sort_order": 910
+          }
+        ]
+      },
+      {
+        "model": "glm-5.3-flashx",
+        "tags": ["text", "reasoning", "tool_calling", "vision"],
+        "status": "active",
+        "description": "GLM-5.3 FlashX 是智谱的高速原生多模态模型。",
+        "supported_endpoints": ["/v1/chat/completions", "/v1/messages"],
+        "input_price": 0.002,
+        "output_price": 0.007,
+        "price_unit": "per_1k_tokens",
+        "currency": "CNY",
+        "source": "migration",
+        "source_url": "https://open.bigmodel.cn/pricing",
+        "price_components": [
+          {
+            "component": "text_cache_read",
+            "input_price": 0.00057,
+            "price_unit": "per_1k_tokens",
+            "currency": "CNY",
+            "source": "migration",
+            "source_url": "https://open.bigmodel.cn/pricing",
+            "sort_order": 910
+          }
+        ]
+      }
+    ]
+  }
+]

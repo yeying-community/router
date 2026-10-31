@@ -2705,7 +2705,7 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
             image_edit_data: imageEditTestData,
           }
         );
-        const { success, message } = res.data || {};
+        const { success, message, data, meta } = res.data || {};
         if (!success) {
           const errorMessage =
             message || t('channel.edit.model_tester.test_failed');
@@ -2713,11 +2713,17 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
           showError(errorMessage);
           return;
         }
-        const nextTests = await loadChannelTestsFromServer(targetChannelId);
-        setModelTestResults(normalizeModelTestResults(nextTests.items));
-        setModelTestedAt(Number(nextTests.lastTestedAt || 0) * 1000);
+        const nextTasks = normalizeAsyncTasks(data?.tasks);
+        setChannelTasks((prev) =>
+          normalizeAsyncTasks([...normalizeAsyncTasks(prev), ...nextTasks])
+        );
         setModelTestError('');
-        showSuccess(t('channel.edit.model_tester.test_success'));
+        showSuccess(
+          t('channel.edit.model_tester.task_created', {
+            count: Number(meta?.created || nextTasks.length || 0),
+            reused: Number(meta?.reused || 0),
+          })
+        );
       } catch (error) {
         const errorMessage =
           error?.message || t('channel.edit.model_tester.test_failed');
@@ -2744,7 +2750,6 @@ const ChannelForm = ({ mode = 'auto' } = {}) => {
       responsesTestMode,
       imageEditTestURL,
       imageEditTestData,
-      loadChannelTestsFromServer,
     ]
   );
 

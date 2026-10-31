@@ -91,13 +91,13 @@ func TestChannelModels(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	results, err := RunChannelModelVerifications(
-		c.Request.Context(),
+	tasks, createdCount, reusedCount, err := CreateChannelModelTestTasks(
 		channelID,
-		"manual_test",
+		c.GetString(ctxkey.Id),
 		strings.TrimSpace(req.TestModel),
 		req.TargetModels,
 		req.TargetConfigs,
+		c.GetString(helper.TraceIDKey),
 		req.AudioLanguage,
 		req.ImageEditURL,
 		req.ImageEditData,
@@ -107,11 +107,11 @@ func TestChannelModels(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	logChannelAdminInfo(c, "test_models", stringField("channel_id", channelID), intField("verified", len(results)))
+	logChannelAdminInfo(c, "test_models", stringField("channel_id", channelID), intField("created", createdCount), intField("reused", reusedCount))
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    gin.H{"items": results},
-		"meta":    gin.H{"channel_id": channelID, "verified": len(results)},
+		"data":    gin.H{"tasks": tasks},
+		"meta":    gin.H{"channel_id": channelID, "created": createdCount, "reused": reusedCount},
 	})
 }

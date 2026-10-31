@@ -386,12 +386,14 @@ const TokensTable = ({ admin = false, embedded = false, userId = '' } = {}) => {
 
   // React to status-filter changes: the filter is backend-side and applies to
   // the paged list, so we leave any active search, sync the URL, and reload.
-  const statusInitializedRef = useRef(false);
+  const previousStatusFilterRef = useRef(statusFilter);
   useEffect(() => {
-    if (!statusInitializedRef.current) {
-      statusInitializedRef.current = true;
+    if (previousStatusFilterRef.current === statusFilter) {
+      // React StrictMode replays mount effects. Equality means mount/replay,
+      // not a real filter change, so keep the URL-restored page intact.
       return;
     }
+    previousStatusFilterRef.current = statusFilter;
     const params = new URLSearchParams(location.search);
     const normalized = (statusFilter || 'all').toString();
     if (normalized === 'all') {

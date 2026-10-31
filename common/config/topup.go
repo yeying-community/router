@@ -69,7 +69,7 @@ func ResolvedTopUpAPIQueryURL() string {
 	if value := normalizeTopUpExternalPayURL(TopUpAPIQueryURL); value != "" {
 		return value
 	}
-	if EffectiveTopUpMode() != TopUpModeAPI {
+	if strings.TrimSpace(TopUpAPICreateURL) == "" && EffectiveTopUpMode() != TopUpModeAPI {
 		return ""
 	}
 	createURL := strings.TrimSpace(ResolvedTopUpAPICreateURL())

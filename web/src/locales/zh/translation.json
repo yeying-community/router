@@ -141,7 +141,7 @@
       "load_failed": "加载额度总览失败"
     },
     "model_usage": {
-      "title": "我的模型使用"
+      "title": "模型使用"
     },
     "quota_cards": {
       "active_title": "有效额度",
@@ -1546,7 +1546,7 @@
         "image_edit_uploaded": "已上传图片",
         "image_edit_file_failed": "读取图片失败",
         "single": "测试",
-        "task_created": "模型测试已完成。",
+        "task_created": "已提交 {{count}} 项模型测试，其中复用 {{reused}} 项正在执行的测试。",
         "group_count": "{{count}} 个模型",
         "group_type": "类型：{{type}}",
         "history_tasks": "历史测试",
@@ -4117,19 +4117,19 @@
         }
       },
       "retry": {
-        "title": "失败重试",
-        "description": "控制一次请求失败后是否继续尝试其他可用渠道。",
-        "description_title": "同次请求失败后的处理",
-        "description_effective": "启用后，只要错误允许重试、没有指定具体渠道，并且还有未尝试的候选渠道，系统就会继续依次尝试。",
-        "description_disabled": "关闭后首次失败会直接返回。启用时，同一次请求里已经失败过的渠道不会重复尝试，直到全部失败或其中一次成功。",
-        "limit": "重试策略",
-        "limit_placeholder": "请选择重试策略",
+        "title": "网络故障重试",
+        "description": "只控制明确上游传输故障后的候选重试；上游返回的额度、鉴权、限流、服务或能力错误按故障转移处理，不受此设置控制。",
+        "description_title": "上游传输故障处理",
+        "description_effective": "启用后，遇到明确的上游传输故障时，系统会继续尝试未失败的候选渠道。",
+        "description_disabled": "关闭后，上游传输故障不会触发候选重试；其他上游错误仍按候选故障转移规则处理。",
+        "limit": "网络重试策略",
+        "limit_placeholder": "请选择网络重试策略",
         "options": {
-          "disabled": "不重试",
-          "all_candidates": "重试所有候选渠道"
+          "disabled": "不重试网络故障",
+          "all_candidates": "尝试所有可用候选渠道"
         },
         "buttons": {
-          "save": "保存重试配置"
+          "save": "保存网络重试设置"
         }
       },
       "payment": {

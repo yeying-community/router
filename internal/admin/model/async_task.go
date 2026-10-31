@@ -214,9 +214,6 @@ func prepareAsyncTaskForCreate(task *AsyncTask) error {
 	if task.Type == "" {
 		return fmt.Errorf("任务类型不能为空")
 	}
-	if task.Type == AsyncTaskTypeChannelModelTest {
-		return fmt.Errorf("模型测试属于渠道验证，不创建异步任务")
-	}
 	if task.DedupeKey == "" {
 		return fmt.Errorf("任务去重键不能为空")
 	}
@@ -489,9 +486,6 @@ func RetryAsyncTaskWithDB(db *gorm.DB, taskID string) (AsyncTask, bool, error) {
 	}
 	if !IsAsyncTaskTerminalStatus(original.Status) {
 		return AsyncTask{}, false, fmt.Errorf("当前任务状态不允许重试")
-	}
-	if original.Type == AsyncTaskTypeChannelModelTest {
-		return AsyncTask{}, false, fmt.Errorf("模型测试属于渠道验证，不支持按任务重试")
 	}
 	nextTask := AsyncTask{
 		Type:      original.Type,

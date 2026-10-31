@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { API, showError, showInfo, showSuccess, timestamp2string } from '../../helpers';
@@ -8,7 +8,8 @@ import useList, {
   sorterToSort,
   sortOrderForColumn,
 } from '../../hooks/useList';
-import { parseListPageSize } from '../../hooks/useUrlState';
+import { parseListPageSize, parsePageParam } from '../../hooks/useUrlState';
+import { resolveListEffectPage } from '../../helpers/listState.mjs';
 import {
   TASK_LIST_COLUMN_WIDTHS,
   TASK_LIST_TABLE_MIN_WIDTH,
@@ -261,10 +262,27 @@ const Task = ({ pageKind: pageKindOverride = '', embedded = false }) => {
   const isSystemTaskPage = pageKind === TASK_PAGE_KIND_ADMIN_SYSTEM;
   const isAdminUserTaskPage = pageKind === TASK_PAGE_KIND_ADMIN_USER;
   const isUserTaskPage = !isSystemTaskPage;
+  // URL query values seed the list once. Later page/sort writes must not mutate
+  // the "initial" values used by the mount/replay loader below.
   const initialQuery = useMemo(
     () => new URLSearchParams(location.search),
-    [location.search],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
+  const initialTaskPage = parsePageParam(initialQuery.get('page'));
+  const initialTaskPageSize = initialQuery.get('page_size')
+    ? parseListPageSize(initialQuery.get('page_size'))
+    : PAGE_SIZE;
+  const initialTaskSort = (() => {
+    const field = (initialQuery.get('order_by') || '').trim();
+    if (field === '') {
+      return null;
+    }
+    return {
+      field,
+      order: (initialQuery.get('order') || '').trim() === 'asc' ? 'asc' : 'desc',
+    };
+  })();
   const [filters, setFilters] = useState(() => ({
     type: (initialQuery.get('type') || '').trim(),
     status: (initialQuery.get('status') || '').trim(),
@@ -354,6 +372,27 @@ const Task = ({ pageKind: pageKindOverride = '', embedded = false }) => {
       t,
     ],
   );
+  const taskRequestFilterKey = useMemo(
+    () =>
+      JSON.stringify({
+        endpoint,
+        active: [...activeFilterKeys].sort(),
+        type: filters.type,
+        status: filters.status,
+        channelID: filters.channel_id.trim(),
+        model: filters.model.trim(),
+        userKeyword: filters.user_keyword.trim(),
+      }),
+    [
+      activeFilterKeys,
+      endpoint,
+      filters.channel_id,
+      filters.model,
+      filters.status,
+      filters.type,
+      filters.user_keyword,
+    ],
+  );
 
   const {
     rows: items,
@@ -369,21 +408,9 @@ const Task = ({ pageKind: pageKindOverride = '', embedded = false }) => {
     setSort,
   } = useList({
     fetcher: fetchTasks,
-    pageSize: (() => {
-      const raw = initialQuery.get('page_size');
-      return raw ? parseListPageSize(raw) : PAGE_SIZE;
-    })(),
-    initialPage: (() => {
-      const parsed = Number(initialQuery.get('page') || 1);
-      return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
-    })(),
-    initialSort: (() => {
-      const field = (initialQuery.get('order_by') || '').trim();
-      if (field === '') {
-        return null;
-      }
-      return { field, order: (initialQuery.get('order') || '').trim() === 'asc' ? 'asc' : 'desc' };
-    })(),
+    pageSize: initialTaskPageSize,
+    initialPage: initialTaskPage,
+    initialSort: initialTaskSort,
   });
 
   const handleTableChange = useCallback(
@@ -569,12 +596,20 @@ const Task = ({ pageKind: pageKindOverride = '', embedded = false }) => {
     }
   }, [optionsEndpoint, t]);
 
-  // Reload page 1 whenever the request shape (filters / endpoint) changes.
-  // `loadTasks` (useList.load) is stable, so `fetchTasks` is the real trigger.
+  // Restore the URL page on mount (including StrictMode's mount replay), and
+  // reset only when the semantic task filters/endpoint actually change. Using
+  // `loadTasks(1)` unconditionally here made shared/detail-return page links
+  // snap back to the first page.
+  const previousTaskRequestFilterKeyRef = useRef(taskRequestFilterKey);
   useEffect(() => {
-    loadTasks(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchTasks]);
+    const targetPage = resolveListEffectPage(
+      previousTaskRequestFilterKeyRef.current,
+      taskRequestFilterKey,
+      initialTaskPage,
+    );
+    previousTaskRequestFilterKeyRef.current = taskRequestFilterKey;
+    loadTasks(targetPage);
+  }, [initialTaskPage, loadTasks, taskRequestFilterKey]);
 
   useEffect(() => {
     loadFilterOptions().then();
