@@ -70,28 +70,6 @@ Windows 使用任务计划程序托管控制台进程，并配置登录时启动
 - `ROUTER_LOG_DIR`：日志目录，默认项目目录下的 `logs/`。
 - `ROUTER_SERVICE_USER`：Linux systemd 运行用户，默认当前用户。
 
-### `scripts/deploy.sh`
-
-用于构建并部署当前代码到目标部署目录。
-
-```bash
-scripts/deploy.sh
-scripts/deploy.sh --skip-web
-```
-
-主要行为：
-
-- 默认先执行前端依赖安装和构建，再构建后端二进制。
-- 停止目标部署目录中的旧进程后替换 `build/router`。
-- 替换二进制前会备份旧二进制文件。
-- 部署完成后重新启动服务并校验 pid。
-
-常用环境变量：
-
-- `ROUTER_DEPLOY_DIR`：目标部署目录，默认 `/opt/deploy/router`。
-- `ROUTER_BUILD_WEB=0`：跳过前端构建。
-- `ROUTER_STARTUP_WAIT_SECONDS`：启动后等待秒数，默认 `3`。
-
 ## 打包与升级
 
 ### `scripts/package.sh`
@@ -107,7 +85,7 @@ scripts/package.sh v1.2.3
 
 - 不传 tag 时，拉取远端 `origin/main`，并基于当前最大语义化 tag 自动生成下一个 patch tag。
 - 传入 `v<major>.<minor>.<patch>` 时，基于指定 tag 打包。
-- 打包内容包括后端二进制、前端 `web/dist`、配置模板和必要脚本。
+- manifest 分别记录 `router` service 与 `router-web` static；两者可独立部署、升级和回滚。
 - 发布包输出到 `output/` 目录。
 
 常用环境变量：
