@@ -16,7 +16,6 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 
-	rootapp "github.com/yeying-community/router"
 	"github.com/yeying-community/router/common"
 	"github.com/yeying-community/router/common/client"
 	"github.com/yeying-community/router/common/config"
@@ -120,7 +119,7 @@ func Run() {
 	store := cookie.NewStore([]byte(config.CookieSecret))
 	server.Use(sessions.Sessions("session", store))
 
-	router.SetRouter(server, rootapp.BuildFS)
+	router.SetRouter(server)
 	var port = strconv.Itoa(*common.Port)
 	logger.SysLogf("server started on http://localhost:%s", port)
 

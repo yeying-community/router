@@ -9,11 +9,15 @@ build_dir="$PACKAGE_STAGE/build"
 mkdir -p "$build_dir"
 (cd "$PACKAGE_ROOT_DIR" && CGO_ENABLED="${CGO_ENABLED:-0}" GOOS="${GOOS:-linux}" GOARCH="${GOARCH:-amd64}" go build -trimpath -ldflags "-X github.com/yeying-community/router/common.Version=v${PACKAGE_VERSION}" -o "$build_dir/router" ./cmd/router)
 package_make_root router
-mkdir -p "$PACKAGE_DIR/build" "$PACKAGE_DIR/web"
+mkdir -p "$PACKAGE_DIR/build"
 install -m 0755 "$build_dir/router" "$PACKAGE_DIR/build/router"
-cp -R "$PACKAGE_ROOT_DIR/web/dist" "$PACKAGE_DIR/web/dist"
 for file in config.yaml.template .env.template; do [[ ! -f "$PACKAGE_ROOT_DIR/$file" ]] || cp "$PACKAGE_ROOT_DIR/$file" "$PACKAGE_DIR/"; done
 package_copy_scripts "$PACKAGE_DIR/scripts"
 package_strip_build_files "$PACKAGE_DIR"
-package_finish_artifact service-with-assets
+package_finish_artifact service
+
+package_make_root router-web
+PACKAGE_HEALTH_PATH=/index.html
+cp -R "$PACKAGE_ROOT_DIR/web/dist/." "$PACKAGE_DIR/"
+package_finish_artifact static
 package_finish

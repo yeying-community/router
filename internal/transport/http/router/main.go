@@ -1,7 +1,6 @@
 package router
 
 import (
-	"embed"
 	"fmt"
 	"net/http"
 	"strings"
@@ -14,12 +13,7 @@ import (
 	"github.com/yeying-community/router/internal/transport/http/middleware"
 )
 
-func SetRouter(engine *gin.Engine, buildFS embed.FS) {
-	indexPage, err := buildFS.ReadFile("web/dist/index.html")
-	if err != nil {
-		panic(err)
-	}
-
+func SetRouter(engine *gin.Engine) {
 	engine.Use(middleware.CORS())
 
 	SetApiRouter(engine)
@@ -36,7 +30,6 @@ func SetRouter(engine *gin.Engine, buildFS embed.FS) {
 		logger.SysLog("feature.frontend_base_url is ignored on master node")
 	}
 	if frontendBaseURL == "" {
-		SetWebRouter(engine, buildFS, indexPage)
 		return
 	}
 
