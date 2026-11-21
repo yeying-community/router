@@ -113,6 +113,9 @@ func Relay(c *gin.Context) {
 	}
 	retryCount := 0
 	retryable := shouldRetry(c, bizErr)
+	if retryAllRemainingCandidates && !retryable && prepareResponsesQuotaReplay(c, bizErr) {
+		retryable = shouldRetry(c, bizErr)
+	}
 	// A personal-first selection intentionally does not require a community
 	// entitlement up front. Once that private upstream fails, resolve the
 	// community side lazily and continue through its normal candidate set.

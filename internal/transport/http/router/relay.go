@@ -10,6 +10,9 @@ import (
 
 func SetRelayRouter(engine *gin.Engine) {
 	engine.Use(middleware.CORS())
+	// Negotiate the supported transport before body-based token distribution.
+	// This GET never relays inference; POST retains its normal authentication.
+	engine.GET("/v1/responses", controller.ResponsesHTTPTransport)
 
 	modelsRouter := engine.Group("/v1/models")
 	modelsRouter.Use(middleware.TokenAuth())
