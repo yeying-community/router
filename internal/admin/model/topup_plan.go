@@ -59,6 +59,13 @@ func (TopupPlanVisibleUser) TableName() string {
 	return TopupPlanVisibleUsersTableName
 }
 
+// PostgreSQL CHAR(36) pads the compact IDs returned by read queries.
+func (item *TopupPlan) AfterFind(*gorm.DB) error {
+	item.Id = strings.TrimRight(item.Id, " ")
+	item.GroupID = strings.TrimRight(item.GroupID, " ")
+	return nil
+}
+
 func (item *TopupPlan) EnsureID() {
 	if item == nil {
 		return

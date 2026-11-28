@@ -2397,6 +2397,13 @@ func runMainVersionedMigrations(db *gorm.DB) error {
 				return upsertProviderMigrationProvidersWithDB(tx, "openai", "anthropic", "qwen", "deepseek", "minimax", "xai", "deepgram")
 			},
 		},
+		{
+			Version:     "202611281200_channel_alert_states",
+			Description: "persist channel alert acknowledgement and resolution state",
+			Up: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&ChannelAlertState{})
+			},
+		},
 	}
 	return runVersionedMigrations(db, migrationScopeMain, migrations)
 }

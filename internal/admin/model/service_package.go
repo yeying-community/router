@@ -92,6 +92,13 @@ type ServicePackageVisibleUserSummary struct {
 	WalletAddress string `json:"wallet_address"`
 }
 
+// PostgreSQL CHAR(36) pads the compact IDs returned by read queries.
+func (item *ServicePackage) AfterFind(*gorm.DB) error {
+	item.Id = strings.TrimRight(item.Id, " ")
+	item.GroupID = strings.TrimRight(item.GroupID, " ")
+	return nil
+}
+
 func (item *ServicePackage) EnsureID() {
 	if item == nil {
 		return

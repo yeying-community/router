@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	GinMode = "release"
+	GinMode       = "release"
+	ListenAddress string
 
 	DisableOpenAICompat = false
 	FrontendBaseURL     = ""
@@ -52,6 +53,7 @@ type AppConfig struct {
 }
 
 type ServerConfig struct {
+	Address   string `yaml:"address"`
 	Port      int    `yaml:"port"`
 	GinMode   string `yaml:"gin_mode"`
 	LogDir    string `yaml:"log_dir"`
@@ -173,6 +175,7 @@ type RelayConfig struct {
 }
 
 type RateLimitConfig struct {
+	CriticalRateLimitDurationSeconds  int `yaml:"critical_rate_limit_duration_seconds"`
 	GlobalAPIRateLimit                int `yaml:"global_api_rate_limit"`
 	GlobalAPIRateLimitDurationSeconds int `yaml:"global_api_rate_limit_duration_seconds"`
 	GlobalWebRateLimit                int `yaml:"global_web_rate_limit"`
@@ -365,6 +368,7 @@ func ApplyAppConfig(cfg *AppConfig, portFlagSet bool, logDirFlagSet bool) error 
 		}
 	}
 
+	ListenAddress = strings.TrimSpace(cfg.Server.Address)
 	GinMode = normalizeGinMode(cfg.Server.GinMode)
 	if publicURL := strings.TrimSpace(cfg.Server.PublicURL); publicURL != "" {
 		config.ServerAddress = publicURL
@@ -525,6 +529,14 @@ func ApplyAppConfig(cfg *AppConfig, portFlagSet bool, logDirFlagSet bool) error 
 		config.TestPrompt = "Output only your specific model name with no additional text."
 	}
 
+	maxCriticalWindow := int(config.RateLimitKeyExpirationDuration / time.Second)
+	if cfg.RateLimit.CriticalRateLimitDurationSeconds < 0 || cfg.RateLimit.CriticalRateLimitDurationSeconds > maxCriticalWindow {
+		return fmt.Errorf("invalid rate_limit.critical_rate_limit_duration_seconds: must be between 0 and %d", maxCriticalWindow)
+	}
+	config.CriticalRateLimitDuration = 20 * 60
+	if cfg.RateLimit.CriticalRateLimitDurationSeconds > 0 {
+		config.CriticalRateLimitDuration = int64(cfg.RateLimit.CriticalRateLimitDurationSeconds)
+	}
 	if cfg.RateLimit.GlobalAPIRateLimit > 0 {
 		config.GlobalApiRateLimitNum = cfg.RateLimit.GlobalAPIRateLimit
 	} else {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -120,11 +121,11 @@ func Run() {
 	server.Use(sessions.Sessions("session", store))
 
 	router.SetRouter(server)
-	var port = strconv.Itoa(*common.Port)
-	logger.SysLogf("server started on http://localhost:%s", port)
+	address := net.JoinHostPort(common.ListenAddress, strconv.Itoa(*common.Port))
+	logger.SysLogf("starting HTTP listener on %s", address)
 
 	httpServer := &http.Server{
-		Addr:    ":" + port,
+		Addr:    address,
 		Handler: server,
 	}
 	serverErr := make(chan error, 1)
